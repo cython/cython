@@ -1586,7 +1586,7 @@ class DebugTransform(CythonTransform):
         self.visited = set()
         # our treebuilder and debug output writer 
         # (see Cython.Debugger.debug_output.CythonDebugWriter)
-        self.tb = self.context.debug_outputwriter
+        self.tb = self.context.gdb_debug_outputwriter
         #self.c_output_file = options.output_file 
         self.c_output_file = result.c_file
         
@@ -1626,7 +1626,7 @@ class DebugTransform(CythonTransform):
     
     def visit_FuncDefNode(self, node):
         self.visited.add(node.local_scope.qualified_name)
-        node.entry.visibility = 'extern'
+        # node.entry.visibility = 'extern'
         if node.py_func is None:
             pf_cname = ''
         else:

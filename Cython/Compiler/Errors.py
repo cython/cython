@@ -92,7 +92,7 @@ class CompilerCrash(CompileError):
         CompileError.__init__(self, pos, message)
 
 class NoElementTreeInstalledException(PyrexError):
-    """raised when the user enabled options.debug but no ElementTree 
+    """raised when the user enabled options.gdb_debug but no ElementTree 
     implementation was found
     """
 

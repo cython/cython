@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
 # NOTE: this file is taken from the Python source distribution
-# It can be found under Tools/gdb/libpython.py
+# It can be found under Tools/gdb/libpython.py. It is shipped with Cython
+# because it's not installed as a python module, and because changes are only
+# merged into new python versions (v3.2+).
 
 '''
 From gdb 7 onwards, gdb's build can be configured --with-python, allowing gdb

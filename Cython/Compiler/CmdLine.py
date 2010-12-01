@@ -28,7 +28,7 @@ Options:
                                  Level indicates aggressiveness, default 0 releases nothing. 
   -w, --working <directory>      Sets the working directory for Cython (the directory modules 
                                  are searched from)
-  --debug                        Output debug information for cygdb
+  --gdb                          Output debug information for cygdb
 
   -D, --no-docstrings            Remove docstrings.
   -a, --annotate                 Produce a colorized HTML version of the source.
@@ -115,8 +115,8 @@ def parse_command_line(args):
                 Options.convert_range = True
             elif option == "--line-directives":
                 options.emit_linenums = True
-            elif option == "--debug":
-                options.debug = True
+            elif option == "--gdb":
+                options.gdb_debug = True
                 options.output_dir = os.curdir
             elif option == '-2':
                 options.language_level = 2

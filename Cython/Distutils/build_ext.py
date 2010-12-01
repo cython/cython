@@ -43,8 +43,8 @@ class Optimization(object):
         
         for flag, option in zip(self.flags, self.state):
             if option is not None:
-                g = (opt for opt in option.split() if opt not in badoptions)
-                self.config_vars[flag] = ' '.join(g)
+                L = [opt for opt in option.split() if opt not in badoptions]
+                self.config_vars[flag] = ' '.join(L)
     
     def restore_state(self):
         "restore the original state"
@@ -55,6 +55,16 @@ class Optimization(object):
 
 optimization = Optimization()
 
+try:
+    any
+except NameError:
+    def any(it):
+        for x in it:
+            if x:
+                return True
+        
+        return False
+        
 
 class build_ext(_build_ext.build_ext):
 
@@ -81,13 +91,13 @@ class build_ext(_build_ext.build_ext):
             "generate .pxi file for public declarations"),
         ('pyrex-directives=', None,
             "compiler directive overrides"),
-        ('pyrex-debug', None,
+        ('pyrex-gdb', None,
          "generate debug information for cygdb"),
         ])
 
     boolean_options.extend([
         'pyrex-cplus', 'pyrex-create-listing', 'pyrex-line-directives', 
-        'pyrex-c-in-temp', 'pyrex-debug',
+        'pyrex-c-in-temp', 'pyrex-gdb',
     ])
 
     def initialize_options(self):
@@ -99,7 +109,7 @@ class build_ext(_build_ext.build_ext):
         self.pyrex_directives = None
         self.pyrex_c_in_temp = 0
         self.pyrex_gen_pxi = 0
-        self.pyrex_debug = False
+        self.pyrex_gdb = False
 
     def finalize_options (self):
         _build_ext.build_ext.finalize_options(self)
@@ -114,11 +124,11 @@ class build_ext(_build_ext.build_ext):
     
     def run(self):
         # We have one shot at this before build_ext initializes the compiler.
-        # If --pyrex-debug is in effect as a command line option or as option
+        # If --pyrex-gdb is in effect as a command line option or as option
         # of any Extension module, disable optimization for the C or C++
         # compiler.
-        if (self.pyrex_debug or any(getattr(ext, 'pyrex_debug', False) 
-                                        for ext in self.extensions)):
+        if (self.pyrex_gdb or any([getattr(ext, 'pyrex_gdb', False) 
+                                       for ext in self.extensions])):
             optimization.disable_optimization()
         
         _build_ext.build_ext.run(self)
@@ -178,7 +188,7 @@ class build_ext(_build_ext.build_ext):
         cplus = self.pyrex_cplus or getattr(extension, 'pyrex_cplus', 0) or \
                 (extension.language and extension.language.lower() == 'c++')
         pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
-        pyrex_debug = self.pyrex_debug or getattr(extension, 'pyrex_debug', False)
+        pyrex_gdb = self.pyrex_gdb or getattr(extension, 'pyrex_gdb', False)
         # Set up the include_path for the Cython compiler:
         #    1.    Start with the command line option.
         #    2.    Add in any (unique) paths from the extension
@@ -264,7 +274,7 @@ class build_ext(_build_ext.build_ext):
                     emit_linenums = line_directives,
                     generate_pxi = pyrex_gen_pxi,
                     output_dir = output_dir,
-                    debug = pyrex_debug)
+                    gdb_debug = pyrex_gdb)
                 result = cython_compile(source, options=options,
                                         full_module_name=module_name)
             else:

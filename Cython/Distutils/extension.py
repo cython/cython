@@ -31,7 +31,7 @@ class Extension(_Extension.Extension):
         put generated C files in temp directory.
     pyrex_gen_pxi : boolean
         generate .pxi file for public declarations
-    pyrex_debug : boolean
+    pyrex_gdb : boolean
         generate Cython debug information for this extension for cygdb
     """
 
@@ -58,7 +58,7 @@ class Extension(_Extension.Extension):
             pyrex_cplus = 0,
             pyrex_c_in_temp = 0,
             pyrex_gen_pxi = 0,
-            pyrex_debug = False,
+            pyrex_gdb = False,
             **kw):
 
         _Extension.Extension.__init__(self, name, sources,
@@ -84,7 +84,7 @@ class Extension(_Extension.Extension):
         self.pyrex_cplus = pyrex_cplus
         self.pyrex_c_in_temp = pyrex_c_in_temp
         self.pyrex_gen_pxi = pyrex_gen_pxi
-        self.pyrex_debug = pyrex_debug
+        self.pyrex_gdb = pyrex_gdb
 
 # class Extension
 

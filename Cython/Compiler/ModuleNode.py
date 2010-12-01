@@ -299,7 +299,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         
         f = open_new_file(result.c_file)
         rootwriter.copyto(f)
-        if options.debug:
+        if options.gdb_debug:
             self._serialize_lineno_map(env, rootwriter)
         f.close()
         result.c_file_generated = 1
@@ -308,7 +308,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             rootwriter.save_annotation(result.main_source_file, result.c_file)
     
     def _serialize_lineno_map(self, env, ccodewriter):
-        tb = env.context.debug_outputwriter
+        tb = env.context.gdb_debug_outputwriter
         markers = ccodewriter.buffer.allmarkers()
         
         d = {}

@@ -46,7 +46,7 @@ class DebuggerTestCase(unittest.TestCase):
         ext = Cython.Distutils.extension.Extension(
             'codefile',
             ['codefile.pyx'], 
-            pyrex_debug=True,
+            pyrex_gdb=True,
             extra_objects=['cfuncs.o'])
             
         distutils.core.setup(
