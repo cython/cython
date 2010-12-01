@@ -1,3 +1,10 @@
+
+import cython
+from cython import set
+cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
+               Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
+               UtilNodes=object, Naming=object)
+
 import Nodes
 import ExprNodes
 import PyrexTypes
@@ -17,14 +24,14 @@ from ParseTreeTransforms import SkipDeclarations
 import codecs
 
 try:
-    reduce
-except NameError:
+    from __builtin__ import reduce
+except ImportError:
     from functools import reduce
 
 try:
-    set
-except NameError:
-    from sets import Set as set
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str # Python 3
 
 class FakePythonEnv(object):
     "A fake environment for creating type test nodes etc."
@@ -749,7 +756,7 @@ class SwitchTransform(Visitor.VisitorTransform):
 
     def extract_in_string_conditions(self, string_literal):
         if isinstance(string_literal, ExprNodes.UnicodeNode):
-            charvals = map(ord, set(string_literal.value))
+            charvals = list(map(ord, set(string_literal.value)))
             charvals.sort()
             return [ ExprNodes.IntNode(string_literal.pos, value=str(charval),
                                        constant_result=charval)
@@ -1332,14 +1339,26 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         """
         if len(pos_args) not in (1,2):
             return node
-        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+        if not isinstance(pos_args[0], (ExprNodes.GeneratorExpressionNode,
+                                        ExprNodes.ComprehensionNode)):
             return node
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
 
-        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
-        if yield_expression is None:
-            return node
+        if isinstance(gen_expr_node, ExprNodes.GeneratorExpressionNode):
+            yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+            if yield_expression is None:
+                return node
+        else: # ComprehensionNode
+            yield_stat_node = gen_expr_node.append
+            yield_expression = yield_stat_node.expr
+            try:
+                if not yield_expression.is_literal or not yield_expression.type.is_int:
+                    return node
+            except AttributeError:
+                return node # in case we don't have a type yet
+            # special case: old Py2 backwards compatible "sum([int_const for ...])"
+            # can safely be unpacked into a genexpr
 
         if len(pos_args) == 1:
             start = ExprNodes.IntNode(node.pos, value='0', constant_result=0)
@@ -1368,7 +1387,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         return ExprNodes.InlinedGeneratorExpressionNode(
             gen_expr_node.pos, loop = exec_code, result_node = result_ref,
-            expr_scope = gen_expr_node.expr_scope, orig_func = 'sum')
+            expr_scope = gen_expr_node.expr_scope, orig_func = 'sum',
+            has_local_scope = gen_expr_node.has_local_scope)
 
     def _handle_simple_function_min(self, node, pos_args):
         return self._optimise_min_max(node, pos_args, '<')
@@ -1383,7 +1403,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             # leave this to Python
             return node
 
-        cascaded_nodes = map(UtilNodes.ResultRefNode, args[1:])
+        cascaded_nodes = list(map(UtilNodes.ResultRefNode, args[1:]))
 
         last_result = args[0]
         for arg_node in cascaded_nodes:
@@ -1827,7 +1847,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         # Note: this requires the float() function to be typed as
         # returning a C 'double'
         if len(pos_args) == 0:
-            return ExprNode.FloatNode(
+            return ExprNodes.FloatNode(
                 node, value="0.0", constant_result=0.0
                 ).coerce_to(Builtin.float_type, self.current_env())
         elif len(pos_args) != 1:
@@ -1860,8 +1880,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             self._error_wrong_arg_count('bool', node, pos_args, '0 or 1')
             return node
         else:
-            return pos_args[0].coerce_to_boolean(
-                self.current_env()).coerce_to_pyobject(self.current_env())
+            # => !!<bint>(x)  to make sure it's exactly 0 or 1
+            operand = pos_args[0].coerce_to_boolean(self.current_env())
+            operand = ExprNodes.NotNode(node.pos, operand = operand)
+            operand = ExprNodes.NotNode(node.pos, operand = operand)
+            # coerce back to Python object as that's the result we are expecting
+            return operand.coerce_to_pyobject(self.current_env())
 
     ### builtin functions
 
@@ -2931,7 +2955,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
         # check if all children are constant
         children = self.visitchildren(node)
-        for child_result in children.itervalues():
+        for child_result in children.values():
             if type(child_result) is list:
                 for child in child_result:
                     if getattr(child, 'constant_result', not_a_constant) is not_a_constant:
@@ -2966,12 +2990,23 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self._calculate_const(node)
         return node
 
-    def visit_UnaryMinusNode(self, node):
+    def visit_UnopNode(self, node):
         self._calculate_const(node)
         if node.constant_result is ExprNodes.not_a_constant:
             return node
         if not node.operand.is_literal:
             return node
+        if isinstance(node.operand, ExprNodes.BoolNode):
+            return ExprNodes.IntNode(node.pos, value = str(node.constant_result),
+                                     type = PyrexTypes.c_int_type,
+                                     constant_result = node.constant_result)
+        if node.operator == '+':
+            return self._handle_UnaryPlusNode(node)
+        elif node.operator == '-':
+            return self._handle_UnaryMinusNode(node)
+        return node
+
+    def _handle_UnaryMinusNode(self, node):
         if isinstance(node.operand, ExprNodes.LongNode):
             return ExprNodes.LongNode(node.pos, value = '-' + node.operand.value,
                                       constant_result = node.constant_result)
@@ -2988,10 +3023,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                                      constant_result = node.constant_result)
         return node
 
-    def visit_UnaryPlusNode(self, node):
-        self._calculate_const(node)
-        if node.constant_result is ExprNodes.not_a_constant:
-            return node
+    def _handle_UnaryPlusNode(self, node):
         if node.constant_result == node.operand.constant_result:
             return node.operand
         return node
@@ -3017,12 +3049,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return node
         if isinstance(node.constant_result, float):
             return node
-        if not node.operand1.is_literal or not node.operand2.is_literal:
+        operand1, operand2 = node.operand1, node.operand2
+        if not operand1.is_literal or not operand2.is_literal:
             return node
 
         # now inject a new constant node with the calculated value
         try:
-            type1, type2 = node.operand1.type, node.operand2.type
+            type1, type2 = operand1.type, operand2.type
             if type1 is None or type2 is None:
                 return node
         except AttributeError:
@@ -3032,14 +3065,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
         else:
             widest_type = PyrexTypes.py_object_type
-        target_class = self._widest_node_class(node.operand1, node.operand2)
+        target_class = self._widest_node_class(operand1, operand2)
         if target_class is None:
             return node
         elif target_class is ExprNodes.IntNode:
-            unsigned = getattr(node.operand1, 'unsigned', '') and \
-                       getattr(node.operand2, 'unsigned', '')
-            longness = "LL"[:max(len(getattr(node.operand1, 'longness', '')),
-                                 len(getattr(node.operand2, 'longness', '')))]
+            unsigned = getattr(operand1, 'unsigned', '') and \
+                       getattr(operand2, 'unsigned', '')
+            longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
+                                 len(getattr(operand2, 'longness', '')))]
             new_node = ExprNodes.IntNode(pos=node.pos,
                                          unsigned = unsigned, longness = longness,
                                          value = str(node.constant_result),
