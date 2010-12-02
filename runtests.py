@@ -624,6 +624,8 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
+include_debugger = sys.version_info[:2] > (2, 4)
+
 def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):
         return filename.startswith("Test") and filename.endswith(".py")
@@ -632,8 +634,12 @@ def collect_unittests(path, module_prefix, suite, selectors):
         return dirname == "Tests"
 
     loader = unittest.TestLoader()
-
-    skipped_dirs = []
+    
+    if include_debugger:
+        skipped_dirs = []
+    else:
+        cython_dir = os.path.dirname(os.path.abspath(__file__))
+        skipped_dirs = [os.path.join(cython_dir, 'Cython', 'Debugger')]
 
     for dirpath, dirnames, filenames in os.walk(path):
         if dirpath != path and "__init__.py" not in filenames:
@@ -658,12 +664,17 @@ def collect_unittests(path, module_prefix, suite, selectors):
                         module = getattr(module, x)
                     suite.addTests([loader.loadTestsFromModule(module)])
 
+
+
 def collect_doctests(path, module_prefix, suite, selectors):
     def package_matches(dirname):
+        if dirname == 'Debugger' and not include_debugger:
+            return False
         return dirname not in ("Mac", "Distutils", "Plex")
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
-        blacklist = ('libcython', 'libpython', 'test_libcython_in_gdb')
+        blacklist = ['libcython', 'libpython', 'test_libcython_in_gdb', 
+                     'TestLibCython']
         return (ext == '.py' and not
                 '~' in filename and not
                 '#' in filename and not
