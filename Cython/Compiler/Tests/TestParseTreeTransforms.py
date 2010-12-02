@@ -1,11 +1,10 @@
 import os
 
-from Cython.Debugger import DebugWriter
 from Cython.Compiler import CmdLine
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
 from Cython.Compiler.Nodes import *
-from Cython.Debugger.Tests import TestLibCython
+
 
 class TestNormalizeTree(TransformTest):
     def test_parserbehaviour_is_what_we_coded_for(self):
@@ -144,8 +143,15 @@ class TestWithTransform(object): # (TransformTest): # Disabled!
 
         """, t)
                           
-        
-class TestDebugTransform(TestLibCython.DebuggerTestCase):
+
+if sys.version_info[:2] > (2, 4):
+    from Cython.Debugger import DebugWriter
+    from Cython.Debugger.Tests.TestLibCython import DebuggerTestCase
+else:
+    # skip test, don't let it inherit unittest.TestCase
+    DebuggerTestCase = object
+
+class TestDebugTransform(DebuggerTestCase):
     
     def elem_hasattrs(self, elem, attrs):
         # we shall supporteth python 2.3 !
@@ -208,6 +214,9 @@ class TestDebugTransform(TestLibCython.DebuggerTestCase):
             print open(self.debug_dest).read()
             raise
             
+
+
+    
 
 if __name__ == "__main__":
     import unittest
