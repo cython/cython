@@ -3244,10 +3244,9 @@ class CClassDefNode(ClassDefNode):
             self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code):
-        self.generate_lambda_definitions(self.scope, code)
         if self.body:
-            self.body.generate_function_definitions(
-                self.entry.type.scope, code)
+            self.generate_lambda_definitions(self.scope, code)
+            self.body.generate_function_definitions(self.scope, code)
     
     def generate_execution_code(self, code):
         # This is needed to generate evaluation code for
