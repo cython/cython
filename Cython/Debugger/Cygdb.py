@@ -15,6 +15,7 @@ import os
 import sys
 import glob
 import tempfile
+import textwrap
 import subprocess
 
 usage = "Usage: cygdb [PATH [GDB_ARGUMENTS]]"
@@ -46,6 +47,17 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
         interpreter = open(path).read()
         f.write("file %s\n" % interpreter)
         f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
+        f.write(textwrap.dedent('''\
+            python
+            import sys
+            try:
+                gdb.lookup_type('PyModuleObject')
+            except RuntimeError:
+                sys.stderr.write(
+                    'Python was not compiled with debug symbols (or it was '
+                    'stripped). Some functionality may not work (properly).\\n')
+            end
+        '''))
     
     f.close()
     
