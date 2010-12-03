@@ -415,16 +415,13 @@ class BuiltinObjectType(PyObjectType):
 
     def type_check_function(self, exact=True):
         type_name = self.name
-        if type_name == 'bool':
-            return 'PyBool_Check'
-
         if type_name == 'str':
             type_check = 'PyString_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact:
+        if exact and type_name not in ('bool', 'slice'):
             type_check += 'Exact'
         return type_check
 
