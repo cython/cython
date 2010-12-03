@@ -373,16 +373,18 @@ class PyObjectType(PyrexType):
             return cname
 
 class BuiltinObjectType(PyObjectType):
+    #  objstruct_cname  string           Name of PyObject struct
 
     is_builtin_type = 1
     has_attributes = 1
     base_type = None
     module_name = '__builtin__'
 
-    def __init__(self, name, cname):
+    def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
         self.cname = cname
         self.typeptr_cname = "&" + cname
+        self.objstruct_cname = objstruct_cname
                                  
     def set_scope(self, scope):
         self.scope = scope
@@ -444,6 +446,11 @@ class BuiltinObjectType(PyObjectType):
             base_code = public_decl("PyObject", dll_linkage)
             entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
+
+    def cast_code(self, expr_code, to_object_struct = False):
+        return "((%s*)%s)" % (
+            to_object_struct and self.objstruct_cname or "PyObject", # self.objstruct_cname may be None
+            expr_code)
 
 
 class PyExtensionType(PyObjectType):

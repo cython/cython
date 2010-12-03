@@ -3466,7 +3466,7 @@ class AttributeNode(ExprNode):
         if obj_type.is_ptr or obj_type.is_array:
             obj_type = obj_type.base_type
             self.op = "->"
-        elif obj_type.is_extension_type:
+        elif obj_type.is_extension_type or obj_type.is_builtin_type:
             self.op = "->"
         else:
             self.op = "."
@@ -3558,6 +3558,9 @@ class AttributeNode(ExprNode):
         elif obj.type.is_complex:
             return "__Pyx_C%s(%s)" % (self.member.upper(), obj_code)
         else:
+            if obj.type.is_builtin_type and self.entry and self.entry.is_variable:
+                # accessing a field of a builtin type, need to cast better than result_as() does
+                obj_code = obj.type.cast_code(obj.result(), to_object_struct = True)
             return "%s%s%s" % (obj_code, self.op, self.member)
     
     def generate_result_code(self, code):

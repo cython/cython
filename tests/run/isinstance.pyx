@@ -18,7 +18,6 @@ def test_non_optimised():
     assert isinstance(A(), foo)
     assert isinstance(0, (int, long))
     assert not isinstance(u"xyz", (int, long))
-    assert isinstance(complex(), complex)  # FIXME: this should be optimised, too!
     return True
 
 @cython.test_assert_path_exists('//PythonCapiCallNode',
@@ -46,6 +45,7 @@ def test_optimised():
     assert isinstance(dict(), dict)
     assert isinstance(set(), set)
     assert isinstance(slice(0), slice)
+    assert isinstance(complex(), complex)
     assert not isinstance(u"foo", int)
     assert isinstance(A, type)
     return True
