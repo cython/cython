@@ -271,9 +271,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code = globalstate['all_the_rest']
 
         self.generate_cached_builtins_decls(env, code)
-        # generate lambda function definitions
-        for node in env.lambda_defs:
-            node.generate_function_definitions(env, code)
+        self.generate_lambda_definitions(env, code)
         # generate normal function definitions
         self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
