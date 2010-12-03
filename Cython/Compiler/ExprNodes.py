@@ -3451,7 +3451,9 @@ class AttributeNode(ExprNode):
             if not target:
                 self.is_temp = 1
                 self.result_ctype = py_object_type
-    
+        elif target and self.obj.type.is_builtin_type:
+            error(self.pos, "Assignment to an immutable object field")
+
     def analyse_attribute(self, env, obj_type = None):
         # Look up attribute and set self.type and self.member.
         self.is_py_attr = 0
