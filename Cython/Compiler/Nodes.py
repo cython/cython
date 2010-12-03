@@ -321,7 +321,10 @@ class BlockNode(object):
         for entry in entries:
             code.globalstate.add_cached_builtin_decl(entry)
         del entries[:]
-        
+
+    def generate_lambda_definitions(self, env, code):
+        for node in env.lambda_defs:
+            node.generate_function_definitions(env, code)
 
 class StatListNode(Node):
     # stats     a list of StatNode
@@ -1211,8 +1214,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Generate closure function definitions
         self.body.generate_function_definitions(lenv, code)
         # generate lambda function definitions
-        for node in lenv.lambda_defs:
-            node.generate_function_definitions(lenv, code)
+        self.generate_lambda_definitions(lenv, code)
 
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
@@ -3079,6 +3081,7 @@ class PyClassDefNode(ClassDefNode):
         self.target.analyse_target_expression(env, self.classobj)
     
     def generate_function_definitions(self, env, code):
+        self.generate_lambda_definitions(self.scope, code)
         self.body.generate_function_definitions(self.scope, code)
     
     def generate_execution_code(self, code):
@@ -3241,6 +3244,7 @@ class CClassDefNode(ClassDefNode):
             self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code):
+        self.generate_lambda_definitions(self.scope, code)
         if self.body:
             self.body.generate_function_definitions(
                 self.entry.type.scope, code)
