@@ -1913,7 +1913,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
                 name = s.systring
                 s.next()
             else:
-                name = 'int'
+                name = 'int'  # long [int], short [int], long [int] complex, etc.
         if s.sy == 'IDENT' and s.systring == 'complex':
             complex = 1
             s.next()
