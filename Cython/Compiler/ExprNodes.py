@@ -7074,12 +7074,17 @@ class CoerceToPyTypeNode(CoercionNode):
         if not arg.type.create_to_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert '%s' to Python object" % arg.type)
-        if type is not py_object_type:
-            self.type = py_object_type
-        elif arg.type.is_string:
-            self.type = bytes_type
-        elif arg.type is PyrexTypes.c_py_unicode_type:
-            self.type = unicode_type
+        if type is py_object_type:
+            # be specific about some known types
+            if arg.type.is_string:
+                self.type = bytes_type
+            elif arg.type is PyrexTypes.c_py_unicode_type:
+                self.type = unicode_type
+            elif arg.type.is_complex:
+                self.type = Builtin.complex_type
+        else:
+            # FIXME: check that the target type and the resulting type are compatible
+            pass
 
     gil_message = "Converting to Python object"
 
