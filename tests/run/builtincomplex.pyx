@@ -37,3 +37,10 @@ def complex_coercion():
     cdef double complex c_c = py_c
     cdef object py = c_c
     return (c_c.real, c_c.imag, py.real, py.imag)
+
+def complex_arg(complex c):
+    """
+    >>> complex_arg(1+2j)
+    (1.0, 2.0)
+    """
+    return (c.real, c.imag)
