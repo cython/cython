@@ -18,6 +18,10 @@ generate_cleanup_code = 0
 
 annotate = 0
 
+# This will abort the compilation on the first error occured rather than trying
+# to keep going and printing further error messages.
+fatal_errors = False
+
 # This will convert statements of the form "for i in range(...)" 
 # to "for i from ..." when i is a cdef'd integer type, and the direction
 # (i.e. sign of step) can be determined. 
