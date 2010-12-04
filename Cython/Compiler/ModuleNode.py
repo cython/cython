@@ -1996,7 +1996,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
-        if base_type and base_type.module_name != env.qualified_name:
+        if base_type and base_type.module_name != env.qualified_name \
+               and not base_type.is_builtin_type:
             self.generate_type_import_code(env, base_type, self.pos, code)
     
     def use_type_import_utility_code(self, env):

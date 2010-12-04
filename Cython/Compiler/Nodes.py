@@ -3192,7 +3192,9 @@ class CClassDefNode(ClassDefNode):
                 if base_class_entry:
                     if not base_class_entry.is_type:
                         error(self.pos, "'%s' is not a type name" % self.base_class_name)
-                    elif not base_class_entry.type.is_extension_type:
+                    elif not base_class_entry.type.is_extension_type and \
+                             not (base_class_entry.type.is_builtin_type and \
+                                  base_class_entry.type.objstruct_cname):
                         error(self.pos, "'%s' is not an extension type" % self.base_class_name)
                     elif not base_class_entry.type.is_complete():
                         error(self.pos, "Base class '%s' of type '%s' is incomplete" % (

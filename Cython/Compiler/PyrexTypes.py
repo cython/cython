@@ -380,10 +380,17 @@ class BuiltinObjectType(PyObjectType):
     base_type = None
     module_name = '__builtin__'
 
+    # fields that let it look like an extension type
+    vtabslot_cname = None
+    vtabstruct_cname = None
+    vtabptr_cname = None
+    typedef_flag = True
+    is_external = True
+
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
         self.cname = cname
-        self.typeptr_cname = "&" + cname
+        self.typeptr_cname = "(&%s)" % cname
         self.objstruct_cname = objstruct_cname
                                  
     def set_scope(self, scope):
