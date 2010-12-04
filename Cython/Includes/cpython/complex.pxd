@@ -1,6 +1,9 @@
 
 cdef extern from "Python.h":
-    ctypedef struct Py_complex
+
+    ctypedef struct Py_complex:
+        double imag
+        double real
 
     ############################################################################
     # 7.2.5.2 Complex Numbers as Python Objects
@@ -8,6 +11,12 @@ cdef extern from "Python.h":
 
     # PyComplexObject
     # This subtype of PyObject represents a Python complex number object. 
+
+    ctypedef class __builtin__.complex [object PyComplexObject]:
+        cdef Py_complex cval
+        # not making these available to keep them read-only:
+        #cdef double imag "cval.imag"
+        #cdef double real "cval.real"
 
     # PyTypeObject PyComplex_Type
     # This instance of PyTypeObject represents the Python complex
