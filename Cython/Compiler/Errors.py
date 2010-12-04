@@ -5,6 +5,7 @@
 import sys
 from Cython.Utils import open_new_file
 from DebugFlags import debug_exception_on_error
+import Options
 
 
 class PyrexError(Exception):
@@ -138,6 +139,8 @@ def report_error(err):
             except UnicodeEncodeError:
                 echo_file.write(line.encode('ASCII', 'replace'))
         num_errors = num_errors + 1
+        if Options.fatal_errors:
+            sys.exit(1)
 
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
