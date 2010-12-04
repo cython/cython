@@ -3203,6 +3203,10 @@ class CClassDefNode(ClassDefNode):
                              base_class_entry.type.scope.directives['final']:
                         error(self.pos, "Base class '%s' of type '%s' is final" % (
                             self.base_class_name, self.class_name))
+                    elif base_class_entry.type.is_builtin_type and \
+                             base_class_entry.type.name in ('tuple', 'str', 'bytes'):
+                        error(self.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
+                              % base_class_entry.type.name)
                     else:
                         self.base_type = base_class_entry.type
         has_body = self.body is not None
