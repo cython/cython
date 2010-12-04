@@ -105,7 +105,7 @@ class TreeVisitor(object):
                 code = frame.f_code
                 method_name = code.co_name
                 pos = (os.path.basename(code.co_filename),
-                       code.co_firstlineno)
+                       frame.f_lineno)
                 nodes.append((node, method_name, pos))
                 last_traceback = stacktrace
             stacktrace = stacktrace.tb_next
