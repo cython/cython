@@ -27,3 +27,13 @@ def complex_cstruct_assign():
     cval = &c.cval
     cval.real, cval.imag = 10, 20
     return (c.real, c.imag)
+
+def complex_coercion():
+    """
+    >>> complex_coercion()
+    (1.0, 2.0, 1.0, 2.0)
+    """
+    cdef complex py_c = 1+2j
+    cdef double complex c_c = py_c
+    cdef object py = c_c
+    return (c_c.real, c_c.imag, py.real, py.imag)
