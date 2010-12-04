@@ -786,6 +786,14 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 error(self.pos, "can only complexify c numeric types")
             type = PyrexTypes.CComplexType(type)
             type.create_declaration_utility_code(env)
+        elif type is Builtin.complex_type:
+            # Special case: optimise builtin complex type into C's
+            # double complex.  The parser cannot do this (as for the
+            # normal scalar types) as the user may have redeclared the
+            # 'complex' type.  Testing for the exact type here works.
+            type = PyrexTypes.c_double_complex_type
+            type.create_declaration_utility_code(env)
+            self.complex = True
         if type:
             return type
         else:
