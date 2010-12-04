@@ -114,7 +114,7 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
 
 
     if (PyDict_GetItemString(globals, "__builtins__") == NULL) {
-	PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins());
+        PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins());
     }
 
     if (PyCode_Check(o)) {
@@ -124,36 +124,36 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
             goto bad;
         }
         #if PY_VERSION_HEX < 0x030200A4
-	result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
+        result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
         #else
-	result = PyEval_EvalCode(o, globals, locals);
+        result = PyEval_EvalCode(o, globals, locals);
         #endif
     } else {
         PyCompilerFlags cf;
         cf.cf_flags = 0;
-	if (PyUnicode_Check(o)) {
+        if (PyUnicode_Check(o)) {
             cf.cf_flags = PyCF_SOURCE_IS_UTF8;
-    	    s = PyUnicode_AsUTF8String(o);
-    	    if (!s) goto bad;
-    	    o = s;
-	#if PY_MAJOR_VERSION >= 3
-	} else if (!PyBytes_Check(o)) {
-	#else
-	} else if (!PyString_Check(o)) {
-	#endif
-    	    PyErr_SetString(PyExc_TypeError,
-        	"exec: arg 1 must be string, bytes or code object");
-    	    goto bad;
-	}
-	#if PY_MAJOR_VERSION >= 3
-	code = PyBytes_AS_STRING(o);
-	#else
-	code = PyString_AS_STRING(o);
-	#endif
-	if (PyEval_MergeCompilerFlags(&cf)) {
-	    result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
+            s = PyUnicode_AsUTF8String(o);
+            if (!s) goto bad;
+            o = s;
+        #if PY_MAJOR_VERSION >= 3
+        } else if (!PyBytes_Check(o)) {
+        #else
+        } else if (!PyString_Check(o)) {
+        #endif
+            PyErr_SetString(PyExc_TypeError,
+                "exec: arg 1 must be string, bytes or code object");
+            goto bad;
+        }
+        #if PY_MAJOR_VERSION >= 3
+        code = PyBytes_AS_STRING(o);
+        #else
+        code = PyString_AS_STRING(o);
+        #endif
+        if (PyEval_MergeCompilerFlags(&cf)) {
+            result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
         } else {
-	    result = PyRun_String(code, Py_file_input, globals, locals);
+            result = PyRun_String(code, Py_file_input, globals, locals);
         }
         Py_XDECREF(s);
     }
