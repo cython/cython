@@ -1,0 +1,27 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; a.use_vector([1,2,3])"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## a.pyx ########
+
+# distutils: language = c++
+
+from libcpp.vector cimport vector
+
+def use_vector(L):
+    try:
+        v = new vector[int]()
+        for a in L:
+            v.push_back(a)
+        return v.size()
+    finally:
+        del v
