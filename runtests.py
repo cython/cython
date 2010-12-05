@@ -9,7 +9,6 @@ import shutil
 import unittest
 import doctest
 import operator
-import subprocess
 import tempfile
 import traceback
 try:
@@ -731,18 +730,25 @@ class EndToEndTest(unittest.TestCase):
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
-        old_path = os.environ.get('PYTHONPATH')
         try:
+            old_path = os.environ.get('PYTHONPATH')
             os.environ['PYTHONPATH'] = os.path.join(self.cython_syspath, (old_path or ''))
-            p = subprocess.Popen(commands,
-                                 stderr=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 shell=True)
-            res = p.wait()
-            if res != 0:
-                print p.stdout.read()
-                print p.stderr.read()
-            self.assertEqual(0, res)
+            for command in commands.split('\n'):
+                if sys.version_info[:2] >= (2,4):
+                    import subprocess
+                    p = subprocess.Popen(commands,
+                                         stderr=subprocess.PIPE,
+                                         stdout=subprocess.PIPE,
+                                         shell=True)
+                    out, err = p.communicate()
+                    res = p.returncode
+                    if res != 0:
+                        print command
+                        print out
+                        print err
+                else:
+                    res = os.system(command)
+                self.assertEqual(0, res, "non-zero exit status")
         finally:
             if old_path:
                 os.environ['PYTHONPATH'] = old_path
