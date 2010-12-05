@@ -14,10 +14,16 @@ Python. This page lists the things that work in Python but not in Cython.
 As Cython matures, the items in this list should go away. 
 
 
-Generators
------------
+Generators and generator expressions
+-------------------------------------
 
-Using the yield keywords. (work in progress) This relies on functional closures
+The yield keyword is not yet supported.  This is work in progress.
+
+Since Cython 0.13, some generator expressions are supported when they
+can be transformed into inlined loops in combination with builtins,
+e.g.  ``sum(x*2 for x in seq)``.  As of 0.14, the supported builtins
+are ``list()``, ``set()``, ``dict()``, ``sum()``, ``any()``,
+``all()``, ``sorted()``.
 
 
 Other Current Limitations
