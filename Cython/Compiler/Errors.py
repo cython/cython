@@ -140,7 +140,7 @@ def report_error(err):
                 echo_file.write(line.encode('ASCII', 'replace'))
         num_errors = num_errors + 1
         if Options.fatal_errors:
-            sys.exit(1)
+            raise InternalError, "abort"
 
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
