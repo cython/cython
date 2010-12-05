@@ -34,9 +34,11 @@ debug information using the ``--gdb`` flag::
 
     cython --gdb myfile.pyx
 
-.. note:: The debugger is new in the upcoming release of Cython, 0.13.1.
-          Currently, it can be cloned from github at
-          https://markflorisson88@github.com/markflorisson88/cython.
+.. note:: The debugger is not yet part of Cython, but can currently
+          be retrieved here:
+          https://github.com/markflorisson88/cython.
+          This is a branch of Cython and can as such be used standalone, or
+          pulled into the mainline Cython branch (https://github.com/cython/cython).
 
 Running the Debugger
 =====================
