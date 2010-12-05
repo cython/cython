@@ -564,7 +564,7 @@ def create_default_resultobj(compilation_source, options):
 
 def run_pipeline(source, options, full_module_name = None):
     # Set up context
-    context = optons.create_context()
+    context = options.create_context()
 
     # Set up source object
     cwd = os.getcwd()
