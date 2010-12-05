@@ -18,7 +18,7 @@ include Demos/Setup.py
 include Demos/Makefile*
 recursive-include Tools *
 recursive-include tests *.pyx *.pxd *.pxi *.py *.h *.BROKEN bugs.txt
-recursive-include tests *_lib.cpp
+recursive-include tests *_lib.cpp *.srctree
 include runtests.py
 
 include Cython/Mac/Makefile
