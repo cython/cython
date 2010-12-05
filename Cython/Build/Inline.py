@@ -50,12 +50,13 @@ def unbound_symbols(code, context=None):
         if not tree.scope.lookup(name) and not hasattr(__builtin__, name):
             unbound.append(name)
     return unbound
-        
 
 def get_type(arg, context=None):
     py_type = type(arg)
     if py_type in [list, tuple, dict, str]:
         return py_type.__name__
+    elif py_type is complex:
+        return 'double complex'
     elif py_type is float:
         return 'double'
     elif py_type is bool:
@@ -75,11 +76,10 @@ def get_type(arg, context=None):
                     return '%s.%s' % (base_type.__module__, base_type.__name__)
         return 'object'
 
-# TODO: use locals/globals for unbound variables
 def cython_inline(code, 
                   types='aggressive',
                   lib_dir=os.path.expanduser('~/.cython/inline'),
-                  include_dirs=['.'],
+                  cython_include_dirs=['.'],
                   locals=None,
                   globals=None,
                   **kwds):
@@ -108,9 +108,6 @@ def cython_inline(code,
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key)).hexdigest()
-#    # TODO: Does this cover all the platforms?
-#    if (not os.path.exists(os.path.join(lib_dir, module_name + ".so")) and 
-#        not os.path.exists(os.path.join(lib_dir, module_name + ".dll"))):
     try:
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
@@ -147,7 +144,7 @@ def __invoke(%(params)s):
             include_dirs = c_include_dirs)
         build_extension = build_ext(Distribution())
         build_extension.finalize_options()
-        build_extension.extensions = cythonize([extension])
+        build_extension.extensions = cythonize([extension], ctx=ctx)
         build_extension.build_temp = os.path.dirname(pyx_file)
         build_extension.build_lib  = lib_dir
         build_extension.run()
