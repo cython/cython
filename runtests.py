@@ -743,9 +743,9 @@ class EndToEndTest(unittest.TestCase):
                     out, err = p.communicate()
                     res = p.returncode
                     if res != 0:
-                        print command
-                        print out
-                        print err
+                        print(command)
+                        print(out)
+                        print(err)
                 else:
                     res = os.system(command)
                 self.assertEqual(0, res, "non-zero exit status")
