@@ -378,12 +378,11 @@ def create_dependency_tree(ctx=None):
     if _dep_tree is None:
         if ctx is None:
             from Cython.Compiler.Main import Context, CompilationOptions
-            ctx = Context(["."], CompilationOptions())
+            ctx = Context(["."], CompilationOptions(default_options))
         _dep_tree = DependencyTree(ctx)
     return _dep_tree
 
-# TODO: Take common options.
-# TODO: Symbolic names (e.g. for numpy.include_dirs()
+# TODO: This may be useful for advanced users.
 def create_extension_list(patterns, ctx=None, aliases=None):
     seen = set()
     deps = create_dependency_tree(ctx)
@@ -423,6 +422,7 @@ def create_extension_list(patterns, ctx=None, aliases=None):
                 seen.add(name)
     return module_list
 
+# This is the user-exposed entry point.
 def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
     module_list = create_extension_list(module_list, ctx=ctx, aliases=aliases)
     deps = create_dependency_tree(ctx)
@@ -456,21 +456,21 @@ def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
                 new_sources.append(source)
         m.sources = new_sources
     to_compile.sort()
-    # TODO: invoke directly
     if nthreads:
         # Requires multiprocessing (or Python >= 2.6)
         try:
             import multiprocessing
+            pool = multiprocessing.Pool(nthreads)
+            pool.map(cythonize_one_helper, to_compile)
         except ImportError:
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
-        pool = multiprocessing.Pool(nthreads)
-        pool.map(cythonize_one_helper, to_compile)
     if not nthreads:
         for priority, pyx_file, c_file in to_compile:
             cythonize_one(pyx_file, c_file)
     return module_list
 
+# TODO: Share context? Issue: pyx processing leaks into pxd module
 def cythonize_one(pyx_file, c_file, options=None):
     from Cython.Compiler.Main import compile, CompilationOptions, default_options
     from Cython.Compiler.Errors import CompileError, PyrexError
