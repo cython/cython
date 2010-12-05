@@ -36,7 +36,7 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     f.write(prefix_code)
     f.write('set breakpoint pending on\n')
     f.write("set print pretty on\n")
-    f.write('python from Cython.Debugger import libcython\n')
+    f.write('python from Cython.Debugger import libcython, libpython\n')
     
     if no_import:
         # don't do this, this overrides file command in .gdbinit

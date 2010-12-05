@@ -342,15 +342,27 @@ class CythonCompileTestCase(unittest.TestCase):
         else:
             return geterrors()
 
-    def run_cython(self, test_directory, module, targetdir, incdir, annotate):
+    def run_cython(self, test_directory, module, targetdir, incdir, annotate,
+                   extra_compile_options=None):
         include_dirs = INCLUDE_DIRS[:]
         if incdir:
             include_dirs.append(incdir)
         source = self.find_module_source_file(
             os.path.join(test_directory, module + '.pyx'))
         target = os.path.join(targetdir, self.build_target_filename(module))
+        
+        if extra_compile_options is None:
+            extra_compile_options = {}
+        
+        try:
+            CompilationOptions
+        except NameError:
+            from Cython.Compiler.Main import CompilationOptions
+            from Cython.Compiler.Main import compile as cython_compile
+            from Cython.Compiler.Main import default_options
+        
         options = CompilationOptions(
-            pyrex_default_options,
+            default_options,
             include_path = include_dirs,
             output_file = target,
             annotate = annotate,
@@ -359,11 +371,13 @@ class CythonCompileTestCase(unittest.TestCase):
             language_level = self.language_level,
             generate_pxi = False,
             evaluate_tree_assertions = True,
+            **extra_compile_options
             )
         cython_compile(source, options=options,
                        full_module_name=module)
 
-    def run_distutils(self, test_directory, module, workdir, incdir):
+    def run_distutils(self, test_directory, module, workdir, incdir, 
+                      extra_extension_args=None):
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
@@ -377,11 +391,16 @@ class CythonCompileTestCase(unittest.TestCase):
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
             self.copy_related_files(test_directory, workdir, module)
+            
+            if extra_extension_args is None:
+                extra_extension_args = {}
+            
             extension = Extension(
                 module,
                 sources = self.find_source_files(workdir, module),
                 include_dirs = ext_include_dirs,
                 extra_compile_args = CFLAGS,
+                **extra_extension_args
                 )
             if self.language == 'cpp':
                 extension.language = 'c++'

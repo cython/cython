@@ -5,6 +5,7 @@ import re
 import sys
 import uuid
 import shutil
+import warnings
 import textwrap
 import unittest
 import tempfile
@@ -13,6 +14,7 @@ import distutils.core
 from distutils import sysconfig
 from distutils import ccompiler
 
+import runtests
 import Cython.Distutils.extension
 from Cython.Debugger import Cygdb as cygdb
 
@@ -45,18 +47,48 @@ class DebuggerTestCase(unittest.TestCase):
         compiler = ccompiler.new_compiler()
         compiler.compile(['cfuncs.c'], debug=True)
         
-        ext = Cython.Distutils.extension.Extension(
-            'codefile',
-            ['codefile.pyx'], 
-            pyrex_gdb=True,
-            extra_objects=['cfuncs.o'])
-            
-        distutils.core.setup(
-            script_args=['build_ext', '--inplace'],
-            ext_modules=[ext],
-            cmdclass=dict(build_ext=Cython.Distutils.build_ext)
+        opts = dict(
+            test_directory=self.tempdir,
+            module='codefile',
         )
-    
+        
+        cython_compile_testcase = runtests.CythonCompileTestCase(
+            workdir=self.tempdir,
+            # we clean up everything (not only compiled files)
+            cleanup_workdir=False,
+            **opts
+        )
+        
+        cython_compile_testcase.run_cython(
+            targetdir=self.tempdir,
+            incdir=None,
+            annotate=False,
+            extra_compile_options={
+                'gdb_debug':True,
+                'output_dir':self.tempdir,
+            },
+            **opts
+        )
+        
+        cython_compile_testcase.run_distutils(
+            incdir=None,
+            workdir=self.tempdir,
+            extra_extension_args={'extra_objects':['cfuncs.o']},
+            **opts
+        )
+        
+        # ext = Cython.Distutils.extension.Extension(
+            # 'codefile',
+            # ['codefile.pyx'], 
+            # pyrex_gdb=True,
+            # extra_objects=['cfuncs.o'])
+        # 
+        # distutils.core.setup(
+            # script_args=['build_ext', '--inplace'],
+            # ext_modules=[ext],
+            # cmdclass=dict(build_ext=Cython.Distutils.build_ext)
+        # )
+        
     def tearDown(self):
         os.chdir(self.cwd)
         shutil.rmtree(self.tempdir)
@@ -109,23 +141,47 @@ class GdbDebuggerTestCase(DebuggerTestCase):
         paths.append(os.path.dirname(os.path.dirname(
             os.path.abspath(Cython.__file__))))
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(paths))
+        
+        try:
+            p = subprocess.Popen(['gdb', '-v'], stdout=subprocess.PIPE)
+            have_gdb = True
+        except OSError:
+            # gdb was not installed
+            have_gdb = False
+        else:
+            gdb_version = p.stdout.read()
+            p.wait()
+            p.stdout.close()
+        
+        if have_gdb:
+            # Based on Lib/test/test_gdb.py
+            regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
+            gdb_version_number = re.search(regex, gdb_version).groups()
 
-        self.p = subprocess.Popen(
-            args,
-            stdout=open(os.devnull, 'w'),
-            stderr=subprocess.PIPE,
-            env=env)
+        if not have_gdb or map(int, gdb_version_number) < [7, 2]:
+            self.p = None
+            warnings.warn('Skipping gdb tests, need gdb >= 7.2')
+        else:
+            self.p = subprocess.Popen(
+                args,
+                stdout=open(os.devnull, 'w'),
+                stderr=subprocess.PIPE,
+                env=env)
         
     def tearDown(self):
         super(GdbDebuggerTestCase, self).tearDown()
-        self.p.stderr.close()
-        self.p.wait()
+        if self.p:
+            self.p.stderr.close()
+            self.p.wait()
         os.remove(self.gdb_command_file)
         
    
 class TestAll(GdbDebuggerTestCase):
     
     def test_all(self):
+        if self.p is None:
+            return
+            
         out, err = self.p.communicate()
         border = '*' * 30
         start = '%s   v INSIDE GDB v   %s' % (border, border)

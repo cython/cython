@@ -59,9 +59,13 @@ import itertools
 
 import gdb
 
-# I think this is the only way to fix this bug :'(
-# http://sourceware.org/bugzilla/show_bug.cgi?id=12285
-reload(sys).setdefaultencoding('UTF-8')
+if sys.version_info[0] < 3:
+    # I think this is the only way to fix this bug :'(
+    # http://sourceware.org/bugzilla/show_bug.cgi?id=12285
+    out, err = sys.stdout, sys.stderr
+    reload(sys).setdefaultencoding('UTF-8')
+    sys.stdout = out
+    sys.stderr = err
 
 # Look up the gdb.Type for some standard types:
 _type_char_ptr = gdb.lookup_type('char').pointer() # char*
