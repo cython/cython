@@ -265,9 +265,15 @@ class DependencyTree(object):
         cimports = set(cimports)
         externs = set(externs)
         for include in includes:
-            a, b = self.cimports_and_externs(os.path.join(os.path.dirname(filename), include))
-            cimports.update(a)
-            externs.update(b)
+            include_path = os.path.join(os.path.dirname(filename), include)
+            if not os.path.exists(include_path):
+                include_path = self.context.find_include_file(include)
+            if include_path:
+                a, b = self.cimports_and_externs(include_path)
+                cimports.update(a)
+                externs.update(b)
+            else:
+                print "Unable to locate '%s' referenced from '%s'" % (filename, include)
         return tuple(cimports), tuple(externs)
     cimports_and_externs = cached_method(cimports_and_externs)
     
