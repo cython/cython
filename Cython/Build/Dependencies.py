@@ -10,6 +10,7 @@ except NameError:
 from distutils.extension import Extension
 
 from Cython import Utils
+from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
 # Unfortunately, Python 2.3 doesn't support decorators.
 def cached_method(f):
@@ -160,23 +161,8 @@ def strip_string_literals(code, prefix='__Pyx_L'):
         q = min(single_q, double_q)
         if q == -1: q = max(single_q, double_q)
         
-        # Process comment.
-        if -1 < hash_mark and (hash_mark < q or q == -1):
-            end = code.find('\n', hash_mark)
-            if end == -1:
-                end = None
-            new_code.append(code[start:hash_mark+1])
-            counter += 1
-            label = "%s%s" % (prefix, counter)
-            literals[label] = code[hash_mark+1:end]
-            new_code.append(label)
-            if end is None:
-                break
-            q = end
-            start = q
-
         # We're done.
-        elif q == -1:
+        if q == -1 and hash_mark == -1:
             new_code.append(code[start:])
             break
 
@@ -199,6 +185,21 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 start = q
             else:
                 q += 1
+        
+        # Process comment.
+        elif -1 != hash_mark and (hash_mark < q or q == -1):
+            end = code.find('\n', hash_mark)
+            if end == -1:
+                end = None
+            new_code.append(code[start:hash_mark+1])
+            counter += 1
+            label = "%s%s" % (prefix, counter)
+            literals[label] = code[hash_mark+1:end]
+            new_code.append(label)
+            if end is None:
+                break
+            q = end
+            start = q
 
         # Open the quote.
         else:
@@ -264,9 +265,15 @@ class DependencyTree(object):
         cimports = set(cimports)
         externs = set(externs)
         for include in includes:
-            a, b = self.cimports_and_externs(os.path.join(os.path.dirname(filename), include))
-            cimports.update(a)
-            externs.update(b)
+            include_path = os.path.join(os.path.dirname(filename), include)
+            if not os.path.exists(include_path):
+                include_path = self.context.find_include_file(include, None)
+            if include_path:
+                a, b = self.cimports_and_externs(include_path)
+                cimports.update(a)
+                externs.update(b)
+            else:
+                print "Unable to locate '%s' referenced from '%s'" % (filename, include)
         return tuple(cimports), tuple(externs)
     cimports_and_externs = cached_method(cimports_and_externs)
     
@@ -377,13 +384,11 @@ def create_dependency_tree(ctx=None):
     global _dep_tree
     if _dep_tree is None:
         if ctx is None:
-            from Cython.Compiler.Main import Context, CompilationOptions
-            ctx = Context(["."], CompilationOptions())
+            ctx = Context(["."], CompilationOptions(default_options))
         _dep_tree = DependencyTree(ctx)
     return _dep_tree
 
-# TODO: Take common options.
-# TODO: Symbolic names (e.g. for numpy.include_dirs()
+# This may be useful for advanced users?
 def create_extension_list(patterns, ctx=None, aliases=None):
     seen = set()
     deps = create_dependency_tree(ctx)
@@ -423,7 +428,11 @@ def create_extension_list(patterns, ctx=None, aliases=None):
                 seen.add(name)
     return module_list
 
-def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
+# This is the user-exposed entry point.
+def cythonize(module_list, nthreads=0, aliases=None, **options):    
+    c_options = CompilationOptions(**options)
+    cpp_options = CompilationOptions(**options); cpp_options.cplus = True
+    ctx = c_options.create_context()
     module_list = create_extension_list(module_list, ctx=ctx, aliases=aliases)
     deps = create_dependency_tree(ctx)
     to_compile = []
@@ -434,8 +443,10 @@ def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
             if ext in ('.pyx', '.py'):
                 if m.language == 'c++':
                     c_file = base + '.cpp'
+                    options = cpp_options
                 else:
                     c_file = base + '.c'
+                    options = c_options
                 if os.path.exists(c_file):
                     c_timestamp = os.path.getmtime(c_file)
                 else:
@@ -450,29 +461,29 @@ def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
                     priority = 2 - (dep in deps.immediate_dependencies(source))
                 if c_timestamp < dep_timestamp:
                     print("Compiling %s because it depends on %s" % (source, dep))
-                    to_compile.append((priority, source, c_file))
+                    to_compile.append((priority, source, c_file, options))
                 new_sources.append(c_file)
             else:
                 new_sources.append(source)
         m.sources = new_sources
     to_compile.sort()
-    # TODO: invoke directly
     if nthreads:
         # Requires multiprocessing (or Python >= 2.6)
         try:
             import multiprocessing
+            pool = multiprocessing.Pool(nthreads)
+            pool.map(cythonize_one_helper, to_compile)
         except ImportError:
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
-        pool = multiprocessing.Pool(nthreads)
-        pool.map(cythonize_one_helper, to_compile)
     if not nthreads:
-        for priority, pyx_file, c_file in to_compile:
-            cythonize_one(pyx_file, c_file)
+        for priority, pyx_file, c_file, options in to_compile:
+            cythonize_one(pyx_file, c_file, options)
     return module_list
 
+# TODO: Share context? Issue: pyx processing leaks into pxd module
 def cythonize_one(pyx_file, c_file, options=None):
-    from Cython.Compiler.Main import compile, CompilationOptions, default_options
+    from Cython.Compiler.Main import compile, default_options
     from Cython.Compiler.Errors import CompileError, PyrexError
 
     if options is None:

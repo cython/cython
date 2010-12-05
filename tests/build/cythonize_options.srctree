@@ -1,0 +1,29 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx", include_path=['subdir'], compiler_directives={'cdivision': True}),
+)
+
+######## a.pyx ########
+
+cimport x
+include "y.pxi"
+
+# cdivision from setup.py
+def mod_int_c(int a, int b):
+    return a % b
+
+assert mod_int_c(-1, 10) < 0
+
+
+######## subdir/x.pxd ########
+
+######## subdir/y.pxi ########
+

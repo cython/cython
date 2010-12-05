@@ -321,7 +321,10 @@ class BlockNode(object):
         for entry in entries:
             code.globalstate.add_cached_builtin_decl(entry)
         del entries[:]
-        
+
+    def generate_lambda_definitions(self, env, code):
+        for node in env.lambda_defs:
+            node.generate_function_definitions(env, code)
 
 class StatListNode(Node):
     # stats     a list of StatNode
@@ -783,6 +786,14 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 error(self.pos, "can only complexify c numeric types")
             type = PyrexTypes.CComplexType(type)
             type.create_declaration_utility_code(env)
+        elif type is Builtin.complex_type:
+            # Special case: optimise builtin complex type into C's
+            # double complex.  The parser cannot do this (as for the
+            # normal scalar types) as the user may have redeclared the
+            # 'complex' type.  Testing for the exact type here works.
+            type = PyrexTypes.c_double_complex_type
+            type.create_declaration_utility_code(env)
+            self.complex = True
         if type:
             return type
         else:
@@ -1211,8 +1222,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Generate closure function definitions
         self.body.generate_function_definitions(lenv, code)
         # generate lambda function definitions
-        for node in lenv.lambda_defs:
-            node.generate_function_definitions(lenv, code)
+        self.generate_lambda_definitions(lenv, code)
 
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
@@ -3079,6 +3089,7 @@ class PyClassDefNode(ClassDefNode):
         self.target.analyse_target_expression(env, self.classobj)
     
     def generate_function_definitions(self, env, code):
+        self.generate_lambda_definitions(self.scope, code)
         self.body.generate_function_definitions(self.scope, code)
     
     def generate_execution_code(self, code):
@@ -3181,7 +3192,9 @@ class CClassDefNode(ClassDefNode):
                 if base_class_entry:
                     if not base_class_entry.is_type:
                         error(self.pos, "'%s' is not a type name" % self.base_class_name)
-                    elif not base_class_entry.type.is_extension_type:
+                    elif not base_class_entry.type.is_extension_type and \
+                             not (base_class_entry.type.is_builtin_type and \
+                                  base_class_entry.type.objstruct_cname):
                         error(self.pos, "'%s' is not an extension type" % self.base_class_name)
                     elif not base_class_entry.type.is_complete():
                         error(self.pos, "Base class '%s' of type '%s' is incomplete" % (
@@ -3190,6 +3203,10 @@ class CClassDefNode(ClassDefNode):
                              base_class_entry.type.scope.directives['final']:
                         error(self.pos, "Base class '%s' of type '%s' is final" % (
                             self.base_class_name, self.class_name))
+                    elif base_class_entry.type.is_builtin_type and \
+                             base_class_entry.type.name in ('tuple', 'str', 'bytes'):
+                        error(self.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
+                              % base_class_entry.type.name)
                     else:
                         self.base_type = base_class_entry.type
         has_body = self.body is not None
@@ -3242,8 +3259,8 @@ class CClassDefNode(ClassDefNode):
     
     def generate_function_definitions(self, env, code):
         if self.body:
-            self.body.generate_function_definitions(
-                self.entry.type.scope, code)
+            self.generate_lambda_definitions(self.scope, code)
+            self.body.generate_function_definitions(self.scope, code)
     
     def generate_execution_code(self, code):
         # This is needed to generate evaluation code for
