@@ -424,8 +424,8 @@ def create_extension_list(patterns, ctx=None, aliases=None):
 
 # This is the user-exposed entry point.
 def cythonize(module_list, nthreads=0, aliases=None, **options):    
-    c_options = CompilationOptions(options)
-    cpp_options = CompilationOptions(options); cpp_options.cplus = True
+    c_options = CompilationOptions(**options)
+    cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
     module_list = create_extension_list(module_list, ctx=ctx, aliases=aliases)
     deps = create_dependency_tree(ctx)
