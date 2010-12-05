@@ -114,7 +114,7 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
 
 
     if (PyDict_GetItemString(globals, "__builtins__") == NULL) {
-	PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins());
+        PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins());
     }
 
     if (PyCode_Check(o)) {
@@ -123,33 +123,37 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
                 "code object passed to exec() may not contain free variables");
             goto bad;
         }
-	result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
+        #if PY_VERSION_HEX < 0x030200A4
+        result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
+        #else
+        result = PyEval_EvalCode(o, globals, locals);
+        #endif
     } else {
         PyCompilerFlags cf;
         cf.cf_flags = 0;
-	if (PyUnicode_Check(o)) {
+        if (PyUnicode_Check(o)) {
             cf.cf_flags = PyCF_SOURCE_IS_UTF8;
-    	    s = PyUnicode_AsUTF8String(o);
-    	    if (!s) goto bad;
-    	    o = s;
-	#if PY_MAJOR_VERSION >= 3
-	} else if (!PyBytes_Check(o)) {
-	#else
-	} else if (!PyString_Check(o)) {
-	#endif
-    	    PyErr_SetString(PyExc_TypeError,
-        	"exec: arg 1 must be string, bytes or code object");
-    	    goto bad;
-	}
-	#if PY_MAJOR_VERSION >= 3
-	code = PyBytes_AS_STRING(o);
-	#else
-	code = PyString_AS_STRING(o);
-	#endif
-	if (PyEval_MergeCompilerFlags(&cf)) {
-	    result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
+            s = PyUnicode_AsUTF8String(o);
+            if (!s) goto bad;
+            o = s;
+        #if PY_MAJOR_VERSION >= 3
+        } else if (!PyBytes_Check(o)) {
+        #else
+        } else if (!PyString_Check(o)) {
+        #endif
+            PyErr_SetString(PyExc_TypeError,
+                "exec: arg 1 must be string, bytes or code object");
+            goto bad;
+        }
+        #if PY_MAJOR_VERSION >= 3
+        code = PyBytes_AS_STRING(o);
+        #else
+        code = PyString_AS_STRING(o);
+        #endif
+        if (PyEval_MergeCompilerFlags(&cf)) {
+            result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
         } else {
-	    result = PyRun_String(code, Py_file_input, globals, locals);
+            result = PyRun_String(code, Py_file_input, globals, locals);
         }
         Py_XDECREF(s);
     }
@@ -300,6 +304,22 @@ class _BuiltinOverride(object):
         self.func_type, self.sig = func_type, sig
         self.utility_code = utility_code
 
+class BuiltinAttribute(object):
+    def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
+        self.py_name = py_name
+        self.cname = cname or py_name
+        self.field_type_name = field_type_name # can't do the lookup before the type is declared!
+        self.field_type = field_type
+
+    def declare_in_type(self, self_type):
+        if self.field_type_name is not None:
+            # lazy type lookup
+            field_type = builtin_scope.lookup(self.field_type_name).type
+        else:
+            field_type = self.field_type or PyrexTypes.py_object_type
+        entry = self_type.scope.declare(self.py_name, self.cname, field_type, None, 'private')
+        entry.is_variable = True
+
 class BuiltinFunction(_BuiltinOverride):
     def declare_in_scope(self, scope):
         func_type, sig = self.func_type, self.sig
@@ -426,9 +446,10 @@ builtin_types_table = [
     ("long",    "PyLong_Type",     []),
     ("float",   "PyFloat_Type",    []),
     
-# Until we have a way to access attributes of a type, 
-# we don't want to make this one builtin.    
-#    ("complex", "PyComplex_Type",  []),
+    ("complex", "PyComplex_Type",  [BuiltinAttribute('cval', field_type_name = 'Py_complex'),
+                                    BuiltinAttribute('real', 'cval.real', field_type = PyrexTypes.c_double_type),
+                                    BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
+                                    ]),
 
     ("bytes",   "PyBytes_Type",    []),
     ("str",     "PyString_Type",   []),
@@ -447,7 +468,10 @@ builtin_types_table = [
                                     BuiltinMethod("values","T",   "O", "PyDict_Values"), # FIXME: Py3 mode?
                                     BuiltinMethod("copy",  "T",   "T", "PyDict_Copy")]),
 
-    ("slice",   "PySlice_Type",    []),
+    ("slice",   "PySlice_Type",    [BuiltinAttribute('start'),
+                                    BuiltinAttribute('stop'),
+                                    BuiltinAttribute('step'),
+                                    ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
     ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "i", "PySet_Clear"), 
@@ -480,6 +504,10 @@ builtin_structs_table = [
       ("strides",    PyrexTypes.c_py_ssize_t_ptr_type),
       ("suboffsets", PyrexTypes.c_py_ssize_t_ptr_type),
       ("internal",   PyrexTypes.c_void_ptr_type),
+      ]),
+    ('Py_complex', 'Py_complex',
+     [('real', PyrexTypes.c_double_type),
+      ('imag', PyrexTypes.c_double_type),
       ])
 ]
 
@@ -497,7 +525,13 @@ def init_builtin_types():
     global builtin_types
     for name, cname, methods in builtin_types_table:
         utility = builtin_utility_code.get(name)
-        the_type = builtin_scope.declare_builtin_type(name, cname, utility)
+        if name == 'frozenset':
+            objstruct_cname = 'PySetObject'
+        elif name == 'bool':
+            objstruct_cname = None
+        else:
+            objstruct_cname = 'Py%sObject' % name.capitalize()
+        the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname)
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
@@ -512,9 +546,9 @@ def init_builtin_structs():
             name, "struct", scope, 1, None, cname = cname)
 
 def init_builtins():
+    init_builtin_structs()
     init_builtin_funcs()
     init_builtin_types()
-    init_builtin_structs()
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type
     global float_type, bool_type, type_type, complex_type

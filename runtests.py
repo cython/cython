@@ -749,7 +749,8 @@ class EndToEndTest(unittest.TestCase):
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
-        _, self.commands = unpack_source_tree(os.path.join('tests', 'build', self.treefile), self.workdir)
+        _, self.commands = unpack_source_tree(
+            os.path.join('tests', 'build', self.treefile), self.workdir)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
         if self.workdir not in sys.path:
@@ -764,11 +765,25 @@ class EndToEndTest(unittest.TestCase):
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
-        old_path = os.environ.get('PYTHONPATH')
         try:
-            os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
-            print(os.environ['PYTHONPATH'])
-            self.assertEqual(0, os.system(commands))
+            old_path = os.environ.get('PYTHONPATH')
+            os.environ['PYTHONPATH'] = os.path.join(self.cython_syspath, (old_path or ''))
+            for command in commands.split('\n'):
+                if sys.version_info[:2] >= (2,4):
+                    import subprocess
+                    p = subprocess.Popen(commands,
+                                         stderr=subprocess.PIPE,
+                                         stdout=subprocess.PIPE,
+                                         shell=True)
+                    out, err = p.communicate()
+                    res = p.returncode
+                    if res != 0:
+                        print(command)
+                        print(out)
+                        print(err)
+                else:
+                    res = os.system(command)
+                self.assertEqual(0, res, "non-zero exit status")
         finally:
             if old_path:
                 os.environ['PYTHONPATH'] = old_path

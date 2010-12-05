@@ -105,6 +105,24 @@ def test_set_discard():
     s1.discard(3)
     return s1
 
+def test_set_sideeffect_unhashable_failure():
+    """
+    >>> test_set_sideeffect_unhashable_failure()
+    [2, 4, 5]
+    """
+    L = []
+    def sideeffect(x):
+        L.append(x)
+        return x
+    def unhashable_value(x):
+        L.append(x)
+        return set()
+    try:
+        s = set([1,sideeffect(2),3,unhashable_value(4),sideeffect(5)])
+    except TypeError: pass
+    else: assert False, "expected exception not raised"
+    return L
+
 def sorted(it):
     # Py3 can't compare strings to ints
     chars = []

@@ -271,9 +271,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code = globalstate['all_the_rest']
 
         self.generate_cached_builtins_decls(env, code)
-        # generate lambda function definitions
-        for node in env.lambda_defs:
-            node.generate_function_definitions(env, code)
+        self.generate_lambda_definitions(env, code)
         # generate normal function definitions
         self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
@@ -2020,7 +2018,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
-        if base_type and base_type.module_name != env.qualified_name:
+        if base_type and base_type.module_name != env.qualified_name \
+               and not base_type.is_builtin_type:
             self.generate_type_import_code(env, base_type, self.pos, code)
     
     def use_type_import_utility_code(self, env):
@@ -2098,7 +2097,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # unless we let PyType_Ready create the slot wrappers we have
                 # a significant performance hit. (See trac #561.) 
                 for func in entry.type.scope.pyfunc_entries:
-                    if func.is_special and func.wrapperbase_cname:
+                    if func.is_special and Options.docstrings and func.wrapperbase_cname:
                         code.putln("{");
                         code.putln(
                             'PyObject *wrapper = __Pyx_GetAttrString((PyObject *)&%s, "%s"); %s' % (

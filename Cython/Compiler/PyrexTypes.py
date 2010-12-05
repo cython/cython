@@ -373,16 +373,25 @@ class PyObjectType(PyrexType):
             return cname
 
 class BuiltinObjectType(PyObjectType):
+    #  objstruct_cname  string           Name of PyObject struct
 
     is_builtin_type = 1
     has_attributes = 1
     base_type = None
     module_name = '__builtin__'
 
-    def __init__(self, name, cname):
+    # fields that let it look like an extension type
+    vtabslot_cname = None
+    vtabstruct_cname = None
+    vtabptr_cname = None
+    typedef_flag = True
+    is_external = True
+
+    def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
         self.cname = cname
-        self.typeptr_cname = "&" + cname
+        self.typeptr_cname = "(&%s)" % cname
+        self.objstruct_cname = objstruct_cname
                                  
     def set_scope(self, scope):
         self.scope = scope
@@ -415,16 +424,13 @@ class BuiltinObjectType(PyObjectType):
 
     def type_check_function(self, exact=True):
         type_name = self.name
-        if type_name == 'bool':
-            return 'PyBool_Check'
-
         if type_name == 'str':
             type_check = 'PyString_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact:
+        if exact and type_name not in ('bool', 'slice'):
             type_check += 'Exact'
         return type_check
 
@@ -447,6 +453,11 @@ class BuiltinObjectType(PyObjectType):
             base_code = public_decl("PyObject", dll_linkage)
             entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
+
+    def cast_code(self, expr_code, to_object_struct = False):
+        return "((%s*)%s)" % (
+            to_object_struct and self.objstruct_cname or "PyObject", # self.objstruct_cname may be None
+            expr_code)
 
 
 class PyExtensionType(PyObjectType):
@@ -2314,7 +2325,7 @@ modifiers_and_name_to_type = {
     (1,  0, "double"): c_double_type,
     (1,  1, "double"): c_longdouble_type,
 
-    (1,  0, "complex"):  c_float_complex_type,
+    (1,  0, "complex"):  c_double_complex_type,  # C: float, Python: double => Python wins
     (1,  0, "floatcomplex"):  c_float_complex_type,
     (1,  0, "doublecomplex"): c_double_complex_type,
     (1,  1, "doublecomplex"): c_longdouble_complex_type,

@@ -3451,7 +3451,9 @@ class AttributeNode(ExprNode):
             if not target:
                 self.is_temp = 1
                 self.result_ctype = py_object_type
-    
+        elif target and self.obj.type.is_builtin_type:
+            error(self.pos, "Assignment to an immutable object field")
+
     def analyse_attribute(self, env, obj_type = None):
         # Look up attribute and set self.type and self.member.
         self.is_py_attr = 0
@@ -3466,7 +3468,7 @@ class AttributeNode(ExprNode):
         if obj_type.is_ptr or obj_type.is_array:
             obj_type = obj_type.base_type
             self.op = "->"
-        elif obj_type.is_extension_type:
+        elif obj_type.is_extension_type or obj_type.is_builtin_type:
             self.op = "->"
         else:
             self.op = "."
@@ -3558,6 +3560,9 @@ class AttributeNode(ExprNode):
         elif obj.type.is_complex:
             return "__Pyx_C%s(%s)" % (self.member.upper(), obj_code)
         else:
+            if obj.type.is_builtin_type and self.entry and self.entry.is_variable:
+                # accessing a field of a builtin type, need to cast better than result_as() does
+                obj_code = obj.type.cast_code(obj.result(), to_object_struct = True)
             return "%s%s%s" % (obj_code, self.op, self.member)
     
     def generate_result_code(self, code):
@@ -4160,6 +4165,54 @@ class ScopedExprNode(ExprNode):
     def analyse_scoped_expressions(self, env):
         # this is called with the expr_scope as env
         pass
+
+    def generate_evaluation_code(self, code):
+        # set up local variables and free their references on exit
+        generate_inner_evaluation_code = super(ScopedExprNode, self).generate_evaluation_code
+        if not self.has_local_scope or not self.expr_scope.var_entries:
+            # no local variables => delegate, done
+            generate_inner_evaluation_code(code)
+            return
+
+        code.putln('{ /* enter inner scope */')
+        py_entries = []
+        for entry in self.expr_scope.var_entries:
+            if not entry.in_closure:
+                code.put_var_declaration(entry)
+                if entry.type.is_pyobject and entry.used:
+                    py_entries.append(entry)
+                    code.put_init_var_to_py_none(entry)
+        if not py_entries:
+            # no local Python references => no cleanup required
+            generate_inner_evaluation_code(code)
+            code.putln('} /* exit inner scope */')
+            return
+
+        # must free all local Python references at each exit point
+        old_loop_labels = tuple(code.new_loop_labels())
+        old_error_label = code.new_error_label()
+
+        generate_inner_evaluation_code(code)
+
+        # normal (non-error) exit
+        for entry in py_entries:
+            code.put_var_decref(entry)
+
+        # error/loop body exit points
+        exit_scope = code.new_label('exit_scope')
+        code.put_goto(exit_scope)
+        for label, old_label in ([(code.error_label, old_error_label)] +
+                                 list(zip(code.get_loop_labels(), old_loop_labels))):
+            if code.label_used(label):
+                code.put_label(label)
+                for entry in py_entries:
+                    code.put_var_decref(entry)
+                code.put_goto(old_label)
+        code.put_label(exit_scope)
+        code.putln('} /* exit inner scope */')
+
+        code.set_loop_labels(old_loop_labels)
+        code.error_label = old_error_label
 
 
 class ComprehensionNode(ScopedExprNode):
@@ -7021,12 +7074,17 @@ class CoerceToPyTypeNode(CoercionNode):
         if not arg.type.create_to_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert '%s' to Python object" % arg.type)
-        if type is not py_object_type:
-            self.type = py_object_type
-        elif arg.type.is_string:
-            self.type = bytes_type
-        elif arg.type is PyrexTypes.c_py_unicode_type:
-            self.type = unicode_type
+        if type is py_object_type:
+            # be specific about some known types
+            if arg.type.is_string:
+                self.type = bytes_type
+            elif arg.type is PyrexTypes.c_py_unicode_type:
+                self.type = unicode_type
+            elif arg.type.is_complex:
+                self.type = Builtin.complex_type
+        else:
+            # FIXME: check that the target type and the resulting type are compatible
+            pass
 
     gil_message = "Converting to Python object"
 
