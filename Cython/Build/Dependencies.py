@@ -267,7 +267,7 @@ class DependencyTree(object):
         for include in includes:
             include_path = os.path.join(os.path.dirname(filename), include)
             if not os.path.exists(include_path):
-                include_path = self.context.find_include_file(include)
+                include_path = self.context.find_include_file(include, None)
             if include_path:
                 a, b = self.cimports_and_externs(include_path)
                 cimports.update(a)
