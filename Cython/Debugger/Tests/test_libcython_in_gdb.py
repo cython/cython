@@ -15,6 +15,7 @@ import unittest
 import textwrap
 import tempfile
 import traceback
+import itertools
 from test import test_support
 
 import gdb
@@ -248,6 +249,11 @@ class TestBacktrace(DebugTestCase):
         
         self.break_and_run('os.path.join("foo", "bar")')
         result = gdb.execute('cy bt', to_string=True)
+        
+        _debug(libpython.execute, libpython._execute, gdb.execute)
+        _debug(gdb.execute('cy list', to_string=True))
+        _debug(repr(result))
+        
         assert re.search(r'\#\d+ *0x.* in spam\(\) at .*codefile\.pyx:22', 
                          result), result
         assert 'os.path.join("foo", "bar")' in result, result
@@ -338,6 +344,16 @@ class TestExec(DebugTestCase):
         gdb.execute('cy exec some_random_var = 14')
         self.assertEqual('14', self.eval_command('some_random_var'))
 
+
+_do_debug = os.environ.get('CYTHON_GDB_DEBUG')
+if _do_debug:
+    _debug_file = open('/dev/tty', 'w')
+
+def _debug(*messages):
+    if _do_debug:
+        messages = itertools.chain([sys._getframe(1).f_code.co_name], 
+                                   messages)
+        _debug_file.write(' '.join(str(msg) for msg in messages) + '\n')
 
 def _main():
     try:
