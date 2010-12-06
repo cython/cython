@@ -75,7 +75,7 @@ class Entry(object):
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
     # is_unbound_cmethod boolean  Is an unbound C method of an extension type
-    # is_lambda        boolean    Is a lambda function
+    # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
     # is_cpp_class     boolean    Is a C++ class
@@ -138,7 +138,7 @@ class Entry(object):
     is_cfunction = 0
     is_cmethod = 0
     is_unbound_cmethod = 0
-    is_lambda = 0
+    is_anonymous = 0
     is_type = 0
     is_cclass = 0
     is_cpp_class = 0
@@ -513,16 +513,34 @@ class Scope(object):
         
     def declare_builtin(self, name, pos):
         return self.outer_scope.declare_builtin(name, pos)
-    
-    def declare_pyfunction(self, name, pos):
-        # Add an entry for a Python function.
-        entry = self.lookup_here(name)
+
+    def _declare_pyfunction(self, name, pos, visibility='extern', entry=None):
         if entry and not entry.type.is_cfunction:
-            # This is legal Python, but for now will produce invalid C.
             error(pos, "'%s' already declared" % name)
-        entry = self.declare_var(name, py_object_type, pos, visibility='extern')
+            error(entry.pos, "Previous declaration is here")
+        entry = self.declare_var(name, py_object_type, pos, visibility=visibility)
         entry.signature = pyfunction_signature
         self.pyfunc_entries.append(entry)
+        return entry
+
+    def declare_pyfunction(self, name, pos, allow_redefine=False, visibility='extern'):
+        # Add an entry for a Python function.
+        entry = self.lookup_here(name)
+        if not allow_redefine:
+            return self._declare_pyfunction(name, pos, visibility=visibility, entry=entry)
+        if entry:
+            if entry.type.is_unspecified:
+                entry.type = py_object_type
+            elif not entry.type.is_pyobject:
+                return self._declare_pyfunction(name, pos, visibility=visibility, entry=entry)
+        else: # declare entry stub
+            self.declare_var(name, py_object_type, pos, visibility=visibility)
+        entry = self.declare_var(None, py_object_type, pos,
+                                 cname=name, visibility='private')
+        entry.name = EncodedString(name)
+        entry.qualified_name = self.qualify_name(name)
+        entry.signature = pyfunction_signature
+        entry.is_anonymous = True
         return entry
 
     def declare_lambda_function(self, func_cname, pos):
@@ -532,7 +550,7 @@ class Scope(object):
         entry.name = EncodedString(func_cname)
         entry.func_cname = func_cname
         entry.signature = pyfunction_signature
-        entry.is_lambda = True
+        entry.is_anonymous = True
         return entry
 
     def add_lambda_def(self, def_node):
@@ -1337,17 +1355,8 @@ class ClosureScope(LocalScope):
 #        return "%s->%s" % (self.cur_scope_cname, name)
 #        return "%s->%s" % (self.closure_cname, name)
 
-    def declare_pyfunction(self, name, pos):
-        # Add an entry for a Python function.
-        entry = self.lookup_here(name)
-        if entry and not entry.type.is_cfunction:
-            # This is legal Python, but for now may produce invalid C.
-            error(pos, "'%s' already declared" % name)
-        entry = self.declare_var(name, py_object_type, pos)
-        entry.signature = pyfunction_signature
-        self.pyfunc_entries.append(entry)
-        return entry
-
+    def declare_pyfunction(self, name, pos, allow_redefine=False):
+        return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
@@ -1521,7 +1530,7 @@ class CClassScope(ClassScope):
             return entry
 
 
-    def declare_pyfunction(self, name, pos):
+    def declare_pyfunction(self, name, pos, allow_redefine=False):
         # Add an entry for a method.
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
             error(pos, "Special method %s must be implemented via __richcmp__" % name)
@@ -1765,7 +1774,7 @@ class PropertyScope(Scope):
 
     is_property_scope = 1
     
-    def declare_pyfunction(self, name, pos):
+    def declare_pyfunction(self, name, pos, allow_redefine=False):
         # Add an entry for a method.
         signature = get_property_accessor_signature(name)
         if signature:
