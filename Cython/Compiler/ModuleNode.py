@@ -556,6 +556,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #endif
 
 #if PY_MAJOR_VERSION >= 3
+  #define PyIntObject                  PyLongObject
   #define PyInt_Type                   PyLong_Type
   #define PyInt_Check(op)              PyLong_Check(op)
   #define PyInt_CheckExact(op)         PyLong_CheckExact(op)
