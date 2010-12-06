@@ -531,7 +531,7 @@ class Scope(object):
         if entry:
             if entry.type.is_unspecified:
                 entry.type = py_object_type
-            elif not entry.type.is_pyobject:
+            elif entry.type is not py_object_type:
                 return self._declare_pyfunction(name, pos, visibility=visibility, entry=entry)
         else: # declare entry stub
             self.declare_var(name, py_object_type, pos, visibility=visibility)
