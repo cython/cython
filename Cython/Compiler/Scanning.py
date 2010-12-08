@@ -1,3 +1,4 @@
+# cython: infer_types=True, language_level=3
 #
 #   Cython Scanner
 #
@@ -7,7 +8,7 @@ import os
 import platform
 
 import cython
-cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object,
+cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=unicode,
                print_function=object)
 
 from Cython import Plex, Utils

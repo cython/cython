@@ -88,6 +88,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = ["Cython.Plex.Scanners",
                         "Cython.Plex.Actions",
+                        "Cython.Compiler.Lexicon",
                         "Cython.Compiler.Scanning",
                         "Cython.Compiler.Parsing",
                         "Cython.Compiler.Visitor",
