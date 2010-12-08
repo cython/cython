@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True, infer_types=True
+# cython: auto_cpdef=True, infer_types=True, language_level=3
 #
 #   Pyrex Parser
 #
@@ -269,6 +269,10 @@ def p_term(s):
 #factor: ('+'|'-'|'~'|'&'|typecast|sizeof) factor | power
 
 def p_factor(s):
+    # little indirection for C-ification purposes
+    return _p_factor(s)
+
+def _p_factor(s):
     sy = s.sy
     if sy in ('+', '-', '~'):
         op = s.sy
@@ -1701,7 +1705,6 @@ def p_statement(s, ctx, first_statement = 0):
         return p_IF_statement(s, ctx)
     elif s.sy == 'DECORATOR':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd'):
-            print ctx.level
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)

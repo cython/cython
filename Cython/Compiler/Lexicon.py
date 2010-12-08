@@ -1,3 +1,4 @@
+# cython: language_level=3
 #
 #   Cython Scanner - Lexical Definitions
 #

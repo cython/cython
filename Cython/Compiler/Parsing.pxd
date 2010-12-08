@@ -3,6 +3,8 @@
 cimport cython
 from Cython.Compiler.Scanning cimport PyrexScanner
 
+ctypedef object (*p_sub_expr_func)(object)
+
 # entry points
 
 cpdef p_module(PyrexScanner s, pxd, full_module_name)
@@ -13,8 +15,8 @@ cpdef p_code(PyrexScanner s, level= *)
 cdef p_ident(PyrexScanner s, message =*)
 cdef p_ident_list(PyrexScanner s)
 
-cdef p_binop_operator(PyrexScanner s)
-cdef p_binop_expr(PyrexScanner s, ops, p_sub_expr)
+cdef tuple p_binop_operator(PyrexScanner s)
+cdef p_binop_expr(PyrexScanner s, ops, p_sub_expr_func p_sub_expr)
 cpdef p_lambdef(PyrexScanner s, bint allow_conditional=*)
 cdef p_lambdef_nocond(PyrexScanner s)
 cdef p_test(PyrexScanner s)
@@ -29,12 +31,13 @@ cdef p_starred_expr(PyrexScanner s)
 cdef p_cascaded_cmp(PyrexScanner s)
 cdef p_cmp_op(PyrexScanner s)
 cdef p_bit_expr(PyrexScanner s)
-cpdef p_xor_expr(PyrexScanner s)
-cpdef p_and_expr(PyrexScanner s)
-cpdef p_shift_expr(PyrexScanner s)
-cpdef p_arith_expr(PyrexScanner s)
-cpdef p_term(PyrexScanner s)
-cpdef p_factor(PyrexScanner s)
+cdef p_xor_expr(s)
+cdef p_and_expr(s)
+cdef p_shift_expr(s)
+cdef p_arith_expr(s)
+cdef p_term(s)
+cdef p_factor(s)
+cdef _p_factor(PyrexScanner s)
 cdef p_typecast(PyrexScanner s)
 cdef p_sizeof(PyrexScanner s)
 cdef p_yield_expression(PyrexScanner s)
