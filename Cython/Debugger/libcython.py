@@ -1200,19 +1200,21 @@ class CyExec(CythonCommand, libpython.PyExec):
         expr, input_type = self.readcode(expr)
         executor = libpython.PythonCodeExecutor()
         
-        # get the dict of Cython globals and construct a dict in the inferior
-        # with Cython locals
-        global_dict = gdb.parse_and_eval(
-            '(PyObject *) PyModule_GetDict(__pyx_m)')
-        local_dict = gdb.parse_and_eval('(PyObject *) PyDict_New()')
-        
-        cython_function = self.get_cython_function()
-        
-        try:
-            self._fill_locals_dict(executor, libpython.pointervalue(local_dict))
-            executor.evalcode(expr, input_type, global_dict, local_dict)
-        finally:
-            executor.decref(libpython.pointervalue(local_dict))
+        with libpython.FetchAndRestoreError():
+            # get the dict of Cython globals and construct a dict in the 
+            # inferior with Cython locals
+            global_dict = gdb.parse_and_eval(
+                '(PyObject *) PyModule_GetDict(__pyx_m)')
+            local_dict = gdb.parse_and_eval('(PyObject *) PyDict_New()')
+            
+            cython_function = self.get_cython_function()
+            
+            try:
+                self._fill_locals_dict(executor, 
+                                       libpython.pointervalue(local_dict))
+                executor.evalcode(expr, input_type, global_dict, local_dict)
+            finally:
+                executor.decref(libpython.pointervalue(local_dict))
 
 
 # Functions
