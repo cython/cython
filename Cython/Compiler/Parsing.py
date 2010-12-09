@@ -877,7 +877,7 @@ def p_comp_for(s, body):
     pos = s.position()
     s.next()
     kw = p_for_bounds(s, allow_testlist=False)
-    kw.update(else_clause = None, body = p_comp_iter(s, body))
+    kw.update(dict(else_clause = None, body = p_comp_iter(s, body)))
     return Nodes.ForStatNode(pos, **kw)
         
 def p_comp_if(s, body):
@@ -1373,7 +1373,7 @@ def p_for_statement(s):
     kw = p_for_bounds(s, allow_testlist=True)
     body = p_suite(s)
     else_clause = p_else_clause(s)
-    kw.update(body = body, else_clause = else_clause)
+    kw.update(dict(body = body, else_clause = else_clause))
     return Nodes.ForStatNode(pos, **kw)
             
 def p_for_bounds(s, allow_testlist=True):
