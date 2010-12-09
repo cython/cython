@@ -1316,7 +1316,7 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = True
         return node
-    
+
     def visit_CFuncDefNode(self, node):
         self.visit_FuncDefNode(node)
         if node.needs_closure:
@@ -1335,6 +1335,89 @@ class MarkClosureVisitor(CythonTransform):
         self.needs_closure = True
         return node
 
+class ClosureTempAllocator(object):
+    def __init__(self, klass=None):
+        self.klass = klass
+        self.temps_allocated = {}
+        self.temps_free = {}
+        self.temps_count = 0
+
+    def reset(self):
+        for type, cnames in self.temps_allocated:
+            self.temps_free[type] = list(cnames)
+
+    def allocate_temp(self, type):
+        if not type in self.temps_allocated:
+            self.temps_allocated[type] = []
+            self.temps_free[type] = []
+        if self.temps_free[type]:
+            return self.temps_free[type].pop(0)
+        cname = '%s_%d' % (Naming.codewriter_temp_prefix, self.temps_count)
+        self.klass.declare_var(pos=None, name=cname, cname=cname, type=type, is_cdef=True)
+        self.temps_allocated[type].append(cname)
+        self.temps_count += 1
+        return cname
+
+class YieldCollector(object):
+    def __init__(self, node):
+        self.node = node
+        self.yields = []
+        self.returns = []
+
+class MarkGeneratorVisitor(CythonTransform):
+    """XXX: merge me with MarkClosureVisitor"""
+    def __init__(self, context):
+        super(MarkGeneratorVisitor, self).__init__(context)
+        self.allow_yield = False
+        self.path = []
+
+    def visit_ModuleNode(self, node):
+        self.visitchildren(node)
+        return node
+
+    def visit_ClassDefNode(self, node):
+        saved = self.allow_yield
+        self.allow_yield = False
+        self.visitchildren(node)
+        self.allow_yield = saved
+        return node
+
+    def visit_FuncDefNode(self, node):
+        saved = self.allow_yield
+        self.allow_yield = True
+        self.path.append(YieldCollector(node))
+        self.visitchildren(node)
+        self.allow_yield = saved
+        collector = self.path.pop()
+        if collector.yields and collector.returns:
+            error(collector.returns[0].pos, "'return' with argument inside generator")
+        elif collector.yields:
+            allocator = ClosureTempAllocator()
+            stop_node = ExprNodes.StopIterationNode(node.pos, arg=None)
+            collector.yields.append(stop_node)
+            for y in collector.yields: # XXX: find a better way
+                y.temp_allocator = allocator
+            node.temp_allocator = allocator
+            stop_node.label_num = len(collector.yields)
+            node.body.stats.append(Nodes.ExprStatNode(node.pos, expr=stop_node))
+            node.is_generator = True
+            node.needs_closure = True
+            node.yields = collector.yields
+        return node
+
+    def visit_YieldExprNode(self, node):
+        if not self.allow_yield:
+            error(node.pos, "'yield' outside function")
+            return node
+        collector = self.path[-1]
+        collector.yields.append(node)
+        node.label_num = len(collector.yields)
+        return node
+
+    def visit_ReturnStatNode(self, node):
+        if self.path:
+            self.path[-1].returns.append(node)
+        return node
 
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
@@ -1344,11 +1427,56 @@ class CreateClosureClasses(CythonTransform):
         super(CreateClosureClasses, self).__init__(context)
         self.path = []
         self.in_lambda = False
+        self.generator_class = None
 
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.visitchildren(node)
         return node
+
+    def create_abstract_generator(self, target_module_scope, pos):
+        if self.generator_class:
+            return self.generator_class
+        # XXX: make generator class creation cleaner
+        entry = target_module_scope.declare_c_class(name='__CyGenerator',
+                    objstruct_cname='__CyGenerator',
+                    typeobj_cname='__CyGeneratorType',
+                    pos=pos, defining=True, implementing=True)
+        entry.cname = 'CyGenerator'
+        klass = entry.type.scope
+        klass.is_internal = True
+        klass.directives = {'final': True}
+
+        body_type = PyrexTypes.create_typedef_type('generator_body',
+                                                   PyrexTypes.c_void_ptr_type,
+                                                   '__cygenerator_body_t')
+        klass.declare_var(pos=pos, name='body', cname='body',
+                          type=body_type, is_cdef=True)
+        klass.declare_var(pos=pos, name='is_running', cname='is_running', type=PyrexTypes.c_int_type,
+                          is_cdef=True)
+        klass.declare_var(pos=pos, name='resume_label', cname='resume_label', type=PyrexTypes.c_int_type,
+                          is_cdef=True)
+
+        import TypeSlots
+        e = klass.declare_pyfunction('send', pos)
+        e.func_cname = '__CyGenerator_Send'
+        e.signature = TypeSlots.binaryfunc
+
+        #e = klass.declare_pyfunction('close', pos)
+        #e.func_cname = '__CyGenerator_Close'
+        #e.signature = TypeSlots.unaryfunc
+
+        #e = klass.declare_pyfunction('throw', pos)
+        #e.func_cname = '__CyGenerator_Throw'
+
+        e = klass.declare_var('__iter__', PyrexTypes.py_object_type, pos, visibility='public')
+        e.func_cname = 'PyObject_SelfIter'
+
+        e = klass.declare_var('__next__', PyrexTypes.py_object_type, pos, visibility='public')
+        e.func_cname = '__CyGenerator_Next'
+
+        self.generator_class = entry.type
+        return self.generator_class
 
     def get_scope_use(self, node):
         from_closure = []
@@ -1361,6 +1489,12 @@ class CreateClosureClasses(CythonTransform):
         return from_closure, in_closure
 
     def create_class_from_scope(self, node, target_module_scope, inner_node=None):
+        # move local variables into closure
+        if node.is_generator:
+            for entry in node.local_scope.entries.values():
+                if not entry.from_closure:
+                    entry.in_closure = True
+
         from_closure, in_closure = self.get_scope_use(node)
         in_closure.sort()
 
@@ -1380,8 +1514,10 @@ class CreateClosureClasses(CythonTransform):
                 inner_node = node.assmt.rhs
             inner_node.needs_self_code = False
             node.needs_outer_scope = False
-        # Simple cases
-        if not in_closure and not from_closure:
+
+        if node.is_generator:
+            generator_class = self.create_abstract_generator(target_module_scope, node.pos)
+        elif not in_closure and not from_closure:
             return
         elif not in_closure:
             func_scope.is_passthrough = True
@@ -1391,13 +1527,19 @@ class CreateClosureClasses(CythonTransform):
 
         as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
 
-        entry = target_module_scope.declare_c_class(name = as_name,
-            pos = node.pos, defining = True, implementing = True)
+        if node.is_generator:
+            entry = target_module_scope.declare_c_class(name = as_name,
+                        pos = node.pos, defining = True, implementing = True, base_type=generator_class)
+        else:
+            entry = target_module_scope.declare_c_class(name = as_name,
+                        pos = node.pos, defining = True, implementing = True)
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
         class_scope.directives = {'final': True}
 
+        if node.is_generator:
+            node.temp_allocator.klass = class_scope
         if from_closure:
             assert cscope.is_closure_scope
             class_scope.declare_var(pos=node.pos,

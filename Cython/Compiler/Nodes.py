@@ -1166,6 +1166,7 @@ class FuncDefNode(StatNode, BlockNode):
     assmt = None
     needs_closure = False
     needs_outer_scope = False
+    is_generator = False
     modifiers = []
     
     def analyse_default_values(self, env):
@@ -1251,7 +1252,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Generate C code for header and body of function
         code.enter_cfunc_scope()
         code.return_from_error_cleanup_label = code.new_label()
-            
+
         # ----- Top-level constants used by this function
         code.mark_pos(self.pos)
         self.generate_cached_builtins_decls(lenv, code)
@@ -1295,7 +1296,8 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
         tempvardecl_code = code.insertion_point()
-        self.generate_keyword_list(code)
+        if not self.is_generator:
+            self.generate_keyword_list(code)
         if profile:
             code.put_trace_declarations()
         # ----- Extern library function declarations
@@ -1314,7 +1316,12 @@ class FuncDefNode(StatNode, BlockNode):
         if is_getbuffer_slot:
             self.getbuffer_init(code)
         # ----- Create closure scope object
-        if self.needs_closure:
+        if self.is_generator:
+            code.putln("%s = (%s) %s;" % (
+                Naming.cur_scope_cname,
+                lenv.scope_class.type.declaration_code(''),
+                Naming.self_cname))
+        elif self.needs_closure:
             code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
                 Naming.cur_scope_cname,
                 lenv.scope_class.type.declaration_code(''),
@@ -1331,7 +1338,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
-        if self.needs_outer_scope:
+        if self.needs_outer_scope and not self.is_generator:
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
                             cenv.scope_class.type.declaration_code(''),
@@ -1348,7 +1355,13 @@ class FuncDefNode(StatNode, BlockNode):
             # fatal error before hand, it's not really worth tracing
             code.put_trace_call(self.entry.name, self.pos)
         # ----- Fetch arguments
-        self.generate_argument_parsing_code(env, code)
+        if self.is_generator:
+            resume_code = code.insertion_point()
+            first_run_label = code.new_label('first_run')
+            code.use_label(first_run_label)
+            code.put_label(first_run_label)
+        if not self.is_generator:
+            self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
         # incref it to properly keep track of refcounts.
         for entry in lenv.arg_entries:
@@ -1465,7 +1478,7 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_giveref(entry)
                 elif entry.assignments:
                     code.put_var_decref(entry)
-        if self.needs_closure:
+        if self.needs_closure and not self.is_generator:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
                 
         # ----- Return
@@ -1504,14 +1517,25 @@ class FuncDefNode(StatNode, BlockNode):
 
         if preprocessor_guard:
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
-
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
+        # ----- Generator resume code
+        if self.is_generator:
+            resume_code.putln("switch (%s->%s.resume_label) {" % (Naming.cur_scope_cname, Naming.obj_base_cname));
+            resume_code.putln("case 0: goto %s;" % first_run_label)
+            for yield_expr in self.yields:
+                resume_code.putln("case %d: goto %s;" % (yield_expr.label_num, yield_expr.label_name));
+            resume_code.putln("default: /* raise error here */");
+            resume_code.putln("return NULL;");
+            resume_code.putln("}");
         # ----- Python version
         code.exit_cfunc_scope()
         if self.py_func:
             self.py_func.generate_function_definitions(env, code)
         self.generate_wrapper_functions(code)
+
+        if self.is_generator:
+            self.generator.generate_function_body(self.local_scope, code)
 
     def declare_argument(self, env, arg):
         if arg.type.is_void:
@@ -1863,6 +1887,57 @@ class DecoratorNode(Node):
     child_attrs = ['decorator']
 
 
+class GeneratorWrapperNode(object):
+    # Wrapper
+    def __init__(self, def_node, func_cname=None, body_cname=None, header=None):
+        self.def_node = def_node
+        self.func_cname = func_cname
+        self.body_cname = body_cname
+        self.header = header
+
+    def generate_function_body(self, env, code):
+        cenv = env.outer_scope # XXX: correct?
+        while cenv.is_py_class_scope or cenv.is_c_class_scope:
+            cenv = cenv.outer_scope
+        lenv = self.def_node.local_scope
+        code.enter_cfunc_scope()
+        code.putln()
+        code.putln('%s {' % self.header)
+        self.def_node.generate_keyword_list(code)
+        code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
+        code.putln(";")
+        code.put_setup_refcount_context(self.def_node.entry.name)
+        code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
+            Naming.cur_scope_cname,
+            lenv.scope_class.type.declaration_code(''),
+            lenv.scope_class.type.typeptr_cname,
+            lenv.scope_class.type.typeptr_cname,
+            Naming.empty_tuple))
+        code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
+        code.put_finish_refcount_context()
+        code.putln("return NULL;");
+        code.putln("}");
+        code.put_gotref(Naming.cur_scope_cname)
+
+        if self.def_node.needs_outer_scope:
+            code.putln("%s->%s = (%s)%s;" % (
+                            Naming.cur_scope_cname,
+                            Naming.outer_scope_cname,
+                            cenv.scope_class.type.declaration_code(''),
+                            Naming.self_cname))
+
+        self.def_node.generate_argument_parsing_code(env, code)
+
+        generator_cname = '%s->%s' % (Naming.cur_scope_cname, Naming.obj_base_cname)
+
+        code.putln('%s.resume_label = 0;' % generator_cname)
+        code.putln('%s.body = (void *) %s;' % (generator_cname, self.body_cname))
+        code.put_giveref(Naming.cur_scope_cname)
+        code.put_finish_refcount_context()
+        code.putln("return (PyObject *) %s;" % Naming.cur_scope_cname);
+        code.putln('}\n')
+        code.exit_cfunc_scope()
+
 class DefNode(FuncDefNode):
     # A Python function definition.
     #
@@ -2156,6 +2231,10 @@ class DefNode(FuncDefNode):
             Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
             Naming.pymethdef_prefix + prefix + name
+
+        if self.is_generator:
+            self.generator_body_cname = Naming.genbody_prefix + env.next_id(env.scope_prefix) + name
+
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = \
@@ -2303,7 +2382,15 @@ class DefNode(FuncDefNode):
                 "static PyMethodDef %s = " % 
                     self.entry.pymethdef_cname)
             code.put_pymethoddef(self.entry, ";", allow_skip=False)
-        code.putln("%s {" % header)
+        if self.is_generator:
+            code.putln("static PyObject *%s(PyObject *%s, PyObject *__pyx_send_value, int __pyx_is_exc) /* generator body */\n{" %
+                       (self.generator_body_cname, Naming.self_cname))
+            self.generator = GeneratorWrapperNode(self,
+                                                  func_cname=self.entry.func_cname,
+                                                  body_cname=self.generator_body_cname,
+                                                  header=header)
+        else:
+            code.putln("%s {" % header)
 
     def generate_argument_declarations(self, env, code):
         for arg in self.args:
