@@ -4938,8 +4938,9 @@ class LambdaNode(InnerFunctionNode):
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
 
-class YieldExprNode(ExprNode):
-    # Yield expression node
+
+class OldYieldExprNode(ExprNode):
+    # XXX: remove me someday
     #
     # arg         ExprNode   the value to return from the generator
     # label_name  string     name of the C label used for this yield
@@ -4964,6 +4965,72 @@ class YieldExprNode(ExprNode):
         code.putln("/* FIXME: restore temporary variables and  */")
         code.putln("/* FIXME: extract sent value from closure */")
 
+class YieldExprNode(ExprNode):
+    # Yield expression node
+    #
+    # arg         ExprNode   the value to return from the generator
+    # label_name  string     name of the C label used for this yield
+
+    subexprs = ['arg']
+    type = py_object_type
+
+    def analyse_types(self, env):
+        self.is_temp = 1
+        if self.arg is not None:
+            self.arg.analyse_types(env)
+            if not self.arg.type.is_pyobject:
+                self.arg = self.arg.coerce_to_pyobject(env)
+        env.use_utility_code(generator_utility_code)
+
+    def generate_evaluation_code(self, code):
+        saved = []
+        self.temp_allocator.reset()
+        code.putln('/* Save temporary variables */')
+        for cname, type, manage_ref in code.funcstate.temps_in_use():
+            save_cname = self.temp_allocator.allocate_temp(type)
+            saved.append((cname, save_cname, type))
+            code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
+            if type.is_pyobject:
+                code.put_giveref(cname)
+        self.label_name = code.new_label('resume_from_yield')
+        code.use_label(self.label_name)
+        self.allocate_temp_result(code)
+        if self.arg:
+            self.arg.generate_evaluation_code(code)
+            self.arg.make_owned_reference(code)
+            code.putln(
+                "%s = %s;" % (
+                    Naming.retval_cname,
+                    self.arg.result_as(py_object_type)))
+            self.arg.generate_post_assignment_code(code)
+            #self.arg.generate_disposal_code(code)
+            self.arg.free_temps(code)
+        else:
+            code.put_init_to_py_none(Naming.retval_cname, py_object_type)
+
+        code.put_finish_refcount_context()
+        code.putln("/* return from function, yielding value */")
+        code.putln("%s->%s.resume_label = %d;" % (Naming.cur_scope_cname, Naming.obj_base_cname, self.label_num))
+        code.putln("return %s;" % Naming.retval_cname);
+        code.put_label(self.label_name)
+        code.putln('/* Restore temporary variables */')
+        for cname, save_cname, type in saved:
+            code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
+            if type.is_pyobject:
+                code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
+                code.put_gotref(cname)
+        code.putln('%s = __pyx_send_value;' % self.result())
+        code.put_incref(self.result(), py_object_type)
+
+class StopIterationNode(YieldExprNode):
+    subexprs = []
+
+    def generate_evaluation_code(self, code):
+        self.allocate_temp_result(code)
+        self.label_name = code.new_label('resume_from_yield')
+        code.use_label(self.label_name)
+        code.put_label(self.label_name)
+        code.putln('PyErr_SetNone(PyExc_StopIteration); %s' % code.error_goto(self.pos))
 
 #-------------------------------------------------------------------
 #
@@ -8230,3 +8297,53 @@ int %(binding_cfunc)s_init(void) {
 
 }
 """ % Naming.__dict__)
+
+generator_utility_code = UtilityCode(
+proto="""
+static PyObject *__CyGenerator_Next(PyObject *self);
+static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value);
+typedef PyObject *(*__cygenerator_body_t)(PyObject *, PyObject *, int);
+""",
+impl="""
+static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, PyObject *value, int is_exc)
+{
+    PyObject *retval;
+
+    if (self->is_running) {
+        PyErr_SetString(PyExc_ValueError,
+                        "generator already executing");
+        return NULL;
+    }
+
+    if (self->resume_label == 0) {
+        if (value && value != Py_None) {
+            PyErr_SetString(PyExc_TypeError,
+                            "can't send non-None value to a "
+                            "just-started generator");
+            return NULL;
+        }
+    }
+
+    self->is_running = 1;
+    retval = self->body((PyObject *) self, value, is_exc);
+    self->is_running = 0;
+
+    return retval;
+}
+
+static PyObject *__CyGenerator_Next(PyObject *self)
+{
+    struct __CyGenerator *generator = (struct __CyGenerator *) self;
+    PyObject *retval;
+
+    Py_INCREF(Py_None);
+    retval = __CyGenerator_SendEx(generator, Py_None, 0);
+    Py_DECREF(Py_None);
+    return retval;
+}
+
+static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value)
+{
+    return __CyGenerator_SendEx((struct __CyGenerator *) self, value, 0);
+}
+""", proto_block='utility_code_proto_before_types')
