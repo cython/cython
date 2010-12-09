@@ -35,7 +35,7 @@ Options:
   --embed                        Embed the Python interpreter in a main() method.
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
-  --fatal-errors                 Abort the compilation on the first error
+  --fast-fail                    Abort the compilation on the first error
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
@@ -118,8 +118,8 @@ def parse_command_line(args):
                 options.language_level = 2
             elif option == '-3':
                 options.language_level = 3
-            elif option == "--fatal-errors":
-                Options.fatal_errors = True
+            elif option == "--fast-fail":
+                Options.fast_fail = True
             elif option in ("-X", "--directive"):
                 try:
                     options.compiler_directives = Options.parse_directive_list(

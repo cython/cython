@@ -144,7 +144,7 @@ def report_error(err):
             except UnicodeEncodeError:
                 echo_file.write(line.encode('ASCII', 'replace'))
         num_errors = num_errors + 1
-        if Options.fatal_errors:
+        if Options.fast_fail:
             raise AbortError, "fatal errors"
 
 def error(position, message):
