@@ -20,6 +20,12 @@ from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
 
+
+try:
+    set
+except NameError:
+    from sets import Set as set
+
 import copy
 
 
@@ -1574,3 +1580,136 @@ class TransformBuiltinMethods(EnvTransform):
         
         self.visitchildren(node)
         return node
+
+
+class DebugTransform(CythonTransform):
+    """
+    Create debug information and all functions' visibility to extern in order
+    to enable debugging.
+    """
+    
+    def __init__(self, context, options, result):
+        super(DebugTransform, self).__init__(context)
+        self.visited = set()
+        # our treebuilder and debug output writer 
+        # (see Cython.Debugger.debug_output.CythonDebugWriter)
+        self.tb = self.context.gdb_debug_outputwriter
+        #self.c_output_file = options.output_file 
+        self.c_output_file = result.c_file
+        
+        # tells visit_NameNode whether it should register step-into functions
+        self.register_stepinto = False
+        
+    def visit_ModuleNode(self, node):
+        self.tb.module_name = node.full_module_name
+        attrs = dict(
+            module_name=node.full_module_name,
+            filename=node.pos[0].filename,
+            c_filename=self.c_output_file)
+        
+        self.tb.start('Module', attrs)
+        
+        # serialize functions
+        self.tb.start('Functions')
+        self.visitchildren(node)
+        self.tb.end('Functions')
+        
+        # 2.3 compatibility. Serialize global variables
+        self.tb.start('Globals')
+        entries = {}
+
+        for k, v in node.scope.entries.iteritems():
+            if (v.qualified_name not in self.visited and not
+                v.name.startswith('__pyx_') and not 
+                v.type.is_cfunction and not
+                v.type.is_extension_type):
+                entries[k]= v
+                
+        self.serialize_local_variables(entries)
+        self.tb.end('Globals')
+        # self.tb.end('Module') # end Module after the line number mapping in
+        # Cython.Compiler.ModuleNode.ModuleNode._serialize_lineno_map
+        return node
+    
+    def visit_FuncDefNode(self, node):
+        self.visited.add(node.local_scope.qualified_name)
+        # node.entry.visibility = 'extern'
+        if node.py_func is None:
+            pf_cname = ''
+        else:
+            pf_cname = node.py_func.entry.func_cname
+            
+        attrs = dict(
+            name=node.entry.name,
+            cname=node.entry.func_cname,
+            pf_cname=pf_cname,
+            qualified_name=node.local_scope.qualified_name,
+            lineno=str(node.pos[1]))
+        
+        self.tb.start('Function', attrs=attrs)
+        
+        self.tb.start('Locals')
+        self.serialize_local_variables(node.local_scope.entries)
+        self.tb.end('Locals')
+
+        self.tb.start('Arguments')
+        for arg in node.local_scope.arg_entries:
+            self.tb.start(arg.name)
+            self.tb.end(arg.name)
+        self.tb.end('Arguments')
+
+        self.tb.start('StepIntoFunctions')
+        self.register_stepinto = True
+        self.visitchildren(node)
+        self.register_stepinto = False
+        self.tb.end('StepIntoFunctions')
+        self.tb.end('Function')
+
+        return node
+
+    def visit_NameNode(self, node):
+        if (self.register_stepinto and 
+            node.type.is_cfunction and 
+            getattr(node, 'is_called', False) and
+            node.entry.func_cname is not None):
+            # don't check node.entry.in_cinclude, as 'cdef extern: ...' 
+            # declared functions are not 'in_cinclude'. 
+            # This means we will list called 'cdef' functions as 
+            # "step into functions", but this is not an issue as they will be 
+            # recognized as Cython functions anyway.
+            attrs = dict(name=node.entry.func_cname)
+            self.tb.start('StepIntoFunction', attrs=attrs)
+            self.tb.end('StepIntoFunction')
+        
+        self.visitchildren(node)
+        return node
+    
+    def serialize_local_variables(self, entries):
+        for entry in entries.values():
+            if entry.type.is_pyobject:
+                vartype = 'PythonObject'
+            else:
+                vartype = 'CObject'
+            
+            cname = entry.cname
+            # if entry.type.is_extension_type:
+                # cname = entry.type.typeptr_cname
+            
+            if not entry.pos:
+                # this happens for variables that are not in the user's code,
+                # e.g. for the global __builtins__, __doc__, etc. We can just
+                # set the lineno to 0 for those.
+                lineno = '0'
+            else:
+                lineno = str(entry.pos[1])
+                
+            attrs = dict(
+                name=entry.name,
+                cname=cname,
+                qualified_name=entry.qualified_name,
+                type=vartype,
+                lineno=lineno)
+            
+            self.tb.start('LocalVar', attrs)
+            self.tb.end('LocalVar')
+        
