@@ -421,10 +421,6 @@ class PyObjectPtr(object):
     def as_address(self):
         return long(self._gdbval)
 
-if not isinstance(PyObjectPtr, PrettyPrinterTrackerMeta):
-    # Python 3, ensure metaclass
-    PyObjectPtr = PrettyPrinterTrackerMeta(
-        PyObjectPtr.__name__, PyObjectPtr.__bases__, vars(PyObjectPtr))
 
 class PyVarObjectPtr(PyObjectPtr):
     _typename = 'PyVarObject'
