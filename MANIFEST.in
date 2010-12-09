@@ -5,6 +5,7 @@ include setup.py
 include setupegg.py
 include bin/*
 include cython.py
+include cygdb.py
 recursive-include Cython *.pyx *.pxd
 include Doc/*
 
@@ -23,6 +24,9 @@ include runtests.py
 
 include Cython/Mac/Makefile
 include Cython/Mac/_Filemodule_patched.c
+
+include Cython/Debugger/Tests/cfuncs.c
+include Cython/Debugger/Tests/codefile
 
 recursive-include pyximport *.py
 include pyximport/PKG-INFO pyximport/README
