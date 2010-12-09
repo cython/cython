@@ -704,6 +704,7 @@ def compile_multiple(sources, options):
     a CompilationResultSet. Performs timestamp checking and/or recursion
     if these are specified in the options.
     """
+    context = options.create_context()
     sources = [os.path.abspath(source) for source in sources]
     processed = set()
     results = CompilationResultSet()
