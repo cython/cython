@@ -293,6 +293,8 @@ class PyObjectConst(object):
         self.cname = cname
         self.type = type
 
+cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
+               nice_identifier=object, find_alphanums=object)
 possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
 nice_identifier = re.compile(r'\A[a-zA-Z0-9_]+\Z').match
