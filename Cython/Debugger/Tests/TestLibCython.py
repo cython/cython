@@ -45,7 +45,7 @@ class DebuggerTestCase(unittest.TestCase):
         shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
         
         compiler = ccompiler.new_compiler()
-        compiler.compile(['cfuncs.c'], debug=True)
+        compiler.compile(['cfuncs.c'], debug=True, extra_postargs=['-fPIC'])
         
         opts = dict(
             test_directory=self.tempdir,

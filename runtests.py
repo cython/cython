@@ -65,6 +65,7 @@ VER_DEP_MODULES = {
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
+                                          'run.pure_py', # decorators, with statement
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
@@ -643,6 +644,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
+
 include_debugger = sys.version_info[:2] > (2, 5)
 
 def collect_unittests(path, module_prefix, suite, selectors):
@@ -767,7 +769,7 @@ class EndToEndTest(unittest.TestCase):
             .replace("PYTHON", sys.executable))
         try:
             old_path = os.environ.get('PYTHONPATH')
-            os.environ['PYTHONPATH'] = os.path.join(self.cython_syspath, (old_path or ''))
+            os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + os.path.join(self.cython_syspath, (old_path or ''))
             for command in commands.split('\n'):
                 if sys.version_info[:2] >= (2,4):
                     import subprocess

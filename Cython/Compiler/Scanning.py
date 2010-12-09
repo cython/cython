@@ -1,3 +1,4 @@
+# cython: infer_types=True, language_level=3
 #
 #   Cython Scanner
 #
@@ -7,7 +8,7 @@ import os
 import platform
 
 import cython
-cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object,
+cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=unicode,
                print_function=object)
 
 from Cython import Plex, Utils
@@ -359,10 +360,10 @@ class PyrexScanner(Scanner):
         if sy == IDENT:
             if systring in self.keywords:
                 if systring == u'print' and print_function in self.context.future_directives:
-                    self.keywords.remove('print')
+                    self.keywords.discard('print')
                     systring = EncodedString(systring)
                 elif systring == u'exec' and self.context.language_level >= 3:
-                    self.keywords.remove('exec')
+                    self.keywords.discard('exec')
                     systring = EncodedString(systring)
                 else:
                     sy = systring
