@@ -1,3 +1,17 @@
+def very_simple():
+    """
+    >>> x = very_simple()
+    >>> next(x)
+    1
+    >>> next(x)
+    Traceback (most recent call last):
+    StopIteration
+    >>> next(x)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield 1
+
 def simple():
     """
     >>> x = simple()
@@ -32,6 +46,18 @@ def simple_send():
     while True:
         i = yield i
 
+def raising():
+    """
+    >>> x = raising()
+    >>> next(x)
+    Traceback (most recent call last):
+    KeyError: 'foo'
+    >>> next(x)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield {}['foo']
+
 def with_outer(*args):
     """
     >>> x = with_outer(1, 2, 3)
@@ -41,4 +67,16 @@ def with_outer(*args):
     def generator():
         for i in args:
             yield i
+    return generator
+
+def with_outer_raising(*args):
+    """
+    >>> x = with_outer_raising(1, 2, 3)
+    >>> list(x())
+    [1, 2, 3]
+    """
+    def generator():
+        for i in args:
+            yield i
+        raise StopIteration
     return generator

@@ -1343,20 +1343,34 @@ class ClosureTempAllocator(object):
         self.temps_count = 0
 
     def reset(self):
-        for type, cnames in self.temps_allocated:
+        for type, cnames in self.temps_allocated.items():
             self.temps_free[type] = list(cnames)
 
     def allocate_temp(self, type):
         if not type in self.temps_allocated:
             self.temps_allocated[type] = []
             self.temps_free[type] = []
-        if self.temps_free[type]:
+        elif self.temps_free[type]:
             return self.temps_free[type].pop(0)
-        cname = '%s_%d' % (Naming.codewriter_temp_prefix, self.temps_count)
+        cname = '%s%d' % (Naming.codewriter_temp_prefix, self.temps_count)
         self.klass.declare_var(pos=None, name=cname, cname=cname, type=type, is_cdef=True)
         self.temps_allocated[type].append(cname)
         self.temps_count += 1
         return cname
+
+    def put_gotref(self, code):
+        for entry in self.klass.entries.values():
+            if entry.cname == Naming.outer_scope_cname: # XXX
+                continue
+            if entry.type.is_pyobject:
+                code.put_xgotref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
+
+    def put_giveref(self, code):
+        for entry in self.klass.entries.values():
+            if entry.cname == Naming.outer_scope_cname: # XXX
+                continue
+            if entry.type.is_pyobject:
+                code.put_xgiveref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
 
 class YieldCollector(object):
     def __init__(self, node):
@@ -1394,12 +1408,11 @@ class MarkGeneratorVisitor(CythonTransform):
         elif collector.yields:
             allocator = ClosureTempAllocator()
             stop_node = ExprNodes.StopIterationNode(node.pos, arg=None)
-            collector.yields.append(stop_node)
-            for y in collector.yields: # XXX: find a better way
+            # XXX: move allocator inside local scope
+            for y in collector.yields:
                 y.temp_allocator = allocator
             node.temp_allocator = allocator
-            stop_node.label_num = len(collector.yields)
-            node.body.stats.append(Nodes.ExprStatNode(node.pos, expr=stop_node))
+            node.body.stats.append(stop_node)
             node.is_generator = True
             node.needs_closure = True
             node.yields = collector.yields

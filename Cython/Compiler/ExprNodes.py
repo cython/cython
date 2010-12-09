@@ -4990,8 +4990,6 @@ class YieldExprNode(ExprNode):
             save_cname = self.temp_allocator.allocate_temp(type)
             saved.append((cname, save_cname, type))
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
-            if type.is_pyobject:
-                code.put_giveref(cname)
         self.label_name = code.new_label('resume_from_yield')
         code.use_label(self.label_name)
         self.allocate_temp_result(code)
@@ -5008,6 +5006,9 @@ class YieldExprNode(ExprNode):
         else:
             code.put_init_to_py_none(Naming.retval_cname, py_object_type)
 
+        # XXX: safe here as all used temps are handled but not clean
+        self.temp_allocator.put_giveref(code)
+        code.put_xgiveref(Naming.retval_cname)
         code.put_finish_refcount_context()
         code.putln("/* return from function, yielding value */")
         code.putln("%s->%s.resume_label = %d;" % (Naming.cur_scope_cname, Naming.obj_base_cname, self.label_num))
@@ -5018,18 +5019,21 @@ class YieldExprNode(ExprNode):
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
-                code.put_gotref(cname)
         code.putln('%s = __pyx_send_value;' % self.result())
         code.put_incref(self.result(), py_object_type)
 
-class StopIterationNode(YieldExprNode):
-    subexprs = []
+class StopIterationNode(Node):
+    # XXX: is it okay?
+    child_attrs = []
 
-    def generate_evaluation_code(self, code):
-        self.allocate_temp_result(code)
-        self.label_name = code.new_label('resume_from_yield')
-        code.use_label(self.label_name)
-        code.put_label(self.label_name)
+    def analyse_expressions(self, env):
+        pass
+
+    def generate_function_definitions(self, env, code):
+        pass
+
+    def generate_execution_code(self, code):
+        code.putln('/* Stop iteration */')
         code.putln('PyErr_SetNone(PyExc_StopIteration); %s' % code.error_goto(self.pos))
 
 #-------------------------------------------------------------------
@@ -8322,6 +8326,11 @@ static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, 
                             "just-started generator");
             return NULL;
         }
+    }
+
+    if (self->resume_label == -1) {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
     }
 
     self->is_running = 1;
