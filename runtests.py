@@ -643,7 +643,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
-include_debugger = sys.version_info[:2] > (2, 4)
+include_debugger = sys.version_info[:2] > (2, 5)
 
 def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):

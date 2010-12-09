@@ -55,6 +55,7 @@ import locale
 import atexit
 import warnings
 import tempfile
+import textwrap
 import itertools
 
 import gdb
@@ -69,11 +70,10 @@ if sys.version_info[0] < 3:
 
 # Look up the gdb.Type for some standard types:
 _type_char_ptr = gdb.lookup_type('char').pointer() # char*
-_type_unsigned_char_ptr = gdb.lookup_type('unsigned char').pointer() # unsigned char*
+_type_unsigned_char_ptr = gdb.lookup_type('unsigned char').pointer()
 _type_void_ptr = gdb.lookup_type('void').pointer() # void*
 
 SIZEOF_VOID_P = _type_void_ptr.sizeof
-
 
 Py_TPFLAGS_HEAPTYPE = (1L << 9)
 
@@ -88,8 +88,7 @@ Py_TPFLAGS_DICT_SUBCLASS     = (1L << 29)
 Py_TPFLAGS_BASE_EXC_SUBCLASS = (1L << 30)
 Py_TPFLAGS_TYPE_SUBCLASS     = (1L << 31)
 
-
-MAX_OUTPUT_LEN=1024
+MAX_OUTPUT_LEN = 1024
 
 hexdigits = "0123456789abcdef"
 
@@ -158,6 +157,17 @@ class TruncatedStringIO(object):
     def getvalue(self):
         return self._val
 
+
+# pretty printer lookup
+all_pretty_typenames = set()
+
+class PrettyPrinterTrackerMeta(type):
+    
+    def __init__(self, name, bases, dict):
+        super(PrettyPrinterTrackerMeta, self).__init__(name, bases, dict)
+        all_pretty_typenames.add(self._typename)
+
+
 class PyObjectPtr(object):
     """
     Class wrapping a gdb.Value that's a either a (PyObject*) within the
@@ -169,8 +179,11 @@ class PyObjectPtr(object):
     Note that at every stage the underlying pointer could be NULL, point
     to corrupt data, etc; this is the debugger, after all.
     """
+    
+    __metaclass__ = PrettyPrinterTrackerMeta
+    
     _typename = 'PyObject'
-
+    
     def __init__(self, gdbval, cast_to=None):
         if cast_to:
             self._gdbval = gdbval.cast(cast_to)
@@ -355,7 +368,7 @@ class PyObjectPtr(object):
                     }
         if tp_name in name_map:
             return name_map[tp_name]
-
+        
         if tp_flags & Py_TPFLAGS_HEAPTYPE:
             return HeapTypeObjectPtr
 
@@ -407,6 +420,11 @@ class PyObjectPtr(object):
 
     def as_address(self):
         return long(self._gdbval)
+
+if not isinstance(PyObjectPtr, PrettyPrinterTrackerMeta):
+    # Python 3, ensure metaclass
+    PyObjectPtr = PrettyPrinterTrackerMeta(
+        PyObjectPtr.__name__, PyObjectPtr.__bases__, vars(PyObjectPtr))
 
 class PyVarObjectPtr(PyObjectPtr):
     _typename = 'PyVarObject'
@@ -472,7 +490,7 @@ def _PyObject_VAR_SIZE(typeobj, nitems):
 
 class HeapTypeObjectPtr(PyObjectPtr):
     _typename = 'PyObject'
-
+    
     def get_attr_dict(self):
         '''
         Get the PyDictObject ptr representing the attribute dictionary
@@ -550,7 +568,7 @@ class PyBaseExceptionObjectPtr(PyObjectPtr):
     within the process being debugged.
     """
     _typename = 'PyBaseExceptionObject'
-
+    
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
@@ -697,7 +715,7 @@ class PyDictObjectPtr(PyObjectPtr):
 
 class PyInstanceObjectPtr(PyObjectPtr):
     _typename = 'PyInstanceObject'
-
+    
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
@@ -742,7 +760,7 @@ class PyIntObjectPtr(PyObjectPtr):
 
 class PyListObjectPtr(PyObjectPtr):
     _typename = 'PyListObject'
-
+    
     def __getitem__(self, i):
         # Get the gdb.Value for the (PyObject*) with the given index:
         field_ob_item = self.field('ob_item')
@@ -775,7 +793,7 @@ class PyListObjectPtr(PyObjectPtr):
 
 class PyLongObjectPtr(PyObjectPtr):
     _typename = 'PyLongObject'
-
+    
     def proxyval(self, visited):
         '''
         Python's Include/longobjrep.h has this declaration:
@@ -793,7 +811,7 @@ class PyLongObjectPtr(PyObjectPtr):
         where SHIFT can be either:
             #define PyLong_SHIFT        30
             #define PyLong_SHIFT        15
-        '''
+        '''        
         ob_size = long(self.field('ob_size'))
         if ob_size == 0:
             return 0L
@@ -823,9 +841,12 @@ class PyBoolObjectPtr(PyLongObjectPtr):
     Class wrapping a gdb.Value that's a PyBoolObject* i.e. one of the two
     <bool> instances (Py_True/Py_False) within the process being debugged.
     """
+    _typename = 'PyBoolObject'
     
     def proxyval(self, visited):
-        return bool(PyLongObjectPtr.proxyval(self, visited))
+        castto = gdb.lookup_type('PyLongObject').pointer()
+        self._gdbval = self._gdbval.cast(castto)
+        return bool(PyLongObjectPtr(self._gdbval).proxyval(visited))
 
 
 class PyNoneStructPtr(PyObjectPtr):
@@ -1033,7 +1054,7 @@ class PySetObjectPtr(PyObjectPtr):
 
 class PyBytesObjectPtr(PyObjectPtr):
     _typename = 'PyBytesObject'
-
+    
     def __str__(self):
         field_ob_size = self.field('ob_size')
         field_ob_sval = self.field('ob_sval')
@@ -1043,7 +1064,7 @@ class PyBytesObjectPtr(PyObjectPtr):
     def proxyval(self, visited):
         return str(self)
 
-    def write_repr(self, out, visited):
+    def write_repr(self, out, visited, py3=True):
         # Write this out as a Python 3 bytes literal, i.e. with a "b" prefix
 
         # Get a PyStringObject* within the Python 2 gdb process:
@@ -1054,7 +1075,10 @@ class PyBytesObjectPtr(PyObjectPtr):
         quote = "'"
         if "'" in proxy and not '"' in proxy:
             quote = '"'
-        out.write('b')
+        
+        if py3:
+            out.write('b')
+
         out.write(quote)
         for byte in proxy:
             if byte == quote or byte == '\\':
@@ -1077,6 +1101,8 @@ class PyBytesObjectPtr(PyObjectPtr):
 class PyStringObjectPtr(PyBytesObjectPtr):
     _typename = 'PyStringObject'
 
+    def write_repr(self, out, visited):
+        return super(PyStringObjectPtr, self).write_repr(out, visited, py3=False)
 
 class PyTupleObjectPtr(PyObjectPtr):
     _typename = 'PyTupleObject'
@@ -1184,13 +1210,20 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         return result
 
     def write_repr(self, out, visited):
-        # Write this out as a Python 3 str literal, i.e. without a "u" prefix
-
         # Get a PyUnicodeObject* within the Python 2 gdb process:
         proxy = self.proxyval(visited)
 
         # Transliteration of Python 3's Object/unicodeobject.c:unicode_repr
         # to Python 2:
+        try:
+            gdb.parse_and_eval('PyString_Type')
+        except RuntimeError:
+            # Python 3, don't write 'u' as prefix
+            pass
+        else:
+            # Python 2, write the 'u'
+            out.write('u')
+        
         if "'" in proxy and '"' not in proxy:
             quote = '"'
         else:
@@ -1292,8 +1325,6 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         out.write(quote)
 
 
-
-
 def int_from_int(gdbval):
     return int(str(gdbval))
 
@@ -1324,16 +1355,11 @@ class PyObjectPtrPrinter:
             proxyval = pyop.proxyval(set())
             return stringify(proxyval)
 
-
 def pretty_printer_lookup(gdbval):
     type = gdbval.type.unqualified()
     if type.code == gdb.TYPE_CODE_PTR:
         type = type.target().unqualified()
-        # do this every time to allow new subclasses to "register"
-        # alternatively, we could use a metaclass to register all the typenames
-        classes = [PyObjectPtr]
-        classes.extend(PyObjectPtr.__subclasses__())
-        if str(type) in [cls._typename for cls in classes]:
+        if str(type) in all_pretty_typenames:
             return PyObjectPtrPrinter(gdbval)
 
 """
@@ -1363,8 +1389,6 @@ def register (obj):
     obj.pretty_printers.append(pretty_printer_lookup)
 
 register (gdb.current_objfile ())
-
-
 
 # Unfortunately, the exact API exposed by the gdb module varies somewhat
 # from build to build
@@ -1868,11 +1892,8 @@ class GenericCodeStepper(gdb.Command):
         Keep all breakpoints around and simply disable/enable them each time
         we are stepping. We need this because if you set and delete a 
         breakpoint, gdb will not repeat your command (this is due to 'delete').
-        Why? I'm buggered if I know. To further annoy us, we can't use the 
-        breakpoint API because there's no option to make breakpoint setting 
-        silent.
-        So now! We may have an insane amount of breakpoints to list when the
-        user does 'info breakpoints' :(
+        We also can't use the breakpoint API because there's no option to make 
+        breakpoint setting silent.
         
         This method must be called whenever the list of functions we should
         step into changes. It can be called on any GenericCodeStepper instance.
@@ -1890,10 +1911,11 @@ class GenericCodeStepper(gdb.Command):
                 except RuntimeError:
                     # gdb.Breakpoint does take an 'internal' argument, use it
                     # and hide output
-                    result = gdb.execute(
-                        "python bp = gdb.Breakpoint(%r, gdb.BP_BREAKPOINT, internal=True); "
-                               "print bp.number", 
-                        to_string=True)
+                    result = gdb.execute(textwrap.dedent("""\
+                        python bp = gdb.Breakpoint(%r, gdb.BP_BREAKPOINT, \
+                                                   internal=True); \
+                               print bp.number""", 
+                        to_string=True))
                     
                     breakpoint = int(result)
 
@@ -2177,6 +2199,19 @@ def pointervalue(gdbval):
         
     return pointer
 
+def get_inferior_unicode_postfix():
+    try:
+        gdb.parse_and_eval('PyUnicode_FromEncodedObject')
+    except RuntimeError:
+        try: 
+            gdb.parse_and_eval('PyUnicodeUCS2_FromEncodedObject')
+        except RuntimeError:
+            return 'UCS4'
+        else:
+            return 'UCS2'
+    else:
+        return ''
+        
 class PythonCodeExecutor(object):
         
     def malloc(self, size):
@@ -2197,16 +2232,14 @@ class PythonCodeExecutor(object):
     def alloc_pystring(self, string):
         stringp = self.alloc_string(string)
         PyString_FromStringAndSize = 'PyString_FromStringAndSize'
+        
         try:
             gdb.parse_and_eval(PyString_FromStringAndSize)
         except RuntimeError:
-            try:
-                gdb.parse_and_eval('PyUnicode_FromStringAndSize')
-            except RuntimeError:
-                PyString_FromStringAndSize = 'PyUnicodeUCS2_FromStringAndSize'
-            else:
-                PyString_FromStringAndSize = 'PyUnicode_FromStringAndSize'
-            
+            # Python 3
+            PyString_FromStringAndSize = ('PyUnicode%s_FromStringAndSize' % 
+                                               (get_inferior_unicode_postfix,))
+
         try:
             result = gdb.parse_and_eval(
                 '(PyObject *) %s((char *) %d, (size_t) %d)' % (
@@ -2259,7 +2292,7 @@ class PythonCodeExecutor(object):
         
         code = """
             PyRun_String(
-                (PyObject *) %(code)d,
+                (char *) %(code)d,
                 (int) %(start)d,
                 (PyObject *) %(globals)s,
                 (PyObject *) %(locals)d)

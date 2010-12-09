@@ -122,14 +122,16 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             python
             
             from Cython.Debugger.Tests import test_libcython_in_gdb
-            test_libcython_in_gdb.main()
+            test_libcython_in_gdb.main(version=%r)
             
             end
-            ''')
+            ''' % (sys.version_info[:2],))
         
         self.gdb_command_file = cygdb.make_command_file(self.tempdir, 
                                                         prefix_code)
-        open(self.gdb_command_file, 'a').write(code)
+        
+        with open(self.gdb_command_file, 'a') as f:
+            f.write(code)
         
         args = ['gdb', '-batch', '-x', self.gdb_command_file, '-n', '--args',
                 sys.executable, '-c', 'import codefile']
@@ -149,7 +151,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             # gdb was not installed
             have_gdb = False
         else:
-            gdb_version = p.stdout.read()
+            gdb_version = p.stdout.read().decode('ascii')
             p.wait()
             p.stdout.close()
         
@@ -158,7 +160,8 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
             gdb_version_number = re.search(regex, gdb_version).groups()
 
-        if not have_gdb or map(int, gdb_version_number) < [7, 2]:
+        # Be Python 3 compatible
+        if not have_gdb or list(map(int, gdb_version_number)) < [7, 2]:
             self.p = None
             warnings.warn('Skipping gdb tests, need gdb >= 7.2')
         else:
@@ -186,7 +189,7 @@ class TestAll(GdbDebuggerTestCase):
         border = '*' * 30
         start = '%s   v INSIDE GDB v   %s' % (border, border)
         end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
-        errmsg = '\n%s\n%s%s' % (start, err, end)
+        errmsg = '\n%s\n%s%s' % (start, err.decode('UTF-8'), end)
         self.assertEquals(0, self.p.wait(), errmsg)
         sys.stderr.write(err)
 
