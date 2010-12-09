@@ -19,7 +19,7 @@ import Errors
 import Parsing
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
-from Errors import PyrexError, CompileError, InternalError, error, warning
+from Errors import PyrexError, CompileError, InternalError, AbortError, error, warning
 from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
@@ -38,7 +38,7 @@ def dumptree(t):
 def abort_on_errors(node):
     # Stop the pipeline if there are any errors.
     if Errors.num_errors != 0:
-        raise InternalError, "abort"
+        raise AbortError, "pipeline break"
     return node
 
 class CompilationData(object):
@@ -218,22 +218,25 @@ class Context(object):
         error = None
         data = source
         try:
-            for phase in pipeline:
-                if phase is not None:
-                    if DebugFlags.debug_verbose_pipeline:
-                        t = time()
-                        print "Entering pipeline phase %r" % phase
-                    data = phase(data)
-                    if DebugFlags.debug_verbose_pipeline:
-                        print "    %.3f seconds" % (time() - t)
-        except CompileError, err:
-            # err is set
-            Errors.report_error(err)
-            error = err
+            try:
+                for phase in pipeline:
+                    if phase is not None:
+                        if DebugFlags.debug_verbose_pipeline:
+                            t = time()
+                            print "Entering pipeline phase %r" % phase
+                        data = phase(data)
+                        if DebugFlags.debug_verbose_pipeline:
+                            print "    %.3f seconds" % (time() - t)
+            except CompileError, err:
+                # err is set
+                Errors.report_error(err)
+                error = err
         except InternalError, err:
             # Only raise if there was not an earlier error
             if Errors.num_errors == 0:
                 raise
+            error = err
+        except AbortError, err:
             error = err
         return (error, data)
 
