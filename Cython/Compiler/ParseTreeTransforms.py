@@ -20,12 +20,6 @@ from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
 
-
-try:
-    set
-except NameError:
-    from sets import Set as set
-
 import copy
 
 
@@ -1590,7 +1584,7 @@ class DebugTransform(CythonTransform):
     
     def __init__(self, context, options, result):
         super(DebugTransform, self).__init__(context)
-        self.visited = set()
+        self.visited = cython.set()
         # our treebuilder and debug output writer 
         # (see Cython.Debugger.debug_output.CythonDebugWriter)
         self.tb = self.context.gdb_debug_outputwriter
