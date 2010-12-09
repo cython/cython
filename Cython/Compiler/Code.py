@@ -1,6 +1,12 @@
+# cython: language_level = 3
 #
 #   Pyrex - Code output module
 #
+
+import cython
+cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
+               Utils=object, SourceDescriptor=object, StringIOTree=object,
+               DebugFlags=object, none_or_sub=object)
 
 import re
 import Naming
@@ -9,13 +15,13 @@ import StringEncoding
 from Cython import Utils
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
-try:
-    set
-except NameError:
-    from sets import Set as set
 import DebugFlags
 
 from Cython.Utils import none_or_sub
+try:
+    basestring
+except NameError:
+    basestring = str
 
 class UtilityCode(object):
     # Stores utility code to add during code generation.
@@ -92,13 +98,13 @@ class FunctionState(object):
     # exc_vars         (string * 3)    exception variables for reraise, or None
 
     # Not used for now, perhaps later
-    def __init__(self, owner, names_taken=set()):
+    def __init__(self, owner, names_taken=cython.set()):
         self.names_taken = names_taken
         self.owner = owner
         
         self.error_label = None
         self.label_counter = 0
-        self.labels_used = {}
+        self.labels_used = cython.set()
         self.return_label = self.new_label()
         self.new_error_label()
         self.continue_label = None
@@ -168,7 +174,7 @@ class FunctionState(object):
         return old_labels
     
     def use_label(self, lbl):
-        self.labels_used[lbl] = 1
+        self.labels_used.add(lbl)
         
     def label_used(self, lbl):
         return lbl in self.labels_used
@@ -260,7 +266,7 @@ class FunctionState(object):
         error case.
         """
         return [(cname, type)
-                for (type, manage_ref), freelist in self.temps_free.iteritems()
+                for (type, manage_ref), freelist in self.temps_free.items()
                 if manage_ref
                 for cname in freelist]
 
@@ -436,7 +442,7 @@ class GlobalState(object):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
-        self.utility_codes = set()
+        self.utility_codes = cython.set()
         self.declared_cnames = {}
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
@@ -683,7 +689,7 @@ class GlobalState(object):
 
     def generate_string_constants(self):
         c_consts = [ (len(c.cname), c.cname, c)
-                     for c in self.string_const_index.itervalues() ]
+                     for c in self.string_const_index.values() ]
         c_consts.sort()
         py_strings = []
 
@@ -692,7 +698,7 @@ class GlobalState(object):
             decls_writer.putln('static char %s[] = "%s";' % (
                 cname, StringEncoding.split_string_literal(c.escaped_value)))
             if c.py_strings is not None:
-                for py_string in c.py_strings.itervalues():
+                for py_string in c.py_strings.values():
                     py_strings.append((c.cname, len(py_string.cname), py_string))
 
         if py_strings:
@@ -735,7 +741,7 @@ class GlobalState(object):
 
     def generate_int_constants(self):
         consts = [ (len(c.value), c.value, c.is_long, c)
-                   for c in self.int_const_index.itervalues() ]
+                   for c in self.int_const_index.values() ]
         consts.sort()
         decls_writer = self.parts['decls']
         for _, value, longness, c in consts:
