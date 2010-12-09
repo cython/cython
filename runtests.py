@@ -732,7 +732,7 @@ class EndToEndTest(unittest.TestCase):
             .replace("PYTHON", sys.executable))
         try:
             old_path = os.environ.get('PYTHONPATH')
-            os.environ['PYTHONPATH'] = os.path.join(self.cython_syspath, (old_path or ''))
+            os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + os.path.join(self.cython_syspath, (old_path or ''))
             for command in commands.split('\n'):
                 if sys.version_info[:2] >= (2,4):
                     import subprocess
