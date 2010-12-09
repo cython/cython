@@ -144,7 +144,7 @@ class TestWithTransform(object): # (TransformTest): # Disabled!
         """, t)
                           
 
-if sys.version_info[:2] > (2, 4):
+if sys.version_info[:2] >= (2, 5):
     from Cython.Debugger import DebugWriter
     from Cython.Debugger.Tests.TestLibCython import DebuggerTestCase
 else:
