@@ -61,7 +61,6 @@ class CompileWarning(PyrexWarning):
     #   self.message = message
         Exception.__init__(self, format_position(position) + message)
 
-
 class InternalError(Exception):
     # If this is ever raised, there is a bug in the compiler.
     
@@ -70,6 +69,12 @@ class InternalError(Exception):
         Exception.__init__(self, u"Internal compiler error: %s"
             % message)
 
+class AbortError(Exception):
+    # Throw this to stop the compilation immediately.
+    
+    def __init__(self, message):
+        self.message_only = message
+        Exception.__init__(self, u"Abort error: %s" % message)
 
 class CompilerCrash(CompileError):
     # raised when an unexpected exception occurs in a transform
@@ -140,7 +145,7 @@ def report_error(err):
                 echo_file.write(line.encode('ASCII', 'replace'))
         num_errors = num_errors + 1
         if Options.fatal_errors:
-            raise InternalError, "abort"
+            raise AbortError, "fatal errors"
 
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###

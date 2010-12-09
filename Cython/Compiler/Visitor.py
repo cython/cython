@@ -173,6 +173,8 @@ class TreeVisitor(object):
             result = handler_method(child)
         except Errors.CompileError:
             raise
+        except Errors.AbortError:
+            raise
         except Exception, e:
             if DebugFlags.debug_no_exception_intercept:
                 raise
