@@ -877,8 +877,7 @@ def p_comp_for(s, body):
     pos = s.position()
     s.next()
     kw = p_for_bounds(s, allow_testlist=False)
-    kw['else_clause'] = None
-    kw['body'] = p_comp_iter(s, body)
+    kw.update(dict(else_clause = None, body = p_comp_iter(s, body)))
     return Nodes.ForStatNode(pos, **kw)
         
 def p_comp_if(s, body):
@@ -1372,8 +1371,9 @@ def p_for_statement(s):
     pos = s.position()
     s.next()
     kw = p_for_bounds(s, allow_testlist=True)
-    kw['body'] = p_suite(s)
-    kw['else_clause'] = p_else_clause(s)
+    body = p_suite(s)
+    else_clause = p_else_clause(s)
+    kw.update(dict(body = body, else_clause = else_clause))
     return Nodes.ForStatNode(pos, **kw)
             
 def p_for_bounds(s, allow_testlist=True):
@@ -1381,7 +1381,7 @@ def p_for_bounds(s, allow_testlist=True):
     if s.sy == 'in':
         s.next()
         iterator = p_for_iterator(s, allow_testlist)
-        return { 'target': target, 'iterator': iterator }
+        return dict( target = target, iterator = iterator )
     elif not s.in_python_file:
         if s.sy == 'from':
             s.next()
@@ -1408,12 +1408,13 @@ def p_for_bounds(s, allow_testlist=True):
         if rel1[0] != rel2[0]:
             error(rel2_pos,
                 "Relation directions in for-from do not match")
-        return {'target': target, 
-                'bound1': bound1, 
-                'relation1': rel1, 
-                'relation2': rel2,
-                'bound2': bound2,
-                'step': step }
+        return dict(target = target, 
+                    bound1 = bound1, 
+                    relation1 = rel1, 
+                    relation2 = rel2,
+                    bound2 = bound2,
+                    step = step,
+                    )
     else:
         s.expect('in')
         return {}
