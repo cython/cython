@@ -20,7 +20,7 @@ annotate = 0
 
 # This will abort the compilation on the first error occured rather than trying
 # to keep going and printing further error messages.
-fatal_errors = False
+fast_fail = False
 
 # This will convert statements of the form "for i in range(...)" 
 # to "for i from ..." when i is a cdef'd integer type, and the direction

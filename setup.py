@@ -95,9 +95,11 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = ["Cython.Plex.Scanners",
                         "Cython.Plex.Actions",
+                        "Cython.Compiler.Lexicon",
                         "Cython.Compiler.Scanning",
                         "Cython.Compiler.Parsing",
                         "Cython.Compiler.Visitor",
+                        "Cython.Compiler.Code",
                         "Cython.Runtime.refnanny"]
     if compile_more:
         compiled_modules.extend([
@@ -267,6 +269,7 @@ packages = [
 
 if include_debugger:
     packages.append('Cython.Debugger')
+    packages.append('Cython.Debugger.Tests')
 
 setup(
   name = 'Cython',

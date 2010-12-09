@@ -2148,9 +2148,10 @@ class DefNode(FuncDefNode):
         entry = env.lookup_here(name)
         if entry and entry.type.is_cfunction and not self.is_wrapper:
             warning(self.pos, "Overriding cdef method with def method.", 5)
-        entry = env.declare_pyfunction(name, self.pos)
+        entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
-        prefix = env.scope_prefix
+        prefix = env.next_id(env.scope_prefix)
+
         entry.func_cname = \
             Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
@@ -2225,7 +2226,7 @@ class DefNode(FuncDefNode):
 
     def needs_assignment_synthesis(self, env, code=None):
         # Should enable for module level as well, that will require more testing...
-        if self.entry.is_lambda:
+        if self.entry.is_anonymous:
             return True
         if env.is_module_scope:
             if code is None:
