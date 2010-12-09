@@ -916,6 +916,14 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
+        # also put invalid markers (lineno 0), to indicate that those lines 
+        # have no Cython source code correspondence
+        if self.marker is None:
+            cython_lineno = self.last_marker_line
+        else:
+            cython_lineno = self.marker[0]
+        
+        self.buffer.markers.extend([cython_lineno] * s.count('\n'))
         self.buffer.write(s)
 
     def insertion_point(self):
@@ -1000,6 +1008,7 @@ class CCodeWriter(object):
             self.emit_marker()
         if self.emit_linenums and self.last_marker_line != 0:
             self.write('\n#line %s "%s"\n' % (self.last_marker_line, self.source_desc))
+        
         if code:
             if safe:
                 self.put_safe(code)
