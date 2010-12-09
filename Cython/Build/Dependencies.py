@@ -273,7 +273,7 @@ class DependencyTree(object):
                 cimports.update(a)
                 externs.update(b)
             else:
-                print "Unable to locate '%s' referenced from '%s'" % (filename, include)
+                print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return tuple(cimports), tuple(externs)
     cimports_and_externs = cached_method(cimports_and_externs)
     
@@ -304,6 +304,7 @@ class DependencyTree(object):
             if pxd:
                 return pxd
         return self.context.find_pxd_file(module, None)
+    find_pxd = cached_method(find_pxd)
         
     #@cached_method
     def cimported_files(self, filename):
@@ -429,7 +430,9 @@ def create_extension_list(patterns, ctx=None, aliases=None):
     return module_list
 
 # This is the user-exposed entry point.
-def cythonize(module_list, nthreads=0, aliases=None, **options):    
+def cythonize(module_list, nthreads=0, aliases=None, **options):
+    if 'include_path' not in options:
+        options['include_path'] = ['.']
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
