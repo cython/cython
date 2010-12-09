@@ -1321,6 +1321,8 @@ class FuncDefNode(StatNode, BlockNode):
                 Naming.cur_scope_cname,
                 lenv.scope_class.type.declaration_code(''),
                 Naming.self_cname))
+            gotref_code = code.insertion_point()
+
         elif self.needs_closure:
             code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
                 Naming.cur_scope_cname,
@@ -1480,7 +1482,9 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_decref(entry)
         if self.needs_closure and not self.is_generator:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
-                
+        if self.is_generator:
+            code.putln('%s->%s.resume_label = -1;' % (Naming.cur_scope_cname, Naming.obj_base_cname))
+
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
         if not lenv.nogil:
@@ -1535,6 +1539,8 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_wrapper_functions(code)
 
         if self.is_generator:
+            gotref_code.putln('/* Make refnanny happy */')
+            self.temp_allocator.put_gotref(gotref_code)
             self.generator.generate_function_body(self.local_scope, code)
 
     def declare_argument(self, env, arg):
@@ -1920,18 +1926,22 @@ class GeneratorWrapperNode(object):
         code.put_gotref(Naming.cur_scope_cname)
 
         if self.def_node.needs_outer_scope:
-            code.putln("%s->%s = (%s)%s;" % (
-                            Naming.cur_scope_cname,
-                            Naming.outer_scope_cname,
+            outer_scope_cname = '%s->%s' % (Naming.cur_scope_cname, Naming.outer_scope_cname)
+            code.putln("%s = (%s)%s;" % (
+                            outer_scope_cname,
                             cenv.scope_class.type.declaration_code(''),
                             Naming.self_cname))
+            code.put_incref(outer_scope_cname, cenv.scope_class.type)
 
         self.def_node.generate_argument_parsing_code(env, code)
 
         generator_cname = '%s->%s' % (Naming.cur_scope_cname, Naming.obj_base_cname)
 
         code.putln('%s.resume_label = 0;' % generator_cname)
-        code.putln('%s.body = (void *) %s;' % (generator_cname, self.body_cname))
+        code.putln('%s.body = %s;' % (generator_cname, self.body_cname))
+        for entry in lenv.scope_class.type.scope.entries.values():
+            if entry.type.is_pyobject:
+                code.put_xgiveref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
         code.put_giveref(Naming.cur_scope_cname)
         code.put_finish_refcount_context()
         code.putln("return (PyObject *) %s;" % Naming.cur_scope_cname);
