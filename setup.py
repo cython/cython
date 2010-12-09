@@ -269,6 +269,7 @@ packages = [
 
 if include_debugger:
     packages.append('Cython.Debugger')
+    packages.append('Cython.Debugger.Tests')
 
 setup(
   name = 'Cython',
