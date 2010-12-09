@@ -644,7 +644,8 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
-include_debugger = sys.version_info[:2] > (2, 4)
+# TODO: Re-enable once they're more robust.
+include_debugger = sys.version_info[:2] >= (2, 5) and False
 
 def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):
