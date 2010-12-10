@@ -93,7 +93,7 @@ def test_close():
     >>> x = test_close()
     >>> next(x)
     >>> x.close()
-    >>> x.next()
+    >>> next(x)
     Traceback (most recent call last):
     StopIteration
     """
