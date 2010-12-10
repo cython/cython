@@ -1357,6 +1357,8 @@ class FuncDefNode(StatNode, BlockNode):
             # fatal error before hand, it's not really worth tracing
             code.put_trace_call(self.entry.name, self.pos)
         # ----- Fetch arguments
+        if not self.is_generator:
+            self.generate_preamble(env, code)
         if self.is_generator:
             resume_code = code.insertion_point()
             first_run_label = code.new_label('first_run')
@@ -1364,30 +1366,6 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_label(first_run_label)
             code.putln('%s' %
                        (code.error_goto_if_null(Naming.sent_value_cname, self.pos)))
-        if not self.is_generator:
-            self.generate_argument_parsing_code(env, code)
-        # If an argument is assigned to in the body, we must 
-        # incref it to properly keep track of refcounts.
-        for entry in lenv.arg_entries:
-            if entry.type.is_pyobject:
-                if entry.assignments and not entry.in_closure:
-                    code.put_var_incref(entry)
-        # ----- Initialise local variables 
-        for entry in lenv.var_entries:
-            if entry.type.is_pyobject and entry.init_to_none and entry.used:
-                code.put_init_var_to_py_none(entry)
-        # ----- Initialise local buffer auxiliary variables
-        for entry in lenv.var_entries + lenv.arg_entries:
-            if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
-                code.putln("%s.buf = NULL;" %
-                           entry.buffer_aux.buffer_info_var.cname)
-        # ----- Check and convert arguments
-        self.generate_argument_type_tests(code)
-        # ----- Acquire buffer arguments
-        for entry in lenv.arg_entries:
-            if entry.type.is_buffer:
-                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
-
         # -------------------------
         # ----- Function body -----
         # -------------------------
@@ -1544,6 +1522,35 @@ class FuncDefNode(StatNode, BlockNode):
             gotref_code.putln('/* Make refnanny happy */')
             self.temp_allocator.put_gotref(gotref_code)
             self.generator.generate_function_body(self.local_scope, code)
+
+    def generate_preamble(self, env, code):
+        """Parse arguments and prepare scope"""
+        import Buffer
+
+        lenv = self.local_scope
+
+        self.generate_argument_parsing_code(env, code)
+        # If an argument is assigned to in the body, we must 
+        # incref it to properly keep track of refcounts.
+        for entry in lenv.arg_entries:
+            if entry.type.is_pyobject:
+                if entry.assignments and not entry.in_closure:
+                    code.put_var_incref(entry)
+        # ----- Initialise local variables 
+        for entry in lenv.var_entries:
+            if entry.type.is_pyobject and entry.init_to_none and entry.used:
+                code.put_init_var_to_py_none(entry)
+        # ----- Initialise local buffer auxiliary variables
+        for entry in lenv.var_entries + lenv.arg_entries:
+            if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
+                code.putln("%s.buf = NULL;" %
+                           entry.buffer_aux.buffer_info_var.cname)
+        # ----- Check and convert arguments
+        self.generate_argument_type_tests(code)
+        # ----- Acquire buffer arguments
+        for entry in lenv.arg_entries:
+            if entry.type.is_buffer:
+                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
     def declare_argument(self, env, arg):
         if arg.type.is_void:
@@ -1821,7 +1828,7 @@ class CFuncDefNode(FuncDefNode):
             for _ in range(self.type.optional_arg_count):
                 code.putln('}')
             code.putln('}')
-    
+
     def generate_argument_conversion_code(self, code):
         pass
     
@@ -1935,7 +1942,7 @@ class GeneratorWrapperNode(object):
                             Naming.self_cname))
             code.put_incref(outer_scope_cname, cenv.scope_class.type)
 
-        self.def_node.generate_argument_parsing_code(env, code)
+        self.def_node.generate_preamble(env, code)
 
         generator_cname = '%s->%s' % (Naming.cur_scope_cname, Naming.obj_base_cname)
 
