@@ -8392,56 +8392,10 @@ static PyObject *__CyGenerator_Throw(PyObject *self, PyObject *args, CYTHON_UNUS
 
     if (!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb))
         return NULL;
-
-    /* First, check the traceback argument, replacing None with
-       NULL. */
-    if (tb == Py_None)
-        tb = NULL;
-    else if (tb != NULL && !PyTraceBack_Check(tb)) {
-        PyErr_SetString(PyExc_TypeError,
-            "throw() third argument must be a traceback object");
-        return NULL;
-    }
-
-    Py_INCREF(typ);
-    Py_XINCREF(val);
-    Py_XINCREF(tb);
-
-    if (PyExceptionClass_Check(typ)) {
-        PyErr_NormalizeException(&typ, &val, &tb);
-    }
-
-    else if (PyExceptionInstance_Check(typ)) {
-        /* Raising an instance.  The value should be a dummy. */
-        if (val && val != Py_None) {
-            PyErr_SetString(PyExc_TypeError,
-              "instance exception may not have a separate value");
-            goto failed_throw;
-        }
-        else {
-            /* Normalize to raise <class>, <instance> */
-            Py_XDECREF(val);
-            val = typ;
-            typ = PyExceptionInstance_Class(typ);
-            Py_INCREF(typ);
-        }
-    }
-    else {
-        /* Not something you can raise.  throw() fails. */
-        PyErr_Format(PyExc_TypeError,
-                     "exceptions must be classes, or instances, not %s",
-                     typ->ob_type->tp_name);
-            goto failed_throw;
-    }
-
-    PyErr_Restore(typ, val, tb);
+    __Pyx_Raise(typ, val, tb);
     return __CyGenerator_SendEx(generator, NULL);
-
-failed_throw:
-    /* Didn't use our arguments, so restore their original refcounts */
-    Py_DECREF(typ);
-    Py_XDECREF(val);
-    Py_XDECREF(tb);
-    return NULL;
 }
-""", proto_block='utility_code_proto_before_types')
+""",
+proto_block='utility_code_proto_before_types',
+requires=[Nodes.raise_utility_code],
+)
