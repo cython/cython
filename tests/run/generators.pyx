@@ -1,3 +1,10 @@
+
+try:
+    from builtins import next # Py3k
+except ImportError:
+    def next(it):
+        return it.next()
+
 def very_simple():
     """
     >>> x = very_simple()
