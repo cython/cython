@@ -390,9 +390,14 @@ def create_dependency_tree(ctx=None):
     return _dep_tree
 
 # This may be useful for advanced users?
-def create_extension_list(patterns, ctx=None, aliases=None):
+def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
     seen = set()
     deps = create_dependency_tree(ctx)
+    to_exclude = set()
+    if not isinstance(exclude, list):
+        exclude = [exclude]
+    for pattern in exclude:
+        to_exclude.update(glob(pattern))
     if not isinstance(patterns, list):
         patterns = [patterns]
     module_list = []
@@ -416,6 +421,8 @@ def create_extension_list(patterns, ctx=None, aliases=None):
         else:
             raise TypeError(pattern)
         for file in glob(filepattern):
+            if file in to_exclude:
+                continue
             pkg = deps.package(file)
             if '*' in name:
                 module_name = deps.fully_qualifeid_name(file)
@@ -430,13 +437,17 @@ def create_extension_list(patterns, ctx=None, aliases=None):
     return module_list
 
 # This is the user-exposed entry point.
-def cythonize(module_list, nthreads=0, aliases=None, **options):
+def cythonize(module_list, exclude=[], nthreads=0, aliases=None, **options):
     if 'include_path' not in options:
         options['include_path'] = ['.']
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
-    module_list = create_extension_list(module_list, ctx=ctx, aliases=aliases)
+    module_list = create_extension_list(
+        module_list,
+        exclude=exclude,
+        ctx=ctx,
+        aliases=aliases)
     deps = create_dependency_tree(ctx)
     to_compile = []
     for m in module_list:
