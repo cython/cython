@@ -8309,6 +8309,8 @@ proto="""
 static PyObject *__CyGenerator_Next(PyObject *self);
 static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value);
 static PyObject *__CyGenerator_Close(PyObject *self);
+static PyObject *__CyGenerator_Throw(PyObject *gen, PyObject *args, CYTHON_UNUSED PyObject *kwds);
+
 typedef PyObject *(*__cygenerator_body_t)(PyObject *, PyObject *);
 """,
 impl="""
@@ -8378,6 +8380,68 @@ static PyObject *__CyGenerator_Close(PyObject *self)
         Py_INCREF(Py_None);
         return Py_None;
     }
+    return NULL;
+}
+
+static PyObject *__CyGenerator_Throw(PyObject *self, PyObject *args, CYTHON_UNUSED PyObject *kwds)
+{
+    struct __CyGenerator *generator = (struct __CyGenerator *) self;
+    PyObject *typ;
+    PyObject *tb = NULL;
+    PyObject *val = NULL;
+
+    if (!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb))
+        return NULL;
+
+    /* First, check the traceback argument, replacing None with
+       NULL. */
+    if (tb == Py_None)
+        tb = NULL;
+    else if (tb != NULL && !PyTraceBack_Check(tb)) {
+        PyErr_SetString(PyExc_TypeError,
+            "throw() third argument must be a traceback object");
+        return NULL;
+    }
+
+    Py_INCREF(typ);
+    Py_XINCREF(val);
+    Py_XINCREF(tb);
+
+    if (PyExceptionClass_Check(typ)) {
+        PyErr_NormalizeException(&typ, &val, &tb);
+    }
+
+    else if (PyExceptionInstance_Check(typ)) {
+        /* Raising an instance.  The value should be a dummy. */
+        if (val && val != Py_None) {
+            PyErr_SetString(PyExc_TypeError,
+              "instance exception may not have a separate value");
+            goto failed_throw;
+        }
+        else {
+            /* Normalize to raise <class>, <instance> */
+            Py_XDECREF(val);
+            val = typ;
+            typ = PyExceptionInstance_Class(typ);
+            Py_INCREF(typ);
+        }
+    }
+    else {
+        /* Not something you can raise.  throw() fails. */
+        PyErr_Format(PyExc_TypeError,
+                     "exceptions must be classes, or instances, not %s",
+                     typ->ob_type->tp_name);
+            goto failed_throw;
+    }
+
+    PyErr_Restore(typ, val, tb);
+    return __CyGenerator_SendEx(generator, NULL);
+
+failed_throw:
+    /* Didn't use our arguments, so restore their original refcounts */
+    Py_DECREF(typ);
+    Py_XDECREF(val);
+    Py_XDECREF(tb);
     return NULL;
 }
 """, proto_block='utility_code_proto_before_types')
