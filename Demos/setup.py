@@ -1,26 +1,23 @@
-import glob
+# Run as:
+#    python setup.py build_ext --inplace
 
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
+from Cython.Build import cythonize
 
+ext_modules = cythonize("*.pyx", exclude="numpy_*.pyx")
+
+# Only compile the following if numpy is installed.
 try:
     from numpy.distutils.misc_util import get_numpy_include_dirs
-    numpy_include_dirs = get_numpy_include_dirs()
-except:
-    numpy_include_dirs = []
-
-ext_modules=[ 
-    Extension("primes",       ["primes.pyx"]),
-    Extension("spam",         ["spam.pyx"]),
-]
-
-for file in glob.glob("*.pyx"):
-    if file != "numeric_demo.pyx":
-        ext_modules.append(Extension(file[:-4], [file], include_dirs = numpy_include_dirs))
+    numpy_demo = Extension("*",
+                           ["numpy_*.pyx"],
+                           include_dirs=get_numpy_include_dirs())
+    ext_modules.extend(cythonize(numpy_demo))
+except ImportError:
+    pass
 
 setup(
   name = 'Demos',
-  cmdclass = {'build_ext': build_ext},
   ext_modules = ext_modules,
 )
