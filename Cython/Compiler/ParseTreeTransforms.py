@@ -1475,9 +1475,9 @@ class CreateClosureClasses(CythonTransform):
         e.func_cname = '__CyGenerator_Send'
         e.signature = TypeSlots.binaryfunc
 
-        #e = klass.declare_pyfunction('close', pos)
-        #e.func_cname = '__CyGenerator_Close'
-        #e.signature = TypeSlots.unaryfunc
+        e = klass.declare_pyfunction('close', pos)
+        e.func_cname = '__CyGenerator_Close'
+        e.signature = TypeSlots.unaryfunc
 
         #e = klass.declare_pyfunction('throw', pos)
         #e.func_cname = '__CyGenerator_Throw'

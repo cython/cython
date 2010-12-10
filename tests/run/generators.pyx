@@ -9,8 +9,13 @@ def very_simple():
     >>> next(x)
     Traceback (most recent call last):
     StopIteration
+    >>> x = very_simple()
+    >>> x.send(1)
+    Traceback (most recent call last):
+    TypeError: can't send non-None value to a just-started generator
     """
     yield 1
+
 
 def simple():
     """
@@ -80,3 +85,42 @@ def with_outer_raising(*args):
             yield i
         raise StopIteration
     return generator
+
+def test_close():
+    """
+    >>> x = test_close()
+    >>> x.close()
+    >>> x = test_close()
+    >>> next(x)
+    >>> x.close()
+    >>> x.next()
+    Traceback (most recent call last):
+    StopIteration
+    """
+    while True:
+        yield
+
+def test_ignore_close():
+    """
+    >>> x = test_ignore_close()
+    >>> x.close()
+    >>> x = test_ignore_close()
+    >>> next(x)
+    >>> x.close()
+    Traceback (most recent call last):
+    RuntimeError: generator ignored GeneratorExit
+    """
+    try:
+        yield
+    except GeneratorExit:
+        yield
+
+class Foo(object):
+    """
+    >>> obj = Foo()
+    >>> list(obj.simple(1, 2, 3))
+    [1, 2, 3]
+    """
+    def simple(self, *args):
+        for i in args:
+            yield i
