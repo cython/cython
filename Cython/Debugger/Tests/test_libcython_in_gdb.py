@@ -24,7 +24,6 @@ from Cython.Debugger import libcython
 from Cython.Debugger import libpython
 from Cython.Debugger.Tests import TestLibCython as test_libcython
 
-
 # for some reason sys.argv is missing in gdb
 sys.argv = ['gdb']
 
@@ -204,6 +203,7 @@ class TestStep(DebugStepperTestCase):
         self.assertEqual(str(pyframe.co_name), 'join')
         assert re.match(r'\d+    def join\(', result), result
 
+
 class TestNext(DebugStepperTestCase):
     
     def test_cython_next(self):
@@ -345,17 +345,18 @@ class TestExec(DebugTestCase):
         self.assertEqual('14', self.eval_command('some_random_var'))
 
 
-_do_debug = os.environ.get('CYTHON_GDB_DEBUG')
+_do_debug = os.environ.get('GDB_DEBUG')
 if _do_debug:
     _debug_file = open('/dev/tty', 'w')
 
 def _debug(*messages):
     if _do_debug:
-        messages = itertools.chain([sys._getframe(1).f_code.co_name], 
+        messages = itertools.chain([sys._getframe(1).f_code.co_name, ':'], 
                                    messages)
         _debug_file.write(' '.join(str(msg) for msg in messages) + '\n')
 
-def _main():
+
+def run_unittest_in_module(modulename):
     try:
         gdb.lookup_type('PyModuleObject')
     except RuntimeError:
@@ -365,7 +366,7 @@ def _main():
         warnings.warn(msg)
         os._exit(1)
     else:
-        m = __import__(__name__, fromlist=[''])
+        m = __import__(modulename, fromlist=[''])
         tests = inspect.getmembers(m, inspect.isclass)
         
         # test_support.run_unittest(tests)
@@ -375,15 +376,29 @@ def _main():
             [test_loader.loadTestsFromTestCase(cls) for name, cls in tests])
         
         result = unittest.TextTestRunner(verbosity=1).run(suite)
-        if not result.wasSuccessful():
-            os._exit(1)
+        return result.wasSuccessful()
 
-def main(trace_code=False):
+def runtests():
+    """
+    Run the libcython and libpython tests. Ensure that an appropriate status is
+    returned to the parent test process.
+    """
+    from Cython.Debugger.Tests import test_libpython_in_gdb
+    
+    success_libcython = run_unittest_in_module(__name__)
+    success_libpython = run_unittest_in_module(test_libpython_in_gdb.__name__)
+    
+    if not success_libcython or not success_libpython:
+        sys.exit(1)
+    
+def main(version, trace_code=False):
+    global inferior_python_version 
+    
+    inferior_python_version = version
+    
     if trace_code:
         tracer = trace.Trace(count=False, trace=True, outfile=sys.stderr,
                             ignoredirs=[sys.prefix, sys.exec_prefix])
-        tracer.runfunc(_main)
+        tracer.runfunc(runtests)
     else:
-        _main()
-
-main()
+        runtests()
