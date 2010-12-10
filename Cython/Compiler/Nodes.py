@@ -1363,7 +1363,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.use_label(first_run_label)
             code.put_label(first_run_label)
             code.putln('%s' %
-                       (code.error_goto_if_null('__pyx_send_value', self.pos)))
+                       (code.error_goto_if_null(Naming.sent_value_cname, self.pos)))
         if not self.is_generator:
             self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -2395,8 +2395,8 @@ class DefNode(FuncDefNode):
                     self.entry.pymethdef_cname)
             code.put_pymethoddef(self.entry, ";", allow_skip=False)
         if self.is_generator:
-            code.putln("static PyObject *%s(PyObject *%s, PyObject *__pyx_send_value, int __pyx_is_exc) /* generator body */\n{" %
-                       (self.generator_body_cname, Naming.self_cname))
+            code.putln("static PyObject *%s(PyObject *%s, PyObject *%s) /* generator body */\n{" %
+                       (self.generator_body_cname, Naming.self_cname, Naming.sent_value_cname))
             self.generator = GeneratorWrapperNode(self,
                                                   func_cname=self.entry.func_cname,
                                                   body_cname=self.generator_body_cname,

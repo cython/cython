@@ -5019,8 +5019,9 @@ class YieldExprNode(ExprNode):
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
-        code.putln('%s = __pyx_send_value; %s' %
-                   (self.result(), code.error_goto_if_null(self.result(), self.pos)))
+        code.putln('%s = %s; %s' %
+                   (self.result(), Naming.sent_value_cname,
+                    code.error_goto_if_null(self.result(), self.pos)))
         code.put_incref(self.result(), py_object_type)
 
 class StopIterationNode(Node):
@@ -8308,10 +8309,10 @@ proto="""
 static PyObject *__CyGenerator_Next(PyObject *self);
 static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value);
 static PyObject *__CyGenerator_Close(PyObject *self);
-typedef PyObject *(*__cygenerator_body_t)(PyObject *, PyObject *, int);
+typedef PyObject *(*__cygenerator_body_t)(PyObject *, PyObject *);
 """,
 impl="""
-static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, PyObject *value, int is_exc)
+static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, PyObject *value)
 {
     PyObject *retval;
 
@@ -8336,7 +8337,7 @@ static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, 
     }
 
     self->is_running = 1;
-    retval = self->body((PyObject *) self, value, is_exc);
+    retval = self->body((PyObject *) self, value);
     self->is_running = 0;
 
     return retval;
@@ -8348,14 +8349,14 @@ static PyObject *__CyGenerator_Next(PyObject *self)
     PyObject *retval;
 
     Py_INCREF(Py_None);
-    retval = __CyGenerator_SendEx(generator, Py_None, 0);
+    retval = __CyGenerator_SendEx(generator, Py_None);
     Py_DECREF(Py_None);
     return retval;
 }
 
 static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value)
 {
-    return __CyGenerator_SendEx((struct __CyGenerator *) self, value, 0);
+    return __CyGenerator_SendEx((struct __CyGenerator *) self, value);
 }
 
 static PyObject *__CyGenerator_Close(PyObject *self)
@@ -8363,7 +8364,7 @@ static PyObject *__CyGenerator_Close(PyObject *self)
     struct __CyGenerator *generator = (struct __CyGenerator *) self;
     PyObject *retval;
     PyErr_SetNone(PyExc_GeneratorExit);
-    retval = __CyGenerator_SendEx(generator, NULL, 0);
+    retval = __CyGenerator_SendEx(generator, NULL);
     if (retval) {
         Py_DECREF(retval);
         PyErr_SetString(PyExc_RuntimeError,
