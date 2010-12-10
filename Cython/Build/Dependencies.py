@@ -474,7 +474,10 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, **options):
                     dep_timestamp, dep = deps.newest_dependency(source)
                     priority = 2 - (dep in deps.immediate_dependencies(source))
                 if c_timestamp < dep_timestamp:
-                    print("Compiling %s because it depends on %s" % (source, dep))
+                    if source == dep:
+                        print("Cythonizing %s because it changed." % source)
+                    else:
+                        print("Cythonizing %s because it depends on %s." % (source, dep))
                     to_compile.append((priority, source, c_file, options))
                 new_sources.append(c_file)
             else:
