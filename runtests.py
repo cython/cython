@@ -645,7 +645,11 @@ class CythonUnitTestCase(CythonCompileTestCase):
             pass
 
 
-include_debugger = sys.version_info[:2] > (2, 5)
+try:
+    import gdb
+    include_debugger = sys.version_info[:2] > (2, 5)
+except:
+    include_debugger = False
 
 def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):
@@ -703,26 +707,27 @@ def collect_doctests(path, module_prefix, suite, selectors):
                 filename in blacklist)
     import doctest, types
     for dirpath, dirnames, filenames in os.walk(path):
-        parentname = os.path.split(dirpath)[-1]
-        if package_matches(parentname):
-            for f in filenames:
-                if file_matches(f):
-                    if not f.endswith('.py'): continue
-                    filepath = os.path.join(dirpath, f)
-                    if os.path.getsize(filepath) == 0: continue
-                    if 'no doctest' in open(filepath).next(): continue
-                    filepath = filepath[:-len(".py")]
-                    modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
-                    if not [ 1 for match in selectors if match(modulename) ]:
-                        continue
-                    module = __import__(modulename)
-                    for x in modulename.split('.')[1:]:
-                        module = getattr(module, x)
-                    if hasattr(module, "__doc__") or hasattr(module, "__test__"):
-                        try:
-                            suite.addTest(doctest.DocTestSuite(module))
-                        except ValueError: # no tests
-                            pass
+        for dir in list(dirnames):
+            if not package_matches(dir):
+                dirnames.remove(dir)
+        for f in filenames:
+            if file_matches(f):
+                if not f.endswith('.py'): continue
+                filepath = os.path.join(dirpath, f)
+                if os.path.getsize(filepath) == 0: continue
+                if 'no doctest' in open(filepath).next(): continue
+                filepath = filepath[:-len(".py")]
+                modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
+                if not [ 1 for match in selectors if match(modulename) ]:
+                    continue
+                module = __import__(modulename)
+                for x in modulename.split('.')[1:]:
+                    module = getattr(module, x)
+                if hasattr(module, "__doc__") or hasattr(module, "__test__"):
+                    try:
+                        suite.addTest(doctest.DocTestSuite(module))
+                    except ValueError: # no tests
+                        pass
 
 
 class EndToEndTest(unittest.TestCase):
