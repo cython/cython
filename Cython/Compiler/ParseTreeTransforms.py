@@ -1479,8 +1479,9 @@ class CreateClosureClasses(CythonTransform):
         e.func_cname = '__CyGenerator_Close'
         e.signature = TypeSlots.unaryfunc
 
-        #e = klass.declare_pyfunction('throw', pos)
-        #e.func_cname = '__CyGenerator_Throw'
+        e = klass.declare_pyfunction('throw', pos)
+        e.func_cname = '__CyGenerator_Throw'
+        e.signature = TypeSlots.pyfunction_signature
 
         e = klass.declare_var('__iter__', PyrexTypes.py_object_type, pos, visibility='public')
         e.func_cname = 'PyObject_SelfIter'

@@ -115,6 +115,33 @@ def test_ignore_close():
     except GeneratorExit:
         yield
 
+def check_throw():
+    """
+    >>> x = check_throw()
+    >>> x.throw(ValueError)
+    Traceback (most recent call last):
+    ValueError
+    >>> next(x)
+    Traceback (most recent call last):
+    StopIteration
+    >>> x = check_throw()
+    >>> next(x)
+    >>> x.throw(ValueError)
+    >>> next(x)
+    >>> x.throw(IndexError, "oops")
+    Traceback (most recent call last):
+    IndexError: oops
+    >>> next(x)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    while True:
+        try:
+            yield
+        except ValueError:
+            pass
+
+
 class Foo(object):
     """
     >>> obj = Foo()
