@@ -71,7 +71,7 @@ else:
 setuptools_extra_args = {}
 
 # tells whether to include cygdb (the script and the Cython.Debugger package
-include_debugger = sys.version_info[:2] >= (2, 5)
+include_debugger = sys.version_info[:2] > (2, 5)
 
 if 'setuptools' in sys.modules:
     setuptools_extra_args['zip_safe'] = False
