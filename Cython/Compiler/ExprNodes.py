@@ -8347,13 +8347,7 @@ static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, 
 
 static PyObject *__CyGenerator_Next(PyObject *self)
 {
-    struct __CyGenerator *generator = (struct __CyGenerator *) self;
-    PyObject *retval;
-
-    Py_INCREF(Py_None);
-    retval = __CyGenerator_SendEx(generator, Py_None);
-    Py_DECREF(Py_None);
-    return retval;
+    return __CyGenerator_SendEx((struct __CyGenerator *) self, Py_None);
 }
 
 static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value)
