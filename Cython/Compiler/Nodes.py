@@ -1362,6 +1362,8 @@ class FuncDefNode(StatNode, BlockNode):
             first_run_label = code.new_label('first_run')
             code.use_label(first_run_label)
             code.put_label(first_run_label)
+            code.putln('%s' %
+                       (code.error_goto_if_null('__pyx_send_value', self.pos)))
         if not self.is_generator:
             self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
