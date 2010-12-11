@@ -12,7 +12,7 @@ test_kwds = dict(force=True, quiet=True)
 
 global_value = 100
 
-class TestStripLiterals(CythonTest):
+class TestInline(CythonTest):
 
     def test_simple(self):
         self.assertEquals(inline("return 1+2", **test_kwds), 3)
