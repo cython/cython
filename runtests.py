@@ -715,7 +715,6 @@ def collect_doctests(path, module_prefix, suite, selectors):
                 if not f.endswith('.py'): continue
                 filepath = os.path.join(dirpath, f)
                 if os.path.getsize(filepath) == 0: continue
-                if 'no doctest' in open(filepath).next(): continue
                 filepath = filepath[:-len(".py")]
                 modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
                 if not [ 1 for match in selectors if match(modulename) ]:
