@@ -92,7 +92,7 @@ def cython_inline(code,
         get_type = lambda x: 'object'
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
-    ctx = Context(include_dirs, default_options)
+    ctx = Context(cython_include_dirs, default_options)
     if locals is None:
         locals = inspect.currentframe().f_back.f_back.f_locals
     if globals is None:
