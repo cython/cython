@@ -85,6 +85,7 @@ def cython_inline(code,
                   get_type=unsafe_type,
                   lib_dir=os.path.expanduser('~/.cython/inline'),
                   cython_include_dirs=['.'],
+                  force=False,
                   locals=None,
                   globals=None,
                   **kwds):
@@ -120,8 +121,12 @@ def cython_inline(code,
             os.makedirs(lib_dir)
         if lib_dir not in sys.path:
             sys.path.append(lib_dir)
-        __import__(module_name)
+        if force:
+            raise ImportError
+        else:
+            __import__(module_name)
     except ImportError:
+        cflags = []
         c_include_dirs = []
         cimports = []
         qualified = re.compile(r'([.\w]+)[.]')
@@ -133,6 +138,7 @@ def cython_inline(code,
                 if m.groups()[0] == 'numpy':
                     import numpy
                     c_include_dirs.append(numpy.get_include())
+                    cflags.append('-Wno-unused')
         module_body, func_body = extract_func_code(code)
         params = ', '.join(['%s %s' % a for a in arg_sigs])
         module_code = """
@@ -148,7 +154,8 @@ def __invoke(%(params)s):
         extension = Extension(
             name = module_name,
             sources = [pyx_file],
-            include_dirs = c_include_dirs)
+            include_dirs = c_include_dirs,
+            extra_compile_args = cflags)
         build_extension = build_ext(Distribution())
         build_extension.finalize_options()
         build_extension.extensions = cythonize([extension], ctx=ctx)
