@@ -13,7 +13,9 @@ except NameError:
     # Python 2.3
     from sets import Set as set
 
+import itertools
 from time import time
+
 import Code
 import Errors
 import Parsing
@@ -84,6 +86,8 @@ class Context(object):
         self.include_directories = include_directories + [standard_include_path]
 
         self.set_language_level(language_level)
+        
+        self.gdb_debug_outputwriter = None
 
     def set_language_level(self, level):
         self.language_level = level
@@ -180,13 +184,22 @@ class Context(object):
             from Cython.TestUtils import TreeAssertVisitor
             test_support.append(TreeAssertVisitor())
 
-        return ([
-                create_parse(self),
-            ] + self.create_pipeline(pxd=False, py=py) + test_support + [
-                inject_pxd_code,
-                abort_on_errors,
-                generate_pyx_code,
-            ])
+        if options.gdb_debug:
+            from Cython.Debugger import DebugWriter
+            from ParseTreeTransforms import DebugTransform
+            self.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
+                options.output_dir)
+            debug_transform = [DebugTransform(self, options, result)]
+        else:
+            debug_transform = []
+            
+        return list(itertools.chain(
+            [create_parse(self)],
+            self.create_pipeline(pxd=False, py=py),
+            test_support,
+            [inject_pxd_code, abort_on_errors],
+            debug_transform,
+            [generate_pyx_code]))
 
     def create_pxd_pipeline(self, scope, module_name):
         def parse_pxd(source_desc):
@@ -706,6 +719,7 @@ def compile_multiple(sources, options):
     a CompilationResultSet. Performs timestamp checking and/or recursion
     if these are specified in the options.
     """
+    context = options.create_context()
     sources = [os.path.abspath(source) for source in sources]
     processed = set()
     results = CompilationResultSet()
@@ -809,4 +823,5 @@ default_options = dict(
     evaluate_tree_assertions = False,
     emit_linenums = False,
     language_level = 2,
+    gdb_debug = False,
 )
