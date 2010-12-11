@@ -4985,7 +4985,6 @@ class YieldExprNode(ExprNode):
     def generate_evaluation_code(self, code):
         self.label_name = code.new_label('resume_from_yield')
         code.use_label(self.label_name)
-        self.allocate_temp_result(code)
         if self.arg:
             self.arg.generate_evaluation_code(code)
             self.arg.make_owned_reference(code)
@@ -5019,6 +5018,7 @@ class YieldExprNode(ExprNode):
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
+        self.allocate_temp_result(code)
         code.putln('%s = %s; %s' %
                    (self.result(), Naming.sent_value_cname,
                     code.error_goto_if_null(self.result(), self.pos)))
