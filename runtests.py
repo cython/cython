@@ -673,10 +673,8 @@ class CythonPyregrTestCase(CythonRunTestCase):
             module = __import__(self.module)
             if hasattr(module, 'test_main'):
                 module.test_main()
-        except unittest.SkipTest, e:
-            result.addSkip(self, str(e))
-        except support.ResourceDenied, e:
-            result.addSkip(self, str(e))
+        except (unittest.SkipTest, support.ResourceDenied):
+            result.addSkip(self, 'ok')
 
 
 try:
