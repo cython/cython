@@ -1407,12 +1407,10 @@ class MarkGeneratorVisitor(CythonTransform):
             error(collector.returns[0].pos, "'return' with argument inside generator")
         elif collector.yields:
             allocator = ClosureTempAllocator()
-            stop_node = ExprNodes.StopIterationNode(node.pos, arg=None)
             # XXX: move allocator inside local scope
             for y in collector.yields:
                 y.temp_allocator = allocator
             node.temp_allocator = allocator
-            node.body.stats.append(stop_node)
             node.is_generator = True
             node.needs_closure = True
             node.yields = collector.yields

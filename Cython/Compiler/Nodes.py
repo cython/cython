@@ -1372,6 +1372,9 @@ class FuncDefNode(StatNode, BlockNode):
         # -------------------------
         self.body.generate_execution_code(code)
 
+        if self.is_generator:
+            code.putln('PyErr_SetNone(PyExc_StopIteration); %s' % code.error_goto(self.pos))
+
         # ----- Default return value
         code.putln("")
         if self.return_type.is_pyobject:
