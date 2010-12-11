@@ -51,7 +51,14 @@ def unbound_symbols(code, context=None):
             unbound.append(name)
     return unbound
 
-def get_type(arg, context=None):
+def unsafe_type(arg, context=None):
+    py_type = type(arg)
+    if py_type is int:
+        return 'long'
+    else:
+        return safe_type(arg, context)
+
+def safe_type(arg, context=None):
     py_type = type(arg)
     if py_type in [list, tuple, dict, str]:
         return py_type.__name__
@@ -61,8 +68,6 @@ def get_type(arg, context=None):
         return 'double'
     elif py_type is bool:
         return 'bint'
-    elif py_type is int:
-        return 'long'
     elif 'numpy' in sys.modules and isinstance(arg, sys.modules['numpy'].ndarray):
         return 'numpy.ndarray[numpy.%s_t, ndim=%s]' % (arg.dtype.name, arg.ndim)
     else:
@@ -77,12 +82,14 @@ def get_type(arg, context=None):
         return 'object'
 
 def cython_inline(code, 
-                  types='aggressive',
+                  get_type=unsafe_type,
                   lib_dir=os.path.expanduser('~/.cython/inline'),
                   cython_include_dirs=['.'],
                   locals=None,
                   globals=None,
                   **kwds):
+    if get_type is None:
+        get_type = lambda x: 'object'
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
     ctx = Context(include_dirs, default_options)
