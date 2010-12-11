@@ -168,7 +168,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
 
         # Try to close the quote.
         elif in_quote:
-            if code[q-1] == '\\':
+            if code[q-1] == '\\' and not raw:
                 k = 2
                 while q >= k and code[q-k] == '\\':
                     k += 1
@@ -177,7 +177,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                     continue
             if code[q:q+len(in_quote)] == in_quote:
                 counter += 1
-                label = "%s%s" % (prefix, counter)
+                label = "%s%s_" % (prefix, counter)
                 literals[label] = code[start+len(in_quote):q]
                 new_code.append("%s%s%s" % (in_quote, label, in_quote))
                 q += len(in_quote)
@@ -193,7 +193,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 end = None
             new_code.append(code[start:hash_mark+1])
             counter += 1
-            label = "%s%s" % (prefix, counter)
+            label = "%s%s_" % (prefix, counter)
             literals[label] = code[hash_mark+1:end]
             new_code.append(label)
             if end is None:
@@ -208,11 +208,11 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 in_quote = code[q]*3
             else:
                 in_quote = code[q]
-            end = q
-            while end>0 and code[end-1] in 'rRbBuU':
-                if code[end-1] in 'rR':
+            end = marker = q
+            while marker > 0 and code[marker-1] in 'rRbBuU':
+                if code[marker-1] in 'rR':
                     raw = True
-                end -= 1
+                marker -= 1
             new_code.append(code[start:end])
             start = q
             q += len(in_quote)
