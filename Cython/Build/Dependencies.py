@@ -56,8 +56,8 @@ distutils_settings = {
     'runtime_library_dirs': transitive_list,
     'include_dirs':         transitive_list,
     'extra_objects':        list,
-    'extra_compile_args':   list,
-    'extra_link_args':      list,
+    'extra_compile_args':   transitive_list,
+    'extra_link_args':      transitive_list,
     'export_symbols':       list,
     'depends':              transitive_list,
     'language':             transitive_str,
@@ -97,7 +97,7 @@ class DistutilsInfo(object):
         elif exn is not None:
             for key in distutils_settings:
                 if key in ('name', 'sources'):
-                    pass
+                    continue
                 value = getattr(exn, key, None)
                 if value:
                     self.values[key] = value
@@ -429,10 +429,15 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
             else:
                 module_name = name
             if module_name not in seen:
+                kwds = deps.distutils_info(file, aliases, base).values
+                for key, value in base.values.items():
+                    if key not in kwds:
+                        kwds[key] = value
                 module_list.append(exn_type(
                         name=module_name,
                         sources=[file],
-                        **deps.distutils_info(file, aliases, base).values))
+                        **kwds))
+                m = module_list[-1]
                 seen.add(name)
     return module_list
 
