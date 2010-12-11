@@ -190,7 +190,9 @@ class TestBuilder(object):
             if self.exclude_selectors:
                 if [1 for match in self.exclude_selectors if match(fqmodule)]:
                     continue
-            if context in TEST_RUN_DIRS:
+            if context == 'pyregr':
+                test_class = CythonPyregrTestCase
+            elif context in TEST_RUN_DIRS:
                 if module.startswith("test_"):
                     test_class = CythonUnitTestCase
                 else:
@@ -463,8 +465,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.setUp()
             try:
                 self.runCompileTest()
-                if not self.cython_only:
-                    self.run_doctests(self.module, result)
+                self.run_tests(result)
             finally:
                 check_thread_termination()
         except Exception:
@@ -474,6 +475,10 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.tearDown()
         except Exception:
             pass
+
+    def run_tests(self, result):
+        if not self.cython_only:
+            self.run_doctests(self.module, result)
 
     def run_doctests(self, module_name, result):
         if sys.version_info[0] >= 3 or not hasattr(os, 'fork') or not self.fork:
@@ -622,28 +627,53 @@ class PartialTestResult(_TextTestResult):
             self.write("%s\n" % line)
 
 
-class CythonUnitTestCase(CythonCompileTestCase):
+class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
         return "compiling (%s) tests in %s" % (self.language, self.module)
 
-    def run(self, result=None):
-        if result is None:
-            result = self.defaultTestResult()
-        result.startTest(self)
+    def run_tests(self, result):
+        unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
+
+
+class CythonPyregrTestCase(CythonRunTestCase):
+    def _run_unittest(self, result, *classes):
+        """Run tests from unittest.TestCase-derived classes."""
+        valid_types = (unittest.TestSuite, unittest.TestCase)
+        suite = unittest.TestSuite()
+        for cls in classes:
+            if isinstance(cls, str):
+                if cls in sys.modules:
+                    suite.addTest(unittest.findTestCases(sys.modules[cls]))
+                else:
+                    raise ValueError("str arguments must be keys in sys.modules")
+            elif isinstance(cls, valid_types):
+                suite.addTest(cls)
+            else:
+                suite.addTest(unittest.makeSuite(cls))
+        suite.run(result)
+
+    def _run_doctest(self, result, module):
+        self.run_doctests(module, result)
+
+    def patch_support(self, result):
         try:
-            self.setUp()
-            try:
-                self.runCompileTest()
-                unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
-            finally:
-                check_thread_termination()
-        except Exception:
-            result.addError(self, sys.exc_info())
-            result.stopTest(self)
-        try:
-            self.tearDown()
-        except Exception:
-            pass
+            from test import test_support as support
+        except ImportError: # Py3k
+            from test import support
+
+        def run_unittest(*classes):
+            return self._run_unittest(result, *classes)
+        def run_doctest(module, verbosity=None):
+            return self._run_doctest(result, module)
+
+        support.run_unittest = run_unittest
+        support.run_doctest = run_doctest
+
+    def run_tests(self, result):
+        self.patch_support(result)
+        module = __import__(self.module)
+        if hasattr(module, 'test_main'):
+            module.test_main()
 
 
 try:
