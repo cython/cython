@@ -1,11 +1,7 @@
 from glob import glob
 import re, os, sys
+from cython import set
 
-try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
 
 from distutils.extension import Extension
 

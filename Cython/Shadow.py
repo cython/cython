@@ -188,16 +188,12 @@ except NameError: # Py3
 py_float = float
 py_complex = complex
 
+
 try:
-    # Python 3
-    from builtins import set, frozenset
-except ImportError:
-    try:
-        # Python 2.4+
-        from __builtin__ import set, frozenset
-    except ImportError:
-        # Py 2.3
-        from sets import Set as set, ImmutableSet as frozenset
+    set
+except NameError:
+    # Python 2.3
+    from sets import Set as set, ImmutableSet as frozenset
 
 # Predefined types
 
