@@ -77,12 +77,15 @@ class ExprNode(Node):
     #               [ExprNode or [ExprNode or None] or None]
     #                            Cached result of subexpr_nodes()
     #  use_managed_ref boolean   use ref-counted temps/assignments/etc.
-    
+    #  result_is_used  boolean   indicates that the result will be dropped and the
+    #                            result_code/temp_result can safely be set to None
+
     result_ctype = None
     type = None
     temp_code = None
     old_temp = None # error checker for multiple frees etc.
     use_managed_ref = True # can be set by optimisation transforms
+    result_is_used = True
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -447,6 +450,9 @@ class ExprNode(Node):
 
     def release_temp_result(self, code):
         if not self.temp_code:
+            if not self.result_is_used:
+                # not used anyway, so ignore if not set up
+                return
             if self.old_temp:
                 raise RuntimeError("temp %s released multiple times in %s" % (
                         self.old_temp, self.__class__.__name__))
@@ -492,7 +498,7 @@ class ExprNode(Node):
     
     def generate_disposal_code(self, code):
         if self.is_temp:
-            if self.type.is_pyobject:
+            if self.type.is_pyobject and self.result():
                 code.put_decref_clear(self.result(), self.ctype())
         else:
             # Already done if self.is_temp
@@ -5018,11 +5024,14 @@ class YieldExprNode(ExprNode):
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
-        self.allocate_temp_result(code)
-        code.putln('%s = %s; %s' %
-                   (self.result(), Naming.sent_value_cname,
-                    code.error_goto_if_null(self.result(), self.pos)))
-        code.put_incref(self.result(), py_object_type)
+        if self.result_is_used:
+            self.allocate_temp_result(code)
+            code.putln('%s = %s; %s' %
+                       (self.result(), Naming.sent_value_cname,
+                        code.error_goto_if_null(self.result(), self.pos)))
+            code.put_incref(self.result(), py_object_type)
+        else:
+            code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
 
 class StopIterationNode(Node):
     # XXX: is it okay?

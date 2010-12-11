@@ -3450,6 +3450,7 @@ class ExprStatNode(StatNode):
                 self.__class__ = PassStatNode
     
     def analyse_expressions(self, env):
+        self.expr.result_is_used = False # hint that .result() may safely be left empty
         self.expr.analyse_expressions(env)
     
     def generate_execution_code(self, code):
