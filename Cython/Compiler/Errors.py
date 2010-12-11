@@ -97,6 +97,10 @@ class CompilerCrash(CompileError):
             message += u'%s: %s' % (cause.__class__.__name__, cause)
         CompileError.__init__(self, pos, message)
 
+class NoElementTreeInstalledException(PyrexError):
+    """raised when the user enabled options.gdb_debug but no ElementTree 
+    implementation was found
+    """
 
 listing_file = None
 num_errors = 0

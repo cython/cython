@@ -344,15 +344,27 @@ class CythonCompileTestCase(unittest.TestCase):
         else:
             return geterrors()
 
-    def run_cython(self, test_directory, module, targetdir, incdir, annotate):
+    def run_cython(self, test_directory, module, targetdir, incdir, annotate,
+                   extra_compile_options=None):
         include_dirs = INCLUDE_DIRS[:]
         if incdir:
             include_dirs.append(incdir)
         source = self.find_module_source_file(
             os.path.join(test_directory, module + '.pyx'))
         target = os.path.join(targetdir, self.build_target_filename(module))
+        
+        if extra_compile_options is None:
+            extra_compile_options = {}
+        
+        try:
+            CompilationOptions
+        except NameError:
+            from Cython.Compiler.Main import CompilationOptions
+            from Cython.Compiler.Main import compile as cython_compile
+            from Cython.Compiler.Main import default_options
+        
         options = CompilationOptions(
-            pyrex_default_options,
+            default_options,
             include_path = include_dirs,
             output_file = target,
             annotate = annotate,
@@ -361,11 +373,13 @@ class CythonCompileTestCase(unittest.TestCase):
             language_level = self.language_level,
             generate_pxi = False,
             evaluate_tree_assertions = True,
+            **extra_compile_options
             )
         cython_compile(source, options=options,
                        full_module_name=module)
 
-    def run_distutils(self, test_directory, module, workdir, incdir):
+    def run_distutils(self, test_directory, module, workdir, incdir, 
+                      extra_extension_args=None):
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
@@ -379,11 +393,16 @@ class CythonCompileTestCase(unittest.TestCase):
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
             self.copy_related_files(test_directory, workdir, module)
+            
+            if extra_extension_args is None:
+                extra_extension_args = {}
+            
             extension = Extension(
                 module,
                 sources = self.find_source_files(workdir, module),
                 include_dirs = ext_include_dirs,
                 extra_compile_args = CFLAGS,
+                **extra_extension_args
                 )
             if self.language == 'cpp':
                 extension.language = 'c++'
@@ -626,6 +645,13 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
+
+try:
+    import gdb
+    include_debugger = sys.version_info[:2] > (2, 5)
+except:
+    include_debugger = False
+
 def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):
         return filename.startswith("Test") and filename.endswith(".py")
@@ -634,8 +660,12 @@ def collect_unittests(path, module_prefix, suite, selectors):
         return dirname == "Tests"
 
     loader = unittest.TestLoader()
-
-    skipped_dirs = []
+    
+    if include_debugger:
+        skipped_dirs = []
+    else:
+        cython_dir = os.path.dirname(os.path.abspath(__file__))
+        skipped_dirs = [os.path.join(cython_dir, 'Cython', 'Debugger')]
 
     for dirpath, dirnames, filenames in os.walk(path):
         if dirpath != path and "__init__.py" not in filenames:
@@ -660,34 +690,44 @@ def collect_unittests(path, module_prefix, suite, selectors):
                         module = getattr(module, x)
                     suite.addTests([loader.loadTestsFromModule(module)])
 
+
+
 def collect_doctests(path, module_prefix, suite, selectors):
     def package_matches(dirname):
+        if dirname == 'Debugger' and not include_debugger:
+            return False
         return dirname not in ("Mac", "Distutils", "Plex")
     def file_matches(filename):
-        return (filename.endswith(".py") and not ('~' in filename
-                or '#' in filename or filename.startswith('.')))
+        filename, ext = os.path.splitext(filename)
+        blacklist = ['libcython', 'libpython', 'test_libcython_in_gdb', 
+                     'TestLibCython']
+        return (ext == '.py' and not
+                '~' in filename and not
+                '#' in filename and not
+                filename.startswith('.') and not
+                filename in blacklist)
     import doctest, types
     for dirpath, dirnames, filenames in os.walk(path):
-        parentname = os.path.split(dirpath)[-1]
-        if package_matches(parentname):
-            for f in filenames:
-                if file_matches(f):
-                    if not f.endswith('.py'): continue
-                    filepath = os.path.join(dirpath, f)
-                    if os.path.getsize(filepath) == 0: continue
-                    if 'no doctest' in open(filepath).next(): continue
-                    filepath = filepath[:-len(".py")]
-                    modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
-                    if not [ 1 for match in selectors if match(modulename) ]:
-                        continue
-                    module = __import__(modulename)
-                    for x in modulename.split('.')[1:]:
-                        module = getattr(module, x)
-                    if hasattr(module, "__doc__") or hasattr(module, "__test__"):
-                        try:
-                            suite.addTest(doctest.DocTestSuite(module))
-                        except ValueError: # no tests
-                            pass
+        for dir in list(dirnames):
+            if not package_matches(dir):
+                dirnames.remove(dir)
+        for f in filenames:
+            if file_matches(f):
+                if not f.endswith('.py'): continue
+                filepath = os.path.join(dirpath, f)
+                if os.path.getsize(filepath) == 0: continue
+                filepath = filepath[:-len(".py")]
+                modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
+                if not [ 1 for match in selectors if match(modulename) ]:
+                    continue
+                module = __import__(modulename)
+                for x in modulename.split('.')[1:]:
+                    module = getattr(module, x)
+                if hasattr(module, "__doc__") or hasattr(module, "__test__"):
+                    try:
+                        suite.addTest(doctest.DocTestSuite(module))
+                    except ValueError: # no tests
+                        pass
 
 
 class EndToEndTest(unittest.TestCase):

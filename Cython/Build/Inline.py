@@ -1,8 +1,6 @@
-#no doctest
-print "Warning: Using prototype cython.inline code..."
-
 import tempfile
 import sys, os, re, inspect
+from cython import set
 
 try:
     import hashlib
@@ -51,7 +49,14 @@ def unbound_symbols(code, context=None):
             unbound.append(name)
     return unbound
 
-def get_type(arg, context=None):
+def unsafe_type(arg, context=None):
+    py_type = type(arg)
+    if py_type is int:
+        return 'long'
+    else:
+        return safe_type(arg, context)
+
+def safe_type(arg, context=None):
     py_type = type(arg)
     if py_type in [list, tuple, dict, str]:
         return py_type.__name__
@@ -61,8 +66,6 @@ def get_type(arg, context=None):
         return 'double'
     elif py_type is bool:
         return 'bint'
-    elif py_type is int:
-        return 'long'
     elif 'numpy' in sys.modules and isinstance(arg, sys.modules['numpy'].ndarray):
         return 'numpy.ndarray[numpy.%s_t, ndim=%s]' % (arg.dtype.name, arg.ndim)
     else:
@@ -77,15 +80,19 @@ def get_type(arg, context=None):
         return 'object'
 
 def cython_inline(code, 
-                  types='aggressive',
+                  get_type=unsafe_type,
                   lib_dir=os.path.expanduser('~/.cython/inline'),
                   cython_include_dirs=['.'],
+                  force=False,
+                  quiet=False,
                   locals=None,
                   globals=None,
                   **kwds):
+    if get_type is None:
+        get_type = lambda x: 'object'
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
-    ctx = Context(include_dirs, default_options)
+    ctx = Context(cython_include_dirs, default_options)
     if locals is None:
         locals = inspect.currentframe().f_back.f_back.f_locals
     if globals is None:
@@ -99,10 +106,11 @@ def cython_inline(code,
             elif symbol in globals:
                 kwds[symbol] = globals[symbol]
             else:
-                print "Couldn't find ", symbol
+                print("Couldn't find ", symbol)
     except AssertionError:
-        # Parsing from strings not fully supported (e.g. cimports).
-        print "Could not parse code as a string (to extract unbound symbols)."
+        if not quiet:
+            # Parsing from strings not fully supported (e.g. cimports).
+            print("Could not parse code as a string (to extract unbound symbols).")
     arg_names = kwds.keys()
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
@@ -113,8 +121,12 @@ def cython_inline(code,
             os.makedirs(lib_dir)
         if lib_dir not in sys.path:
             sys.path.append(lib_dir)
-        __import__(module_name)
+        if force:
+            raise ImportError
+        else:
+            __import__(module_name)
     except ImportError:
+        cflags = []
         c_include_dirs = []
         cimports = []
         qualified = re.compile(r'([.\w]+)[.]')
@@ -126,6 +138,7 @@ def cython_inline(code,
                 if m.groups()[0] == 'numpy':
                     import numpy
                     c_include_dirs.append(numpy.get_include())
+                    cflags.append('-Wno-unused')
         module_body, func_body = extract_func_code(code)
         params = ', '.join(['%s %s' % a for a in arg_sigs])
         module_code = """
@@ -141,10 +154,11 @@ def __invoke(%(params)s):
         extension = Extension(
             name = module_name,
             sources = [pyx_file],
-            include_dirs = c_include_dirs)
+            include_dirs = c_include_dirs,
+            extra_compile_args = cflags)
         build_extension = build_ext(Distribution())
         build_extension.finalize_options()
-        build_extension.extensions = cythonize([extension], ctx=ctx)
+        build_extension.extensions = cythonize([extension], ctx=ctx, quiet=quiet)
         build_extension.build_temp = os.path.dirname(pyx_file)
         build_extension.build_lib  = lib_dir
         build_extension.run()

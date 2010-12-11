@@ -1,11 +1,7 @@
 from glob import glob
 import re, os, sys
+from cython import set
 
-try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
 
 from distutils.extension import Extension
 
@@ -56,8 +52,8 @@ distutils_settings = {
     'runtime_library_dirs': transitive_list,
     'include_dirs':         transitive_list,
     'extra_objects':        list,
-    'extra_compile_args':   list,
-    'extra_link_args':      list,
+    'extra_compile_args':   transitive_list,
+    'extra_link_args':      transitive_list,
     'export_symbols':       list,
     'depends':              transitive_list,
     'language':             transitive_str,
@@ -97,7 +93,7 @@ class DistutilsInfo(object):
         elif exn is not None:
             for key in distutils_settings:
                 if key in ('name', 'sources'):
-                    pass
+                    continue
                 value = getattr(exn, key, None)
                 if value:
                     self.values[key] = value
@@ -168,7 +164,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
 
         # Try to close the quote.
         elif in_quote:
-            if code[q-1] == '\\':
+            if code[q-1] == '\\' and not raw:
                 k = 2
                 while q >= k and code[q-k] == '\\':
                     k += 1
@@ -177,7 +173,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                     continue
             if code[q:q+len(in_quote)] == in_quote:
                 counter += 1
-                label = "%s%s" % (prefix, counter)
+                label = "%s%s_" % (prefix, counter)
                 literals[label] = code[start+len(in_quote):q]
                 new_code.append("%s%s%s" % (in_quote, label, in_quote))
                 q += len(in_quote)
@@ -193,7 +189,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 end = None
             new_code.append(code[start:hash_mark+1])
             counter += 1
-            label = "%s%s" % (prefix, counter)
+            label = "%s%s_" % (prefix, counter)
             literals[label] = code[hash_mark+1:end]
             new_code.append(label)
             if end is None:
@@ -208,11 +204,11 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 in_quote = code[q]*3
             else:
                 in_quote = code[q]
-            end = q
-            while end>0 and code[end-1] in 'rRbBuU':
-                if code[end-1] in 'rR':
+            end = marker = q
+            while marker > 0 and code[marker-1] in 'rRbBuU':
+                if code[marker-1] in 'rR':
                     raw = True
-                end -= 1
+                marker -= 1
             new_code.append(code[start:end])
             start = q
             q += len(in_quote)
@@ -314,8 +310,8 @@ class DependencyTree(object):
             self_pxd = []
         a = self.cimports(filename)
         b = filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)])
-        if len(a) != len(b):
-            print(filename)
+        if len(a) - int('cython' in a) != len(b):
+            print("missing cimport", filename)
             print("\n\t".join(a))
             print("\n\t".join(b))
         return tuple(self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)]))
@@ -390,9 +386,14 @@ def create_dependency_tree(ctx=None):
     return _dep_tree
 
 # This may be useful for advanced users?
-def create_extension_list(patterns, ctx=None, aliases=None):
+def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
     seen = set()
     deps = create_dependency_tree(ctx)
+    to_exclude = set()
+    if not isinstance(exclude, list):
+        exclude = [exclude]
+    for pattern in exclude:
+        to_exclude.update(glob(pattern))
     if not isinstance(patterns, list):
         patterns = [patterns]
     module_list = []
@@ -416,27 +417,39 @@ def create_extension_list(patterns, ctx=None, aliases=None):
         else:
             raise TypeError(pattern)
         for file in glob(filepattern):
+            if file in to_exclude:
+                continue
             pkg = deps.package(file)
             if '*' in name:
                 module_name = deps.fully_qualifeid_name(file)
             else:
                 module_name = name
             if module_name not in seen:
+                kwds = deps.distutils_info(file, aliases, base).values
+                if base is not None:
+                    for key, value in base.values.items():
+                        if key not in kwds:
+                            kwds[key] = value
                 module_list.append(exn_type(
                         name=module_name,
                         sources=[file],
-                        **deps.distutils_info(file, aliases, base).values))
+                        **kwds))
+                m = module_list[-1]
                 seen.add(name)
     return module_list
 
 # This is the user-exposed entry point.
-def cythonize(module_list, nthreads=0, aliases=None, **options):
+def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, **options):
     if 'include_path' not in options:
         options['include_path'] = ['.']
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
-    module_list = create_extension_list(module_list, ctx=ctx, aliases=aliases)
+    module_list = create_extension_list(
+        module_list,
+        exclude=exclude,
+        ctx=ctx,
+        aliases=aliases)
     deps = create_dependency_tree(ctx)
     to_compile = []
     for m in module_list:
@@ -463,7 +476,11 @@ def cythonize(module_list, nthreads=0, aliases=None, **options):
                     dep_timestamp, dep = deps.newest_dependency(source)
                     priority = 2 - (dep in deps.immediate_dependencies(source))
                 if c_timestamp < dep_timestamp:
-                    print("Compiling %s because it depends on %s" % (source, dep))
+                    if not quiet:
+                        if source == dep:
+                            print("Compiling %s because it changed." % source)
+                        else:
+                            print("Compiling %s because it depends on %s." % (source, dep))
                     to_compile.append((priority, source, c_file, options))
                 new_sources.append(c_file)
             else:
