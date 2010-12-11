@@ -314,8 +314,8 @@ class DependencyTree(object):
             self_pxd = []
         a = self.cimports(filename)
         b = filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)])
-        if len(a) != len(b):
-            print(filename)
+        if len(a) - int('cython' in a) != len(b):
+            print("missing cimport", filename)
             print("\n\t".join(a))
             print("\n\t".join(b))
         return tuple(self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)]))
@@ -442,7 +442,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
     return module_list
 
 # This is the user-exposed entry point.
-def cythonize(module_list, exclude=[], nthreads=0, aliases=None, **options):
+def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, **options):
     if 'include_path' not in options:
         options['include_path'] = ['.']
     c_options = CompilationOptions(**options)
@@ -479,10 +479,11 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, **options):
                     dep_timestamp, dep = deps.newest_dependency(source)
                     priority = 2 - (dep in deps.immediate_dependencies(source))
                 if c_timestamp < dep_timestamp:
-                    if source == dep:
-                        print("Cythonizing %s because it changed." % source)
-                    else:
-                        print("Cythonizing %s because it depends on %s." % (source, dep))
+                    if not quiet:
+                        if source == dep:
+                            print("Cythonizing %s because it changed." % source)
+                        else:
+                            print("Cythonizing %s because it depends on %s." % (source, dep))
                     to_compile.append((priority, source, c_file, options))
                 new_sources.append(c_file)
             else:

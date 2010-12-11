@@ -1,6 +1,3 @@
-#no doctest
-print "Warning: Using prototype cython.inline code..."
-
 import tempfile
 import sys, os, re, inspect
 
@@ -86,6 +83,7 @@ def cython_inline(code,
                   lib_dir=os.path.expanduser('~/.cython/inline'),
                   cython_include_dirs=['.'],
                   force=False,
+                  quiet=False,
                   locals=None,
                   globals=None,
                   **kwds):
@@ -107,10 +105,11 @@ def cython_inline(code,
             elif symbol in globals:
                 kwds[symbol] = globals[symbol]
             else:
-                print "Couldn't find ", symbol
+                print("Couldn't find ", symbol)
     except AssertionError:
-        # Parsing from strings not fully supported (e.g. cimports).
-        print "Could not parse code as a string (to extract unbound symbols)."
+        if not quiet:
+            # Parsing from strings not fully supported (e.g. cimports).
+            print("Could not parse code as a string (to extract unbound symbols).")
     arg_names = kwds.keys()
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
@@ -158,7 +157,7 @@ def __invoke(%(params)s):
             extra_compile_args = cflags)
         build_extension = build_ext(Distribution())
         build_extension.finalize_options()
-        build_extension.extensions = cythonize([extension], ctx=ctx)
+        build_extension.extensions = cythonize([extension], ctx=ctx, quiet=quiet)
         build_extension.build_temp = os.path.dirname(pyx_file)
         build_extension.build_lib  = lib_dir
         build_extension.run()
