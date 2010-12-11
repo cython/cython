@@ -5033,20 +5033,6 @@ class YieldExprNode(ExprNode):
         else:
             code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
 
-class StopIterationNode(Node):
-    # XXX: is it okay?
-    child_attrs = []
-
-    def analyse_expressions(self, env):
-        pass
-
-    def generate_function_definitions(self, env, code):
-        pass
-
-    def generate_execution_code(self, code):
-        code.putln('/* Stop iteration */')
-        code.putln('PyErr_SetNone(PyExc_StopIteration); %s' % code.error_goto(self.pos))
-
 #-------------------------------------------------------------------
 #
 #  Unary operator nodes
