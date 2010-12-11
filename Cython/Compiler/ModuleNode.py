@@ -2575,8 +2575,9 @@ refnanny_utility_code = UtilityCode(proto="""
     Py_XDECREF(m);
     return (__Pyx_RefNannyAPIStruct *)r;
   }
+  #define __Pyx_RefNannyDeclareContext void *__pyx_refnanny;
   #define __Pyx_RefNannySetupContext(name) \
-          void *__pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
+          __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
   #define __Pyx_RefNannyFinishContext() \
           __Pyx_RefNanny->FinishContext(&__pyx_refnanny)
   #define __Pyx_INCREF(r) __Pyx_RefNanny->INCREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
@@ -2585,6 +2586,7 @@ refnanny_utility_code = UtilityCode(proto="""
   #define __Pyx_GIVEREF(r) __Pyx_RefNanny->GIVEREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
   #define __Pyx_XDECREF(r) do { if((r) != NULL) {__Pyx_DECREF(r);} } while(0)
 #else
+  #define __Pyx_RefNannyDeclareContext
   #define __Pyx_RefNannySetupContext(name)
   #define __Pyx_RefNannyFinishContext()
   #define __Pyx_INCREF(r) Py_INCREF(r)

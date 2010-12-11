@@ -475,6 +475,7 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static int __Pyx_InitCachedConstants(void) {")
+        w.put_declare_refcount_context()
         w.put_setup_refcount_context("__Pyx_InitCachedConstants")
 
         w = self.parts['init_globals']
@@ -1343,6 +1344,9 @@ class CCodeWriter(object):
     
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
+
+    def put_declare_refcount_context(self):
+        self.putln('__Pyx_RefNannyDeclareContext')
 
     def put_setup_refcount_context(self, name):
         self.putln('__Pyx_RefNannySetupContext("%s");' % name)
