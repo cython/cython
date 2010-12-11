@@ -655,7 +655,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
     def _run_doctest(self, result, module):
         self.run_doctests(module, result)
 
-    def patch_support(self, result):
+    def run_tests(self, result):
         try:
             from test import test_support as support
         except ImportError: # Py3k
@@ -669,11 +669,12 @@ class CythonPyregrTestCase(CythonRunTestCase):
         support.run_unittest = run_unittest
         support.run_doctest = run_doctest
 
-    def run_tests(self, result):
-        self.patch_support(result)
-        module = __import__(self.module)
-        if hasattr(module, 'test_main'):
-            module.test_main()
+        try:
+            module = __import__(self.module)
+            if hasattr(module, 'test_main'):
+                module.test_main()
+        except (unittest.SkipTest, support.ResourceDenied), e:
+            result.addSkip(self, str(e))
 
 
 try:
