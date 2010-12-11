@@ -430,9 +430,10 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
                 module_name = name
             if module_name not in seen:
                 kwds = deps.distutils_info(file, aliases, base).values
-                for key, value in base.values.items():
-                    if key not in kwds:
-                        kwds[key] = value
+                if base is not None:
+                    for key, value in base.values.items():
+                        if key not in kwds:
+                            kwds[key] = value
                 module_list.append(exn_type(
                         name=module_name,
                         sources=[file],
@@ -481,9 +482,9 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, **
                 if c_timestamp < dep_timestamp:
                     if not quiet:
                         if source == dep:
-                            print("Cythonizing %s because it changed." % source)
+                            print("Compiling %s because it changed." % source)
                         else:
-                            print("Cythonizing %s because it depends on %s." % (source, dep))
+                            print("Compiling %s because it depends on %s." % (source, dep))
                     to_compile.append((priority, source, c_file, options))
                 new_sources.append(c_file)
             else:
