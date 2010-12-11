@@ -1296,6 +1296,7 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
         tempvardecl_code = code.insertion_point()
+        code.put_declare_refcount_context()
         if not self.is_generator:
             self.generate_keyword_list(code)
         if profile:
@@ -1918,6 +1919,7 @@ class GeneratorWrapperNode(object):
         code.enter_cfunc_scope()
         code.putln()
         code.putln('%s {' % self.header)
+        code.put_declare_refcount_context()
         self.def_node.generate_keyword_list(code)
         code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
         code.putln(";")
