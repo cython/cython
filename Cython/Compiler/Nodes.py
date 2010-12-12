@@ -23,7 +23,7 @@ from PyrexTypes import py_object_type, error_type, CFuncType
 from Symtab import ModuleScope, LocalScope, ClosureScope, \
     StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
 from Cython.Utils import open_new_file, replace_suffix
-from Code import UtilityCode
+from Code import UtilityCode, ClosureTempAllocator
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
 import ControlFlow
@@ -1361,6 +1361,7 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.is_generator:
             self.generate_preamble(env, code)
         if self.is_generator:
+            code.temp_allocator = ClosureTempAllocator(lenv.scope_class.type.scope)
             resume_code = code.insertion_point()
             first_run_label = code.new_label('first_run')
             code.use_label(first_run_label)
@@ -1524,7 +1525,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if self.is_generator:
             gotref_code.putln('/* Make refnanny happy */')
-            self.temp_allocator.put_gotref(gotref_code)
+            code.temp_allocator.put_gotref(gotref_code)
             self.generator.generate_function_body(self.local_scope, code)
 
     def generate_preamble(self, env, code):

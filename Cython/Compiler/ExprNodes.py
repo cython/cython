@@ -5005,15 +5005,14 @@ class YieldExprNode(ExprNode):
         else:
             code.put_init_to_py_none(Naming.retval_cname, py_object_type)
         saved = []
-        self.temp_allocator.reset()
+        code.temp_allocator.reset()
         code.putln('/* Save temporary variables */')
         for cname, type, manage_ref in code.funcstate.temps_in_use():
-            save_cname = self.temp_allocator.allocate_temp(type)
+            save_cname = code.temp_allocator.allocate_temp(type)
             saved.append((cname, save_cname, type))
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
-        # XXX: safe here as all used temps are handled but not clean
-        self.temp_allocator.put_giveref(code)
+        code.temp_allocator.put_giveref(code)
         code.put_xgiveref(Naming.retval_cname)
         code.put_finish_refcount_context()
         code.putln("/* return from function, yielding value */")
