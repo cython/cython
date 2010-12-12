@@ -1301,39 +1301,7 @@ class AlignFunctionDefinitions(CythonTransform):
         # Enable this when internal def functions are allowed. 
         # self.visitchildren(node)
         return node
-        
 
-class MarkClosureVisitor(CythonTransform):
-
-    def visit_ModuleNode(self, node):
-        self.needs_closure = False
-        self.visitchildren(node)
-        return node
-
-    def visit_FuncDefNode(self, node):
-        self.needs_closure = False
-        self.visitchildren(node)
-        node.needs_closure = self.needs_closure
-        self.needs_closure = True
-        return node
-
-    def visit_CFuncDefNode(self, node):
-        self.visit_FuncDefNode(node)
-        if node.needs_closure:
-            error(node.pos, "closures inside cdef functions not yet supported")
-        return node
-
-    def visit_LambdaNode(self, node):
-        self.needs_closure = False
-        self.visitchildren(node)
-        node.needs_closure = self.needs_closure
-        self.needs_closure = True
-        return node
-
-    def visit_ClassDefNode(self, node):
-        self.visitchildren(node)
-        self.needs_closure = True
-        return node
 
 class ClosureTempAllocator(object):
     def __init__(self, klass=None):
@@ -1400,23 +1368,21 @@ class YieldNodeCollector(TreeVisitor):
     def visit_DefNode(self, node):
         pass
 
-class MarkGeneratorVisitor(CythonTransform):
-    """XXX: merge me with MarkClosureVisitor"""
-    def __init__(self, context):
-        super(MarkGeneratorVisitor, self).__init__(context)
+class MarkClosureVisitor(CythonTransform):
 
     def visit_ModuleNode(self, node):
-        self.visitchildren(node)
-        return node
-
-    def visit_ClassDefNode(self, node):
+        self.needs_closure = False
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
+        self.needs_closure = False
+        self.visitchildren(node)
+        node.needs_closure = self.needs_closure
+        self.needs_closure = True
+
         collector = YieldNodeCollector()
         collector.visitchildren(node)
-        self.visitchildren(node)
 
         if collector.yields:
             allocator = ClosureTempAllocator()
@@ -1427,6 +1393,24 @@ class MarkGeneratorVisitor(CythonTransform):
             node.is_generator = True
             node.needs_closure = True
             node.yields = collector.yields
+        return node
+
+    def visit_CFuncDefNode(self, node):
+        self.visit_FuncDefNode(node)
+        if node.needs_closure:
+            error(node.pos, "closures inside cdef functions not yet supported")
+        return node
+
+    def visit_LambdaNode(self, node):
+        self.needs_closure = False
+        self.visitchildren(node)
+        node.needs_closure = self.needs_closure
+        self.needs_closure = True
+        return node
+
+    def visit_ClassDefNode(self, node):
+        self.visitchildren(node)
+        self.needs_closure = True
         return node
 
 
