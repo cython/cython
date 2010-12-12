@@ -1303,43 +1303,6 @@ class AlignFunctionDefinitions(CythonTransform):
         return node
 
 
-class ClosureTempAllocator(object):
-    def __init__(self, klass=None):
-        self.klass = klass
-        self.temps_allocated = {}
-        self.temps_free = {}
-        self.temps_count = 0
-
-    def reset(self):
-        for type, cnames in self.temps_allocated.items():
-            self.temps_free[type] = list(cnames)
-
-    def allocate_temp(self, type):
-        if not type in self.temps_allocated:
-            self.temps_allocated[type] = []
-            self.temps_free[type] = []
-        elif self.temps_free[type]:
-            return self.temps_free[type].pop(0)
-        cname = '%s%d' % (Naming.codewriter_temp_prefix, self.temps_count)
-        self.klass.declare_var(pos=None, name=cname, cname=cname, type=type, is_cdef=True)
-        self.temps_allocated[type].append(cname)
-        self.temps_count += 1
-        return cname
-
-    def put_gotref(self, code):
-        for entry in self.klass.entries.values():
-            if entry.cname == Naming.outer_scope_cname: # XXX
-                continue
-            if entry.type.is_pyobject:
-                code.put_xgotref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
-
-    def put_giveref(self, code):
-        for entry in self.klass.entries.values():
-            if entry.cname == Naming.outer_scope_cname: # XXX
-                continue
-            if entry.type.is_pyobject:
-                code.put_xgiveref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
-
 class YieldNodeCollector(TreeVisitor):
 
     def __init__(self):
@@ -1385,11 +1348,6 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if collector.yields:
-            allocator = ClosureTempAllocator()
-            # XXX: move allocator inside local scope
-            for y in collector.yields:
-                y.temp_allocator = allocator
-            node.temp_allocator = allocator
             node.is_generator = True
             node.needs_closure = True
             node.yields = collector.yields
@@ -1534,8 +1492,6 @@ class CreateClosureClasses(CythonTransform):
         class_scope.is_internal = True
         class_scope.directives = {'final': True}
 
-        if node.is_generator:
-            node.temp_allocator.klass = class_scope
         if from_closure:
             assert cscope.is_closure_scope
             class_scope.declare_var(pos=node.pos,
