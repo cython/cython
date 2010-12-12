@@ -101,7 +101,6 @@ class Context(object):
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import MarkGeneratorVisitor
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from ParseTreeTransforms import ExpandInplaceOperators
         from TypeInference import MarkAssignments, MarkOverflowingArithmetic
@@ -134,7 +133,6 @@ class Context(object):
             InterpretCompilerDirectives(self, self.compiler_directives),
             _align_function_definitions,
             MarkClosureVisitor(self),
-            MarkGeneratorVisitor(self),
             ConstantFolding(),
             FlattenInListTransform(),
             WithTransform(self),
