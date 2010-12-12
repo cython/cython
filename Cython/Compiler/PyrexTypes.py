@@ -672,7 +672,7 @@ class CNumericType(CType):
             scope.directives = {}
             entry = scope.declare_cfunction(
                     "conjugate",
-                    CFuncType(self, [CFuncTypeArg("self", self, None)]),
+                    CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
                     defining=1,
                     cname=" ")
@@ -1099,7 +1099,7 @@ class CComplexType(CNumericType):
             scope.declare_var("imag", self.real_type, None, "imag", is_cdef=True)
             entry = scope.declare_cfunction(
                     "conjugate",
-                    CFuncType(self, [CFuncTypeArg("self", self, None)]),
+                    CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
                     defining=1,
                     cname="__Pyx_c_conj%s" % self.funcsuffix)
