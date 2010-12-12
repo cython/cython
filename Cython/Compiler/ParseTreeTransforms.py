@@ -1433,18 +1433,18 @@ class CreateClosureClasses(CythonTransform):
         if self.generator_class:
             return self.generator_class
         # XXX: make generator class creation cleaner
-        entry = target_module_scope.declare_c_class(name='__CyGenerator',
-                    objstruct_cname='__CyGenerator',
-                    typeobj_cname='__CyGeneratorType',
+        entry = target_module_scope.declare_c_class(name='__pyx_Generator',
+                    objstruct_cname='__pyx_Generator_object',
+                    typeobj_cname='__pyx_Generator_type',
                     pos=pos, defining=True, implementing=True)
-        entry.cname = 'CyGenerator'
+        entry.cname = 'Generator'
         klass = entry.type.scope
         klass.is_internal = True
         klass.directives = {'final': True}
 
         body_type = PyrexTypes.create_typedef_type('generator_body',
                                                    PyrexTypes.c_void_ptr_type,
-                                                   '__cygenerator_body_t')
+                                                   '__pyx_generator_body_t')
         klass.declare_var(pos=pos, name='body', cname='body',
                           type=body_type, is_cdef=True)
         klass.declare_var(pos=pos, name='is_running', cname='is_running', type=PyrexTypes.c_int_type,
@@ -1454,22 +1454,22 @@ class CreateClosureClasses(CythonTransform):
 
         import TypeSlots
         e = klass.declare_pyfunction('send', pos)
-        e.func_cname = '__CyGenerator_Send'
+        e.func_cname = '__Pyx_Generator_Send'
         e.signature = TypeSlots.binaryfunc
 
         e = klass.declare_pyfunction('close', pos)
-        e.func_cname = '__CyGenerator_Close'
+        e.func_cname = '__Pyx_Generator_Close'
         e.signature = TypeSlots.unaryfunc
 
         e = klass.declare_pyfunction('throw', pos)
-        e.func_cname = '__CyGenerator_Throw'
+        e.func_cname = '__Pyx_Generator_Throw'
         e.signature = TypeSlots.pyfunction_signature
 
         e = klass.declare_var('__iter__', PyrexTypes.py_object_type, pos, visibility='public')
         e.func_cname = 'PyObject_SelfIter'
 
         e = klass.declare_var('__next__', PyrexTypes.py_object_type, pos, visibility='public')
-        e.func_cname = '__CyGenerator_Next'
+        e.func_cname = '__Pyx_Generator_Next'
 
         self.generator_class = entry.type
         return self.generator_class

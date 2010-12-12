@@ -8302,15 +8302,15 @@ int %(binding_cfunc)s_init(void) {
 
 generator_utility_code = UtilityCode(
 proto="""
-static PyObject *__CyGenerator_Next(PyObject *self);
-static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value);
-static PyObject *__CyGenerator_Close(PyObject *self);
-static PyObject *__CyGenerator_Throw(PyObject *gen, PyObject *args, CYTHON_UNUSED PyObject *kwds);
+static PyObject *__Pyx_Generator_Next(PyObject *self);
+static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
+static PyObject *__Pyx_Generator_Close(PyObject *self);
+static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args, CYTHON_UNUSED PyObject *kwds);
 
-typedef PyObject *(*__cygenerator_body_t)(PyObject *, PyObject *);
+typedef PyObject *(*__pyx_generator_body_t)(PyObject *, PyObject *);
 """,
 impl="""
-static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, PyObject *value)
+static CYTHON_INLINE PyObject *__Pyx_Generator_SendEx(struct __pyx_Generator_object *self, PyObject *value)
 {
     PyObject *retval;
 
@@ -8341,22 +8341,22 @@ static CYTHON_INLINE PyObject *__CyGenerator_SendEx(struct __CyGenerator *self, 
     return retval;
 }
 
-static PyObject *__CyGenerator_Next(PyObject *self)
+static PyObject *__Pyx_Generator_Next(PyObject *self)
 {
-    return __CyGenerator_SendEx((struct __CyGenerator *) self, Py_None);
+    return __Pyx_Generator_SendEx((struct __pyx_Generator_object *) self, Py_None);
 }
 
-static PyObject *__CyGenerator_Send(PyObject *self, PyObject *value)
+static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value)
 {
-    return __CyGenerator_SendEx((struct __CyGenerator *) self, value);
+    return __Pyx_Generator_SendEx((struct __pyx_Generator_object *) self, value);
 }
 
-static PyObject *__CyGenerator_Close(PyObject *self)
+static PyObject *__Pyx_Generator_Close(PyObject *self)
 {
-    struct __CyGenerator *generator = (struct __CyGenerator *) self;
+    struct __pyx_Generator_object *generator = (struct __pyx_Generator_object *) self;
     PyObject *retval;
     PyErr_SetNone(PyExc_GeneratorExit);
-    retval = __CyGenerator_SendEx(generator, NULL);
+    retval = __Pyx_Generator_SendEx(generator, NULL);
     if (retval) {
         Py_DECREF(retval);
         PyErr_SetString(PyExc_RuntimeError,
@@ -8373,9 +8373,9 @@ static PyObject *__CyGenerator_Close(PyObject *self)
     return NULL;
 }
 
-static PyObject *__CyGenerator_Throw(PyObject *self, PyObject *args, CYTHON_UNUSED PyObject *kwds)
+static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args, CYTHON_UNUSED PyObject *kwds)
 {
-    struct __CyGenerator *generator = (struct __CyGenerator *) self;
+    struct __pyx_Generator_object *generator = (struct __pyx_Generator_object *) self;
     PyObject *typ;
     PyObject *tb = NULL;
     PyObject *val = NULL;
@@ -8383,7 +8383,7 @@ static PyObject *__CyGenerator_Throw(PyObject *self, PyObject *args, CYTHON_UNUS
     if (!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb))
         return NULL;
     __Pyx_Raise(typ, val, tb);
-    return __CyGenerator_SendEx(generator, NULL);
+    return __Pyx_Generator_SendEx(generator, NULL);
 }
 """,
 proto_block='utility_code_proto_before_types',
