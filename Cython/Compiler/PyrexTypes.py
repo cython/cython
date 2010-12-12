@@ -635,6 +635,8 @@ class CNumericType(CType):
     
     is_numeric = 1
     default_value = "0"
+    has_attributes = True
+    scope = None
     
     sign_words = ("unsigned ", "", "signed ")
     
@@ -658,6 +660,23 @@ class CNumericType(CType):
         else:
             base_code = public_decl(type_name, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
+                    
+    def attributes_known(self):
+        if self.scope is None:
+            import Symtab
+            self.scope = scope = Symtab.CClassScope(
+                    '',
+                    None,
+                    visibility="extern")
+            scope.parent_type = self
+            scope.directives = {}
+            entry = scope.declare_cfunction(
+                    "conjugate",
+                    CFuncType(self, [CFuncTypeArg("self", self, None)]),
+                    pos=None,
+                    defining=1,
+                    cname=" ")
+        return True
 
 
 type_conversion_predeclarations = ""
