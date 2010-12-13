@@ -1618,7 +1618,8 @@ class NameNode(AtomicExprNode):
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
                 if self.use_managed_ref:
                     rhs.make_owned_reference(code)
-                    if entry.is_cglobal:
+                    is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
+                    if is_external_ref:
                         code.put_gotref(self.py_result())
                     if not self.lhs_of_first_assignment:
                         if entry.is_local and not Options.init_local_none:
@@ -1629,7 +1630,7 @@ class NameNode(AtomicExprNode):
                                 code.put_xdecref(self.result(), self.ctype())
                         else:
                             code.put_decref(self.result(), self.ctype())
-                    if entry.is_cglobal:
+                    if is_external_ref:
                         code.put_giveref(rhs.py_result())
 
             code.putln('%s = %s;' % (self.result(),
@@ -5010,9 +5011,10 @@ class YieldExprNode(ExprNode):
         for cname, type, manage_ref in code.funcstate.temps_in_use():
             save_cname = code.temp_allocator.allocate_temp(type)
             saved.append((cname, save_cname, type))
+            if type.is_pyobject:
+                code.put_xgiveref(cname)
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
-        code.temp_allocator.put_giveref(code)
         code.put_xgiveref(Naming.retval_cname)
         code.put_finish_refcount_context()
         code.putln("/* return from function, yielding value */")
@@ -5024,6 +5026,8 @@ class YieldExprNode(ExprNode):
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
+            if type.is_pyobject:
+                code.put_xgotref(cname)
         if self.result_is_used:
             self.allocate_temp_result(code)
             code.putln('%s = %s; %s' %
