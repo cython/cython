@@ -3,7 +3,7 @@ __doc__ = u"""
 ...     foo()
 ... except Exception, e:
 ...     print("%s: %s" % (e.__class__.__name__, e))
-ValueError:
+ValueError: 
 >>> try:
 ...     bar()
 ... except Exception, e:
