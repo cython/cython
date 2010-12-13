@@ -5006,10 +5006,10 @@ class YieldExprNode(ExprNode):
         else:
             code.put_init_to_py_none(Naming.retval_cname, py_object_type)
         saved = []
-        code.temp_allocator.reset()
+        code.funcstate.closure_temps.reset()
         code.putln('/* Save temporary variables */')
         for cname, type, manage_ref in code.funcstate.temps_in_use():
-            save_cname = code.temp_allocator.allocate_temp(type)
+            save_cname = code.funcstate.closure_temps.allocate_temp(type)
             saved.append((cname, save_cname, type))
             if type.is_pyobject:
                 code.put_xgiveref(cname)

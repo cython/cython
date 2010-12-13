@@ -117,6 +117,7 @@ class FunctionState(object):
         self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {} # name -> (type, manage_ref)
         self.temp_counter = 0
+        self.closure_temps = None
 
     # labels
 
@@ -269,6 +270,9 @@ class FunctionState(object):
                 for (type, manage_ref), freelist in self.temps_free.items()
                 if manage_ref
                 for cname in freelist]
+
+    def init_closure_temps(self, scope):
+        self.closure_temps = ClosureTempAllocator(scope)
 
 
 class IntConst(object):
@@ -1397,7 +1401,7 @@ class PyrexCodeWriter(object):
 
 
 class ClosureTempAllocator(object):
-    def __init__(self, klass=None):
+    def __init__(self, klass):
         self.klass = klass
         self.temps_allocated = {}
         self.temps_free = {}
