@@ -256,7 +256,7 @@ class CythonBase(object):
                 filename = None
                 lineno = 0
             else:
-                filename = symbol_and_line_obj.symtab.filename
+                filename = symbol_and_line_obj.symtab.fullname()
                 lineno = symbol_and_line_obj.line
                 if pygments:
                     lexer = pygments.lexers.CLexer(stripall=False)
@@ -1033,7 +1033,7 @@ class CyList(CythonCommand):
     command_class = gdb.COMMAND_FILES
     completer_class = gdb.COMPLETE_NONE
     
-    @dispatch_on_frame(c_command='list')
+    # @dispatch_on_frame(c_command='list')
     def invoke(self, _, from_tty):
         sd, lineno = self.get_source_desc()
         source = sd.get_source(lineno - 5, lineno + 5, mark_line=lineno, 
