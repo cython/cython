@@ -11,6 +11,6 @@ def test(x, int y):
     cdef object o = int(8)
     print a, b, c, p[0], before, g, o
 
-# Also test that pruning cdefs doesn't hurt 
+# Also test that pruning cdefs doesn't hurt
 def empty():
     cdef int i

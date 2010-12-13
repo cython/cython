@@ -7,7 +7,7 @@ cdef class SpamDish:
 
 cdef class FancySpamDish(SpamDish):
     cdef int lettuce
-    
+
     cdef void describe(self):
         print "This dish contains", self.spam, "tons of spam",
         print "and", self.lettuce, "milligrams of lettuce."

@@ -34,15 +34,15 @@ cdef extern from "numpy/arrayobject.h":
         NPY_BYTE
         NPY_UBYTE
         NPY_SHORT
-        NPY_USHORT 
+        NPY_USHORT
         NPY_INT
-        NPY_UINT 
+        NPY_UINT
         NPY_LONG
         NPY_ULONG
         NPY_LONGLONG
         NPY_ULONGLONG
         NPY_FLOAT
-        NPY_DOUBLE 
+        NPY_DOUBLE
         NPY_LONGDOUBLE
         NPY_CFLOAT
         NPY_CDOUBLE
@@ -138,14 +138,14 @@ cdef extern from "numpy/arrayobject.h":
         NPY_INOUT_FARRAY
 
         NPY_UPDATE_ALL
-        
+
     cdef enum:
         NPY_MAXDIMS
 
     npy_intp NPY_MAX_ELSIZE
 
     ctypedef void (*PyArray_VectorUnaryFunc)(void *, void *, npy_intp, void *,  void *)
-    
+
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined. Please
@@ -168,16 +168,16 @@ cdef extern from "numpy/arrayobject.h":
         # For use in situations where ndarray can't replace PyArrayObject*,
         # like PyArrayObject**.
         pass
-    
+
     ctypedef class numpy.ndarray [object PyArrayObject]:
         cdef __cythonbufferdefaults__ = {"mode": "strided"}
-        
+
         cdef:
             # Only taking a few of the most commonly used and stable fields.
             # One should use PyArray_* macros instead to access the C fields.
             char *data
             int ndim "nd"
-            npy_intp *shape "dimensions" 
+            npy_intp *shape "dimensions"
             npy_intp *strides
             dtype descr
             PyObject* base
@@ -193,7 +193,7 @@ cdef extern from "numpy/arrayobject.h":
             cdef int copy_shape, i, ndim
             cdef int endian_detector = 1
             cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
-            
+
             ndim = PyArray_NDIM(self)
 
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
@@ -204,7 +204,7 @@ cdef extern from "numpy/arrayobject.h":
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
                 raise ValueError(u"ndarray is not C contiguous")
-                
+
             if ((flags & pybuf.PyBUF_F_CONTIGUOUS == pybuf.PyBUF_F_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_F_CONTIGUOUS)):
                 raise ValueError(u"ndarray is not Fortran contiguous")
@@ -307,7 +307,7 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef signed int         npy_int32
     ctypedef signed long long   npy_int64
     ctypedef signed long long   npy_int96
-    ctypedef signed long long   npy_int128    
+    ctypedef signed long long   npy_int128
 
     ctypedef unsigned char      npy_uint8
     ctypedef unsigned short     npy_uint16
@@ -349,7 +349,7 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef struct npy_complex192:
         double real
         double imag
-        
+
     ctypedef struct npy_complex256:
         double real
         double imag
@@ -388,7 +388,7 @@ cdef extern from "numpy/arrayobject.h":
 
     object PyArray_GETITEM(ndarray arr, void *itemptr)
     int PyArray_SETITEM(ndarray arr, void *itemptr, object obj)
-        
+
     bint PyTypeNum_ISBOOL(int)
     bint PyTypeNum_ISUNSIGNED(int)
     bint PyTypeNum_ISSIGNED(int)
@@ -476,7 +476,7 @@ cdef extern from "numpy/arrayobject.h":
     bint PyArray_SAMESHAPE(ndarray, ndarray)
     npy_intp PyArray_SIZE(ndarray)
     npy_intp PyArray_NBYTES(ndarray)
-    
+
     object PyArray_FROM_O(object)
     object PyArray_FROM_OF(object m, int flags)
     bint PyArray_FROM_OT(object m, int type)
@@ -703,7 +703,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_CheckAxis (ndarray, int *, int)
     npy_intp PyArray_OverflowMultiplyList (npy_intp *, int)
     int PyArray_CompareString (char *, char *, size_t)
-    
+
 
 # Typedefs that matches the runtime dtype objects in
 # the numpy module.
@@ -778,7 +778,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
     cdef int endian_detector = 1
     cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
     cdef tuple fields
-    
+
     for childname in descr.names:
         fields = descr.fields[childname]
         child, new_offset = fields
@@ -796,7 +796,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
             #
             # A proper PEP 3118 exporter for other clients than Cython
             # must deal properly with this!
-        
+
         # Output padding bytes
         while offset[0] < new_offset:
             f[0] = 120 # "x"; pad byte
@@ -804,7 +804,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
             offset[0] += 1
 
         offset[0] += child.itemsize
-            
+
         if not PyDataType_HASFIELDS(child):
             t = child.type_num
             if end - f < 5:
@@ -845,7 +845,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
 cdef extern from "numpy/ufuncobject.h":
 
     ctypedef void (*PyUFuncGenericFunction) (char **, npy_intp *, npy_intp *, void *)
-    
+
     ctypedef extern class numpy.ufunc [object PyUFuncObject]:
         cdef:
             int nin, nout, nargs

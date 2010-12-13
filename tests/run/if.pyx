@@ -29,7 +29,7 @@ def g(a, b):
     elif b:
         x = 2
     return x
-    
+
 def h(a, b):
     """
     >>> h(1,2)

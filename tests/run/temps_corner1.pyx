@@ -4,7 +4,7 @@ cdef class A:
 
 cdef int  bitsize(A a):
     return 1
-    
+
 coeffs = [A()]
 
 class B:

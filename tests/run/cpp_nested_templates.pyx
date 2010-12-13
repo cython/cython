@@ -6,7 +6,7 @@ cdef extern from "cpp_templates_helper.h":
         void set(T)
         T get()
         bint operator==(Wrap[T])
-        
+
     cdef cppclass Pair[T1,T2]:
         Pair(T1,T2)
         T1 first()
@@ -37,9 +37,9 @@ def test_wrap_pair_pair(int i, int j, double x):
     try:
         wrap = new Wrap[Pair[int, Pair[int, double]]](
                         Pair[int, Pair[int, double]](i,Pair[int, double](j, x)))
-        return (wrap.get().first(), 
+        return (wrap.get().first(),
                 wrap.get().second().first(),
-                wrap.get().second().second(), 
+                wrap.get().second().second(),
                 deref(wrap) == deref(wrap))
     finally:
         del wrap

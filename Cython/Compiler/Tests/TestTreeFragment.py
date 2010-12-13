@@ -5,12 +5,12 @@ from Cython.Compiler.UtilNodes import *
 import Cython.Compiler.Naming as Naming
 
 class TestTreeFragments(CythonTest):
-    
+
     def test_basic(self):
         F = self.fragment(u"x = 4")
         T = F.copy()
         self.assertCode(u"x = 4", T)
-    
+
     def test_copy_is_taken(self):
         F = self.fragment(u"if True: x = 4")
         T1 = F.root
@@ -46,7 +46,7 @@ class TestTreeFragments(CythonTest):
         v = F.root.stats[1].rhs.operand2.operand1
         a = T.stats[1].rhs.operand2.operand1
         self.assertEquals(v.pos, a.pos)
-        
+
     def test_temps(self):
         TemplateTransform.temp_name_counter = 0
         F = self.fragment(u"""

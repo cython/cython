@@ -12,7 +12,7 @@ double doublefunc (double a, double b, double c)
 
 
 DoubleKeeper::DoubleKeeper ()
-    : number (1.0) 
+    : number (1.0)
 {
 }
 

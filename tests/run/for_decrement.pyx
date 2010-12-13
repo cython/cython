@@ -16,7 +16,7 @@ cdef int get_step():
 
 def range_loop_indices():
     """
-    Optimized integer for loops using range() should follow Python behavior, 
+    Optimized integer for loops using range() should follow Python behavior,
     and leave the index variable with the last value of the range.
     """
     cdef int i, j, k=0, l=10, m=10
@@ -29,7 +29,7 @@ def range_loop_indices():
 
 def from_loop_indices():
     """
-    for-from-loops should follow C behavior, and leave the index variable 
+    for-from-loops should follow C behavior, and leave the index variable
     incremented one step after the last iteration.
     """
     cdef int i, j, k

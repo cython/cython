@@ -8,7 +8,7 @@ cdef void foo():
     p1 = p2
     obj1 = i1
     i1 = obj1
-    p1 = obj1	
+    p1 = obj1
     p1 = "spanish inquisition"
 
-foo()    
+foo()

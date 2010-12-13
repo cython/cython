@@ -88,7 +88,7 @@ def safe_type(arg, context=None):
                     return '%s.%s' % (base_type.__module__, base_type.__name__)
         return 'object'
 
-def cython_inline(code, 
+def cython_inline(code,
                   get_type=unsafe_type,
                   lib_dir=os.path.expanduser('~/.cython/inline'),
                   cython_include_dirs=['.'],
@@ -252,14 +252,14 @@ def get_body(source):
     else:
         return source[ix+1:]
 
-# Lots to be done here... It would be especially cool if compiled functions 
+# Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.
 class RuntimeCompiledFunction(object):
 
     def __init__(self, f):
         self._f = f
         self._body = get_body(inspect.getsource(f))
-    
+
     def __call__(self, *args, **kwds):
         all = getcallargs(self._f, *args, **kwds)
         return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)

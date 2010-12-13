@@ -19,12 +19,12 @@ def make_lexicon():
     octdigit = Any("01234567")
     hexdigit = Any("0123456789ABCDEFabcdef")
     indentation = Bol + Rep(Any(" \t"))
-    
+
     decimal = Rep1(digit)
     dot = Str(".")
     exponent = Any("Ee") + Opt(Any("+-")) + decimal
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
-    
+
     name = letter + Rep(letter | digit)
     intconst = decimal | (Str("0") + ((Any("Xx") + Rep1(hexdigit)) |
                                       (Any("Oo") + Rep1(octdigit)) |
@@ -33,33 +33,33 @@ def make_lexicon():
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
     imagconst = (intconst | fltconst) + Any("jJ")
-    
+
     sq_string = (
-        Str("'") + 
-        Rep(AnyBut("\\\n'") | (Str("\\") + AnyChar)) + 
+        Str("'") +
+        Rep(AnyBut("\\\n'") | (Str("\\") + AnyChar)) +
         Str("'")
     )
-    
+
     dq_string = (
-        Str('"') + 
-        Rep(AnyBut('\\\n"') | (Str("\\") + AnyChar)) + 
+        Str('"') +
+        Rep(AnyBut('\\\n"') | (Str("\\") + AnyChar)) +
         Str('"')
     )
-    
+
     non_sq = AnyBut("'") | (Str('\\') + AnyChar)
     tsq_string = (
         Str("'''")
-        + Rep(non_sq | (Str("'") + non_sq) | (Str("''") + non_sq)) 
+        + Rep(non_sq | (Str("'") + non_sq) | (Str("''") + non_sq))
         + Str("'''")
     )
-    
+
     non_dq = AnyBut('"') | (Str('\\') + AnyChar)
     tdq_string = (
         Str('"""')
-        + Rep(non_dq | (Str('"') + non_dq) | (Str('""') + non_dq)) 
+        + Rep(non_dq | (Str('"') + non_dq) | (Str('""') + non_dq))
         + Str('"""')
     )
-    
+
     beginstring = Opt(Any(string_prefixes)) + Opt(Any(raw_prefixes)) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
@@ -68,21 +68,21 @@ def make_lexicon():
     escapeseq = Str("\\") + (two_oct | three_oct |
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex | AnyChar)
-    
+
 
     deco = Str("@")
     bra = Any("([{")
     ket = Any(")]}")
     punct = Any(":,;+-*/|&<>=.%`~^?")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
-                    "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=", 
+                    "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
                     "<<=", ">>=", "**=", "//=", "->")
     spaces = Rep1(Any(" \t\f"))
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))
 
-    comment = Str("#") + Rep(AnyBut("\n"))    
-    
+    comment = Str("#") + Rep(AnyBut("\n"))
+
     return Lexicon([
         (name, IDENT),
         (intliteral, 'INT'),
@@ -90,25 +90,25 @@ def make_lexicon():
         (imagconst, 'IMAG'),
         (deco, 'DECORATOR'),
         (punct | diphthong, TEXT),
-        
+
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),
         (lineterm, Method('newline_action')),
-    
+
         #(stringlit, 'STRING'),
         (beginstring, Method('begin_string_action')),
-        
+
         (comment, IGNORE),
         (spaces, IGNORE),
         (escaped_newline, IGNORE),
-        
+
         State('INDENT', [
             (comment + lineterm, Method('commentline')),
             (Opt(spaces) + Opt(comment) + lineterm, IGNORE),
             (indentation, Method('indentation_action')),
             (Eof, Method('eof_action'))
         ]),
-        
+
         State('SQ_STRING', [
             (escapeseq, 'ESCAPE'),
             (Rep1(AnyBut("'\"\n\\")), 'CHARS'),
@@ -117,7 +117,7 @@ def make_lexicon():
             (Str("'"), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
-        
+
         State('DQ_STRING', [
             (escapeseq, 'ESCAPE'),
             (Rep1(AnyBut('"\n\\')), 'CHARS'),
@@ -126,7 +126,7 @@ def make_lexicon():
             (Str('"'), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
-        
+
         State('TSQ_STRING', [
             (escapeseq, 'ESCAPE'),
             (Rep1(AnyBut("'\"\n\\")), 'CHARS'),
@@ -135,7 +135,7 @@ def make_lexicon():
             (Str("'''"), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
-        
+
         State('TDQ_STRING', [
             (escapeseq, 'ESCAPE'),
             (Rep1(AnyBut('"\'\n\\')), 'CHARS'),
@@ -144,10 +144,10 @@ def make_lexicon():
             (Str('"""'), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
-        
+
         (Eof, Method('eof_action'))
         ],
-        
+
         # FIXME: Plex 1.9 needs different args here from Plex 1.1.4
         #debug_flags = scanner_debug_flags,
         #debug_file = scanner_dump_file

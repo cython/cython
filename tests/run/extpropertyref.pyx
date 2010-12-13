@@ -1,7 +1,7 @@
 cdef class Spam:
 
     property eggs:
-    
+
         def __get__(self):
             """
             This is the docstring for Spam.eggs.__get__

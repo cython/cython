@@ -11,7 +11,7 @@ import Symtab
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
 
-    blacklist = ['__cinit__', '__dealloc__', '__richcmp__', 
+    blacklist = ['__cinit__', '__dealloc__', '__richcmp__',
                  '__nonzero__', '__bool__',
                  '__len__', '__contains__']
 

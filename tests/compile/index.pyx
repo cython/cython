@@ -14,5 +14,5 @@ def f(obj1, obj2, obj3):
     array1[obj2] = int3
     obj1[int2] = obj3
     obj1[obj2] = 42
-    
+
 f(None, None, None)
