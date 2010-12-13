@@ -66,7 +66,7 @@ else:
         'Cython'          : [ p[7:] for p in pxd_include_patterns ],
         }
 
-# This dict is used for passing extra arguments that are setuptools 
+# This dict is used for passing extra arguments that are setuptools
 # specific to setup
 setuptools_extra_args = {}
 
