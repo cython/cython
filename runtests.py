@@ -85,7 +85,7 @@ class build_ext(_build_ext):
     def build_extension(self, ext):
         if ext.language == 'c++':
             try:
-                try: # Py2.7+ & Py3.2+ 
+                try: # Py2.7+ & Py3.2+
                     compiler_obj = self.compiler_obj
                 except AttributeError:
                     compiler_obj = self.compiler
@@ -351,17 +351,17 @@ class CythonCompileTestCase(unittest.TestCase):
         source = self.find_module_source_file(
             os.path.join(test_directory, module + '.pyx'))
         target = os.path.join(targetdir, self.build_target_filename(module))
-        
+
         if extra_compile_options is None:
             extra_compile_options = {}
-        
+
         try:
             CompilationOptions
         except NameError:
             from Cython.Compiler.Main import CompilationOptions
             from Cython.Compiler.Main import compile as cython_compile
             from Cython.Compiler.Main import default_options
-        
+
         options = CompilationOptions(
             default_options,
             include_path = include_dirs,
@@ -377,7 +377,7 @@ class CythonCompileTestCase(unittest.TestCase):
         cython_compile(source, options=options,
                        full_module_name=module)
 
-    def run_distutils(self, test_directory, module, workdir, incdir, 
+    def run_distutils(self, test_directory, module, workdir, incdir,
                       extra_extension_args=None):
         cwd = os.getcwd()
         os.chdir(workdir)
@@ -392,10 +392,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
             self.copy_related_files(test_directory, workdir, module)
-            
+
             if extra_extension_args is None:
                 extra_extension_args = {}
-            
+
             extension = Extension(
                 module,
                 sources = self.find_source_files(workdir, module),
@@ -659,7 +659,7 @@ def collect_unittests(path, module_prefix, suite, selectors):
         return dirname == "Tests"
 
     loader = unittest.TestLoader()
-    
+
     if include_debugger:
         skipped_dirs = []
     else:
@@ -698,7 +698,7 @@ def collect_doctests(path, module_prefix, suite, selectors):
         return dirname not in ("Mac", "Distutils", "Plex")
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
-        blacklist = ['libcython', 'libpython', 'test_libcython_in_gdb', 
+        blacklist = ['libcython', 'libpython', 'test_libcython_in_gdb',
                      'TestLibCython']
         return (ext == '.py' and not
                 '~' in filename and not
@@ -735,7 +735,7 @@ class EndToEndTest(unittest.TestCase):
     directory structure and its header gives a list of commands to run.
     """
     cython_root = os.path.dirname(os.path.abspath(__file__))
-    
+
     def __init__(self, treefile, workdir, cleanup_workdir=True):
         self.treefile = treefile
         self.workdir = os.path.join(workdir, os.path.splitext(treefile)[0])
@@ -766,7 +766,7 @@ class EndToEndTest(unittest.TestCase):
         if self.cleanup_workdir:
             shutil.rmtree(self.workdir)
         os.chdir(self.old_dir)
-    
+
     def runTest(self):
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
@@ -801,15 +801,15 @@ class EndToEndTest(unittest.TestCase):
 # TODO: Windows support.
 
 class EmbedTest(unittest.TestCase):
-    
+
     working_dir = "Demos/embed"
-    
+
     def setUp(self):
         self.old_dir = os.getcwd()
         os.chdir(self.working_dir)
         os.system(
             "make PYTHON='%s' clean > /dev/null" % sys.executable)
-    
+
     def tearDown(self):
         try:
             os.system(
@@ -817,7 +817,7 @@ class EmbedTest(unittest.TestCase):
         except:
             pass
         os.chdir(self.old_dir)
-        
+
     def test_embed(self):
         from distutils import sysconfig
         libname = sysconfig.get_config_var('LIBRARY')
@@ -881,7 +881,7 @@ class FileListExcluder:
                     self.excludes[line.split()[0]] = True
         finally:
             f.close()
-                
+
     def __call__(self, testname):
         return testname in self.excludes or testname.split('.')[-1] in self.excludes
 
@@ -965,7 +965,7 @@ def main():
                       help="do not run the file based tests")
     parser.add_option("--no-pyregr", dest="pyregr",
                       action="store_false", default=True,
-                      help="do not run the regression tests of CPython in tests/pyregr/")    
+                      help="do not run the regression tests of CPython in tests/pyregr/")
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
@@ -1115,16 +1115,16 @@ def main():
     # Chech which external modules are not present and exclude tests
     # which depends on them (by prefix)
 
-    missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES) 
-    version_dep_excluder = VersionDependencyExcluder(VER_DEP_MODULES) 
+    missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES)
+    version_dep_excluder = VersionDependencyExcluder(VER_DEP_MODULES)
     exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to pring msg at exit
 
     if options.exclude:
         exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
-    
+
     if not test_bugs:
         exclude_selectors += [ FileListExcluder("tests/bugs.txt") ]
-    
+
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
         exclude_selectors += [ lambda x: x == "run.specialfloat" ]
 
@@ -1175,7 +1175,7 @@ def main():
         ignored_modules = ('Options', 'Version', 'DebugFlags', 'CmdLine')
         modules = [ module for name, module in sys.modules.items()
                     if module is not None and
-                    name.startswith('Cython.Compiler.') and 
+                    name.startswith('Cython.Compiler.') and
                     name[len('Cython.Compiler.'):] not in ignored_modules ]
         if options.coverage:
             coverage.report(modules, show_missing=0)
