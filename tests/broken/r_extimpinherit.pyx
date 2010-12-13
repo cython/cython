@@ -5,7 +5,7 @@ cdef class Norwegian(Parrot):
 
     cdef action(self):
         print "This parrot is resting."
-    
+
     cdef plumage(self):
         print "Lovely plumage!"
 

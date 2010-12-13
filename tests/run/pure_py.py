@@ -39,7 +39,7 @@ def test_sizeof():
 ##         i = sizeof(xx)
 ##     ptr = cython.declare(cython.p_int, cython.address(y))
 ##     return y, ptr[0]
-    
+
 @cython.locals(x=cython.double, n=cython.int)
 def test_cast(x):
     """
@@ -48,7 +48,7 @@ def test_cast(x):
     """
     n = cython.cast(cython.int, x)
     return n
-    
+
 @cython.locals(x=cython.int, y=cython.p_int)
 def test_address(x):
     """

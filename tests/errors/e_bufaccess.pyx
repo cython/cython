@@ -4,7 +4,7 @@ cdef class A:
 
 def f():
     cdef object[fakeoption=True] buf1
-    cdef object[int, -1] buf1b 
+    cdef object[int, -1] buf1b
     cdef object[ndim=-1] buf2
     cdef object[int, 'a'] buf3
     cdef object[int,2,3,4,5,6] buf4

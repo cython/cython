@@ -26,7 +26,7 @@ def test_arithmetic(double complex z, double complex w):
 def test_pow(double complex z, double complex w, tol=None):
     """
     Various implementations produce slightly different results...
-    
+
     >>> a = complex(3, 1)
     >>> test_pow(a, 1)
     (3+1j)

@@ -10,10 +10,10 @@ gcc_branch_hints = 1
 pre_import = None
 docstrings = True
 
-# Decref global variables in this module on exit for garbage collection. 
+# Decref global variables in this module on exit for garbage collection.
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
 # Mostly for reducing noise for Valgrind, only executes at process exit
-# (when all memory will be reclaimed anyways). 
+# (when all memory will be reclaimed anyways).
 generate_cleanup_code = 0
 
 annotate = 0
@@ -22,33 +22,33 @@ annotate = 0
 # to keep going and printing further error messages.
 fast_fail = False
 
-# This will convert statements of the form "for i in range(...)" 
+# This will convert statements of the form "for i in range(...)"
 # to "for i from ..." when i is a cdef'd integer type, and the direction
-# (i.e. sign of step) can be determined. 
-# WARNING: This may change the semantics if the range causes assignment to 
+# (i.e. sign of step) can be determined.
+# WARNING: This may change the semantics if the range causes assignment to
 # i to overflow. Specifically, if this option is set, an error will be
 # raised before the loop is entered, wheras without this option the loop
-# will execute until an overflowing value is encountered. 
+# will execute until an overflowing value is encountered.
 convert_range = 1
 
-# Enable this to allow one to write your_module.foo = ... to overwrite the 
-# definition if the cpdef function foo, at the cost of an extra dictionary 
-# lookup on every call. 
-# If this is 0 it simply creates a wrapper. 
+# Enable this to allow one to write your_module.foo = ... to overwrite the
+# definition if the cpdef function foo, at the cost of an extra dictionary
+# lookup on every call.
+# If this is 0 it simply creates a wrapper.
 lookup_module_cpdef = 0
 
-# This will set local variables to None rather than NULL which may cause 
-# surpress what would be an UnboundLocalError in pure Python but eliminates 
-# checking for NULL on every use, and can decref rather than xdecref at the end. 
+# This will set local variables to None rather than NULL which may cause
+# surpress what would be an UnboundLocalError in pure Python but eliminates
+# checking for NULL on every use, and can decref rather than xdecref at the end.
 # WARNING: This is a work in progress, may currently segfault.
 init_local_none = 1
 
-# Append the c file and line number to the traceback for exceptions. 
+# Append the c file and line number to the traceback for exceptions.
 c_line_in_traceback = 1
 
-# Whether or not to embed the Python interpreter, for use in making a 
-# standalone executable. This will provide a main() method which simply 
-# executes the body of this module. 
+# Whether or not to embed the Python interpreter, for use in making a
+# standalone executable. This will provide a main() method which simply
+# executes the body of this module.
 embed = False
 
 
@@ -76,7 +76,7 @@ directive_defaults = {
     'autotestdict.all': False,
     'language_level': 2,
     'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
-    
+
     'warn': None,
     'warn.undeclared': False,
 
@@ -123,7 +123,7 @@ def parse_directive_value(name, value, relaxed_bool=False):
     Traceback (most recent call last):
        ...
     ValueError: boundscheck directive must be set to True or False, got 'true'
-    
+
     """
     type = directive_types.get(name)
     if not type: return None

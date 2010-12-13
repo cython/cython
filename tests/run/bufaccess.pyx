@@ -21,7 +21,7 @@ __test__ = {}
 import sys
 import re
 exclude = []#re.compile('object').search]
-    
+
 def testcase(func):
     for e in exclude:
         if e(func.__name__):
@@ -80,7 +80,7 @@ def acquire_raise(o):
     """
     Apparently, doctest won't handle mixed exceptions and print
     stats, so need to circumvent this.
-    
+
     >>> A = IntMockBuffer("A", range(6))
     >>> A.resetlog()
     >>> acquire_raise(A)
@@ -90,7 +90,7 @@ def acquire_raise(o):
     >>> A.printlog()
     acquired A
     released A
-    
+
     """
     cdef object[int] buf
     buf = o
@@ -251,7 +251,7 @@ def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), in
     0 1 2 3 4 5 END
     released A
     """
-    cdef int i 
+    cdef int i
     for i in range(n):
         print bufarg[i],
     print 'END'
@@ -264,7 +264,7 @@ def cdef_assignment(obj, n):
     acquired A
     0 1 2 3 4 5 END
     released A
-    
+
     """
     cdef object[int] buf = obj
     cdef int i
@@ -350,7 +350,7 @@ def explicitly_release_buffer():
 
 #
 # Getting items and index bounds checking
-# 
+#
 @testcase
 def get_int_2d(object[int, ndim=2] buf, int i, int j):
     """
@@ -409,7 +409,7 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     """
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
-    
+
     >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> set_int_2d(C, 1, 1, 10)
     acquired C
@@ -435,7 +435,7 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     acquired C
     released C
     8
-    
+
     >>> set_int_2d(C, -2, -3, 9)
     acquired C
     released C
@@ -453,7 +453,7 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     Traceback (most recent call last):
         ...
     IndexError: Out of bounds on buffer access (axis 1)
-    
+
     """
     buf[i, j] = value
 
@@ -474,7 +474,7 @@ def no_negative_indices(object[int, negative_indices=False] buf, int idx):
     """
     The most interesting thing here is to inspect the C source and
     make sure optimal code is produced.
-    
+
     >>> A = IntMockBuffer(None, range(6))
     >>> no_negative_indices(A, 3)
     3
@@ -490,7 +490,7 @@ def no_negative_indices(object[int, negative_indices=False] buf, int idx):
 def wraparound_directive(object[int] buf, int pos_idx, int neg_idx):
     """
     Again, the most interesting thing here is to inspect the C source.
-    
+
     >>> A = IntMockBuffer(None, range(4))
     >>> wraparound_directive(A, 2, -1)
     5
@@ -562,12 +562,12 @@ def c_contig(object[int, ndim=1, mode='c'] buf):
     ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
     """
     return buf[2]
-    
+
 @testcase
 def c_contig_2d(object[int, ndim=2, mode='c'] buf):
     """
     Multi-dim has seperate implementation
-    
+
     >>> A = IntMockBuffer(None, range(12), shape=(3,4))
     >>> c_contig_2d(A)
     7
@@ -591,7 +591,7 @@ def f_contig(object[int, ndim=1, mode='fortran'] buf):
 def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
     """
     Must set up strides manually to ensure Fortran ordering.
-    
+
     >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
     >>> f_contig_2d(A)
     7
@@ -654,7 +654,7 @@ def unsafe_get(object[int] buf, int idx):
 def unsafe_get_nonegative(object[int, negative_indices=False] buf, int idx):
     """
     Also inspect the C source to see that it is optimal...
-    
+
     >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
     >>> unsafe_get_nonegative(A, -2)
     3
@@ -677,14 +677,14 @@ def mixed_get(object[int] buf, int unsafe_idx, int safe_idx):
     with cython.boundscheck(True):
         two = buf[safe_idx]
     return (one, two)
-        
+
 #
 # Coercions
 #
 @testcase
 def coercions(object[unsigned char] uc):
     """
-TODO    
+TODO
     """
     print type(uc[0])
     uc[0] = -1
@@ -714,7 +714,7 @@ def printbuf_int(object[int] buf, shape):
 def printbuf_int_2d(o, shape):
     """
     Strided:
-    
+
     >>> printbuf_int_2d(IntMockBuffer("A", range(6), (2,3)), (2,3))
     acquired A
     0 1 2 END
@@ -816,7 +816,7 @@ def printbuf_td_h_short(object[td_h_short] buf, shape):
     Traceback (most recent call last):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_short' but got 'int'
-    """    
+    """
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -911,7 +911,7 @@ def assign_to_object(object[object] buf, int idx, obj):
     >>> get_refcount(a), get_refcount(b)
     (2, 2)
     >>> addref(a)
-    >>> A = ObjectMockBuffer(None, [1, a]) # 1, ...,otherwise it thinks nested lists...    
+    >>> A = ObjectMockBuffer(None, [1, a]) # 1, ...,otherwise it thinks nested lists...
     >>> get_refcount(a), get_refcount(b)
     (3, 2)
     >>> assign_to_object(A, 1, b)
@@ -920,7 +920,7 @@ def assign_to_object(object[object] buf, int idx, obj):
     >>> decref(b)
     """
     buf[idx] = obj
-    
+
 @testcase
 def assign_temporary_to_object(object[object] buf):
     """
@@ -936,7 +936,7 @@ def assign_temporary_to_object(object[object] buf):
     >>> assign_temporary_to_object(A)
     >>> get_refcount(a)
     2
-    
+
     >>> printbuf_object(A, (2,))
     {4: 23} 2
     {1: 8} 2
@@ -967,7 +967,7 @@ def buffer_cast(object[unsigned int, cast=True] buf, int idx):
 def buffer_cast_fails(object[char, cast=True] buf):
     """
     Cannot cast between datatype of different sizes.
-    
+
     >>> buffer_cast_fails(IntMockBuffer(None, [0]))
     Traceback (most recent call last):
         ...
@@ -999,10 +999,10 @@ cdef class MockBuffer:
     cdef Py_ssize_t* shape
     cdef Py_ssize_t* suboffsets
     cdef object label, log
-    
+
     cdef readonly object recieved_flags, release_ok
     cdef public object fail
-    
+
     def __init__(self, label, data, shape=None, strides=None, format=None, offset=0):
         # It is important not to store references to data after the constructor
         # as refcounting is checked on object buffers.
@@ -1053,7 +1053,7 @@ cdef class MockBuffer:
 
         self.strides = self.list_to_sizebuf(strides)
         self.shape = self.list_to_sizebuf(shape)
-            
+
     def __dealloc__(self):
         stdlib.free(self.strides)
         stdlib.free(self.shape)
@@ -1062,7 +1062,7 @@ cdef class MockBuffer:
             # must recursively free indirect...
         else:
             stdlib.free(self.buffer)
-    
+
     cdef void* create_buffer(self, data):
         cdef char* buf = <char*>stdlib.malloc(len(data) * self.itemsize)
         cdef char* it = buf
@@ -1098,7 +1098,7 @@ cdef class MockBuffer:
         for name, value in available_flags:
             if (value & flags) == value:
                 self.recieved_flags.append(name)
-        
+
         buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
         buffer.obj = self
         buffer.len = self.len
@@ -1120,7 +1120,7 @@ cdef class MockBuffer:
             self.release_ok = False
         if self.label:
             msg = "released %s" % self.label
-            print msg 
+            print msg
             self.log += msg + "\n"
 
     def printlog(self):
@@ -1134,7 +1134,7 @@ cdef class MockBuffer:
         print "ERROR, not subclassed", self.__class__
     cdef get_default_format(self):
         print "ERROR, not subclassed", self.__class__
-    
+
 cdef class CharMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<char*>buf)[0] = <int>value
@@ -1194,14 +1194,14 @@ cdef class ObjectMockBuffer(MockBuffer):
 
     cdef get_itemsize(self): return sizeof(void*)
     cdef get_default_format(self): return b"@O"
-        
+
 
 cdef class IntStridedMockBuffer(IntMockBuffer):
     cdef __cythonbufferdefaults__ = {"mode" : "strided"}
-            
+
 cdef class ErrorBuffer:
     cdef object label
-    
+
     def __init__(self, label):
         self.label = label
 
@@ -1251,7 +1251,7 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     For IntStridedMockBuffer, mode should be
     "strided" by defaults which should show
     up in the flags.
-    
+
     >>> A = IntStridedMockBuffer("A", range(10))
     >>> bufdefaults1(A)
     acquired A
@@ -1260,7 +1260,7 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     ['FORMAT', 'ND', 'STRIDES']
     """
     pass
-    
+
 
 #
 # Structs
@@ -1287,7 +1287,7 @@ cdef class MyStructMockBuffer(MockBuffer):
         s = <MyStruct*>buf;
         s.a, s.b, s.c, s.d, s.e = value
         return 0
-    
+
     cdef get_itemsize(self): return sizeof(MyStruct)
     cdef get_default_format(self): return b"2bq2i"
 
@@ -1297,7 +1297,7 @@ cdef class NestedStructMockBuffer(MockBuffer):
         s = <NestedStruct*>buf;
         s.x.a, s.x.b, s.y.a, s.y.b, s.z = value
         return 0
-    
+
     cdef get_itemsize(self): return sizeof(NestedStruct)
     cdef get_default_format(self): return b"2T{ii}i"
 
@@ -1305,7 +1305,7 @@ cdef class NestedStructMockBuffer(MockBuffer):
 def basic_struct(object[MyStruct] buf):
     """
     See also buffmt.pyx
-    
+
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
@@ -1317,7 +1317,7 @@ def basic_struct(object[MyStruct] buf):
 def nested_struct(object[NestedStruct] buf):
     """
     See also buffmt.pyx
-    
+
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
@@ -1335,7 +1335,7 @@ cdef class LongComplexMockBuffer(MockBuffer):
         s = <LongComplex*>buf;
         s.real, s.imag = value
         return 0
-    
+
     cdef get_itemsize(self): return sizeof(LongComplex)
     cdef get_default_format(self): return b"Zg"
 

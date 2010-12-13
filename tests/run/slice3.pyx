@@ -49,4 +49,4 @@ def select(obj1, obj2, obj3, obj4, obj5):
     obj1 = obj2[:obj4:obj5]
     obj1 = obj2[obj3:obj4:obj5]
     obj1 = obj2[int3:int4:int5]
-    
+

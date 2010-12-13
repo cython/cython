@@ -3,7 +3,7 @@ from Cython.TestUtils import CythonTest
 class TestCodeWriter(CythonTest):
     # CythonTest uses the CodeWriter heavily, so do some checking by
     # roundtripping Cython code through the test framework.
-    
+
     # Note that this test is dependant upon the normal Cython parser
     # to generate the input trees to the CodeWriter. This save *a lot*
     # of time; better to spend that time writing other tests than perfecting
@@ -26,7 +26,7 @@ class TestCodeWriter(CythonTest):
 
     def test_if(self):
         self.t(u"if x:\n    pass")
-    
+
     def test_ifelifelse(self):
         self.t(u"""
                     if x:
@@ -38,7 +38,7 @@ class TestCodeWriter(CythonTest):
                     else:
                         pass
                 """)
-                
+
     def test_def(self):
         self.t(u"""
                     def f(x, y, z):
@@ -61,7 +61,7 @@ class TestCodeWriter(CythonTest):
                     cdef int hello
                     cdef int hello = 4, x = 3, y, z
                 """)
-    
+
     def test_for_loop(self):
         self.t(u"""
                     for x, y, z in f(g(h(34) * 2) + 23):
@@ -75,7 +75,7 @@ class TestCodeWriter(CythonTest):
 
     def test_attribute(self):
         self.t(u"a.x")
-    
+
 if __name__ == "__main__":
     import unittest
     unittest.main()

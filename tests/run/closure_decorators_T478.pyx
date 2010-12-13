@@ -16,18 +16,18 @@ def print_args(func):
         print "args", args, "kwds", kwds
         return func(*args, **kwds)
     return f
-    
+
 
 cdef class Num:
 
     cdef int n
-    
+
     def __init__(self, n):
         self.n = n
-    
+
     def __repr__(self):
         return "Num(%s)" % self.n
-        
+
     @print_args
     def is_prime(self, bint print_factors=False):
         if self.n == 2:

@@ -2,7 +2,7 @@
 #define POINT_H
 
 namespace geometry {
-    
+
     struct Point
     {
         double x;

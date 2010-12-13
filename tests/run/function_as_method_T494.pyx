@@ -1,7 +1,7 @@
 __doc__ = """
     >>> A.foo = foo
     >>> print A().foo()
-    
+
 """
 
 class A:

@@ -15,7 +15,7 @@ cdef extern from "Python.h":
 
     tuple PyTuple_New(Py_ssize_t len)
     # Return value: New reference.
-    # Return a new tuple object of size len, or NULL on failure. 
+    # Return a new tuple object of size len, or NULL on failure.
 
     tuple PyTuple_Pack(Py_ssize_t n, ...)
     # Return value: New reference.
@@ -25,7 +25,7 @@ cdef extern from "Python.h":
     # equivalent to "Py_BuildValue("(OO)", a, b)".
 
     int PyTuple_Size(object  p) except -1
-    # Take a pointer to a tuple object, and return the size of that tuple. 
+    # Take a pointer to a tuple object, and return the size of that tuple.
 
     int PyTuple_GET_SIZE(object  p)
     # Return the size of the tuple p, which must be non-NULL and point
@@ -39,11 +39,11 @@ cdef extern from "Python.h":
 
     PyObject* PyTuple_GET_ITEM(object  p, Py_ssize_t pos)
     # Return value: Borrowed reference.
-    # Like PyTuple_GetItem(), but does no checking of its arguments. 
+    # Like PyTuple_GetItem(), but does no checking of its arguments.
 
     tuple PyTuple_GetSlice(object  p, Py_ssize_t low, Py_ssize_t high)
     # Return value: New reference.
-    # Take a slice of the tuple pointed to by p from low to high and return it as a new tuple. 
+    # Take a slice of the tuple pointed to by p from low to high and return it as a new tuple.
 
     int PyTuple_SetItem(object  p, Py_ssize_t pos, object  o)
     # Insert a reference to object o at position pos of the tuple

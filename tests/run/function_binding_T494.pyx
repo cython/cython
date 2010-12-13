@@ -4,7 +4,7 @@ class SomeNumber(object):
 
     def __init__(self, n):
         self._n = n
-    
+
     def __repr__(self):
         return "SomeNumber(%s)" % self._n
 

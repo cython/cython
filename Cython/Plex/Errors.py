@@ -43,7 +43,7 @@ class UnrecognizedInput(PlexError):
     self.state_name = state_name
 
   def __str__(self):
-    return ("'%s', line %d, char %d: Token not recognised in state %s" 
+    return ("'%s', line %d, char %d: Token not recognised in state %s"
             % (self.position + (repr(self.state_name),)))
 
 

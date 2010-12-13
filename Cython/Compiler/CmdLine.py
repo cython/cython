@@ -24,9 +24,9 @@ Options:
   -v, --verbose                  Be verbose, print file names on multiple compilation
   -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
-  --cleanup <level>              Release interned objects on python exit, for memory debugging. 
-                                 Level indicates aggressiveness, default 0 releases nothing. 
-  -w, --working <directory>      Sets the working directory for Cython (the directory modules 
+  --cleanup <level>              Release interned objects on python exit, for memory debugging.
+                                 Level indicates aggressiveness, default 0 releases nothing.
+  -w, --working <directory>      Sets the working directory for Cython (the directory modules
                                  are searched from)
   --gdb                          Output debug information for cygdb
 
@@ -65,7 +65,7 @@ def parse_command_line(args):
             return args.pop(0)
         else:
             bad_usage()
-    
+
     def get_param(option):
         tail = option[2:]
         if tail:

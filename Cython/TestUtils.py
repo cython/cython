@@ -24,7 +24,7 @@ class NodeTypeWriter(TreeVisitor):
                 name = u"%s[%d]" % tip[1:3]
             else:
                 name = tip[1]
-            
+
         self.result.append(u"  " * self._indents +
                            u"%s: %s" % (name, node.__class__.__name__))
         self._indents += 1
@@ -46,11 +46,11 @@ class CythonTest(unittest.TestCase):
         self.listing_file = Errors.listing_file
         self.echo_file = Errors.echo_file
         Errors.listing_file = Errors.echo_file = None
- 
+
     def tearDown(self):
         Errors.listing_file = self.listing_file
         Errors.echo_file = self.echo_file
- 
+
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
         if not isinstance(expected, list): expected = expected.split(u"\n")
@@ -70,9 +70,9 @@ class CythonTest(unittest.TestCase):
 
     def assertCode(self, expected, result_tree):
         result_lines = self.codeToLines(result_tree)
-                
+
         expected_lines = strip_common_indent(expected.split("\n"))
-        
+
         for idx, (line, expected_line) in enumerate(zip(result_lines, expected_lines)):
             self.assertEqual(expected_line, line, "Line %d:\nGot: %s\nExp: %s" % (idx, line, expected_line))
         self.assertEqual(len(result_lines), len(expected_lines),
@@ -125,24 +125,24 @@ class TransformTest(CythonTest):
        are testing; pyx should be either a string (passed to the parser to
        create a post-parse tree) or a node representing input to pipeline.
        The result will be a transformed result.
-       
+
      - Check that the tree is correct. If wanted, assertCode can be used, which
        takes a code string as expected, and a ModuleNode in result_tree
        (it serializes the ModuleNode to a string and compares line-by-line).
-    
+
     All code strings are first stripped for whitespace lines and then common
     indentation.
-       
+
     Plans: One could have a pxd dictionary parameter to run_pipeline.
     """
 
-    
+
     def run_pipeline(self, pipeline, pyx, pxds={}):
         tree = self.fragment(pyx, pxds).root
         # Run pipeline
         for T in pipeline:
             tree = T(tree)
-        return tree    
+        return tree
 
 
 class TreeAssertVisitor(VisitorTransform):

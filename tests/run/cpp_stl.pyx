@@ -7,7 +7,7 @@ cdef extern from "vector" namespace "std":
         void assign(int, T)
         void clear()
         int size()
-        
+
         cppclass iterator:
             T operator*()
             iterator operator++()
