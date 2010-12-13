@@ -1285,6 +1285,8 @@ class CCodeWriter(object):
         #if entry.type.is_extension_type:
         #    code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type, nanny)
+        if entry.in_closure:
+            self.put_giveref(code)
 
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
@@ -1416,17 +1418,3 @@ class ClosureTempAllocator(object):
         self.temps_allocated[type].append(cname)
         self.temps_count += 1
         return cname
-
-    def put_gotref(self, code):
-        for entry in self.klass.entries.values():
-            if entry.cname == Naming.outer_scope_cname: # XXX
-                continue
-            if entry.type.is_pyobject:
-                code.put_xgotref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
-
-    def put_giveref(self, code):
-        for entry in self.klass.entries.values():
-            if entry.cname == Naming.outer_scope_cname: # XXX
-                continue
-            if entry.type.is_pyobject:
-                code.put_xgiveref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
