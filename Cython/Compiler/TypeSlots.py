@@ -8,7 +8,7 @@ import PyrexTypes
 import StringEncoding
 import sys
 
-invisible = ['__cinit__', '__dealloc__', '__richcmp__', 
+invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
 
 class Signature(object):
@@ -42,7 +42,7 @@ class Signature(object):
     #    '*'  rest of args passed as generic Python
     #           arg tuple and kw dict (must be last
     #           char in format string)
-    
+
     format_map = {
         'O': PyrexTypes.py_object_type,
         'v': PyrexTypes.c_void_type,
@@ -61,7 +61,7 @@ class Signature(object):
         # 'T', '-' and '*' are handled otherwise
         # and are not looked up in here
     }
-    
+
     error_value_map = {
         'O': "NULL",
         'T': "NULL",
@@ -71,7 +71,7 @@ class Signature(object):
         'r': "-1",
         'z': "-1",
     }
-    
+
     def __init__(self, arg_format, ret_format):
         self.has_dummy_arg = 0
         self.has_generic_args = 0
@@ -84,27 +84,27 @@ class Signature(object):
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
-    
+
     def num_fixed_args(self):
         return len(self.fixed_arg_format)
-    
+
     def is_self_arg(self, i):
         # argument is 'self' for methods or 'class' for classmethods
         return self.fixed_arg_format[i] == 'T'
-    
+
     def returns_self_type(self):
         # return type is same as 'self' argument type
         return self.ret_format == 'T'
-    
+
     def fixed_arg_type(self, i):
         return self.format_map[self.fixed_arg_format[i]]
-    
+
     def return_type(self):
         return self.format_map[self.ret_format]
 
     def exception_value(self):
         return self.error_value_map.get(self.ret_format)
-    
+
     def function_type(self, self_arg_override=None):
         #  Construct a C function type descriptor for this signature
         args = []
@@ -182,8 +182,8 @@ class SlotDescriptor(object):
         if preprocessor_guard:
             code.putln("#endif")
 
-    # Some C implementations have trouble statically 
-    # initialising a global with a pointer to an extern 
+    # Some C implementations have trouble statically
+    # initialising a global with a pointer to an extern
     # function, so we initialise some of the type slots
     # in the module init function instead.
 
@@ -192,8 +192,8 @@ class SlotDescriptor(object):
             value = self.slot_code(scope)
             if value != "0":
                 code.putln("%s.%s = %s;" % (
-                    scope.parent_type.typeobj_cname, 
-                    self.slot_name, 
+                    scope.parent_type.typeobj_cname,
+                    self.slot_name,
                     value
                     )
             )
@@ -203,18 +203,18 @@ class FixedSlot(SlotDescriptor):
     #  Descriptor for a type slot with a fixed value.
     #
     #  value        string
-    
+
     def __init__(self, slot_name, value, py3=True, py2=True, ifdef=None):
         SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2, ifdef=ifdef)
         self.value = value
-    
+
     def slot_code(self, scope):
         return self.value
 
 
 class EmptySlot(FixedSlot):
     #  Descriptor for a type slot whose value is always 0.
-    
+
     def __init__(self, slot_name, py3=True, py2=True, ifdef=None):
         FixedSlot.__init__(self, slot_name, "0", py3=py3, py2=py2, ifdef=ifdef)
 
@@ -225,8 +225,8 @@ class MethodSlot(SlotDescriptor):
     #  signature    Signature
     #  method_name  string           The __xxx__ name of the method
     #  alternatives [string]         Alternative list of __xxx__ names for the method
-    
-    def __init__(self, signature, slot_name, method_name, fallback=None, 
+
+    def __init__(self, signature, slot_name, method_name, fallback=None,
                  py3=True, py2=True, ifdef=None):
         SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2, ifdef=ifdef)
         self.signature = signature
@@ -270,10 +270,10 @@ class InternalMethodSlot(SlotDescriptor):
 class GCDependentSlot(InternalMethodSlot):
     #  Descriptor for a slot whose value depends on whether
     #  the type participates in GC.
-    
+
     def __init__(self, slot_name, **kargs):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
-    
+
     def slot_code(self, scope):
         if not scope.needs_gc():
             return "0"
@@ -287,15 +287,15 @@ class GCDependentSlot(InternalMethodSlot):
                 if entry.visibility != 'extern':
                     return self.slot_code(parent_type_scope)
         return InternalMethodSlot.slot_code(self, scope)
-        
-        
+
+
 class ConstructorSlot(InternalMethodSlot):
     #  Descriptor for tp_new and tp_dealloc.
-    
+
     def __init__(self, slot_name, method, **kargs):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
-    
+
     def slot_code(self, scope):
         if scope.parent_type.base_type \
             and not scope.has_pyobject_attrs \
@@ -318,12 +318,12 @@ class SyntheticSlot(InternalMethodSlot):
     #  defined, the method will not be synthesized and an
     #  alternative default value will be placed in the type
     #  slot.
-    
+
     def __init__(self, slot_name, user_methods, default_value, **kargs):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.user_methods = user_methods
         self.default_value = default_value
-    
+
     def slot_code(self, scope):
         if scope.defines_any(self.user_methods):
             return InternalMethodSlot.slot_code(self, scope)
@@ -333,7 +333,7 @@ class SyntheticSlot(InternalMethodSlot):
 
 class TypeFlagsSlot(SlotDescriptor):
     #  Descriptor for the type flags slot.
-    
+
     def slot_code(self, scope):
         value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.directives['final']:
@@ -345,7 +345,7 @@ class TypeFlagsSlot(SlotDescriptor):
 
 class DocStringSlot(SlotDescriptor):
     #  Descriptor for the docstring slot.
-    
+
     def slot_code(self, scope):
         if scope.doc is not None:
             if scope.doc.is_unicode:
@@ -361,19 +361,19 @@ class SuiteSlot(SlotDescriptor):
     #  Descriptor for a substructure of the type object.
     #
     #  sub_slots   [SlotDescriptor]
-    
+
     def __init__(self, sub_slots, slot_type, slot_name):
         SlotDescriptor.__init__(self, slot_name)
         self.sub_slots = sub_slots
         self.slot_type = slot_type
         substructures.append(self)
-    
+
     def substructure_cname(self, scope):
         return "%s%s_%s" % (Naming.pyrex_prefix, self.slot_name, scope.class_name)
-    
+
     def slot_code(self, scope):
         return "&%s" % self.substructure_cname(scope)
-        
+
     def generate_substructure(self, scope, code):
         code.putln("")
         code.putln(
@@ -388,21 +388,21 @@ substructures = []   # List of all SuiteSlot instances
 
 class MethodTableSlot(SlotDescriptor):
     #  Slot descriptor for the method table.
-    
+
     def slot_code(self, scope):
         return scope.method_table_cname
 
 
 class MemberTableSlot(SlotDescriptor):
     #  Slot descriptor for the table of Python-accessible attributes.
-    
+
     def slot_code(self, scope):
         return "0"
 
 
 class GetSetSlot(SlotDescriptor):
     #  Slot descriptor for the table of attribute get & set methods.
-    
+
     def slot_code(self, scope):
         if scope.property_entries:
             return scope.getset_table_cname
@@ -415,16 +415,16 @@ class BaseClassSlot(SlotDescriptor):
 
     def __init__(self, name):
         SlotDescriptor.__init__(self, name, dynamic = 1)
-    
+
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
         if base_type:
             code.putln("%s.%s = %s;" % (
-                scope.parent_type.typeobj_cname, 
+                scope.parent_type.typeobj_cname,
                 self.slot_name,
                 base_type.typeptr_cname))
 
-    
+
 # The following dictionary maps __xxx__ method names to slot descriptors.
 
 method_name_to_slot = {}
@@ -455,11 +455,11 @@ def get_property_accessor_signature(name):
     #  Return signature of accessor for an extension type
     #  property, else None.
     return property_accessor_signatures.get(name)
-    
+
 def get_base_slot_function(scope, slot):
-    #  Returns the function implementing this slot in the baseclass. 
+    #  Returns the function implementing this slot in the baseclass.
     #  This is useful for enabling the compiler to optimize calls
-    #  that recursively climb the class hierarchy. 
+    #  that recursively climb the class hierarchy.
     base_type = scope.parent_type.base_type
     if scope.parent_scope is base_type.scope.parent_scope:
         parent_slot = slot.slot_code(base_type.scope)
@@ -593,7 +593,7 @@ PyNumberMethods = (
     MethodSlot(unaryfunc, "nb_float", "__float__"),
     MethodSlot(unaryfunc, "nb_oct", "__oct__", py3 = False),
     MethodSlot(unaryfunc, "nb_hex", "__hex__", py3 = False),
-    
+
     # Added in release 2.0
     MethodSlot(ibinaryfunc, "nb_inplace_add", "__iadd__"),
     MethodSlot(ibinaryfunc, "nb_inplace_subtract", "__isub__"),
@@ -606,7 +606,7 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_and", "__iand__"),
     MethodSlot(ibinaryfunc, "nb_inplace_xor", "__ixor__"),
     MethodSlot(ibinaryfunc, "nb_inplace_or", "__ior__"),
-    
+
     # Added in release 2.2
     # The following require the Py_TPFLAGS_HAVE_CLASS flag
     MethodSlot(binaryfunc, "nb_floor_divide", "__floordiv__"),
@@ -662,7 +662,7 @@ slot_table = (
     EmptySlot("tp_setattr"),
     MethodSlot(cmpfunc, "tp_compare", "__cmp__", py3 = '<RESERVED>'),
     MethodSlot(reprfunc, "tp_repr", "__repr__"),
-    
+
     SuiteSlot(PyNumberMethods, "PyNumberMethods", "tp_as_number"),
     SuiteSlot(PySequenceMethods, "PySequenceMethods", "tp_as_sequence"),
     SuiteSlot(PyMappingMethods, "PyMappingMethods", "tp_as_mapping"),
@@ -670,12 +670,12 @@ slot_table = (
     MethodSlot(hashfunc, "tp_hash", "__hash__"),
     MethodSlot(callfunc, "tp_call", "__call__"),
     MethodSlot(reprfunc, "tp_str", "__str__"),
-    
+
     SyntheticSlot("tp_getattro", ["__getattr__","__getattribute__"], "0"), #"PyObject_GenericGetAttr"),
     SyntheticSlot("tp_setattro", ["__setattr__", "__delattr__"], "0"), #"PyObject_GenericSetAttr"),
 
     SuiteSlot(PyBufferProcs, "PyBufferProcs", "tp_as_buffer"),
-    
+
     TypeFlagsSlot("tp_flags"),
     DocStringSlot("tp_doc"),
 
@@ -693,20 +693,20 @@ slot_table = (
     MethodTableSlot("tp_methods"),
     MemberTableSlot("tp_members"),
     GetSetSlot("tp_getset"),
-    
+
     BaseClassSlot("tp_base"), #EmptySlot("tp_base"),
     EmptySlot("tp_dict"),
-    
+
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
-    
+
     EmptySlot("tp_dictoffset"),
-    
+
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
     InternalMethodSlot("tp_new"),
     EmptySlot("tp_free"),
-    
+
     EmptySlot("tp_is_gc"),
     EmptySlot("tp_bases"),
     EmptySlot("tp_mro"),
@@ -739,7 +739,7 @@ MethodSlot(descrsetfunc, "", "__set__")
 MethodSlot(descrdelfunc, "", "__delete__")
 
 
-# Method flags for python-exposed methods. 
+# Method flags for python-exposed methods.
 
 method_noargs   = "METH_NOARGS"
 method_onearg   = "METH_O"

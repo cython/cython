@@ -17,30 +17,30 @@ cdef extern from "Python.h":
     # type. This is the same object as long and types.LongType.
 
     bint PyLong_Check(object p)
-    # Return true if its argument is a PyLongObject or a subtype of PyLongObject. 
+    # Return true if its argument is a PyLongObject or a subtype of PyLongObject.
 
     bint PyLong_CheckExact(object p)
     # Return true if its argument is a PyLongObject, but not a subtype of PyLongObject.
 
     object PyLong_FromLong(long v)
     # Return value: New reference.
-    # Return a new PyLongObject object from v, or NULL on failure. 
+    # Return a new PyLongObject object from v, or NULL on failure.
 
     object PyLong_FromUnsignedLong(unsigned long v)
     # Return value: New reference.
-    # Return a new PyLongObject object from a C unsigned long, or NULL on failure. 
+    # Return a new PyLongObject object from a C unsigned long, or NULL on failure.
 
     object PyLong_FromLongLong(PY_LONG_LONG v)
     # Return value: New reference.
-    # Return a new PyLongObject object from a C long long, or NULL on failure. 
+    # Return a new PyLongObject object from a C long long, or NULL on failure.
 
     object PyLong_FromUnsignedLongLong(uPY_LONG_LONG v)
     # Return value: New reference.
-    # Return a new PyLongObject object from a C unsigned long long, or NULL on failure. 
+    # Return a new PyLongObject object from a C unsigned long long, or NULL on failure.
 
     object PyLong_FromDouble(double v)
     # Return value: New reference.
-    # Return a new PyLongObject object from the integer part of v, or NULL on failure. 
+    # Return a new PyLongObject object from the integer part of v, or NULL on failure.
 
     object PyLong_FromString(char *str, char **pend, int base)
     # Return value: New reference.
@@ -62,7 +62,7 @@ cdef extern from "Python.h":
     # the Unicode string, length gives the number of characters, and
     # base is the radix for the conversion. The radix must be in the
     # range [2, 36]; if it is out of range, ValueError will be
-    # raised. 
+    # raised.
 
     object PyLong_FromVoidPtr(void *p)
     # Return value: New reference.
@@ -90,11 +90,11 @@ cdef extern from "Python.h":
     # Return a C unsigned long long from a Python long integer. If
     # pylong cannot be represented as an unsigned long long, an
     # OverflowError will be raised if the value is positive, or a
-    # TypeError will be raised if the value is negative. 
+    # TypeError will be raised if the value is negative.
 
     unsigned long PyLong_AsUnsignedLongMask(object io) except? -1
     # Return a C unsigned long from a Python long integer, without
-    # checking for overflow. 
+    # checking for overflow.
 
     uPY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io) except? -1
     #unsigned PY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io)

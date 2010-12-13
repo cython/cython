@@ -19,7 +19,7 @@ cdef f(Grail g,   # incomplete argument type
 	void v,         # incomplete argument type
 	int a[]):
 		pass
-        
+
 cdef NoSuchType* ptr
 ptr = None             # This should not produce another error
 

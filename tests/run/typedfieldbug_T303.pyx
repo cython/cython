@@ -22,7 +22,7 @@ cdef class MyClass:
         double actual_double
         DoubleTypedef float_isreally_double
         LongDoubleTypedef float_isreally_longdouble
-        
+
     def __init__(self):
         self.actual_double = 42.0
         self.float_isreally_double = 42.0

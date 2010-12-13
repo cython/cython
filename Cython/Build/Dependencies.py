@@ -36,7 +36,7 @@ def parse_list(s):
             return literals[literal[1:-1]]
         else:
             return literal
-            
+
     return [unquote(item) for item in s.split(delimiter)]
 
 transitive_str = object()
@@ -70,7 +70,7 @@ def line_iter(source):
         start = end+1
 
 class DistutilsInfo(object):
-    
+
     def __init__(self, source=None, exn=None):
         self.values = {}
         if source is not None:
@@ -97,7 +97,7 @@ class DistutilsInfo(object):
                 value = getattr(exn, key, None)
                 if value:
                     self.values[key] = value
-    
+
     def merge(self, other):
         if other is None:
             return self
@@ -114,7 +114,7 @@ class DistutilsInfo(object):
                 else:
                     self.values[key] = value
         return self
-    
+
     def subs(self, aliases):
         if aliases is None:
             return self
@@ -140,9 +140,9 @@ class DistutilsInfo(object):
 
 def strip_string_literals(code, prefix='__Pyx_L'):
     """
-    Normalizes every string literal to be of the form '__Pyx_Lxxx', 
+    Normalizes every string literal to be of the form '__Pyx_Lxxx',
     returning the normalized code and a mapping of labels to
-    string literals. 
+    string literals.
     """
     new_code = []
     literals = {}
@@ -156,7 +156,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
         double_q = code.find('"', q)
         q = min(single_q, double_q)
         if q == -1: q = max(single_q, double_q)
-        
+
         # We're done.
         if q == -1 and hash_mark == -1:
             new_code.append(code[start:])
@@ -181,7 +181,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 start = q
             else:
                 q += 1
-        
+
         # Process comment.
         elif -1 != hash_mark and (hash_mark < q or q == -1):
             end = code.find('\n', hash_mark)
@@ -212,7 +212,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
             new_code.append(code[start:end])
             start = q
             q += len(in_quote)
-    
+
     return "".join(new_code), literals
 
 
@@ -245,16 +245,16 @@ def parse_dependencies(source_filename):
 
 
 class DependencyTree(object):
-    
+
     def __init__(self, context):
         self.context = context
         self._transitive_cache = {}
-    
+
     #@cached_method
     def parse_dependencies(self, source_filename):
         return parse_dependencies(source_filename)
     parse_dependencies = cached_method(parse_dependencies)
-    
+
     #@cached_method
     def cimports_and_externs(self, filename):
         cimports, includes, externs = self.parse_dependencies(filename)[:3]
@@ -272,10 +272,10 @@ class DependencyTree(object):
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return tuple(cimports), tuple(externs)
     cimports_and_externs = cached_method(cimports_and_externs)
-    
+
     def cimports(self, filename):
         return self.cimports_and_externs(filename)[0]
-    
+
     #@cached_method
     def package(self, filename):
         dir = os.path.dirname(filename)
@@ -284,13 +284,13 @@ class DependencyTree(object):
         else:
             return ()
     package = cached_method(package)
-    
+
     #@cached_method
     def fully_qualifeid_name(self, filename):
         module = os.path.splitext(os.path.basename(filename))[0]
         return '.'.join(self.package(filename) + (module,))
     fully_qualifeid_name = cached_method(fully_qualifeid_name)
-    
+
     def find_pxd(self, module, filename=None):
         if module[0] == '.':
             raise NotImplementedError("New relative imports.")
@@ -301,7 +301,7 @@ class DependencyTree(object):
                 return pxd
         return self.context.find_pxd_file(module, None)
     find_pxd = cached_method(find_pxd)
-        
+
     #@cached_method
     def cimported_files(self, filename):
         if filename[-4:] == '.pyx' and os.path.exists(filename[:-4] + '.pxd'):
@@ -316,33 +316,33 @@ class DependencyTree(object):
             print("\n\t".join(b))
         return tuple(self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)]))
     cimported_files = cached_method(cimported_files)
-    
+
     def immediate_dependencies(self, filename):
         all = list(self.cimported_files(filename))
         for extern in sum(self.cimports_and_externs(filename), ()):
             all.append(os.path.normpath(os.path.join(os.path.dirname(filename), extern)))
         return tuple(all)
-    
+
     #@cached_method
     def timestamp(self, filename):
         return os.path.getmtime(filename)
     timestamp = cached_method(timestamp)
-    
+
     def extract_timestamp(self, filename):
         # TODO: .h files from extern blocks
         return self.timestamp(filename), filename
-    
+
     def newest_dependency(self, filename):
         return self.transitive_merge(filename, self.extract_timestamp, max)
-    
+
     def distutils_info0(self, filename):
         return self.parse_dependencies(filename)[3]
-    
+
     def distutils_info(self, filename, aliases=None, base=None):
         return (self.transitive_merge(filename, self.distutils_info0, DistutilsInfo.merge)
             .subs(aliases)
             .merge(base))
-    
+
     def transitive_merge(self, node, extract, merge):
         try:
             seen = self._transitive_cache[extract, merge]
@@ -350,7 +350,7 @@ class DependencyTree(object):
             seen = self._transitive_cache[extract, merge] = {}
         return self.transitive_merge_helper(
             node, extract, merge, seen, {}, self.cimported_files)[0]
-    
+
     def transitive_merge_helper(self, node, extract, merge, seen, stack, outgoing):
         if node in seen:
             return seen[node], None

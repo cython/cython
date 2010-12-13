@@ -38,6 +38,6 @@ cdef class Scanner:
                    buf_start_pos=long, buf_len=long, buf_index=long,
                    trace=bint, discard=long, data=unicode, buffer=unicode)
     cdef run_machine_inlined(self)
-    
+
     cdef begin(self, state)
     cdef produce(self, value, text = *)

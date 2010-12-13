@@ -3,11 +3,11 @@
 # generate its own wrapper.  (This wrapper would be used, for instance,
 # when using the special method as a bound method.)
 
-# To test this, we go through and verify that each affected special 
+# To test this, we go through and verify that each affected special
 # method works as a bound method.
 
 # Special methods that are treated the same under Python 2 and 3 are
-# tested here; see also special_methods_T561_py2.pyx and 
+# tested here; see also special_methods_T561_py2.pyx and
 # special_methods_T561_py3.pyx for tests of the differences between
 # Python 2 and 3.
 
@@ -165,7 +165,7 @@ __doc__ = u"""
     >>> vs0_len()
     VS __len__ 0
     0
-    >>> # If you define either setitem or delitem, you get wrapper objects 
+    >>> # If you define either setitem or delitem, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> si_setitem = SetItem().__setitem__
     >>> si_setitem('foo', 'bar')
@@ -212,7 +212,7 @@ __doc__ = u"""
     >>> g11 = object.__getattribute__(GetAttribute(), '__getattribute__')
     >>> g11('attr')
     GetAttribute getattribute 'attr'
-    >>> # If you define either setattr or delattr, you get wrapper objects 
+    >>> # If you define either setattr or delattr, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> sa_setattr = SetAttr().__setattr__
     >>> sa_setattr('foo', 'bar')
@@ -267,7 +267,7 @@ __doc__ = u"""
     >>> vs0_get = vs0.__get__
     >>> vs0_get('instance', 'owner')
     VS __get__ 0 'instance' 'owner'
-    >>> # If you define either set or delete, you get wrapper objects 
+    >>> # If you define either set or delete, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> s_set = Set().__set__
     >>> s_set('instance', 'val')

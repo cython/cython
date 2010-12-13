@@ -49,7 +49,7 @@ __doc__ = u"""
     >>> vs0_getslice(13, 42)
     VS __getslice__ 0 13 42
     >>> # Cython supports setslice and delslice only for Python 2.
-    >>> # If you define either setslice or delslice, you get wrapper objects 
+    >>> # If you define either setslice or delslice, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> ss_setslice = SetSlice().__setslice__
     >>> ss_setslice(13, 42, 'foo')

@@ -131,7 +131,7 @@ cdef class MyCdefClass:
 cdef class MyOtherCdefClass:
     """
     Needs no hack
-    
+
     >>> True
     True
     """

@@ -10,7 +10,7 @@ cdef extern from "stdio.h" nogil:
     cdef FILE *stdin
     cdef FILE *stdout
     cdef FILE *stderr
-    
+
     enum: FOPEN_MAX
     enum: FILENAME_MAX
     FILE *fopen   (const_char *FILENAME, const_char  *OPENTYPE)

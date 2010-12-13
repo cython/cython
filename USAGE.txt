@@ -57,7 +57,7 @@ The cython command supports the following options:
   -----------------------------------------------------------------------------
   -v    --version                     Display version number of cython compiler
   -l    --create-listing              Write error messages to a .lis file
-  -I    --include-dir     <directory> Search for include files in named 
+  -I    --include-dir     <directory> Search for include files in named
                                       directory (may be repeated)
   -o    --output-file     <filename>  Specify name of generated C file (only
                                       one source file allowed if this is used)

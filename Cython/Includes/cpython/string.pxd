@@ -10,18 +10,18 @@ cdef extern from "Python.h":
     # These functions raise TypeError when expecting a string
     # parameter and are called with a non-string parameter.
     # PyStringObject
-    # This subtype of PyObject represents a Python string object. 
+    # This subtype of PyObject represents a Python string object.
     # PyTypeObject PyString_Type
     # This instance of PyTypeObject represents the Python string type;
     # it is the same object as str and types.StringType in the Python
-    # layer. 
+    # layer.
 
     bint PyString_Check(object o)
     # Return true if the object o is a string object or an instance of
-    # a subtype of the string type. 
+    # a subtype of the string type.
 
     bint PyString_CheckExact(object o)
-    # Return true if the object o is a string object, but not an instance of a subtype of the string type. 
+    # Return true if the object o is a string object, but not an instance of a subtype of the string type.
 
     object PyString_FromString(char *v)
     # Return value: New reference.
@@ -66,13 +66,13 @@ cdef extern from "Python.h":
 
     object PyString_FromFormatV(char *format, va_list vargs)
     # Return value: New reference.
-    # Identical to PyString_FromFormat() except that it takes exactly two arguments. 
+    # Identical to PyString_FromFormat() except that it takes exactly two arguments.
 
     Py_ssize_t PyString_Size(object string) except -1
-    # Return the length of the string in string object string. 
+    # Return the length of the string in string object string.
 
     Py_ssize_t PyString_GET_SIZE(object string)
-    # Macro form of PyString_Size() but without error checking. 
+    # Macro form of PyString_Size() but without error checking.
 
     char* PyString_AsString(object string) except NULL
     # Return a NUL-terminated representation of the contents of
@@ -98,7 +98,7 @@ cdef extern from "Python.h":
     # version of the object. If length is NULL, the resulting buffer
     # may not contain NUL characters; if it does, the function returns
     # -1 and a TypeError is raised.
-    
+
     # The buffer refers to an internal string buffer of obj, not a
     # copy. The data must not be modified in any way, unless the
     # string was just created using PyString_FromStringAndSize(NULL,

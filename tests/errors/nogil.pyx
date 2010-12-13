@@ -13,7 +13,7 @@ cdef object p() nogil:
 
 cdef void r() nogil:
     q()
-    
+
 cdef object m():
     cdef object x, y, obj
     cdef int i, j, k

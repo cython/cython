@@ -6,7 +6,7 @@ cdef enum Color:
 cdef void f():
     cdef Color e
     cdef int i
-    
+
     i = red
     i = red + 1
     i = red | 1
