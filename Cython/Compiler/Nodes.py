@@ -1361,7 +1361,7 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.is_generator:
             self.generate_preamble(env, code)
         if self.is_generator:
-            code.temp_allocator = ClosureTempAllocator(lenv.scope_class.type.scope)
+            code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
             resume_code = code.insertion_point()
             first_run_label = code.new_label('first_run')
             code.use_label(first_run_label)
