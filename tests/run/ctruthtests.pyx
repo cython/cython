@@ -83,7 +83,7 @@ ctypedef union _aux:
 
 cdef class TestExtPtr:
     cdef void* p
-    def __init__(self, int i): 
+    def __init__(self, int i):
         cdef _aux aux
         aux.i = i
         self.p = aux.p

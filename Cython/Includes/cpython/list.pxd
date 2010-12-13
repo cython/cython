@@ -13,11 +13,11 @@ cdef extern from "Python.h":
     # functions such as PySequence_SetItem() or expose the object to
     # Python code before setting all items to a real object with
     # PyList_SetItem().
-    
+
     bint PyList_Check(object p)
     # Return true if p is a list object or an instance of a subtype of
     # the list type.
-    
+
     bint PyList_CheckExact(object p)
     # Return true if p is a list object, but not an instance of a
     # subtype of the list type.
@@ -27,10 +27,10 @@ cdef extern from "Python.h":
     # to "len(list)" on a list object.
 
     Py_ssize_t PyList_GET_SIZE(object list)
-    # Macro form of PyList_Size() without error checking. 
+    # Macro form of PyList_Size() without error checking.
 
     PyObject* PyList_GetItem(object list, Py_ssize_t index) except NULL
-    # Return value: Borrowed reference.  
+    # Return value: Borrowed reference.
     # Return the object at position pos in the list pointed to by
     # p. The position must be positive, indexing from the end of the
     # list is not supported. If pos is out of bounds, return NULL and
@@ -38,7 +38,7 @@ cdef extern from "Python.h":
 
     PyObject* PyList_GET_ITEM(object list, Py_ssize_t i)
     # Return value: Borrowed reference.
-    # Macro form of PyList_GetItem() without error checking. 
+    # Macro form of PyList_GetItem() without error checking.
 
     int PyList_SetItem(object list, Py_ssize_t index, object item) except -1
     # Set the item at index index in list to item. Return 0 on success

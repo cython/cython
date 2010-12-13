@@ -14,12 +14,12 @@ public:
     UN_OP(~);
     UN_OP(!);
     UN_OP(&);
-    
+
     UN_OP(++);
     UN_OP(--);
     POST_UN_OP(++);
     POST_UN_OP(--);
-    
+
     BIN_OP(+);
     BIN_OP(-);
     BIN_OP(*);
@@ -28,7 +28,7 @@ public:
 
     BIN_OP(<<);
     BIN_OP(>>);
-    
+
     BIN_OP(|);
     BIN_OP(&);
     BIN_OP(^);

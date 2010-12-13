@@ -33,24 +33,24 @@ from Cython.Compiler import Errors
 class CythonDebugWriter(object):
     """
     Class to output debugging information for cygdb
-    
+
     It writes debug information to cython_debug/cython_debug_info_<modulename>
     in the build directory.
     """
-    
+
     def __init__(self, output_dir):
         if etree is None:
             raise Errors.NoElementTreeInstalledException()
-        
+
         self.output_dir = os.path.join(output_dir, 'cython_debug')
         self.tb = etree.TreeBuilder()
         # set by Cython.Compiler.ParseTreeTransforms.DebugTransform
         self.module_name = None
         self.start('cython_debug', attrs=dict(version='1.0'))
-    
+
     def start(self, name, attrs=None):
         self.tb.start(name, attrs or {})
-    
+
     def end(self, name):
         self.tb.end(name)
 
@@ -69,10 +69,10 @@ class CythonDebugWriter(object):
         kw = {}
         if have_lxml:
             kw['pretty_print'] = True
-        
+
         fn = "cython_debug_info_" + self.module_name
         et.write(os.path.join(self.output_dir, fn), encoding="UTF-8", **kw)
-        
+
         interpreter_path = os.path.join(self.output_dir, 'interpreter')
         with open(interpreter_path, 'w') as f:
             f.write(sys.executable)

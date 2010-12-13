@@ -1,6 +1,6 @@
 
 cdef extern from "Python.h":
-    # The C structure of the objects used to describe built-in types. 
+    # The C structure of the objects used to describe built-in types.
 
     ############################################################################
     # 7.1.1 Type Objects
@@ -26,10 +26,10 @@ cdef extern from "Python.h":
 
     bint PyType_IS_GC(object o)
     # Return true if the type object includes support for the cycle
-    # detector; this tests the type flag Py_TPFLAGS_HAVE_GC. 
+    # detector; this tests the type flag Py_TPFLAGS_HAVE_GC.
 
     bint PyType_IsSubtype(object a, object b)
-    # Return true if a is a subtype of b. 
+    # Return true if a is a subtype of b.
 
     object PyType_GenericAlloc(object type, Py_ssize_t nitems)
     # Return value: New reference.

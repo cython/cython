@@ -5,7 +5,7 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef int raise_int_raw "raise_int"(bint fire) except +
     cdef int raise_int_value "raise_int"(bint fire) except +ValueError
     cdef int raise_int_custom "raise_int"(bint fire) except +raise_py_error
-    
+
     cdef int raise_index_raw "raise_index"(bint fire) except +
     cdef int raise_index_value "raise_index"(bint fire) except +ValueError
     cdef int raise_index_custom "raise_index"(bint fire) except +raise_py_error

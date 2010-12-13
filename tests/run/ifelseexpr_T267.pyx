@@ -22,7 +22,7 @@ def constants(x):
     return a
 
 def temps(x):
-    return ident(1) if ident(x) < ident(5) else ident(10)   
+    return ident(1) if ident(x) < ident(5) else ident(10)
 
 def nested(x):
     return 1 if x == 1 else (2 if x == 2 else 3)

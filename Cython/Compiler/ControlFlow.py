@@ -1,17 +1,17 @@
 import bisect, sys
 
-# This module keeps track of arbitrary "states" at any point of the code. 
+# This module keeps track of arbitrary "states" at any point of the code.
 # A state is considered known if every path to the given point agrees on
-# its state, otherwise it is None (i.e. unknown). 
+# its state, otherwise it is None (i.e. unknown).
 
-# It might be useful to be able to "freeze" the set of states by pushing 
+# It might be useful to be able to "freeze" the set of states by pushing
 # all state changes to the tips of the trees for fast reading. Perhaps this
-# could be done on get_state, clearing the cache on set_state (assuming 
-# incoming is immutable). 
+# could be done on get_state, clearing the cache on set_state (assuming
+# incoming is immutable).
 
-# This module still needs a lot of work, and probably should totally be 
-# redesigned. It doesn't take return, raise, continue, or break into 
-# account. 
+# This module still needs a lot of work, and probably should totally be
+# redesigned. It doesn't take return, raise, continue, or break into
+# account.
 
 from Cython.Compiler.Scanning import StringSourceDescriptor
 try:
@@ -31,26 +31,26 @@ class ControlFlow(object):
         self.parent = parent
         self.tip = {}
         self.end_pos = _END_POS
-        
+
     def start_branch(self, pos):
         self.end_pos = pos
         branch_point = BranchingControlFlow(pos, self)
         if self.parent is not None:
             self.parent.branches[-1] = branch_point
         return branch_point.branches[0]
-    
+
     def next_branch(self, pos):
         self.end_pos = pos
         return self.parent.new_branch(pos)
-        
+
     def finish_branch(self, pos):
         self.end_pos = pos
         self.parent.end_pos = pos
         return LinearControlFlow(pos, self.parent)
-        
+
     def get_state(self, item, pos=_END_POS):
         return self.get_pos_state(item, pos)[1]
-        
+
     def get_pos_state(self, item, pos=_END_POS):
         # do some caching
         if pos > self.end_pos:
@@ -86,14 +86,14 @@ class ControlFlow(object):
             if item in current.tip:
                 del current.tip[item]
         current._set_state_local(pos, item, state)
-        
-        
+
+
 class LinearControlFlow(ControlFlow):
 
     def __init__(self, start_pos=(), incoming=None, parent=None):
         ControlFlow.__init__(self, start_pos, incoming, parent)
         self.events = {}
-            
+
     def _set_state_local(self, pos, item, state):
         if item in self.events:
             event_list = self.events[item]
@@ -111,10 +111,10 @@ class LinearControlFlow(ControlFlow):
         return None
 
     def to_string(self, indent='', limit=None):
-    
+
         if len(self.events) == 0:
             s = indent + "[no state changes]"
-            
+
         else:
             all = []
             for item, event_list in self.events.items():
@@ -126,21 +126,21 @@ class LinearControlFlow(ControlFlow):
         if self.incoming is not limit and self.incoming is not None:
             s = "%s\n%s" % (self.incoming.to_string(indent, limit=limit), s)
         return s
-    
-    
+
+
 class BranchingControlFlow(ControlFlow):
-    
+
     def __init__(self, start_pos, incoming, parent=None):
         ControlFlow.__init__(self, start_pos, incoming, parent)
         self.branches = [LinearControlFlow(start_pos, incoming, parent=self)]
         self.branch_starts = [start_pos]
-        
+
     def _set_state_local(self, pos, item, state):
         for branch_pos, branch in zip(self.branch_starts[::-1], self.branches[::-1]):
             if pos >= branch_pos:
                 branch._set_state_local(pos, item, state)
                 return
-    
+
     def _get_pos_state_local(self, item, pos, stop_at=None):
         if pos < self.end_pos:
             for branch_pos, branch in zip(self.branch_starts[::-1], self.branches[::-1]):

@@ -20,7 +20,7 @@ def z(a, b, c):
     f(a, b,)
     g(1, 2.0, "spam")
     g(a, b, c)
-    
+
 def fail0(a, b):
     """
     >>> fail0(1,2)
@@ -28,7 +28,7 @@ def fail0(a, b):
     TypeError: f() takes exactly 2 positional arguments (0 given)
     """
     f()
-    
+
 def fail1(a, b):
     """
     >>> fail1(1,2)

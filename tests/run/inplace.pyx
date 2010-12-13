@@ -93,11 +93,11 @@ def smoketest():
 def side_effect(x):
     print u"side effect", x
     return x
-    
+
 cdef int c_side_effect(int x):
     print u"c side effect", x
     return x
-    
+
 def test_side_effects():
     """
     >>> test_side_effects()
@@ -185,7 +185,7 @@ def nested_struct_assignment():
     nested.a.value = 2
     nested.a.value += 3
     assert nested.a.value == 5
-    
+
     nested.a.inner.x = 5
     nested.a.inner.x += 10
     assert nested.a.inner.x == 15
@@ -200,7 +200,7 @@ def nested_array_assignment():
     array.a[0].value = 2
     array.a[c_side_effect(0)].value += 3
     assert array.a[0].value == 5
-    
+
     array.a[1].inner.x = 5
     array.a[c_side_effect(1)].inner.x += 10
     assert array.a[1].inner.x == 15

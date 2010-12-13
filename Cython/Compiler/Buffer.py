@@ -57,12 +57,12 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
 
         if isinstance(node, ModuleNode) and len(bufvars) > 0:
-            # for now...note that pos is wrong 
+            # for now...note that pos is wrong
             raise CompileError(node.pos, "Buffer vars not allowed in module scope")
         for entry in bufvars:
             if entry.type.dtype.is_ptr:
                 raise CompileError(node.pos, "Buffers with pointer types not yet supported.")
-            
+
             name = entry.name
             buftype = entry.type
             if buftype.ndim > self.max_ndim:
@@ -84,10 +84,10 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                 if entry.is_arg:
                     result.used = True
                 return result
-            
+
 
             stridevars = [var(Naming.bufstride_prefix, i, "0") for i in range(entry.type.ndim)]
-            shapevars = [var(Naming.bufshape_prefix, i, "0") for i in range(entry.type.ndim)]            
+            shapevars = [var(Naming.bufshape_prefix, i, "0") for i in range(entry.type.ndim)]
             mode = entry.type.mode
             if mode == 'full':
                 suboffsetvars = [var(Naming.bufsuboffset_prefix, i, "-1") for i in range(entry.type.ndim)]
@@ -95,7 +95,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                 suboffsetvars = None
 
             entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, shapevars, suboffsetvars)
-            
+
         scope.buffer_entries = bufvars
         self.scope = scope
 
@@ -138,9 +138,9 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     """
     if defaults is None:
         defaults = buffer_defaults
-    
+
     posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env, type_args = (0,'dtype'))
-    
+
     if len(posargs) > buffer_positional_options_count:
         raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
 
@@ -187,7 +187,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     assert_bool('cast')
 
     return options
-    
+
 
 #
 # Code generation
@@ -209,7 +209,7 @@ def get_flags(buffer_aux, buffer_type):
         assert False
     if buffer_aux.writable_needed: flags += "| PyBUF_WRITABLE"
     return flags
-        
+
 def used_buffer_aux_vars(entry):
     buffer_aux = entry.buffer_aux
     buffer_aux.buffer_info_var.used = True
@@ -258,10 +258,10 @@ def get_getbuffer_call(code, obj_cname, buffer_aux, buffer_type):
     bufstruct = buffer_aux.buffer_info_var.cname
 
     dtype_typeinfo = get_type_information_cname(code, buffer_type.dtype)
-    
+
     return ("__Pyx_GetBufferAndValidate(&%(bufstruct)s, "
             "(PyObject*)%(obj_cname)s, &%(dtype_typeinfo)s, %(flags)s, %(ndim)d, "
-            "%(cast)d, __pyx_stack)" % locals())    
+            "%(cast)d, __pyx_stack)" % locals())
 
 def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
                          is_initialized, pos, code):
@@ -272,7 +272,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     However, the assignment operation may throw an exception so that the reassignment
     never happens.
-    
+
     Depending on the circumstances there are two possible outcomes:
     - Old buffer released, new acquired, rhs assigned to lhs
     - Old buffer released, new acquired which fails, reaqcuire old lhs buffer
@@ -285,7 +285,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     code.putln("{")  # Set up necesarry stack for getbuffer
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
-    
+
     getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below
 
     if is_initialized:
@@ -370,7 +370,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
                     code.putln("%s = %d;" % (tmp_cname, dim))
                 code.put("} else ")
             # check bounds in positive direction
-            if signed != 0:  
+            if signed != 0:
                 cast = ""
             else:
                 cast = "(size_t)"
@@ -389,7 +389,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
                                         bufaux.shapevars):
             if signed != 0:
                 code.putln("if (%s < 0) %s += %s;" % (cname, cname, shape.cname))
-        
+
     # Create buffer lookup and return it
     # This is done via utility macros/inline functions, which vary
     # according to the access mode used.
@@ -418,7 +418,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
         for i, s in zip(index_cnames, bufaux.stridevars):
             params.append(i)
             params.append(s.cname)
-        
+
     # Make sure the utility code is available
     if funcname not in code.globalstate.utility_codes:
         code.globalstate.utility_codes.add(funcname)
@@ -458,7 +458,7 @@ def buf_lookup_full_code(proto, defin, name, nd):
           char* ptr = (char*)buf;
         """) % (name, funcargs) + "".join([dedent("""\
           ptr += s%d * i%d;
-          if (o%d >= 0) ptr = *((char**)ptr) + o%d; 
+          if (o%d >= 0) ptr = *((char**)ptr) + o%d;
         """) % (i, i, i, i) for i in range(nd)]
         ) + "\nreturn ptr;\n}")
 
@@ -563,7 +563,7 @@ def use_py2_buffer_functions(env):
 
         #endif
     """)
-                   
+
     env.use_utility_code(UtilityCode(
             proto = dedent("""\
         #if PY_MAJOR_VERSION < 3
@@ -613,9 +613,9 @@ def get_type_information_cname(code, dtype, maxdepth=None):
     if name not in code.globalstate.utility_codes:
         code.globalstate.utility_codes.add(name)
         typecode = code.globalstate['typeinfo']
-        
+
         complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
-        
+
         declcode = dtype.declaration_code("")
         if dtype.is_simple_buffer_dtype():
             structinfo_name = "NULL"
@@ -634,7 +634,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             typecode.putln("};", safe=True)
         else:
             assert False
-            
+
         rep = str(dtype)
         if dtype.is_int:
             if dtype.signed == 0:
@@ -851,7 +851,7 @@ static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
     default: {
       __Pyx_BufFmt_RaiseUnexpectedChar(ch);
       return 0;
-    }    
+    }
   }
 }
 
@@ -895,7 +895,7 @@ static size_t __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
     default: {
       __Pyx_BufFmt_RaiseUnexpectedChar(ch);
       return 0;
-    }    
+    }
   }
 }
 
@@ -932,7 +932,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   do {
     __Pyx_StructField* field = ctx->head->field;
     __Pyx_TypeInfo* type = field->type;
-  
+
     if (ctx->packmode == '@' || ctx->packmode == '^') {
       size = __Pyx_BufFmt_TypeCharToNativeSize(ctx->enc_type, ctx->is_complex);
     } else {
@@ -955,7 +955,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
         ctx->head->parent_offset = parent_offset;
         continue;
       }
-    
+
       __Pyx_BufFmt_RaiseExpected(ctx);
       return -1;
     }
@@ -969,7 +969,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     }
 
     ctx->fmt_offset += size;
-  
+
     --ctx->enc_count; /* Consume from buffer string */
 
     /* Done checking, move to next field, pushing or popping struct stack if needed */
@@ -1002,7 +1002,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   } while (ctx->enc_count);
   ctx->enc_type = 0;
   ctx->is_complex = 0;
-  return 0;    
+  return 0;
 }
 
 static int __Pyx_BufFmt_FirstPack(__Pyx_BufFmt_Context* ctx) {
@@ -1124,7 +1124,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
             return NULL;
           }
         }
-      
+
     }
   }
 }

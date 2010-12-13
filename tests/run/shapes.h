@@ -2,15 +2,15 @@
 #define SHAPES_H
 
 namespace shapes {
-    
+
     int constructor_count = 0;
     int destructor_count = 0;
-    
+
     class Shape
     {
     public:
         virtual float area() = 0;
-        Shape() { constructor_count++; } 
+        Shape() { constructor_count++; }
         virtual ~Shape() { destructor_count++; }
     };
 
@@ -18,7 +18,7 @@ namespace shapes {
     {
     public:
     	Rectangle() { }
-        Rectangle(int width, int height) 
+        Rectangle(int width, int height)
         {
             this->width = width;
             this->height = height;

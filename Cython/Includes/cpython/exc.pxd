@@ -1,7 +1,7 @@
 from cpython.ref cimport PyObject
 
 cdef extern from "Python.h":
-    
+
     #####################################################################
     # 3. Exception Handling
     #####################################################################
@@ -76,7 +76,7 @@ cdef extern from "Python.h":
     # performance.
 
     void PyErr_Clear()
-    # Clear the error indicator. If the error indicator is not set, there is no effect. 
+    # Clear the error indicator. If the error indicator is not set, there is no effect.
 
     void PyErr_Fetch(PyObject** ptype, PyObject** pvalue, PyObject** ptraceback)
     # Retrieve the error indicator into three variables whose
@@ -124,7 +124,7 @@ cdef extern from "Python.h":
     # parsed, but the width part is ignored.
 
     void PyErr_SetNone(object type)
-    # This is a shorthand for "PyErr_SetObject(type, Py_None)". 
+    # This is a shorthand for "PyErr_SetObject(type, Py_None)".
 
     int PyErr_BadArgument() except 0
 

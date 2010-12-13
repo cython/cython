@@ -3,4 +3,4 @@ def f():
     import spam.eggs
     import spam, eggs, ham
     import spam as tasty
-    
+

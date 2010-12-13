@@ -29,7 +29,7 @@ def loop():
     for x in range(-i,i):
         times += 1
     return times
-    
+
 def rangelist():
     cdef unsigned int i = 3
     return list(range(-i, i))

@@ -1,7 +1,7 @@
 # coding=ASCII
 
 """
-Très bien. 
+Très bien.
 """
 
 _ERRORS = u"""

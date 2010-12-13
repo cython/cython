@@ -86,8 +86,8 @@ try:
         except:
             raise
     except (AttributeError,
-            KeyError, 
-            IndexError, 
+            KeyError,
+            IndexError,
             ValueError) as e:
         val = e
         raise e

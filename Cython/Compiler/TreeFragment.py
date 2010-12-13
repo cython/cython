@@ -23,18 +23,18 @@ class StringParseContext(Main.Context):
     def __init__(self, include_directories, name):
         Main.Context.__init__(self, include_directories, {})
         self.module_name = name
-        
+
     def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):
         if module_name != self.module_name:
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         return ModuleScope(module_name, parent_module = None, context = self)
-        
+
 def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
     that transforms should emit, as well as unit testing).
-    
+
     code - a unicode string containing Cython (module-level) code
     name - a descriptive name for the code source (to use in error messages etc.)
     """
@@ -78,7 +78,7 @@ class ApplyPositionAndCopy(TreeCopier):
     def __init__(self, pos):
         super(ApplyPositionAndCopy, self).__init__()
         self.pos = pos
-        
+
     def visit_Node(self, node):
         copy = super(ApplyPositionAndCopy, self).visit_Node(node)
         copy.pos = self.pos
@@ -87,7 +87,7 @@ class ApplyPositionAndCopy(TreeCopier):
 class TemplateTransform(VisitorTransform):
     """
     Makes a copy of a template tree while doing substitutions.
-    
+
     A dictionary "substitutions" should be passed in when calling
     the transform; mapping names to replacement nodes. Then replacement
     happens like this:
@@ -103,11 +103,11 @@ class TemplateTransform(VisitorTransform):
 
     Also a list "temps" should be passed. Any names listed will
     be transformed into anonymous, temporary names.
-   
+
     Currently supported for tempnames is:
     NameNode
     (various function and class definition nodes etc. should be added to this)
-    
+
     Each replacement node gets the position of the substituted node
     recursively applied to every member node.
     """
@@ -148,7 +148,7 @@ class TemplateTransform(VisitorTransform):
                 c.pos = self.pos
             self.visitchildren(c)
             return c
-    
+
     def try_substitution(self, node, key):
         sub = self.substitutions.get(key)
         if sub is not None:
@@ -157,7 +157,7 @@ class TemplateTransform(VisitorTransform):
             return ApplyPositionAndCopy(pos)(sub)
         else:
             return self.visit_Node(node) # make copy as usual
-            
+
     def visit_NameNode(self, node):
         temphandle = self.tempmap.get(node.name)
         if temphandle:
@@ -174,7 +174,7 @@ class TemplateTransform(VisitorTransform):
             return self.try_substitution(node, node.expr.name)
         else:
             return self.visit_Node(node)
-    
+
 def copy_code_tree(node):
     return TreeCopier()(node)
 
@@ -186,12 +186,12 @@ def strip_common_indent(lines):
     minindent = min([len(INDENT_RE.match(x).group(0)) for x in lines])
     lines = [x[minindent:] for x in lines]
     return lines
-    
+
 class TreeFragment(object):
     def __init__(self, code, name="(tree fragment)", pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
         if isinstance(code, unicode):
-            def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n"))) 
-            
+            def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
+
             fmt_code = fmt(code)
             fmt_pxds = {}
             for key, value in pxds.iteritems():

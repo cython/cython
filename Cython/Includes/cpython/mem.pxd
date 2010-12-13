@@ -63,7 +63,7 @@ cdef extern from "Python.h":
     # sizeof(TYPE)) bytes. Returns a pointer cast to TYPE*.
 
     void PyMem_Del(void *p)
-    # Same as PyMem_Free(). 
+    # Same as PyMem_Free().
 
     # In addition, the following macro sets are provided for calling
     # the Python memory allocator directly, without involving the C

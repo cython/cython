@@ -1,12 +1,12 @@
 cdef extern from "Python.h":
 
     ############################################################################
-    # 7.2.3 
+    # 7.2.3
     ############################################################################
     # PyFloatObject
     #
     # This subtype of PyObject represents a Python floating point object.
-    
+
     # PyTypeObject PyFloat_Type
     #
     # This instance of PyTypeObject represents the Python floating
@@ -19,7 +19,7 @@ cdef extern from "Python.h":
 
     bint PyFloat_CheckExact(object p)
     # Return true if its argument is a PyFloatObject, but not a
-    # subtype of PyFloatObject. 
+    # subtype of PyFloatObject.
 
     object PyFloat_FromString(object str, char **pend)
     # Return value: New reference.
@@ -29,7 +29,7 @@ cdef extern from "Python.h":
 
     object PyFloat_FromDouble(double v)
     # Return value: New reference.
-    # Create a PyFloatObject object from v, or NULL on failure. 
+    # Create a PyFloatObject object from v, or NULL on failure.
 
     double PyFloat_AsDouble(object pyfloat) except? -1
     # Return a C double representation of the contents of pyfloat.

@@ -17,7 +17,7 @@ class TestBufferParsing(CythonTest):
     def not_parseable(self, expected_error, s):
         e = self.should_fail(lambda: self.fragment(s),  Errors.CompileError)
         self.assertEqual(expected_error, e.message_only)
-    
+
     def test_basic(self):
         t = self.parse(u"cdef object[float, 4, ndim=2, foo=foo] x")
         bufnode = t.stats[0].base_type
@@ -25,7 +25,7 @@ class TestBufferParsing(CythonTest):
         self.assertEqual(2, len(bufnode.positional_args))
 #        print bufnode.dump()
         # should put more here...
-        
+
     def test_type_pos(self):
         self.parse(u"cdef object[short unsigned int, 3] x")
 
@@ -68,7 +68,7 @@ class TestBufferOptions(CythonTest):
         self.parse_opts(opts, expect_error=True)
 #        e = self.should_fail(lambda: self.parse_opts(opts))
         self.assertEqual(expected_err, self.error.message_only)
-        
+
     def __test_basic(self):
         buf = self.parse_opts(u"unsigned short int, 3")
         self.assert_(isinstance(buf.dtype_node, CSimpleBaseTypeNode))
@@ -80,7 +80,7 @@ class TestBufferOptions(CythonTest):
         self.assert_(isinstance(buf.dtype_node, CSimpleBaseTypeNode))
         self.assert_(buf.dtype_node.signed == 0 and buf.dtype_node.longness == -1)
         self.assertEqual(3, buf.ndim)
-        
+
     def __test_ndim(self):
         self.parse_opts(u"int, 2")
         self.non_parse(ERR_BUF_NDIM, u"int, 'a'")

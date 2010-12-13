@@ -32,35 +32,35 @@ cdef extern from *:
 
     # Return 1 or 0 depending on whether ch is an uppercase character.
     bint Py_UNICODE_ISUPPER(Py_UNICODE ch)
-    
-    # Return 1 or 0 depending on whether ch is a titlecase character. 
+
+    # Return 1 or 0 depending on whether ch is a titlecase character.
     bint Py_UNICODE_ISTITLE(Py_UNICODE ch)
 
-    # Return 1 or 0 depending on whether ch is a linebreak character. 
+    # Return 1 or 0 depending on whether ch is a linebreak character.
     bint Py_UNICODE_ISLINEBREAK(Py_UNICODE ch)
 
-    # Return 1 or 0 depending on whether ch is a decimal character. 
+    # Return 1 or 0 depending on whether ch is a decimal character.
     bint Py_UNICODE_ISDECIMAL(Py_UNICODE ch)
 
-    # Return 1 or 0 depending on whether ch is a digit character. 
+    # Return 1 or 0 depending on whether ch is a digit character.
     bint Py_UNICODE_ISDIGIT(Py_UNICODE ch)
 
-    # Return 1 or 0 depending on whether ch is a numeric character. 
+    # Return 1 or 0 depending on whether ch is a numeric character.
     bint Py_UNICODE_ISNUMERIC(Py_UNICODE ch)
 
-    # Return 1 or 0 depending on whether ch is an alphabetic character. 
+    # Return 1 or 0 depending on whether ch is an alphabetic character.
     bint Py_UNICODE_ISALPHA(Py_UNICODE ch)
 
-    # Return 1 or 0 depending on whether ch is an alphanumeric character. 
+    # Return 1 or 0 depending on whether ch is an alphanumeric character.
     bint Py_UNICODE_ISALNUM(Py_UNICODE ch)
 
-    # Return the character ch converted to lower case. 
+    # Return the character ch converted to lower case.
     Py_UNICODE Py_UNICODE_TOLOWER(Py_UNICODE ch)
 
-    # Return the character ch converted to upper case. 
+    # Return the character ch converted to upper case.
     Py_UNICODE Py_UNICODE_TOUPPER(Py_UNICODE ch)
 
-    # Return the character ch converted to title case. 
+    # Return the character ch converted to title case.
     Py_UNICODE Py_UNICODE_TOTITLE(Py_UNICODE ch)
 
     # Return the character ch converted to a decimal positive
@@ -100,7 +100,7 @@ cdef extern from *:
     # Py_UNICODE buffer, NULL if unicode is not a Unicode object.
     Py_UNICODE* PyUnicode_AsUnicode(object o) except NULL
 
-    # Return the length of the Unicode object. 
+    # Return the length of the Unicode object.
     Py_ssize_t PyUnicode_GetSize(object o) except -1
 
     # Coerce an encoded object obj to an Unicode object and return a
@@ -175,7 +175,7 @@ cdef extern from *:
     # raised by the codec.
     object PyUnicode_EncodeUTF8(Py_UNICODE *s, Py_ssize_t size, char *errors)
 
-    # Encode a Unicode objects using UTF-8 and return the result as Python string object. Error handling is ``strict''. Return NULL if an exception was raised by the codec. 
+    # Encode a Unicode objects using UTF-8 and return the result as Python string object. Error handling is ``strict''. Return NULL if an exception was raised by the codec.
     object PyUnicode_AsUTF8String(object unicode)
 
 # These are the UTF-16 codec APIs:
@@ -183,7 +183,7 @@ cdef extern from *:
     # Decode length bytes from a UTF-16 encoded buffer string and
     # return the corresponding Unicode object. errors (if non-NULL)
     # defines the error handling. It defaults to ``strict''.
-    # 
+    #
     # If byteorder is non-NULL, the decoder starts decoding using the
     # given byte order:
     #

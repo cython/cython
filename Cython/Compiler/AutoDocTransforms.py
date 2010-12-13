@@ -101,7 +101,7 @@ class EmbedSignature(CythonTransform):
             return node
         else:
             return super(EmbedSignature, self).__call__(node)
-        
+
     def visit_ClassDefNode(self, node):
         oldname = self.class_name
         oldclass = self.class_node
@@ -120,7 +120,7 @@ class EmbedSignature(CythonTransform):
     def visit_DefNode(self, node):
         if not self.current_directives['embedsignature']:
             return node
-        
+
         is_constructor = False
         hide_self = False
         if node.entry.is_special:

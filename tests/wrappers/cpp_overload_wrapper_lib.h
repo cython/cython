@@ -7,12 +7,12 @@ double doublefunc (double a, double b, double c);
 class DoubleKeeper
 {
     double number;
-    
+
 public:
     DoubleKeeper ();
     DoubleKeeper (double number);
     virtual ~DoubleKeeper ();
-    
+
     void set_number (double num);
     void set_number (void);
     double get_number () const;

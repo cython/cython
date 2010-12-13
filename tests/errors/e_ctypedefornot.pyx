@@ -2,7 +2,7 @@ cdef struct Foo
 
 ctypedef struct Foo:
 	int i
-	
+
 ctypedef struct Blarg:
 	char c
 

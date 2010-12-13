@@ -19,7 +19,7 @@ class subs(str):
     """
     >>> subs('testing a subtype')
     'testing a subtype'
-    
+
     #   >>> csub('testing a subtype')
     #   'testing a subtype'
     #   >>> csubs('testing a subtype')

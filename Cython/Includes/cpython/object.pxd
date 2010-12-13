@@ -2,7 +2,7 @@ from cpython.ref cimport PyObject, PyTypeObject
 from libc.stdio cimport FILE
 
 cdef extern from "Python.h":
-    
+
     #####################################################################
     # 6.1 Object Protocol
     #####################################################################
@@ -53,7 +53,7 @@ cdef extern from "Python.h":
     # Delete attribute named attr_name, for object o. Returns -1 on
     # failure. This is the equivalent of the Python statement "del
     # o.attr_name".
-    
+
     int Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, Py_GE
 
     object PyObject_RichCompare(object o1, object o2, int opid)
@@ -121,7 +121,7 @@ cdef extern from "Python.h":
     # instance and cls is neither a type object, nor a class object,
     # nor a tuple, inst must have a __class__ attribute -- the class
     # relationship of the value of that attribute with cls will be
-    # used to determine the result of this function. 
+    # used to determine the result of this function.
 
     # Subclass determination is done in a fairly straightforward way,
     # but includes a wrinkle that implementors of extensions to the
@@ -197,7 +197,7 @@ cdef extern from "Python.h":
     # Call a callable Python object callable, with a variable number
     # of PyObject* arguments. The arguments are provided as a variable
     # number of parameters followed by NULL. Returns the result of the
-    # call on success, or NULL on failure. 
+    # call on success, or NULL on failure.
 
     #PyObject* PyObject_CallMethodObjArgs(object o, object name, ..., NULL)
     object PyObject_CallMethodObjArgs(object o, object name, ...)

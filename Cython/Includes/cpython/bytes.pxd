@@ -10,18 +10,18 @@ cdef extern from "Python.h":
     # These functions raise TypeError when expecting a string
     # parameter and are called with a non-string parameter.
     # PyStringObject
-    # This subtype of PyObject represents a Python bytes object. 
+    # This subtype of PyObject represents a Python bytes object.
     # PyTypeObject PyBytes_Type
     # This instance of PyTypeObject represents the Python bytes type;
     # it is the same object as bytes and types.BytesType in the Python
-    # layer. 
+    # layer.
 
     bint PyBytes_Check(object o)
     # Return true if the object o is a string object or an instance of
-    # a subtype of the string type. 
+    # a subtype of the string type.
 
     bint PyBytes_CheckExact(object o)
-    # Return true if the object o is a string object, but not an instance of a subtype of the string type. 
+    # Return true if the object o is a string object, but not an instance of a subtype of the string type.
 
     bytes PyBytes_FromString(char *v)
     # Return value: New reference.
@@ -66,13 +66,13 @@ cdef extern from "Python.h":
 
     bytes PyBytes_FromFormatV(char *format, va_list vargs)
     # Return value: New reference.
-    # Identical to PyBytes_FromFormat() except that it takes exactly two arguments. 
+    # Identical to PyBytes_FromFormat() except that it takes exactly two arguments.
 
     Py_ssize_t PyBytes_Size(object string) except -1
-    # Return the length of the string in string object string. 
+    # Return the length of the string in string object string.
 
     Py_ssize_t PyBytes_GET_SIZE(object string)
-    # Macro form of PyBytes_Size() but without error checking. 
+    # Macro form of PyBytes_Size() but without error checking.
 
     char* PyBytes_AsString(object string) except NULL
     # Return a NUL-terminated representation of the contents of
@@ -98,7 +98,7 @@ cdef extern from "Python.h":
     # version of the object. If length is NULL, the resulting buffer
     # may not contain NUL characters; if it does, the function returns
     # -1 and a TypeError is raised.
-    
+
     # The buffer refers to an internal string buffer of obj, not a
     # copy. The data must not be modified in any way, unless the
     # string was just created using PyBytes_FromStringAndSize(NULL,
