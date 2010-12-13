@@ -4978,11 +4978,15 @@ class YieldExprNode(ExprNode):
     #
     # arg         ExprNode   the value to return from the generator
     # label_name  string     name of the C label used for this yield
+    # label_num   integer    yield label number
 
     subexprs = ['arg']
     type = py_object_type
+    label_num = 0
 
     def analyse_types(self, env):
+        if not self.label_num:
+            error(self.pos, "'yield' not supported here")
         self.is_temp = 1
         if self.arg is not None:
             self.arg.analyse_types(env)
