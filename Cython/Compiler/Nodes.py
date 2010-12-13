@@ -1910,6 +1910,7 @@ class GeneratorWrapperNode(object):
         self.header = header
 
     def generate_function_body(self, env, code):
+        code.mark_pos(self.def_node.pos)
         cenv = env.outer_scope # XXX: correct?
         while cenv.is_py_class_scope or cenv.is_c_class_scope:
             cenv = cenv.outer_scope
