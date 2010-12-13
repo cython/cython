@@ -1456,14 +1456,10 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if entry.used and not entry.in_closure:
                     code.put_var_decref(entry)
-                elif entry.in_closure and self.needs_closure:
-                    code.put_giveref(entry.cname)
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if entry.in_closure:
-                    code.put_var_giveref(entry)
-                elif entry.assignments:
+                if entry.assignments and not entry.in_closure:
                     code.put_var_decref(entry)
         if self.needs_closure and not self.is_generator:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
@@ -1524,8 +1520,6 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_wrapper_functions(code)
 
         if self.is_generator:
-            gotref_code.putln('/* Make refnanny happy */')
-            code.temp_allocator.put_gotref(gotref_code)
             self.generator.generate_function_body(self.local_scope, code)
 
     def generate_preamble(self, env, code):
@@ -1947,6 +1941,7 @@ class GeneratorWrapperNode(object):
                             cenv.scope_class.type.declaration_code(''),
                             Naming.self_cname))
             code.put_incref(outer_scope_cname, cenv.scope_class.type)
+            code.put_giveref(outer_scope_cname)
 
         self.def_node.generate_preamble(env, code)
 
@@ -1954,9 +1949,6 @@ class GeneratorWrapperNode(object):
 
         code.putln('%s.resume_label = 0;' % generator_cname)
         code.putln('%s.body = %s;' % (generator_cname, self.body_cname))
-        for entry in lenv.scope_class.type.scope.entries.values():
-            if entry.type.is_pyobject:
-                code.put_xgiveref('%s->%s' % (Naming.cur_scope_cname, entry.cname))
         code.put_giveref(Naming.cur_scope_cname)
         code.put_finish_refcount_context()
         code.putln("return (PyObject *) %s;" % Naming.cur_scope_cname);
@@ -2495,9 +2487,9 @@ class DefNode(FuncDefNode):
                 self.generate_arg_decref(self.star_arg, code)
                 if self.starstar_arg:
                     if self.starstar_arg.entry.xdecref_cleanup:
-                        code.put_var_xdecref(self.starstar_arg.entry)
+                        code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
-                        code.put_var_decref(self.starstar_arg.entry)
+                        code.put_var_decref_clear(self.starstar_arg.entry)
             code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
             # The arguments are put into the closure one after the
             # other, so when type errors are found, all references in
@@ -2516,14 +2508,24 @@ class DefNode(FuncDefNode):
         if code.label_used(end_label):
             code.put_label(end_label)
 
+        # fix refnanny view on closure variables here, instead of
+        # doing it separately for each arg parsing special case
+        if self.star_arg and self.star_arg.entry.in_closure:
+            code.put_var_giveref(self.star_arg.entry)
+        if self.starstar_arg and self.starstar_arg.entry.in_closure:
+            code.put_var_giveref(self.starstar_arg.entry)
+        for arg in self.args:
+            if arg.type.is_pyobject and arg.entry.in_closure:
+                code.put_var_giveref(arg.entry)
+
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
             entry = arg.entry
-            code.putln("%s = %s;" % (entry.cname, item))
             if entry.in_closure:
-                code.put_var_incref(entry)
+                code.put_incref(item, PyrexTypes.py_object_type)
+            code.putln("%s = %s;" % (entry.cname, item))
         else:
             func = arg.type.from_py_function
             if func:
@@ -2537,11 +2539,11 @@ class DefNode(FuncDefNode):
     
     def generate_arg_xdecref(self, arg, code):
         if arg:
-            code.put_var_xdecref(arg.entry)
+            code.put_var_xdecref_clear(arg.entry)
     
     def generate_arg_decref(self, arg, code):
         if arg:
-            code.put_var_decref(arg.entry)
+            code.put_var_decref_clear(arg.entry)
 
     def generate_stararg_copy_code(self, code):
         if not self.star_arg:
@@ -2744,19 +2746,16 @@ class DefNode(FuncDefNode):
             code.putln('if (PyTuple_GET_SIZE(%s) > %d) {' % (
                     Naming.args_cname,
                     max_positional_args))
-            code.put('%s = PyTuple_GetSlice(%s, %d, PyTuple_GET_SIZE(%s)); ' % (
+            code.putln('%s = PyTuple_GetSlice(%s, %d, PyTuple_GET_SIZE(%s));' % (
                     self.star_arg.entry.cname, Naming.args_cname,
                     max_positional_args, Naming.args_cname))
-            code.put_gotref(self.star_arg.entry.cname)
+            code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
             if self.starstar_arg:
-                code.putln("")
-                code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
                 code.put_decref(self.starstar_arg.entry.cname, py_object_type)
-                code.putln('return %s;' % self.error_value())
-                code.putln('}')
-            else:
-                code.putln("if (unlikely(!%s)) return %s;" % (
-                        self.star_arg.entry.cname, self.error_value()))
+            code.put_finish_refcount_context()
+            code.putln('return %s;' % self.error_value())
+            code.putln('}')
+            code.put_gotref(self.star_arg.entry.cname)
             code.putln('} else {')
             code.put("%s = %s; " % (self.star_arg.entry.cname, Naming.empty_tuple))
             code.put_incref(Naming.empty_tuple, py_object_type)
