@@ -34,7 +34,7 @@ try:
      [[ 16.  17.  18.  19.]
       [ 20.  21.  22.  23.]]]
     6.0 0.0 13.0 8.0
-
+    
     >>> obj_array()
     [a 1 {}]
     a 1 {}
@@ -115,7 +115,7 @@ try:
     Traceback (most recent call last):
        ...
     ValueError: ndarray is not C contiguous
-
+    
     >>> test_dtype('b', inc1_byte)
     >>> test_dtype('B', inc1_ubyte)
     >>> test_dtype('h', inc1_short)
@@ -124,7 +124,7 @@ try:
     >>> test_dtype('I', inc1_uint)
     >>> test_dtype('l', inc1_long)
     >>> test_dtype('L', inc1_ulong)
-
+    
     >>> test_dtype('f', inc1_float)
     >>> test_dtype('d', inc1_double)
     >>> test_dtype('g', inc1_longdouble)
@@ -154,16 +154,16 @@ try:
     Traceback (most recent call last):
        ...
     ValueError: Non-native byte order not supported
-
+    
 
 
     >>> test_recordarray()
-
+    
     >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
             ('a', np.dtype('i,i')),\
             ('b', np.dtype('i,i'))\
         ]))))
-    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))],
+    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))], 
           dtype=[('a', [('f0', '!i4'), ('f1', '!i4')]), ('b', [('f0', '!i4'), ('f1', '!i4')])])
 
     >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
@@ -175,10 +175,10 @@ try:
     ValueError: Buffer dtype mismatch, expected 'int' but got 'float' in 'DoubleInt.y'
 
     >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=False))))
-    array([(22, 23)],
+    array([(22, 23)], 
           dtype=[('f0', '|i1'), ('f1', '!i4')])
     >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
-    array([(22, 23)],
+    array([(22, 23)], 
           dtype=[('f0', '|i1'), ('', '|V3'), ('f1', '!i4')])
 
     >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
@@ -205,9 +205,9 @@ try:
     8,16
 
     >>> test_point_record()
-    array([(0.0, 0.0), (1.0, -1.0), (2.0, -2.0)],
+    array([(0.0, 0.0), (1.0, -1.0), (2.0, -2.0)], 
           dtype=[('x', '!f8'), ('y', '!f8')])
-
+    
 """
 except:
     __doc__ = u""
@@ -232,7 +232,7 @@ def ndarray_str(arr):
     Since Py2.3 doctest don't support <BLANKLINE>, manually replace blank lines
     with <_BLANKLINE_>
     """
-    return unicode(arr).replace(u'\n\n', u'\n<_BLANKLINE_>\n')
+    return unicode(arr).replace(u'\n\n', u'\n<_BLANKLINE_>\n')    
 
 def basic():
     cdef object[int, ndim=2] buf = np.arange(10, dtype=b'i').reshape((2, 5))
@@ -295,7 +295,7 @@ def inc1_clongdouble(np.ndarray[long double complex] arr): arr[1] = arr[1] + (1 
 def inc1_cfloat_struct(np.ndarray[np.cfloat_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
-
+    
 def inc1_cdouble_struct(np.ndarray[np.cdouble_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
@@ -324,7 +324,7 @@ def inc1_uintp_t(np.ndarray[np.uintp_t] arr):           arr[1] += 1
 def inc1_int32_t(np.ndarray[np.int32_t] arr):           arr[1] += 1
 def inc1_float64_t(np.ndarray[np.float64_t] arr):       arr[1] += 1
 
-
+    
 def test_dtype(dtype, inc1):
     if dtype in ("g", np.longdouble,
                  "G", np.clongdouble):
@@ -407,7 +407,7 @@ def test_packed_align(np.ndarray[PackedStruct] arr):
 
 def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     arr[0].a = 22
-    arr[0].b = 23
+    arr[0].b = 23    
     return repr(arr).replace('<', '!').replace('>', '!')
 
 def test_complextypes():
