@@ -1387,7 +1387,7 @@ class CreateClosureClasses(CythonTransform):
         self.visitchildren(node)
         return node
 
-    def create_abstract_generator(self, target_module_scope, pos):
+    def create_generator_class(self, target_module_scope, pos):
         if self.generator_class:
             return self.generator_class
         # XXX: make generator class creation cleaner
@@ -1395,7 +1395,6 @@ class CreateClosureClasses(CythonTransform):
                     objstruct_cname='__pyx_Generator_object',
                     typeobj_cname='__pyx_Generator_type',
                     pos=pos, defining=True, implementing=True)
-        entry.cname = 'Generator'
         klass = entry.type.scope
         klass.is_internal = True
         klass.directives = {'final': True}
@@ -1470,7 +1469,7 @@ class CreateClosureClasses(CythonTransform):
             node.needs_outer_scope = False
 
         if node.is_generator:
-            generator_class = self.create_abstract_generator(target_module_scope, node.pos)
+            generator_class = self.create_generator_class(target_module_scope, node.pos)
         elif not in_closure and not from_closure:
             return
         elif not in_closure:
