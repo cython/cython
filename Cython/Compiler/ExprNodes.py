@@ -1619,9 +1619,9 @@ class NameNode(AtomicExprNode):
                 if self.use_managed_ref:
                     rhs.make_owned_reference(code)
                     is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
-                    if is_external_ref:
-                        code.put_gotref(self.py_result())
                     if not self.lhs_of_first_assignment:
+                        if is_external_ref:
+                            code.put_gotref(self.py_result())
                         if entry.is_local and not Options.init_local_none:
                             initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
                             if initialized is True:

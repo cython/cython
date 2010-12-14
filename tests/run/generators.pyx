@@ -148,6 +148,22 @@ def check_throw():
         except ValueError:
             pass
 
+def test_first_assignment():
+    """
+    >>> gen = test_first_assignment()
+    >>> next(gen)
+    5
+    >>> next(gen)
+    10
+    >>> next(gen)
+    (5, 10)
+    """
+    cdef x = 5 # first
+    yield x
+    cdef y = 10 # first
+    yield y
+    yield (x,y)
+
 
 class Foo(object):
     """
