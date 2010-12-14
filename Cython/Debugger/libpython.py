@@ -1841,46 +1841,30 @@ def get_selected_inferior():
             if thread == selected_thread:
                 return inferior
 
+def stackdepth(frame):
+    "Tells the stackdepth of a gdb frame."
+    depth = 0
+    while frame:
+        frame = frame.older()
+        depth += 1
+        
+    return depth
 
-class GenericCodeStepper(gdb.Command):
+class ExecutionControlCommandBase(gdb.Command):
     """
-    Superclass for code stepping. Subclasses must implement the following 
-    methods:
-        
-        lineno(frame)
-            Tells the current line number (only called for a relevant frame).
-            If lineno is a false value it is not checked for a difference.
-        
-        is_relevant_function(frame)
-            tells whether we care about frame 'frame'
-        
-        get_source_line(frame)
-            get the line of source code for the current line (only called for a
-            relevant frame). If the source code cannot be retrieved this 
-            function should return None
-        
-        static_break_functions() 
-            returns an iterable of function names that are considered relevant 
-            and should halt step-into execution. This is needed to provide a 
-            performing step-into
-      
-        runtime_break_functions 
-            list of functions that we should break into depending on the 
-            context
-
-    This class provides an 'invoke' method that invokes a 'step' or 'step-over'
-    depending on the 'stepinto' argument.
+    Superclass for language specific execution control. Language specific
+    features should be implemented by lang_info using the LanguageInfo 
+    interface. 'name' is the name of the command.
     """
     
     stepper = False
     static_breakpoints = {}
     runtime_breakpoints = {}
     
-    def __init__(self, name, stepinto=False):
-        super(GenericCodeStepper, self).__init__(name, 
-                                                 gdb.COMMAND_RUNNING,
-                                                 gdb.COMPLETE_NONE)
-        self.stepinto = stepinto
+    def __init__(self, name, lang_info):
+        super(ExecutionControlCommandBase, self).__init__(
+                                name, gdb.COMMAND_RUNNING, gdb.COMPLETE_NONE)
+        self.lang_info = lang_info
 
     def _break_func(self, funcname):
         result = gdb.execute('break %s' % funcname, to_string=True)
@@ -1897,7 +1881,7 @@ class GenericCodeStepper(gdb.Command):
         This method must be called whenever the list of functions we should
         step into changes. It can be called on any GenericCodeStepper instance.
         """
-        break_funcs = set(self.static_break_functions())
+        break_funcs = set(self.lang_info.static_break_functions())
         
         for funcname in break_funcs:
             if funcname not in self.static_breakpoints:
@@ -1929,7 +1913,7 @@ class GenericCodeStepper(gdb.Command):
         for bp in self.static_breakpoints.itervalues():
             gdb.execute('enable ' + bp)
         
-        runtime_break_functions = self.runtime_break_functions()
+        runtime_break_functions = self.lang_info.runtime_break_functions()
         if runtime_break_functions is None:
             return
             
@@ -1945,72 +1929,49 @@ class GenericCodeStepper(gdb.Command):
                                 self.runtime_breakpoints.itervalues())
         for bp in chain:
             gdb.execute('disable ' + bp)
-    
-    def runtime_break_functions(self):
-        """
-        Implement this if the list of step-into functions depends on the 
-        context.
-        """
-    
-    def stopped(self, result):
-        match = re.search('^Program received signal .*', result, re.MULTILINE)
-        if match:
-            return match.group(0)
-        elif get_selected_inferior().pid == 0:
-            return result
-        else:
-            match = re.search('.*[Ww]arning.*', result, re.MULTILINE)
-            if match:
-                print match.group(0)
 
-            return ''
-        
-    def _stackdepth(self, frame):
-        depth = 0
-        while frame:
-            frame = frame.older()
-            depth += 1
-            
-        return depth
     
-    def finish_executing(self, output):
+    def filter_output(self, result):
+        output = []
+        
+        match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
+                                 re.MULTILINE)
+        if match_finish:
+            output.append('Value returned: %s' % match_finish.group(1))
+        
+        reflags = re.MULTILINE
+        regexes = [
+            (r'^Program received signal .*', reflags|re.DOTALL),
+            (r'.*[Ww]arning.*', 0),
+            (r'^Program exited .*', reflags),
+        ]
+        
+        for regex, flags in regexes:
+            match = re.search(regex, result, flags)
+            if match:
+                output.append(match.group(0))
+        
+        return '\n'.join(output)
+        
+    def stopped(self):
+        return get_selected_inferior().pid == 0
+    
+    def finish_executing(self, result):
         """
         After doing some kind of code running in the inferior, print the line
         of source code or the result of the last executed gdb command (passed
         in as the `result` argument).
         """
-        result = self.stopped(output)
-        if result:
+        result = self.filter_output(result)
+        
+        if self.stopped():
             print result.strip()
-            # check whether the program was killed by a signal, it should still
-            # have a stack.
-            try:
-                frame = gdb.selected_frame()
-            except RuntimeError:
-                pass
-            else:
-                line = self.get_source_line(frame)
-                
-                if line is None:
-                    print output
-                else:
-                    print result
-                    print line
         else:
             frame = gdb.selected_frame()
-            output = None
-            
-            if self.is_relevant_function(frame):
-                output = self.get_source_line(frame)
-            
-            if output is None:
-                pframe = getattr(self, 'print_stackframe', None)
-                if pframe:
-                    pframe(frame, index=0)
-                else:
-                    print result.strip()
+            if self.lang_info.is_relevant_function(frame):
+                print self.lang_info.get_source_line(frame) or result
             else:
-                print output
+                print result
     
     def _finish(self):
         """
@@ -2023,11 +1984,10 @@ class GenericCodeStepper(gdb.Command):
             # outermost frame, continue
             return gdb.execute('cont', to_string=True)
     
-    def finish(self, *args):
+    def _finish_frame(self):
         """
         Execute until the function returns to a relevant caller.
         """
-        
         while True:
             result = self._finish()
             
@@ -2037,13 +1997,18 @@ class GenericCodeStepper(gdb.Command):
                 break
             
             hitbp = re.search(r'Breakpoint (\d+)', result)
-            is_relevant = self.is_relevant_function(frame)
-            if hitbp or is_relevant or self.stopped(result):
+            is_relevant = self.lang_info.is_relevant_function(frame)
+            if hitbp or is_relevant or self.stopped():
                 break
-            
+        
+        return result
+    
+    def finish(self, *args):
+        "Implements the finish command."
+        result = self._finish_frame()
         self.finish_executing(result)
     
-    def step(self, stepover_command='next'):
+    def step(self, stepinto, stepover_command='next'):
         """
         Do a single step or step-over. Returns the result of the last gdb
         command that made execution stop.
@@ -2062,34 +2027,34 @@ class GenericCodeStepper(gdb.Command):
         works properly with local trace functions, see 
         PyFrameObjectPtr.current_line_num and PyFrameObjectPtr.addr2line.
         """
-        if self.stepinto:
+        if stepinto:
             self.enable_breakpoints()
         
         beginframe = gdb.selected_frame()
         
-        if self.is_relevant_function(beginframe):
+        if self.lang_info.is_relevant_function(beginframe):
             # If we start in a relevant frame, initialize stuff properly. If
             # we don't start in a relevant frame, the loop will halt 
-            # immediately. So don't call self.lineno() as it may raise for
-            # irrelevant frames.
-            beginline = self.lineno(beginframe)
+            # immediately. So don't call self.lang_info.lineno() as it may 
+            # raise for irrelevant frames.
+            beginline = self.lang_info.lineno(beginframe)
             
-            if not self.stepinto:
-                depth = self._stackdepth(beginframe)
+            if not stepinto:
+                depth = stackdepth(beginframe)
         
         newframe = beginframe
         
         while True:
-            if self.is_relevant_function(newframe):
+            if self.lang_info.is_relevant_function(newframe):
                 result = gdb.execute(stepover_command, to_string=True)
             else:
-                self.finish()
+                result = self._finish_frame()
             
-            if self.stopped(result):
+            if self.stopped():
                 break
             
             newframe = gdb.selected_frame()
-            is_relevant_function = self.is_relevant_function(newframe)
+            is_relevant_function = self.lang_info.is_relevant_function(newframe)
             try:
                 framename = newframe.name()
             except RuntimeError:
@@ -2108,9 +2073,9 @@ class GenericCodeStepper(gdb.Command):
             if newframe != beginframe:
                 # new function
                 
-                if not self.stepinto:
+                if not stepinto:
                     # see if we returned to the caller
-                    newdepth = self._stackdepth(newframe)
+                    newdepth = stackdepth(newframe)
                     is_relevant_function = (newdepth < depth and 
                                             is_relevant_function)
                 
@@ -2119,11 +2084,11 @@ class GenericCodeStepper(gdb.Command):
             else:
                 # newframe equals beginframe, check for a difference in the
                 # line number
-                lineno = self.lineno(newframe)
+                lineno = self.lang_info.lineno(newframe)
                 if lineno and lineno != beginline:
                     break
         
-        if self.stepinto:
+        if stepinto:
             self.disable_breakpoints()
 
         self.finish_executing(result)
@@ -2135,7 +2100,50 @@ class GenericCodeStepper(gdb.Command):
         self.finish_executing(gdb.execute('cont', to_string=True))
 
 
-class PythonCodeStepper(GenericCodeStepper):
+class LanguageInfo(object):
+    """
+    This class defines the interface that ExecutionControlCommandBase needs to
+    provide language-specific execution control.
+    
+    Classes that implement this interface should implement:
+    
+        lineno(frame)
+            Tells the current line number (only called for a relevant frame).
+            If lineno is a false value it is not checked for a difference.
+        
+        is_relevant_function(frame)
+            tells whether we care about frame 'frame'
+        
+        get_source_line(frame)
+            get the line of source code for the current line (only called for a
+            relevant frame). If the source code cannot be retrieved this 
+            function should return None
+        
+        exc_info(frame) -- optional
+            tells whether an exception was raised, if so, it should return a
+            string representation of the exception value, None otherwise.
+        
+        static_break_functions() 
+            returns an iterable of function names that are considered relevant 
+            and should halt step-into execution. This is needed to provide a 
+            performing step-into
+      
+        runtime_break_functions() -- optional
+            list of functions that we should break into depending on the 
+            context
+    """
+
+    def exc_info(self, frame):
+        "See this class' docstring."
+
+    def runtime_break_functions(self):
+        """
+        Implement this if the list of step-into functions depends on the 
+        context.
+        """
+
+
+class PythonInfo(LanguageInfo):
     
     def pyframe(self, frame):
         pyframe = Frame(frame).get_pyop()
@@ -2164,14 +2172,13 @@ class PythonCodeStepper(GenericCodeStepper):
         yield 'PyEval_EvalFrameEx'
 
 
-class PyStep(PythonCodeStepper):
-    "Step through Python code."
+class PythonStepperMixin(object):
+    """
+    Make this a mixin so CyStep can also inherit from this and use a 
+    CythonCodeStepper at the same time
+    """
     
-    def __init__(self, *args, **kwargs):
-        super(PyStep, self).__init__(*args, **kwargs)
-        self.lastframe = None
-    
-    def invoke(self, args, from_tty):
+    def python_step(self, stepinto):
         # Set a watchpoint for a frame once as deleting it will make py-step
         # unrepeatable. 
         # See http://sourceware.org/bugzilla/show_bug.cgi?id=12216
@@ -2180,45 +2187,52 @@ class PyStep(PythonCodeStepper):
         
         newframe = gdb.selected_frame()
         framewrapper = Frame(newframe)
-        if newframe != self.lastframe and framewrapper.is_evalframeex():
+        if (newframe != getattr(self, 'lastframe', None) and
+            framewrapper.is_evalframeex()):
             self.lastframe = newframe
             output = gdb.execute('watch f->f_lasti', to_string=True)
             
-        self.step(stepover_command='py-finish')
+        self.step(stepinto=stepinto, stepover_command='finish')
         
         # match = re.search(r'[Ww]atchpoint (\d+):', output)
         # if match:
             # watchpoint = match.group(1)
             # gdb.execute('delete %s' % watchpoint)
+
+
+class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
+    "Step through Python code."
+    
+    stepinto = True
     
     def invoke(self, args, from_tty):
-        self.step()
+        self.python_step(stepinto=self.stepinto)
     
-class PyNext(PythonCodeStepper):
+class PyNext(PyStep):
     "Step-over Python code."
     
-    invoke = PythonCodeStepper.step
+    stepinto = False
     
-class PyFinish(PythonCodeStepper):
+class PyFinish(ExecutionControlCommandBase):
     "Execute until function returns to a caller."
     
-    invoke = PythonCodeStepper.finish
+    invoke = ExecutionControlCommandBase.finish
 
-class PyRun(PythonCodeStepper):
+class PyRun(ExecutionControlCommandBase):
     "Run the program."
     
-    invoke = PythonCodeStepper.run
+    invoke = ExecutionControlCommandBase.run
 
-class PyCont(PythonCodeStepper):
+class PyCont(ExecutionControlCommandBase):
     
-    invoke = PythonCodeStepper.cont
+    invoke = ExecutionControlCommandBase.cont
 
 
-py_step = PyStep('py-step', stepinto=True)
-py_next = PyNext('py-next', stepinto=False)
-py_finish = PyFinish('py-finish')
-py_run = PyRun('py-run')
-py_cont = PyCont('py-cont')
+py_step = PyStep('py-step', PythonInfo())
+py_next = PyNext('py-next', PythonInfo())
+py_finish = PyFinish('py-finish', PythonInfo())
+py_run = PyRun('py-run', PythonInfo())
+py_cont = PyCont('py-cont', PythonInfo())
 
 gdb.execute('set breakpoint pending on')
 py_step.init_breakpoints()

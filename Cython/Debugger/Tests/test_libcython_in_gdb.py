@@ -58,7 +58,7 @@ class DebugTestCase(unittest.TestCase):
         if source_line is not None:
             lineno = test_libcython.source_to_lineno[source_line]
         frame = gdb.selected_frame()
-        self.assertEqual(libcython.cy.step.lineno(frame), lineno)
+        self.assertEqual(libcython.cython_info.lineno(frame), lineno)
 
     def break_and_run(self, source_line):
         break_lineno = test_libcython.source_to_lineno[source_line]
