@@ -5007,27 +5007,30 @@ class YieldExprNode(ExprNode):
             code.put_init_to_py_none(Naming.retval_cname, py_object_type)
         saved = []
         code.temp_allocator.reset()
-        code.putln('/* Save temporary variables */')
-        for cname, type, manage_ref in code.funcstate.temps_in_use():
-            save_cname = code.temp_allocator.allocate_temp(type)
-            saved.append((cname, save_cname, type))
-            if type.is_pyobject:
-                code.put_xgiveref(cname)
-            code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
+        temps_in_use = code.funcstate.temps_in_use()
+        if temps_in_use:
+            code.putln('/* Save temporary variables */')
+            for cname, type, manage_ref in temps_in_use:
+                save_cname = code.temp_allocator.allocate_temp(type)
+                saved.append((cname, save_cname, type))
+                if type.is_pyobject:
+                    code.put_xgiveref(cname)
+                code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
         code.put_xgiveref(Naming.retval_cname)
         code.put_finish_refcount_context()
-        code.putln("/* return from function, yielding value */")
+        code.putln("/* return from generator, yielding value */")
         code.putln("%s->%s.resume_label = %d;" % (Naming.cur_scope_cname, Naming.obj_base_cname, self.label_num))
         code.putln("return %s;" % Naming.retval_cname);
         code.put_label(self.label_name)
-        code.putln('/* Restore temporary variables */')
-        for cname, save_cname, type in saved:
-            code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
-            if type.is_pyobject:
-                code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
-            if type.is_pyobject:
-                code.put_xgotref(cname)
+        if saved:
+            code.putln('/* Restore temporary variables */')
+            for cname, save_cname, type in saved:
+                code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
+                if type.is_pyobject:
+                    code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
+                if type.is_pyobject:
+                    code.put_xgotref(cname)
         if self.result_is_used:
             self.allocate_temp_result(code)
             code.putln('%s = %s; %s' %

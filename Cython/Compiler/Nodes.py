@@ -1510,7 +1510,7 @@ class FuncDefNode(StatNode, BlockNode):
             resume_code.putln("case 0: goto %s;" % first_run_label)
             for yield_expr in self.yields:
                 resume_code.putln("case %d: goto %s;" % (yield_expr.label_num, yield_expr.label_name));
-            resume_code.putln("default: /* raise error here */");
+            resume_code.putln("default: /* CPython raises the right error here */");
             resume_code.putln("return NULL;");
             resume_code.putln("}");
         # ----- Python version
