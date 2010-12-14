@@ -2197,7 +2197,7 @@ class PythonStepperMixin(object):
     CythonCodeStepper at the same time
     """
     
-    def python_step(self, stepinto):
+    def _watchpoint_step(self, stepinto):
         # Set a watchpoint for a frame once as deleting it will make py-step
         # unrepeatable. 
         # See http://sourceware.org/bugzilla/show_bug.cgi?id=12216
@@ -2217,7 +2217,13 @@ class PythonStepperMixin(object):
         # if match:
             # watchpoint = match.group(1)
             # gdb.execute('delete %s' % watchpoint)
-
+    
+    def python_step(self, args, stepinto):
+        if args in ('-w', '--watchpoint'):
+            self._watchpoint_step(stepinto)
+        else:
+            self.step(stepinto)
+    
 
 class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
     "Step through Python code."
@@ -2225,7 +2231,7 @@ class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
     stepinto = True
     
     def invoke(self, args, from_tty):
-        self.python_step(stepinto=self.stepinto)
+        self.python_step(args, stepinto=self.stepinto)
     
 class PyNext(PyStep):
     "Step-over Python code."
