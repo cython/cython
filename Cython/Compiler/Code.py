@@ -1286,7 +1286,7 @@ class CCodeWriter(object):
         #    code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type, nanny)
         if entry.in_closure:
-            self.put_giveref(code)
+            self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
