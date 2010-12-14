@@ -262,7 +262,7 @@ class TestBacktrace(DebugTestCase):
         
         gdb.execute('cy bt')
         result = gdb.execute('cy bt -a', to_string=True)
-        assert re.search(r'\#0 *0x.* in main\(\) at', result), result
+        assert re.search(r'\#0 *0x.* in main\(\)', result), result
 
 
 class TestFunctions(DebugTestCase):

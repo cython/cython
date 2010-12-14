@@ -872,8 +872,18 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
         result.extend(self.cy.functions_by_cname)
         return result
 
+
+class CyStep(CythonCodeStepper):
+    "Step through Cython, Python or C code."
+    
+    name = 'cy step'
+    stepinto = True
+    
     def invoke(self, args, from_tty):
-        if not self.is_cython_function() and not self.is_python_function():
+        if self.is_python_function():
+            libpython.py_step.get_source_line = self.get_source_line
+            libpython.py_step.invoke(args, from_tty)
+        elif not self.is_cython_function():
             if self.stepinto:
                 command = 'step'
             else:
@@ -884,14 +894,7 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
             self.step()
 
 
-class CyStep(CythonCodeStepper):
-    "Step through Cython, Python or C code."
-    
-    name = 'cy step'
-    stepinto = True
-
-
-class CyNext(CythonCodeStepper):
+class CyNext(CyStep):
     "Step-over Python code."
 
     name = 'cy next'
