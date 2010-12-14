@@ -164,6 +164,19 @@ def test_first_assignment():
     yield y
     yield (x,y)
 
+def test_swap_assignment():
+    """
+    >>> gen = test_swap_assignment()
+    >>> next(gen)
+    (5, 10)
+    >>> next(gen)
+    (10, 5)
+    """
+    x,y = 5,10
+    yield (x,y)
+    x,y = y,x   # no ref-counting here
+    yield (x,y)
+
 
 class Foo(object):
     """
