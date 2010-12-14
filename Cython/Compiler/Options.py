@@ -51,6 +51,10 @@ c_line_in_traceback = 1
 # executes the body of this module.
 embed = False
 
+# Disables function redefinition, allowing all functions to be declared at
+# module creation time. For legacy code only. 
+disable_function_redefinition = False
+
 
 # Declare compiler directives
 directive_defaults = {
