@@ -369,8 +369,8 @@ class PyObjectPtr(object):
         if tp_name in name_map:
             return name_map[tp_name]
         
-        if tp_flags & Py_TPFLAGS_HEAPTYPE:
-            return HeapTypeObjectPtr
+        if tp_flags & (Py_TPFLAGS_HEAPTYPE|Py_TPFLAGS_TYPE_SUBCLASS):
+            return PyTypeObjectPtr
 
         if tp_flags & Py_TPFLAGS_INT_SUBCLASS:
             return PyIntObjectPtr
@@ -392,8 +392,6 @@ class PyObjectPtr(object):
             return PyDictObjectPtr
         if tp_flags & Py_TPFLAGS_BASE_EXC_SUBCLASS:
             return PyBaseExceptionObjectPtr
-        #if tp_flags & Py_TPFLAGS_TYPE_SUBCLASS:
-        #    return PyTypeObjectPtr
 
         # Use the base class:
         return cls
@@ -484,8 +482,8 @@ def _PyObject_VAR_SIZE(typeobj, nitems):
              ) & ~(SIZEOF_VOID_P - 1)
            ).cast(gdb.lookup_type('size_t'))
 
-class HeapTypeObjectPtr(PyObjectPtr):
-    _typename = 'PyObject'
+class PyTypeObjectPtr(PyObjectPtr):
+    _typename = 'PyTypeObject'
     
     def get_attr_dict(self):
         '''
@@ -545,10 +543,17 @@ class HeapTypeObjectPtr(PyObjectPtr):
             out.write('<...>')
             return
         visited.add(self.as_address())
-
-        pyop_attrdict = self.get_attr_dict()
-        _write_instance_repr(out, visited,
-                             self.safe_tp_name(), pyop_attrdict, self.as_address())
+        
+        try:
+            tp_name = self.field('tp_name').string()
+        except RuntimeError:
+            tp_name = 'unknown'
+        
+        out.write('<type %s at remote 0x%x>' % (tp_name, 
+                                                self.as_address()))
+        # pyop_attrdict = self.get_attr_dict()
+        # _write_instance_repr(out, visited,
+                             # self.safe_tp_name(), pyop_attrdict, self.as_address())
 
 class ProxyException(Exception):
     def __init__(self, tp_name, args):
@@ -1135,9 +1140,6 @@ class PyTupleObjectPtr(PyObjectPtr):
             out.write(',)')
         else:
             out.write(')')
-
-class PyTypeObjectPtr(PyObjectPtr):
-    _typename = 'PyTypeObject'
 
 
 def _unichr_is_printable(char):
@@ -2171,6 +2173,20 @@ class PythonInfo(LanguageInfo):
         except IOError, e:
             return None
     
+    def exc_info(self, frame):
+        try:
+            tstate = frame.read_var('tstate').dereference()
+            if gdb.parse_and_eval('tstate->frame == f'):
+                # tstate local variable initialized
+                inf_type = tstate['curexc_type']
+                inf_value = tstate['curexc_value']
+                if inf_type:
+                    return 'An exception was raised: %s(%s)' % (inf_type, 
+                                                                inf_value)
+        except (ValueError, RuntimeError), e:
+            # Could not read the variable tstate or it's memory, it's ok
+            pass
+        
     def static_break_functions(self):
         yield 'PyEval_EvalFrameEx'
 
