@@ -526,7 +526,7 @@ class Scope(object):
     def declare_pyfunction(self, name, pos, allow_redefine=False, visibility='extern'):
         # Add an entry for a Python function.
         entry = self.lookup_here(name)
-        if not allow_redefine:
+        if not allow_redefine or Options.disable_function_redefinition:
             return self._declare_pyfunction(name, pos, visibility=visibility, entry=entry)
         if entry:
             if entry.type.is_unspecified:

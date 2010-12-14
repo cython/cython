@@ -125,6 +125,8 @@ def parse_command_line(args):
                 options.language_level = 3
             elif option == "--fast-fail":
                 Options.fast_fail = True
+            elif option == "--disable-function-redefinition":
+                Options.disable_function_redefinition = True
             elif option in ("-X", "--directive"):
                 try:
                     options.compiler_directives = Options.parse_directive_list(
