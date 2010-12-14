@@ -1121,6 +1121,19 @@ class ModuleScope(Scope):
             type.vtabslot_cname = "%s.%s" % (
                 Naming.obj_base_cname, type.base_type.vtabslot_cname)
         elif type.scope and type.scope.cfunc_entries:
+            # one special case here: when inheriting from builtin
+            # types, the methods may also be built-in, in which
+            # case they won't need a vtable
+            entry_count = len(type.scope.cfunc_entries)
+            base_type = type.base_type
+            while base_type:
+                # FIXME: this will break if we ever get non-inherited C methods
+                if not base_type.scope or entry_count > len(base_type.scope.cfunc_entries):
+                    break
+                if base_type.is_builtin_type:
+                    # builtin base type defines all methods => no vtable needed
+                    return
+                base_type = base_type.base_type
             #print "...allocating vtabslot_cname because there are C methods" ###
             type.vtabslot_cname = Naming.vtabslot_cname
         if type.vtabslot_cname:
