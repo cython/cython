@@ -2927,9 +2927,9 @@ class DefNode(FuncDefNode):
             if arg.needs_conversion:
                 self.generate_arg_conversion(arg, code)
             elif arg.entry.in_closure:
-                code.putln('%s = %s;' % (arg.entry.cname, arg.hdr_cname))
                 if arg.type.is_pyobject:
-                    code.put_var_incref(arg.entry)
+                    code.put_incref(arg.hdr_cname, py_object_type)
+                code.putln('%s = %s;' % (arg.entry.cname, arg.hdr_cname))
 
     def generate_arg_conversion(self, arg, code):
         # Generate conversion code for one argument.
