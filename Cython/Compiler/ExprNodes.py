@@ -3401,7 +3401,7 @@ class AttributeNode(ExprNode):
             return module_scope.lookup_type(self.attribute)
         if not isinstance(self.obj, (UnicodeNode, StringNode, BytesNode)):
             base_type = self.obj.analyse_as_type(env)
-            if base_type and hasattr(base_type, 'scope'):
+            if base_type and hasattr(base_type, 'scope') and base_type.scope is not None:
                 return base_type.scope.lookup_type(self.attribute)
         return None
 
