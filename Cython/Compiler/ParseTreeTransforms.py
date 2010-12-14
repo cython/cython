@@ -1308,22 +1308,23 @@ class YieldNodeCollector(TreeVisitor):
     def __init__(self):
         super(YieldNodeCollector, self).__init__()
         self.yields = []
-        self.has_return = False
+        self.returns = []
+        self.has_return_value = False
 
     visit_Node = TreeVisitor.visitchildren
 
     def visit_YieldExprNode(self, node):
-        if self.has_return:
+        if self.has_return_value:
             error(node.pos, "'yield' outside function")
-        else:
-            self.yields.append(node)
-            node.label_num = len(self.yields)
+        self.yields.append(node)
+        node.label_num = len(self.yields)
 
     def visit_ReturnStatNode(self, node):
-        if self.yields:
-            error(collector.returns[0].pos, "'return' with argument inside generator")
-        else:
-            self.has_return = True
+        if node.value:
+            self.has_return_value = True
+            if self.yields:
+                error(node.pos, "'return' with argument inside generator")
+        self.returns.append(node)
 
     def visit_ClassDefNode(self, node):
         pass
@@ -1348,6 +1349,8 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if collector.yields:
+            if collector.returns and not collector.has_return_value:
+                error(collector.returns[0].pos, "'return' inside generators not yet supported ")
             node.is_generator = True
             node.needs_closure = True
             node.yields = collector.yields
