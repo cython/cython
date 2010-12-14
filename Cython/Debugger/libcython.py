@@ -835,7 +835,7 @@ class CyBreak(CythonCommand):
         return compl
 
 
-class CythonInfo(CythonBase, libpython.LanguageInfo):
+class CythonInfo(CythonBase, libpython.PythonInfo):
     """
     Implementation of the interface dictated by libpython.LanguageInfo.
     """
@@ -847,8 +847,7 @@ class CythonInfo(CythonBase, libpython.LanguageInfo):
         # related code. The C level should be dispatched to the 'step' command.
         if self.is_cython_function(frame):
             return self.get_cython_lineno(frame)
-        else:
-            return libpython.py_step.lang_info.lineno(frame)
+        return super(CythonInfo, self).lineno(frame)
     
     def get_source_line(self, frame):
         try:
@@ -857,6 +856,10 @@ class CythonInfo(CythonBase, libpython.LanguageInfo):
             return None
         else:
             return line.strip() or None
+
+    def exc_info(self, frame):
+        if self.is_python_function:
+            return super(CythonInfo, self).exc_info(frame)
 
     def runtime_break_functions(self):
         if self.is_cython_function():
