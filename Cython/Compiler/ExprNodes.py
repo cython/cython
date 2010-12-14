@@ -4045,7 +4045,7 @@ class ListNode(SequenceNode):
             self.obj_conversion_errors = []
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
-        elif dst_type.is_ptr:
+        elif dst_type.is_ptr and dst_type.base_type is not PyrexTypes.c_void_type:
             base_type = dst_type.base_type
             self.type = PyrexTypes.CArrayType(base_type, len(self.args))
             for i in range(len(self.original_args)):
@@ -4181,12 +4181,13 @@ class ScopedExprNode(ExprNode):
                 code.put_var_declaration(entry)
                 if entry.type.is_pyobject and entry.used:
                     py_entries.append(entry)
-                    code.put_init_var_to_py_none(entry)
         if not py_entries:
             # no local Python references => no cleanup required
             generate_inner_evaluation_code(code)
             code.putln('} /* exit inner scope */')
             return
+        for entry in py_entries:
+            code.put_init_var_to_py_none(entry)
 
         # must free all local Python references at each exit point
         old_loop_labels = tuple(code.new_loop_labels())

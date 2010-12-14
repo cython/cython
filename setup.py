@@ -264,6 +264,7 @@ packages = [
     'Cython.Distutils',
     'Cython.Plex',
     'Cython.Tests',
+    'Cython.Build.Tests',
     'Cython.Compiler.Tests',
 ]
 
