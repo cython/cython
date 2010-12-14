@@ -644,12 +644,12 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
-
-try:
-    import gdb
-    include_debugger = sys.version_info[:2] > (2, 5)
-except:
-    include_debugger = False
+# Someone wrapped this in a:
+# 'try: import gdb; ... except: include_debugger = False' thing, but don't do 
+# this, it doesn't work as gdb is a builtin module in GDB. The tests themselves
+# are doing the skipping. If there's a problem with the tests, please file an 
+# issue.
+include_debugger = sys.version_info[:2] > (2, 5)
 
 def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):

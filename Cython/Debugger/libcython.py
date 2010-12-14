@@ -835,10 +835,9 @@ class CyBreak(CythonCommand):
         return compl
 
 
-class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
+class CythonInfo(CythonBase, libpython.LanguageInfo):
     """
-    Base class for CyStep and CyNext. It implements the interface dictated by
-    libpython.GenericCodeStepper.
+    Implementation of the interface dictated by libpython.LanguageInfo.
     """
     
     def lineno(self, frame):
@@ -849,19 +848,15 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
         if self.is_cython_function(frame):
             return self.get_cython_lineno(frame)
         else:
-            return libpython.py_step.lineno(frame)
+            return libpython.py_step.lang_info.lineno(frame)
     
     def get_source_line(self, frame):
         try:
-            line = super(CythonCodeStepper, self).get_source_line(frame)
+            line = super(CythonInfo, self).get_source_line(frame)
         except gdb.GdbError:
             return None
         else:
             return line.strip() or None
-
-    @classmethod
-    def register(cls):
-        return cls(cls.name, stepinto=getattr(cls, 'stepinto', False))
 
     def runtime_break_functions(self):
         if self.is_cython_function():
@@ -873,7 +868,15 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
         return result
 
 
-class CyStep(CythonCodeStepper):
+class CythonExecutionControlCommand(CythonCommand, 
+                                    libpython.ExecutionControlCommandBase):
+    
+    @classmethod
+    def register(cls):
+        return cls(cls.name, cython_info)
+
+
+class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
     "Step through Cython, Python or C code."
     
     name = 'cy step'
@@ -881,8 +884,7 @@ class CyStep(CythonCodeStepper):
     
     def invoke(self, args, from_tty):
         if self.is_python_function():
-            libpython.py_step.get_source_line = self.get_source_line
-            libpython.py_step.invoke(args, from_tty)
+            self.python_step(self.stepinto)
         elif not self.is_cython_function():
             if self.stepinto:
                 command = 'step'
@@ -891,7 +893,7 @@ class CyStep(CythonCodeStepper):
                 
             self.finish_executing(gdb.execute(command, to_string=True))
         else:
-            self.step()
+            self.step(stepinto=self.stepinto)
 
 
 class CyNext(CyStep):
@@ -901,7 +903,7 @@ class CyNext(CyStep):
     stepinto = False
 
 
-class CyRun(CythonCodeStepper):
+class CyRun(CythonExecutionControlCommand):
     """
     Run a Cython program. This is like the 'run' command, except that it 
     displays Cython or Python source lines as well
@@ -909,26 +911,26 @@ class CyRun(CythonCodeStepper):
     
     name = 'cy run'
     
-    invoke = CythonCodeStepper.run
+    invoke = CythonExecutionControlCommand.run
 
 
-class CyCont(CyRun):
+class CyCont(CythonExecutionControlCommand):
     """
     Continue a Cython program. This is like the 'run' command, except that it 
     displays Cython or Python source lines as well.
     """
     
     name = 'cy cont'
-    invoke = CythonCodeStepper.cont
+    invoke = CythonExecutionControlCommand.cont
 
 
-class CyFinish(CyRun):
+class CyFinish(CythonExecutionControlCommand):
     """
     Execute until the function returns.
     """
     name = 'cy finish'
 
-    invoke = CythonCodeStepper.finish
+    invoke = CythonExecutionControlCommand.finish
 
 
 class CyUp(CythonCommand):
@@ -964,7 +966,7 @@ class CyDown(CyUp):
     _command = 'down'
 
 
-class CySelect(CythonCodeStepper):
+class CySelect(CythonCommand):
     """
     Select a frame. Use frame numbers as listed in `cy backtrace`.
     This command is useful because `cy backtrace` prints a reversed backtrace.
@@ -982,7 +984,7 @@ class CySelect(CythonCodeStepper):
         while frame.newer():
             frame = frame.newer()
         
-        stackdepth = self._stackdepth(frame)
+        stackdepth = libpython.stackdepth(frame)
         
         try:
             gdb.execute('select %d' % (stackdepth - stackno - 1,))
@@ -1288,5 +1290,6 @@ class CyLine(gdb.Function, CythonBase):
     def invoke(self):
         return self.get_cython_lineno()
 
-
+cython_info = CythonInfo()
 cy = CyCy.register()
+cython_info.cy = cy
