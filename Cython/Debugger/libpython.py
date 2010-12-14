@@ -1969,6 +1969,9 @@ class ExecutionControlCommandBase(gdb.Command):
         else:
             frame = gdb.selected_frame()
             if self.lang_info.is_relevant_function(frame):
+                raised_exception = self.lang_info.exc_info(frame)
+                if raised_exception:
+                    print raised_exception
                 print self.lang_info.get_source_line(frame) or result
             else:
                 print result
