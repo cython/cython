@@ -887,7 +887,7 @@ class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
     
     def invoke(self, args, from_tty):
         if self.is_python_function():
-            self.python_step(self.stepinto)
+            self.python_step(args, self.stepinto)
         elif not self.is_cython_function():
             if self.stepinto:
                 command = 'step'
