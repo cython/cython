@@ -1892,79 +1892,25 @@ class ExecutionControlCommandBase(gdb.Command):
     interface. 'name' is the name of the command.
     """
     
-    stepper = False
-    static_breakpoints = {}
-    runtime_breakpoints = {}
-    
     def __init__(self, name, lang_info):
         super(ExecutionControlCommandBase, self).__init__(
                                 name, gdb.COMMAND_RUNNING, gdb.COMPLETE_NONE)
         self.lang_info = lang_info
 
-    def _break_func(self, funcname):
-        result = gdb.execute('break %s' % funcname, to_string=True)
-        return re.search(r'Breakpoint (\d+)', result).group(1)
-
-    def init_breakpoints(self):
-        """
-        Keep all breakpoints around and simply disable/enable them each time
-        we are stepping. We need this because if you set and delete a 
-        breakpoint, gdb will not repeat your command (this is due to 'delete').
-        We also can't use the breakpoint API because there's no option to make 
-        breakpoint setting silent.
-        
-        This method must be called whenever the list of functions we should
-        step into changes. It can be called on any GenericCodeStepper instance.
-        """
-        break_funcs = set(self.lang_info.static_break_functions())
-        
-        for funcname in break_funcs:
-            if funcname not in self.static_breakpoints:
-                try:
-                    gdb.Breakpoint('', gdb.BP_BREAKPOINT, internal=True)
-                except (AttributeError, TypeError):
-                    # gdb.Breakpoint does not take an 'internal' argument, or
-                    # gdb.Breakpoint does not exist.
-                    breakpoint = self._break_func(funcname)
-                except RuntimeError:
-                    # gdb.Breakpoint does take an 'internal' argument, use it
-                    # and hide output
-                    result = gdb.execute(textwrap.dedent("""\
-                        python bp = gdb.Breakpoint(%r, gdb.BP_BREAKPOINT, \
-                                                   internal=True); \
-                               print bp.number""", 
-                        to_string=True))
-                    
-                    breakpoint = int(result)
-
-                self.static_breakpoints[funcname] = breakpoint
-        
-        for bp in set(self.static_breakpoints) - break_funcs:
-            gdb.execute("delete " + self.static_breakpoints[bp])
-        
-        self.disable_breakpoints()
-
-    def enable_breakpoints(self):
-        for bp in self.static_breakpoints.itervalues():
-            gdb.execute('enable ' + bp)
-        
-        runtime_break_functions = self.lang_info.runtime_break_functions()
-        if runtime_break_functions is None:
-            return
+    def install_breakpoints(self):
+        all_locations = itertools.chain(
+            self.lang_info.static_break_functions(),
+            self.lang_info.runtime_break_functions())
             
-        for funcname in runtime_break_functions:
-            if (funcname not in self.static_breakpoints and 
-                funcname not in self.runtime_breakpoints):
-                self.runtime_breakpoints[funcname] = self._break_func(funcname)
-            elif funcname in self.runtime_breakpoints:
-                gdb.execute('enable ' + self.runtime_breakpoints[funcname])
-            
-    def disable_breakpoints(self):
-        chain = itertools.chain(self.static_breakpoints.itervalues(),
-                                self.runtime_breakpoints.itervalues())
-        for bp in chain:
-            gdb.execute('disable ' + bp)
-
+        for location in all_locations:
+            result = gdb.execute('break %s' % location, to_string=True)
+            yield re.search(r'Breakpoint (\d+)', result).group(1)
+       
+        
+    
+    def delete_breakpoints(self, breakpoint_list):
+        for bp in breakpoint_list:
+            gdb.execute("delete %s" % bp)
     
     def filter_output(self, result):
         output = []
@@ -2066,7 +2012,7 @@ class ExecutionControlCommandBase(gdb.Command):
         PyFrameObjectPtr.current_line_num and PyFrameObjectPtr.addr2line.
         """
         if stepinto:
-            self.enable_breakpoints()
+            breakpoint_list = list(self.install_breakpoints())
         
         beginframe = gdb.selected_frame()
         
@@ -2100,9 +2046,7 @@ class ExecutionControlCommandBase(gdb.Command):
             
             m = re.search(r'Breakpoint (\d+)', result)
             if m:
-                bp = self.runtime_breakpoints.get(framename)
-                if (bp is None or 
-                    (is_relevant_function and bp == m.group(1))):
+                if is_relevant_function and m.group(1) in breakpoint_list:
                     # although we hit a breakpoint, we still need to check
                     # that the function, in case hit by a runtime breakpoint,
                     # is in the right context
@@ -2127,7 +2071,7 @@ class ExecutionControlCommandBase(gdb.Command):
                     break
         
         if stepinto:
-            self.disable_breakpoints()
+            self.delete_breakpoints(breakpoint_list)
 
         self.finish_executing(result)
     
@@ -2179,7 +2123,7 @@ class LanguageInfo(object):
         Implement this if the list of step-into functions depends on the 
         context.
         """
-
+        return ()
 
 class PythonInfo(LanguageInfo):
     
@@ -2276,7 +2220,6 @@ py_run = PyRun('py-run', PythonInfo())
 py_cont = PyCont('py-cont', PythonInfo())
 
 gdb.execute('set breakpoint pending on')
-py_step.init_breakpoints()
 
 Py_single_input = 256
 Py_file_input = 257
