@@ -706,8 +706,6 @@ class CyImport(CythonCommand):
                     for c_lineno in c_linenos:
                         cython_module.lineno_c2cy[c_lineno] = cython_lineno
 
-        self.cy.step.init_breakpoints()
-
 
 class CyBreak(CythonCommand):
     """

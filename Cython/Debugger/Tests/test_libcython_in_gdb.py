@@ -74,9 +74,6 @@ class DebugTestCase(unittest.TestCase):
         
         gdb.execute('set args -c "import codefile"')
         
-        libcython.cy.step.static_breakpoints.clear()
-        libcython.cy.step.runtime_breakpoints.clear()
-        libcython.cy.step.init_breakpoints()
 
 class TestDebugInformationClasses(DebugTestCase):
     
@@ -130,7 +127,7 @@ class TestParameters(unittest.TestCase):
 class TestBreak(DebugTestCase):
 
     def test_break(self):
-        breakpoint_amount = len(gdb.breakpoints())
+        breakpoint_amount = len(gdb.breakpoints() or ())
         gdb.execute('cy break codefile.spam')
         
         self.assertEqual(len(gdb.breakpoints()), breakpoint_amount + 1)
