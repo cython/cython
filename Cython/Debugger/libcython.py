@@ -882,12 +882,12 @@ class CythonExecutionControlCommand(CythonCommand,
 class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
     "Step through Cython, Python or C code."
     
-    name = 'cy step'
+    name = 'cy -step'
     stepinto = True
     
     def invoke(self, args, from_tty):
         if self.is_python_function():
-            self.python_step(args, self.stepinto)
+            self.python_step(self.stepinto)
         elif not self.is_cython_function():
             if self.stepinto:
                 command = 'step'
@@ -900,9 +900,9 @@ class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
 
 
 class CyNext(CyStep):
-    "Step-over Python code."
+    "Step-over Cython, Python or C code."
 
-    name = 'cy next'
+    name = 'cy -next'
     stepinto = False
 
 
@@ -1296,3 +1296,24 @@ class CyLine(gdb.Function, CythonBase):
 cython_info = CythonInfo()
 cy = CyCy.register()
 cython_info.cy = cy
+
+def register_defines():
+    libpython.source_gdb_script(textwrap.dedent("""\
+        define cy step
+        cy -step
+        end
+        
+        define cy next
+        cy -next
+        end
+        
+        document cy step
+        %s
+        end
+        
+        document cy next
+        %s
+        end
+    """) % (CyStep.__doc__, CyNext.__doc__))
+
+register_defines()
