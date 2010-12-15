@@ -100,7 +100,8 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         "Cython.Compiler.Parsing",
                         "Cython.Compiler.Visitor",
                         "Cython.Compiler.Code",
-                        "Cython.Runtime.refnanny"]
+                        "Cython.Runtime.refnanny",
+                        "Cython.Debugger.do_repeat",]
     if compile_more:
         compiled_modules.extend([
             "Cython.Compiler.ParseTreeTransforms",

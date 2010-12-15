@@ -1843,6 +1843,39 @@ def get_selected_inferior():
             if thread == selected_thread:
                 return inferior
 
+def source_gdb_script(script_contents, to_string=False):
+    """
+    Source a gdb script with script_contents passed as a string. This is useful
+    to provide defines for py-step and py-next to make them repeatable (this is
+    not possible with gdb.execute()). See 
+    http://sourceware.org/bugzilla/show_bug.cgi?id=12216
+    """
+    fd, filename = tempfile.mkstemp()
+    f = os.fdopen(fd, 'w')
+    f.write(script_contents)
+    f.close()
+    gdb.execute("source %s" % filename, to_string=to_string)
+
+def register_defines():
+    source_gdb_script(textwrap.dedent("""\
+        define py-step
+        -py-step
+        end
+        
+        define py-next
+        -py-next
+        end
+        
+        document py-step
+        %s
+        end
+        
+        document py-next
+        %s
+        end
+    """) % (PyStep.__doc__, PyNext.__doc__))
+    
+
 def stackdepth(frame):
     "Tells the stackdepth of a gdb frame."
     depth = 0
@@ -2194,36 +2227,18 @@ class PythonInfo(LanguageInfo):
 class PythonStepperMixin(object):
     """
     Make this a mixin so CyStep can also inherit from this and use a 
-    CythonCodeStepper at the same time
+    CythonCodeStepper at the same time.
     """
     
-    def _watchpoint_step(self, stepinto):
-        # Set a watchpoint for a frame once as deleting it will make py-step
-        # unrepeatable. 
-        # See http://sourceware.org/bugzilla/show_bug.cgi?id=12216
-        # When the watchpoint goes out of scope it will automatically 
-        # disappear.
+    def python_step(self, stepinto):
+        frame = gdb.selected_frame()
+        framewrapper = Frame(frame)
         
-        newframe = gdb.selected_frame()
-        framewrapper = Frame(newframe)
-        if (newframe != getattr(self, 'lastframe', None) and
-            framewrapper.is_evalframeex()):
-            self.lastframe = newframe
-            output = gdb.execute('watch f->f_lasti', to_string=True)
-            
+        output = gdb.execute('watch f->f_lasti', to_string=True)
+        watchpoint = int(re.search(r'[Ww]atchpoint (\d+):', output).group(1))
         self.step(stepinto=stepinto, stepover_command='finish')
-        
-        # match = re.search(r'[Ww]atchpoint (\d+):', output)
-        # if match:
-            # watchpoint = match.group(1)
-            # gdb.execute('delete %s' % watchpoint)
-    
-    def python_step(self, args, stepinto):
-        if args in ('-w', '--watchpoint'):
-            self._watchpoint_step(stepinto)
-        else:
-            self.step(stepinto)
-    
+        gdb.execute('delete %s' % watchpoint)
+
 
 class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
     "Step through Python code."
@@ -2231,7 +2246,7 @@ class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
     stepinto = True
     
     def invoke(self, args, from_tty):
-        self.python_step(args, stepinto=self.stepinto)
+        self.python_step(stepinto=self.stepinto)
     
 class PyNext(PyStep):
     "Step-over Python code."
@@ -2252,9 +2267,10 @@ class PyCont(ExecutionControlCommandBase):
     
     invoke = ExecutionControlCommandBase.cont
 
-
-py_step = PyStep('py-step', PythonInfo())
-py_next = PyNext('py-next', PythonInfo())
+# Wrap py-step and py-next in gdb defines to make them repeatable.
+py_step = PyStep('-py-step', PythonInfo())
+py_next = PyNext('-py-next', PythonInfo())
+register_defines()
 py_finish = PyFinish('py-finish', PythonInfo())
 py_run = PyRun('py-run', PythonInfo())
 py_cont = PyCont('py-cont', PythonInfo())
@@ -2510,5 +2526,8 @@ class PyExec(gdb.Command):
         
         executor.evalcode(expr, input_type, global_dict, local_dict)
 
-py_exec = FixGdbCommand('py-exec', '-py-exec')
-_py_exec = PyExec("-py-exec", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
+if hasattr(gdb, 'GdbError'):
+    py_exec = FixGdbCommand('py-exec', '-py-exec')
+    _py_exec = PyExec("-py-exec", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
+else:
+    warnings.warn("Use gdb 7.2 or higher to use the py-exec command.")
