@@ -52,9 +52,12 @@ def unbound_symbols(code, context=None):
     symbol_collector = AllSymbols()
     symbol_collector(tree)
     unbound = []
-    import __builtin__
+    try:
+        import builtins
+    except ImportError:
+        import __builtin__ as builtins
     for name in symbol_collector.names:
-        if not tree.scope.lookup(name) and not hasattr(__builtin__, name):
+        if not tree.scope.lookup(name) and not hasattr(builtins, name):
             unbound.append(name)
     return unbound
 
@@ -79,7 +82,7 @@ def safe_type(arg, context=None):
         return 'numpy.ndarray[numpy.%s_t, ndim=%s]' % (arg.dtype.name, arg.ndim)
     else:
         for base_type in py_type.mro():
-            if base_type.__module__ == '__builtin__':
+            if base_type.__module__ in ('__builtin__', 'builtins'):
                 return 'object'
             module = context.find_module(base_type.__module__, need_pxd=False)
             if module:
@@ -125,7 +128,7 @@ def cython_inline(code,
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
-    module_name = "_cython_inline_" + hashlib.md5(str(key)).hexdigest()
+    module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
     try:
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
