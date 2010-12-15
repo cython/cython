@@ -2211,19 +2211,6 @@ class PyCont(ExecutionControlCommandBase):
     
     invoke = ExecutionControlCommandBase.cont
 
-# Wrap py-step and py-next in gdb defines to make them repeatable.
-py_step = PyStep('-py-step', PythonInfo())
-py_next = PyNext('-py-next', PythonInfo())
-register_defines()
-py_finish = PyFinish('py-finish', PythonInfo())
-py_run = PyRun('py-run', PythonInfo())
-py_cont = PyCont('py-cont', PythonInfo())
-
-gdb.execute('set breakpoint pending on')
-
-Py_single_input = 256
-Py_file_input = 257
-Py_eval_input = 258
 
 def _pointervalue(gdbval):
     """
@@ -2266,7 +2253,11 @@ def get_inferior_unicode_postfix():
         return ''
         
 class PythonCodeExecutor(object):
-        
+    
+    Py_single_input = 256
+    Py_file_input = 257
+    Py_eval_input = 258
+    
     def malloc(self, size):
         chunk = (gdb.parse_and_eval("(void *) malloc((size_t) %d)" % size))
         
@@ -2439,7 +2430,7 @@ class PyExec(gdb.Command):
     
     def readcode(self, expr):
         if expr:
-            return expr, Py_single_input
+            return expr, PythonCodeExecutor.Py_single_input
         else:
             lines = []
             while True:
@@ -2469,7 +2460,18 @@ class PyExec(gdb.Command):
         
         executor.evalcode(expr, input_type, global_dict, local_dict)
 
+
+gdb.execute('set breakpoint pending on')
+
 if hasattr(gdb, 'GdbError'):
+     # Wrap py-step and py-next in gdb defines to make them repeatable.
+    py_step = PyStep('-py-step', PythonInfo())
+    py_next = PyNext('-py-next', PythonInfo())
+    register_defines()
+    py_finish = PyFinish('py-finish', PythonInfo())
+    py_run = PyRun('py-run', PythonInfo())
+    py_cont = PyCont('py-cont', PythonInfo())
+
     py_exec = FixGdbCommand('py-exec', '-py-exec')
     _py_exec = PyExec("-py-exec", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
 else:
