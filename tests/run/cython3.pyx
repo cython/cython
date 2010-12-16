@@ -66,6 +66,19 @@ def unicode_literals():
     print(isinstance(ustring, unicode) or type(ustring))
     return ustring
 
+def str_type_is_unicode():
+    """
+    >>> str_type, s = str_type_is_unicode()
+    >>> isinstance(s, type(ustring)) or (s, str_type)
+    True
+    >>> isinstance(s, str_type) or (s, str_type)
+    True
+    >>> isinstance(ustring, str_type) or str_type
+    True
+    """
+    cdef str s = 'abc'
+    return str, s
+
 def list_comp():
     """
     >>> list_comp()
