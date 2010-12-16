@@ -6,7 +6,7 @@
 import cython
 cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, none_or_sub=object)
+               DebugFlags=object, none_or_sub=object, basestring=object)
 
 import re
 import Naming
@@ -19,9 +19,9 @@ import DebugFlags
 
 from Cython.Utils import none_or_sub
 try:
-    basestring
-except NameError:
-    basestring = str
+    from __builtin__ import basestring
+except ImportError:
+    from builtins import str as basestring
 
 class UtilityCode(object):
     # Stores utility code to add during code generation.
