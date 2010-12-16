@@ -1110,8 +1110,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _function_is_builtin_name(self, function):
         if not function.is_name:
             return False
-        entry = self.current_env().lookup(function.name)
-        if entry and getattr(entry, 'scope', None) is not Builtin.builtin_scope:
+        env = self.current_env()
+        entry = env.lookup(function.name)
+        if entry is not env.builtin_scope().lookup_here(function.name):
             return False
         # if entry is None, it's at least an undeclared name, so likely builtin
         return True
@@ -1724,8 +1725,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             # into a C function call (defined in the builtin scope)
             if not function.entry:
                 return node
-            is_builtin = function.entry.is_builtin \
-                         or getattr(function.entry, 'scope', None) is Builtin.builtin_scope
+            is_builtin = function.entry.is_builtin or \
+                         function.entry is self.current_env().builtin_scope().lookup_here(function.name)
             if not is_builtin:
                 return node
             function_handler = self._find_handler(
