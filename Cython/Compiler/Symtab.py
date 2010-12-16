@@ -733,6 +733,13 @@ class BuiltinScope(Scope):
             cname, type = definition
             self.declare_var(name, type, None, cname)
 
+    def lookup(self, name, language_level=None):
+        # 'language_level' is passed by ModuleScope
+        if language_level == 3:
+            if name == 'str':
+                name = 'unicode'
+        return Scope.lookup(self, name)
+
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name):
             if self.outer_scope is not None:
@@ -881,6 +888,12 @@ class ModuleScope(Scope):
 
     def global_scope(self):
         return self
+
+    def lookup(self, name):
+        entry = self.lookup_here(name)
+        if entry is not None:
+            return entry
+        return self.outer_scope.lookup(name, language_level = self.context.language_level)
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) and name != 'xrange':
