@@ -215,7 +215,8 @@ class SimpleAssignmentTypeInferer(object):
     # TODO: Implement a real type inference algorithm.
     # (Something more powerful than just extending this one...)
     def infer_types(self, scope):
-        enabled = not scope.is_closure_scope and scope.directives['infer_types']
+        closure_or_inner = scope.is_closure_scope or (scope.outer_scope and scope.outer_scope.is_closure_scope)
+        enabled = not closure_or_inner and scope.directives['infer_types']
         verbose = scope.directives['infer_types.verbose']
         if enabled == True:
             spanning_type = aggressive_spanning_type

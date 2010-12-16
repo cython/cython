@@ -3434,6 +3434,24 @@ class GlobalNode(StatNode):
         pass
 
 
+class NonlocalNode(StatNode):
+    # Nonlocal variable declaration via the 'nonlocal' keyword.
+    #
+    # names    [string]
+
+    child_attrs = []
+
+    def analyse_declarations(self, env):
+        for name in self.names:
+            env.declare_nonlocal(name, self.pos)
+
+    def analyse_expressions(self, env):
+        pass
+
+    def generate_execution_code(self, code):
+        pass
+
+
 class ExprStatNode(StatNode):
     #  Expression used as a statement.
     #

@@ -1271,6 +1271,15 @@ class LocalScope(Scope):
         else:
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
+
+    def declare_nonlocal(self, name, pos):
+        # Pull entry from outer scope into local scope
+        if self.lookup_here(name):
+            warning(pos, "'%s' redeclared" % name, 0)
+        else:
+            entry = self.lookup(name)
+            if entry is None or not entry.from_closure:
+                error(pos, "no binding for nonlocal '%s' found" % name)
         
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
