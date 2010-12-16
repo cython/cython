@@ -569,12 +569,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define PyBytes_Repr                 PyString_Repr
   #define PyBytes_Concat               PyString_Concat
   #define PyBytes_ConcatAndDel         PyString_ConcatAndDel
+#endif
+
+#if PY_VERSION_HEX < 0x02060000
   #define PySet_Check(obj)             PyObject_TypeCheck(obj, &PySet_Type)
   #define PyFrozenSet_Check(obj)       PyObject_TypeCheck(obj, &PyFrozenSet_Type)
 #endif
-
 #ifndef PySet_CheckExact
-#  define PySet_CheckExact(obj)          (Py_TYPE(obj) == &PySet_Type)
+  #define PySet_CheckExact(obj)        (Py_TYPE(obj) == &PySet_Type)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -595,7 +597,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #endif
 
 #if PY_MAJOR_VERSION >= 3
-  #define PyBoolObject PyLongObject
+  #define PyBoolObject                 PyLongObject
 #endif
 
 """)
