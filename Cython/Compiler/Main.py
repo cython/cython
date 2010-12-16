@@ -70,7 +70,6 @@ class Context(object):
     #  language_level        int     currently 2 or 3 for Python 2/3
 
     def __init__(self, include_directories, compiler_directives, cpp=False, language_level=2):
-        #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.modules["cython"] = CythonScope.create_cython_scope(self)
@@ -95,6 +94,7 @@ class Context(object):
             from Future import print_function, unicode_literals
             self.future_directives.add(print_function)
             self.future_directives.add(unicode_literals)
+            self.modules['builtins'] = self.modules['__builtin__']
 
     def create_pipeline(self, pxd, py=False):
         from Visitor import PrintTree
