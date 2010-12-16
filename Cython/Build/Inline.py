@@ -163,7 +163,11 @@ def __invoke(%(params)s):
         for key, value in literals.items():
             module_code = module_code.replace(key, value)
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-        open(pyx_file, 'w').write(module_code)
+        fh = open(pyx_file, 'w')
+        try: 
+            fh.write(module_code)
+        finally:
+            fh.close()
         extension = Extension(
             name = module_name,
             sources = [pyx_file],
