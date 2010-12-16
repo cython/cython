@@ -8182,17 +8182,17 @@ typedef struct {
     PyCFunctionObject func;
 } %(binding_cfunc)s_object;
 
-PyTypeObject %(binding_cfunc)s_type;
-PyTypeObject *%(binding_cfunc)s = NULL;
+static PyTypeObject %(binding_cfunc)s_type;
+static PyTypeObject *%(binding_cfunc)s = NULL;
 
-PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module); /* proto */
+static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module); /* proto */
 #define %(binding_cfunc)s_New(ml, self) %(binding_cfunc)s_NewEx(ml, self, NULL)
 
-int %(binding_cfunc)s_init(void); /* proto */
+static int %(binding_cfunc)s_init(void); /* proto */
 """ % Naming.__dict__,
 impl="""
 
-PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
+static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
 	%(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object, %(binding_cfunc)s);
     if (op == NULL)
         return NULL;
@@ -8218,7 +8218,7 @@ static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyOb
 	return PyMethod_New(func, obj, type);
 }
 
-int %(binding_cfunc)s_init(void) {
+static int %(binding_cfunc)s_init(void) {
     %(binding_cfunc)s_type = PyCFunction_Type;
     %(binding_cfunc)s_type.tp_name = __Pyx_NAMESTR("cython_binding_builtin_function_or_method");
     %(binding_cfunc)s_type.tp_dealloc = (destructor)%(binding_cfunc)s_dealloc;
