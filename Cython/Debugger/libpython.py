@@ -1855,6 +1855,7 @@ def source_gdb_script(script_contents, to_string=False):
     f.write(script_contents)
     f.close()
     gdb.execute("source %s" % filename, to_string=to_string)
+    os.remove(filename)
 
 def register_defines():
     source_gdb_script(textwrap.dedent("""\
