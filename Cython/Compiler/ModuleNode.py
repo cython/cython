@@ -860,7 +860,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     Naming.extern_c_macro,
                     name))
             elif entry.visibility == 'public':
-                #code.putln("DL_EXPORT(PyTypeObject) %s;" % name)
                 code.putln("%s DL_EXPORT(PyTypeObject) %s;" % (
                     Naming.extern_c_macro,
                     name))
@@ -1593,8 +1592,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if entry.visibility == 'public':
             header = "DL_EXPORT(PyTypeObject) %s = {"
         else:
-            #header = "statichere PyTypeObject %s = {"
-            header = "PyTypeObject %s = {"
+            header = "static PyTypeObject %s = {"
         #code.putln(header % scope.parent_type.typeobj_cname)
         code.putln(header % type.typeobj_cname)
         code.putln(
