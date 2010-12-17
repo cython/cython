@@ -1450,6 +1450,17 @@ class PyClassScope(ClassScope):
         entry.is_pyclass_attr = 1
         return entry
 
+    def declare_nonlocal(self, name, pos):
+        # Pull entry from outer scope into local scope
+        if self.lookup_here(name):
+            warning(pos, "'%s' redeclared" % name, 0)
+        else:
+            entry = self.lookup(name)
+            if entry is None:
+                error(pos, "no binding for nonlocal '%s' found" % name)
+            else:
+                self.entries[name] = entry
+
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
 

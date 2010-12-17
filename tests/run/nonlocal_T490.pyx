@@ -119,24 +119,25 @@ def methods():
         return c()
     return f
 
-# FIXME: doesn't currently work in class namespace:
-
-## def class_body():
-##     """
-##     >>> c = f(0)
-##     >>> c.get()
-##     1
-##     >>> c.x     #doctest: +ELLIPSIS
-##     Traceback (most recent call last):
-##     AttributeError: ...
-##     """
-##     def f(x):
-##         class c:
-##             nonlocal x
-##             x += 1
-##             def get(self):
-##                 return x
-##         return c()
+def class_body(int x, y):
+    """
+    >>> c = class_body(2,99)
+    >>> c.z
+    (3, 2)
+    >>> c.x     #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    AttributeError: ...
+    >>> c.y     #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    AttributeError: ...
+    """
+    class c(object):
+        nonlocal x
+        nonlocal y
+        y = 2
+        x += 1
+        z = x,y
+    return c()
 
 def generator():
     """
