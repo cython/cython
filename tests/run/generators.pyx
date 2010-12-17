@@ -187,3 +187,18 @@ class Foo(object):
     def simple(self, *args):
         for i in args:
             yield i
+
+def generator_nonlocal():
+    """
+    >>> g = generator_nonlocal()
+    >>> list(g(5))
+    [2, 3, 4, 5, 6]
+    """
+    def f(x):
+        def g(y):
+            nonlocal x
+            for i in range(y):
+                x += 1
+                yield x
+        return g
+    return f(1)

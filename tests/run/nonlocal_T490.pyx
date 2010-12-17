@@ -139,21 +139,6 @@ def class_body(int x, y):
         z = x,y
     return c()
 
-def generator():
-    """
-    >>> g = generator()
-    >>> list(g(5))
-    [2, 3, 4, 5, 6]
-    """
-    def f(x):
-        def g(y):
-            nonlocal x
-            for i in range(y):
-                x += 1
-                yield x
-        return g
-    return f(1)
-
 def nested_nonlocals(x):
     """
     >>> g = nested_nonlocals(1)
