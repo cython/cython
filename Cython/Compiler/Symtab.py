@@ -1274,8 +1274,9 @@ class LocalScope(Scope):
 
     def declare_nonlocal(self, name, pos):
         # Pull entry from outer scope into local scope
-        if self.lookup_here(name):
-            warning(pos, "'%s' redeclared" % name, 0)
+        orig_entry = self.lookup_here(name)
+        if orig_entry and orig_entry.scope is self and not orig_entry.from_closure:
+            error(pos, "'%s' redeclared as nonlocal" % name)
         else:
             entry = self.lookup(name)
             if entry is None or not entry.from_closure:
@@ -1452,8 +1453,9 @@ class PyClassScope(ClassScope):
 
     def declare_nonlocal(self, name, pos):
         # Pull entry from outer scope into local scope
-        if self.lookup_here(name):
-            warning(pos, "'%s' redeclared" % name, 0)
+        orig_entry = self.lookup_here(name)
+        if orig_entry and orig_entry.scope is self and not orig_entry.from_closure:
+            error(pos, "'%s' redeclared as nonlocal" % name)
         else:
             entry = self.lookup(name)
             if entry is None:
