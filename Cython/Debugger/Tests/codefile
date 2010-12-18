@@ -21,16 +21,22 @@ def spam(a=0):
     puts("spam")
     os.path.join("foo", "bar")
     some_c_function()
+
+cpdef eggs():
+    pass    
     
 cdef ham():
     pass
     
-cpdef eggs():
-    pass
-
 cdef class SomeClass(object):
     def spam(self):
         pass
+
+def closure():
+    a = 1
+    def inner():
+        b = 2
+    return inner
 
 spam()
 print "bye!"

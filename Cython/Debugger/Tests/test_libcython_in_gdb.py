@@ -98,7 +98,7 @@ class TestDebugInformationClasses(DebugTestCase):
                          'codefile.SomeClass.spam')
         self.assertEqual(self.spam_func.module, self.module)
         
-        assert self.eggs_func.pf_cname
+        assert self.eggs_func.pf_cname, (self.eggs_func, self.eggs_func.pf_cname)
         assert not self.ham_func.pf_cname
         assert not self.spam_func.pf_cname
         assert not self.spam_meth.pf_cname
