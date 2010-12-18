@@ -1591,6 +1591,11 @@ class DebugTransform(CythonTransform):
         #self.c_output_file = options.output_file 
         self.c_output_file = result.c_file
         
+        # Closure support, basically treat nested functions as if the AST were
+        # never nested
+        self.in_funcdef = False
+        self.nested_funcdefs = []
+        
         # tells visit_NameNode whether it should register step-into functions
         self.register_stepinto = False
         
@@ -1606,6 +1611,8 @@ class DebugTransform(CythonTransform):
         # serialize functions
         self.tb.start('Functions')
         self.visitchildren(node)
+        for nested_funcdef in self.nested_funcdefs:
+            self.visit_FuncDefNode(nested_funcdef)
         self.tb.end('Functions')
         
         # 2.3 compatibility. Serialize global variables
@@ -1625,8 +1632,14 @@ class DebugTransform(CythonTransform):
         # Cython.Compiler.ModuleNode.ModuleNode._serialize_lineno_map
         return node
     
-    def visit_FuncDefNode(self, node):
+    def visit_FuncDefNode(self, node):        
         self.visited.add(node.local_scope.qualified_name)
+
+        if self.in_funcdef:
+            if not self.register_stepinto:
+                self.nested_funcdefs.append(node)
+            return node
+        
         # node.entry.visibility = 'extern'
         if node.py_func is None:
             pf_cname = ''
@@ -1654,7 +1667,9 @@ class DebugTransform(CythonTransform):
 
         self.tb.start('StepIntoFunctions')
         self.register_stepinto = True
+        self.in_funcdef = True
         self.visitchildren(node)
+        self.in_funcdef = False
         self.register_stepinto = False
         self.tb.end('StepIntoFunctions')
         self.tb.end('Function')

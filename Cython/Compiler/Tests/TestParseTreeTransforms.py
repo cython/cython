@@ -182,7 +182,8 @@ class TestDebugTransform(DebuggerTestCase):
             self.assertEqual('PythonObject', xml_globals.get('python_var'))
             
             # test functions
-            funcnames = 'codefile.spam', 'codefile.ham', 'codefile.eggs'
+            funcnames = ('codefile.spam', 'codefile.ham', 'codefile.eggs', 
+                         'codefile.closure', 'codefile.inner')
             required_xml_attrs = 'name', 'cname', 'qualified_name'
             assert all([f in xml_funcs for f in funcnames])
             spam, ham, eggs = [xml_funcs[funcname] for funcname in funcnames]
