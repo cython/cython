@@ -60,3 +60,23 @@ def del_list_int(L, int i):
     """
     del L[i]
     return L
+
+def del_temp_slice(a):
+    """
+    >>> class A(object):
+    ...     attr = [1,2,3]
+    >>> a = A()
+    >>> a.attr
+    [1, 2, 3]
+    >>> del_temp_slice(a)
+    []
+    >>> a.attr
+    []
+    >>> del_temp_slice(a)
+    []
+    >>> a.attr
+    []
+    """
+    while a.attr:
+        del a.attr[:]
+    return a.attr
