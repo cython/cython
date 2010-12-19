@@ -44,7 +44,7 @@ def format_error(message, position):
     return message
 
 class CompileError(PyrexError):
-    
+
     def __init__(self, position = None, message = u""):
         self.position = position
         self.message_only = message
@@ -54,7 +54,7 @@ class CompileError(PyrexError):
         Exception.__init__(self, format_error(message, position))
 
 class CompileWarning(PyrexWarning):
-    
+
     def __init__(self, position = None, message = ""):
         self.position = position
     # Deprecated and withdrawn in 2.6:
@@ -63,7 +63,7 @@ class CompileWarning(PyrexWarning):
 
 class InternalError(Exception):
     # If this is ever raised, there is a bug in the compiler.
-    
+
     def __init__(self, message):
         self.message_only = message
         Exception.__init__(self, u"Internal compiler error: %s"
@@ -71,7 +71,7 @@ class InternalError(Exception):
 
 class AbortError(Exception):
     # Throw this to stop the compilation immediately.
-    
+
     def __init__(self, message):
         self.message_only = message
         Exception.__init__(self, u"Abort error: %s" % message)
@@ -98,7 +98,7 @@ class CompilerCrash(CompileError):
         CompileError.__init__(self, pos, message)
 
 class NoElementTreeInstalledException(PyrexError):
-    """raised when the user enabled options.gdb_debug but no ElementTree 
+    """raised when the user enabled options.gdb_debug but no ElementTree
     implementation was found
     """
 
@@ -155,7 +155,7 @@ def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
     if position is None:
         raise InternalError(message)
-    err = CompileError(position, message)    
+    err = CompileError(position, message)
     if debug_exception_on_error: raise Exception(err) # debug
     report_error(err)
     return err
@@ -198,7 +198,7 @@ def warn_once(position, message, level=0):
     return warn
 
 
-# These functions can be used to momentarily suppress errors. 
+# These functions can be used to momentarily suppress errors.
 
 error_stack = []
 

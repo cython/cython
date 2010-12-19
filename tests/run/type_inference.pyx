@@ -161,7 +161,7 @@ def unary_operators():
     assert typeof(c) == "Python object", typeof(c)
     d = -int(5)
     assert typeof(d) == "Python object", typeof(d)
-    
+
 
 def builtin_type_operations():
     """
@@ -198,7 +198,7 @@ def builtin_type_operations():
     assert typeof(T1) == "tuple object", typeof(T1)
     T2 = () * 2
     assert typeof(T2) == "tuple object", typeof(T2)
-    
+
 def cascade():
     """
     >>> cascade()
@@ -382,7 +382,7 @@ def safe_only():
     assert typeof(d) == "long", typeof(d)
 
     # we special-case inference to type str, see
-    # trac #553 
+    # trac #553
     s = "abc"
     assert typeof(s) == "Python object", typeof(s)
     cdef str t = "def"

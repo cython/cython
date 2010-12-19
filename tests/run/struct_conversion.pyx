@@ -14,7 +14,7 @@ def test_constructor(x, y, color):
     """
     cdef Point p = Point(x, y, color)
     return p
-    
+
 def test_constructor_kwds(x, y, color):
     """
     >>> test_constructor_kwds(1.25, 2.5, 128)
@@ -26,7 +26,7 @@ def test_constructor_kwds(x, y, color):
     """
     cdef Point p = Point(x=x, y=y, color=color)
     return p
-    
+
 def test_dict_construction(x, y, color):
     """
     >>> test_dict_construction(4, 5, 64)
@@ -47,7 +47,7 @@ cdef struct with_pointers:
     bint is_integral
     int_or_float data
     void* ptr
-    
+
 def test_pointers(int n, double x):
     """
     >>> test_pointers(100, 2.71828)

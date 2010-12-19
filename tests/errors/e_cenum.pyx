@@ -4,7 +4,7 @@ cdef enum Spam:
 cdef void f():
 	global a
 	a = 42      # assignment to non-lvalue
-	
+
 _ERRORS = u"""
 6:3: Assignment to non-lvalue 'a'
 """

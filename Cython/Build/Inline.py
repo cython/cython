@@ -52,9 +52,12 @@ def unbound_symbols(code, context=None):
     symbol_collector = AllSymbols()
     symbol_collector(tree)
     unbound = []
-    import __builtin__
+    try:
+        import builtins
+    except ImportError:
+        import __builtin__ as builtins
     for name in symbol_collector.names:
-        if not tree.scope.lookup(name) and not hasattr(__builtin__, name):
+        if not tree.scope.lookup(name) and not hasattr(builtins, name):
             unbound.append(name)
     return unbound
 
@@ -79,7 +82,7 @@ def safe_type(arg, context=None):
         return 'numpy.ndarray[numpy.%s_t, ndim=%s]' % (arg.dtype.name, arg.ndim)
     else:
         for base_type in py_type.mro():
-            if base_type.__module__ == '__builtin__':
+            if base_type.__module__ in ('__builtin__', 'builtins'):
                 return 'object'
             module = context.find_module(base_type.__module__, need_pxd=False)
             if module:
@@ -88,7 +91,7 @@ def safe_type(arg, context=None):
                     return '%s.%s' % (base_type.__module__, base_type.__name__)
         return 'object'
 
-def cython_inline(code, 
+def cython_inline(code,
                   get_type=unsafe_type,
                   lib_dir=os.path.expanduser('~/.cython/inline'),
                   cython_include_dirs=['.'],
@@ -125,7 +128,7 @@ def cython_inline(code,
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
-    module_name = "_cython_inline_" + hashlib.md5(str(key)).hexdigest()
+    module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
     try:
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
@@ -160,7 +163,11 @@ def __invoke(%(params)s):
         for key, value in literals.items():
             module_code = module_code.replace(key, value)
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-        open(pyx_file, 'w').write(module_code)
+        fh = open(pyx_file, 'w')
+        try: 
+            fh.write(module_code)
+        finally:
+            fh.close()
         extension = Extension(
             name = module_name,
             sources = [pyx_file],
@@ -252,14 +259,14 @@ def get_body(source):
     else:
         return source[ix+1:]
 
-# Lots to be done here... It would be especially cool if compiled functions 
+# Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.
 class RuntimeCompiledFunction(object):
 
     def __init__(self, f):
         self._f = f
         self._body = get_body(inspect.getsource(f))
-    
+
     def __call__(self, *args, **kwds):
         all = getcallargs(self._f, *args, **kwds)
         return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)

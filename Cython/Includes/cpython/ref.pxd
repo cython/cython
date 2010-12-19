@@ -15,7 +15,7 @@ cdef extern from "Python.h":
     # Py_XINCREF().
 
     void Py_XINCREF(PyObject* o)
-    # Increment the reference count for object o. The object may be NULL, in which case the macro has no effect. 
+    # Increment the reference count for object o. The object may be NULL, in which case the macro has no effect.
 
     void Py_DECREF(object o)
     # Decrement the reference count for object o. The object must not

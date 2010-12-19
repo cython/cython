@@ -22,7 +22,7 @@ cdef extern from "string.h" nogil:
     char   *strndup (const_char *S, size_t SIZE)
     char   *strcat  (char *TO, const_char *FROM)
     char   *strncat (char *TO, const_char *FROM, size_t SIZE)
-    
+
     int strcmp (const_char *S1, const_char *S2)
     int strcasecmp (const_char *S1, const_char *S2)
     int strncmp (const_char *S1, const_char *S2, size_t SIZE)

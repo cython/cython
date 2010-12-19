@@ -22,7 +22,7 @@ class TypedExprNode(ExprNodes.ExprNode):
 object_expr = TypedExprNode(py_object_type)
 
 class MarkAssignments(CythonTransform):
-    
+
     def mark_assignment(self, lhs, rhs):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
             if lhs.entry is None:
@@ -35,7 +35,7 @@ class MarkAssignments(CythonTransform):
         else:
             # Could use this info to infer cdef class attributes...
             pass
-    
+
     def visit_SingleAssignmentNode(self, node):
         self.mark_assignment(node.lhs, node.rhs)
         self.visitchildren(node)
@@ -46,7 +46,7 @@ class MarkAssignments(CythonTransform):
             self.mark_assignment(lhs, node.rhs)
         self.visitchildren(node)
         return node
-    
+
     def visit_InPlaceAssignmentNode(self, node):
         self.mark_assignment(node.lhs, node.create_binop_node())
         self.visitchildren(node)
@@ -65,7 +65,7 @@ class MarkAssignments(CythonTransform):
                         self.mark_assignment(node.target, arg)
                     if len(sequence.args) > 2:
                         self.mark_assignment(
-                            node.target, 
+                            node.target,
                             ExprNodes.binop_node(node.pos,
                                                  '+',
                                                  sequence.args[0],
@@ -87,9 +87,9 @@ class MarkAssignments(CythonTransform):
         self.mark_assignment(node.target, node.bound1)
         if node.step is not None:
             self.mark_assignment(node.target,
-                    ExprNodes.binop_node(node.pos, 
-                                         '+', 
-                                         node.bound1, 
+                    ExprNodes.binop_node(node.pos,
+                                         '+',
+                                         node.bound1,
                                          node.step))
         self.visitchildren(node)
         return node
@@ -99,7 +99,7 @@ class MarkAssignments(CythonTransform):
             self.mark_assignment(node.target, object_expr)
         self.visitchildren(node)
         return node
-    
+
     def visit_FromCImportStatNode(self, node):
         pass # Can't be assigned to...
 
@@ -131,7 +131,7 @@ class MarkOverflowingArithmetic(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.env = root.scope
-        return super(MarkOverflowingArithmetic, self).__call__(root)        
+        return super(MarkOverflowingArithmetic, self).__call__(root)
 
     def visit_safe_node(self, node):
         self.might_overflow, saved = False, self.might_overflow
@@ -148,7 +148,7 @@ class MarkOverflowingArithmetic(CythonTransform):
         self.visitchildren(node)
         self.might_overflow = saved
         return node
-    
+
     def visit_FuncDefNode(self, node):
         self.env_stack.append(self.env)
         self.env = node.local_scope
@@ -162,34 +162,34 @@ class MarkOverflowingArithmetic(CythonTransform):
             if entry:
                 entry.might_overflow = True
         return node
-    
+
     def visit_BinopNode(self, node):
         if node.operator in '&|^':
             return self.visit_neutral_node(node)
         else:
             return self.visit_dangerous_node(node)
-    
+
     visit_UnopNode = visit_neutral_node
-    
+
     visit_UnaryMinusNode = visit_dangerous_node
-    
+
     visit_InPlaceAssignmentNode = visit_dangerous_node
-    
+
     visit_Node = visit_safe_node
-    
+
     def visit_assignment(self, lhs, rhs):
-        if (isinstance(rhs, ExprNodes.IntNode) 
+        if (isinstance(rhs, ExprNodes.IntNode)
                 and isinstance(lhs, ExprNodes.NameNode)
                 and Utils.long_literal(rhs.value)):
             entry = lhs.entry or self.env.lookup(lhs.name)
             if entry:
                 entry.might_overflow = True
-    
+
     def visit_SingleAssignmentNode(self, node):
         self.visit_assignment(node.lhs, node.rhs)
         self.visitchildren(node)
         return node
-    
+
     def visit_CascadedAssignmentNode(self, node):
         for lhs in node.lhs_list:
             self.visit_assignment(lhs, node.rhs)
@@ -281,7 +281,7 @@ class SimpleAssignmentTypeInferer(object):
                             break
             if not ready_to_infer:
                 break
-                    
+
         # We can't figure out the rest with this algorithm, let them be objects.
         for entry in dependancies_by_entry:
             entry.type = py_object_type
@@ -332,7 +332,7 @@ def safe_spanning_type(types, might_overflow):
         # operations without other int types, so this is safe, too
         return result_type
     elif result_type.is_ptr and not (result_type.is_int and result_type.rank == 0):
-        # Any pointer except (signed|unsigned|) char* can't implicitly 
+        # Any pointer except (signed|unsigned|) char* can't implicitly
         # become a PyObject.
         return result_type
     elif result_type.is_cpp_class:
@@ -343,7 +343,7 @@ def safe_spanning_type(types, might_overflow):
         # used, won't arise in pure Python, and there shouldn't be side
         # effects, so I'm declaring this safe.
         return result_type
-    # TODO: double complex should be OK as well, but we need 
+    # TODO: double complex should be OK as well, but we need
     # to make sure everything is supported.
     elif result_type.is_int and not might_overflow:
         return result_type

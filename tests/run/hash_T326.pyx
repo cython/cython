@@ -10,7 +10,7 @@ __doc__ = u"""
     Traceback (most recent call last):
     ...
     TypeError: That's kind of a round number...
-    
+
 """
 
 cdef class A:

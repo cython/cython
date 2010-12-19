@@ -12,7 +12,7 @@ def f():
     True
     """
     pass
-    
+
 g = 42
 x = u"spam"
 y = u"eggs"

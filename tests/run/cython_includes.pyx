@@ -29,4 +29,4 @@ def cpython_cimports():
     print PyType_Check2([])
     print PyType_Check3(list)
     print PyType_Check3([])
-    
+

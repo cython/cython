@@ -3,7 +3,7 @@ cimport cython
 
 cdef extern from "cpp_references_helper.h":
     cdef int& ref_func(int&)
-    
+
     cdef int ref_var_value
     cdef int& ref_var
 

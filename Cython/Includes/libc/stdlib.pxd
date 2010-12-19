@@ -18,7 +18,7 @@ cdef extern from "stdlib.h" nogil:
     float strtof (const_char *STRING, char **TAILPTR)
     double strtod (const_char *STRING, char **TAILPTR)
     long double strtold (const_char *STRING, char **TAILPTR)
-    
+
     # 7.20.2 Pseudo-random sequence generation functions
     enum: RAND_MAX
     int rand ()
@@ -42,7 +42,7 @@ cdef extern from "stdlib.h" nogil:
 
     #7.20.5 Searching and sorting utilities
     void *bsearch (const_void *KEY, const_void *ARRAY,
-                   size_t COUNT, size_t SIZE, 
+                   size_t COUNT, size_t SIZE,
                    int (*COMPARE)(const_void *, const_void *))
     void qsort (void *ARRAY, size_t COUNT, size_t SIZE,
                 int (*COMPARE)(const_void *, const_void *))

@@ -65,4 +65,4 @@ cdef extern from "signal.h" nogil:
     enum: SIGUSR2
     enum: SIGWINCH
     enum: SIGINFO
-    
+

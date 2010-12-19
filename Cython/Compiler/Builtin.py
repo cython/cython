@@ -438,14 +438,14 @@ builtin_types_table = [
     ("type",    "PyType_Type",     []),
 
 # This conflicts with the C++ bool type, and unfortunately
-# C++ is too liberal about PyObject* <-> bool conversions, 
+# C++ is too liberal about PyObject* <-> bool conversions,
 # resulting in unintuitive runtime behavior and segfaults.
 #    ("bool",    "PyBool_Type",     []),
 
     ("int",     "PyInt_Type",      []),
     ("long",    "PyLong_Type",     []),
     ("float",   "PyFloat_Type",    []),
-    
+
     ("complex", "PyComplex_Type",  [BuiltinAttribute('cval', field_type_name = 'Py_complex'),
                                     BuiltinAttribute('real', 'cval.real', field_type = PyrexTypes.c_double_type),
                                     BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
@@ -474,7 +474,7 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "i", "PySet_Clear"), 
+    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "i", "PySet_Clear"),
                                     BuiltinMethod("discard", "TO", "i", "PySet_Discard"),
                                     BuiltinMethod("add",     "TO", "i", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
@@ -490,7 +490,7 @@ types_that_construct_their_instance = (
     # 'file',            # only in Py2.x
     )
 
-        
+
 builtin_structs_table = [
     ('Py_buffer', 'Py_buffer',
      [("buf",        PyrexTypes.c_void_ptr_type),

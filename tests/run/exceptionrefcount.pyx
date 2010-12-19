@@ -15,7 +15,7 @@ __doc__ = u"""
 ...             refcount1 = sys.getrefcount(SampleException)
 ...             test_func()
 ...             refcount2 = sys.getrefcount(SampleException)
-...             
+...
 ...             assert_refcount(refcount1, refcount2, test_func)
 ...             assert_refcount(initial_refcount, refcount2, test_func)
 ...         refcount3 = sys.getrefcount(SampleException)

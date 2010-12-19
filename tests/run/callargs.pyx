@@ -76,7 +76,7 @@ def h(a, b, c, *args, **kwargs):
     TypeError: h() takes at least 3 positional arguments (2 given)
     """
     print a, b, c, u'*', len(args), len(kwargs)
-    
+
 args = (9,8,7)
 
 import sys
@@ -156,7 +156,7 @@ def test_noargs(f):
     0
     >>> test_noargs(g)
     0
-    
+
     # and some errors:
     >>> test_noargs(h)
     Traceback (most recent call last):

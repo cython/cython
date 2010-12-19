@@ -5,7 +5,7 @@ cdef class Grail:
 
 cdef class Swallow:
     pass
-    
+
 def f(Grail g):
     cdef int i = 0
     cdef Swallow s

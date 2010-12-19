@@ -37,9 +37,9 @@ double quoted string."""
 a \three \line
 raw string with some backslashes.'''
     m = 'Three backslashed ordinaries: \c\g\+'
-    n = '''Triple single quoted string 
+    n = '''Triple single quoted string
 with ' and " quotes'''
-    o = """Triple double quoted string 
+    o = """Triple double quoted string
 with ' and " quotes"""
     p = "name_like_string"
     q = "NameLikeString2"

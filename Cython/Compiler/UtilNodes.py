@@ -30,7 +30,7 @@ class TempRefNode(AtomicExprNode):
 
     def analyse_types(self, env):
         assert self.type == self.handle.type
-    
+
     def analyse_target_types(self, env):
         assert self.type == self.handle.type
 
@@ -68,20 +68,20 @@ class CleanupTempRefNode(TempRefNode):
 
 class TempsBlockNode(Node):
     # THIS IS DEPRECATED, USE LetNode instead
-    
+
     """
     Creates a block which allocates temporary variables.
     This is used by transforms to output constructs that need
     to make use of a temporary variable. Simply pass the types
     of the needed temporaries to the constructor.
-    
+
     The variables can be referred to using a TempRefNode
     (which can be constructed by calling get_ref_node).
     """
 
     # temps   [TempHandle]
     # body    StatNode
-    
+
     child_attrs = ["body"]
 
     def generate_execution_code(self, code):
@@ -102,13 +102,13 @@ class TempsBlockNode(Node):
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
-    
+
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
-    
+
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
-            
+
     def annotate(self, code):
         self.body.annotate(code)
 
@@ -175,10 +175,10 @@ class ResultRefNode(AtomicExprNode):
 
     def generate_result_code(self, code):
         pass
-        
+
     def generate_disposal_code(self, code):
         pass
-                
+
     def generate_assignment_code(self, rhs, code):
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
@@ -190,7 +190,7 @@ class ResultRefNode(AtomicExprNode):
 
     def allocate_temps(self, env):
         pass
-        
+
     def release_temp(self, env):
         pass
 
@@ -263,7 +263,7 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.setup_temp_expr(code)
         self.subexpression.generate_evaluation_code(code)
         self.teardown_temp_expr(code)
- 
+
 LetRefNode = ResultRefNode
 
 class LetNode(Nodes.StatNode, LetNodeMixin):
@@ -289,7 +289,7 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
     def analyse_declarations(self, env):
         self.temp_expression.analyse_declarations(env)
         self.body.analyse_declarations(env)
-    
+
     def analyse_expressions(self, env):
         self.temp_expression.analyse_expressions(env)
         self.body.analyse_expressions(env)
@@ -317,7 +317,7 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
-    
+
     def analyse_types(self, env):
         self.body.analyse_expressions(env)
 

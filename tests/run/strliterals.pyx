@@ -103,7 +103,7 @@ __doc__ = ur"""
     True
     >>> len(u6)
     7
-    
+
     >>> newlines == "Aaa\n"
     True
 """

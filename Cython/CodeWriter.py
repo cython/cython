@@ -14,14 +14,14 @@ class LinesResult(object):
     def __init__(self):
         self.lines = []
         self.s = u""
-        
+
     def put(self, s):
         self.s += s
-    
+
     def newline(self):
         self.lines.append(self.s)
         self.s = u""
-    
+
     def putline(self, s):
         self.put(s)
         self.newline()
@@ -29,7 +29,7 @@ class LinesResult(object):
 class CodeWriter(TreeVisitor):
 
     indent_string = u"    "
-    
+
     def __init__(self, result = None):
         super(CodeWriter, self).__init__()
         if result is None:
@@ -38,22 +38,22 @@ class CodeWriter(TreeVisitor):
         self.numindents = 0
         self.tempnames = {}
         self.tempblockindex = 0
-    
+
     def write(self, tree):
         self.visit(tree)
-    
+
     def indent(self):
         self.numindents += 1
-    
+
     def dedent(self):
         self.numindents -= 1
-    
+
     def startline(self, s = u""):
         self.result.put(self.indent_string * self.numindents + s)
-    
+
     def put(self, s):
         self.result.put(s)
-    
+
     def endline(self, s = u""):
         self.result.putline(s)
 
@@ -70,13 +70,13 @@ class CodeWriter(TreeVisitor):
                     self.visit(item.default)
                 self.put(u", ")
             self.visit(items[-1])
-    
+
     def visit_Node(self, node):
         raise AssertionError("Node not handled by serializer: %r" % node)
-    
+
     def visit_ModuleNode(self, node):
         self.visitchildren(node)
-    
+
     def visit_StatListNode(self, node):
         self.visitchildren(node)
 
@@ -87,7 +87,7 @@ class CodeWriter(TreeVisitor):
         self.indent()
         self.visit(node.body)
         self.dedent()
-    
+
     def visit_CArgDeclNode(self, node):
         if node.base_type.name is not None:
             self.visit(node.base_type)
@@ -96,10 +96,10 @@ class CodeWriter(TreeVisitor):
         if node.default is not None:
             self.put(u" = ")
             self.visit(node.default)
-    
+
     def visit_CNameDeclaratorNode(self, node):
         self.put(node.name)
-    
+
     def visit_CSimpleBaseTypeNode(self, node):
         # See Parsing.p_sign_and_longness
         if node.is_basic_c_type:
@@ -108,16 +108,16 @@ class CodeWriter(TreeVisitor):
                 self.put("short " * -node.longness)
             elif node.longness > 0:
                 self.put("long " * node.longness)
-            
+
         self.put(node.name)
-    
+
     def visit_SingleAssignmentNode(self, node):
         self.startline()
         self.visit(node.lhs)
         self.put(u" = ")
         self.visit(node.rhs)
         self.endline()
-    
+
     def visit_CascadedAssignmentNode(self, node):
         self.startline()
         for lhs in node.lhs_list:
@@ -125,10 +125,10 @@ class CodeWriter(TreeVisitor):
             self.put(u" = ")
         self.visit(node.rhs)
         self.endline()
-    
+
     def visit_NameNode(self, node):
         self.put(node.name)
-    
+
     def visit_IntNode(self, node):
         self.put(node.value)
 
@@ -164,7 +164,7 @@ class CodeWriter(TreeVisitor):
     def visit_PassStatNode(self, node):
         self.startline(u"pass")
         self.endline()
-    
+
     def visit_PrintStatNode(self, node):
         self.startline(u"print ")
         self.comma_separated_list(node.arg_tuple.args)
@@ -176,7 +176,7 @@ class CodeWriter(TreeVisitor):
         self.visit(node.operand1)
         self.put(u" %s " % node.operator)
         self.visit(node.operand2)
-    
+
     def visit_CVarDefNode(self, node):
         self.startline(u"cdef ")
         self.visit(node.base_type)
@@ -201,7 +201,7 @@ class CodeWriter(TreeVisitor):
 
     def visit_SequenceNode(self, node):
         self.comma_separated_list(node.args) # Might need to discover whether we need () around tuples...hmm...
-    
+
     def visit_SimpleCallNode(self, node):
         self.visit(node.function)
         self.put(u"(")
@@ -224,14 +224,14 @@ class CodeWriter(TreeVisitor):
         self.startline()
         self.visit(node.expr)
         self.endline()
-    
+
     def visit_InPlaceAssignmentNode(self, node):
         self.startline()
         self.visit(node.lhs)
         self.put(u" %s= " % node.operator)
         self.visit(node.rhs)
         self.endline()
-        
+
     def visit_WithStatNode(self, node):
         self.startline()
         self.put(u"with ")
@@ -243,7 +243,7 @@ class CodeWriter(TreeVisitor):
         self.indent()
         self.visit(node.body)
         self.dedent()
-        
+
     def visit_AttributeNode(self, node):
         self.visit(node.obj)
         self.put(u".%s" % node.attribute)
