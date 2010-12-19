@@ -64,4 +64,4 @@ cdef extern from "fcntl.h" nogil:
     int fcntl(int, int, ...)
     int open(char *, int, ...)
     #int open (char *, int, mode_t)
-    
+

@@ -11,8 +11,8 @@ def replace_suffix(path, newsuf):
 
 def open_new_file(path):
     if os.path.exists(path):
-        # Make sure to create a new file here so we can 
-        # safely hard link the output files. 
+        # Make sure to create a new file here so we can
+        # safely hard link the output files.
         os.unlink(path)
 
     # we use the ISO-8859-1 encoding here because we only write pure

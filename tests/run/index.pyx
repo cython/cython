@@ -65,7 +65,7 @@ def index_object(object o, int i):
     return o[i]
 
 
-# These make sure that our fast indexing works with large and unsigned types. 
+# These make sure that our fast indexing works with large and unsigned types.
 
 def test_unsigned_long():
     """

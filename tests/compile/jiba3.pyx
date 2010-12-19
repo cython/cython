@@ -8,7 +8,7 @@ cdef void test(float* f):
 
 cdef class Position:
   cdef readonly CoordSyst parent
-  
+
 cdef class Point(Position):
   cdef void bug(self):
     test(self.parent._matrix)

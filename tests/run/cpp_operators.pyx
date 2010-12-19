@@ -92,11 +92,11 @@ def test_binop():
     out(t[0] * 1)
     out(t[0] / 1)
     out(t[0] % 1)
-    
+
     out(t[0] & 1)
     out(t[0] | 1)
     out(t[0] ^ 1)
-    
+
     out(t[0] << 1)
     out(t[0] >> 1)
 

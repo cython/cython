@@ -17,7 +17,7 @@ def f(object[int, ndim=2] buf):
 
 @cy.boundscheck(True)
 def g(object[int, ndim=2] buf):
-    # The below line should have no meaning 
+    # The below line should have no meaning
 # cython: boundscheck = False
     # even if the above line doesn't follow indentation.
     print buf[3, 2] # bc
@@ -32,7 +32,7 @@ from cython cimport boundscheck as bc
 def i(object[int] buf):
     with bc(True):
         print buf[3] # bs
-    
+
 from cython cimport warn as my_warn
 
 @my_warn(undeclared=True)

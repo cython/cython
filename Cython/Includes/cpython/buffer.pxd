@@ -87,8 +87,8 @@ cdef extern from "Python.h":
     # is 'C') or Fortran-style (fortran is 'F') contiguous or either
     # one (fortran is 'A'). Return 0 otherwise.
 
-    void PyBuffer_FillContiguousStrides(int ndims, 
-                                        Py_ssize_t *shape, 
+    void PyBuffer_FillContiguousStrides(int ndims,
+                                        Py_ssize_t *shape,
                                         Py_ssize_t *strides,
                                         int itemsize,
                                         char fort)

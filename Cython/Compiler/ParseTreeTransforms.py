@@ -40,24 +40,24 @@ class NameNodeCollector(TreeVisitor):
 
 class SkipDeclarations(object):
     """
-    Variable and function declarations can often have a deep tree structure, 
-    and yet most transformations don't need to descend to this depth. 
-    
-    Declaration nodes are removed after AnalyseDeclarationsTransform, so there 
-    is no need to use this for transformations after that point. 
+    Variable and function declarations can often have a deep tree structure,
+    and yet most transformations don't need to descend to this depth.
+
+    Declaration nodes are removed after AnalyseDeclarationsTransform, so there
+    is no need to use this for transformations after that point.
     """
     def visit_CTypeDefNode(self, node):
         return node
-    
+
     def visit_CVarDefNode(self, node):
         return node
-    
+
     def visit_CDeclaratorNode(self, node):
         return node
-    
+
     def visit_CBaseTypeNode(self, node):
         return node
-    
+
     def visit_CEnumDefNode(self, node):
         return node
 
@@ -116,7 +116,7 @@ class NormalizeTree(CythonTransform):
 
     def visit_ParallelAssignmentNode(self, node):
         return self.visit_StatNode(node, True)
-    
+
     def visit_CEnumDefNode(self, node):
         return self.visit_StatNode(node, True)
 
@@ -131,7 +131,7 @@ class NormalizeTree(CythonTransform):
             return []
 
     def visit_CDeclaratorNode(self, node):
-        return node    
+        return node
 
 
 class PostParseError(CompileError): pass
@@ -151,7 +151,7 @@ class PostParse(ScopeTrackingTransform):
     - Default values to cdef assignments are turned into single
     assignments following the declaration (everywhere but in class
     bodies, where they raise a compile error)
-    
+
     - Interpret some node structures into Python runtime values.
     Some nodes take compile-time arguments (currently:
     TemplatedTypeNode[args] and __cythonbufferdefaults__ = {args}),
@@ -279,7 +279,7 @@ class PostParse(ScopeTrackingTransform):
             lhs_list = expr_list[:-1]
             rhs = expr_list[-1]
             if len(lhs_list) == 1:
-                node = Nodes.SingleAssignmentNode(rhs.pos, 
+                node = Nodes.SingleAssignmentNode(rhs.pos,
                     lhs = lhs_list[0], rhs = rhs)
             else:
                 node = Nodes.CascadedAssignmentNode(rhs.pos,
@@ -488,7 +488,7 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
 
     - "def" functions are let through only if they fill the
     getbuffer/releasebuffer slots
-    
+
     - cdef functions are let through only if they are on the
     top level and are declared "inline"
     """
@@ -514,7 +514,7 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
         if (isinstance(node, Nodes.DefNode) and self.scope_type == 'cclass'
             and node.name in ('__getbuffer__', '__releasebuffer__')):
             err = None # allow these slots
-            
+
         if isinstance(node, Nodes.CFuncDefNode):
             if u'inline' in node.modifiers and self.scope_type == 'pxd':
                 node.inline_in_pxd = True
@@ -532,7 +532,7 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
             return None
         else:
             return node
-    
+
 class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
     After parsing, directives can be stored in a number of places:
@@ -561,14 +561,14 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
     unop_method_nodes = {
         'typeof': ExprNodes.TypeofNode,
-        
+
         'operator.address': ExprNodes.AmpersandNode,
         'operator.dereference': ExprNodes.DereferenceNode,
         'operator.preincrement' : ExprNodes.inc_dec_constructor(True, '++'),
         'operator.predecrement' : ExprNodes.inc_dec_constructor(True, '--'),
         'operator.postincrement': ExprNodes.inc_dec_constructor(False, '++'),
         'operator.postdecrement': ExprNodes.inc_dec_constructor(False, '--'),
-        
+
         # For backwards compatability.
         'address': ExprNodes.AmpersandNode,
     }
@@ -576,7 +576,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     binop_method_nodes = {
         'operator.comma'        : ExprNodes.c_binop_constructor(','),
     }
-    
+
     special_methods = cython.set(['declare', 'union', 'struct', 'typedef', 'sizeof',
                                   'cast', 'pointer', 'compiled', 'NULL'])
     special_methods.update(unop_method_nodes.keys())
@@ -597,7 +597,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             return False
         else:
             return True
-        
+
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
         for key, value in node.directive_comments.items():
@@ -633,7 +633,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             # want to leave the cimport node sitting in the tree
             return None
         return node
-    
+
     def visit_FromCImportStatNode(self, node):
         if (node.module_name == u"cython") or \
                node.module_name.startswith(u"cython."):
@@ -654,7 +654,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 return None
             node.imported_names = newimp
         return node
-        
+
     def visit_FromImportStatNode(self, node):
         if (node.module.module_name.value == u"cython") or \
                node.module.module_name.value.startswith(u"cython."):
@@ -674,14 +674,14 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     def visit_SingleAssignmentNode(self, node):
         if (isinstance(node.rhs, ExprNodes.ImportNode) and
                 node.rhs.module_name.value == u'cython'):
-            node = Nodes.CImportStatNode(node.pos, 
+            node = Nodes.CImportStatNode(node.pos,
                                          module_name = u'cython',
                                          as_name = node.lhs.name)
             self.visit_CImportStatNode(node)
         else:
             self.visitchildren(node)
         return node
-            
+
     def visit_NameNode(self, node):
         if node.name in self.cython_module_names:
             node.is_cython_module = True
@@ -771,7 +771,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                                  directives=newdirectives)
         self.directives = olddirectives
         return directive
- 
+
     # Handle decorators
     def visit_FuncDefNode(self, node):
         directives = self._extract_directives(node, 'function')
@@ -905,7 +905,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
             if EXC:
                 EXIT(None, None, None)
             MGR = EXIT = VALUE = EXC = None
-            
+
     """, temps=[u'MGR', u'EXC', u"EXIT", u"VALUE"],
     pipeline=[NormalizeTree(None)])
 
@@ -913,7 +913,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
         # TODO: Cleanup badly needed
         TemplateTransform.temp_name_counter += 1
         handle = "__tmpvar_%d" % TemplateTransform.temp_name_counter
-        
+
         self.visitchildren(node, ['body'])
         excinfo_temp = ExprNodes.NameNode(node.pos, name=handle)#TempHandle(Builtin.tuple_type)
         if node.target is not None:
@@ -939,11 +939,11 @@ class WithTransform(CythonTransform, SkipDeclarations):
 #            node.pos, temps=[excinfo_temp], body=try_except)
 
         return result
-        
+
     def visit_ExprNode(self, node):
         # With statements are never inside expressions.
         return node
-        
+
 
 class DecoratorTransform(CythonTransform, SkipDeclarations):
 
@@ -1022,8 +1022,8 @@ property NAME:
         self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
         self.seen_vars_stack = []
-        return super(AnalyseDeclarationsTransform, self).__call__(root)        
-    
+        return super(AnalyseDeclarationsTransform, self).__call__(root)
+
     def visit_NameNode(self, node):
         self.seen_vars_stack[-1].add(node.name)
         return node
@@ -1045,7 +1045,7 @@ property NAME:
         self.visitchildren(node)
         self.env_stack.pop()
         return node
-    
+
     def visit_CClassDefNode(self, node):
         node = self.visit_ClassDefNode(node)
         if node.scope and node.scope.implemented:
@@ -1059,7 +1059,7 @@ property NAME:
             if stats:
                 node.body.stats += stats
         return node
-        
+
     def visit_FuncDefNode(self, node):
         self.seen_vars_stack.append(cython.set())
         lenv = node.local_scope
@@ -1108,13 +1108,13 @@ property NAME:
         # necessary to ensure that all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
         return node
-    
+
     def visit_CTypeDefNode(self, node):
         return node
 
     def visit_CBaseTypeNode(self, node):
         return None
-    
+
     def visit_CEnumDefNode(self, node):
         if node.visibility == 'public':
             return node
@@ -1136,7 +1136,7 @@ property NAME:
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
         return None
-            
+
     def create_Property(self, entry):
         if entry.visibility == 'public':
             if entry.type.is_pyobject:
@@ -1147,14 +1147,14 @@ property NAME:
             template = self.basic_property_ro
         property = template.substitute({
                 u"ATTR": ExprNodes.AttributeNode(pos=entry.pos,
-                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"), 
+                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                  attribute=entry.name),
             }, pos=entry.pos).stats[0]
         property.name = entry.name
         # ---------------------------------------
         # XXX This should go to AutoDocTransforms
         # ---------------------------------------
-        if (Options.docstrings and 
+        if (Options.docstrings and
             self.current_directives['embedsignature']):
             attr_name = entry.name
             type_name = entry.type.declaration_code("", for_display=1)
@@ -1179,7 +1179,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
-        
+
     def visit_FuncDefNode(self, node):
         node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
@@ -1194,7 +1194,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
 class ExpandInplaceOperators(EnvTransform):
-    
+
     def visit_InPlaceAssignmentNode(self, node):
         lhs = node.lhs
         rhs = node.rhs
@@ -1229,7 +1229,7 @@ class ExpandInplaceOperators(EnvTransform):
         except ValueError:
             return node
         dup = lhs.__class__(**lhs.__dict__)
-        binop = ExprNodes.binop_node(node.pos, 
+        binop = ExprNodes.binop_node(node.pos,
                                      operator = node.operator,
                                      operand1 = dup,
                                      operand2 = rhs,
@@ -1239,7 +1239,7 @@ class ExpandInplaceOperators(EnvTransform):
         dup.analyse_types(env)
         binop.analyse_operation(env)
         node = Nodes.SingleAssignmentNode(
-            node.pos, 
+            node.pos,
             lhs = lhs,
             rhs=binop.coerce_to(lhs.type, env))
         # Use LetRefNode to avoid side effects.
@@ -1255,16 +1255,16 @@ class ExpandInplaceOperators(EnvTransform):
 
 class AlignFunctionDefinitions(CythonTransform):
     """
-    This class takes the signatures from a .pxd file and applies them to 
-    the def methods in a .py file. 
+    This class takes the signatures from a .pxd file and applies them to
+    the def methods in a .py file.
     """
-    
+
     def visit_ModuleNode(self, node):
         self.scope = node.scope
         self.directives = node.directives
         self.visitchildren(node)
         return node
-    
+
     def visit_PyClassDefNode(self, node):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def:
@@ -1276,7 +1276,7 @@ class AlignFunctionDefinitions(CythonTransform):
                 return None
         else:
             return node
-        
+
     def visit_CClassDefNode(self, node, pxd_def=None):
         if pxd_def is None:
             pxd_def = self.scope.lookup(node.class_name)
@@ -1287,7 +1287,7 @@ class AlignFunctionDefinitions(CythonTransform):
         if pxd_def:
             self.scope = outer_scope
         return node
-        
+
     def visit_DefNode(self, node):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def:
@@ -1298,7 +1298,7 @@ class AlignFunctionDefinitions(CythonTransform):
             node = node.as_cfunction(pxd_def)
         elif self.scope.is_module_scope and self.directives['auto_cpdef']:
             node = node.as_cfunction(scope=self.scope)
-        # Enable this when internal def functions are allowed. 
+        # Enable this when internal def functions are allowed.
         # self.visitchildren(node)
         return node
 
@@ -1578,14 +1578,14 @@ class TransformBuiltinMethods(EnvTransform):
         else:
             self.visitchildren(node)
             return node
-    
+
     def visit_AttributeNode(self, node):
         self.visitchildren(node)
         return self.visit_cython_attribute(node)
 
     def visit_NameNode(self, node):
         return self.visit_cython_attribute(node)
-        
+
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
         if attribute:
@@ -1667,7 +1667,7 @@ class TransformBuiltinMethods(EnvTransform):
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
             else:
                 error(node.function.pos, u"'%s' not a valid cython language construct" % function)
-        
+
         self.visitchildren(node)
         return node
 
@@ -1677,50 +1677,50 @@ class DebugTransform(CythonTransform):
     Create debug information and all functions' visibility to extern in order
     to enable debugging.
     """
-    
+
     def __init__(self, context, options, result):
         super(DebugTransform, self).__init__(context)
         self.visited = cython.set()
-        # our treebuilder and debug output writer 
+        # our treebuilder and debug output writer
         # (see Cython.Debugger.debug_output.CythonDebugWriter)
         self.tb = self.context.gdb_debug_outputwriter
-        #self.c_output_file = options.output_file 
+        #self.c_output_file = options.output_file
         self.c_output_file = result.c_file
-        
+
         # tells visit_NameNode whether it should register step-into functions
         self.register_stepinto = False
-        
+
     def visit_ModuleNode(self, node):
         self.tb.module_name = node.full_module_name
         attrs = dict(
             module_name=node.full_module_name,
             filename=node.pos[0].filename,
             c_filename=self.c_output_file)
-        
+
         self.tb.start('Module', attrs)
-        
+
         # serialize functions
         self.tb.start('Functions')
         self.visitchildren(node)
         self.tb.end('Functions')
-        
+
         # 2.3 compatibility. Serialize global variables
         self.tb.start('Globals')
         entries = {}
 
         for k, v in node.scope.entries.iteritems():
             if (v.qualified_name not in self.visited and not
-                v.name.startswith('__pyx_') and not 
+                v.name.startswith('__pyx_') and not
                 v.type.is_cfunction and not
                 v.type.is_extension_type):
                 entries[k]= v
-                
+
         self.serialize_local_variables(entries)
         self.tb.end('Globals')
         # self.tb.end('Module') # end Module after the line number mapping in
         # Cython.Compiler.ModuleNode.ModuleNode._serialize_lineno_map
         return node
-    
+
     def visit_FuncDefNode(self, node):
         self.visited.add(node.local_scope.qualified_name)
         # node.entry.visibility = 'extern'
@@ -1728,16 +1728,16 @@ class DebugTransform(CythonTransform):
             pf_cname = ''
         else:
             pf_cname = node.py_func.entry.func_cname
-            
+
         attrs = dict(
             name=node.entry.name,
             cname=node.entry.func_cname,
             pf_cname=pf_cname,
             qualified_name=node.local_scope.qualified_name,
             lineno=str(node.pos[1]))
-        
+
         self.tb.start('Function', attrs=attrs)
-        
+
         self.tb.start('Locals')
         self.serialize_local_variables(node.local_scope.entries)
         self.tb.end('Locals')
@@ -1758,33 +1758,33 @@ class DebugTransform(CythonTransform):
         return node
 
     def visit_NameNode(self, node):
-        if (self.register_stepinto and 
-            node.type.is_cfunction and 
+        if (self.register_stepinto and
+            node.type.is_cfunction and
             getattr(node, 'is_called', False) and
             node.entry.func_cname is not None):
-            # don't check node.entry.in_cinclude, as 'cdef extern: ...' 
-            # declared functions are not 'in_cinclude'. 
-            # This means we will list called 'cdef' functions as 
-            # "step into functions", but this is not an issue as they will be 
+            # don't check node.entry.in_cinclude, as 'cdef extern: ...'
+            # declared functions are not 'in_cinclude'.
+            # This means we will list called 'cdef' functions as
+            # "step into functions", but this is not an issue as they will be
             # recognized as Cython functions anyway.
             attrs = dict(name=node.entry.func_cname)
             self.tb.start('StepIntoFunction', attrs=attrs)
             self.tb.end('StepIntoFunction')
-        
+
         self.visitchildren(node)
         return node
-    
+
     def serialize_local_variables(self, entries):
         for entry in entries.values():
             if entry.type.is_pyobject:
                 vartype = 'PythonObject'
             else:
                 vartype = 'CObject'
-            
+
             cname = entry.cname
             # if entry.type.is_extension_type:
                 # cname = entry.type.typeptr_cname
-            
+
             if not entry.pos:
                 # this happens for variables that are not in the user's code,
                 # e.g. for the global __builtins__, __doc__, etc. We can just
@@ -1792,14 +1792,14 @@ class DebugTransform(CythonTransform):
                 lineno = '0'
             else:
                 lineno = str(entry.pos[1])
-                
+
             attrs = dict(
                 name=entry.name,
                 cname=cname,
                 qualified_name=entry.qualified_name,
                 type=vartype,
                 lineno=lineno)
-            
+
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
-        
+

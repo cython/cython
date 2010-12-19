@@ -21,7 +21,7 @@ cdef extern from "unistd.h" nogil:
     enum: F_TEST
     enum: F_TLOCK
     enum: F_ULOCK
-    
+
     # pathconf()
     # _PC_*
 

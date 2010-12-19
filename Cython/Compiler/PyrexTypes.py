@@ -1371,10 +1371,10 @@ impl="""
     }
     #if %(is_float)s
         static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s z) {
-          #if HAVE_HYPOT
-            return hypot%(m)s(z.real, z.imag);
-          #else
+          #if !defined(HAVE_HYPOT) || defined(_MSC_VER)
             return sqrt%(m)s(z.real*z.real + z.imag*z.imag);
+          #else
+            return hypot%(m)s(z.real, z.imag);
           #endif
         }
         static CYTHON_INLINE %(type)s __Pyx_c_pow%(m)s(%(type)s a, %(type)s b) {

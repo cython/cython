@@ -46,7 +46,7 @@ class Machine(object):
 
   def get_initial_state(self, name):
     return self.initial_states[name]
-  
+
   def dump(self, file):
     file.write("Plex.Machine:\n")
     if self.initial_states is not None:
@@ -79,13 +79,13 @@ class Node(object):
 
   def add_transition(self, event, new_state):
     self.transitions.add(event, new_state)
-  
+
   def link_to(self, state):
     """Add an epsilon-move from this state to another state."""
     self.add_transition('', state)
 
   def set_action(self, action, priority):
-    """Make this an accepting state with the given action. If 
+    """Make this an accepting state with the given action. If
     there is already an action, choose the action with highest
     priority."""
     if priority > self.action_priority:
@@ -128,11 +128,11 @@ class FastMachine(object):
   states = None         # [state]
                         # where state = {event:state, 'else':state, 'action':Action}
   next_number = 1       # for debugging
-  
+
   new_state_template = {
     '':None, 'bol':None, 'eol':None, 'eof':None, 'else':None
   }
-  
+
   def __init__(self, old_machine = None):
     self.initial_states = initial_states = {}
     self.states = []
@@ -151,11 +151,11 @@ class FastMachine(object):
           else:
             new_state[event] = None
         new_state['action'] = old_state.action
-  
+
   def __del__(self):
     for state in self.states:
       state.clear()
-  
+
   def new_state(self, action = None):
     number = self.next_number
     self.next_number = number + 1
@@ -164,10 +164,10 @@ class FastMachine(object):
     result['action'] = action
     self.states.append(result)
     return result
-  
+
   def make_initial_state(self, name, state):
     self.initial_states[name] = state
-  
+
   def add_transitions(self, state, event, new_state, maxint=sys.maxint):
     if type(event) is tuple:
       code0, code1 = event
@@ -179,10 +179,10 @@ class FastMachine(object):
           code0 = code0 + 1
     else:
       state[event] = new_state
-  
+
   def get_initial_state(self, name):
     return self.initial_states[name]
-  
+
   def dump(self, file):
     file.write("Plex.FastMachine:\n")
     file.write("   Initial states:\n")
@@ -200,7 +200,7 @@ class FastMachine(object):
     action = state['action']
     if action is not None:
       file.write("      %s\n" % action)
-  
+
   def dump_transitions(self, state, file):
     chars_leading_to_state = {}
     special_to_state = {}
@@ -244,10 +244,10 @@ class FastMachine(object):
         c2 = c2 + 1
       result.append((chr(c1), chr(c2)))
     return tuple(result)
-  
+
   def ranges_to_string(self, range_list):
     return ','.join(map(self.range_to_string, range_list))
-  
+
   def range_to_string(self, range_tuple):
     (c1, c2) = range_tuple
     if c1 == c2:

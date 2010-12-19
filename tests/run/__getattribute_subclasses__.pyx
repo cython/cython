@@ -1,7 +1,7 @@
 __doc__ = u"""
-__getattribute__ and __getattr__ special methods and subclasses. 
+__getattribute__ and __getattr__ special methods and subclasses.
 
-getattr does not override members. 
+getattr does not override members.
     >>> a = getattr_boring()
     >>> a.boring_member
     10
@@ -54,7 +54,7 @@ in the inheritance hiarchy they came from.
 """
 
 cdef class boring:
-    cdef readonly int boring_member 
+    cdef readonly int boring_member
     def __init__(self):
         self.boring_member = 10
 
@@ -98,13 +98,13 @@ cdef class boring_getattribute(_getattribute):
     cdef readonly int boring_getattribute_member
 
 cdef class boring_boring_getattribute(boring_getattribute):
-    cdef readonly int boring_boring_getattribute_member 
+    cdef readonly int boring_boring_getattribute_member
 
 cdef class boring_getattr(_getattr):
     cdef readonly int boring_getattr_member
 
 cdef class boring_boring_getattr(boring_getattr):
-    cdef readonly int boring_boring_getattr_member 
+    cdef readonly int boring_boring_getattr_member
 
 cdef class getattribute_boring_boring_getattr(boring_boring_getattr):
     def __getattribute__(self,n):

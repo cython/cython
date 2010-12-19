@@ -27,10 +27,10 @@ cdef extern from "Python.h":
     # structure.
 
     # PyTypeObject PySet_Type
-    # This is an instance of PyTypeObject representing the Python set type. 
+    # This is an instance of PyTypeObject representing the Python set type.
 
     # PyTypeObject PyFrozenSet_Type
-    # This is an instance of PyTypeObject representing the Python frozenset type. 
+    # This is an instance of PyTypeObject representing the Python frozenset type.
 
     # The following type check macros work on pointers to any Python
     # object. Likewise, the constructor functions work with any
@@ -45,7 +45,7 @@ cdef extern from "Python.h":
     # an instance of a subtype.
 
     bint PyFrozenSet_CheckExact(object p)
-    # Return true if p is a frozenset object but not an instance of a subtype. 
+    # Return true if p is a frozenset object but not an instance of a subtype.
 
     object PySet_New(object iterable)
     # Return value: New reference.
@@ -72,7 +72,7 @@ cdef extern from "Python.h":
     # set, frozenset, or an instance of a subtype.
 
     int PySet_GET_SIZE(object anyset)
-    # Macro form of PySet_Size() without error checking. 
+    # Macro form of PySet_Size() without error checking.
 
     bint PySet_Contains(object anyset, object key) except -1
     # Return 1 if found, 0 if not found, and -1 if an error is
@@ -110,4 +110,4 @@ cdef extern from "Python.h":
     # not an instance of set or its subtype.
 
     int PySet_Clear(object set)
-    # Empty an existing set of all elements. 
+    # Empty an existing set of all elements.

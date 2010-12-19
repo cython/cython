@@ -14,10 +14,10 @@ cdef class Spam:
     def __cinit__(self, eggs):
         self.eggs = eggs
         self.ham = 42
-    
+
     def __dealloc__(self):
         self.ham = 0
-    
+
     def eat(self):
         gobble(self.eggs, self.ham)
 

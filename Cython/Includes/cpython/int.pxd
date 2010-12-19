@@ -56,18 +56,18 @@ cdef extern from "Python.h":
     # whether the value just happened to be -1.
 
     long PyInt_AS_LONG(object io)
-    # Return the value of the object io. No error checking is performed. 
+    # Return the value of the object io. No error checking is performed.
 
     unsigned long PyInt_AsUnsignedLongMask(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or
     # PyLongObject, if it is not already one, and then return its
     # value as unsigned long. This function does not check for
-    # overflow. 
+    # overflow.
 
     PY_LONG_LONG PyInt_AsUnsignedLongLongMask(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or
     # PyLongObject, if it is not already one, and then return its
-    # value as unsigned long long, without checking for overflow. 
+    # value as unsigned long long, without checking for overflow.
 
     Py_ssize_t PyInt_AsSsize_t(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject or

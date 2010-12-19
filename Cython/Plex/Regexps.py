@@ -90,8 +90,8 @@ def CodeRange(code1, code2):
     with a code |c| in the range |code1| <= |c| < |code2|.
     """
     if code1 <= nl_code < code2:
-        return Alt(RawCodeRange(code1, nl_code), 
-                             RawNewline, 
+        return Alt(RawCodeRange(code1, nl_code),
+                             RawNewline,
                              RawCodeRange(nl_code + 1, code2))
     else:
         return RawCodeRange(code1, code2)
@@ -111,8 +111,8 @@ class RE(object):
     nullable = 1 # True if this RE can match 0 input symbols
     match_nl = 1 # True if this RE can match a string ending with '\n'
     str = None     # Set to a string to override the class's __str__ result
-    
-    def build_machine(self, machine, initial_state, final_state, 
+
+    def build_machine(self, machine, initial_state, final_state,
                                         match_bol, nocase):
         """
         This method should add states to |machine| to implement this
@@ -121,9 +121,9 @@ class RE(object):
         beginning of a line. If nocase is true, upper and lower case
         letters should be treated as equivalent.
         """
-        raise NotImplementedError("%s.build_machine not implemented" % 
+        raise NotImplementedError("%s.build_machine not implemented" %
             self.__class__.__name__)
-    
+
     def build_opt(self, m, initial_state, c):
         """
         Given a state |s| of machine |m|, return a new state
@@ -153,7 +153,7 @@ class RE(object):
     def check_string(self, num, value):
         if type(value) != type(''):
             self.wrong_type(num, value, "string")
-    
+
     def check_char(self, num, value):
         self.check_string(num, value)
         if len(value) != 1:
@@ -170,7 +170,7 @@ class RE(object):
         raise Errors.PlexTypeError("Invalid type for argument %d of Plex.%s "
                                         "(expected %s, got %s" % (
                                             num, self.__class__.__name__, expected, got))
-    
+
 #
 #     Primitive RE constructors
 #     -------------------------
@@ -182,13 +182,13 @@ class RE(object):
 ##     """
 ##     Char(c) is an RE which matches the character |c|.
 ##     """
-    
+
 ##     nullable = 0
-    
+
 ##     def __init__(self, char):
 ##         self.char = char
 ##         self.match_nl = char == '\n'
-        
+
 ##     def build_machine(self, m, initial_state, final_state, match_bol, nocase):
 ##         c = self.char
 ##         if match_bol and c != BOL:
@@ -231,12 +231,12 @@ class RawCodeRange(RE):
     range = None                     # (code, code)
     uppercase_range = None # (code, code) or None
     lowercase_range = None # (code, code) or None
-    
+
     def __init__(self, code1, code2):
         self.range = (code1, code2)
         self.uppercase_range = uppercase_range(code1, code2)
         self.lowercase_range = lowercase_range(code1, code2)
-    
+
     def build_machine(self, m, initial_state, final_state, match_bol, nocase):
         if match_bol:
             initial_state = self.build_opt(m, initial_state, BOL)
@@ -246,7 +246,7 @@ class RawCodeRange(RE):
                 initial_state.add_transition(self.uppercase_range, final_state)
             if self.lowercase_range:
                 initial_state.add_transition(self.lowercase_range, final_state)
-    
+
     def calc_str(self):
         return "CodeRange(%d,%d)" % (self.code1, self.code2)
 
@@ -310,7 +310,7 @@ class Seq(RE):
             if not re.nullable:
                 break
         self.match_nl = match_nl
-        
+
     def build_machine(self, m, initial_state, final_state, match_bol, nocase):
         re_list = self.re_list
         if len(re_list) == 0:
@@ -394,7 +394,7 @@ class Rep1(RE):
 
 class SwitchCase(RE):
     """
-    SwitchCase(re, nocase) is an RE which matches the same strings as RE, 
+    SwitchCase(re, nocase) is an RE which matches the same strings as RE,
     but treating upper and lower case letters according to |nocase|. If
     |nocase| is true, case is ignored, otherwise it is not.
     """
@@ -408,7 +408,7 @@ class SwitchCase(RE):
         self.match_nl = re.match_nl
 
     def build_machine(self, m, initial_state, final_state, match_bol, nocase):
-        self.re.build_machine(m, initial_state, final_state, match_bol, 
+        self.re.build_machine(m, initial_state, final_state, match_bol,
                                                     self.nocase)
 
     def calc_str(self):
@@ -524,7 +524,7 @@ def NoCase(re):
 def Case(re):
     """
     Case(re) is an RE which matches the same strings as RE, but treating
-    upper and lower case letters as distinct, i.e. it cancels the effect 
+    upper and lower case letters as distinct, i.e. it cancels the effect
     of any enclosing NoCase().
     """
     return SwitchCase(re, nocase = 0)
@@ -532,7 +532,7 @@ def Case(re):
 #
 #     RE Constants
 #
-    
+
 Bol = Char(BOL)
 Bol.__doc__ = \
     """

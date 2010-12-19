@@ -6,7 +6,7 @@ cdef extern from "cpp_templates_helper.h":
         void set(T)
         T get()
         bint operator==(Wrap[T])
-        
+
     cdef cppclass Pair[T1,T2]:
         Pair(T1,T2)
         T1 first()

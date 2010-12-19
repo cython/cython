@@ -37,10 +37,10 @@ class Scanner(object):
     position() --> (name, line, col)
       Returns the position of the last token read using the
       read() method.
-    
+
     begin(state_name)
       Causes scanner to change state.
-    
+
     produce(value [, text])
       Causes return of a token value to the caller of the
       Scanner.
@@ -90,7 +90,7 @@ class Scanner(object):
     self.start_col = 0
     self.text = None
     self.state_name = None
-    
+
     self.lexicon = lexicon
     self.stream = stream
     self.name = name

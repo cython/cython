@@ -13,7 +13,7 @@ def f():
     int1 = int2 - int3
     obj1 = obj2 - int3
     return int1, obj1
-    
+
 def p():
     """
     >>> p()
