@@ -1332,6 +1332,9 @@ class YieldNodeCollector(TreeVisitor):
     def visit_DefNode(self, node):
         pass
 
+    def visit_GeneratorExpressionNode(self, node):
+        pass
+
 class MarkClosureVisitor(CythonTransform):
 
     def visit_ModuleNode(self, node):
@@ -1373,7 +1376,6 @@ class MarkClosureVisitor(CythonTransform):
         self.visitchildren(node)
         self.needs_closure = True
         return node
-
 
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
