@@ -8360,7 +8360,11 @@ static PyObject *__Pyx_Generator_Close(PyObject *self)
 {
     struct __pyx_Generator_object *generator = (struct __pyx_Generator_object *) self;
     PyObject *retval;
+#if PY_VERSION_HEX < 0x02050000
+    PyErr_SetNone(PyExc_StopIteration);
+#else
     PyErr_SetNone(PyExc_GeneratorExit);
+#endif
     retval = __Pyx_Generator_SendEx(generator, NULL);
     if (retval) {
         Py_DECREF(retval);
@@ -8368,8 +8372,12 @@ static PyObject *__Pyx_Generator_Close(PyObject *self)
                         "generator ignored GeneratorExit");
         return NULL;
     }
+#if PY_VERSION_HEX < 0x02050000
+    if (PyErr_ExceptionMatches(PyExc_StopIteration))
+#else
     if (PyErr_ExceptionMatches(PyExc_StopIteration)
         || PyErr_ExceptionMatches(PyExc_GeneratorExit))
+#endif
     {
         PyErr_Clear();          /* ignore these errors */
         Py_INCREF(Py_None);
