@@ -1986,20 +1986,26 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         test_nodes = []
         env = self.current_env()
         for test_type_node in types:
-            if not test_type_node.entry:
-                return node
-            entry = env.lookup(test_type_node.entry.name)
-            if not entry or not entry.type or not entry.type.is_builtin_type:
-                return node
-            type_check_function = entry.type.type_check_function(exact=False)
-            if not type_check_function:
+            builtin_type = None
+            if isinstance(test_type_node, ExprNodes.NameNode):
+                if test_type_node.entry:
+                    entry = env.lookup(test_type_node.entry.name)
+                    if entry and entry.type and entry.type.is_builtin_type:
+                        builtin_type = entry.type
+            if builtin_type and builtin_type is not Builtin.type_type:
+                type_check_function = entry.type.type_check_function(exact=False)
+                type_check_args = [arg]
+            elif test_type_node.type is Builtin.type_type:
+                type_check_function = '__Pyx_TypeCheck'
+                type_check_args = [arg, test_type_node]
+            else:
                 return node
             if type_check_function not in tests:
                 tests.append(type_check_function)
                 test_nodes.append(
                     ExprNodes.PythonCapiCallNode(
                         test_type_node.pos, type_check_function, self.Py_type_check_func_type,
-                        args = [arg],
+                        args = type_check_args,
                         is_temp = True,
                         ))
 
