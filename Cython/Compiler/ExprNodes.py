@@ -2612,6 +2612,7 @@ class SliceIndexNode(ExprNode):
                 self.start_code(),
                 self.stop_code()))
         self.generate_subexpr_disposal_code(code)
+        self.free_subexpr_temps(code)
 
     def generate_slice_guard_code(self, code, target_size):
         if not self.base.type.is_array:
