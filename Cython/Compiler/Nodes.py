@@ -2081,7 +2081,7 @@ class DefNode(FuncDefNode):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
 
-        if self.name == '__new__':
+        if self.name == '__new__' and env.is_py_class_scope:
             self.is_staticmethod = 1
 
         self.analyse_argument_types(env)

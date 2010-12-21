@@ -1583,9 +1583,8 @@ class CClassScope(ClassScope):
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
             error(pos, "Special method %s must be implemented via __richcmp__" % name)
         if name == "__new__":
-            warning(pos, "__new__ method of extension type will change semantics "
+            error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-            name = EncodedString("__cinit__")
         entry = self.declare_var(name, py_object_type, pos, visibility='extern')
         special_sig = get_special_method_signature(name)
         if special_sig:
