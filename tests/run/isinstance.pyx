@@ -5,6 +5,8 @@ from cpython.bool cimport bool
 cdef class A:
     pass
 
+cdef an_A = A()
+
 @cython.test_assert_path_exists('//SimpleCallNode//SimpleCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode//PythonCapiCallNode',
                                  '//PythonCapiCallNode//SimpleCallNode')
@@ -48,6 +50,11 @@ def test_optimised():
     assert isinstance(complex(), complex)
     assert not isinstance(u"foo", int)
     assert isinstance(A, type)
+    assert isinstance(an_A, A)
+    cdef type typed_type = A
+    assert isinstance(an_A, typed_type)
+    cdef object untyped_type = A
+    assert isinstance(an_A, <type>untyped_type)
     return True
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
