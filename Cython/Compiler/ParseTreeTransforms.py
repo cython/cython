@@ -1591,6 +1591,10 @@ class DebugTransform(CythonTransform):
         #self.c_output_file = options.output_file 
         self.c_output_file = result.c_file
         
+        # Closure support, basically treat nested functions as if the AST were
+        # never nested
+        self.nested_funcdefs = []
+        
         # tells visit_NameNode whether it should register step-into functions
         self.register_stepinto = False
         
@@ -1605,7 +1609,17 @@ class DebugTransform(CythonTransform):
         
         # serialize functions
         self.tb.start('Functions')
+        # First, serialize functions normally...
         self.visitchildren(node)
+        
+        # ... then, serialize nested functions
+        for nested_funcdef in self.nested_funcdefs:
+            self.visit_FuncDefNode(nested_funcdef)
+        
+        self.register_stepinto = True
+        self.serialize_modulenode_as_function(node)
+        self.register_stepinto = False
+        
         self.tb.end('Functions')
         
         # 2.3 compatibility. Serialize global variables
@@ -1625,8 +1639,16 @@ class DebugTransform(CythonTransform):
         # Cython.Compiler.ModuleNode.ModuleNode._serialize_lineno_map
         return node
     
-    def visit_FuncDefNode(self, node):
+    def visit_FuncDefNode(self, node):        
         self.visited.add(node.local_scope.qualified_name)
+
+        if getattr(node, 'is_wrapper', False):
+            return node
+
+        if self.register_stepinto:
+            self.nested_funcdefs.append(node)
+            return node
+
         # node.entry.visibility = 'extern'
         if node.py_func is None:
             pf_cname = ''
@@ -1678,6 +1700,51 @@ class DebugTransform(CythonTransform):
         self.visitchildren(node)
         return node
     
+    def serialize_modulenode_as_function(self, node):
+        """
+        Serialize the module-level code as a function so the debugger will know
+        it's a "relevant frame" and it will know where to set the breakpoint
+        for 'break modulename'.
+        """
+        name = node.full_module_name.rpartition('.')[-1]
+        
+        cname_py2 = 'init' + name
+        cname_py3 = 'PyInit_' + name
+        
+        py2_attrs = dict(
+            name=name,
+            cname=cname_py2,
+            pf_cname='',
+            # Ignore the qualified_name, breakpoints should be set using 
+            # `cy break modulename:lineno` for module-level breakpoints.
+            qualified_name='',
+            lineno='1',
+            is_initmodule_function="True",
+        )
+        
+        py3_attrs = dict(py2_attrs, cname=cname_py3)
+        
+        self._serialize_modulenode_as_function(node, py2_attrs)
+        self._serialize_modulenode_as_function(node, py3_attrs)
+    
+    def _serialize_modulenode_as_function(self, node, attrs):
+        self.tb.start('Function', attrs=attrs)
+        
+        self.tb.start('Locals')
+        self.serialize_local_variables(node.scope.entries)
+        self.tb.end('Locals')
+
+        self.tb.start('Arguments')
+        self.tb.end('Arguments')
+
+        self.tb.start('StepIntoFunctions')
+        self.register_stepinto = True
+        self.visitchildren(node)
+        self.register_stepinto = False
+        self.tb.end('StepIntoFunctions')
+        
+        self.tb.end('Function')
+    
     def serialize_local_variables(self, entries):
         for entry in entries.values():
             if entry.type.is_pyobject:
@@ -1685,10 +1752,19 @@ class DebugTransform(CythonTransform):
             else:
                 vartype = 'CObject'
             
-            cname = entry.cname
-            # if entry.type.is_extension_type:
-                # cname = entry.type.typeptr_cname
-            
+            if entry.from_closure:
+                # We're dealing with a closure where a variable from an outer
+                # scope is accessed, get it from the scope object.
+                cname = '%s->%s' % (Naming.cur_scope_cname, 
+                                    entry.outer_entry.cname)
+                
+                qname = '%s.%s.%s' % (entry.scope.outer_scope.qualified_name,
+                                      entry.scope.name, 
+                                      entry.name)
+            else:
+                cname = entry.cname
+                qname = entry.qualified_name
+                
             if not entry.pos:
                 # this happens for variables that are not in the user's code,
                 # e.g. for the global __builtins__, __doc__, etc. We can just
@@ -1696,11 +1772,11 @@ class DebugTransform(CythonTransform):
                 lineno = '0'
             else:
                 lineno = str(entry.pos[1])
-                
+            
             attrs = dict(
                 name=entry.name,
                 cname=cname,
-                qualified_name=entry.qualified_name,
+                qualified_name=qname,
                 type=vartype,
                 lineno=lineno)
             

@@ -1906,8 +1906,6 @@ class ExecutionControlCommandBase(gdb.Command):
         for location in all_locations:
             result = gdb.execute('break %s' % location, to_string=True)
             yield re.search(r'Breakpoint (\d+)', result).group(1)
-       
-        
     
     def delete_breakpoints(self, breakpoint_list):
         for bp in breakpoint_list:
