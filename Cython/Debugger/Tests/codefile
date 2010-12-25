@@ -21,16 +21,34 @@ def spam(a=0):
     puts("spam")
     os.path.join("foo", "bar")
     some_c_function()
+
+cpdef eggs():
+    pass    
     
 cdef ham():
     pass
     
-cpdef eggs():
-    pass
-
 cdef class SomeClass(object):
     def spam(self):
         pass
+
+def closure():
+    a = 1
+    def inner():
+        b = 2
+        # access closed over variables
+        print a, b
+    return inner
+
+def closure_without_closing_variables():
+    a = 1
+    def inner2():
+        b = 2
+        print b
+    return inner2
+
+closure()()
+closure_without_closing_variables()()
 
 spam()
 print "bye!"

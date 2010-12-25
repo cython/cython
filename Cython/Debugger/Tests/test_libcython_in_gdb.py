@@ -98,7 +98,7 @@ class TestDebugInformationClasses(DebugTestCase):
                          'codefile.SomeClass.spam')
         self.assertEqual(self.spam_func.module, self.module)
         
-        assert self.eggs_func.pf_cname
+        assert self.eggs_func.pf_cname, (self.eggs_func, self.eggs_func.pf_cname)
         assert not self.ham_func.pf_cname
         assert not self.spam_func.pf_cname
         assert not self.spam_meth.pf_cname
@@ -135,10 +135,20 @@ class TestBreak(DebugTestCase):
         self.assertEqual(bp.type, gdb.BP_BREAKPOINT)
         assert self.spam_func.cname in bp.location
         assert bp.enabled
-    
+
     def test_python_break(self):
         gdb.execute('cy break -p join')
         assert 'def join(' in gdb.execute('cy run', to_string=True)
+
+    def test_break_lineno(self):
+        beginline = 'import os'
+        nextline = 'cdef int c_var = 12'
+
+        self.break_and_run(beginline)
+        self.lineno_equals(beginline)
+        step_result = gdb.execute('cy step', to_string=True)
+        self.lineno_equals(nextline)
+        assert step_result.rstrip().endswith(nextline)
 
 
 class TestKilled(DebugTestCase):
@@ -341,6 +351,19 @@ class TestExec(DebugTestCase):
         gdb.execute('cy exec some_random_var = 14')
         self.assertEqual('14', self.eval_command('some_random_var'))
 
+class TestClosure(DebugTestCase):
+    
+    def test_cython_closure(self):
+        self.break_and_run('def inner():')
+        
+        self.assertEqual(str(self.read_var('a')), '1')
+        print_result = gdb.execute('cy print a', to_string=True).strip()
+        self.assertEqual(print_result, 'a = 1')
+    
+    def test_cython_closure_no_closing_variables(self):
+        self.break_and_run('def inner2():')
+        self.assertEqual(gdb.execute('cy locals', to_string=True), '')
+
 
 _do_debug = os.environ.get('GDB_DEBUG')
 if _do_debug:
@@ -381,7 +404,7 @@ def runtests():
     returned to the parent test process.
     """
     from Cython.Debugger.Tests import test_libpython_in_gdb
-    
+
     success_libcython = run_unittest_in_module(__name__)
     success_libpython = run_unittest_in_module(test_libpython_in_gdb.__name__)
     

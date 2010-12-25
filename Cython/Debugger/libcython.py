@@ -154,9 +154,6 @@ class CythonModule(object):
         self.lineno_c2cy = {}
         self.functions = {}
         
-    def qualified_name(self, varname):
-        return '.'.join(self.name, varname)
-
 class CythonVariable(object):
 
     def __init__(self, name, cname, qualified_name, type, lineno):
@@ -174,7 +171,8 @@ class CythonFunction(CythonVariable):
                  pf_cname,
                  qualified_name, 
                  lineno, 
-                 type=CObject):
+                 type=CObject,
+                 is_initmodule_function="False"):
         super(CythonFunction, self).__init__(name, 
                                              cname, 
                                              qualified_name, 
@@ -182,6 +180,7 @@ class CythonFunction(CythonVariable):
                                              lineno)
         self.module = module
         self.pf_cname = pf_cname
+        self.is_initmodule_function = is_initmodule_function == "True"
         self.locals = {}
         self.arguments = []
         self.step_into_functions = set()
@@ -243,7 +242,8 @@ class CythonBase(object):
             pyframeobject = libpython.Frame(frame).get_pyop()
 
             if not pyframeobject:
-                raise gdb.GdbError('Unable to read information on python frame')
+                raise gdb.GdbError(
+                            'Unable to read information on python frame')
 
             filename = pyframeobject.filename()
             lineno = pyframeobject.current_line_num()
@@ -752,14 +752,20 @@ class CyBreak(CythonCommand):
     
     def _break_funcname(self, funcname):
         func = self.cy.functions_by_qualified_name.get(funcname)
+        
+        if func and func.is_initmodule_function:
+            func = None
+        
         break_funcs = [func]
         
         if not func:
-            funcs = self.cy.functions_by_name.get(funcname)
+            funcs = self.cy.functions_by_name.get(funcname) or []
+            funcs = [f for f in funcs if not f.is_initmodule_function]
+            
             if not funcs:
                 gdb.execute('break ' + funcname)
                 return
-                
+            
             if len(funcs) > 1:
                 # multiple functions, let the user pick one
                 print 'There are multiple such functions:'
@@ -811,18 +817,28 @@ class CyBreak(CythonCommand):
     
     @dont_suppress_errors
     def complete(self, text, word):
-        names = self.cy.functions_by_qualified_name
+        # Filter init-module functions (breakpoints can be set using 
+        # modulename:linenumber).
+        names =  [n for n, L in self.cy.functions_by_name.iteritems() 
+                        if any(not f.is_initmodule_function for f in L)]
+        qnames = [n for n, f in self.cy.functions_by_qualified_name.iteritems()
+                        if not f.is_initmodule_function]
+        
         if parameters.complete_unqualified:
-            names = itertools.chain(names, self.cy.functions_by_name)
+            all_names = itertools.chain(qnames, names)
+        else:
+            all_names = qnames
 
         words = text.strip().split()
-        if words and '.' in words[-1]:
-            lastword = words[-1]
-            compl = [n for n in self.cy.functions_by_qualified_name 
-                           if n.startswith(lastword)]
-        else:
+        if not words or '.' not in words[-1]:
+            # complete unqualified
             seen = set(text[:-len(word)].split())
-            return [n for n in names if n.startswith(word) and n not in seen]
+            return [n for n in all_names 
+                          if n.startswith(word) and n not in seen]
+        
+        # complete qualified name
+        lastword = words[-1]
+        compl = [n for n in qnames if n.startswith(lastword)]
         
         if len(lastword) > len(word):
             # readline sees something (e.g. a '.') as a word boundary, so don't
@@ -862,6 +878,7 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
     def runtime_break_functions(self):
         if self.is_cython_function():
             return self.get_cython_function().step_into_functions
+        return ()
     
     def static_break_functions(self):
         result = ['PyEval_EvalFrameEx']
@@ -1091,7 +1108,13 @@ class CyLocals(CythonCommand):
     
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
-        local_cython_vars = self.get_cython_function().locals
+        cython_function = self.get_cython_function()
+        
+        if cython_function.is_initmodule_function:
+            self.cy.globals.invoke(args, from_tty)
+            return
+
+        local_cython_vars = cython_function.locals
         max_name_length = len(max(local_cython_vars, key=len))
         for name, cyvar in sorted(local_cython_vars.iteritems(), key=sortkey):
             if self.is_initialized(self.get_cython_function(), cyvar.name):
