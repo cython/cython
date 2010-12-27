@@ -3346,6 +3346,12 @@ class ExprStatNode(StatNode):
     def analyse_expressions(self, env):
         self.expr.analyse_expressions(env)
 
+    def nogil_check(self, env):
+        if self.expr.type.is_pyobject:
+            self.gil_error()
+
+    gil_message = "Discarding owned Python object"
+
     def generate_execution_code(self, code):
         self.expr.generate_evaluation_code(code)
         if not self.expr.is_temp and self.expr.result():
