@@ -1353,7 +1353,7 @@ class FuncDefNode(StatNode, BlockNode):
         # incref it to properly keep track of refcounts.
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if entry.assignments and not entry.in_closure:
+                if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
         # ----- Initialise local variables
         for entry in lenv.var_entries:
@@ -1463,7 +1463,7 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if entry.in_closure:
                     code.put_var_giveref(entry)
-                elif entry.assignments:
+                elif acquire_gil or entry.assignments:
                     code.put_var_decref(entry)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
