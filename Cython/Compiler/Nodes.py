@@ -3347,7 +3347,7 @@ class ExprStatNode(StatNode):
         self.expr.analyse_expressions(env)
 
     def nogil_check(self, env):
-        if self.expr.type.is_pyobject:
+        if self.expr.type.is_pyobject and self.expr.is_temp:
             self.gil_error()
 
     gil_message = "Discarding owned Python object"

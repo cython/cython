@@ -82,8 +82,12 @@ def ticket_338():
         for obj from 0 <= obj < 4:
             pass
 
+def bare_pyvar_name(object x):
+    with nogil:
+        x
+
 # For m(), the important thing is that there are errors on all lines in the range 23-69
-# except these: 34, 44, 56, 58, 60, 62-64
+# except these: 29, 34, 44, 56, 58, 60, 62-64
 
 _ERRORS = u"""
 1:5: Function with Python return type cannot be declared nogil
@@ -96,8 +100,6 @@ _ERRORS = u"""
 26:12: Assignment of Python object not allowed without gil
 28:8: Discarding owned Python object not allowed without gil
 28:16: Constructing complex number not allowed without gil
-29:12: Accessing Python global or builtin not allowed without gil
-29:12: Discarding owned Python object not allowed without gil
 30:8: Backquote expression not allowed without gil
 30:8: Discarding owned Python object not allowed without gil
 30:9: Operation not allowed without gil

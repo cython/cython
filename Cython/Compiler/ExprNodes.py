@@ -1431,8 +1431,8 @@ class NameNode(AtomicExprNode):
         if self.is_used_as_rvalue:
             entry = self.entry
             if entry.is_builtin:
-                # if not Options.cache_builtins: # cached builtins are ok
-                self.gil_error()
+                if not Options.cache_builtins: # cached builtins are ok
+                    self.gil_error()
             elif entry.is_pyglobal:
                 self.gil_error()
 
