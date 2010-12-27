@@ -2954,7 +2954,7 @@ class SimpleCallNode(CallNode):
         for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env)
-            if not env.nogil and (arg.is_attribute or not arg.is_simple):
+            if arg.type.is_pyobject and not env.nogil and (arg.is_attribute or not arg.is_simple):
                 # we do not own the argument's reference, but we must
                 # make sure it cannot be collected before we return
                 # from the function, so we create an owned temp
