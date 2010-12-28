@@ -356,6 +356,9 @@ class TestClosure(DebugTestCase):
     def test_cython_closure(self):
         self.break_and_run('def inner():')
         
+        # Allow the Cython-generated code to initialize the scope variable
+        gdb.execute('cy step')
+        
         self.assertEqual(str(self.read_var('a')), '1')
         print_result = gdb.execute('cy print a', to_string=True).strip()
         self.assertEqual(print_result, 'a = 1')
