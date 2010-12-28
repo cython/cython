@@ -1459,7 +1459,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if entry.assignments and not entry.in_closure:
+                if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_decref(entry)
         if self.needs_closure and not self.is_generator:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
@@ -1527,13 +1527,14 @@ class FuncDefNode(StatNode, BlockNode):
         import Buffer
 
         lenv = self.local_scope
+        acquire_gil = self.acquire_gil
 
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must
         # incref it to properly keep track of refcounts.
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if entry.assignments and not entry.in_closure:
+                if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
         # ----- Initialise local variables
         for entry in lenv.var_entries:
@@ -3478,6 +3479,12 @@ class ExprStatNode(StatNode):
     def analyse_expressions(self, env):
         self.expr.result_is_used = False # hint that .result() may safely be left empty
         self.expr.analyse_expressions(env)
+
+    def nogil_check(self, env):
+        if self.expr.type.is_pyobject and self.expr.is_temp:
+            self.gil_error()
+
+    gil_message = "Discarding owned Python object"
 
     def generate_execution_code(self, code):
         self.expr.generate_evaluation_code(code)
