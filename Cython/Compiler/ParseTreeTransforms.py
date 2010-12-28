@@ -1619,7 +1619,6 @@ class DebugTransform(CythonTransform):
         self.register_stepinto = True
         self.serialize_modulenode_as_function(node)
         self.register_stepinto = False
-        
         self.tb.end('Functions')
         
         # 2.3 compatibility. Serialize global variables
