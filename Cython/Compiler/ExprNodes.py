@@ -1437,8 +1437,8 @@ class NameNode(AtomicExprNode):
         if self.is_used_as_rvalue:
             entry = self.entry
             if entry.is_builtin:
-                # if not Options.cache_builtins: # cached builtins are ok
-                self.gil_error()
+                if not Options.cache_builtins: # cached builtins are ok
+                    self.gil_error()
             elif entry.is_pyglobal:
                 self.gil_error()
 
@@ -2960,7 +2960,14 @@ class SimpleCallNode(CallNode):
         # Coerce arguments
         for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
-            self.args[i] = self.args[i].coerce_to(formal_type, env)
+            arg = self.args[i].coerce_to(formal_type, env)
+            if arg.type.is_pyobject and not env.nogil and (arg.is_attribute or not arg.is_simple):
+                # we do not own the argument's reference, but we must
+                # make sure it cannot be collected before we return
+                # from the function, so we create an owned temp
+                # reference to it
+                arg = arg.coerce_to_temp(env)
+            self.args[i] = arg
         for i in range(max_nargs, actual_nargs):
             if self.args[i].type.is_pyobject:
                 error(self.args[i].pos,

@@ -226,6 +226,8 @@ class build_ext(_build_ext.build_ext):
         if not self.inplace and (self.pyrex_c_in_temp
                 or getattr(extension, 'pyrex_c_in_temp', 0)):
             target_dir = os.path.join(self.build_temp, "pyrex")
+            for package_name in extension.name.split('.')[:-1]:
+                target_dir = os.path.join(target_dir, package_name)
         else:
             target_dir = None
 
