@@ -1193,38 +1193,22 @@ class WithTransform(CythonTransform, SkipDeclarations):
         return node
 
 
-class DecoratorTransform(CythonTransform, SkipDeclarations):
+class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
+    """Originally, this was the only place where decorators were
+    transformed into the corresponding calling code.  Now, this is
+    done directly in DefNode and PyClassDefNode to avoid reassignments
+    to the function/class name - except for cdef class methods.  For
+    those, the reassignment is required as methods are originally
+    defined in the PyMethodDef struct.
+    """
 
     def visit_DefNode(self, func_node):
-        self.visitchildren(func_node)
-        if not func_node.decorators:
+        scope_type = self.scope_type
+        func_node = self.visit_FuncDefNode(func_node)
+        if scope_type is not 'cclass' or not func_node.decorators:
             return func_node
         return self._handle_decorators(
             func_node, func_node.name)
-
-    def visit_CClassDefNode(self, class_node):
-        # This doesn't currently work, so it's disabled.
-        #
-        # Problem: assignments to cdef class names do not work.  They
-        # would require an additional check anyway, as the extension
-        # type must not change its C type, so decorators cannot
-        # replace an extension type, just alter it and return it.
-
-        self.visitchildren(class_node)
-        if not class_node.decorators:
-            return class_node
-        error(class_node.pos,
-              "Decorators not allowed on cdef classes (used on type '%s')" % class_node.class_name)
-        return class_node
-        #return self._handle_decorators(
-        #    class_node, class_node.class_name)
-
-    def visit_ClassDefNode(self, class_node):
-        self.visitchildren(class_node)
-        if not class_node.decorators:
-            return class_node
-        return self._handle_decorators(
-            class_node, class_node.name)
 
     def _handle_decorators(self, node, name):
         decorator_result = ExprNodes.NameNode(node.pos, name = name)
