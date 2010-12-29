@@ -24,6 +24,47 @@ def testclass(klass):
 class Foo:
     pass
 
+def class_in_closure(x):
+    """
+    >>> C1, c0 = class_in_closure(5)
+    >>> C1().smeth1()
+    (5, ())
+    >>> C1.smeth1(1,2)
+    (5, (1, 2))
+    >>> C1.smeth1()
+    (5, ())
+    >>> c0.smeth0()
+    1
+    >>> c0.__class__.smeth0()
+    1
+    """
+    class ClosureClass1(object):
+        @staticmethod
+        def smeth1(*args):
+            return x, args
+
+    class ClosureClass0(object):
+        @staticmethod
+        def smeth0():
+            return 1
+
+    return ClosureClass1, ClosureClass0()
+
+def class_not_in_closure():
+    """
+    >>> c = class_not_in_closure()
+    >>> c.smeth0()
+    1
+    >>> c.__class__.smeth0()
+    1
+    """
+    class ClosureClass0(object):
+        @staticmethod
+        def smeth0():
+            return 1
+
+    return ClosureClass0()
+
 class ODict(dict):
    def __init__(self):
        dict.__init__(self)
