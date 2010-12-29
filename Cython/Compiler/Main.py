@@ -311,7 +311,10 @@ class Context(object):
                 try:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
-                    source_desc = FileSourceDescriptor(pxd_pathname)
+                    rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+                    if not pxd_pathname.endswith(rel_path):
+                        rel_path = pxd_pathname # safety measure to prevent printing incorrect paths
+                    source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
                     err, result = self.process_pxd(source_desc, scope, module_name)
                     if err:
                         raise err
@@ -584,15 +587,23 @@ def run_pipeline(source, options, full_module_name = None):
 
     # Set up source object
     cwd = os.getcwd()
-    source_desc = FileSourceDescriptor(os.path.join(cwd, source))
+    abs_path = os.path.abspath(source)
+    source_ext = os.path.splitext(source)[1]
     full_module_name = full_module_name or context.extract_module_name(source, options)
+    if options.relative_path_in_code_position_comments:
+        rel_path = full_module_name.replace('.', os.sep) + source_ext
+        if not abs_path.endswith(rel_path):
+            rel_path = source # safety measure to prevent printing incorrect paths
+    else:
+        rel_path = abs_path
+    source_desc = FileSourceDescriptor(abs_path, rel_path)
     source = CompilationSource(source_desc, full_module_name, cwd)
 
     # Set up result object
     result = create_default_resultobj(source, options)
 
     # Get pipeline
-    if source_desc.filename.endswith(".py"):
+    if source_ext.lower() == '.py':
         pipeline = context.create_py_pipeline(options, result)
     else:
         pipeline = context.create_pyx_pipeline(options, result)
@@ -820,6 +831,7 @@ default_options = dict(
     compiler_directives = {},
     evaluate_tree_assertions = False,
     emit_linenums = False,
+    relative_path_in_code_position_comments = True,
     language_level = 2,
     gdb_debug = False,
 )

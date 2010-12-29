@@ -166,8 +166,9 @@ class FileSourceDescriptor(SourceDescriptor):
     optional name argument and will be passed back when asking for
     the position()-tuple.
     """
-    def __init__(self, filename):
+    def __init__(self, filename, path_description=None):
         filename = Utils.decode_filename(filename)
+        self.path_description = path_description or filename
         self.filename = filename
         self.set_file_type_from_name(filename)
         self._cmp_name = filename
@@ -180,7 +181,7 @@ class FileSourceDescriptor(SourceDescriptor):
             require_normalised_newlines=False)
 
     def get_description(self):
-        return self.filename
+        return self.path_description
 
     def get_filenametable_entry(self):
         return self.filename
@@ -199,6 +200,8 @@ class StringSourceDescriptor(SourceDescriptor):
     Instances of this class can be used instead of a filenames if the
     code originates from a string object.
     """
+    filename = None
+
     def __init__(self, name, code):
         self.name = name
         #self.set_file_type_from_name(name)
