@@ -143,6 +143,9 @@ def parse_command_line(args):
                 else:
                     sys.stderr.write("Unknown debug flag: %s\n" % option)
                     bad_usage()
+            elif option in ('-h', '--help'):
+                sys.stdout.write(usage)
+                sys.exit(0)
             else:
                 sys.stderr.write("Unknown compiler flag: %s\n" % option)
                 sys.exit(1)
