@@ -2440,8 +2440,6 @@ class DefNode(FuncDefNode):
                     self.name, Naming.args_cname, self.error_value()))
             code.putln("}")
 
-        code.globalstate.use_utility_code(keyword_string_check_utility_code)
-
         if self.starstar_arg:
             if self.star_arg:
                 kwarg_check = "unlikely(%s)" % Naming.kwds_cname
@@ -2450,6 +2448,7 @@ class DefNode(FuncDefNode):
         else:
             kwarg_check = "unlikely(%s) && unlikely(PyDict_Size(%s) > 0)" % (
                 Naming.kwds_cname, Naming.kwds_cname)
+        code.globalstate.use_utility_code(keyword_string_check_utility_code)
         code.putln(
             "if (%s && unlikely(!__Pyx_CheckKeywordStrings(%s, \"%s\", %d))) return %s;" % (
                 kwarg_check, Naming.kwds_cname, self.name,
@@ -2513,8 +2512,6 @@ class DefNode(FuncDefNode):
         has_fixed_positional_count = not self.star_arg and \
             min_positional_args == max_positional_args
 
-        code.globalstate.use_utility_code(raise_double_keywords_utility_code)
-        code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
         if self.num_required_kw_args:
             code.globalstate.use_utility_code(raise_keyword_required_utility_code)
 
@@ -2605,6 +2602,7 @@ class DefNode(FuncDefNode):
         if code.label_used(argtuple_error_label):
             code.put_goto(success_label)
             code.put_label(argtuple_error_label)
+            code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
             code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
                     self.name, has_fixed_positional_count,
                     min_positional_args, max_positional_args,
@@ -2727,6 +2725,7 @@ class DefNode(FuncDefNode):
                             # kwargs) that were passed into positional
                             # arguments up to this point
                             code.putln('else {')
+                            code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
                             code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
                                     self.name, has_fixed_positional_count,
                                     min_positional_args, max_positional_args, i))
@@ -6100,7 +6099,8 @@ invalid_keyword:
 bad:
     return -1;
 }
-""")
+""",
+requires=[raise_double_keywords_utility_code])
 
 #------------------------------------------------------------------------------------
 
