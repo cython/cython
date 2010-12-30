@@ -6244,25 +6244,26 @@ bad:
 
 get_vtable_utility_code = UtilityCode(
 proto = """
-static int __Pyx_GetVtable(PyObject *dict, void *vtabptr); /*proto*/
+static void* __Pyx_GetVtable(PyObject *dict); /*proto*/
 """,
 impl = r"""
-static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
+static void* __Pyx_GetVtable(PyObject *dict) {
+    void* ptr;
     PyObject *ob = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
     if (!ob)
         goto bad;
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
-    *(void **)vtabptr = PyCapsule_GetPointer(ob, 0);
+    ptr = PyCapsule_GetPointer(ob, 0);
 #else
-    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
+    ptr = PyCObject_AsVoidPtr(ob);
 #endif
-    if (!*(void **)vtabptr)
-        goto bad;
+    if (!ptr && !PyErr_Occurred())
+        PyErr_SetString(PyExc_RuntimeError, "invalid vtable found for imported type");
     Py_DECREF(ob);
-    return 0;
+    return ptr;
 bad:
     Py_XDECREF(ob);
-    return -1;
+    return NULL;
 }
 """)
 
