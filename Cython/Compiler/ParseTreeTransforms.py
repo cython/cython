@@ -945,22 +945,38 @@ class WithTransform(CythonTransform, SkipDeclarations):
         return node
 
 
-class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
-    """Originally, this was the only place where decorators were
-    transformed into the corresponding calling code.  Now, this is
-    done directly in DefNode and PyClassDefNode to avoid reassignments
-    to the function/class name - except for cdef class methods.  For
-    those, the reassignment is required as methods are originally
-    defined in the PyMethodDef struct.
-    """
+class DecoratorTransform(CythonTransform, SkipDeclarations):
 
     def visit_DefNode(self, func_node):
-        scope_type = self.scope_type
-        func_node = self.visit_FuncDefNode(func_node)
-        if scope_type != 'cclass' or not func_node.decorators:
+        self.visitchildren(func_node)
+        if not func_node.decorators:
             return func_node
         return self._handle_decorators(
             func_node, func_node.name)
+
+    def visit_CClassDefNode(self, class_node):
+        # This doesn't currently work, so it's disabled.
+        #
+        # Problem: assignments to cdef class names do not work.  They
+        # would require an additional check anyway, as the extension
+        # type must not change its C type, so decorators cannot
+        # replace an extension type, just alter it and return it.
+
+        self.visitchildren(class_node)
+        if not class_node.decorators:
+            return class_node
+        error(class_node.pos,
+              "Decorators not allowed on cdef classes (used on type '%s')" % class_node.class_name)
+        return class_node
+        #return self._handle_decorators(
+        #    class_node, class_node.class_name)
+
+    def visit_ClassDefNode(self, class_node):
+        self.visitchildren(class_node)
+        if not class_node.decorators:
+            return class_node
+        return self._handle_decorators(
+            class_node, class_node.name)
 
     def _handle_decorators(self, node, name):
         decorator_result = ExprNodes.NameNode(node.pos, name = name)
@@ -1451,9 +1467,9 @@ class CreateClosureClasses(CythonTransform):
 
         if not from_closure and (self.path or inner_node):
             if not inner_node:
-                if not node.py_cfunc_node:
+                if not node.assmt:
                     raise InternalError, "DefNode does not have assignment node"
-                inner_node = node.py_cfunc_node
+                inner_node = node.assmt.rhs
             inner_node.needs_self_code = False
             node.needs_outer_scope = False
 

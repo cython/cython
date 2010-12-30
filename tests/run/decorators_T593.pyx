@@ -10,6 +10,7 @@ def testme(func):
         return True
     except NameError:
         return False
+
 @testme
 def am_i_buggy():
     pass
@@ -23,6 +24,30 @@ def testclass(klass):
 @testclass
 class Foo:
     pass
+
+
+def called_deco(a,b,c):
+    def count(f):
+        a.append( (b,c) )
+        return f
+    return count
+
+L = []
+
+@called_deco(L, 5, c=6)
+@called_deco(L, c=3, b=4)
+@called_deco(L, 1, 2)
+def wrapped_func(x):
+    """
+    >>> L
+    [(1, 2), (4, 3), (5, 6)]
+    >>> wrapped_func(99)
+    99
+    >>> L
+    [(1, 2), (4, 3), (5, 6)]
+    """
+    return x
+
 
 def class_in_closure(x):
     """
