@@ -2051,12 +2051,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                        code.error_goto_if_null(type.typeptr_cname, pos))
         self.use_type_import_utility_code(env)
         if type.vtabptr_cname:
-            code.putln(
-                "if (__Pyx_GetVtable(%s->tp_dict, &%s) < 0) %s" % (
-                    type.typeptr_cname,
-                    type.vtabptr_cname,
-                    code.error_goto(pos)))
             env.use_utility_code(Nodes.get_vtable_utility_code)
+            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s->tp_dict); %s" % (
+                type.vtabptr_cname,
+                type.vtabstruct_cname,
+                type.typeptr_cname,
+                code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported[type] = 1
 
     py3_type_name_map = {'str' : 'bytes', 'unicode' : 'str'}
