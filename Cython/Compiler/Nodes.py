@@ -2252,13 +2252,6 @@ class DefNode(FuncDefNode):
             if not self.is_staticmethod and not self.is_classmethod:
                 rhs.binding = True
 
-        if self.decorators:
-            for decorator in self.decorators[::-1]:
-                rhs = ExprNodes.SimpleCallNode(
-                    decorator.pos,
-                    function = decorator.decorator,
-                    args = [rhs])
-
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
             rhs = rhs)
@@ -2974,9 +2967,8 @@ class PyClassDefNode(ClassDefNode):
     #  classobj ClassNode  Class object
     #  target   NameNode   Variable to assign class object to
 
-    child_attrs = ["body", "dict", "metaclass", "mkw", "bases", "class_result", "target"]
+    child_attrs = ["body", "dict", "metaclass", "mkw", "bases", "classobj", "target"]
     decorators = None
-    class_result = None
     py3_style_class = False # Python3 style class (bases+kwargs)
 
     def __init__(self, pos, name, bases, doc, body, decorators = None,
@@ -3079,16 +3071,6 @@ class PyClassDefNode(ClassDefNode):
         return cenv
 
     def analyse_declarations(self, env):
-        class_result = self.classobj
-        if self.decorators:
-            from ExprNodes import SimpleCallNode
-            for decorator in self.decorators[::-1]:
-                class_result = SimpleCallNode(
-                    decorator.pos,
-                    function = decorator.decorator,
-                    args = [class_result])
-        self.class_result = class_result
-        self.class_result.analyse_declarations(env)
         self.target.analyse_target_declaration(env)
         cenv = self.create_scope(env)
         cenv.directives = env.directives
@@ -3101,7 +3083,7 @@ class PyClassDefNode(ClassDefNode):
             self.metaclass.analyse_expressions(env)
             self.mkw.analyse_expressions(env)
         self.dict.analyse_expressions(env)
-        self.class_result.analyse_expressions(env)
+        self.classobj.analyse_expressions(env)
         genv = env.global_scope()
         cenv = self.scope
         self.body.analyse_expressions(cenv)
@@ -3121,9 +3103,9 @@ class PyClassDefNode(ClassDefNode):
         self.dict.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
         self.body.generate_execution_code(code)
-        self.class_result.generate_evaluation_code(code)
+        self.classobj.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
-        self.target.generate_assignment_code(self.class_result, code)
+        self.target.generate_assignment_code(self.classobj, code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
         if self.py3_style_class:
@@ -3182,9 +3164,6 @@ class CClassDefNode(ClassDefNode):
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for "
                 "C class defined in 'extern from' block")
-        if self.decorators:
-            error(self.pos,
-                  "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
         self.base_type = None
         # Now that module imports are cached, we need to
         # import the modules for extern classes.
