@@ -139,7 +139,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("#endif")
 
-            h_code.copyto(open_new_file(result.h_file))
+            f = open_new_file(result.h_file)
+            try:
+                h_code.copyto(f)
+            finally:
+                f.close()
 
     def generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
@@ -222,7 +226,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("#endif")
 
-            h_code.copyto(open_new_file(result.api_file))
+            f = open_new_file(result.api_file)
+            try:
+                h_code.copyto(f)
+            finally:
+                f.close()
 
     def generate_cclass_header_code(self, type, h_code):
         h_code.putln("%s DL_IMPORT(PyTypeObject) %s;" % (
