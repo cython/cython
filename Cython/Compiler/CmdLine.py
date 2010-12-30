@@ -10,15 +10,15 @@ usage = """\
 Cython (http://cython.org) is a compiler for code written in the
 Cython language.  Cython is based on Pyrex by Greg Ewing.
 
-Usage: cython [options] sourcefile.pyx ...
+Usage: cython [options] sourcefile.{pyx,py} ...
 
 Options:
   -V, --version                  Display version number of cython compiler
   -l, --create-listing           Write error messages to a listing file
   -I, --include-dir <directory>  Search for include files in named directory
-                                 (multiply include directories are allowed).
+                                 (multiple include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
-  -t, --timestamps               Only compile newer source files (implied with -r)
+  -t, --timestamps               Only compile newer source files
   -f, --force                    Compile all source files (overrides implied -t)
   -q, --quiet                    Don't print module names in recursive mode
   -v, --verbose                  Be verbose, print file names on multiple compilation
@@ -30,11 +30,11 @@ Options:
                                  are searched from)
   --gdb                          Output debug information for cygdb
 
-  -D, --no-docstrings            Remove docstrings.
+  -D, --no-docstrings            Strip docstrings from the compiled module.
   -a, --annotate                 Produce a colorized HTML version of the source.
   --line-directives              Produce #line directives pointing to the .pyx source
-  --cplus                        Output a c++ rather than c file.
-  --embed                        Embed the Python interpreter in a main() method.
+  --cplus                        Output a C++ rather than C file.
+  --embed                        Generate a main() function that embeds the Python interpreter.
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
   --fast-fail                    Abort the compilation on the first error
@@ -42,7 +42,7 @@ Options:
 """
 
 # The following is broken http://trac.cython.org/cython_trac/ticket/379
-#  -r, --recursive                Recursively find and compile dependencies
+#  -r, --recursive                Recursively find and compile dependencies (implies -t)
 
 
 #The following experimental options are supported only on MacOSX:
