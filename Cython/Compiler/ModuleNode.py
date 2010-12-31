@@ -2109,24 +2109,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # a significant performance hit. (See trac #561.)
                 for func in entry.type.scope.pyfunc_entries:
                     if func.is_special and Options.docstrings and func.wrapperbase_cname:
-                        code.putln("{");
+                        code.putln("{")
                         code.putln(
                             'PyObject *wrapper = __Pyx_GetAttrString((PyObject *)&%s, "%s"); %s' % (
                                 typeobj_cname,
                                 func.name,
-                                code.error_goto_if_null('wrapper', entry.pos)));
+                                code.error_goto_if_null('wrapper', entry.pos)))
                         code.putln(
-                            "if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {");
+                            "if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {")
                         code.putln(
                             "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
-                                func.wrapperbase_cname));
+                                func.wrapperbase_cname))
                         code.putln(
-                            "%s.doc = %s;" % (func.wrapperbase_cname, func.doc_cname));
+                            "%s.doc = %s;" % (func.wrapperbase_cname, func.doc_cname))
                         code.putln(
                             "((PyWrapperDescrObject *)wrapper)->d_base = &%s;" % (
-                                func.wrapperbase_cname));
-                        code.putln("}");
-                        code.putln("}");
+                                func.wrapperbase_cname))
+                        code.putln("}")
+                        code.putln("}")
                 if type.vtable_cname:
                     code.putln(
                         "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
