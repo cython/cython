@@ -353,6 +353,10 @@ class PyObjectType(PyrexType):
     def can_coerce_to_pyobject(self, env):
         return True
 
+    def default_coerced_ctype(self):
+        "The default C type that this Python type coerces to, or None."
+        return None
+
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
         return not src_type.is_ptr or src_type.is_string
@@ -403,7 +407,16 @@ class BuiltinObjectType(PyObjectType):
     
     def __repr__(self):
         return "<%s>"% self.cname
-        
+
+    def default_coerced_ctype(self):
+        if self.name == 'bytes':
+            return c_char_ptr_type
+        elif self.name == 'bool':
+            return c_bint_type
+        elif self.name == 'float':
+            return c_double_type
+        return None
+
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
