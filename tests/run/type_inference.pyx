@@ -25,7 +25,7 @@ def simple():
     xptrptr = &xptr
     assert typeof(xptrptr) == "double **", typeof(xptrptr)
     b = b"abc"
-    assert typeof(b) == "char *", typeof(b)
+    assert typeof(b) == "bytes object", typeof(b)
     s = "abc"
     assert typeof(s) == "str object", typeof(s)
     u = u"xyz"
@@ -57,7 +57,7 @@ def slicing():
     >>> slicing()
     """
     b = b"abc"
-    assert typeof(b) == "char *", typeof(b)
+    assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1:2]
     assert typeof(b1) == "bytes object", typeof(b1)
     b2 = b[1:2:2]
@@ -92,9 +92,9 @@ def indexing():
     >>> indexing()
     """
     b = b"abc"
-    assert typeof(b) == "char *", typeof(b)
+    assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "char", typeof(b1)  # FIXME: Python object ??
+    assert typeof(b1) == "Python object", typeof(b1)
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
     u1 = u[1]
