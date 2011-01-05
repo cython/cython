@@ -954,7 +954,8 @@ class BytesNode(ConstNode):
     #
     # value      BytesLiteral
 
-    type = PyrexTypes.c_char_ptr_type
+    # start off as Python 'bytes' to support len() in O(1)
+    type = bytes_type
 
     def compile_time_value(self, denv):
         return self.value
@@ -975,11 +976,13 @@ class BytesNode(ConstNode):
         return len(self.value) == 1
 
     def coerce_to_boolean(self, env):
-        # This is special because we start off as a C char*.  Testing
-        # that for truth directly would yield the wrong result.
+        # This is special because testing a C char* for truth directly
+        # would yield the wrong result.
         return BoolNode(self.pos, value=bool(self.value))
 
     def coerce_to(self, dst_type, env):
+        if self.type == dst_type:
+            return self
         if dst_type.is_int:
             if not self.can_coerce_to_char_literal():
                 error(self.pos, "Only single-character string literals can be coerced into ints.")
@@ -990,32 +993,26 @@ class BytesNode(ConstNode):
             return CharNode(self.pos, value=self.value)
 
         node = BytesNode(self.pos, value=self.value)
-        if dst_type == PyrexTypes.c_char_ptr_type:
-            node.type = PyrexTypes.c_char_ptr_type
+        if dst_type.is_pyobject:
+            if dst_type in (py_object_type, Builtin.bytes_type):
+                node.type = Builtin.bytes_type
+            else:
+                self.check_for_coercion_error(dst_type, fail=True)
+                return node
+        elif dst_type == PyrexTypes.c_char_ptr_type:
+            node.type = dst_type
             return node
         elif dst_type == PyrexTypes.c_uchar_ptr_type:
             node.type = PyrexTypes.c_char_ptr_type
             return CastNode(node, PyrexTypes.c_uchar_ptr_type)
-
-        if not self.type.is_pyobject:
-            if dst_type in (py_object_type, Builtin.bytes_type):
-                node.type = Builtin.bytes_type
-            elif dst_type.is_pyobject:
-                self.fail_assignment(dst_type)
-                return self
-        elif dst_type.is_pyobject and dst_type is not py_object_type:
-            self.check_for_coercion_error(dst_type, fail=True)
+        elif dst_type.assignable_from(PyrexTypes.c_char_ptr_type):
+            node.type = dst_type
             return node
 
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
         return ConstNode.coerce_to(node, dst_type, env)
-
-    def as_py_string_node(self, env):
-        # Return a new BytesNode with the same value as this node
-        # but whose type is a Python type instead of a C type.
-        return BytesNode(self.pos, value = self.value, type = Builtin.bytes_type)
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
@@ -2969,9 +2966,14 @@ class SimpleCallNode(CallNode):
                 arg = arg.coerce_to_temp(env)
             self.args[i] = arg
         for i in range(max_nargs, actual_nargs):
-            if self.args[i].type.is_pyobject:
-                error(self.args[i].pos,
-                    "Python object cannot be passed as a varargs parameter")
+            arg = self.args[i]
+            if arg.type.is_pyobject:
+                arg_ctype = arg.type.default_coerced_ctype()
+                if arg_ctype is None:
+                    error(self.args[i].pos,
+                          "Python object cannot be passed as a varargs parameter")
+                else:
+                    self.args[i] = arg.coerce_to(arg_ctype, env)
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)

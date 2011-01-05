@@ -2556,8 +2556,6 @@ class DefNode(FuncDefNode):
                     self.name, Naming.args_cname, self.error_value()))
             code.putln("}")
 
-        code.globalstate.use_utility_code(keyword_string_check_utility_code)
-
         if self.starstar_arg:
             if self.star_arg:
                 kwarg_check = "unlikely(%s)" % Naming.kwds_cname
@@ -2566,6 +2564,7 @@ class DefNode(FuncDefNode):
         else:
             kwarg_check = "unlikely(%s) && unlikely(PyDict_Size(%s) > 0)" % (
                 Naming.kwds_cname, Naming.kwds_cname)
+        code.globalstate.use_utility_code(keyword_string_check_utility_code)
         code.putln(
             "if (%s && unlikely(!__Pyx_CheckKeywordStrings(%s, \"%s\", %d))) return %s;" % (
                 kwarg_check, Naming.kwds_cname, self.name,
@@ -2629,8 +2628,6 @@ class DefNode(FuncDefNode):
         has_fixed_positional_count = not self.star_arg and \
             min_positional_args == max_positional_args
 
-        code.globalstate.use_utility_code(raise_double_keywords_utility_code)
-        code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
         if self.num_required_kw_args:
             code.globalstate.use_utility_code(raise_keyword_required_utility_code)
 
@@ -2721,6 +2718,7 @@ class DefNode(FuncDefNode):
         if code.label_used(argtuple_error_label):
             code.put_goto(success_label)
             code.put_label(argtuple_error_label)
+            code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
             code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
                     self.name, has_fixed_positional_count,
                     min_positional_args, max_positional_args,
@@ -2842,6 +2840,7 @@ class DefNode(FuncDefNode):
                             # kwargs) that were passed into positional
                             # arguments up to this point
                             code.putln('else {')
+                            code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
                             code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
                                     self.name, has_fixed_positional_count,
                                     min_positional_args, max_positional_args, i))
@@ -6237,7 +6236,8 @@ invalid_keyword:
 bad:
     return -1;
 }
-""")
+""",
+requires=[raise_double_keywords_utility_code])
 
 #------------------------------------------------------------------------------------
 
@@ -6381,25 +6381,26 @@ bad:
 
 get_vtable_utility_code = UtilityCode(
 proto = """
-static int __Pyx_GetVtable(PyObject *dict, void *vtabptr); /*proto*/
+static void* __Pyx_GetVtable(PyObject *dict); /*proto*/
 """,
 impl = r"""
-static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
+static void* __Pyx_GetVtable(PyObject *dict) {
+    void* ptr;
     PyObject *ob = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
     if (!ob)
         goto bad;
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
-    *(void **)vtabptr = PyCapsule_GetPointer(ob, 0);
+    ptr = PyCapsule_GetPointer(ob, 0);
 #else
-    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
+    ptr = PyCObject_AsVoidPtr(ob);
 #endif
-    if (!*(void **)vtabptr)
-        goto bad;
+    if (!ptr && !PyErr_Occurred())
+        PyErr_SetString(PyExc_RuntimeError, "invalid vtable found for imported type");
     Py_DECREF(ob);
-    return 0;
+    return ptr;
 bad:
     Py_XDECREF(ob);
-    return -1;
+    return NULL;
 }
 """)
 
