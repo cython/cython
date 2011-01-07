@@ -2950,8 +2950,17 @@ class GeneratorBodyDefNode(DefNode):
                                                    star_arg=None, starstar_arg=None)
         self.yields = yields
 
-    def create_local_scope(self, env):
-        """Already done at GeneratorDefNode"""
+    def declare_generator_body(self, env):
+        prefix = env.next_id(env.scope_prefix)
+        entry = env.declare_var(prefix + 'generator', py_object_type, self.pos, visibility='private')
+        entry.func_cname = \
+            Naming.genbody_prefix + prefix + self.name
+        entry.qualified_name = EncodedString(self.name)
+        self.entry = entry
+
+    def analyse_declarations(self, env):
+        self.analyse_argument_types(env)
+        self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
         header = "static PyObject *%s(%s, PyObject *%s)" % (
