@@ -1354,7 +1354,29 @@ class FuncDefNode(StatNode, BlockNode):
             # fatal error before hand, it's not really worth tracing
             code.put_trace_call(self.entry.name, self.pos)
         # ----- Fetch arguments
-        self.generate_preamble(env, code)
+        self.generate_argument_parsing_code(env, code)
+        # If an argument is assigned to in the body, we must
+        # incref it to properly keep track of refcounts.
+        for entry in lenv.arg_entries:
+            if entry.type.is_pyobject:
+                if (acquire_gil or entry.assignments) and not entry.in_closure:
+                    code.put_var_incref(entry)
+        # ----- Initialise local variables
+        for entry in lenv.var_entries:
+            if entry.type.is_pyobject and entry.init_to_none and entry.used:
+                code.put_init_var_to_py_none(entry)
+        # ----- Initialise local buffer auxiliary variables
+        for entry in lenv.var_entries + lenv.arg_entries:
+            if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
+                code.putln("%s.buf = NULL;" %
+                           entry.buffer_aux.buffer_info_var.cname)
+        # ----- Check and convert arguments
+        self.generate_argument_type_tests(code)
+        # ----- Acquire buffer arguments
+        for entry in lenv.arg_entries:
+            if entry.type.is_buffer:
+                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
+
         # -------------------------
         # ----- Function body -----
         # -------------------------
@@ -1492,36 +1514,6 @@ class FuncDefNode(StatNode, BlockNode):
         if self.py_func:
             self.py_func.generate_function_definitions(env, code)
         self.generate_wrapper_functions(code)
-
-    def generate_preamble(self, env, code):
-        """Parse arguments and prepare scope"""
-        import Buffer
-
-        lenv = self.local_scope
-        acquire_gil = self.acquire_gil
-
-        self.generate_argument_parsing_code(env, code)
-        # If an argument is assigned to in the body, we must
-        # incref it to properly keep track of refcounts.
-        for entry in lenv.arg_entries:
-            if entry.type.is_pyobject:
-                if (acquire_gil or entry.assignments) and not entry.in_closure:
-                    code.put_var_incref(entry)
-        # ----- Initialise local variables
-        for entry in lenv.var_entries:
-            if entry.type.is_pyobject and entry.init_to_none and entry.used:
-                code.put_init_var_to_py_none(entry)
-        # ----- Initialise local buffer auxiliary variables
-        for entry in lenv.var_entries + lenv.arg_entries:
-            if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
-                code.putln("%s.buf = NULL;" %
-                           entry.buffer_aux.buffer_info_var.cname)
-        # ----- Check and convert arguments
-        self.generate_argument_type_tests(code)
-        # ----- Acquire buffer arguments
-        for entry in lenv.arg_entries:
-            if entry.type.is_buffer:
-                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
     def declare_argument(self, env, arg):
         if arg.type.is_void:
