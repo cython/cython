@@ -1354,9 +1354,20 @@ class MarkClosureVisitor(CythonTransform):
         if collector.yields:
             if collector.returns and not collector.has_return_value:
                 error(collector.returns[0].pos, "'return' inside generators not yet supported ")
-            node.is_generator = True
-            node.needs_closure = True
-            node.yields = collector.yields
+
+            gbody = Nodes.GeneratorBodyDefNode(pos=node.pos,
+                                               name=node.name,
+                                               body=node.body,
+                                               yields=collector.yields)
+            generator = Nodes.GeneratorDefNode(pos=node.pos,
+                                               name=node.name,
+                                               args=node.args,
+                                               star_arg=node.star_arg,
+                                               starstar_arg=node.starstar_arg,
+                                               doc=node.doc,
+                                               decorators=node.decorators,
+                                               gbody=gbody)
+            return generator
         return node
 
     def visit_CFuncDefNode(self, node):
@@ -1447,6 +1458,9 @@ class CreateClosureClasses(CythonTransform):
         return from_closure, in_closure
 
     def create_class_from_scope(self, node, target_module_scope, inner_node=None):
+        # skip generator body
+        if node.is_generator_body:
+            return
         # move local variables into closure
         if node.is_generator:
             for entry in node.local_scope.entries.values():
