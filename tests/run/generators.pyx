@@ -207,3 +207,40 @@ def generator_nonlocal():
                 yield x
         return g
     return f(1)
+
+def test_nested(a, b, c):
+    """
+    >>> obj = test_nested(1, 2, 3)
+    >>> [i() for i in obj]
+    [1, 2, 3, 4]
+    """
+    def one():
+        return a
+    def two():
+        return b
+    def three():
+        return c
+    def new_closure(a, b):
+        def sum():
+            return a + b
+        return sum
+    yield one
+    yield two
+    yield three
+    yield new_closure(a, c)
+
+
+def tolist(func):
+    def wrapper(*args, **kwargs):
+        return list(func(*args, **kwargs))
+    return wrapper
+
+@tolist
+def test_decorated(*args):
+    """
+    >>> test_decorated(1, 2, 3)
+    [1, 2, 3]
+    """
+    for i in args:
+        yield i
+
