@@ -1332,6 +1332,9 @@ class YieldNodeCollector(TreeVisitor):
     def visit_DefNode(self, node):
         pass
 
+    def visit_LambdaNode(self, node):
+        pass
+
     def visit_GeneratorExpressionNode(self, node):
         pass
 
