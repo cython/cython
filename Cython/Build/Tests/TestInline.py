@@ -32,7 +32,7 @@ class TestInline(CythonTest):
         self.assertEquals(inline("return global_value + 1", **test_kwds), global_value + 1)
 
     if has_numpy:
-    
+
         def test_numpy(self):
             import numpy
             a = numpy.ndarray((10, 20))

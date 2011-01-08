@@ -172,7 +172,7 @@ class Lexicon(object):
         else:
           action = Actions.Call(action_spec)
       final_state = machine.new_state()
-      re.build_machine(machine, initial_state, final_state, 
+      re.build_machine(machine, initial_state, final_state,
                        match_bol = 1, nocase = 0)
       final_state.set_action(action, priority = -token_number)
     except Errors.PlexError, e:

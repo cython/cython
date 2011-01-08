@@ -112,6 +112,7 @@ def handle_special_build(modname, pyxfilename):
     return ext, setup_args
 
 def handle_dependencies(pyxfilename):
+    testing = '_test_files' in globals()
     dependfile = os.path.splitext(pyxfilename)[0] + PYXDEP_EXT
 
     # by default let distutils decide whether to rebuild on its own
@@ -132,7 +133,8 @@ def handle_dependencies(pyxfilename):
             files.extend(glob.glob(fullpath))
 
         # only for unit testing to see we did the right thing
-        _test_files[:] = []  #$pycheck_no
+        if testing:
+            _test_files[:] = []  #$pycheck_no
 
         # if any file that the pyxfile depends upon is newer than
         # the pyx file, 'touch' the pyx file so that distutils will
@@ -143,7 +145,8 @@ def handle_dependencies(pyxfilename):
                 print("Rebuilding because of ", file)
                 filetime = os.path.getmtime(file)
                 os.utime(pyxfilename, (filetime, filetime))
-                _test_files.append(file)
+                if testing:
+                    _test_files.append(file)
 
 def build_module(name, pyxfilename, pyxbuild_dir=None):
     assert os.path.exists(pyxfilename), (

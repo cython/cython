@@ -5,7 +5,7 @@ def zap(polly, volts):
 
 class Parrot:
     "Standard Norwegian Blue."
-    
+
     def admire_plumage(self):
         "Lovely, ain't it?"
 

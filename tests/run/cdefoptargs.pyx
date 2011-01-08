@@ -26,7 +26,7 @@ cdef b(a, b, c=1, d=2):
 
 cdef int foo(int a, int b=1, int c=1):
     return a+b*c
-    
+
 def test_foo():
     """
     >>> test_foo()

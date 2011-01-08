@@ -1,7 +1,7 @@
 cdef class Tri:
     def test(self):
         return 1
-    
+
 cdef class Curseur:
     cdef Tri tri
     def detail(self):

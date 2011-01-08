@@ -1,6 +1,6 @@
 cdef public struct Foo:
     int a, b
-    
+
 ctypedef struct Blarg:
     int c, d
 

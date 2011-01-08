@@ -10,7 +10,7 @@ cdef extern from "Python.h":
     #
     # This subtype of PyObject represents a Python dictionary object
     # (i.e. the 'dict' type).
-    
+
     # PyTypeObject PyDict_Type
     #
     # This instance of PyTypeObject represents the Python dictionary
@@ -19,7 +19,7 @@ cdef extern from "Python.h":
 
     bint PyDict_Check(object p)
     # Return true if p is a dict object or an instance of a subtype of
-    # the dict type. 
+    # the dict type.
 
     bint PyDict_CheckExact(object p)
     # Return true if p is a dict object, but not an instance of a
@@ -27,21 +27,21 @@ cdef extern from "Python.h":
 
     object PyDict_New()
     # Return value: New reference.
-    # Return a new empty dictionary, or NULL on failure. 
+    # Return a new empty dictionary, or NULL on failure.
 
     object PyDictProxy_New(object dict)
     # Return value: New reference.
     # Return a proxy object for a mapping which enforces read-only
     # behavior. This is normally used to create a proxy to prevent
-    # modification of the dictionary for non-dynamic class types. 
+    # modification of the dictionary for non-dynamic class types.
 
     void PyDict_Clear(object p)
-    # Empty an existing dictionary of all key-value pairs. 
+    # Empty an existing dictionary of all key-value pairs.
 
     int PyDict_Contains(object p, object key) except -1
     # Determine if dictionary p contains key. If an item in p is
     # matches key, return 1, otherwise return 0. On error, return
-    # -1. This is equivalent to the Python expression "key in p". 
+    # -1. This is equivalent to the Python expression "key in p".
 
     object PyDict_Copy(object p)
     # Return value: New reference.

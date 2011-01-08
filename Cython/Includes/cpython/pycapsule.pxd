@@ -96,7 +96,7 @@ cdef extern from "Python.h":
     # In other words, if PyCapsule_IsValid() returns a true value,
     # calls to any of the accessors (any function starting with
     # PyCapsule_Get()) are guaranteed to succeed.
-    # 
+    #
     # Return a nonzero value if the object is valid and matches the
     # name passed in. Return 0 otherwise. This function will not fail.
 

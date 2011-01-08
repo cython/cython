@@ -1,5 +1,5 @@
 include MANIFEST.in README.txt INSTALL.txt ToDo.txt USAGE.txt
-include COPYING.txt LICENSE.txt PKG-INFO Makefile
+include COPYING.txt LICENSE.txt Makefile
 include .hgrev
 include setup.py
 include setupegg.py
@@ -15,15 +15,11 @@ include Demos/callback/*
 include Demos/embed/*
 include Demos/freeze/*
 include Demos/libraries/*
-include Demos/Setup.py
 include Demos/Makefile*
 recursive-include Tools *
 recursive-include tests *.pyx *.pxd *.pxi *.py *.h *.BROKEN bugs.txt
 recursive-include tests *_lib.cpp *.srctree
 include runtests.py
-
-include Cython/Mac/Makefile
-include Cython/Mac/_Filemodule_patched.c
 
 include Cython/Debugger/Tests/cfuncs.c
 include Cython/Debugger/Tests/codefile

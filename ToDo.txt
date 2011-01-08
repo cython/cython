@@ -134,7 +134,7 @@ Recognise #line directives?
 
 Catch floating point exceptions?
 
-Check that forward-declared non-external extension types 
+Check that forward-declared non-external extension types
 are defined.
 
 Generate type test when casting from one Python type

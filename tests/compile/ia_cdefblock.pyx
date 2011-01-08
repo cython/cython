@@ -4,7 +4,7 @@ cdef:
         int i
 
     int priv_i
-    
+
     void priv_f():
         global priv_i
         priv_i = 42
@@ -13,12 +13,12 @@ cdef public:
 
     struct PubFoo:
         int i
-    
+
     int pub_v
-    
+
     void pub_f():
         pass
-    
+
     class PubBlarg [object PubBlargObj, type PubBlargType]:
         pass
 

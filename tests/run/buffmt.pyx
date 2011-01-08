@@ -22,7 +22,7 @@ else:
 
 cdef struct align_of_float_helper:
     char ch
-    float d    
+    float d
 cdef struct align_of_int_helper:
     char ch
     int i
@@ -33,19 +33,19 @@ if float_align != 4 or sizeof(float) != 4:
 if int_align != 4 or sizeof(int) != 4:
     raise RuntimeError("Alignment or size of int is %d on this system, please report to cython-dev for a testcase fix" % int_align)
 
- 
+
 cdef class MockBuffer:
     cdef Py_ssize_t zero
     cdef Py_ssize_t minusone
     cdef object format
     cdef object itemsize
-    
+
     def __init__(self, format, itemsize):
         self.format = unicode(format).encode(u"ASCII")
         self.itemsize = itemsize
         self.zero = 0
         self.minusone = -1
-    
+
     def __getbuffer__(self, Py_buffer* info, int flags):
         info.buf = NULL
         info.strides = &self.zero
@@ -64,7 +64,7 @@ def _int(fmt):
     Traceback (most recent call last):
        ...
     ValueError: Buffer dtype mismatch, expected 'int' but got 'char'
-    
+
     >>> _int("if")
     Traceback (most recent call last):
        ...
@@ -92,7 +92,7 @@ def wrongsize():
        ...
     ValueError: Item size of buffer (1 byte) does not match size of 'float' (4 bytes)
 
-    """    
+    """
     cdef object[float] buf = MockBuffer("f", 1)
 
 @testcase
@@ -151,7 +151,7 @@ cdef struct UnpackedStruct4:
 def char3int(fmt):
     """
     >>> char3int("ciii")
-    >>> char3int("c1i1i1i")    
+    >>> char3int("c1i1i1i")
     >>> char3int("c3i")
     >>> char3int("ci2i")
 
@@ -170,7 +170,7 @@ def char3int(fmt):
     ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
 
     #TODO char3int("=cxxx@iii")
-    
+
     Error:
     >>> char3int("cii")
     Traceback (most recent call last):
@@ -211,16 +211,16 @@ def complex_test(fmt):
     >>> complex_test("3Zf")
     >>> complex_test("6f")
     >>> complex_test("3T{Zf}")
-    
+
     >>> complex_test("fZfZff")
     Traceback (most recent call last):
        ...
     ValueError: Buffer dtype mismatch, expected 'float' but got 'complex float' in 'ComplexFloat.imag'
-    
+
     """
     cdef object obj = MockBuffer(fmt, sizeof(ComplexTest))
     cdef object[ComplexTest] buf1 = obj
-    
+
 
 @testcase
 def alignment_string(fmt, exc=None):
@@ -263,7 +263,7 @@ cdef struct MixedComplex:
 def mixed_complex_struct():
     """
     Triggering a specific execution path for this case.
- 
+
     >>> mixed_complex_struct()
     Traceback (most recent call last):
         ...
@@ -281,13 +281,13 @@ cdef packed struct PackedStruct:
     char a
     int b
     PackedSubStruct sub
-    
+
 
 @testcase
 def packed_struct(fmt):
     """
     Assuming int is four bytes:
-    
+
     >>> packed_struct("^cici")
     >>> packed_struct("=cibi")
 
@@ -295,7 +295,7 @@ def packed_struct(fmt):
     Traceback (most recent call last):
         ...
     ValueError: Buffer packing mode currently only allowed at beginning of format string (this is a defect)
-    
+
     However aligned access won't work:
     >>> packed_struct("@cici")
     Traceback (most recent call last):

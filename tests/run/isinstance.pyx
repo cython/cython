@@ -48,6 +48,11 @@ def test_optimised():
     assert isinstance(complex(), complex)
     assert not isinstance(u"foo", int)
     assert isinstance(A, type)
+    assert isinstance(A(), A)
+    cdef type typed_type = A
+    assert isinstance(A(), typed_type)
+    cdef object untyped_type = A
+    assert isinstance(A(), <type>untyped_type)
     return True
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
@@ -59,13 +64,11 @@ def test_optimised_tuple():
     >>> test_optimised_tuple()
     True
     """
-    assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice))
-    assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice))
+    assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
+    assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
+    assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
     return True
 
-@cython.test_assert_path_exists('//SimpleCallNode//SimpleCallNode')
-@cython.test_fail_if_path_exists('//SimpleCallNode//PythonCapiCallNode',
-                                 '//PythonCapiCallNode//SimpleCallNode')
 def test_custom():
     """
     >>> test_custom()

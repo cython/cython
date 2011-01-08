@@ -22,7 +22,7 @@ class ContextManager(object):
     def __exit__(self, a, b, tb):
         print u"exit", typename(a), typename(b), typename(tb)
         return self.exit_ret
-        
+
     def __enter__(self):
         print u"enter"
         return self.value
@@ -36,7 +36,7 @@ def no_as():
     """
     with ContextManager(u"value"):
         print u"hello"
-        
+
 def basic():
     """
     >>> basic()
@@ -46,7 +46,7 @@ def basic():
     """
     with ContextManager(u"value") as x:
         print x
-        
+
 def with_pass():
     """
     >>> with_pass()
@@ -55,7 +55,7 @@ def with_pass():
     """
     with ContextManager(u"value") as x:
         pass
-        
+
 def with_return():
     """
     >>> with_return()

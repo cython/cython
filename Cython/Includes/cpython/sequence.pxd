@@ -16,7 +16,7 @@ cdef extern from "Python.h":
     # this is equivalent to the Python expression "len(o)".
 
     Py_ssize_t PySequence_Length(object o) except -1
-    # Alternate name for PySequence_Size(). 
+    # Alternate name for PySequence_Size().
 
     object PySequence_Concat(object o1, object o2)
     # Return value: New reference.
@@ -117,7 +117,7 @@ cdef extern from "Python.h":
 
     PyObject** PySequence_Fast_ITEMS(object o)
     # Return the underlying array of PyObject pointers. Assumes that o
-    # was returned by PySequence_Fast() and o is not NULL. 
+    # was returned by PySequence_Fast() and o is not NULL.
 
     object PySequence_ITEM(object o, Py_ssize_t i)
     # Return value: New reference.

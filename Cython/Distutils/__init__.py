@@ -8,5 +8,5 @@
 # so that *our* build_ext can make use of it.
 
 from Cython.Distutils.build_ext import build_ext
-    
+
 # from extension import Extension

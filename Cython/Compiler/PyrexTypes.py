@@ -353,6 +353,10 @@ class PyObjectType(PyrexType):
     def can_coerce_to_pyobject(self, env):
         return True
 
+    def default_coerced_ctype(self):
+        "The default C type that this Python type coerces to, or None."
+        return None
+
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
         return not src_type.is_ptr or src_type.is_string
@@ -403,7 +407,16 @@ class BuiltinObjectType(PyObjectType):
     
     def __repr__(self):
         return "<%s>"% self.cname
-        
+
+    def default_coerced_ctype(self):
+        if self.name == 'bytes':
+            return c_char_ptr_type
+        elif self.name == 'bool':
+            return c_bint_type
+        elif self.name == 'float':
+            return c_double_type
+        return None
+
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
@@ -1371,10 +1384,10 @@ impl="""
     }
     #if %(is_float)s
         static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s z) {
-          #if HAVE_HYPOT
-            return hypot%(m)s(z.real, z.imag);
-          #else
+          #if !defined(HAVE_HYPOT) || defined(_MSC_VER)
             return sqrt%(m)s(z.real*z.real + z.imag*z.imag);
+          #else
+            return hypot%(m)s(z.real, z.imag);
           #endif
         }
         static CYTHON_INLINE %(type)s __Pyx_c_pow%(m)s(%(type)s a, %(type)s b) {

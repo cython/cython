@@ -18,7 +18,7 @@ def test(dict d, index):
     >>> test(d, Unhashable())
     Traceback (most recent call last):
     ValueError
-    
+
     >>> test(None, 1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...subscriptable...

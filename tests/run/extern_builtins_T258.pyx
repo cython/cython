@@ -25,7 +25,7 @@ def test_list(list L):
 def test_tuple(tuple t):
     """
     Actual builtin types are restrictive wrt subclassing so optimizations can be safely performed.
-    
+
     >>> test_tuple((1,2))
     2
     >>> class tuple_subclass(tuple): pass

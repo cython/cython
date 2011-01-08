@@ -6,7 +6,7 @@
 import cython
 cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, none_or_sub=object)
+               DebugFlags=object, none_or_sub=object, basestring=object)
 
 import re
 import Naming
@@ -19,9 +19,9 @@ import DebugFlags
 
 from Cython.Utils import none_or_sub
 try:
-    basestring
-except NameError:
-    basestring = str
+    from __builtin__ import basestring
+except ImportError:
+    from builtins import str as basestring
 
 class UtilityCode(object):
     # Stores utility code to add during code generation.
@@ -29,7 +29,7 @@ class UtilityCode(object):
     # See GlobalState.put_utility_code.
     #
     # hashes/equals by instance
-    
+
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
                  proto_block='utility_code_proto'):
         # proto_block: Which code block to dump prototype in. See GlobalState.
@@ -84,8 +84,8 @@ class UtilityCode(object):
                 writer.put(self.cleanup)
             else:
                 self.cleanup(writer, output.module_pos)
-            
-        
+
+
 
 class FunctionState(object):
     # return_label     string          function return point label
@@ -101,7 +101,7 @@ class FunctionState(object):
     def __init__(self, owner, names_taken=cython.set()):
         self.names_taken = names_taken
         self.owner = owner
-        
+
         self.error_label = None
         self.label_counter = 0
         self.labels_used = cython.set()
@@ -127,28 +127,28 @@ class FunctionState(object):
         if name is not None:
             label += '_' + name
         return label
-    
+
     def new_error_label(self):
         old_err_lbl = self.error_label
         self.error_label = self.new_label('error')
         return old_err_lbl
-    
+
     def get_loop_labels(self):
         return (
             self.continue_label,
             self.break_label)
-    
+
     def set_loop_labels(self, labels):
         (self.continue_label,
          self.break_label) = labels
-    
+
     def new_loop_labels(self):
         old_labels = self.get_loop_labels()
         self.set_loop_labels(
-            (self.new_label("continue"), 
+            (self.new_label("continue"),
              self.new_label("break")))
         return old_labels
-    
+
     def get_all_labels(self):
         return (
             self.continue_label,
@@ -172,10 +172,10 @@ class FunctionState(object):
                 new_labels.append(old_label)
         self.set_all_labels(new_labels)
         return old_labels
-    
+
     def use_label(self, lbl):
         self.labels_used.add(lbl)
-        
+
     def label_used(self, lbl):
         return lbl in self.labels_used
 
@@ -402,7 +402,7 @@ class GlobalState(object):
 
     # parts            {string:CCodeWriter}
 
-    
+
     # interned_strings
     # consts
     # interned_nums
@@ -438,7 +438,7 @@ class GlobalState(object):
         'utility_code_def',
         'end'
     ]
-    
+
 
     def __init__(self, writer, emit_linenums=False):
         self.filename_table = {}
@@ -556,7 +556,7 @@ class GlobalState(object):
             w = self.parts['cleanup_module']
             w.putln("}")
             w.exit_cfunc_scope()
-         
+
     def put_pyobject_decl(self, entry):
         self['global_var'].putln("static PyObject *%s;" % entry.cname)
 
@@ -764,7 +764,7 @@ class GlobalState(object):
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
     # The copy&paste duplication is intentional in order to be able
-    # to see quickly how BlockNode worked, until this is replaced.    
+    # to see quickly how BlockNode worked, until this is replaced.
 
     def should_declare(self, cname, entry):
         if cname in self.declared_cnames:
@@ -813,7 +813,7 @@ class GlobalState(object):
     #
     # Utility code state
     #
-    
+
     def use_utility_code(self, utility_code):
         """
         Adds code to the C file. utility_code should
@@ -859,10 +859,10 @@ class CCodeWriter(object):
     - filename_table, filename_list, input_file_contents: All codewriters
       coming from the same root share the same instances simultaneously.
     """
-    
+
     # f                file            output file
     # buffer           StringIOTree
-    
+
     # level            int             indentation level
     # bol              bool            beginning of line?
     # marker           string          comment to emit before next line
@@ -876,7 +876,7 @@ class CCodeWriter(object):
     #                                  about the current class one is in
 
     globalstate = None
-    
+
     def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
@@ -884,7 +884,7 @@ class CCodeWriter(object):
         self.last_marker_line = 0
         self.source_desc = ""
         self.pyclass_stack = []
-        
+
         self.funcstate = None
         self.level = 0
         self.call_level = 0
@@ -916,13 +916,13 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
-        # also put invalid markers (lineno 0), to indicate that those lines 
+        # also put invalid markers (lineno 0), to indicate that those lines
         # have no Cython source code correspondence
         if self.marker is None:
             cython_lineno = self.last_marker_line
         else:
             cython_lineno = self.marker[0]
-        
+
         self.buffer.markers.extend([cython_lineno] * s.count('\n'))
         self.buffer.write(s)
 
@@ -971,7 +971,7 @@ class CCodeWriter(object):
 
     def enter_cfunc_scope(self):
         self.funcstate = FunctionState(self)
-    
+
     def exit_cfunc_scope(self):
         self.funcstate = None
 
@@ -1008,7 +1008,7 @@ class CCodeWriter(object):
             self.emit_marker()
         if self.emit_linenums and self.last_marker_line != 0:
             self.write('\n#line %s "%s"\n' % (self.last_marker_line, self.source_desc))
-        
+
         if code:
             if safe:
                 self.put_safe(code)
@@ -1016,7 +1016,7 @@ class CCodeWriter(object):
                 self.put(code)
         self.write("\n");
         self.bol = 1
-    
+
     def emit_marker(self):
         self.write("\n");
         self.indent()
@@ -1054,18 +1054,18 @@ class CCodeWriter(object):
 
     def increase_indent(self):
         self.level = self.level + 1
-    
+
     def decrease_indent(self):
         self.level = self.level - 1
-    
+
     def begin_block(self):
         self.putln("{")
         self.increase_indent()
-    
+
     def end_block(self):
         self.decrease_indent()
         self.putln("}")
-    
+
     def indent(self):
         self.write("  " * self.level)
 
@@ -1089,21 +1089,21 @@ class CCodeWriter(object):
         self.marker = (line, marker)
         if self.emit_linenums:
             self.source_desc = source_desc.get_escaped_description()
-        
+
     def put_label(self, lbl):
         if lbl in self.funcstate.labels_used:
             self.putln("%s:;" % lbl)
-    
+
     def put_goto(self, lbl):
         self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
-    
+
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
             definition = True):
         for entry in entries:
             if not entry.in_cinclude:
                 self.put_var_declaration(entry, static, dll_linkage, definition)
-    
+
     def put_var_declaration(self, entry, static = 0, dll_linkage = None,
             definition = True):
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
@@ -1146,7 +1146,7 @@ class CCodeWriter(object):
     def put_h_guard(self, guard):
         self.putln("#ifndef %s" % guard)
         self.putln("#define %s" % guard)
-    
+
     def unlikely(self, cond):
         if Options.gcc_branch_hints:
             return 'unlikely(%s)' % cond
@@ -1162,17 +1162,17 @@ class CCodeWriter(object):
             return "(PyObject *)" + entry.cname
         else:
             return entry.cname
-    
+
     def as_pyobject(self, cname, type):
         from PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
-    
+
     def put_gotref(self, cname):
         self.putln("__Pyx_GOTREF(%s);" % cname)
-    
+
     def put_giveref(self, cname):
         self.putln("__Pyx_GIVEREF(%s);" % cname)
-    
+
     def put_xgiveref(self, cname):
         self.putln("__Pyx_XGIVEREF(%s);" % cname)
 
@@ -1184,7 +1184,7 @@ class CCodeWriter(object):
             self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
         else:
             self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
-    
+
     def put_decref(self, cname, type, nanny=True):
         if nanny:
             self.putln("__Pyx_DECREF(%s);" % self.as_pyobject(cname, type))
@@ -1194,7 +1194,7 @@ class CCodeWriter(object):
     def put_var_gotref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_GOTREF(%s);" % self.entry_as_pyobject(entry))
-        
+
     def put_var_giveref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_GIVEREF(%s);" % self.entry_as_pyobject(entry))
@@ -1210,7 +1210,7 @@ class CCodeWriter(object):
     def put_var_incref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
-    
+
     def put_decref_clear(self, cname, type, nanny=True):
         from PyrexTypes import py_object_type, typecast
         if nanny:
@@ -1219,13 +1219,13 @@ class CCodeWriter(object):
         else:
             self.putln("Py_DECREF(%s); %s = 0;" % (
                 typecast(py_object_type, type, cname), cname))
-    
+
     def put_xdecref(self, cname, type, nanny=True):
         if nanny:
             self.putln("__Pyx_XDECREF(%s);" % self.as_pyobject(cname, type))
         else:
             self.putln("Py_XDECREF(%s);" % self.as_pyobject(cname, type))
-    
+
     def put_xdecref_clear(self, cname, type, nanny=True):
         if nanny:
             self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
@@ -1240,21 +1240,21 @@ class CCodeWriter(object):
                 self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
             else:
                 self.putln("__Pyx_DECREF(%s);" % self.entry_as_pyobject(entry))
-    
+
     def put_var_decref_clear(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_DECREF(%s); %s = 0;" % (
                 self.entry_as_pyobject(entry), entry.cname))
-    
+
     def put_var_xdecref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
-    
+
     def put_var_xdecref_clear(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
                 self.entry_as_pyobject(entry), entry.cname))
-    
+
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
             if not used_only or entry.used:
@@ -1262,15 +1262,15 @@ class CCodeWriter(object):
                     self.put_var_xdecref(entry)
                 else:
                     self.put_var_decref(entry)
-    
+
     def put_var_xdecrefs(self, entries):
         for entry in entries:
             self.put_var_xdecref(entry)
-    
+
     def put_var_xdecrefs_clear(self, entries):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
-    
+
     def put_init_to_py_none(self, cname, type, nanny=True):
         from PyrexTypes import py_object_type, typecast
         py_none = typecast(type, py_object_type, "Py_None")
@@ -1278,7 +1278,7 @@ class CCodeWriter(object):
             self.putln("%s = %s; __Pyx_INCREF(Py_None);" % (cname, py_none))
         else:
             self.putln("%s = %s; Py_INCREF(Py_None);" % (cname, py_none))
-    
+
     def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
         code = template % entry.cname
         #if entry.type.is_extension_type:
@@ -1306,7 +1306,7 @@ class CCodeWriter(object):
                 method_flags += [method_coexist]
             self.putln(
                 '{__Pyx_NAMESTR("%s"), (PyCFunction)%s, %s, __Pyx_DOCSTR(%s)}%s' % (
-                    entry.name, 
+                    entry.name,
                     entry.func_cname,
                     "|".join(method_flags),
                     doc_code,
@@ -1330,7 +1330,7 @@ class CCodeWriter(object):
             Naming.lineno_cname,
             pos[1],
             cinfo)
-        
+
     def error_goto(self, pos):
         lbl = self.funcstate.error_label
         self.funcstate.use_label(lbl)
@@ -1340,16 +1340,16 @@ class CCodeWriter(object):
 
     def error_goto_if(self, cond, pos):
         return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
-            
+
     def error_goto_if_null(self, cname, pos):
         return self.error_goto_if("!%s" % cname, pos)
-    
+
     def error_goto_if_neg(self, cname, pos):
         return self.error_goto_if("%s < 0" % cname, pos)
-    
+
     def error_goto_if_PyErr(self, pos):
         return self.error_goto_if("PyErr_Occurred()", pos)
-    
+
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
 
@@ -1361,13 +1361,13 @@ class CCodeWriter(object):
 
     def put_trace_declarations(self):
         self.putln('__Pyx_TraceDeclarations');
-    
+
     def put_trace_call(self, name, pos):
         self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]));
-    
+
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")
-    
+
     def put_trace_return(self, retvalue_cname):
         self.putln("__Pyx_TraceReturn(%s);" % retvalue_cname)
 
@@ -1379,13 +1379,13 @@ class PyrexCodeWriter(object):
     def __init__(self, outfile_name):
         self.f = Utils.open_new_file(outfile_name)
         self.level = 0
-    
+
     def putln(self, code):
         self.f.write("%s%s\n" % (" " * self.level, code))
-    
+
     def indent(self):
         self.level += 1
-    
+
     def dedent(self):
         self.level -= 1
 
