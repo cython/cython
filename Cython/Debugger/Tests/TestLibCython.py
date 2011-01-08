@@ -16,6 +16,7 @@ from distutils import ccompiler
 
 import runtests
 import Cython.Distutils.extension
+import Cython.Distutils.build_ext
 from Cython.Debugger import Cygdb as cygdb
 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +24,10 @@ codefile = os.path.join(root, 'codefile')
 cfuncs_file = os.path.join(root, 'cfuncs.c')
 with open(codefile) as f:
     source_to_lineno = dict((line.strip(), i + 1) for i, line in enumerate(f))
+
+# Cython.Distutils.__init__ imports build_ext from build_ext which means we
+# can't access the module anymore. Get it from sys.modules instead.
+build_ext = sys.modules['Cython.Distutils.build_ext']
 
 class DebuggerTestCase(unittest.TestCase):
 
@@ -52,6 +57,9 @@ class DebuggerTestCase(unittest.TestCase):
             module='codefile',
         )
 
+        optimization_disabler = build_ext.Optimization()
+        optimization_disabler.disable_optimization()
+
         cython_compile_testcase = runtests.CythonCompileTestCase(
             workdir=self.tempdir,
             # we clean up everything (not only compiled files)
@@ -77,6 +85,8 @@ class DebuggerTestCase(unittest.TestCase):
             **opts
         )
 
+        optimization_disabler.restore_state()
+
         # ext = Cython.Distutils.extension.Extension(
             # 'codefile',
             # ['codefile.pyx'],
@@ -95,6 +105,7 @@ class DebuggerTestCase(unittest.TestCase):
 
 
 class GdbDebuggerTestCase(DebuggerTestCase):
+
     def setUp(self):
         super(GdbDebuggerTestCase, self).setUp()
 
