@@ -36,7 +36,7 @@ cdef extern from "Python.h":
     object PyNumber_FloorDivide(object o1, object o2)
     # Return value: New reference.
     # Return the floor of o1 divided by o2, or NULL on failure. This
-    # is equivalent to the ``classic'' division of integers. 
+    # is equivalent to the ``classic'' division of integers.
 
     object PyNumber_TrueDivide(object o1, object o2)
     # Return value: New reference.
@@ -45,7 +45,7 @@ cdef extern from "Python.h":
     # ``approximate'' because binary floating point numbers are
     # approximate; it is not possible to represent all real numbers in
     # base two. This function can return a floating point value when
-    # passed two integers. 
+    # passed two integers.
 
     object PyNumber_Remainder(object o1, object o2)
     # Return value: New reference.
@@ -113,7 +113,7 @@ cdef extern from "Python.h":
 
     object PyNumber_Or(object o1, object o2)
     # Return value: New reference.
-    # Returns the ``bitwise or'' of o1 and o2 on success, or NULL on failure. This is the equivalent of the Python expression "o1 | o2". 
+    # Returns the ``bitwise or'' of o1 and o2 on success, or NULL on failure. This is the equivalent of the Python expression "o1 | o2".
 
     object PyNumber_InPlaceAdd(object o1, object o2)
     # Return value: New reference.
@@ -144,7 +144,7 @@ cdef extern from "Python.h":
     # Returns the mathematical floor of dividing o1 by o2, or NULL on
     # failure. The operation is done in-place when o1 supports
     # it. This is the equivalent of the Python statement "o1 //=
-    # o2". 
+    # o2".
 
     object PyNumber_InPlaceTrueDivide(object o1, object o2)
     # Return value: New reference.
@@ -154,7 +154,7 @@ cdef extern from "Python.h":
     # approximate; it is not possible to represent all real numbers in
     # base two. This function can return a floating point value when
     # passed two integers. The operation is done in-place when o1
-    # supports it. 
+    # supports it.
 
     object PyNumber_InPlaceRemainder(object o1, object o2)
     # Return value: New reference.
@@ -244,7 +244,7 @@ cdef extern from "Python.h":
     # exception that will be raised (usually IndexError or
     # OverflowError). If exc is NULL, then the exception is cleared
     # and the value is clipped to PY_SSIZE_T_MIN for a negative
-    # integer or PY_SSIZE_T_MAX for a positive integer. 
+    # integer or PY_SSIZE_T_MAX for a positive integer.
 
     bint PyIndex_Check(object o)
     # Returns True if o is an index integer (has the nb_index slot of

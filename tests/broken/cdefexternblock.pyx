@@ -1,12 +1,12 @@
 cdef extern from "cheese.h":
 
     ctypedef int camembert
-    
+
     struct roquefort:
         int x
-        
+
     char *swiss
-    
+
     void cheddar()
 
     class external.runny [object runny_obj]:

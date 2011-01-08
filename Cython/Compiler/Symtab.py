@@ -26,10 +26,10 @@ possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
 iso_c99_keywords = set(
-['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do', 
-    'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if', 
-    'int', 'long', 'register', 'return', 'short', 'signed', 'sizeof', 
-    'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void', 
+['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
+    'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
+    'int', 'long', 'register', 'return', 'short', 'signed', 'sizeof',
+    'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void',
     'volatile', 'while',
     '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict'])
 
@@ -44,14 +44,14 @@ def c_safe_identifier(cname):
 
 class BufferAux(object):
     writable_needed = False
-    
+
     def __init__(self, buffer_info_var, stridevars, shapevars,
                  suboffsetvars):
         self.buffer_info_var = buffer_info_var
         self.stridevars = stridevars
         self.shapevars = shapevars
         self.suboffsetvars = suboffsetvars
-        
+
     def __repr__(self):
         return "<BufferAux %r>" % self.__dict__
 
@@ -185,14 +185,14 @@ class Entry(object):
         self.init = init
         self.overloaded_alternatives = []
         self.assignments = []
-    
+
     def __repr__(self):
         return "Entry(name=%s, type=%s)" % (self.name, self.type)
-        
+
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
         error(self.pos, "Previous declaration is here")
-    
+
     def all_alternatives(self):
         return [self] + self.overloaded_alternatives
 
@@ -239,7 +239,7 @@ class Scope(object):
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
-    
+
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
         # The parent_scope is used to derive the qualified name of this scope.
@@ -279,25 +279,25 @@ class Scope(object):
 
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
-    
+
     def next_branch(self, pos):
         self.control_flow = self.control_flow.next_branch(pos)
-        
+
     def finish_branching(self, pos):
         self.control_flow = self.control_flow.finish_branch(pos)
-        
+
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
 
     def qualifying_scope(self):
         return self.parent_scope
-    
+
     def mangle(self, prefix, name = None):
         if name:
             return "%s%s%s" % (prefix, self.scope_prefix, name)
         else:
             return self.parent_scope.mangle(prefix, self.name)
-    
+
     def mangle_internal(self, name):
         # Mangle an internal name so as not to clash with any
         # user-defined name in this scope.
@@ -320,19 +320,19 @@ class Scope(object):
     def global_scope(self):
         # Return the module-level scope containing this scope.
         return self.outer_scope.global_scope()
-    
+
     def builtin_scope(self):
         # Return the module-level scope containing this scope.
         return self.outer_scope.builtin_scope()
 
     def declare(self, name, cname, type, pos, visibility):
         # Create new entry, and add to dictionary if
-        # name is not None. Reports a warning if already 
+        # name is not None. Reports a warning if already
         # declared.
         if type.is_buffer and not isinstance(self, LocalScope):
             error(pos, ERR_BUF_LOCALONLY)
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
-            # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names 
+            # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
         if name and name in entries:
@@ -352,7 +352,7 @@ class Scope(object):
         entry.scope = self
         entry.visibility = visibility
         return entry
-    
+
     def qualify_name(self, name):
         return EncodedString("%s.%s" % (self.qualified_name, name))
 
@@ -367,8 +367,8 @@ class Scope(object):
         entry.is_const = 1
         entry.value_node = value
         return entry
-    
-    def declare_type(self, name, type, pos, 
+
+    def declare_type(self, name, type, pos,
             cname = None, visibility = 'private', defining = 1):
         # Add an entry for a type definition.
         if not cname:
@@ -379,7 +379,7 @@ class Scope(object):
             self.type_entries.append(entry)
         # here we would set as_variable to an object representing this type
         return entry
-    
+
     def declare_typedef(self, name, base_type, pos, cname = None,
             visibility = 'private'):
         if not cname:
@@ -388,7 +388,7 @@ class Scope(object):
             else:
                 cname = self.mangle(Naming.type_prefix, name)
         try:
-            type = PyrexTypes.create_typedef_type(name, base_type, cname, 
+            type = PyrexTypes.create_typedef_type(name, base_type, cname,
                                                   (visibility == 'extern'))
         except ValueError, e:
             error(pos, e.args[0])
@@ -396,8 +396,8 @@ class Scope(object):
         entry = self.declare_type(name, type, pos, cname, visibility)
         type.qualified_name = entry.qualified_name
         return entry
-        
-    def declare_struct_or_union(self, name, kind, scope, 
+
+    def declare_struct_or_union(self, name, kind, scope,
             typedef_flag, pos, cname = None, visibility = 'private',
             packed = False):
         # Add an entry for a struct or union definition.
@@ -429,7 +429,7 @@ class Scope(object):
         if not scope and not entry.type.scope:
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
-    
+
     def declare_cpp_class(self, name, scope,
             pos, cname = None, base_classes = [],
             visibility = 'extern', templates = None):
@@ -456,11 +456,11 @@ class Scope(object):
             for T in templates:
                 template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
                 template_entry.is_type = 1
-        
+
         def declare_inherited_attributes(entry, base_classes):
             for base_class in base_classes:
                 declare_inherited_attributes(entry, base_class.base_classes)
-                entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)                 
+                entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
         if entry.type.scope:
             declare_inherited_attributes(entry, base_classes)
         if self.is_cpp_class_scope:
@@ -471,12 +471,12 @@ class Scope(object):
         if typedef_flag != entry.type.typedef_flag:
             error(pos, "'%s' previously declared using '%s'" % (
                 entry.name, ("cdef", "ctypedef")[entry.type.typedef_flag]))
-    
+
     def check_previous_visibility(self, entry, visibility, pos):
         if entry.visibility != visibility:
             error(pos, "'%s' previously declared as '%s'" % (
                 entry.name, entry.visibility))
-    
+
     def declare_enum(self, name, pos, cname, typedef_flag,
             visibility = 'private'):
         if name:
@@ -492,9 +492,9 @@ class Scope(object):
             visibility = visibility)
         entry.enum_values = []
         self.sue_entries.append(entry)
-        return entry    
-    
-    def declare_var(self, name, type, pos, 
+        return entry
+
+    def declare_var(self, name, type, pos,
             cname = None, visibility = 'private', is_cdef = 0):
         # Add an entry for a variable.
         if not cname:
@@ -510,7 +510,7 @@ class Scope(object):
         entry.is_variable = 1
         self.control_flow.set_state((), (name, 'initialized'), False)
         return entry
-        
+
     def declare_builtin(self, name, pos):
         return self.outer_scope.declare_builtin(name, pos)
 
@@ -526,7 +526,7 @@ class Scope(object):
     def declare_pyfunction(self, name, pos, allow_redefine=False, visibility='extern'):
         # Add an entry for a Python function.
         entry = self.lookup_here(name)
-        if not allow_redefine:
+        if not allow_redefine or Options.disable_function_redefinition:
             return self._declare_pyfunction(name, pos, visibility=visibility, entry=entry)
         if entry:
             if entry.type.is_unspecified:
@@ -558,8 +558,8 @@ class Scope(object):
 
     def register_pyfunction(self, entry):
         self.pyfunc_entries.append(entry)
-    
-    def declare_cfunction(self, name, type, pos, 
+
+    def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', defining = 0,
                           api = 0, in_pxd = 0, modifiers = (), utility_code = None):
         # Add an entry for a C function.
@@ -609,7 +609,7 @@ class Scope(object):
             entry.func_modifiers = modifiers
         entry.utility_code = utility_code
         return entry
-    
+
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
         # Add a C function entry without giving it a func_cname.
         entry = self.declare(name, cname, type, pos, visibility)
@@ -618,7 +618,7 @@ class Scope(object):
             entry.func_modifiers = modifiers
         self.cfunc_entries.append(entry)
         return entry
-    
+
     def find(self, name, pos):
         # Look up name, report error if not found.
         entry = self.lookup(name)
@@ -626,7 +626,7 @@ class Scope(object):
             return entry
         else:
             error(pos, "'%s' is not declared" % name)
-    
+
     def find_imported_module(self, path, pos):
         # Look up qualified name, must be a module, report error if not found.
         # Path is a list of names.
@@ -641,7 +641,7 @@ class Scope(object):
                 error(pos, "'%s' is not a cimported module" % '.'.join(path))
                 return None
         return scope
-        
+
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
@@ -652,7 +652,7 @@ class Scope(object):
     def lookup_here(self, name):
         # Look up in this scope only, return None if not found.
         return self.entries.get(name, None)
-        
+
     def lookup_target(self, name):
         # Look up name in this scope only. Declare as Python
         # variable if not found.
@@ -660,12 +660,12 @@ class Scope(object):
         if not entry:
             entry = self.declare_var(name, py_object_type, None)
         return entry
-        
+
     def lookup_type(self, name):
         entry = self.lookup(name)
         if entry and entry.is_type:
             return entry.type
-    
+
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
             obj_type = operands[0].type
@@ -685,19 +685,19 @@ class Scope(object):
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
         pass
-        
+
     def defines_any(self, names):
         # Test whether any of the given names are
         # defined in this scope.
         for name in names:
-            if name in self.entries:    
+            if name in self.entries:
                 return 1
         return 0
-    
+
     def infer_types(self):
         from TypeInference import get_type_inferer
         get_type_inferer().infer_types(self)
-    
+
     def is_cpp(self):
         outer = self.outer_scope
         if outer is None:
@@ -711,7 +711,7 @@ class PreImportScope(Scope):
 
     def __init__(self):
         Scope.__init__(self, Options.pre_import, None, None)
-        
+
     def declare_builtin(self, name, pos):
         entry = self.declare(name, name, py_object_type, pos, 'private')
         entry.is_variable = True
@@ -721,25 +721,32 @@ class PreImportScope(Scope):
 
 class BuiltinScope(Scope):
     #  The builtin namespace.
-    
+
     def __init__(self):
         if Options.pre_import is None:
             Scope.__init__(self, "__builtin__", None, None)
         else:
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
-        
+
         for name, definition in self.builtin_entries.iteritems():
             cname, type = definition
             self.declare_var(name, type, None, cname)
-        
+
+    def lookup(self, name, language_level=None):
+        # 'language_level' is passed by ModuleScope
+        if language_level == 3:
+            if name == 'str':
+                name = 'unicode'
+        return Scope.lookup(self, name)
+
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name):
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
                 error(pos, "undeclared name not builtin: %s"%name)
-    
+
     def declare_builtin_cfunction(self, name, type, cname, python_equiv = None,
             utility_code = None):
         # If python_equiv == "*", the Python equivalent has the same name
@@ -758,7 +765,7 @@ class BuiltinScope(Scope):
             var_entry.utility_code = utility_code
             entry.as_variable = var_entry
         return entry
-        
+
     def declare_builtin_type(self, name, cname, utility_code = None, objstruct_cname = None):
         name = EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname, objstruct_cname)
@@ -839,7 +846,7 @@ class ModuleScope(Scope):
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     # has_import_star      boolean            Module contains import *
     # cpp                  boolean            Compiling a C++ file
-    
+
     is_module_scope = 1
     has_import_star = 0
 
@@ -875,13 +882,19 @@ class ModuleScope(Scope):
         self.namespace_cname = self.module_cname
         for name in ['__builtins__', '__name__', '__file__', '__doc__']:
             self.declare_var(EncodedString(name), py_object_type, None)
-    
+
     def qualifying_scope(self):
         return self.parent_module
-    
+
     def global_scope(self):
         return self
-    
+
+    def lookup(self, name):
+        entry = self.lookup_here(name)
+        if entry is not None:
+            return entry
+        return self.outer_scope.lookup(name, language_level = self.context.language_level)
+
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) and name != 'xrange':
             # 'xrange' is special cased in Code.py
@@ -915,26 +928,26 @@ class ModuleScope(Scope):
         # has not been referenced before.
         return self.global_scope().context.find_module(
             module_name, relative_to = self.parent_module, pos = pos)
-    
+
     def find_submodule(self, name):
         # Find and return scope for a submodule of this module,
         # creating a new empty one if necessary. Doesn't parse .pxd.
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name, 
+            scope = ModuleScope(name,
                 parent_module = self, context = self.context)
             self.module_entries[name] = scope
         return scope
-    
+
     def lookup_submodule(self, name):
         # Return scope for submodule of this module, or None.
         return self.module_entries.get(name, None)
-    
+
     def add_include_file(self, filename):
         if filename not in self.python_include_files \
             and filename not in self.include_files:
                 self.include_files.append(filename)
-    
+
     def add_imported_module(self, scope):
         if scope not in self.cimported_modules:
             for filename in scope.include_files:
@@ -942,13 +955,13 @@ class ModuleScope(Scope):
             self.cimported_modules.append(scope)
             for m in scope.cimported_modules:
                 self.add_imported_module(m)
-    
+
     def add_imported_entry(self, name, entry, pos):
         if entry not in self.entries:
             self.entries[name] = entry
         else:
             warning(pos, "'%s' redeclared  " % name, 0)
-    
+
     def declare_module(self, name, scope, pos):
         # Declare a cimported module. This is represented as a
         # Python module-level variable entry with a module
@@ -965,7 +978,7 @@ class ModuleScope(Scope):
                 # every module appearing in an import list.
                 # It shouldn't be an error for a module
                 # name to appear again, and indeed the generated
-                # code compiles fine. 
+                # code compiles fine.
                 return entry
                 warning(pos, "'%s' redeclared  " % name, 0)
                 return None
@@ -974,14 +987,14 @@ class ModuleScope(Scope):
         entry.as_module = scope
         self.add_imported_module(scope)
         return entry
-    
-    def declare_var(self, name, type, pos, 
+
+    def declare_var(self, name, type, pos,
             cname = None, visibility = 'private', is_cdef = 0):
         # Add an entry for a global variable. If it is a Python
-        # object type, and not declared with cdef, it will live 
-        # in the module dictionary, otherwise it will be a C 
+        # object type, and not declared with cdef, it will live
+        # in the module dictionary, otherwise it will be a C
         # global variable.
-        entry = Scope.declare_var(self, name, type, pos, 
+        entry = Scope.declare_var(self, name, type, pos,
             cname, visibility, is_cdef)
         if not visibility in ('private', 'public', 'extern'):
             error(pos, "Module-level variable cannot be declared %s" % visibility)
@@ -998,12 +1011,12 @@ class ModuleScope(Scope):
                 entry.init = 0
             self.var_entries.append(entry)
         return entry
-    
+
     def declare_global(self, name, pos):
         entry = self.lookup_here(name)
         if not entry:
             self.declare_var(name, py_object_type, pos)
-    
+
     def use_utility_code(self, new_code):
         if new_code is not None:
             self.utility_code_list.append(new_code)
@@ -1014,7 +1027,7 @@ class ModuleScope(Scope):
         buffer_defaults = None):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
-        # declarations for anonymous structs. 
+        # declarations for anonymous structs.
         if typedef_flag and visibility != 'extern':
             if visibility != 'public':
                 warning(pos, "ctypedef only valid for public and extern classes", 2)
@@ -1061,7 +1074,7 @@ class ModuleScope(Scope):
             elif not entry.in_cinclude:
                 type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)
             else:
-                error(entry.pos, 
+                error(entry.pos,
                     "Object name required for 'public' or 'extern' C class")
             self.attach_var_entry_to_c_class(entry)
             self.c_class_entries.append(entry)
@@ -1098,20 +1111,20 @@ class ModuleScope(Scope):
         if objstruct_cname:
             if type.objstruct_cname and type.objstruct_cname != objstruct_cname:
                 error(pos, "Object struct name differs from previous declaration")
-            type.objstruct_cname = objstruct_cname        
+            type.objstruct_cname = objstruct_cname
         if typeobj_cname:
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
                     error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
         #
-        # Return new or existing entry    
+        # Return new or existing entry
         #
         return entry
-    
+
     def check_for_illegal_incomplete_ctypedef(self, typedef_flag, pos):
         if typedef_flag and not self.in_cinclude:
             error(pos, "Forward-referenced type must use 'cdef', not 'ctypedef'")
-    
+
     def allocate_vtable_names(self, entry):
         #  If extension type has a vtable, allocate vtable struct and
         #  slot names for it.
@@ -1121,6 +1134,19 @@ class ModuleScope(Scope):
             type.vtabslot_cname = "%s.%s" % (
                 Naming.obj_base_cname, type.base_type.vtabslot_cname)
         elif type.scope and type.scope.cfunc_entries:
+            # one special case here: when inheriting from builtin
+            # types, the methods may also be built-in, in which
+            # case they won't need a vtable
+            entry_count = len(type.scope.cfunc_entries)
+            base_type = type.base_type
+            while base_type:
+                # FIXME: this will break if we ever get non-inherited C methods
+                if not base_type.scope or entry_count > len(base_type.scope.cfunc_entries):
+                    break
+                if base_type.is_builtin_type:
+                    # builtin base type defines all methods => no vtable needed
+                    return
+                base_type = base_type.base_type
             #print "...allocating vtabslot_cname because there are C methods" ###
             type.vtabslot_cname = Naming.vtabslot_cname
         if type.vtabslot_cname:
@@ -1192,17 +1218,17 @@ class ModuleScope(Scope):
             self.check_c_class(entry)
 
     def check_c_functions(self):
-        # Performs post-analysis checking making sure all 
+        # Performs post-analysis checking making sure all
         # defined c functions are actually implemented.
         for name, entry in self.entries.items():
             if entry.is_cfunction:
-                if (entry.defined_in_pxd 
+                if (entry.defined_in_pxd
                         and entry.scope is self
                         and entry.visibility != 'extern'
-                        and not entry.in_cinclude 
+                        and not entry.in_cinclude
                         and not entry.is_implemented):
                     error(entry.pos, "Non-extern C function '%s' declared but not defined" % name)
-    
+
     def attach_var_entry_to_c_class(self, entry):
         # The name of an extension class has to serve as both a type
         # name and a variable name holding the type object. It is
@@ -1219,21 +1245,21 @@ class ModuleScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
-    
+
     def is_cpp(self):
         return self.cpp
-        
+
     def infer_types(self):
         from TypeInference import PyObjectTypeInferer
         PyObjectTypeInferer().infer_types(self)
-        
+
 class LocalScope(Scope):
 
     def __init__(self, name, outer_scope, parent_scope = None):
         if parent_scope is None:
             parent_scope = outer_scope
         Scope.__init__(self, name, outer_scope, parent_scope)
-    
+
     def mangle(self, prefix, name):
         return prefix + name
 
@@ -1249,13 +1275,13 @@ class LocalScope(Scope):
         self.arg_entries.append(entry)
         self.control_flow.set_state((), (name, 'source'), 'arg')
         return entry
-    
-    def declare_var(self, name, type, pos, 
+
+    def declare_var(self, name, type, pos,
             cname = None, visibility = 'private', is_cdef = 0):
         # Add an entry for a local variable.
         if visibility in ('public', 'readonly'):
             error(pos, "Local variable cannot be declared %s" % visibility)
-        entry = Scope.declare_var(self, name, type, pos, 
+        entry = Scope.declare_var(self, name, type, pos,
             cname, visibility, is_cdef)
         if type.is_pyobject and not Options.init_local_none:
             entry.init = "0"
@@ -1263,7 +1289,7 @@ class LocalScope(Scope):
         entry.is_local = 1
         self.var_entries.append(entry)
         return entry
-    
+
     def declare_global(self, name, pos):
         # Pull entry from global scope into local scope.
         if self.lookup_here(name):
@@ -1271,7 +1297,7 @@ class LocalScope(Scope):
         else:
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
-        
+
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
@@ -1280,7 +1306,7 @@ class LocalScope(Scope):
             if entry.scope is not self and entry.scope.is_closure_scope:
                 if hasattr(entry.scope, "scope_class"):
                     raise InternalError, "lookup() after scope class created."
-                # The actual c fragment for the different scopes differs 
+                # The actual c fragment for the different scopes differs
                 # on the outside and inside, so we make a new entry
                 entry.in_closure = True
                 # Would it be better to declare_var here?
@@ -1292,7 +1318,7 @@ class LocalScope(Scope):
                 self.entries[name] = inner_entry
                 return inner_entry
         return entry
-            
+
     def mangle_closure_cnames(self, outer_scope_cname):
         for entry in self.entries.values():
             if entry.from_closure:
@@ -1350,7 +1376,7 @@ class ClosureScope(LocalScope):
 #        for entry in self.entries.values() + self.temp_entries:
 #            entry.in_closure = 1
 #        LocalScope.mangle_closure_cnames(self, scope_var)
-    
+
 #    def mangle(self, prefix, name):
 #        return "%s->%s" % (self.cur_scope_cname, name)
 #        return "%s->%s" % (self.closure_cname, name)
@@ -1360,11 +1386,11 @@ class ClosureScope(LocalScope):
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
-    
+
     def __init__(self, name="?"):
         Scope.__init__(self, name, None, None)
 
-    def declare_var(self, name, type, pos, 
+    def declare_var(self, name, type, pos,
             cname = None, visibility = 'private', is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
@@ -1384,7 +1410,7 @@ class StructOrUnionScope(Scope):
                   "C struct/union member cannot be declared %s" % visibility)
         return entry
 
-    def declare_cfunction(self, name, type, pos, 
+    def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', defining = 0,
                           api = 0, in_pxd = 0, modifiers = ()): # currently no utility code ...
         return self.declare_var(name, type, pos, cname, visibility)
@@ -1408,20 +1434,20 @@ class ClassScope(Scope):
         if entry:
             return entry
         if name == "classmethod":
-            # We don't want to use the builtin classmethod here 'cause it won't do the 
-            # right thing in this scope (as the class memebers aren't still functions). 
-            # Don't want to add a cfunction to this scope 'cause that would mess with 
-            # the type definition, so we just return the right entry. 
+            # We don't want to use the builtin classmethod here 'cause it won't do the
+            # right thing in this scope (as the class memebers aren't still functions).
+            # Don't want to add a cfunction to this scope 'cause that would mess with
+            # the type definition, so we just return the right entry.
             self.use_utility_code(classmethod_utility_code)
             entry = Entry(
-                "classmethod", 
-                "__Pyx_Method_ClassMethod", 
+                "classmethod",
+                "__Pyx_Method_ClassMethod",
                 PyrexTypes.CFuncType(
                     py_object_type,
                     [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
             entry.is_cfunction = 1
         return entry
-    
+
 
 class PyClassScope(ClassScope):
     #  Namespace of a Python class.
@@ -1429,13 +1455,13 @@ class PyClassScope(ClassScope):
     #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
-    
-    def declare_var(self, name, type, pos, 
+
+    def declare_var(self, name, type, pos,
             cname = None, visibility = 'private', is_cdef = 0):
         if type is unspecified_type:
             type = py_object_type
         # Add an entry for a class attribute.
-        entry = Scope.declare_var(self, name, type, pos, 
+        entry = Scope.declare_var(self, name, type, pos,
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
         entry.is_pyclass_attr = 1
@@ -1458,9 +1484,9 @@ class CClassScope(ClassScope):
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
     #  inherited_var_entries [Entry]  Adapted var entries from base class
-    
+
     is_c_class_scope = 1
-    
+
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
@@ -1471,7 +1497,7 @@ class CClassScope(ClassScope):
         self.inherited_var_entries = []
         self.defined = 0
         self.implemented = 0
-    
+
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
@@ -1480,7 +1506,7 @@ class CClassScope(ClassScope):
                 self.parent_type.base_type.scope is not None and
                 self.parent_type.base_type.scope.needs_gc())
 
-    def declare_var(self, name, type, pos, 
+    def declare_var(self, name, type, pos,
             cname = None, visibility = 'private', is_cdef = 0):
         if is_cdef:
             # Add an entry for an attribute.
@@ -1489,7 +1515,7 @@ class CClassScope(ClassScope):
                     "C attributes cannot be added in implementation part of"
                     " extension type defined in a pxd")
             if get_special_method_signature(name):
-                error(pos, 
+                error(pos,
                     "The name '%s' is reserved for a special method."
                         % name)
             if not cname:
@@ -1520,7 +1546,7 @@ class CClassScope(ClassScope):
             if type is unspecified_type:
                 type = py_object_type
             # Add an entry for a class attribute.
-            entry = Scope.declare_var(self, name, type, pos, 
+            entry = Scope.declare_var(self, name, type, pos,
                 cname, visibility, is_cdef)
             entry.is_member = 1
             entry.is_pyglobal = 1 # xxx: is_pyglobal changes behaviour in so many places that
@@ -1535,9 +1561,8 @@ class CClassScope(ClassScope):
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
             error(pos, "Special method %s must be implemented via __richcmp__" % name)
         if name == "__new__":
-            warning(pos, "__new__ method of extension type will change semantics "
+            error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-            name = EncodedString("__cinit__")
         entry = self.declare_var(name, py_object_type, pos, visibility='extern')
         special_sig = get_special_method_signature(name)
         if special_sig:
@@ -1551,12 +1576,12 @@ class CClassScope(ClassScope):
 
         self.pyfunc_entries.append(entry)
         return entry
-    
+
     def lookup_here(self, name):
         if name == "__new__":
             name = EncodedString("__cinit__")
         return ClassScope.lookup_here(self, name)
-    
+
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private',
                           defining = 0, api = 0, in_pxd = 0, modifiers = (),
@@ -1596,7 +1621,7 @@ class CClassScope(ClassScope):
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
         return entry
-        
+
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
         # Add a cfunction entry without giving it a func_cname.
         prev_entry = self.lookup_here(name)
@@ -1625,12 +1650,12 @@ class CClassScope(ClassScope):
             entry = self.declare(name, name, py_object_type, pos, 'private')
         entry.is_property = 1
         entry.doc = doc
-        entry.scope = PropertyScope(name, 
+        entry.scope = PropertyScope(name,
             outer_scope = self.global_scope(), parent_scope = self)
         entry.scope.parent_type = self.parent_type
         self.property_entries.append(entry)
         return entry
-    
+
     def declare_inherited_c_attributes(self, base_scope):
         # Declare entries for all the C attributes of an
         # inherited type, with cnames modified appropriately
@@ -1639,7 +1664,7 @@ class CClassScope(ClassScope):
             return "%s.%s" % (Naming.obj_base_cname, base_entry.cname)
         for base_entry in \
             base_scope.inherited_var_entries + base_scope.var_entries:
-                entry = self.declare(base_entry.name, adapt(base_entry.cname), 
+                entry = self.declare(base_entry.name, adapt(base_entry.cname),
                     base_entry.type, None, 'private')
                 entry.is_variable = 1
                 self.inherited_var_entries.append(entry)
@@ -1648,21 +1673,21 @@ class CClassScope(ClassScope):
                                        base_entry.pos, adapt(base_entry.cname),
                                        base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
-            
-        
+
+
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
-    
+
     is_cpp_class_scope = 1
-    
+
     default_constructor = None
-    
+
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, None)
         self.directives = outer_scope.directives
         self.inherited_var_entries = []
 
-    def declare_var(self, name, type, pos, 
+    def declare_var(self, name, type, pos,
             cname = None, visibility = 'extern', is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
@@ -1676,7 +1701,7 @@ class CppClassScope(Scope):
             error(pos,
                 "C++ class member cannot be a Python object")
         return entry
-    
+
     def check_base_default_constructor(self, pos):
         # Look for default constructors in all base classes.
         if self.default_constructor is None:
@@ -1730,7 +1755,7 @@ class CppClassScope(Scope):
                 #print base_entry.name, self.entries
                 if base_entry.name in self.entries:
                     base_entry.name
-                entry = self.declare(base_entry.name, base_entry.cname, 
+                entry = self.declare(base_entry.name, base_entry.cname,
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
                 self.inherited_var_entries.append(entry)
@@ -1740,7 +1765,7 @@ class CppClassScope(Scope):
                                        base_entry.visibility, base_entry.func_modifiers,
                                            utility_code = base_entry.utility_code)
             entry.is_inherited = 1
-    
+
     def specialize(self, values):
         scope = CppClassScope(self.name, self.outer_scope)
         for entry in self.entries.values():
@@ -1764,8 +1789,8 @@ class CppClassScope(Scope):
         return scope
 
     def add_include_file(self, filename):
-        self.outer_scope.add_include_file(filename)        
-        
+        self.outer_scope.add_include_file(filename)
+
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
     #  a property of an extension type.
@@ -1773,7 +1798,7 @@ class PropertyScope(Scope):
     #  parent_type   PyExtensionType   The type to which the property belongs
 
     is_property_scope = 1
-    
+
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         # Add an entry for a method.
         signature = get_property_accessor_signature(name)

@@ -90,17 +90,17 @@ class IterationTransform(Visitor.VisitorTransform):
         self.visitchildren(node)
         self.current_scope = oldscope
         return node
-    
+
     def visit_PrimaryCmpNode(self, node):
         if node.is_ptr_contains():
-        
+
             # for t in operand2:
             #     if operand1 == t:
             #         res = True
             #         break
             # else:
             #     res = False
-            
+
             pos = node.pos
             res_handle = UtilNodes.TempHandle(PyrexTypes.c_bint_type)
             res = res_handle.ref(pos)
@@ -114,7 +114,7 @@ class IterationTransform(Visitor.VisitorTransform):
             cmp_node = ExprNodes.PrimaryCmpNode(
                 pos, operator=u'==', operand1=node.operand1, operand2=target)
             if_body = Nodes.StatListNode(
-                pos, 
+                pos,
                 stats = [Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=1)),
                          Nodes.BreakStatNode(pos)])
             if_node = Nodes.IfStatNode(
@@ -133,7 +133,7 @@ class IterationTransform(Visitor.VisitorTransform):
             for_loop.analyse_expressions(self.current_scope)
             for_loop = self(for_loop)
             new_node = UtilNodes.TempResultFromStatNode(result_ref, for_loop)
-            
+
             if node.operator == 'not_in':
                 new_node = ExprNodes.NotNode(pos, operand=new_node)
             return new_node
@@ -145,7 +145,7 @@ class IterationTransform(Visitor.VisitorTransform):
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
         return self._optimise_for_loop(node)
-    
+
     def _optimise_for_loop(self, node):
         iterator = node.iterator.sequence
         if iterator.type is Builtin.dict_type:
@@ -690,9 +690,9 @@ class IterationTransform(Visitor.VisitorTransform):
 
 class SwitchTransform(Visitor.VisitorTransform):
     """
-    This transformation tries to turn long if statements into C switch statements. 
+    This transformation tries to turn long if statements into C switch statements.
     The requirement is that every clause be an (or of) var == value, where the var
-    is common among all clauses and both var and value are ints. 
+    is common among all clauses and both var and value are ints.
     """
     NO_MATCH = (None, None, None)
 
@@ -892,14 +892,14 @@ class SwitchTransform(Visitor.VisitorTransform):
         return UtilNodes.TempResultFromStatNode(result_ref, switch_node)
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
-                              
+
 
 class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
     """
     This transformation flattens "x in [val1, ..., valn]" into a sequential list
-    of comparisons. 
+    of comparisons.
     """
-    
+
     def visit_PrimaryCmpNode(self, node):
         self.visitchildren(node)
         if node.cascade is not None:
@@ -938,12 +938,12 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
                                 operand2 = arg,
                                 cascade = None)
             conds.append(ExprNodes.TypecastNode(
-                                pos = node.pos, 
+                                pos = node.pos,
                                 operand = cond,
                                 type = PyrexTypes.c_bint_type))
         def concat(left, right):
             return ExprNodes.BoolBinopNode(
-                                pos = node.pos, 
+                                pos = node.pos,
                                 operator = conjunction,
                                 operand1 = left,
                                 operand2 = right)
@@ -1008,7 +1008,7 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
                 if not index_id:
                     return node
                 rindices.append(index_id)
-            
+
             if set(lindices) != set(rindices):
                 return node
             if len(set(lindices)) != len(right_indices):
@@ -1110,8 +1110,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _function_is_builtin_name(self, function):
         if not function.is_name:
             return False
-        entry = self.current_env().lookup(function.name)
-        if entry and getattr(entry, 'scope', None) is not Builtin.builtin_scope:
+        env = self.current_env()
+        entry = env.lookup(function.name)
+        if entry is not env.builtin_scope().lookup_here(function.name):
             return False
         # if entry is None, it's at least an undeclared name, so likely builtin
         return True
@@ -1724,8 +1725,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             # into a C function call (defined in the builtin scope)
             if not function.entry:
                 return node
-            is_builtin = function.entry.is_builtin \
-                         or getattr(function.entry, 'scope', None) is Builtin.builtin_scope
+            is_builtin = function.entry.is_builtin or \
+                         function.entry is self.current_env().builtin_scope().lookup_here(function.name)
             if not is_builtin:
                 return node
             function_handler = self._find_handler(
@@ -1985,20 +1986,26 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         test_nodes = []
         env = self.current_env()
         for test_type_node in types:
-            if not test_type_node.entry:
-                return node
-            entry = env.lookup(test_type_node.entry.name)
-            if not entry or not entry.type or not entry.type.is_builtin_type:
-                return node
-            type_check_function = entry.type.type_check_function(exact=False)
-            if not type_check_function:
+            builtin_type = None
+            if isinstance(test_type_node, ExprNodes.NameNode):
+                if test_type_node.entry:
+                    entry = env.lookup(test_type_node.entry.name)
+                    if entry and entry.type and entry.type.is_builtin_type:
+                        builtin_type = entry.type
+            if builtin_type and builtin_type is not Builtin.type_type:
+                type_check_function = entry.type.type_check_function(exact=False)
+                type_check_args = [arg]
+            elif test_type_node.type is Builtin.type_type:
+                type_check_function = '__Pyx_TypeCheck'
+                type_check_args = [arg, test_type_node]
+            else:
                 return node
             if type_check_function not in tests:
                 tests.append(type_check_function)
                 test_nodes.append(
                     ExprNodes.PythonCapiCallNode(
                         test_type_node.pos, type_check_function, self.Py_type_check_func_type,
-                        args = [arg],
+                        args = type_check_args,
                         is_temp = True,
                         ))
 
@@ -2128,7 +2135,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                         is_temp = node.is_temp,
                         utility_code = pop_index_utility_code
                         )
-                
+
         return node
 
     _handle_simple_method_list_pop = _handle_simple_method_object_pop
@@ -3130,10 +3137,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 class FinalOptimizePhase(Visitor.CythonTransform):
     """
     This visitor handles several commuting optimizations, and is run
-    just before the C code generation phase. 
-    
-    The optimizations currently implemented in this class are: 
-        - eliminate None assignment and refcounting for first assignment. 
+    just before the C code generation phase.
+
+    The optimizations currently implemented in this class are:
+        - eliminate None assignment and refcounting for first assignment.
         - isinstance -> typecheck for cdef types
         - eliminate checks for None and/or types that became redundant after tree changes
     """

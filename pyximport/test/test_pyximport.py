@@ -1,4 +1,4 @@
-import pyximport; pyximport.install()
+import pyximport; pyximport.install(reload_support=True)
 import os, sys
 import time, shutil
 import tempfile
@@ -21,6 +21,7 @@ def on_remove_file_error(func, path, excinfo):
     print "You may want to delete this yourself when you get a chance."
 
 def test():
+    pyximport._test_files = []
     tempdir = make_tempdir()
     sys.path.append(tempdir)
     filename = os.path.join(tempdir, "dummy.pyx")

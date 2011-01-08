@@ -65,7 +65,7 @@ class StringIOTree(object):
     def allmarkers(self):
         children = self.prepended_children
         return [m for c in children for m in c.allmarkers()] + self.markers
-        
+
 
 __doc__ = r"""
 Implements a buffer with insertion points. When you know you need to

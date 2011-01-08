@@ -28,9 +28,9 @@ def c_longs():
     cdef unsigned long ua = 1UL
     cdef long long aa = 0xFFFFFFFFFFFFFFFFLL
     cdef unsigned long long uaa = 0xFFFFFFFFFFFFFFFFULL
-    
+
     return a, ua, aa, uaa
-    
+
 def py_longs():
     return 1, 1L, 100000000000000000000000000000000, -100000000000000000000000000000000
 

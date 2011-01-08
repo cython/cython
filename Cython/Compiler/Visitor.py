@@ -19,16 +19,16 @@ class TreeVisitor(object):
     containing child nodes or lists of child nodes. Lists are not considered
     part of the tree structure (i.e. contained nodes are considered direct
     children of the parent node).
-    
+
     visit_children visits each of the children of a given node (see the visit_children
     documentation). When recursing the tree using visit_children, an attribute
     access_path is maintained which gives information about the current location
     in the tree as a stack of tuples: (parent_node, attrname, index), representing
     the node, attribute and optional list index that was taken in each step in the path to
     the current node.
-    
+
     Example:
-    
+
     >>> class SampleNode(object):
     ...     child_attrs = ["head", "body"]
     ...     def __init__(self, value, head=None, body=None):
@@ -61,7 +61,7 @@ class TreeVisitor(object):
 
     def dump_node(self, node, indent=0):
         ignored = list(node.child_attrs) + [u'child_attrs', u'pos',
-                                            u'gil_message', u'cpp_message', 
+                                            u'gil_message', u'cpp_message',
                                             u'subexprs']
         values = []
         pos = node.pos
@@ -189,7 +189,7 @@ class TreeVisitor(object):
         """
         Visits the children of the given parent. If parent is None, returns
         immediately (returning None).
-        
+
         The return value is a dictionary giving the results for each
         child (mapping the attribute name to either the return value
         or a list of return values (in the case of multiple children
@@ -214,14 +214,14 @@ class VisitorTransform(TreeVisitor):
     """
     A tree transform is a base class for visitors that wants to do stream
     processing of the structure (rather than attributes etc.) of a tree.
-    
+
     It implements __call__ to simply visit the argument node.
-    
+
     It requires the visitor methods to return the nodes which should take
     the place of the visited node in the result tree (which can be the same
     or one or more replacement). Specifically, if the return value from
     a visitor method is:
-    
+
     - [] or None; the visited node will be removed (set to None if an attribute and
     removed if in a list)
     - A single node; the visited node will be replaced by the returned node.
@@ -245,12 +245,12 @@ class VisitorTransform(TreeVisitor):
                         else:
                             newlist.append(x)
                 setattr(parent, attr, newlist)
-        return result        
+        return result
 
     def recurse_to_children(self, node):
         self.visitchildren(node)
         return node
-    
+
     def __call__(self, root):
         return self._visit(root)
 
@@ -286,7 +286,7 @@ class ScopeTrackingTransform(CythonTransform):
     # Keeps track of type of scopes
     #scope_type: can be either of 'module', 'function', 'cclass', 'pyclass', 'struct'
     #scope_node: the node that owns the current scope
-    
+
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
@@ -300,7 +300,7 @@ class ScopeTrackingTransform(CythonTransform):
         self.visitchildren(node)
         self.scope_type, self.scope_node = prev
         return node
-    
+
     def visit_CClassDefNode(self, node):
         return self.visit_scope(node, 'cclass')
 
@@ -316,11 +316,11 @@ class ScopeTrackingTransform(CythonTransform):
 
 class EnvTransform(CythonTransform):
     """
-    This transformation keeps a stack of the environments. 
+    This transformation keeps a stack of the environments.
     """
     def __call__(self, root):
         self.env_stack = [root.scope]
-        return super(EnvTransform, self).__call__(root)        
+        return super(EnvTransform, self).__call__(root)
 
     def current_env(self):
         return self.env_stack[-1]

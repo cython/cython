@@ -3,7 +3,7 @@ cdef struct point:
     double y
     double z
 
-cdef foo(int, int i, 
-         list, list L, 
+cdef foo(int, int i,
+         list, list L,
          point, point p, point* ps)
-             
+

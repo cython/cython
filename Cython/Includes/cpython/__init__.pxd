@@ -25,7 +25,7 @@
 #         PyObject* PyNumber_Add(PyObject *o1, PyObject *o2)
 #
 # in your file after any .pxi includes.  Cython will use the latest
-# declaration. 
+# declaration.
 #
 # Cython takes care of this automatically for anything of type object.
 ## More precisely, I think the correct convention for
@@ -36,7 +36,7 @@
 ##    any funny reference counting.
 ## (2) Declare output as object if a new reference is returned.
 ## (3) Declare output as PyObject* if a borrowed reference is returned.
-##    
+##
 ## This way when you call objects, no cast is needed, and if the api
 ## calls returns a new reference (which is about 95% of them), then
 ## you can just assign to a variable of type object.  With borrowed
@@ -46,8 +46,8 @@
 ## to your object, so you're OK, as long as you relealize this
 ## and use the result of an explicit cast to <object> as a borrowed
 ## reference (and you can call Py_INCREF if you want to turn it
-## into another reference for some reason). 
-# 
+## into another reference for some reason).
+#
 # "The reference count is important because today's computers have
 # a finite (and often severely limited) memory size; it counts how
 # many different places there are that have a reference to an
@@ -77,7 +77,7 @@
 # count as there are distinct memory locations in virtual memory
 # (assuming sizeof(long) >= sizeof(char*)). Thus, the reference
 # count increment is a simple operation.
-# 
+#
 # It is not necessary to increment an object's reference count for
 # every local variable that contains a pointer to an object. In
 # theory, the object's reference count goes up by one when the

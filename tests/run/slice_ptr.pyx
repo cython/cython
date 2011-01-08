@@ -10,7 +10,7 @@ def double_ptr_slice(x, L, int a, int b):
     >>> double_ptr_slice(0, L, 3, 7)
     >>> double_ptr_slice(5, L, 3, 7)
     >>> double_ptr_slice(9, L, 3, 7)
-    
+
     >>> double_ptr_slice(EqualsEvens(), L, 0, 10)
     >>> double_ptr_slice(EqualsEvens(), L, 1, 10)
     """

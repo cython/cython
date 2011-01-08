@@ -139,7 +139,7 @@ def go_list_ret():
     for i in l:
         if i > 1:
             return i
- 
+
 def go_tuple():
     """
     >>> go_tuple()

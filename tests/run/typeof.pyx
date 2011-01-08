@@ -41,7 +41,7 @@ def simple():
     print typeof(x)
     print typeof(None)
     used = i, l, ll, <long>iptr, <long>iptrptr, a, b, x
-    
+
 def expression():
     """
     >>> expression()

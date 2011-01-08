@@ -25,7 +25,7 @@ def simple():
     xptrptr = &xptr
     assert typeof(xptrptr) == "double **", typeof(xptrptr)
     b = b"abc"
-    assert typeof(b) == "char *", typeof(b)
+    assert typeof(b) == "bytes object", typeof(b)
     s = "abc"
     assert typeof(s) == "str object", typeof(s)
     u = u"xyz"
@@ -57,7 +57,7 @@ def slicing():
     >>> slicing()
     """
     b = b"abc"
-    assert typeof(b) == "char *", typeof(b)
+    assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1:2]
     assert typeof(b1) == "bytes object", typeof(b1)
     b2 = b[1:2:2]
@@ -92,9 +92,9 @@ def indexing():
     >>> indexing()
     """
     b = b"abc"
-    assert typeof(b) == "char *", typeof(b)
+    assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "char", typeof(b1)  # FIXME: Python object ??
+    assert typeof(b1) == "Python object", typeof(b1)
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
     u1 = u[1]
@@ -161,7 +161,7 @@ def unary_operators():
     assert typeof(c) == "Python object", typeof(c)
     d = -int(5)
     assert typeof(d) == "Python object", typeof(d)
-    
+
 
 def builtin_type_operations():
     """
@@ -198,7 +198,7 @@ def builtin_type_operations():
     assert typeof(T1) == "tuple object", typeof(T1)
     T2 = () * 2
     assert typeof(T2) == "tuple object", typeof(T2)
-    
+
 def cascade():
     """
     >>> cascade()
@@ -382,7 +382,7 @@ def safe_only():
     assert typeof(d) == "long", typeof(d)
 
     # we special-case inference to type str, see
-    # trac #553 
+    # trac #553
     s = "abc"
     assert typeof(s) == "Python object", typeof(s)
     cdef str t = "def"
@@ -479,3 +479,10 @@ def large_literals():
     c, d = 10, 100000000000000000000000000000000
     assert typeof(c) == "long", typeof(c)
     assert typeof(d) == "Python object", typeof(d)
+
+
+# Regression test for trac #638.
+
+def bar(foo):
+    qux = foo
+    quux = foo[qux.baz]

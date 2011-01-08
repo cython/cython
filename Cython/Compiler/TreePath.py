@@ -129,7 +129,7 @@ def handle_descendants(next, token):
         for node in result:
             for child in iter_recursive(node):
                 yield child
-                    
+
     return select
 
 def handle_attribute(next, token):
@@ -231,7 +231,7 @@ def logical_and(lhs_selects, rhs_select):
                 for result_node in rhs_select(subresult):
                     yield node
     return select
-    
+
 
 operations = {
     "@":  handle_attribute,

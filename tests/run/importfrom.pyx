@@ -59,7 +59,7 @@ def typed_imports():
     import types
     cdef long maxunicode
     cdef type t
-    
+
     from sys import maxunicode
     print maxunicode == sys.maxunicode
     from types import ModuleType as t

@@ -19,7 +19,7 @@ def simple_pop(L):
     [0, 1, 2, 3, 4, 5, 6, 7]
     >>> while L:
     ...    _ = simple_pop(L)
-    
+
     >>> L
     []
     >>> simple_pop(L)
@@ -45,7 +45,7 @@ def simple_pop_typed(list L):
     [0, 1, 2, 3, 4, 5, 6, 7]
     >>> while L:
     ...    _ = simple_pop_typed(L)
-    
+
     >>> L
     []
     >>> simple_pop_typed(L)
@@ -75,13 +75,13 @@ def index_pop(L, int i):
     Traceback (most recent call last):
     ...
     IndexError: pop index out of range
-    
+
     >>> while L:
     ...    _ = index_pop(L, 0)
-    
+
     >>> L
     []
-    
+
     >>> index_pop(L, 0)
     Traceback (most recent call last):
     ...
@@ -111,13 +111,13 @@ def index_pop_typed(list L, int i):
     Traceback (most recent call last):
     ...
     IndexError: pop index out of range
-    
+
     >>> while L:
     ...    _ = index_pop_typed(L, 0)
-    
+
     >>> L
     []
-    
+
     >>> index_pop_typed(L, 0)
     Traceback (most recent call last):
     ...

@@ -8,5 +8,5 @@ if __name__ == '__main__':
     main(command_line = 1)
 
 else:
-    # Void cython.* directives. 
+    # Void cython.* directives.
     from Cython.Shadow import *

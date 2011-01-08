@@ -49,9 +49,9 @@ cdef extern from "Python.h":
 
     # 0 is returned on success and -1 on error.
 
-    void PyBuffer_Release(object obj, object view)
-    # Release the buffer view over obj. This should be called when the
-    # buffer is no longer being used as it may free memory from it.
+    void PyBuffer_Release(Py_buffer *view)
+    # Release the buffer view. This should be called when the buffer
+    # is no longer being used as it may free memory from it.
 
     void* PyBuffer_GetPointer(Py_buffer *view, Py_ssize_t *indices)
     # ??
@@ -87,8 +87,8 @@ cdef extern from "Python.h":
     # is 'C') or Fortran-style (fortran is 'F') contiguous or either
     # one (fortran is 'A'). Return 0 otherwise.
 
-    void PyBuffer_FillContiguousStrides(int ndims, 
-                                        Py_ssize_t *shape, 
+    void PyBuffer_FillContiguousStrides(int ndims,
+                                        Py_ssize_t *shape,
                                         Py_ssize_t *strides,
                                         int itemsize,
                                         char fort)

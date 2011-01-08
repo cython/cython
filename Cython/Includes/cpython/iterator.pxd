@@ -4,7 +4,7 @@ cdef extern from "Python.h":
     # 6.5 Iterator Protocol
     ############################################################################
     bint PyIter_Check(object o)
-    # Return true if the object o supports the iterator protocol. 
+    # Return true if the object o supports the iterator protocol.
 
     object PyIter_Next(object o)
     # Return value: New reference.

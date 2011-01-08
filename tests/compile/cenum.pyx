@@ -11,4 +11,4 @@ cdef void eggs():
     s1 = c
     i = s1
 
-eggs()    
+eggs()

@@ -11,21 +11,21 @@ cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Shape:
         float area()
-    
+
     cdef cppclass Circle(Shape):
         int radius
         Circle(int)
-    
+
     cdef cppclass Rectangle(Shape):
         int width
         int height
         Rectangle()
         Rectangle(int, int)
-    
+
     cdef cppclass Square(Rectangle):
         int side
         Square(int)
-        
+
     int constructor_count, destructor_count
 
 def test_new_del():

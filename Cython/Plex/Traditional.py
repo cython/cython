@@ -11,7 +11,7 @@ from Errors import PlexError
 
 class RegexpSyntaxError(PlexError):
   pass
-  
+
 def re(s):
   """
   Convert traditional string representation of regular expression |s|
@@ -26,13 +26,13 @@ class REParser(object):
     self.i = -1
     self.end = 0
     self.next()
-  
+
   def parse_re(self):
     re = self.parse_alt()
     if not self.end:
       self.error("Unexpected %s" % repr(self.c))
     return re
-  
+
   def parse_alt(self):
     """Parse a set of alternative regexps."""
     re = self.parse_seq()
@@ -43,14 +43,14 @@ class REParser(object):
         re_list.append(self.parse_seq())
       re = Alt(*re_list)
     return re
-      
+
   def parse_seq(self):
     """Parse a sequence of regexps."""
     re_list = []
     while not self.end and not self.c in "|)":
       re_list.append(self.parse_mod())
     return Seq(*re_list)
-  
+
   def parse_mod(self):
     """Parse a primitive regexp followed by *, +, ? modifiers."""
     re = self.parse_prim()
@@ -84,7 +84,7 @@ class REParser(object):
         c = self.get()
       re = Char(c)
     return re
-  
+
   def parse_charset(self):
     """Parse a charset. Does not include the surrounding []."""
     char_list = []
@@ -109,7 +109,7 @@ class REParser(object):
       return AnyBut(chars)
     else:
       return Any(chars)
-  
+
   def next(self):
     """Advance to the next char."""
     s = self.s
@@ -119,14 +119,14 @@ class REParser(object):
     else:
       self.c = ''
       self.end = 1
-    
+
   def get(self):
     if self.end:
       self.error("Premature end of string")
     c = self.c
     self.next()
     return c
-    
+
   def lookahead(self, n):
     """Look ahead n chars."""
     j = self.i + n
@@ -144,11 +144,11 @@ class REParser(object):
       self.next()
     else:
       self.error("Missing %s" % repr(c))
-  
+
   def error(self, mess):
     """Raise exception to signal syntax error in regexp."""
     raise RegexpSyntaxError("Syntax error in regexp %s at position %d: %s" % (
       repr(self.s), self.i, mess))
-  
-  
+
+
 
