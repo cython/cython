@@ -2040,7 +2040,7 @@ class IndexNode(ExprNode):
         return None
 
     def type_dependencies(self, env):
-        return self.base.type_dependencies(env)
+        return self.base.type_dependencies(env) + self.index.type_dependencies(env)
 
     def infer_type(self, env):
         base_type = self.base.infer_type(env)

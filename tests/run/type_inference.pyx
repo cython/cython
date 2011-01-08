@@ -479,3 +479,10 @@ def large_literals():
     c, d = 10, 100000000000000000000000000000000
     assert typeof(c) == "long", typeof(c)
     assert typeof(d) == "Python object", typeof(d)
+
+
+# Regression test for trac #638.
+
+def bar(foo):
+    qux = foo
+    quux = foo[qux.baz]
