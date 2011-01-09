@@ -191,14 +191,20 @@ class PostParse(ScopeTrackingTransform):
         lambda_id = self.lambda_counter
         self.lambda_counter += 1
         node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
-
-        body = Nodes.ReturnStatNode(
-            node.result_expr.pos, value = node.result_expr)
+        collector = YieldNodeCollector()
+        collector.visitchildren(node.result_expr)
+        if collector.yields or isinstance(node.result_expr, ExprNodes.YieldExprNode):
+            body = ExprNodes.YieldExprNode(
+                node.result_expr.pos, arg=node.result_expr)
+            body = Nodes.ExprStatNode(node.result_expr.pos, expr=body)
+        else:
+            body = Nodes.ReturnStatNode(
+                node.result_expr.pos, value=node.result_expr)
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, lambda_name=node.lambda_name,
             args=node.args, star_arg=node.star_arg,
             starstar_arg=node.starstar_arg,
-            body=body)
+            body=body, doc=None)
         self.visitchildren(node)
         return node
 
@@ -1383,7 +1389,8 @@ class MarkClosureVisitor(CythonTransform):
                                                starstar_arg=node.starstar_arg,
                                                doc=node.doc,
                                                decorators=node.decorators,
-                                               gbody=gbody)
+                                               gbody=gbody,
+                                               lambda_name=node.lambda_name)
             return generator
         return node
 

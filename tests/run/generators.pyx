@@ -287,3 +287,15 @@ def test_nested_yield():
     StopIteration
     """
     yield (yield (yield 1))
+
+def test_inside_lambda():
+    """
+    >>> obj = test_inside_lambda()()
+    >>> next(obj)
+    1
+    >>> obj.send('a')
+    2
+    >>> obj.send('b')
+    ('a', 'b')
+    """
+    return lambda:((yield 1), (yield 2))
