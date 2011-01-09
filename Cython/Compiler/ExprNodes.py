@@ -4951,7 +4951,7 @@ class GeneratorExpressionNode(LambdaNode):
     # loop      ForStatNode   the for-loop, containing a YieldExprNode
     # def_node  DefNode       the underlying generator 'def' node
 
-    name = StringEncoding.EncodedString('<genexpr>')
+    name = StringEncoding.EncodedString('genexpr')
     binding = False
 
     def analyse_declarations(self, env):
