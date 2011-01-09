@@ -272,3 +272,18 @@ def test_copied_yield(foo):
     """
     with foo:
         yield 1
+
+def test_nested_yield():
+    """
+    >>> obj = test_nested_yield()
+    >>> next(obj)
+    1
+    >>> obj.send(2)
+    2
+    >>> obj.send(3)
+    3
+    >>> obj.send(4)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield (yield (yield 1))
