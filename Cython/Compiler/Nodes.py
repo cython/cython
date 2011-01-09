@@ -3019,7 +3019,7 @@ class GeneratorBodyDefNode(DefNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-
+        code.put_xdecref(Naming.retval_cname, py_object_type)
         code.putln('%s->%s.resume_label = -1;' % (Naming.cur_scope_cname, Naming.obj_base_cname))
         code.put_finish_refcount_context()
         code.putln('return NULL;');

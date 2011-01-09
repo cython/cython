@@ -244,3 +244,18 @@ def test_decorated(*args):
     for i in args:
         yield i
 
+def test_return(a):
+    """
+    >>> d = dict()
+    >>> obj = test_return(d)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+    """
+    yield 1
+    a['i_was_here'] = True
+    return

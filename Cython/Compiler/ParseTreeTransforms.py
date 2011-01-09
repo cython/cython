@@ -1370,8 +1370,8 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if collector.yields:
-            if collector.returns and not collector.has_return_value:
-                error(collector.returns[0].pos, "'return' inside generators not yet supported ")
+            #if collector.returns and not collector.has_return_value:
+            #    error(collector.returns[0].pos, "'return' inside generators not yet supported ")
 
             gbody = Nodes.GeneratorBodyDefNode(pos=node.pos,
                                                name=node.name,
