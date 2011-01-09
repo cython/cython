@@ -208,7 +208,7 @@ class PostParse(ScopeTrackingTransform):
         self.genexpr_counter += 1
         node.genexpr_name = EncodedString(u'genexpr%d' % genexpr_id)
 
-        node.def_node = Nodes.DefNode(node.pos, name=node.genexpr_name,
+        node.def_node = Nodes.DefNode(node.pos, name=node.name,
                                       doc=None,
                                       args=[], star_arg=None,
                                       starstar_arg=None,
