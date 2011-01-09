@@ -1332,6 +1332,7 @@ class YieldNodeCollector(TreeVisitor):
         if self.has_return_value:
             error(node.pos, "'yield' outside function")
         self.yields.append(node)
+        self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
         if node.value:
