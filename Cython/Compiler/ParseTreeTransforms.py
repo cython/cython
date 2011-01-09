@@ -183,6 +183,7 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_ModuleNode(self, node):
         self.lambda_counter = 1
+        self.genexpr_counter = 1
         return super(PostParse, self).visit_ModuleNode(node)
 
     def visit_LambdaNode(self, node):
@@ -198,6 +199,20 @@ class PostParse(ScopeTrackingTransform):
             args=node.args, star_arg=node.star_arg,
             starstar_arg=node.starstar_arg,
             body=body)
+        self.visitchildren(node)
+        return node
+
+    def visit_GeneratorExpressionNode(self, node):
+        # unpack a generator expression into the corresponding DefNode
+        genexpr_id = self.genexpr_counter
+        self.genexpr_counter += 1
+        node.genexpr_name = EncodedString(u'genexpr%d' % genexpr_id)
+
+        node.def_node = Nodes.DefNode(node.pos, name=node.genexpr_name,
+                                      doc=None,
+                                      args=[], star_arg=None,
+                                      starstar_arg=None,
+                                      body=node.loop)
         self.visitchildren(node)
         return node
 

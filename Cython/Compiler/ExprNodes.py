@@ -4343,37 +4343,7 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
         self.value_expr.annotate(code)
 
 
-class GeneratorExpressionNode(ScopedExprNode):
-    # A generator expression, e.g.  (i for i in range(10))
-    #
-    # Result is a generator.
-    #
-    # loop      ForStatNode   the for-loop, containing a YieldExprNode
-
-    child_attrs = ["loop"]
-
-    type = py_object_type
-
-    def analyse_scoped_declarations(self, env):
-        self.loop.analyse_declarations(env)
-
-    def analyse_types(self, env):
-        if not self.has_local_scope:
-            self.loop.analyse_expressions(env)
-        self.is_temp = True
-
-    def analyse_scoped_expressions(self, env):
-        if self.has_local_scope:
-            self.loop.analyse_expressions(env)
-
-    def may_be_none(self):
-        return False
-
-    def annotate(self, code):
-        self.loop.annotate(code)
-
-
-class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
+class InlinedGeneratorExpressionNode(ScopedExprNode):
     # An inlined generator expression for which the result is
     # calculated inside of the loop.  This will only be created by
     # transforms when replacing builtin calls on generator
@@ -4385,6 +4355,21 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
 
     child_attrs = ["loop"]
     loop_analysed = False
+    type = py_object_type
+
+    def analyse_scoped_declarations(self, env):
+        self.loop.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        if not self.has_local_scope:
+            self.loop.analyse_expressions(env)
+        self.is_temp = True
+
+    def may_be_none(self):
+        return False
+
+    def annotate(self, code):
+        self.loop.annotate(code)
 
     def infer_type(self, env):
         return self.result_node.infer_type(env)
@@ -4398,7 +4383,8 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
 
     def analyse_scoped_expressions(self, env):
         self.loop_analysed = True
-        GeneratorExpressionNode.analyse_scoped_expressions(self, env)
+        if self.has_local_scope:
+            self.loop.analyse_expressions(env)
 
     def coerce_to(self, dst_type, env):
         if self.orig_func == 'sum' and dst_type.is_numeric and not self.loop_analysed:
@@ -4409,7 +4395,7 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
             # assignments.
             self.result_node.type = self.type = dst_type
             return self
-        return GeneratorExpressionNode.coerce_to(self, dst_type, env)
+        return super(InlinedGeneratorExpressionNode, self).coerce_to(dst_type, env)
 
     def generate_result_code(self, code):
         self.result_node.result_code = self.result()
@@ -4955,6 +4941,35 @@ class LambdaNode(InnerFunctionNode):
         self.def_node.analyse_declarations(env)
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
+
+
+class GeneratorExpressionNode(LambdaNode):
+    # A generator expression, e.g.  (i for i in range(10))
+    #
+    # Result is a generator.
+    #
+    # loop      ForStatNode   the for-loop, containing a YieldExprNode
+    # def_node  DefNode       the underlying generator 'def' node
+
+    child_attrs = ["loop", "def_node"]
+    name = StringEncoding.EncodedString('<genexpr>')
+    binding = False
+
+    def analyse_declarations(self, env):
+        # XXX: dirty hack to disable assignment synthesis
+        self.def_node.needs_assignment_synthesis = lambda *args, **kwargs: False
+        self.def_node.analyse_declarations(env)
+        #super(GeneratorExpressionNode, self).analyse_declarations(env)
+        env.add_lambda_def(self.def_node)
+
+    def generate_result_code(self, code):
+        code.putln(
+            '%s = %s(%s, NULL); %s' % (
+                self.result(),
+                self.def_node.entry.func_cname,
+                self.self_result_code(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
 
 
 class YieldExprNode(ExprNode):
