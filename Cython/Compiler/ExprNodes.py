@@ -4951,7 +4951,6 @@ class GeneratorExpressionNode(LambdaNode):
     # loop      ForStatNode   the for-loop, containing a YieldExprNode
     # def_node  DefNode       the underlying generator 'def' node
 
-    child_attrs = ["loop", "def_node"]
     name = StringEncoding.EncodedString('<genexpr>')
     binding = False
 
