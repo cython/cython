@@ -1332,7 +1332,6 @@ class YieldNodeCollector(TreeVisitor):
         if self.has_return_value:
             error(node.pos, "'yield' outside function")
         self.yields.append(node)
-        node.label_num = len(self.yields)
 
     def visit_ReturnStatNode(self, node):
         if node.value:
@@ -1370,10 +1369,12 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if collector.yields:
+            for i, yield_expr in enumerate(collector.yields):
+                yield_expr.label_num = i + 1
+
             gbody = Nodes.GeneratorBodyDefNode(pos=node.pos,
                                                name=node.name,
-                                               body=node.body,
-                                               yields=collector.yields)
+                                               body=node.body)
             generator = Nodes.GeneratorDefNode(pos=node.pos,
                                                name=node.name,
                                                args=node.args,

@@ -2944,11 +2944,10 @@ class GeneratorBodyDefNode(DefNode):
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
-    def __init__(self, pos=None, name=None, body=None, yields=None):
+    def __init__(self, pos=None, name=None, body=None):
         super(GeneratorBodyDefNode, self).__init__(pos=pos, body=body, name=name, doc=None,
                                                    args=[],
                                                    star_arg=None, starstar_arg=None)
-        self.yields = yields
 
     def declare_generator_body(self, env):
         prefix = env.next_id(env.scope_prefix)
@@ -3030,7 +3029,11 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Generator resume code
         resume_code.putln("switch (%s->%s.resume_label) {" % (Naming.cur_scope_cname, Naming.obj_base_cname));
         resume_code.putln("case 0: goto %s;" % first_run_label)
-        for yield_expr in self.yields:
+
+        from ParseTreeTransforms import YieldNodeCollector
+        collector = YieldNodeCollector()
+        collector.visitchildren(self)
+        for yield_expr in collector.yields:
             resume_code.putln("case %d: goto %s;" % (yield_expr.label_num, yield_expr.label_name));
         resume_code.putln("default: /* CPython raises the right error here */");
         resume_code.put_finish_refcount_context()
