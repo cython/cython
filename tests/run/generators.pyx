@@ -259,3 +259,16 @@ def test_return(a):
     yield 1
     a['i_was_here'] = True
     return
+
+def test_copied_yield(foo):
+    """
+    >>> class Manager(object):
+    ...    def __enter__(self):
+    ...        return self
+    ...    def __exit__(self, type, value, tb):
+    ...        pass
+    >>> list(test_copied_yield(Manager()))
+    [1]
+    """
+    with foo:
+        yield 1
