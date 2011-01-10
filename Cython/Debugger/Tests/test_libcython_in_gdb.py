@@ -182,6 +182,7 @@ class TestKilled(DebugTestCase):
         output = gdb.execute('cy run', to_string=True)
         assert 'abort' in output.lower()
 
+
 class DebugStepperTestCase(DebugTestCase):
 
     def step(self, varnames_and_values, source_line=None, lineno=None):
@@ -377,19 +378,30 @@ class TestExec(DebugTestCase):
 
 class TestClosure(DebugTestCase):
 
-    def test_cython_closure(self):
-        self.break_and_run('def inner():')
+    def break_and_run_func(self, funcname):
+        gdb.execute('cy break ' + funcname)
+        gdb.execute('cy run')
+
+    def test_inner(self):
+        self.break_and_run_func('inner')
 
         # Allow the Cython-generated code to initialize the scope variable
         gdb.execute('cy step')
 
-        self.assertEqual(str(self.read_var('a')), '1')
+        self.assertEqual(str(self.read_var('a')), "'an object'")
         print_result = gdb.execute('cy print a', to_string=True).strip()
-        self.assertEqual(print_result, 'a = 1')
+        self.assertEqual(print_result, "a = 'an object'")
 
-    def test_cython_closure_no_closing_variables(self):
-        self.break_and_run('def inner2():')
-        self.assertEqual(gdb.execute('cy locals', to_string=True), '')
+    def test_outer(self):
+        self.break_and_run_func('outer')
+
+        # Initialize scope with 'a' uninitialized
+        gdb.execute('cy step')
+
+        # Initialize 'a' to 1
+        gdb.execute('cy step')
+        print_result = gdb.execute('cy print a', to_string=True).strip()
+        self.assertEqual(print_result, "a = 'an object'")
 
 
 _do_debug = os.environ.get('GDB_DEBUG')
