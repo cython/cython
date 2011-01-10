@@ -393,12 +393,12 @@ class CythonBase(object):
         if islocal:
             cyvar = cython_func.locals[local_name]
             if '->' in cyvar.cname:
-                # Closed over free variable 
-                try:
-                    gdb.parse_and_eval(cyvar.cname)
+                # Closed over free variable
+                if self.get_cython_lineno() >= cython_func.lineno + 1:
+                    if cyvar.type == PythonObject:
+                        return long(gdb.parse_and_eval(cyvar.cname))
                     return True
-                except RuntimeError:
-                    return False
+                return False
         
         cur_lineno = self.get_cython_lineno()
         return (local_name in cython_func.arguments or
@@ -1302,17 +1302,16 @@ class CyCValue(CyCName):
     @require_cython_frame
     @gdb_function_value_to_unicode
     def invoke(self, cyname, frame=None):
-        try:
+        globals_dict = self.get_cython_globals_dict()
+        cython_function = self.get_cython_function(frame)
+
+        if self.is_initialized(cython_function, cyname):
             cname = super(CyCValue, self).invoke(cyname, frame=frame)
             return gdb.parse_and_eval(cname)
-        except (gdb.GdbError, RuntimeError), e:
-            # variable exists but may not have been initialized yet, or may be
-            # in the globals dict of the Cython module
-            d = self.get_cython_globals_dict()
-            if cyname in d:
-                return d[cyname]._gdbval
-
-            raise gdb.GdbError(str(e))
+        elif cyname in globals_dict:
+            return globals_dict[cyname]._gdbval
+        else:
+            raise gdb.GdbError("Variable %s is not initialized." % cyname)
 
 
 class CyLine(gdb.Function, CythonBase):
