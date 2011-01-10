@@ -1760,10 +1760,14 @@ class DebugTransform(CythonTransform):
                 qname = '%s.%s.%s' % (entry.scope.outer_scope.qualified_name,
                                       entry.scope.name, 
                                       entry.name)
+            elif entry.in_closure:
+                cname = '%s->%s' % (Naming.cur_scope_cname, 
+                                    entry.cname)
+                qname = entry.qualified_name
             else:
                 cname = entry.cname
                 qname = entry.qualified_name
-                
+
             if not entry.pos:
                 # this happens for variables that are not in the user's code,
                 # e.g. for the global __builtins__, __doc__, etc. We can just
