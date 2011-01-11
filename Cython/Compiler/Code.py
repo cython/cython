@@ -1361,7 +1361,7 @@ class CCodeWriter(object):
         return self.globalstate.lookup_filename(filename)
 
     def put_declare_refcount_context(self):
-        self.putln('__Pyx_RefNannyDeclareContext')
+        self.putln('__Pyx_RefNannyDeclareContext;')
 
     def put_setup_refcount_context(self, name):
         self.putln('__Pyx_RefNannySetupContext("%s");' % name)

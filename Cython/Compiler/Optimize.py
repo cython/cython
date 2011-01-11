@@ -1167,11 +1167,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             self.yield_nodes = []
 
         visit_Node = Visitor.TreeVisitor.visitchildren
-        def visit_YieldExprNode(self, node):
+        # XXX: disable inlining while it's not back supported
+        def __visit_YieldExprNode(self, node):
             self.yield_nodes.append(node)
             self.visitchildren(node)
 
-        def visit_ExprStatNode(self, node):
+        def __visit_ExprStatNode(self, node):
             self.visitchildren(node)
             if node.expr in self.yield_nodes:
                 self.yield_stat_nodes[node.expr] = node

@@ -58,18 +58,18 @@ _ERRORS = u"""
 30:22: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 31:22: Cannot convert 'str' to 'bytes' implicitly. This is not portable.
 
-33:17: Cannot assign type 'char *' to 'str object'
+33:17: Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.
 34:19: Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.
 35:17: Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.
 36:19: Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.
 
 38:20: str objects do not support coercion to unicode, use a unicode string literal instead (u'')
 39:22: str objects do not support coercion to unicode, use a unicode string literal instead (u'')
-40:20: Cannot assign type 'char *' to 'unicode object'
+40:20: Cannot convert 'bytes' object to unicode implicitly, decoding required
 41:22: Cannot convert 'bytes' object to unicode implicitly, decoding required
 42:22: Cannot convert 'char*' to unicode implicitly, decoding required
 
 44:19: Cannot assign type 'str object' to 'tuple object'
 45:18: Cannot assign type 'unicode object' to 'tuple object'
-46:18: Cannot assign type 'char *' to 'tuple object'
+46:18: Cannot assign type 'bytes object' to 'tuple object'
 """
