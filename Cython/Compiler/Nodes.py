@@ -1892,6 +1892,7 @@ class DefNode(FuncDefNode):
     num_required_kw_args = 0
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
+    no_assignment_synthesis = 0
     decorators = None
     return_type_annotation = None
     entry = None
@@ -2227,6 +2228,8 @@ class DefNode(FuncDefNode):
             self.synthesize_assignment_node(env)
 
     def needs_assignment_synthesis(self, env, code=None):
+        if self.no_assignment_synthesis:
+            return False
         # Should enable for module level as well, that will require more testing...
         if self.entry.is_anonymous:
             return True
