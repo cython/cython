@@ -4955,10 +4955,8 @@ class GeneratorExpressionNode(LambdaNode):
     binding = False
 
     def analyse_declarations(self, env):
-        # XXX: dirty hack to disable assignment synthesis
-        self.def_node.needs_assignment_synthesis = lambda *args, **kwargs: False
+        self.def_node.no_assignment_synthesis = True
         self.def_node.analyse_declarations(env)
-        #super(GeneratorExpressionNode, self).analyse_declarations(env)
         env.add_lambda_def(self.def_node)
 
     def generate_result_code(self, code):
