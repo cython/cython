@@ -45,6 +45,11 @@ cdef class AlignFunctionDefinitions(CythonTransform):
     cdef dict directives
     cdef scope
 
+cdef class YieldNodeCollector(TreeVisitor):
+    cdef list yields
+    cdef list returns
+    cdef bint has_return_value
+
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
 
