@@ -1332,7 +1332,8 @@ class YieldNodeCollector(TreeVisitor):
         self.returns = []
         self.has_return_value = False
 
-    visit_Node = TreeVisitor.visitchildren
+    def visit_Node(self, node):
+        return self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         if self.has_return_value:
