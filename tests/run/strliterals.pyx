@@ -120,7 +120,7 @@ __doc__ = ur"""
 
     >>> uresc
     u'\\12\\\'\\"\\\\'
-    >>> bresc == ur'\12\'\"\\'
+    >>> uresc == ur'\12\'\"\\'
     True
     >>> len(uresc)
     9
