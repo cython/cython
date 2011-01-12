@@ -766,17 +766,10 @@ def p_string_literal(s, kind_override=None):
                 has_non_ASCII_literal_characters = True
         elif sy == 'ESCAPE':
             if is_raw:
-                if systr == u'\\\n':
-                    chars.append(u'\\\n')
-                elif systr == u'\\\"':
-                    chars.append(u'"')
-                elif systr == u'\\\'':
-                    chars.append(u"'")
-                else:
-                    chars.append(systr)
-                    if is_python3_source and not has_non_ASCII_literal_characters \
-                           and check_for_non_ascii_characters(systr):
-                        has_non_ASCII_literal_characters = True
+                chars.append(systr)
+                if is_python3_source and not has_non_ASCII_literal_characters \
+                       and check_for_non_ascii_characters(systr):
+                    has_non_ASCII_literal_characters = True
             else:
                 c = systr[1]
                 if c in u"01234567":
