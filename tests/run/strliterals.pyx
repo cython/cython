@@ -104,6 +104,27 @@ __doc__ = ur"""
     >>> len(u6)
     7
 
+    >>> sresc
+    '\\12\\\'\\"\\\\'
+    >>> sresc == r'\12\'\"\\'
+    True
+    >>> len(sresc)
+    9
+
+    >>> bresc
+    b'\\12\\\'\\"\\\\'
+    >>> bresc == br'\12\'\"\\'
+    True
+    >>> len(bresc)
+    9
+
+    >>> uresc
+    u'\\12\\\'\\"\\\\'
+    >>> bresc == ur'\12\'\"\\'
+    True
+    >>> len(uresc)
+    9
+
     >>> newlines == "Aaa\n"
     True
     
@@ -135,6 +156,10 @@ u3 = ur"abc\x11"
 u4 = Ur"abc\x11"
 u5 = uR"abc\x11"
 u6 = UR"abc\x11"
+
+sresc =  r'\12\'\"\\'
+bresc = br'\12\'\"\\'
+uresc = ur'\12\'\"\\'
 
 newlines = "Aaa\n"
 
