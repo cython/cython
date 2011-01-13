@@ -207,6 +207,8 @@ def builtin_type_methods():
     assert typeof(l) == 'list object', typeof(l)
     append = l.append
     assert typeof(append) == 'Python object', typeof(append)
+    append(1)
+    assert l == [1], str(l)
 
 cdef int func(int x):
     return x+1
