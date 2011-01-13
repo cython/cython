@@ -210,14 +210,14 @@ def builtin_type_methods():
     append(1)
     assert l == [1], str(l)
 
-cdef int func(int x):
+cdef int cfunc(int x):
     return x+1
 
 def c_functions():
     """
     >>> c_functions()
     """
-    f = func
+    f = cfunc
     assert typeof(f) == 'int (*)(int)', typeof(f)
     assert 2 == f(1)
 
@@ -423,6 +423,15 @@ def safe_only():
     for j in range(10):
         res = -j
     assert typeof(j) == "Python object", typeof(j)
+
+@infer_types(None)
+def safe_c_functions():
+    """
+    >>> safe_c_functions()
+    """
+    f = cfunc
+    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert 2 == f(1)
 
 @infer_types(None)
 def args_tuple_keywords(*args, **kwargs):
