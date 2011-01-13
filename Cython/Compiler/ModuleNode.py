@@ -6,7 +6,7 @@ import cython
 from cython import set
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
-               escape_byte_string=object, EncodedString=object)
+               EncodedString=object)
 
 import os, time
 from PyrexTypes import CPtrType
@@ -26,7 +26,7 @@ from Errors import error, warning
 from PyrexTypes import py_object_type
 from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode
-from StringEncoding import escape_byte_string, EncodedString
+from StringEncoding import EncodedString
 
 
 def check_c_declarations_pxd(module_node):
