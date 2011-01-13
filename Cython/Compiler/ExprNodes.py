@@ -1297,7 +1297,7 @@ class NameNode(AtomicExprNode):
             # is used for the pointer to the type they represent.
             return type_type
         elif self.entry.type.is_cfunction:
-            # special case: referring to a C function must return it's pointer
+            # special case: referring to a C function must return its pointer
             return PyrexTypes.CPtrType(self.entry.type)
         else:
             return self.entry.type
