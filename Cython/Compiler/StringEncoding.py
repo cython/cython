@@ -232,9 +232,23 @@ def escape_byte_string(s):
                 append(c)
         return join_bytes(l).decode('ISO-8859-1')
 
-def split_string_literal(s):
+def split_string_literal(s, limit=2000):
     # MSVC can't handle long string literals.
-    if len(s) < 2047:
+    if len(s) < limit:
         return s
     else:
-        return '""'.join([s[i:i+2000] for i in range(0, len(s), 2000)]).replace(r'\""', '""\\')
+        start = 0
+        chunks = []
+        while start < len(s):
+            end = start + limit
+            if len(s) > end-4 and '\\' in s[end-4:end]:
+                end -= 4 - s[end-4:end].find('\\') # just before the backslash
+                while s[end-1] == '\\':
+                    end -= 1
+                    if end == start:
+                        # must have been a long line of backslashes
+                        end = start + limit - (limit % 2) - 4
+                        break
+            chunks.append(s[start:end])
+            start = end
+        return '""'.join(chunks)
