@@ -45,3 +45,6 @@ outer()()
 
 spam()
 print "bye!"
+
+def use_ham():
+    ham()
