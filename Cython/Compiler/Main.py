@@ -18,7 +18,11 @@ from time import time
 
 import Code
 import Errors
-import Parsing
+# Do not import Parsing here, import it when needed, because Parsing imports
+# Nodes, which globally needs debug command line options initialized to set a
+# conditional metaclass. These options are processed by CmdLine called from 
+# main() in this file.
+# import Parsing
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
 from Errors import PyrexError, CompileError, InternalError, AbortError, error, warning
@@ -68,7 +72,7 @@ class Context(object):
     #  include_directories   [string]
     #  future_directives     [object]
     #  language_level        int     currently 2 or 3 for Python 2/3
-
+    
     def __init__(self, include_directories, compiler_directives, cpp=False, language_level=2):
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
@@ -85,7 +89,7 @@ class Context(object):
         self.include_directories = include_directories + [standard_include_path]
 
         self.set_language_level(language_level)
-
+        
         self.gdb_debug_outputwriter = None
 
     def set_language_level(self, level):
@@ -120,12 +124,12 @@ class Context(object):
         else:
             _check_c_declarations = check_c_declarations
             _specific_post_parse = None
-
+            
         if py and not pxd:
             _align_function_definitions = AlignFunctionDefinitions(self)
         else:
             _align_function_definitions = None
-
+ 
         return [
             NormalizeTree(self),
             PostParse(self),
@@ -190,7 +194,7 @@ class Context(object):
             debug_transform = [DebugTransform(self, options, result)]
         else:
             debug_transform = []
-
+            
         return list(itertools.chain(
             [create_parse(self)],
             self.create_pipeline(pxd=False, py=py),
@@ -214,7 +218,7 @@ class Context(object):
         return [parse_pxd] + self.create_pipeline(pxd=True) + [
             ExtractPxdCode(self),
             ]
-
+            
     def create_py_pipeline(self, options, result):
         return self.create_pyx_pipeline(options, result, py=True)
 
@@ -223,7 +227,7 @@ class Context(object):
         pipeline = self.create_pxd_pipeline(scope, module_name)
         result = self.run_pipeline(pipeline, source_desc)
         return result
-
+    
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
 
@@ -253,7 +257,7 @@ class Context(object):
             error = err
         return (error, data)
 
-    def find_module(self, module_name,
+    def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
@@ -323,7 +327,7 @@ class Context(object):
                 except CompileError:
                     pass
         return scope
-
+    
     def find_pxd_file(self, qualified_name, pos):
         # Search include path for the .pxd file corresponding to the
         # given fully-qualified module name.
@@ -358,7 +362,7 @@ class Context(object):
         # Search include path for the .pyx file corresponding to the
         # given fully-qualified module name, as for find_pxd_file().
         return self.search_include_directories(qualified_name, ".pyx", pos)
-
+    
     def find_include_file(self, filename, pos):
         # Search list of include directories for filename.
         # Reports an error and returns None if not found.
@@ -367,7 +371,7 @@ class Context(object):
         if not path:
             error(pos, "'%s' not found" % filename)
         return path
-
+    
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False):
         # Search the list of include directories for the given
@@ -448,15 +452,15 @@ class Context(object):
             if dep_path and Utils.file_newer_than(dep_path, c_time):
                 return 1
         return 0
-
+    
     def find_cimported_module_names(self, source_path):
         return [ name for kind, name in self.read_dependency_file(source_path)
                  if kind == "cimport" ]
 
     def is_package_dir(self, dir_path):
         #  Return true if the given directory is a package directory.
-        for filename in ("__init__.py",
-                         "__init__.pyx",
+        for filename in ("__init__.py", 
+                         "__init__.pyx", 
                          "__init__.pxd"):
             path = os.path.join(dir_path, filename)
             if Utils.path_exists(path):
@@ -482,7 +486,7 @@ class Context(object):
         # Find a top-level module, creating a new one if needed.
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name,
+            scope = ModuleScope(name, 
                 parent_module = None, context = self)
             self.modules[name] = scope
         return scope
@@ -496,6 +500,7 @@ class Context(object):
         try:
             f = Utils.open_source_file(source_filename, "rU")
             try:
+                import Parsing
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
@@ -601,7 +606,7 @@ def run_pipeline(source, options, full_module_name = None):
 
     # Set up result object
     result = create_default_resultobj(source, options)
-
+    
     # Get pipeline
     if source_ext.lower() == '.py':
         pipeline = context.create_py_pipeline(options, result)
@@ -612,7 +617,7 @@ def run_pipeline(source, options, full_module_name = None):
     err, enddata = context.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     return result
-
+    
 
 #------------------------------------------------------------------------
 #
@@ -633,7 +638,7 @@ class CompilationSource(object):
 class CompilationOptions(object):
     """
     Options to the Cython compiler:
-
+    
     show_version      boolean   Display version number
     use_listing_file  boolean   Generate a .lis file
     errors_to_stderr  boolean   Echo errors to stderr when using .lis
@@ -648,10 +653,10 @@ class CompilationOptions(object):
     compiler_directives  dict      Overrides for pragma options (see Options.py)
     evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     language_level    integer   The Python language level: 2 or 3
-
+    
     cplus             boolean   Compile as c++ code
     """
-
+    
     def __init__(self, defaults = None, **kw):
         self.include_path = []
         if defaults:
@@ -670,7 +675,7 @@ class CompilationOptions(object):
 class CompilationResult(object):
     """
     Results from the Cython compiler:
-
+    
     c_file           string or None   The generated C source file
     h_file           string or None   The generated C header file
     i_file           string or None   The generated .pxi file
@@ -681,7 +686,7 @@ class CompilationResult(object):
     num_errors       integer          Number of compilation errors
     compilation_source CompilationSource
     """
-
+    
     def __init__(self):
         self.c_file = None
         self.h_file = None
@@ -698,10 +703,10 @@ class CompilationResultSet(dict):
     Results from compiling multiple Pyrex source files. A mapping
     from source file paths to CompilationResult instances. Also
     has the following attributes:
-
+    
     num_errors   integer   Total number of compilation errors
     """
-
+    
     num_errors = 0
 
     def add(self, source, result):
@@ -712,7 +717,7 @@ class CompilationResultSet(dict):
 def compile_single(source, options, full_module_name = None):
     """
     compile_single(source, options, full_module_name)
-
+    
     Compile the given Pyrex implementation file and return a CompilationResult.
     Always compiles a single file; does not perform timestamp checking or
     recursion.
@@ -723,7 +728,7 @@ def compile_single(source, options, full_module_name = None):
 def compile_multiple(sources, options):
     """
     compile_multiple(sources, options)
-
+    
     Compiles the given sequence of Pyrex implementation files and returns
     a CompilationResultSet. Performs timestamp checking and/or recursion
     if these are specified in the options.
@@ -761,7 +766,7 @@ def compile_multiple(sources, options):
 def compile(source, options = None, full_module_name = None, **kwds):
     """
     compile(source [, options], [, <option> = <value>]...)
-
+    
     Compile one or more Pyrex implementation files, with optional timestamp
     checking and recursing on dependecies. The source argument may be a string
     or a sequence of strings If it is a string and no recursion or timestamp
