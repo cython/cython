@@ -14,6 +14,7 @@ import warnings
 import unittest
 import textwrap
 import tempfile
+import functools
 import traceback
 import itertools
 from test import test_support
@@ -28,11 +29,34 @@ from Cython.Debugger.Tests import TestLibCython as test_libcython
 sys.argv = ['gdb']
 
 
+def print_on_call_decorator(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        _debug(type(self).__name__, func.__name__)
+
+        try:
+            return func(self, *args, **kwargs)
+        except Exception, e:
+            _debug("An exception occurred:", traceback.format_exc(e))
+            raise
+
+    return wrapper
+
+class TraceMethodCallMeta(type):
+
+    def __init__(self, name, bases, dict):
+        for func_name, func in dict.iteritems():
+            if inspect.isfunction(func):
+                setattr(self, func_name, print_on_call_decorator(func))
+
+
 class DebugTestCase(unittest.TestCase):
     """
     Base class for test cases. On teardown it kills the inferior and unsets
     all breakpoints.
     """
+
+    __metaclass__ = TraceMethodCallMeta
 
     def __init__(self, name):
         super(DebugTestCase, self).__init__(name)
@@ -58,7 +82,7 @@ class DebugTestCase(unittest.TestCase):
         if source_line is not None:
             lineno = test_libcython.source_to_lineno[source_line]
         frame = gdb.selected_frame()
-        self.assertEqual(libcython.cy.step.lineno(frame), lineno)
+        self.assertEqual(libcython.cython_info.lineno(frame), lineno)
 
     def break_and_run(self, source_line):
         break_lineno = test_libcython.source_to_lineno[source_line]
@@ -74,9 +98,6 @@ class DebugTestCase(unittest.TestCase):
 
         gdb.execute('set args -c "import codefile"')
 
-        libcython.cy.step.static_breakpoints.clear()
-        libcython.cy.step.runtime_breakpoints.clear()
-        libcython.cy.step.init_breakpoints()
 
 class TestDebugInformationClasses(DebugTestCase):
 
@@ -101,7 +122,7 @@ class TestDebugInformationClasses(DebugTestCase):
                          'codefile.SomeClass.spam')
         self.assertEqual(self.spam_func.module, self.module)
 
-        assert self.eggs_func.pf_cname
+        assert self.eggs_func.pf_cname, (self.eggs_func, self.eggs_func.pf_cname)
         assert not self.ham_func.pf_cname
         assert not self.spam_func.pf_cname
         assert not self.spam_meth.pf_cname
@@ -130,7 +151,7 @@ class TestParameters(unittest.TestCase):
 class TestBreak(DebugTestCase):
 
     def test_break(self):
-        breakpoint_amount = len(gdb.breakpoints())
+        breakpoint_amount = len(gdb.breakpoints() or ())
         gdb.execute('cy break codefile.spam')
 
         self.assertEqual(len(gdb.breakpoints()), breakpoint_amount + 1)
@@ -143,6 +164,16 @@ class TestBreak(DebugTestCase):
         gdb.execute('cy break -p join')
         assert 'def join(' in gdb.execute('cy run', to_string=True)
 
+    def test_break_lineno(self):
+        beginline = 'import os'
+        nextline = 'cdef int c_var = 12'
+
+        self.break_and_run(beginline)
+        self.lineno_equals(beginline)
+        step_result = gdb.execute('cy step', to_string=True)
+        self.lineno_equals(nextline)
+        assert step_result.rstrip().endswith(nextline)
+
 
 class TestKilled(DebugTestCase):
 
@@ -150,6 +181,7 @@ class TestKilled(DebugTestCase):
         gdb.execute("set args -c 'import os; os.abort()'")
         output = gdb.execute('cy run', to_string=True)
         assert 'abort' in output.lower()
+
 
 class DebugStepperTestCase(DebugTestCase):
 
@@ -262,7 +294,7 @@ class TestBacktrace(DebugTestCase):
 
         gdb.execute('cy bt')
         result = gdb.execute('cy bt -a', to_string=True)
-        assert re.search(r'\#0 *0x.* in main\(\) at', result), result
+        assert re.search(r'\#0 *0x.* in main\(\)', result), result
 
 
 class TestFunctions(DebugTestCase):
@@ -343,6 +375,36 @@ class TestExec(DebugTestCase):
 
         gdb.execute('cy exec some_random_var = 14')
         self.assertEqual('14', self.eval_command('some_random_var'))
+
+class TestClosure(DebugTestCase):
+
+    def break_and_run_func(self, funcname):
+        gdb.execute('cy break ' + funcname)
+        gdb.execute('cy run')
+
+    def test_inner(self):
+        self.break_and_run_func('inner')
+        self.assertEqual('', gdb.execute('cy locals', to_string=True))
+        
+        # Allow the Cython-generated code to initialize the scope variable
+        gdb.execute('cy step')
+
+        self.assertEqual(str(self.read_var('a')), "'an object'")
+        print_result = gdb.execute('cy print a', to_string=True).strip()
+        self.assertEqual(print_result, "a = 'an object'")
+
+    def test_outer(self):
+        self.break_and_run_func('outer')
+        self.assertEqual('', gdb.execute('cy locals', to_string=True))
+
+        # Initialize scope with 'a' uninitialized
+        gdb.execute('cy step')
+        self.assertEqual('', gdb.execute('cy locals', to_string=True))
+        
+        # Initialize 'a' to 1
+        gdb.execute('cy step')
+        print_result = gdb.execute('cy print a', to_string=True).strip()
+        self.assertEqual(print_result, "a = 'an object'")
 
 
 _do_debug = os.environ.get('GDB_DEBUG')
