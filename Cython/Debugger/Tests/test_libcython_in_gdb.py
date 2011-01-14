@@ -385,7 +385,7 @@ class TestClosure(DebugTestCase):
     def test_inner(self):
         self.break_and_run_func('inner')
         self.assertEqual('', gdb.execute('cy locals', to_string=True))
-        
+
         # Allow the Cython-generated code to initialize the scope variable
         gdb.execute('cy step')
 
@@ -400,7 +400,7 @@ class TestClosure(DebugTestCase):
         # Initialize scope with 'a' uninitialized
         gdb.execute('cy step')
         self.assertEqual('', gdb.execute('cy locals', to_string=True))
-        
+
         # Initialize 'a' to 1
         gdb.execute('cy step')
         print_result = gdb.execute('cy print a', to_string=True).strip()

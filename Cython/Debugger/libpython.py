@@ -162,7 +162,7 @@ class TruncatedStringIO(object):
 all_pretty_typenames = set()
 
 class PrettyPrinterTrackerMeta(type):
-    
+
     def __init__(self, name, bases, dict):
         super(PrettyPrinterTrackerMeta, self).__init__(name, bases, dict)
         all_pretty_typenames.add(self._typename)
@@ -179,11 +179,11 @@ class PyObjectPtr(object):
     Note that at every stage the underlying pointer could be NULL, point
     to corrupt data, etc; this is the debugger, after all.
     """
-    
+
     __metaclass__ = PrettyPrinterTrackerMeta
-    
+
     _typename = 'PyObject'
-    
+
     def __init__(self, gdbval, cast_to=None):
         if cast_to:
             self._gdbval = gdbval.cast(cast_to)
@@ -356,7 +356,7 @@ class PyObjectPtr(object):
 
         #print 'tp_flags = 0x%08x' % tp_flags
         #print 'tp_name = %r' % tp_name
-        
+
         name_map = {'bool': PyBoolObjectPtr,
                     'classobj': PyClassObjectPtr,
                     'instance': PyInstanceObjectPtr,
@@ -368,7 +368,7 @@ class PyObjectPtr(object):
                     }
         if tp_name in name_map:
             return name_map[tp_name]
-        
+
         if tp_flags & (Py_TPFLAGS_HEAPTYPE|Py_TPFLAGS_TYPE_SUBCLASS):
             return PyTypeObjectPtr
 
@@ -484,7 +484,7 @@ def _PyObject_VAR_SIZE(typeobj, nitems):
 
 class PyTypeObjectPtr(PyObjectPtr):
     _typename = 'PyTypeObject'
-    
+
     def get_attr_dict(self):
         '''
         Get the PyDictObject ptr representing the attribute dictionary
@@ -543,13 +543,13 @@ class PyTypeObjectPtr(PyObjectPtr):
             out.write('<...>')
             return
         visited.add(self.as_address())
-        
+
         try:
             tp_name = self.field('tp_name').string()
         except RuntimeError:
             tp_name = 'unknown'
-        
-        out.write('<type %s at remote 0x%x>' % (tp_name, 
+
+        out.write('<type %s at remote 0x%x>' % (tp_name,
                                                 self.as_address()))
         # pyop_attrdict = self.get_attr_dict()
         # _write_instance_repr(out, visited,
@@ -569,7 +569,7 @@ class PyBaseExceptionObjectPtr(PyObjectPtr):
     within the process being debugged.
     """
     _typename = 'PyBaseExceptionObject'
-    
+
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
@@ -682,7 +682,7 @@ class PyDictObjectPtr(PyObjectPtr):
             if not pyop_value.is_null():
                 pyop_key = PyObjectPtr.from_pyobject_ptr(ep['me_key'])
                 yield (pyop_key, pyop_value)
-    
+
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
@@ -716,7 +716,7 @@ class PyDictObjectPtr(PyObjectPtr):
 
 class PyInstanceObjectPtr(PyObjectPtr):
     _typename = 'PyInstanceObject'
-    
+
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
@@ -761,7 +761,7 @@ class PyIntObjectPtr(PyObjectPtr):
 
 class PyListObjectPtr(PyObjectPtr):
     _typename = 'PyListObject'
-    
+
     def __getitem__(self, i):
         # Get the gdb.Value for the (PyObject*) with the given index:
         field_ob_item = self.field('ob_item')
@@ -794,7 +794,7 @@ class PyListObjectPtr(PyObjectPtr):
 
 class PyLongObjectPtr(PyObjectPtr):
     _typename = 'PyLongObject'
-    
+
     def proxyval(self, visited):
         '''
         Python's Include/longobjrep.h has this declaration:
@@ -812,7 +812,7 @@ class PyLongObjectPtr(PyObjectPtr):
         where SHIFT can be either:
             #define PyLong_SHIFT        30
             #define PyLong_SHIFT        15
-        '''        
+        '''
         ob_size = long(self.field('ob_size'))
         if ob_size == 0:
             return 0L
@@ -843,7 +843,7 @@ class PyBoolObjectPtr(PyLongObjectPtr):
     <bool> instances (Py_True/Py_False) within the process being debugged.
     """
     _typename = 'PyBoolObject'
-    
+
     def proxyval(self, visited):
         castto = gdb.lookup_type('PyLongObject').pointer()
         self._gdbval = self._gdbval.cast(castto)
@@ -1055,11 +1055,11 @@ class PySetObjectPtr(PyObjectPtr):
 
 class PyBytesObjectPtr(PyObjectPtr):
     _typename = 'PyBytesObject'
-    
+
     def __str__(self):
         field_ob_size = self.field('ob_size')
         field_ob_sval = self.field('ob_sval')
-        return ''.join(struct.pack('b', field_ob_sval[i]) 
+        return ''.join(struct.pack('b', field_ob_sval[i])
                            for i in safe_range(field_ob_size))
 
     def proxyval(self, visited):
@@ -1076,7 +1076,7 @@ class PyBytesObjectPtr(PyObjectPtr):
         quote = "'"
         if "'" in proxy and not '"' in proxy:
             quote = '"'
-        
+
         if py3:
             out.write('b')
 
@@ -1221,7 +1221,7 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         else:
             # Python 2, write the 'u'
             out.write('u')
-        
+
         if "'" in proxy and '"' not in proxy:
             quote = '"'
         else:
@@ -1686,11 +1686,11 @@ class PyLocals(gdb.Command):
 
         namespace = self.get_namespace(pyop_frame)
         namespace = [(name.proxyval(set()), val) for name, val in namespace]
-        
+
         if namespace:
             name, val = max(namespace, key=lambda (name, val): len(name))
             max_name_length = len(name)
-            
+
             for name, pyop_value in namespace:
                 value = pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)
                 print ('%-*s = %s' % (max_name_length, name, value))
@@ -1701,7 +1701,7 @@ class PyLocals(gdb.Command):
 
 class PyGlobals(PyLocals):
     'List all the globals in the currently select Python frame'
-    
+
     def get_namespace(self, pyop_frame):
         return pyop_frame.iter_globals()
 
@@ -1711,7 +1711,7 @@ PyGlobals("py-globals", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
 
 
 class PyNameEquals(gdb.Function):
-    
+
     def _get_pycurframe_attr(self, attr):
         frame = Frame(gdb.selected_frame())
         if frame.is_evalframeex():
@@ -1720,11 +1720,11 @@ class PyNameEquals(gdb.Function):
                 warnings.warn("Use a Python debug build, Python breakpoints "
                               "won't work otherwise.")
                 return None
-            
+
             return getattr(pyframe, attr).proxyval(set())
-            
+
         return None
-    
+
     def invoke(self, funcname):
         attr = self._get_pycurframe_attr('co_name')
         return attr is not None and attr == funcname.string()
@@ -1733,7 +1733,7 @@ PyNameEquals("pyname_equals")
 
 
 class PyModEquals(PyNameEquals):
-    
+
     def invoke(self, modname):
         attr = self._get_pycurframe_attr('co_filename')
         if attr is not None:
@@ -1747,20 +1747,20 @@ PyModEquals("pymod_equals")
 class PyBreak(gdb.Command):
     """
     Set a Python breakpoint. Examples:
-    
+
     Break on any function or method named 'func' in module 'modname'
-            
-        py-break modname.func 
-        
+
+        py-break modname.func
+
     Break on any function or method named 'func'
-        
+
         py-break func
     """
-    
+
     def invoke(self, funcname, from_tty):
         if '.' in funcname:
             modname, dot, funcname = funcname.rpartition('.')
-            cond = '$pyname_equals("%s") && $pymod_equals("%s")' % (funcname, 
+            cond = '$pyname_equals("%s") && $pymod_equals("%s")' % (funcname,
                                                                     modname)
         else:
             cond = '$pyname_equals("%s")' % funcname
@@ -1774,31 +1774,31 @@ class _LoggingState(object):
     """
     State that helps to provide a reentrant gdb.execute() function.
     """
-    
+
     def __init__(self):
         self.fd, self.filename = tempfile.mkstemp()
         self.file = os.fdopen(self.fd, 'r+')
         _execute("set logging file %s" % self.filename)
         self.file_position_stack = []
-        
+
         atexit.register(os.close, self.fd)
         atexit.register(os.remove, self.filename)
-        
+
     def __enter__(self):
         if not self.file_position_stack:
             _execute("set logging redirect on")
             _execute("set logging on")
             _execute("set pagination off")
-        
+
         self.file_position_stack.append(os.fstat(self.fd).st_size)
         return self
-    
+
     def getoutput(self):
         gdb.flush()
         self.file.seek(self.file_position_stack[-1])
         result = self.file.read()
         return result
-        
+
     def __exit__(self, exc_type, exc_val, tb):
         startpos = self.file_position_stack.pop()
         self.file.seek(startpos)
@@ -1812,7 +1812,7 @@ class _LoggingState(object):
 def execute(command, from_tty=False, to_string=False):
     """
     Replace gdb.execute() with this function and have it accept a 'to_string'
-    argument (new in 7.2). Have it properly capture stderr also. Ensure 
+    argument (new in 7.2). Have it properly capture stderr also. Ensure
     reentrancy.
     """
     if to_string:
@@ -1835,9 +1835,9 @@ def get_selected_inferior():
     # Woooh, another bug in gdb! Is there an end in sight?
     # http://sourceware.org/bugzilla/show_bug.cgi?id=12212
     return gdb.inferiors()[0]
-    
+
     selected_thread = gdb.selected_thread()
-    
+
     for inferior in gdb.inferiors():
         for thread in inferior.threads():
             if thread == selected_thread:
@@ -1847,7 +1847,7 @@ def source_gdb_script(script_contents, to_string=False):
     """
     Source a gdb script with script_contents passed as a string. This is useful
     to provide defines for py-step and py-next to make them repeatable (this is
-    not possible with gdb.execute()). See 
+    not possible with gdb.execute()). See
     http://sourceware.org/bugzilla/show_bug.cgi?id=12216
     """
     fd, filename = tempfile.mkstemp()
@@ -1862,20 +1862,20 @@ def register_defines():
         define py-step
         -py-step
         end
-        
+
         define py-next
         -py-next
         end
-        
+
         document py-step
         %s
         end
-        
+
         document py-next
         %s
         end
     """) % (PyStep.__doc__, PyNext.__doc__))
-    
+
 
 def stackdepth(frame):
     "Tells the stackdepth of a gdb frame."
@@ -1883,16 +1883,16 @@ def stackdepth(frame):
     while frame:
         frame = frame.older()
         depth += 1
-        
+
     return depth
 
 class ExecutionControlCommandBase(gdb.Command):
     """
     Superclass for language specific execution control. Language specific
-    features should be implemented by lang_info using the LanguageInfo 
+    features should be implemented by lang_info using the LanguageInfo
     interface. 'name' is the name of the command.
     """
-    
+
     def __init__(self, name, lang_info):
         super(ExecutionControlCommandBase, self).__init__(
                                 name, gdb.COMMAND_RUNNING, gdb.COMPLETE_NONE)
@@ -1902,40 +1902,40 @@ class ExecutionControlCommandBase(gdb.Command):
         all_locations = itertools.chain(
             self.lang_info.static_break_functions(),
             self.lang_info.runtime_break_functions())
-            
+
         for location in all_locations:
             result = gdb.execute('break %s' % location, to_string=True)
             yield re.search(r'Breakpoint (\d+)', result).group(1)
-    
+
     def delete_breakpoints(self, breakpoint_list):
         for bp in breakpoint_list:
             gdb.execute("delete %s" % bp)
-    
+
     def filter_output(self, result):
         output = []
-        
+
         match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
                                  re.MULTILINE)
         if match_finish:
             output.append('Value returned: %s' % match_finish.group(1))
-        
+
         reflags = re.MULTILINE
         regexes = [
             (r'^Program received signal .*', reflags|re.DOTALL),
             (r'.*[Ww]arning.*', 0),
             (r'^Program exited .*', reflags),
         ]
-        
+
         for regex, flags in regexes:
             match = re.search(regex, result, flags)
             if match:
                 output.append(match.group(0))
-        
+
         return '\n'.join(output)
-        
+
     def stopped(self):
         return get_selected_inferior().pid == 0
-    
+
     def finish_executing(self, result):
         """
         After doing some kind of code running in the inferior, print the line
@@ -1943,7 +1943,7 @@ class ExecutionControlCommandBase(gdb.Command):
         in as the `result` argument).
         """
         result = self.filter_output(result)
-        
+
         if self.stopped():
             print result.strip()
         else:
@@ -1955,10 +1955,10 @@ class ExecutionControlCommandBase(gdb.Command):
                 print self.lang_info.get_source_line(frame) or result
             else:
                 print result
-    
+
     def _finish(self):
         """
-        Execute until the function returns (or until something else makes it 
+        Execute until the function returns (or until something else makes it
         stop)
         """
         if gdb.selected_frame().older() is not None:
@@ -1966,83 +1966,83 @@ class ExecutionControlCommandBase(gdb.Command):
         else:
             # outermost frame, continue
             return gdb.execute('cont', to_string=True)
-    
+
     def _finish_frame(self):
         """
         Execute until the function returns to a relevant caller.
         """
         while True:
             result = self._finish()
-            
+
             try:
                 frame = gdb.selected_frame()
             except RuntimeError:
                 break
-            
+
             hitbp = re.search(r'Breakpoint (\d+)', result)
             is_relevant = self.lang_info.is_relevant_function(frame)
             if hitbp or is_relevant or self.stopped():
                 break
-        
+
         return result
-    
+
     def finish(self, *args):
         "Implements the finish command."
         result = self._finish_frame()
         self.finish_executing(result)
-    
+
     def step(self, stepinto, stepover_command='next'):
         """
         Do a single step or step-over. Returns the result of the last gdb
         command that made execution stop.
-        
-        This implementation, for stepping, sets (conditional) breakpoints for 
+
+        This implementation, for stepping, sets (conditional) breakpoints for
         all functions that are deemed relevant. It then does a step over until
         either something halts execution, or until the next line is reached.
-        
-        If, however, stepover_command is given, it should be a string gdb 
-        command that continues execution in some way. The idea is that the 
-        caller has set a (conditional) breakpoint or watchpoint that can work 
+
+        If, however, stepover_command is given, it should be a string gdb
+        command that continues execution in some way. The idea is that the
+        caller has set a (conditional) breakpoint or watchpoint that can work
         more efficiently than the step-over loop. For Python this means setting
-        a watchpoint for f->f_lasti, which means we can then subsequently 
+        a watchpoint for f->f_lasti, which means we can then subsequently
         "finish" frames.
-        We want f->f_lasti instead of f->f_lineno, because the latter only 
-        works properly with local trace functions, see 
+        We want f->f_lasti instead of f->f_lineno, because the latter only
+        works properly with local trace functions, see
         PyFrameObjectPtr.current_line_num and PyFrameObjectPtr.addr2line.
         """
         if stepinto:
             breakpoint_list = list(self.install_breakpoints())
-        
+
         beginframe = gdb.selected_frame()
-        
+
         if self.lang_info.is_relevant_function(beginframe):
             # If we start in a relevant frame, initialize stuff properly. If
-            # we don't start in a relevant frame, the loop will halt 
-            # immediately. So don't call self.lang_info.lineno() as it may 
+            # we don't start in a relevant frame, the loop will halt
+            # immediately. So don't call self.lang_info.lineno() as it may
             # raise for irrelevant frames.
             beginline = self.lang_info.lineno(beginframe)
-            
+
             if not stepinto:
                 depth = stackdepth(beginframe)
-        
+
         newframe = beginframe
-        
+
         while True:
             if self.lang_info.is_relevant_function(newframe):
                 result = gdb.execute(stepover_command, to_string=True)
             else:
                 result = self._finish_frame()
-            
+
             if self.stopped():
                 break
-            
+
             newframe = gdb.selected_frame()
             is_relevant_function = self.lang_info.is_relevant_function(newframe)
             try:
                 framename = newframe.name()
             except RuntimeError:
                 framename = None
-            
+
             m = re.search(r'Breakpoint (\d+)', result)
             if m:
                 if is_relevant_function and m.group(1) in breakpoint_list:
@@ -2050,16 +2050,16 @@ class ExecutionControlCommandBase(gdb.Command):
                     # that the function, in case hit by a runtime breakpoint,
                     # is in the right context
                     break
-            
+
             if newframe != beginframe:
                 # new function
-                
+
                 if not stepinto:
                     # see if we returned to the caller
                     newdepth = stackdepth(newframe)
-                    is_relevant_function = (newdepth < depth and 
+                    is_relevant_function = (newdepth < depth and
                                             is_relevant_function)
-                
+
                 if is_relevant_function:
                     break
             else:
@@ -2068,15 +2068,15 @@ class ExecutionControlCommandBase(gdb.Command):
                 lineno = self.lang_info.lineno(newframe)
                 if lineno and lineno != beginline:
                     break
-        
+
         if stepinto:
             self.delete_breakpoints(breakpoint_list)
 
         self.finish_executing(result)
-    
+
     def run(self, *args):
         self.finish_executing(gdb.execute('run', to_string=True))
-    
+
     def cont(self, *args):
         self.finish_executing(gdb.execute('cont', to_string=True))
 
@@ -2085,32 +2085,32 @@ class LanguageInfo(object):
     """
     This class defines the interface that ExecutionControlCommandBase needs to
     provide language-specific execution control.
-    
+
     Classes that implement this interface should implement:
-    
+
         lineno(frame)
             Tells the current line number (only called for a relevant frame).
             If lineno is a false value it is not checked for a difference.
-        
+
         is_relevant_function(frame)
             tells whether we care about frame 'frame'
-        
+
         get_source_line(frame)
             get the line of source code for the current line (only called for a
-            relevant frame). If the source code cannot be retrieved this 
+            relevant frame). If the source code cannot be retrieved this
             function should return None
-        
+
         exc_info(frame) -- optional
             tells whether an exception was raised, if so, it should return a
             string representation of the exception value, None otherwise.
-        
-        static_break_functions() 
-            returns an iterable of function names that are considered relevant 
-            and should halt step-into execution. This is needed to provide a 
+
+        static_break_functions()
+            returns an iterable of function names that are considered relevant
+            and should halt step-into execution. This is needed to provide a
             performing step-into
-      
+
         runtime_break_functions() -- optional
-            list of functions that we should break into depending on the 
+            list of functions that we should break into depending on the
             context
     """
 
@@ -2119,13 +2119,13 @@ class LanguageInfo(object):
 
     def runtime_break_functions(self):
         """
-        Implement this if the list of step-into functions depends on the 
+        Implement this if the list of step-into functions depends on the
         context.
         """
         return ()
 
 class PythonInfo(LanguageInfo):
-    
+
     def pyframe(self, frame):
         pyframe = Frame(frame).get_pyop()
         if pyframe:
@@ -2134,21 +2134,21 @@ class PythonInfo(LanguageInfo):
             raise gdb.RuntimeError(
                 "Unable to find the Python frame, run your code with a debug "
                 "build (configure with --with-pydebug or compile with -g).")
-        
+
     def lineno(self, frame):
         return self.pyframe(frame).current_line_num()
-    
+
     def is_relevant_function(self, frame):
         return Frame(frame).is_evalframeex()
 
     def get_source_line(self, frame):
         try:
             pyframe = self.pyframe(frame)
-            return '%4d    %s' % (pyframe.current_line_num(), 
+            return '%4d    %s' % (pyframe.current_line_num(),
                                   pyframe.current_line().rstrip())
         except IOError, e:
             return None
-    
+
     def exc_info(self, frame):
         try:
             tstate = frame.read_var('tstate').dereference()
@@ -2157,26 +2157,26 @@ class PythonInfo(LanguageInfo):
                 inf_type = tstate['curexc_type']
                 inf_value = tstate['curexc_value']
                 if inf_type:
-                    return 'An exception was raised: %s(%s)' % (inf_type, 
+                    return 'An exception was raised: %s(%s)' % (inf_type,
                                                                 inf_value)
         except (ValueError, RuntimeError), e:
             # Could not read the variable tstate or it's memory, it's ok
             pass
-        
+
     def static_break_functions(self):
         yield 'PyEval_EvalFrameEx'
 
 
 class PythonStepperMixin(object):
     """
-    Make this a mixin so CyStep can also inherit from this and use a 
+    Make this a mixin so CyStep can also inherit from this and use a
     CythonCodeStepper at the same time.
     """
-    
+
     def python_step(self, stepinto):
         frame = gdb.selected_frame()
         framewrapper = Frame(frame)
-        
+
         output = gdb.execute('watch f->f_lasti', to_string=True)
         watchpoint = int(re.search(r'[Ww]atchpoint (\d+):', output).group(1))
         self.step(stepinto=stepinto, stepover_command='finish')
@@ -2185,36 +2185,36 @@ class PythonStepperMixin(object):
 
 class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
     "Step through Python code."
-    
+
     stepinto = True
-    
+
     def invoke(self, args, from_tty):
         self.python_step(stepinto=self.stepinto)
-    
+
 class PyNext(PyStep):
     "Step-over Python code."
-    
+
     stepinto = False
-    
+
 class PyFinish(ExecutionControlCommandBase):
     "Execute until function returns to a caller."
-    
+
     invoke = ExecutionControlCommandBase.finish
 
 class PyRun(ExecutionControlCommandBase):
     "Run the program."
-    
+
     invoke = ExecutionControlCommandBase.run
 
 class PyCont(ExecutionControlCommandBase):
-    
+
     invoke = ExecutionControlCommandBase.cont
 
 
 def _pointervalue(gdbval):
     """
-    Return the value of the pionter as a Python int. 
-    
+    Return the value of the pionter as a Python int.
+
     gdbval.type must be a pointer type
     """
     # don't convert with int() as it will raise a RuntimeError
@@ -2235,14 +2235,14 @@ def pointervalue(gdbval):
         # work around yet another bug in gdb where you get random behaviour
         # and tracebacks
         pass
-        
+
     return pointer
 
 def get_inferior_unicode_postfix():
     try:
         gdb.parse_and_eval('PyUnicode_FromEncodedObject')
     except RuntimeError:
-        try: 
+        try:
             gdb.parse_and_eval('PyUnicodeUCS2_FromEncodedObject')
         except RuntimeError:
             return 'UCS4'
@@ -2250,37 +2250,37 @@ def get_inferior_unicode_postfix():
             return 'UCS2'
     else:
         return ''
-        
+
 class PythonCodeExecutor(object):
-    
+
     Py_single_input = 256
     Py_file_input = 257
     Py_eval_input = 258
-    
+
     def malloc(self, size):
         chunk = (gdb.parse_and_eval("(void *) malloc((size_t) %d)" % size))
-        
+
         pointer = pointervalue(chunk)
         if pointer == 0:
             raise gdb.GdbError("No memory could be allocated in the inferior.")
-        
+
         return pointer
-        
+
     def alloc_string(self, string):
         pointer = self.malloc(len(string))
         get_selected_inferior().write_memory(pointer, string)
-        
+
         return pointer
-    
+
     def alloc_pystring(self, string):
         stringp = self.alloc_string(string)
         PyString_FromStringAndSize = 'PyString_FromStringAndSize'
-        
+
         try:
             gdb.parse_and_eval(PyString_FromStringAndSize)
         except RuntimeError:
             # Python 3
-            PyString_FromStringAndSize = ('PyUnicode%s_FromStringAndSize' % 
+            PyString_FromStringAndSize = ('PyUnicode%s_FromStringAndSize' %
                                                (get_inferior_unicode_postfix,))
 
         try:
@@ -2289,59 +2289,59 @@ class PythonCodeExecutor(object):
                             PyString_FromStringAndSize, stringp, len(string)))
         finally:
             self.free(stringp)
-        
+
         pointer = pointervalue(result)
         if pointer == 0:
             raise gdb.GdbError("Unable to allocate Python string in "
                                "the inferior.")
-        
+
         return pointer
-        
+
     def free(self, pointer):
         gdb.parse_and_eval("free((void *) %d)" % pointer)
-    
+
     def incref(self, pointer):
         "Increment the reference count of a Python object in the inferior."
         gdb.parse_and_eval('Py_IncRef((PyObject *) %d)' % pointer)
-    
+
     def decref(self, pointer):
         "Decrement the reference count of a Python object in the inferior."
         # Py_DecRef is like Py_XDECREF, but a function. So we don't have
         # to check for NULL. This should also decref all our allocated
         # Python strings.
         gdb.parse_and_eval('Py_DecRef((PyObject *) %d)' % pointer)
-    
+
     def evalcode(self, code, input_type, global_dict=None, local_dict=None):
         """
         Evaluate python code `code` given as a string in the inferior and
         return the result as a gdb.Value. Returns a new reference in the
         inferior.
-        
+
         Of course, executing any code in the inferior may be dangerous and may
         leave the debuggee in an unsafe state or terminate it alltogether.
         """
         if '\0' in code:
             raise gdb.GdbError("String contains NUL byte.")
-        
+
         code += '\0'
-        
+
         pointer = self.alloc_string(code)
-        
+
         globalsp = pointervalue(global_dict)
         localsp = pointervalue(local_dict)
-        
+
         if globalsp == 0 or localsp == 0:
             raise gdb.GdbError("Unable to obtain or create locals or globals.")
-        
+
         code = """
             PyRun_String(
                 (char *) %(code)d,
                 (int) %(start)d,
                 (PyObject *) %(globals)s,
                 (PyObject *) %(locals)d)
-        """ % dict(code=pointer, start=input_type, 
+        """ % dict(code=pointer, start=input_type,
                    globals=globalsp, locals=localsp)
-        
+
         with FetchAndRestoreError():
             try:
                 self.decref(gdb.parse_and_eval(code))
@@ -2358,25 +2358,25 @@ class FetchAndRestoreError(PythonCodeExecutor):
     def __init__(self):
         self.sizeof_PyObjectPtr = gdb.lookup_type('PyObject').pointer().sizeof
         self.pointer = self.malloc(self.sizeof_PyObjectPtr * 3)
-        
+
         type = self.pointer
         value = self.pointer + self.sizeof_PyObjectPtr
         traceback = self.pointer + self.sizeof_PyObjectPtr * 2
-        
+
         self.errstate = type, value, traceback
-        
+
     def __enter__(self):
         gdb.parse_and_eval("PyErr_Fetch(%d, %d, %d)" % self.errstate)
-    
+
     def __exit__(self, *args):
         if gdb.parse_and_eval("(int) PyErr_Occurred()"):
             gdb.parse_and_eval("PyErr_Print()")
-        
+
         pyerr_restore = ("PyErr_Restore("
                             "(PyObject *) *%d,"
                             "(PyObject *) *%d,"
                             "(PyObject *) *%d)")
-        
+
         try:
             gdb.parse_and_eval(pyerr_restore % self.errstate)
         finally:
@@ -2389,15 +2389,15 @@ class FixGdbCommand(gdb.Command):
         super(FixGdbCommand, self).__init__(command, gdb.COMMAND_DATA,
                                             gdb.COMPLETE_NONE)
         self.actual_command = actual_command
-        
+
     def fix_gdb(self):
         """
-        So, you must be wondering what the story is this time! Yeeees, indeed, 
+        So, you must be wondering what the story is this time! Yeeees, indeed,
         I have quite the story for you! It seems that invoking either 'cy exec'
-        and 'py-exec' work perfectly fine, but after this gdb's python API is 
-        entirely broken. Some unset exception value is still set? 
+        and 'py-exec' work perfectly fine, but after this gdb's python API is
+        entirely broken. Some unset exception value is still set?
         sys.exc_clear() didn't help. A demonstration:
-        
+
         (gdb) cy exec 'hello'
         'hello'
         (gdb) python gdb.execute('cont')
@@ -2405,17 +2405,17 @@ class FixGdbCommand(gdb.Command):
         Error while executing Python code.
         (gdb) python gdb.execute('cont')
         [15148 refs]
-    
+
         Program exited normally.
         """
-        warnings.filterwarnings('ignore', r'.*', RuntimeWarning, 
+        warnings.filterwarnings('ignore', r'.*', RuntimeWarning,
                                 re.escape(__name__))
         try:
             long(gdb.parse_and_eval("(void *) 0")) == 0
         except RuntimeError:
             pass
         # warnings.resetwarnings()
-    
+
     def invoke(self, args, from_tty):
         self.fix_gdb()
         try:
@@ -2426,7 +2426,7 @@ class FixGdbCommand(gdb.Command):
 
 
 class PyExec(gdb.Command):
-    
+
     def readcode(self, expr):
         if expr:
             return expr, PythonCodeExecutor.Py_single_input
@@ -2440,23 +2440,23 @@ class PyExec(gdb.Command):
                 else:
                     if line.rstrip() == 'end':
                         break
-                    
+
                     lines.append(line)
-            
+
             return '\n'.join(lines), Py_file_input
-        
+
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
-        
+
         executor = PythonCodeExecutor()
         global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
         local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
-        
+
         if pointervalue(global_dict) == 0 or pointervalue(local_dict) == 0:
             raise gdb.GdbError("Unable to find the locals or globals of the "
                                "most recent Python function (relative to the "
                                "selected frame).")
-        
+
         executor.evalcode(expr, input_type, global_dict, local_dict)
 
 
