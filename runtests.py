@@ -675,11 +675,6 @@ class CythonPyregrTestCase(CythonRunTestCase):
         except (unittest.SkipTest, support.ResourceDenied):
             result.addSkip(self, 'ok')
 
-# Someone wrapped this in a:
-# 'try: import gdb; ... except: include_debugger = False' thing, but don't do
-# this, it doesn't work as gdb is a builtin module in GDB. The tests themselves
-# are doing the skipping. If there's a problem with the tests, please file an
-# issue.
 include_debugger = sys.version_info[:2] > (2, 5)
 
 def collect_unittests(path, module_prefix, suite, selectors):
@@ -749,6 +744,9 @@ def collect_doctests(path, module_prefix, suite, selectors):
                 filepath = filepath[:-len(".py")]
                 modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
                 if not [ 1 for match in selectors if match(modulename) ]:
+                    continue
+                if 'in_gdb' in modulename:
+                    # These should only be imported from gdb.
                     continue
                 module = __import__(modulename)
                 for x in modulename.split('.')[1:]:
