@@ -154,9 +154,6 @@ class CythonModule(object):
         self.lineno_c2cy = {}
         self.functions = {}
 
-    def qualified_name(self, varname):
-        return '.'.join(self.name, varname)
-
 class CythonVariable(object):
 
     def __init__(self, name, cname, qualified_name, type, lineno):
@@ -174,7 +171,8 @@ class CythonFunction(CythonVariable):
                  pf_cname,
                  qualified_name,
                  lineno,
-                 type=CObject):
+                 type=CObject,
+                 is_initmodule_function="False"):
         super(CythonFunction, self).__init__(name,
                                              cname,
                                              qualified_name,
@@ -182,6 +180,7 @@ class CythonFunction(CythonVariable):
                                              lineno)
         self.module = module
         self.pf_cname = pf_cname
+        self.is_initmodule_function = is_initmodule_function == "True"
         self.locals = {}
         self.arguments = []
         self.step_into_functions = set()
@@ -243,7 +242,8 @@ class CythonBase(object):
             pyframeobject = libpython.Frame(frame).get_pyop()
 
             if not pyframeobject:
-                raise gdb.GdbError('Unable to read information on python frame')
+                raise gdb.GdbError(
+                            'Unable to read information on python frame')
 
             filename = pyframeobject.filename()
             lineno = pyframeobject.current_line_num()
@@ -256,7 +256,7 @@ class CythonBase(object):
                 filename = None
                 lineno = 0
             else:
-                filename = symbol_and_line_obj.symtab.filename
+                filename = symbol_and_line_obj.symtab.fullname()
                 lineno = symbol_and_line_obj.line
                 if pygments:
                     lexer = pygments.lexers.CLexer(stripall=False)
@@ -389,10 +389,20 @@ class CythonBase(object):
                                      value)
 
     def is_initialized(self, cython_func, local_name):
+        islocal = local_name in cython_func.locals
+        if islocal:
+            cyvar = cython_func.locals[local_name]
+            if '->' in cyvar.cname:
+                # Closed over free variable
+                if self.get_cython_lineno() >= cython_func.lineno + 1:
+                    if cyvar.type == PythonObject:
+                        return long(gdb.parse_and_eval(cyvar.cname))
+                    return True
+                return False
+
         cur_lineno = self.get_cython_lineno()
         return (local_name in cython_func.arguments or
-                (local_name in cython_func.locals and
-                 cur_lineno > cython_func.locals[local_name].lineno))
+                (islocal and cur_lineno > cyvar.lineno))
 
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
@@ -706,8 +716,6 @@ class CyImport(CythonCommand):
                     for c_lineno in c_linenos:
                         cython_module.lineno_c2cy[c_lineno] = cython_lineno
 
-        self.cy.step.init_breakpoints()
-
 
 class CyBreak(CythonCommand):
     """
@@ -754,10 +762,16 @@ class CyBreak(CythonCommand):
 
     def _break_funcname(self, funcname):
         func = self.cy.functions_by_qualified_name.get(funcname)
+
+        if func and func.is_initmodule_function:
+            func = None
+
         break_funcs = [func]
 
         if not func:
-            funcs = self.cy.functions_by_name.get(funcname)
+            funcs = self.cy.functions_by_name.get(funcname) or []
+            funcs = [f for f in funcs if not f.is_initmodule_function]
+
             if not funcs:
                 gdb.execute('break ' + funcname)
                 return
@@ -813,18 +827,28 @@ class CyBreak(CythonCommand):
 
     @dont_suppress_errors
     def complete(self, text, word):
-        names = self.cy.functions_by_qualified_name
+        # Filter init-module functions (breakpoints can be set using
+        # modulename:linenumber).
+        names =  [n for n, L in self.cy.functions_by_name.iteritems()
+                        if any(not f.is_initmodule_function for f in L)]
+        qnames = [n for n, f in self.cy.functions_by_qualified_name.iteritems()
+                        if not f.is_initmodule_function]
+
         if parameters.complete_unqualified:
-            names = itertools.chain(names, self.cy.functions_by_name)
+            all_names = itertools.chain(qnames, names)
+        else:
+            all_names = qnames
 
         words = text.strip().split()
-        if words and '.' in words[-1]:
-            lastword = words[-1]
-            compl = [n for n in self.cy.functions_by_qualified_name
-                           if n.startswith(lastword)]
-        else:
+        if not words or '.' not in words[-1]:
+            # complete unqualified
             seen = set(text[:-len(word)].split())
-            return [n for n in names if n.startswith(word) and n not in seen]
+            return [n for n in all_names
+                          if n.startswith(word) and n not in seen]
+
+        # complete qualified name
+        lastword = words[-1]
+        compl = [n for n in qnames if n.startswith(lastword)]
 
         if len(lastword) > len(word):
             # readline sees something (e.g. a '.') as a word boundary, so don't
@@ -835,10 +859,9 @@ class CyBreak(CythonCommand):
         return compl
 
 
-class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
+class CythonInfo(CythonBase, libpython.PythonInfo):
     """
-    Base class for CyStep and CyNext. It implements the interface dictated by
-    libpython.GenericCodeStepper.
+    Implementation of the interface dictated by libpython.LanguageInfo.
     """
 
     def lineno(self, frame):
@@ -848,32 +871,49 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
         # related code. The C level should be dispatched to the 'step' command.
         if self.is_cython_function(frame):
             return self.get_cython_lineno(frame)
-        else:
-            return libpython.py_step.lineno(frame)
+        return super(CythonInfo, self).lineno(frame)
 
     def get_source_line(self, frame):
         try:
-            line = super(CythonCodeStepper, self).get_source_line(frame)
+            line = super(CythonInfo, self).get_source_line(frame)
         except gdb.GdbError:
             return None
         else:
             return line.strip() or None
 
-    @classmethod
-    def register(cls):
-        return cls(cls.name, stepinto=getattr(cls, 'stepinto', False))
+    def exc_info(self, frame):
+        if self.is_python_function:
+            return super(CythonInfo, self).exc_info(frame)
 
     def runtime_break_functions(self):
         if self.is_cython_function():
             return self.get_cython_function().step_into_functions
+        return ()
 
     def static_break_functions(self):
         result = ['PyEval_EvalFrameEx']
         result.extend(self.cy.functions_by_cname)
         return result
 
+
+class CythonExecutionControlCommand(CythonCommand,
+                                    libpython.ExecutionControlCommandBase):
+
+    @classmethod
+    def register(cls):
+        return cls(cls.name, cython_info)
+
+
+class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
+    "Step through Cython, Python or C code."
+
+    name = 'cy -step'
+    stepinto = True
+
     def invoke(self, args, from_tty):
-        if not self.is_cython_function() and not self.is_python_function():
+        if self.is_python_function():
+            self.python_step(self.stepinto)
+        elif not self.is_cython_function():
             if self.stepinto:
                 command = 'step'
             else:
@@ -881,24 +921,17 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
 
             self.finish_executing(gdb.execute(command, to_string=True))
         else:
-            self.step()
+            self.step(stepinto=self.stepinto)
 
 
-class CyStep(CythonCodeStepper):
-    "Step through Cython, Python or C code."
+class CyNext(CyStep):
+    "Step-over Cython, Python or C code."
 
-    name = 'cy step'
-    stepinto = True
-
-
-class CyNext(CythonCodeStepper):
-    "Step-over Python code."
-
-    name = 'cy next'
+    name = 'cy -next'
     stepinto = False
 
 
-class CyRun(CythonCodeStepper):
+class CyRun(CythonExecutionControlCommand):
     """
     Run a Cython program. This is like the 'run' command, except that it
     displays Cython or Python source lines as well
@@ -906,26 +939,26 @@ class CyRun(CythonCodeStepper):
 
     name = 'cy run'
 
-    invoke = CythonCodeStepper.run
+    invoke = CythonExecutionControlCommand.run
 
 
-class CyCont(CyRun):
+class CyCont(CythonExecutionControlCommand):
     """
     Continue a Cython program. This is like the 'run' command, except that it
     displays Cython or Python source lines as well.
     """
 
     name = 'cy cont'
-    invoke = CythonCodeStepper.cont
+    invoke = CythonExecutionControlCommand.cont
 
 
-class CyFinish(CyRun):
+class CyFinish(CythonExecutionControlCommand):
     """
     Execute until the function returns.
     """
     name = 'cy finish'
 
-    invoke = CythonCodeStepper.finish
+    invoke = CythonExecutionControlCommand.finish
 
 
 class CyUp(CythonCommand):
@@ -961,7 +994,7 @@ class CyDown(CyUp):
     _command = 'down'
 
 
-class CySelect(CythonCodeStepper):
+class CySelect(CythonCommand):
     """
     Select a frame. Use frame numbers as listed in `cy backtrace`.
     This command is useful because `cy backtrace` prints a reversed backtrace.
@@ -979,7 +1012,7 @@ class CySelect(CythonCodeStepper):
         while frame.newer():
             frame = frame.newer()
 
-        stackdepth = self._stackdepth(frame)
+        stackdepth = libpython.stackdepth(frame)
 
         try:
             gdb.execute('select %d' % (stackdepth - stackno - 1,))
@@ -1033,7 +1066,7 @@ class CyList(CythonCommand):
     command_class = gdb.COMMAND_FILES
     completer_class = gdb.COMPLETE_NONE
 
-    @dispatch_on_frame(c_command='list')
+    # @dispatch_on_frame(c_command='list')
     def invoke(self, _, from_tty):
         sd, lineno = self.get_source_desc()
         source = sd.get_source(lineno - 5, lineno + 5, mark_line=lineno,
@@ -1085,7 +1118,13 @@ class CyLocals(CythonCommand):
 
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
-        local_cython_vars = self.get_cython_function().locals
+        cython_function = self.get_cython_function()
+
+        if cython_function.is_initmodule_function:
+            self.cy.globals.invoke(args, from_tty)
+            return
+
+        local_cython_vars = cython_function.locals
         max_name_length = len(max(local_cython_vars, key=len))
         for name, cyvar in sorted(local_cython_vars.iteritems(), key=sortkey):
             if self.is_initialized(self.get_cython_function(), cyvar.name):
@@ -1263,17 +1302,16 @@ class CyCValue(CyCName):
     @require_cython_frame
     @gdb_function_value_to_unicode
     def invoke(self, cyname, frame=None):
-        try:
+        globals_dict = self.get_cython_globals_dict()
+        cython_function = self.get_cython_function(frame)
+
+        if self.is_initialized(cython_function, cyname):
             cname = super(CyCValue, self).invoke(cyname, frame=frame)
             return gdb.parse_and_eval(cname)
-        except (gdb.GdbError, RuntimeError), e:
-            # variable exists but may not have been initialized yet, or may be
-            # in the globals dict of the Cython module
-            d = self.get_cython_globals_dict()
-            if cyname in d:
-                return d[cyname]._gdbval
-
-            raise gdb.GdbError(str(e))
+        elif cyname in globals_dict:
+            return globals_dict[cyname]._gdbval
+        else:
+            raise gdb.GdbError("Variable %s is not initialized." % cyname)
 
 
 class CyLine(gdb.Function, CythonBase):
@@ -1285,5 +1323,27 @@ class CyLine(gdb.Function, CythonBase):
     def invoke(self):
         return self.get_cython_lineno()
 
-
+cython_info = CythonInfo()
 cy = CyCy.register()
+cython_info.cy = cy
+
+def register_defines():
+    libpython.source_gdb_script(textwrap.dedent("""\
+        define cy step
+        cy -step
+        end
+
+        define cy next
+        cy -next
+        end
+
+        document cy step
+        %s
+        end
+
+        document cy next
+        %s
+        end
+    """) % (CyStep.__doc__, CyNext.__doc__))
+
+register_defines()
