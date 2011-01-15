@@ -782,15 +782,20 @@ def p_string_literal(s, kind_override=None):
                 elif c == u'\n':
                     pass
                 elif c == u'x':
-                    chars.append_charval( int(systr[2:], 16) )
+                    if len(systr) == 4:
+                        chars.append_charval( int(systr[2:], 16) )
+                    else:
+                        s.error("Invalid hex escape '%s'" % systr)
                 elif c in u'Uu':
                     if kind in ('u', ''):
-                        chrval = int(systr[2:], 16)
-                        if chrval > 1114111: # sys.maxunicode:
-                            s.error("Invalid unicode escape '%s'" % systr,
-                                    pos = pos)
+                        if len(systr) in (6,10):
+                            chrval = int(systr[2:], 16)
+                            if chrval > 1114111: # sys.maxunicode:
+                                s.error("Invalid unicode escape '%s'" % systr)
+                        else:
+                            s.error("Invalid unicode escape '%s'" % systr)
                     else:
-                        # unicode escapes in plain byte strings are not unescaped
+                        # unicode escapes in byte strings are not unescaped
                         chrval = None
                     chars.append_uescape(chrval, systr)
                 else:
