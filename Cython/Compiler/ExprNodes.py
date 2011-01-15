@@ -1302,6 +1302,9 @@ class NameNode(AtomicExprNode):
             # Unfortunately the type attribute of type objects
             # is used for the pointer to the type they represent.
             return type_type
+        elif self.entry.type.is_cfunction:
+            # special case: referring to a C function must return its pointer
+            return PyrexTypes.CPtrType(self.entry.type)
         else:
             return self.entry.type
 
@@ -3360,7 +3363,14 @@ class AttributeNode(ExprNode):
         elif self.analyse_as_unbound_cmethod(env):
             return self.entry.type
         else:
-            self.analyse_attribute(env, obj_type = self.obj.infer_type(env))
+            obj_type = self.obj.infer_type(env)
+            self.analyse_attribute(env, obj_type = obj_type)
+            if obj_type.is_builtin_type and self.type.is_cfunction:
+                # special case: C-API replacements for C methods of
+                # builtin types cannot be inferred as C functions as
+                # that would prevent their use as bound methods
+                self.type = py_object_type
+                return py_object_type
             return self.type
 
     def analyse_target_declaration(self, env):

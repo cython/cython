@@ -199,6 +199,28 @@ def builtin_type_operations():
     T2 = () * 2
     assert typeof(T2) == "tuple object", typeof(T2)
 
+def builtin_type_methods():
+    """
+    >>> builtin_type_methods()
+    """
+    l = []
+    assert typeof(l) == 'list object', typeof(l)
+    append = l.append
+    assert typeof(append) == 'Python object', typeof(append)
+    append(1)
+    assert l == [1], str(l)
+
+cdef int func(int x):
+    return x+1
+
+def c_functions():
+    """
+    >>> c_functions()
+    """
+    f = func
+    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert 2 == f(1)
+
 def cascade():
     """
     >>> cascade()
