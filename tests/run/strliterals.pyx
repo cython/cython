@@ -125,6 +125,13 @@ __doc__ = ur"""
     >>> len(uresc)
     9
 
+    >>> bytes_uescape
+    b'\\u1234\\U12345678\\u\\u1\\u12\\uX'
+    >>> bytes_uescape == b'\\u1234\\U12345678\\u\\u1\\u12\\uX'
+    True
+    >>> len(bytes_uescape)
+    28
+
     >>> newlines == "Aaa\n"
     True
     
@@ -164,6 +171,8 @@ u6 = UR"abc\x11"
 sresc =  r'\12\'\"\\'
 bresc = br'\12\'\"\\'
 uresc = ur'\12\'\"\\'
+
+bytes_uescape = b'\u1234\U12345678\u\u1\u12\uX'
 
 newlines = "Aaa\n"
 
