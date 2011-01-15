@@ -369,8 +369,8 @@ class PyObjectPtr(object):
         if tp_name in name_map:
             return name_map[tp_name]
 
-        if tp_flags & Py_TPFLAGS_HEAPTYPE:
-            return HeapTypeObjectPtr
+        if tp_flags & (Py_TPFLAGS_HEAPTYPE|Py_TPFLAGS_TYPE_SUBCLASS):
+            return PyTypeObjectPtr
 
         if tp_flags & Py_TPFLAGS_INT_SUBCLASS:
             return PyIntObjectPtr
@@ -392,8 +392,6 @@ class PyObjectPtr(object):
             return PyDictObjectPtr
         if tp_flags & Py_TPFLAGS_BASE_EXC_SUBCLASS:
             return PyBaseExceptionObjectPtr
-        #if tp_flags & Py_TPFLAGS_TYPE_SUBCLASS:
-        #    return PyTypeObjectPtr
 
         # Use the base class:
         return cls
@@ -484,8 +482,8 @@ def _PyObject_VAR_SIZE(typeobj, nitems):
              ) & ~(SIZEOF_VOID_P - 1)
            ).cast(gdb.lookup_type('size_t'))
 
-class HeapTypeObjectPtr(PyObjectPtr):
-    _typename = 'PyObject'
+class PyTypeObjectPtr(PyObjectPtr):
+    _typename = 'PyTypeObject'
 
     def get_attr_dict(self):
         '''
@@ -546,9 +544,16 @@ class HeapTypeObjectPtr(PyObjectPtr):
             return
         visited.add(self.as_address())
 
-        pyop_attrdict = self.get_attr_dict()
-        _write_instance_repr(out, visited,
-                             self.safe_tp_name(), pyop_attrdict, self.as_address())
+        try:
+            tp_name = self.field('tp_name').string()
+        except RuntimeError:
+            tp_name = 'unknown'
+
+        out.write('<type %s at remote 0x%x>' % (tp_name,
+                                                self.as_address()))
+        # pyop_attrdict = self.get_attr_dict()
+        # _write_instance_repr(out, visited,
+                             # self.safe_tp_name(), pyop_attrdict, self.as_address())
 
 class ProxyException(Exception):
     def __init__(self, tp_name, args):
@@ -1136,9 +1141,6 @@ class PyTupleObjectPtr(PyObjectPtr):
         else:
             out.write(')')
 
-class PyTypeObjectPtr(PyObjectPtr):
-    _typename = 'PyTypeObject'
-
 
 def _unichr_is_printable(char):
     # Logic adapted from Python 3's Tools/unicode/makeunicodedata.py
@@ -1715,6 +1717,8 @@ class PyNameEquals(gdb.Function):
         if frame.is_evalframeex():
             pyframe = frame.get_pyop()
             if pyframe is None:
+                warnings.warn("Use a Python debug build, Python breakpoints "
+                              "won't work otherwise.")
                 return None
 
             return getattr(pyframe, attr).proxyval(set())
@@ -1839,132 +1843,98 @@ def get_selected_inferior():
             if thread == selected_thread:
                 return inferior
 
-
-class GenericCodeStepper(gdb.Command):
+def source_gdb_script(script_contents, to_string=False):
     """
-    Superclass for code stepping. Subclasses must implement the following
-    methods:
+    Source a gdb script with script_contents passed as a string. This is useful
+    to provide defines for py-step and py-next to make them repeatable (this is
+    not possible with gdb.execute()). See
+    http://sourceware.org/bugzilla/show_bug.cgi?id=12216
+    """
+    fd, filename = tempfile.mkstemp()
+    f = os.fdopen(fd, 'w')
+    f.write(script_contents)
+    f.close()
+    gdb.execute("source %s" % filename, to_string=to_string)
+    os.remove(filename)
 
-        lineno(frame)
-            tells the current line number (only called for a relevant frame)
+def register_defines():
+    source_gdb_script(textwrap.dedent("""\
+        define py-step
+        -py-step
+        end
 
-        is_relevant_function(frame)
-            tells whether we care about frame 'frame'
+        define py-next
+        -py-next
+        end
 
-        get_source_line(frame)
-            get the line of source code for the current line (only called for a
-            relevant frame). If the source code cannot be retrieved this
-            function should return None
+        document py-step
+        %s
+        end
 
-        static_break_functions()
-            returns an iterable of function names that are considered relevant
-            and should halt step-into execution. This is needed to provide a
-            performing step-into
+        document py-next
+        %s
+        end
+    """) % (PyStep.__doc__, PyNext.__doc__))
 
-        runtime_break_functions
-            list of functions that we should break into depending on the
-            context
 
-    This class provides an 'invoke' method that invokes a 'step' or 'step-over'
-    depending on the 'stepinto' argument.
+def stackdepth(frame):
+    "Tells the stackdepth of a gdb frame."
+    depth = 0
+    while frame:
+        frame = frame.older()
+        depth += 1
+
+    return depth
+
+class ExecutionControlCommandBase(gdb.Command):
+    """
+    Superclass for language specific execution control. Language specific
+    features should be implemented by lang_info using the LanguageInfo
+    interface. 'name' is the name of the command.
     """
 
-    stepper = False
-    static_breakpoints = {}
-    runtime_breakpoints = {}
+    def __init__(self, name, lang_info):
+        super(ExecutionControlCommandBase, self).__init__(
+                                name, gdb.COMMAND_RUNNING, gdb.COMPLETE_NONE)
+        self.lang_info = lang_info
 
-    def __init__(self, name, stepinto=False):
-        super(GenericCodeStepper, self).__init__(name,
-                                                 gdb.COMMAND_RUNNING,
-                                                 gdb.COMPLETE_NONE)
-        self.stepinto = stepinto
+    def install_breakpoints(self):
+        all_locations = itertools.chain(
+            self.lang_info.static_break_functions(),
+            self.lang_info.runtime_break_functions())
 
-    def _break_func(self, funcname):
-        result = gdb.execute('break %s' % funcname, to_string=True)
-        return re.search(r'Breakpoint (\d+)', result).group(1)
+        for location in all_locations:
+            result = gdb.execute('break %s' % location, to_string=True)
+            yield re.search(r'Breakpoint (\d+)', result).group(1)
 
-    def init_breakpoints(self):
-        """
-        Keep all breakpoints around and simply disable/enable them each time
-        we are stepping. We need this because if you set and delete a
-        breakpoint, gdb will not repeat your command (this is due to 'delete').
-        We also can't use the breakpoint API because there's no option to make
-        breakpoint setting silent.
+    def delete_breakpoints(self, breakpoint_list):
+        for bp in breakpoint_list:
+            gdb.execute("delete %s" % bp)
 
-        This method must be called whenever the list of functions we should
-        step into changes. It can be called on any GenericCodeStepper instance.
-        """
-        break_funcs = set(self.static_break_functions())
+    def filter_output(self, result):
+        output = []
 
-        for funcname in break_funcs:
-            if funcname not in self.static_breakpoints:
-                try:
-                    gdb.Breakpoint('', gdb.BP_BREAKPOINT, internal=True)
-                except (AttributeError, TypeError):
-                    # gdb.Breakpoint does not take an 'internal' argument, or
-                    # gdb.Breakpoint does not exist.
-                    breakpoint = self._break_func(funcname)
-                except RuntimeError:
-                    # gdb.Breakpoint does take an 'internal' argument, use it
-                    # and hide output
-                    result = gdb.execute(textwrap.dedent("""\
-                        python bp = gdb.Breakpoint(%r, gdb.BP_BREAKPOINT, \
-                                                   internal=True); \
-                               print bp.number""",
-                        to_string=True))
+        match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
+                                 re.MULTILINE)
+        if match_finish:
+            output.append('Value returned: %s' % match_finish.group(1))
 
-                    breakpoint = int(result)
+        reflags = re.MULTILINE
+        regexes = [
+            (r'^Program received signal .*', reflags|re.DOTALL),
+            (r'.*[Ww]arning.*', 0),
+            (r'^Program exited .*', reflags),
+        ]
 
-                self.static_breakpoints[funcname] = breakpoint
+        for regex, flags in regexes:
+            match = re.search(regex, result, flags)
+            if match:
+                output.append(match.group(0))
 
-        for bp in set(self.static_breakpoints) - break_funcs:
-            gdb.execute("delete " + self.static_breakpoints[bp])
+        return '\n'.join(output)
 
-        self.disable_breakpoints()
-
-    def enable_breakpoints(self):
-        for bp in self.static_breakpoints.itervalues():
-            gdb.execute('enable ' + bp)
-
-        runtime_break_functions = self.runtime_break_functions()
-        if runtime_break_functions is None:
-            return
-
-        for funcname in runtime_break_functions:
-            if (funcname not in self.static_breakpoints and
-                funcname not in self.runtime_breakpoints):
-                self.runtime_breakpoints[funcname] = self._break_func(funcname)
-            elif funcname in self.runtime_breakpoints:
-                gdb.execute('enable ' + self.runtime_breakpoints[funcname])
-
-    def disable_breakpoints(self):
-        chain = itertools.chain(self.static_breakpoints.itervalues(),
-                                self.runtime_breakpoints.itervalues())
-        for bp in chain:
-            gdb.execute('disable ' + bp)
-
-    def runtime_break_functions(self):
-        """
-        Implement this if the list of step-into functions depends on the
-        context.
-        """
-
-    def stopped(self, result):
-        match = re.search('^Program received signal .*', result, re.MULTILINE)
-        if match:
-            return match.group(0)
-        elif get_selected_inferior().pid == 0:
-            return result
-        else:
-            return None
-
-    def _stackdepth(self, frame):
-        depth = 0
-        while frame:
-            frame = frame.older()
-            depth += 1
-
-        return depth
+    def stopped(self):
+        return get_selected_inferior().pid == 0
 
     def finish_executing(self, result):
         """
@@ -1972,32 +1942,19 @@ class GenericCodeStepper(gdb.Command):
         of source code or the result of the last executed gdb command (passed
         in as the `result` argument).
         """
-        result = self.stopped(result)
-        if result:
+        result = self.filter_output(result)
+
+        if self.stopped():
             print result.strip()
-            # check whether the program was killed by a signal, it should still
-            # have a stack.
-            try:
-                frame = gdb.selected_frame()
-            except RuntimeError:
-                pass
-            else:
-                print self.get_source_line(frame)
         else:
             frame = gdb.selected_frame()
-            output = None
-
-            if self.is_relevant_function(frame):
-                output = self.get_source_line(frame)
-
-            if output is None:
-                pframe = getattr(self, 'print_stackframe', None)
-                if pframe:
-                    pframe(frame, index=0)
-                else:
-                    print result.strip()
+            if self.lang_info.is_relevant_function(frame):
+                raised_exception = self.lang_info.exc_info(frame)
+                if raised_exception:
+                    print raised_exception
+                print self.lang_info.get_source_line(frame) or result
             else:
-                print output
+                print result
 
     def _finish(self):
         """
@@ -2010,11 +1967,10 @@ class GenericCodeStepper(gdb.Command):
             # outermost frame, continue
             return gdb.execute('cont', to_string=True)
 
-    def finish(self, *args):
+    def _finish_frame(self):
         """
         Execute until the function returns to a relevant caller.
         """
-
         while True:
             result = self._finish()
 
@@ -2024,39 +1980,64 @@ class GenericCodeStepper(gdb.Command):
                 break
 
             hitbp = re.search(r'Breakpoint (\d+)', result)
-            is_relavant = self.is_relevant_function(frame)
-            if hitbp or is_relavant or self.stopped(result):
+            is_relevant = self.lang_info.is_relevant_function(frame)
+            if hitbp or is_relevant or self.stopped():
                 break
 
+        return result
+
+    def finish(self, *args):
+        "Implements the finish command."
+        result = self._finish_frame()
         self.finish_executing(result)
 
-    def _step(self):
+    def step(self, stepinto, stepover_command='next'):
         """
         Do a single step or step-over. Returns the result of the last gdb
         command that made execution stop.
+
+        This implementation, for stepping, sets (conditional) breakpoints for
+        all functions that are deemed relevant. It then does a step over until
+        either something halts execution, or until the next line is reached.
+
+        If, however, stepover_command is given, it should be a string gdb
+        command that continues execution in some way. The idea is that the
+        caller has set a (conditional) breakpoint or watchpoint that can work
+        more efficiently than the step-over loop. For Python this means setting
+        a watchpoint for f->f_lasti, which means we can then subsequently
+        "finish" frames.
+        We want f->f_lasti instead of f->f_lineno, because the latter only
+        works properly with local trace functions, see
+        PyFrameObjectPtr.current_line_num and PyFrameObjectPtr.addr2line.
         """
-        if self.stepinto:
-            self.enable_breakpoints()
+        if stepinto:
+            breakpoint_list = list(self.install_breakpoints())
 
         beginframe = gdb.selected_frame()
-        beginline = self.lineno(beginframe)
-        if not self.stepinto:
-            depth = self._stackdepth(beginframe)
+
+        if self.lang_info.is_relevant_function(beginframe):
+            # If we start in a relevant frame, initialize stuff properly. If
+            # we don't start in a relevant frame, the loop will halt
+            # immediately. So don't call self.lang_info.lineno() as it may
+            # raise for irrelevant frames.
+            beginline = self.lang_info.lineno(beginframe)
+
+            if not stepinto:
+                depth = stackdepth(beginframe)
 
         newframe = beginframe
-        result = ''
 
         while True:
-            if self.is_relevant_function(newframe):
-                result = gdb.execute('next', to_string=True)
+            if self.lang_info.is_relevant_function(newframe):
+                result = gdb.execute(stepover_command, to_string=True)
             else:
-                result = self._finish()
+                result = self._finish_frame()
 
-            if self.stopped(result):
+            if self.stopped():
                 break
 
             newframe = gdb.selected_frame()
-            is_relevant_function = self.is_relevant_function(newframe)
+            is_relevant_function = self.lang_info.is_relevant_function(newframe)
             try:
                 framename = newframe.name()
             except RuntimeError:
@@ -2064,8 +2045,7 @@ class GenericCodeStepper(gdb.Command):
 
             m = re.search(r'Breakpoint (\d+)', result)
             if m:
-                bp = self.runtime_breakpoints.get(framename)
-                if bp is None or (m.group(1) == bp and is_relevant_function):
+                if is_relevant_function and m.group(1) in breakpoint_list:
                     # although we hit a breakpoint, we still need to check
                     # that the function, in case hit by a runtime breakpoint,
                     # is in the right context
@@ -2074,25 +2054,25 @@ class GenericCodeStepper(gdb.Command):
             if newframe != beginframe:
                 # new function
 
-                if not self.stepinto:
+                if not stepinto:
                     # see if we returned to the caller
-                    newdepth = self._stackdepth(newframe)
+                    newdepth = stackdepth(newframe)
                     is_relevant_function = (newdepth < depth and
                                             is_relevant_function)
 
                 if is_relevant_function:
                     break
             else:
-                if self.lineno(newframe) > beginline:
+                # newframe equals beginframe, check for a difference in the
+                # line number
+                lineno = self.lang_info.lineno(newframe)
+                if lineno and lineno != beginline:
                     break
 
-        if self.stepinto:
-            self.disable_breakpoints()
+        if stepinto:
+            self.delete_breakpoints(breakpoint_list)
 
-        return result
-
-    def step(self, *args):
-        return self.finish_executing(self._step())
+        self.finish_executing(result)
 
     def run(self, *args):
         self.finish_executing(gdb.execute('run', to_string=True))
@@ -2101,14 +2081,57 @@ class GenericCodeStepper(gdb.Command):
         self.finish_executing(gdb.execute('cont', to_string=True))
 
 
-class PythonCodeStepper(GenericCodeStepper):
+class LanguageInfo(object):
+    """
+    This class defines the interface that ExecutionControlCommandBase needs to
+    provide language-specific execution control.
+
+    Classes that implement this interface should implement:
+
+        lineno(frame)
+            Tells the current line number (only called for a relevant frame).
+            If lineno is a false value it is not checked for a difference.
+
+        is_relevant_function(frame)
+            tells whether we care about frame 'frame'
+
+        get_source_line(frame)
+            get the line of source code for the current line (only called for a
+            relevant frame). If the source code cannot be retrieved this
+            function should return None
+
+        exc_info(frame) -- optional
+            tells whether an exception was raised, if so, it should return a
+            string representation of the exception value, None otherwise.
+
+        static_break_functions()
+            returns an iterable of function names that are considered relevant
+            and should halt step-into execution. This is needed to provide a
+            performing step-into
+
+        runtime_break_functions() -- optional
+            list of functions that we should break into depending on the
+            context
+    """
+
+    def exc_info(self, frame):
+        "See this class' docstring."
+
+    def runtime_break_functions(self):
+        """
+        Implement this if the list of step-into functions depends on the
+        context.
+        """
+        return ()
+
+class PythonInfo(LanguageInfo):
 
     def pyframe(self, frame):
         pyframe = Frame(frame).get_pyop()
         if pyframe:
             return pyframe
         else:
-            raise gdb.GdbError(
+            raise gdb.RuntimeError(
                 "Unable to find the Python frame, run your code with a debug "
                 "build (configure with --with-pydebug or compile with -g).")
 
@@ -2126,47 +2149,67 @@ class PythonCodeStepper(GenericCodeStepper):
         except IOError, e:
             return None
 
+    def exc_info(self, frame):
+        try:
+            tstate = frame.read_var('tstate').dereference()
+            if gdb.parse_and_eval('tstate->frame == f'):
+                # tstate local variable initialized
+                inf_type = tstate['curexc_type']
+                inf_value = tstate['curexc_value']
+                if inf_type:
+                    return 'An exception was raised: %s(%s)' % (inf_type,
+                                                                inf_value)
+        except (ValueError, RuntimeError), e:
+            # Could not read the variable tstate or it's memory, it's ok
+            pass
+
     def static_break_functions(self):
         yield 'PyEval_EvalFrameEx'
 
 
-class PyStep(PythonCodeStepper):
+class PythonStepperMixin(object):
+    """
+    Make this a mixin so CyStep can also inherit from this and use a
+    CythonCodeStepper at the same time.
+    """
+
+    def python_step(self, stepinto):
+        frame = gdb.selected_frame()
+        framewrapper = Frame(frame)
+
+        output = gdb.execute('watch f->f_lasti', to_string=True)
+        watchpoint = int(re.search(r'[Ww]atchpoint (\d+):', output).group(1))
+        self.step(stepinto=stepinto, stepover_command='finish')
+        gdb.execute('delete %s' % watchpoint)
+
+
+class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
     "Step through Python code."
 
-    invoke = PythonCodeStepper.step
+    stepinto = True
 
-class PyNext(PythonCodeStepper):
+    def invoke(self, args, from_tty):
+        self.python_step(stepinto=self.stepinto)
+
+class PyNext(PyStep):
     "Step-over Python code."
 
-    invoke = PythonCodeStepper.step
+    stepinto = False
 
-class PyFinish(PythonCodeStepper):
+class PyFinish(ExecutionControlCommandBase):
     "Execute until function returns to a caller."
 
-    invoke = PythonCodeStepper.finish
+    invoke = ExecutionControlCommandBase.finish
 
-class PyRun(PythonCodeStepper):
+class PyRun(ExecutionControlCommandBase):
     "Run the program."
 
-    invoke = PythonCodeStepper.run
+    invoke = ExecutionControlCommandBase.run
 
-class PyCont(PythonCodeStepper):
+class PyCont(ExecutionControlCommandBase):
 
-    invoke = PythonCodeStepper.cont
+    invoke = ExecutionControlCommandBase.cont
 
-
-py_step = PyStep('py-step', stepinto=True)
-py_next = PyNext('py-next', stepinto=False)
-py_finish = PyFinish('py-finish')
-py_run = PyRun('py-run')
-py_cont = PyCont('py-cont')
-
-gdb.execute('set breakpoint pending on')
-py_step.init_breakpoints()
-
-Py_single_input = 256
-Py_file_input = 257
-Py_eval_input = 258
 
 def _pointervalue(gdbval):
     """
@@ -2209,6 +2252,10 @@ def get_inferior_unicode_postfix():
         return ''
 
 class PythonCodeExecutor(object):
+
+    Py_single_input = 256
+    Py_file_input = 257
+    Py_eval_input = 258
 
     def malloc(self, size):
         chunk = (gdb.parse_and_eval("(void *) malloc((size_t) %d)" % size))
@@ -2382,7 +2429,7 @@ class PyExec(gdb.Command):
 
     def readcode(self, expr):
         if expr:
-            return expr, Py_single_input
+            return expr, PythonCodeExecutor.Py_single_input
         else:
             lines = []
             while True:
@@ -2412,5 +2459,19 @@ class PyExec(gdb.Command):
 
         executor.evalcode(expr, input_type, global_dict, local_dict)
 
-py_exec = FixGdbCommand('py-exec', '-py-exec')
-_py_exec = PyExec("-py-exec", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
+
+gdb.execute('set breakpoint pending on')
+
+if hasattr(gdb, 'GdbError'):
+     # Wrap py-step and py-next in gdb defines to make them repeatable.
+    py_step = PyStep('-py-step', PythonInfo())
+    py_next = PyNext('-py-next', PythonInfo())
+    register_defines()
+    py_finish = PyFinish('py-finish', PythonInfo())
+    py_run = PyRun('py-run', PythonInfo())
+    py_cont = PyCont('py-cont', PythonInfo())
+
+    py_exec = FixGdbCommand('py-exec', '-py-exec')
+    _py_exec = PyExec("-py-exec", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
+else:
+    warnings.warn("Use gdb 7.2 or higher to use the py-exec command.")

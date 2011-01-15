@@ -18,7 +18,11 @@ from time import time
 
 import Code
 import Errors
-import Parsing
+# Do not import Parsing here, import it when needed, because Parsing imports
+# Nodes, which globally needs debug command line options initialized to set a
+# conditional metaclass. These options are processed by CmdLine called from
+# main() in this file.
+# import Parsing
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
 from Errors import PyrexError, CompileError, InternalError, AbortError, error, warning
@@ -496,6 +500,7 @@ class Context(object):
         try:
             f = Utils.open_source_file(source_filename, "rU")
             try:
+                import Parsing
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
