@@ -2,5 +2,5 @@
 u'\u12'
 
 _ERRORS = '''
-2:1: Invalid unicode escape '\u'
+2:2: Invalid unicode escape '\u'
 '''
