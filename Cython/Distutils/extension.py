@@ -33,6 +33,8 @@ class Extension(_Extension.Extension):
         generate .pxi file for public declarations
     pyrex_gdb : boolean
         generate Cython debug information for this extension for cygdb
+    no_c_in_traceback : boolean
+        emit the c file and line number from the traceback for exceptions
     """
 
     # When adding arguments to this constructor, be sure to update
@@ -59,6 +61,7 @@ class Extension(_Extension.Extension):
             pyrex_c_in_temp = 0,
             pyrex_gen_pxi = 0,
             pyrex_gdb = False,
+            no_c_in_traceback = False,
             **kw):
 
         _Extension.Extension.__init__(self, name, sources,
@@ -85,6 +88,7 @@ class Extension(_Extension.Extension):
         self.pyrex_c_in_temp = pyrex_c_in_temp
         self.pyrex_gen_pxi = pyrex_gen_pxi
         self.pyrex_gdb = pyrex_gdb
+        self.no_c_in_traceback = no_c_in_traceback
 
 # class Extension
 

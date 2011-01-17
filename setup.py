@@ -271,6 +271,9 @@ packages = [
 if include_debugger:
     packages.append('Cython.Debugger')
     packages.append('Cython.Debugger.Tests')
+    # it's enough to do this for Py2.5+:
+    setup_args['package_data']['Cython.Debugger.Tests'] = ['codefile', 'cfuncs.c']
+
 
 setup(
   name = 'Cython',

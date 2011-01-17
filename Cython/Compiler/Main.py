@@ -837,6 +837,7 @@ default_options = dict(
     evaluate_tree_assertions = False,
     emit_linenums = False,
     relative_path_in_code_position_comments = True,
+    c_line_in_traceback = True,
     language_level = 2,
     gdb_debug = False,
 )
