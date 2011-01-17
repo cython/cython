@@ -865,24 +865,26 @@ class CCodeWriter(object):
       coming from the same root share the same instances simultaneously.
     """
 
-    # f                file            output file
-    # buffer           StringIOTree
+    # f                   file            output file
+    # buffer              StringIOTree
 
-    # level            int             indentation level
-    # bol              bool            beginning of line?
-    # marker           string          comment to emit before next line
-    # funcstate        FunctionState   contains state local to a C function used for code
-    #                                  generation (labels and temps state etc.)
-    # globalstate      GlobalState     contains state global for a C file (input file info,
-    #                                  utility code, declared constants etc.)
-    # emit_linenums    boolean         whether or not to write #line pragmas
+    # level               int             indentation level
+    # bol                 bool            beginning of line?
+    # marker              string          comment to emit before next line
+    # funcstate           FunctionState   contains state local to a C function used for code
+    #                                     generation (labels and temps state etc.)
+    # globalstate         GlobalState     contains state global for a C file (input file info,
+    #                                     utility code, declared constants etc.)
+    # emit_linenums       boolean         whether or not to write #line pragmas
     #
-    # pyclass_stack    list            used during recursive code generation to pass information
-    #                                  about the current class one is in
+    # c_line_in_traceback boolean         append the c file and line number to the traceback for exceptions
+    #
+    # pyclass_stack       list            used during recursive code generation to pass information
+    #                                     about the current class one is in
 
     globalstate = None
 
-    def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None, c_line_in_traceback=True):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.marker = None
@@ -907,11 +909,12 @@ class CCodeWriter(object):
             self.emit_linenums = self.globalstate.emit_linenums
         else:
             self.emit_linenums = emit_linenums
+        self.c_line_in_traceback = c_line_in_traceback
 
     def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        result = CCodeWriter(create_from, buffer, copy_formatting)
+        result = CCodeWriter(create_from, buffer, copy_formatting, c_line_in_traceback=self.c_line_in_traceback)
         return result
 
     def copyto(self, f):
@@ -940,7 +943,7 @@ class CCodeWriter(object):
         Creates a new CCodeWriter connected to the same global state, which
         can later be inserted using insert.
         """
-        return CCodeWriter(create_from=self)
+        return CCodeWriter(create_from=self, c_line_in_traceback=self.c_line_in_traceback)
 
     def insert(self, writer):
         """
@@ -1326,7 +1329,7 @@ class CCodeWriter(object):
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def set_error_info(self, pos):
-        if Options.c_line_in_traceback:
+        if self.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
