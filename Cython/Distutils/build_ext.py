@@ -110,6 +110,7 @@ class build_ext(_build_ext.build_ext):
         self.pyrex_c_in_temp = 0
         self.pyrex_gen_pxi = 0
         self.pyrex_gdb = False
+        self.no_c_in_traceback = 0
 
     def finalize_options (self):
         _build_ext.build_ext.finalize_options(self)
@@ -185,6 +186,8 @@ class build_ext(_build_ext.build_ext):
             getattr(extension, 'pyrex_create_listing', 0)
         line_directives = self.pyrex_line_directives or \
             getattr(extension, 'pyrex_line_directives', 0)
+        no_c_in_traceback = self.no_c_in_traceback or \
+            getattr(extension, 'no_c_in_traceback', 0)
         cplus = self.pyrex_cplus or getattr(extension, 'pyrex_cplus', 0) or \
                 (extension.language and extension.language.lower() == 'c++')
         pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
@@ -274,6 +277,7 @@ class build_ext(_build_ext.build_ext):
                     output_file = target,
                     cplus = cplus,
                     emit_linenums = line_directives,
+                    c_line_in_traceback = not no_c_in_traceback,
                     generate_pxi = pyrex_gen_pxi,
                     output_dir = output_dir,
                     gdb_debug = pyrex_gdb)
