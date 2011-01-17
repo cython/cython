@@ -2055,6 +2055,8 @@ class DefNode(FuncDefNode):
 
     def analyse_signature(self, env):
         if self.entry.is_special:
+            if self.decorators:
+                warning(self.pos, "special functions of cdef classes cannot have decorators", 1)
             self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
         elif not env.directives['always_allow_keywords'] and not (self.star_arg or self.starstar_arg):
             # Use the simpler calling signature for zero- and one-argument functions.
