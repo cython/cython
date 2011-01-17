@@ -116,6 +116,8 @@ def parse_command_line(args):
                 Options.convert_range = True
             elif option == "--line-directives":
                 options.emit_linenums = True
+            elif option == "--no-c-in-traceback":
+                options.c_line_in_traceback = False
             elif option == "--gdb":
                 options.gdb_debug = True
                 options.output_dir = os.curdir

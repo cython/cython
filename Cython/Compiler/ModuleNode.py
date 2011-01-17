@@ -258,7 +258,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             rootwriter = Annotate.AnnotationCCodeWriter()
         else:
             emit_linenums = options.emit_linenums
-            rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums)
+            rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums, c_line_in_traceback=options.c_line_in_traceback)
         globalstate = Code.GlobalState(rootwriter, emit_linenums)
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
