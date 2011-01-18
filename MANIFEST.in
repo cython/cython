@@ -1,6 +1,6 @@
 include MANIFEST.in README.txt INSTALL.txt ToDo.txt USAGE.txt
 include COPYING.txt LICENSE.txt Makefile
-include .hgrev
+include .gitrev
 include setup.py
 include setupegg.py
 include bin/*
