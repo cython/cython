@@ -2074,8 +2074,8 @@ class ExecutionControlCommandBase(gdb.Command):
 
         self.finish_executing(result)
 
-    def run(self, *args):
-        self.finish_executing(gdb.execute('run', to_string=True))
+    def run(self, args, from_tty):
+        self.finish_executing(gdb.execute('run ' + args, to_string=True))
 
     def cont(self, *args):
         self.finish_executing(gdb.execute('cont', to_string=True))
