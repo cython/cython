@@ -4,8 +4,11 @@ Using C libraries
 Apart from writing fast code, one of the main use cases of Cython is
 to call external C libraries from Python code.  As Cython code
 compiles down to C code itself, it is actually trivial to call C
-functions directly in the code.  The following describes what needs to
-be done to use an external C library in Cython code.
+functions directly in the code.  You may have already seen this in the
+simple tutorial on calling C functions.  The following gives a
+complete example for using (and wrapping) an external C library in
+Cython code, including appropriate error handling and considerations
+about designing a suitable API for Python and Cython code.
 
 Imagine you need an efficient way to store integer values in a FIFO
 queue.  Since memory really matters, and the values are actually
