@@ -426,7 +426,7 @@ def run_unittest_in_module(modulename):
                 "debugging information. Either compile python with "
                 "-g or get a debug build (configure with --with-pydebug).")
         warnings.warn(msg)
-        os._exit(1)
+        os._exit(0)
     else:
         m = __import__(modulename, fromlist=[''])
         tests = inspect.getmembers(m, inspect.isclass)

@@ -1,6 +1,6 @@
 include MANIFEST.in README.txt INSTALL.txt ToDo.txt USAGE.txt
 include COPYING.txt LICENSE.txt Makefile
-include .hgrev
+include .gitrev
 include setup.py
 include setupegg.py
 include bin/*
@@ -16,6 +16,7 @@ include Demos/embed/*
 include Demos/freeze/*
 include Demos/libraries/*
 include Demos/Makefile*
+recursive-include Cython/Debugger/Tests/*
 recursive-include Tools *
 recursive-include tests *.pyx *.pxd *.pxi *.py *.h *.BROKEN bugs.txt
 recursive-include tests *_lib.cpp *.srctree
