@@ -931,6 +931,7 @@ def refactor_for_py3(distdir, cy3_dir):
                      graft Cython
                      recursive-exclude Cython *
                      recursive-include Cython *.py *.pyx *.pxd
+                     recursive-include Cython/Debugger/Tests *
                      ''')
     sys.path.insert(0, cy3_dir)
 
