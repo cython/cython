@@ -197,10 +197,11 @@ class TestAll(GdbDebuggerTestCase):
             return
 
         out, err = self.p.communicate()
+        err = err.decode('UTF-8')
         border = '*' * 30
         start = '%s   v INSIDE GDB v   %s' % (border, border)
         end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
-        errmsg = '\n%s\n%s%s' % (start, err.decode('UTF-8'), end)
+        errmsg = '\n%s\n%s%s' % (start, err, end)
         self.assertEquals(0, self.p.wait(), errmsg)
         sys.stderr.write(err)
 
