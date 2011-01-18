@@ -3,15 +3,8 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
-if 'sdist' in sys.argv and sys.platform != "win32" and sys.version_info >= (2,4):
-    # Record the current revision in .hgrev
-    import subprocess # os.popen is cleaner but deprecated
-    changeset = subprocess.Popen("hg identify --id --rev tip".split(),
-                                 stdout=subprocess.PIPE).stdout.read()
-    rev = changeset.decode('ISO-8859-1').strip()
-    hgrev = open('.hgrev', 'w')
-    hgrev.write(rev)
-    hgrev.close()
+if 'sdist' in sys.argv and sys.platform != "win32":
+    assert os.system("git show-ref -s HEAD > .gitrev") == 0
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.

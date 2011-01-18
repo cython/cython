@@ -1,22 +1,21 @@
 PYTHON?=python
-REPO = http://hg.cython.org/cython-devel
+REPO = git://github.com/cython/cython.git
 
 all:    local 
 
 local:
 	${PYTHON} setup.py build_ext --inplace
 
-.hg: REV := $(shell cat .hgrev)
-.hg: TMPDIR := $(shell mktemp -d tmprepo.XXXXXX)
-.hg: 
-	hg clone --rev $(REV) $(REPO) $(TMPDIR)
-	hg -R $(TMPDIR) update
-	mv $(TMPDIR)/.hg .
-	mv $(TMPDIR)/.hgignore .
-	mv $(TMPDIR)/.hgtags .
+.git: REV := $(shell cat .gitrev)
+.git: TMPDIR := $(shell mktemp -d tmprepo.XXXXXX)
+.git: 
+	git clone $(REPO) $(TMPDIR)
+	cd $(TMPDIR); git checkout -b working $(REV)
+	mv $(TMPDIR)/{.git,.hgtags,.hgignore} .
+	mv $(TMPDIR)/Doc/s5 Doc/s5
 	rm -rf $(TMPDIR)
 
-repo: .hg
+repo: .git
 
 
 clean:
