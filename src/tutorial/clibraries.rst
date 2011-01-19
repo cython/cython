@@ -4,11 +4,10 @@ Using C libraries
 Apart from writing fast code, one of the main use cases of Cython is
 to call external C libraries from Python code.  As Cython code
 compiles down to C code itself, it is actually trivial to call C
-functions directly in the code.  You may have already seen this in the
-simple tutorial on calling C functions.  The following gives a
-complete example for using (and wrapping) an external C library in
-Cython code, including appropriate error handling and considerations
-about designing a suitable API for Python and Cython code.
+functions directly in the code.  The following gives a complete
+example for using (and wrapping) an external C library in Cython code,
+including appropriate error handling and considerations about
+designing a suitable API for Python and Cython code.
 
 Imagine you need an efficient way to store integer values in a FIFO
 queue.  Since memory really matters, and the values are actually
@@ -66,13 +65,20 @@ file, say, ``cqueue.pxd``::
         bint queue_is_empty(Queue* queue)
 
 Note how these declarations are almost identical to the header file
-declarations, so you can often just copy them over.  One noteworthy
-difference is the first line.  ``Queue`` is in this case used as an
-*opaque handle*; only the library that is called knows what is really
-inside.  Since no Cython code needs to know the contents of the
-struct, we do not need to declare its contents, so we simply provide
-an empty definition (as we do not want to declare the ``_Queue`` type
-which is referenced in the C header) [#]_.
+declarations, so you can often just copy them over.  However, you do
+not need to provide *all* declarations as above, just those that you
+use in your code or in other declarations, so that Cython gets to see
+a sufficient and consistent subset of them.  Then, consider adapting
+them somewhat to make them more comfortable to work with in Cython.
+
+One noteworthy difference to the header file that we use above is the
+declaration of the ``Queue`` struct in the first line.  ``Queue`` is
+in this case used as an *opaque handle*; only the library that is
+called knows what is really inside.  Since no Cython code needs to
+know the contents of the struct, we do not need to declare its
+contents, so we simply provide an empty definition (as we do not want
+to declare the ``_Queue`` type which is referenced in the C header)
+[#]_.
 
 .. [#] There's a subtle difference between ``cdef struct Queue: pass``
        and ``ctypedef struct Queue: pass``.  The former declares a
@@ -82,20 +88,26 @@ which is referenced in the C header) [#]_.
        libraries use the ``ctypedef`` kind of struct.
 
 Another exception is the last line.  The integer return value of the
-``queue_is_empty`` method is actually a C boolean value, i.e. it is
-either zero or non-zero, indicating if the queue is empty or not.
-This is best expressed by Cython's ``bint`` type, which is a normal
-``int`` type when used in C but maps to Python's boolean values
-``True`` and ``False`` when converted to a Python object.
+``queue_is_empty()`` function is actually a C boolean value, i.e. the
+only interesting thing about it is whether it is non-zero or zero,
+indicating if the queue is empty or not.  This is best expressed by
+Cython's ``bint`` type, which is a normal ``int`` type when used in C
+but maps to Python's boolean values ``True`` and ``False`` when
+converted to a Python object.  This way of tightening declarations in
+a ``.pxd`` file can often simplify the code that uses them.
 
-Next, we need to design the Queue class that should wrap the C queue.
-It will live in a file called ``queue.pyx``. [#]_
+After declaring our C library, we can start to design the Queue class
+that should wrap the C queue.  It will live in a file called
+``queue.pyx``. [#]_
 
 .. [#] Note that the name of the ``.pyx`` file must be different from
        the ``cqueue.pxd`` file with declarations from the C library,
        as both do not describe the same code.  A ``.pxd`` file next to
        a ``.pyx`` file with the same name defines exported
-       declarations for code in the ``.pyx`` file.
+       declarations for code in the ``.pyx`` file.  As the
+       ``cqueue.pxd`` file contains declarations of a regular C
+       library, there must not be a ``.pyx`` file with the same name
+       that Cython associates with it.
 
 Here is a first start for the Queue class::
 
@@ -134,13 +146,9 @@ only reason why the above can fail is due to insufficient memory.  In
 that case, it will return ``NULL``, whereas it would normally return a
 pointer to the new queue.
 
-The normal Python way to get out of this is to raise an exception, but
-in this specific case, allocating a new exception instance may
-actually fail because we are running out of memory.  Luckily, CPython
-provides a function ``PyErr_NoMemory()`` that safely raises the right
-exception for us.  We can thus change the init function as follows::
+The Python way to get out of this is to raise a ``MemoryError`` [#]_.
+We can thus change the init function as follows::
 
-    cimport cpython.exc    # standard cimport from CPython's C-API
     cimport cqueue
 
     cdef class Queue:
@@ -148,13 +156,22 @@ exception for us.  We can thus change the init function as follows::
         def __cinit__(self):
             self._c_queue = cqueue.queue_new()
             if self._c_queue is NULL:
-	        cpython.exc.PyErr_NoMemory()
+	        raise MemoryError()
 
-The ``cpython`` package contains pre-defined ``.pxd`` files that ship
-with Cython.  If you need any CPython C-API functions, you can cimport
-them from this package.  See Cython's ``Cython/Includes/`` source
-package for a complete list of ``.pxd`` files, including parts of the
-standard C library.
+.. [#] In the specific case of a ``MemoryError``, creating a new
+   exception instance in order to raise it may actually fail because
+   we are running out of memory.  Luckily, CPython provides a C-API
+   function ``PyErr_NoMemory()`` that safely raises the right
+   exception for us.  As of version 0.14.1, Cython automatically
+   substitutes this C-API call whenever you write ``raise
+   MemoryError`` or ``raise MemoryError()``.  If you use an older
+   version, you have to cimport the C-API function from the standard
+   package ``cpython.exc`` and call it directly.  This package
+   contains pre-defined ``.pxd`` files that ship with Cython.  If you
+   need any CPython C-API functions, you can cimport them from there.
+   See Cython's ``Cython/Includes/`` source package for a complete
+   list of provided ``.pxd`` files, including parts of the standard C
+   library.
 
 The next thing to do is to clean up when the Queue instance is no
 longer used (i.e. all references to it have been deleted).  To this
@@ -169,7 +186,7 @@ the init method::
 
 At this point, we have a working Cython module that we can test.  To
 compile it, we need to configure a ``setup.py`` script for distutils.
-Reusing the basic script from the main tutorial::
+Here is the most basic script for compiling a Cython module::
 
     from distutils.core import setup
     from distutils.extension import Extension
@@ -180,10 +197,10 @@ Reusing the basic script from the main tutorial::
         ext_modules = [Extension("queue", ["queue.pyx"])]
     ) 
 
-We can extend this script to include the necessary setup for building
-against the external C library.  Assuming it's installed in the normal
-places (e.g. under ``/usr/lib`` and ``/usr/include`` on a Unix-like
-system), we could simply change the extension setup from
+To build against the external C library, we must extend this script to
+include the necessary setup.  Assuming the library is installed in the
+usual places (e.g. under ``/usr/lib`` and ``/usr/include`` on a
+Unix-like system), we could simply change the extension setup from
 
 ::
 
@@ -220,8 +237,8 @@ practice to look at what interfaces Python offers, e.g. in its
 queue, it's enough to provide the methods ``append()``, ``peek()`` and
 ``pop()``, and additionally an ``extend()`` method to add multiple
 values at once.  Also, since we already know that all values will be
-coming from C, it's better to provide only ``cdef`` methods for now,
-and to give them a straight C interface.
+coming from C, it's best to provide only ``cdef`` methods for now, and
+to give them a straight C interface.
 
 In C, it is common for data structures to store data as a ``void*`` to
 whatever data item type.  Since we only want to store ``int`` values,
@@ -242,18 +259,18 @@ implementation instead::
         cdef append(self, int value):
             if not cqueue.queue_push_tail(self._c_queue,
                                           <void*>value):
-                cpython.exc.PyErr_NoMemory()
+                raise MemoryError()
 
 Adding an ``extend()`` method should now be straight forward::
 
-    cdef extend(self, int* values, Py_ssize_t count):
+    cdef extend(self, int* values, size_t count):
         """Append all ints to the queue.
         """
-        cdef Py_ssize_t i
+        cdef size_t i
         for i in range(count):
             if not cqueue.queue_push_tail(
                     self._c_queue, <void*>values[i]):
-                cpython.exc.PyErr_NoMemory()
+                raise MemoryError()
 
 This becomes handy when reading values from a NumPy array, for
 example.
@@ -278,7 +295,7 @@ first case to raise an exception, whereas the second case should
 simply return ``0``.  To deal with this, we need to special case this
 value, and check if the queue really is empty or not::
 
-    cdef int peek(self) except? 0:
+    cdef int peek(self) except? -1:
         cdef int value = \
           <int>cqueue.queue_peek_head(self._c_queue)
         if value == 0:
@@ -288,44 +305,66 @@ value, and check if the queue really is empty or not::
                 raise IndexError("Queue is empty")
         return value
 
-The ``except? 0`` declaration is worth explaining.  If the function
-was a Python function returning a Python object value, CPython would
-simply return ``NULL`` instead of a Python object to indicate a raised
-exception, which would immediately be propagated by the surrounding
-code.  The problem is that any ``int`` value is a valid queue item
-value, so there is no way to explicitly indicate an error to the
-calling code.
+Note how we have effectively created a fast path through the method in
+the hopefully common cases that the return value is not ``0``.  Only
+that specific case needs an additional check if the queue is empty.
 
-The only way CPython (and Cython) can deal with this situation is to
-call ``PyErr_Occurred()`` when returning from a function to check if
-an exception was raised, and if so, propagate the exception.  This
+The ``except? -1`` declaration in the method signature falls into the
+same category.  If the function was a Python function returning a
+Python object value, CPython would simply return ``NULL`` internally
+instead of a Python object to indicate an exception, which would
+immediately be propagated by the surrounding code.  The problem is
+that the return type is ``int`` and any ``int`` value is a valid queue
+item value, so there is no way to explicitly signal an error to the
+calling code.  In fact, without such a declaration, there is no
+obvious way for Cython to know what to return on exceptions and for
+calling code to even know that this method *may* exit with an
+exception.
+
+The only way calling code can deal with this situation is to call
+``PyErr_Occurred()`` when returning from a function to check if an
+exception was raised, and if so, propagate the exception.  This
 obviously has a performance penalty.  Cython therefore allows you to
-indicate which value is explicitly returned in the case of an
+declare which value it should implicitly return in the case of an
 exception, so that the surrounding code only needs to check for an
-exception when receiving this exact value.  All other values will be
-accepted almost without a penalty.
+exception when receiving this exact value.
+
+We chose to use ``-1`` as the exception return value as we expect it
+to be an unlikely value to be put into the queue.  The question mark
+in the ``except? -1`` declaration indicates that the return value is
+ambiguous (there *may* be a ``-1`` value in the queue, after all) and
+that an additional exception check using ``PyErr_Occurred()`` is
+needed in calling code.  Without it, Cython code that calls this
+method and receives the exception return value would silently (and
+sometimes incorrectly) assume that an exception has been raised.  In
+any case, all other return values will be passed through almost
+without a penalty, thus again creating a fast path for 'normal'
+values.
 
 Now that the ``peek()`` method is implemented, the ``pop()`` method
 also needs adaptation.  Since it removes a value from the queue,
 however, it is not enough to test if the queue is empty *after* the
 removal.  Instead, we must test it on entry::
 
-    cdef int pop(self) except? 0:
+    cdef int pop(self) except? -1:
         if cqueue.queue_is_empty(self._c_queue):
             raise IndexError("Queue is empty")
         return <int>cqueue.queue_pop_head(self._c_queue)
 
+The return value for exception propagation is declared exactly as for
+``peek()``.
+
 Lastly, we can provide the Queue with an emptiness indicator in the
-normal Python way by defining the ``__bool__()`` special method (note
-that Python 2 calls this method ``__nonzero__``, whereas Cython code
-can use both)::
+normal Python way by implementing the ``__bool__()`` special method
+(note that Python 2 calls this method ``__nonzero__``, whereas Cython
+code can use either name)::
 
     def __bool__(self):
         return not cqueue.queue_is_empty(self._c_queue)
 
 Note that this method returns either ``True`` or ``False`` as we
 declared the return type of the ``queue_is_empty`` function as
-``bint``.
+``bint`` in ``cqueue.pxd``.
 
 Now that the implementation is complete, you may want to write some
 tests for it to make sure it works correctly.  Especially doctests are
@@ -345,14 +384,22 @@ The following listing shows the complete implementation that uses
 ``cpdef`` methods where possible::
 
     cimport cqueue
-    cimport cpython.exc
 
     cdef class Queue:
+        """A queue class for C integer values.
+
+        >>> q = Queue()
+        >>> q.append(5)
+        >>> q.peek()
+        5
+        >>> q.pop()
+        5
+        """
         cdef cqueue.Queue* _c_queue
         def __cinit__(self):
             self._c_queue = cqueue.queue_new()
             if self._c_queue is NULL:
-                cpython.exc.PyErr_NoMemory()
+                raise MemoryError()
 
         def __dealloc__(self):
             if self._c_queue is not NULL:
@@ -361,16 +408,16 @@ The following listing shows the complete implementation that uses
         cpdef append(self, int value):
             if not cqueue.queue_push_tail(self._c_queue,
                                           <void*>value):
-                cpython.exc.PyErr_NoMemory()
+                raise MemoryError()
 
-        cdef extend(self, int* values, Py_ssize_t count):
-            cdef Py_ssize_t i
+        cdef extend(self, int* values, size_t count):
+            cdef size_t i
             for i in xrange(count):
                 if not cqueue.queue_push_tail(
                         self._c_queue, <void*>values[i]):
-                    cpython.exc.PyErr_NoMemory()
+                    raise MemoryError()
 
-        cpdef int peek(self) except? 0:
+        cpdef int peek(self) except? -1:
             cdef int value = \
                 <int>cqueue.queue_peek_head(self._c_queue)
             if value == 0:
@@ -380,7 +427,7 @@ The following listing shows the complete implementation that uses
                     raise IndexError("Queue is empty")
             return value
 
-        cdef int pop(self) except? 0:
+        cdef int pop(self) except? -1:
             if cqueue.queue_is_empty(self._c_queue):
                 raise IndexError("Queue is empty")
             return <int>cqueue.queue_pop_head(self._c_queue)
@@ -394,23 +441,23 @@ types.  However, if wanted, we can rename the C-ish ``extend()``
 method to e.g. ``c_extend()``, and write a new ``extend()`` method
 instead that accepts an arbitrary Python iterable::
 
-        cdef c_extend(self, int* values, Py_ssize_t count):
-            cdef Py_ssize_t i
+        cdef c_extend(self, int* values, size_t count):
+            cdef size_t i
             for i in range(count):
                 if not cqueue.queue_push_tail(
                         self._c_queue, <void*>values[i]):
-                    cpython.exc.PyErr_NoMemory()
+                    raise MemoryError()
 
         cpdef extend(self, values):
             for value in values:
                 self.append(value)
 
-As a quick test with numbers from 0 to 9999 on the author's machine
-indicates, using this Queue from Cython code with C ``int`` values is
-about five times as fast as using it from Cython code with Python
-values, almost eight times faster than using it from Python code in a
-Python loop, and still more than twice as fast as using Python's
-highly optimised ``collections.deque`` type from Cython code with
-Python integers.
+As a quick test with 10000 numbers on the author's machine indicates,
+using this Queue from Cython code with C ``int`` values is about five
+times as fast as using it from Cython code with Python object values,
+almost eight times faster than using it from Python code in a Python
+loop, and still more than twice as fast as using Python's highly
+optimised ``collections.deque`` type from Cython code with Python
+integers.
 
 .. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
