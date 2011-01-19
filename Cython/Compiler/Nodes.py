@@ -3935,12 +3935,26 @@ class RaiseStatNode(StatNode):
         if self.exc_tb:
             self.exc_tb.analyse_types(env)
             self.exc_tb = self.exc_tb.coerce_to_pyobject(env)
-        env.use_utility_code(raise_utility_code)
+        # special cases for builtin exceptions
+        self.builtin_exc_name = None
+        if self.exc_type and not self.exc_value and not self.exc_tb:
+            exc = self.exc_type
+            import ExprNodes
+            if isinstance(exc, ExprNodes.SimpleCallNode) and not exc.args:
+                exc = exc.function # extract the exception type
+            if exc.is_name and exc.entry.is_builtin:
+                self.builtin_exc_name = exc.name
+                if self.builtin_exc_name == 'MemoryError':
+                    self.exc_type = None # has a separate implementation
 
     nogil_check = Node.gil_error
     gil_message = "Raising exception"
 
     def generate_execution_code(self, code):
+        if self.builtin_exc_name == 'MemoryError':
+            code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
+            return
+
         if self.exc_type:
             self.exc_type.generate_evaluation_code(code)
             type_code = self.exc_type.py_result()
@@ -3956,6 +3970,7 @@ class RaiseStatNode(StatNode):
             tb_code = self.exc_tb.py_result()
         else:
             tb_code = "0"
+        code.globalstate.use_utility_code(raise_utility_code)
         code.putln(
             "__Pyx_Raise(%s, %s, %s);" % (
                 type_code,
