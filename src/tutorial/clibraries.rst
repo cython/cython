@@ -124,18 +124,22 @@ Note that it says ``__cinit__`` rather than ``__init__``.  While
 ``__init__`` is available as well, it is not guaranteed to be run (for
 instance, one could create a subclass and forget to call the
 ancestor's constructor).  Because not initializing C pointers often
-leads to crashing the Python interpreter without leaving as much as a
-stack trace, Cython provides ``__cinit__`` which is *always* called on
-construction.  However, as ``__cinit__`` is called during object
+leads to hard crashes of the Python interpreter, Cython provides
+``__cinit__`` which is *always* called immediately on construction,
+before CPython even considers calling ``__init__``, and which
+therefore is the right place to initialise ``cdef`` fields of the new
+instance.  However, as ``__cinit__`` is called during object
 construction, ``self`` is not fully constructed yet, and one must
 avoid doing anything with ``self`` but assigning to ``cdef`` fields.
 
 Note also that the above method takes no parameters, although subtypes
-may want to accept some.  Although it is guaranteed to get called, the
-no-arguments ``__cinit__()`` method is a special case here as it does
-not prevent subclasses from adding parameters as they see fit.  If
-parameters are added they must match those of any declared
-``__init__`` method.
+may want to accept some.  A no-arguments ``__cinit__()`` method is a
+special case here that simply does not receive any parameters that
+were passed to a constructor, so it does not prevent subclasses from
+adding parameters.  If parameters are used in the signature of
+``__cinit__()``, they must match those of any declared ``__init__``
+method of classes in the class hierarchy that are used to instantiate
+the type.
 
 Before we continue implementing the other methods, it is important to
 understand that the above implementation is not safe.  In case
