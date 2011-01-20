@@ -53,14 +53,14 @@ class _TestInfo(object):
     # Possible test outcomes
     (SUCCESS, FAILURE, ERROR) = range(3)
 
-    def __init__(self, test_result, test_method, outcome=SUCCESS, err=None, stdout=None, stderr=None):
+    def __init__(self, test_result, test_method, outcome=SUCCESS, err=None):
         "Create a new instance of _TestInfo."
         self.test_result = test_result
         self.test_method = test_method
         self.outcome = outcome
         self.err = err
-        self.stdout = stdout
-        self.stderr = stderr
+        self.stdout = test_result.stdout and test_result.stdout.getvalue().strip() or ''
+        self.stderr = test_result.stdout and test_result.stderr.getvalue().strip() or ''
 
     def get_elapsed_time(self):
         """Return the time that shows how long the test method took to
@@ -154,19 +154,17 @@ class _XMLTestResult(_TextTestResult):
 
     def addSuccess(self, test):
         "Called when a test executes successfully."
-        self._prepare_callback(_TestInfo(self, test, stdout=self.stdout, stderr=self.stderr),
+        self._prepare_callback(_TestInfo(self, test),
                                self.successes, 'OK', '.')
 
     def addFailure(self, test, err):
         "Called when a test method fails."
-        self._prepare_callback(_TestInfo(self, test, _TestInfo.FAILURE, err,
-                                         stdout=self.stdout, stderr=self.stderr),
+        self._prepare_callback(_TestInfo(self, test, _TestInfo.FAILURE, err),
                                self.failures, 'FAIL', 'F')
 
     def addError(self, test, err):
         "Called when a test method raises an error."
-        self._prepare_callback(_TestInfo(self, test, _TestInfo.ERROR, err,
-                                         stdout=self.stdout, stderr=self.stderr),
+        self._prepare_callback(_TestInfo(self, test, _TestInfo.ERROR, err),
                                self.errors, 'ERROR', 'E')
 
     def printErrorList(self, flavour, errors):
@@ -281,10 +279,12 @@ class _XMLTestResult(_TextTestResult):
             stdout, stderr = [], []
             for test in tests:
                 _XMLTestResult._report_testcase(suite, test, testsuite, doc)
-                stdout.append(test.stdout and test.stdout.getvalue() or '')
-                stderr.append(test.stderr and test.stderr.getvalue() or '')
+                if test.stdout:
+                    stdout.extend(['*****************', test.get_description(), test.stdout])
+                if test.stderr:
+                    stderr.extend(['*****************', test.get_description(), test.stderr])
             _XMLTestResult._report_output(test_runner, testsuite, doc,
-                                          '\n'.join(stdout).strip(), '\n'.join(stderr).strip())
+                                          '\n'.join(stdout), '\n'.join(stderr))
             xml_content = doc.toprettyxml(indent='\t')
 
             if type(test_runner.output) is str:
