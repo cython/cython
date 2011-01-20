@@ -68,7 +68,7 @@ above ``sin()`` function is defined as follows::
       double sin(double)
 
 This declares the ``sin()`` function in a way that makes it available
-to Cython code and instructs Cython to generate C code that imports
+to Cython code and instructs Cython to generate C code that includes
 the ``math.h`` header file.  The C compiler will see the original
 declaration in ``math.h`` at compile time, but Cython does not parse
 "math.h" and requires a separate definition.
