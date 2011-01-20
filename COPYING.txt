@@ -4,10 +4,9 @@ redistribute, modify and distribute modified versions."
 
 ------------------
 
-Cython, which derives from Pyrex, is licensed under the Python
-Software Foundation License.  More precisely, all modifications
+Cython, which derives from Pyrex, is licensed under the Apache 2.0
+Software License.  More precisely, all modifications and new code
 made to go from Pyrex to Cython are so licensed.
 
 See LICENSE.txt for more details.
-
 
