@@ -53,12 +53,14 @@ class _TestInfo(object):
     # Possible test outcomes
     (SUCCESS, FAILURE, ERROR) = range(3)
 
-    def __init__(self, test_result, test_method, outcome=SUCCESS, err=None):
+    def __init__(self, test_result, test_method, outcome=SUCCESS, err=None, stdout=None, stderr=None):
         "Create a new instance of _TestInfo."
         self.test_result = test_result
         self.test_method = test_method
         self.outcome = outcome
         self.err = err
+        self.stdout = stdout
+        self.stderr = stderr
 
     def get_elapsed_time(self):
         """Return the time that shows how long the test method took to
@@ -118,8 +120,21 @@ class _XMLTestResult(_TextTestResult):
                 self.stream.write(short_str)
         self.callback = callback
 
+    def _patch_standard_output(self):
+        """Replace the stdout and stderr streams with string-based streams
+        in order to capture the tests' output.
+        """
+        (self.old_stdout, self.old_stderr) = (sys.stdout, sys.stderr)
+        (sys.stdout, sys.stderr) = (self.stdout, self.stderr) = \
+            (StringIO(), StringIO())
+
+    def _restore_standard_output(self):
+        "Restore the stdout and stderr streams."
+        (sys.stdout, sys.stderr) = (self.old_stdout, self.old_stderr)
+
     def startTest(self, test):
         "Called before execute each test method."
+        self._patch_standard_output()
         self.start_time = time.time()
         TestResult.startTest(self, test)
 
@@ -129,6 +144,7 @@ class _XMLTestResult(_TextTestResult):
 
     def stopTest(self, test):
         "Called after execute each test method."
+        self._restore_standard_output()
         _TextTestResult.stopTest(self, test)
         self.stop_time = time.time()
 
@@ -138,18 +154,20 @@ class _XMLTestResult(_TextTestResult):
 
     def addSuccess(self, test):
         "Called when a test executes successfully."
-        self._prepare_callback(_TestInfo(self, test), \
-            self.successes, 'OK', '.')
+        self._prepare_callback(_TestInfo(self, test, stdout=self.stdout, stderr=self.stderr),
+                               self.successes, 'OK', '.')
 
     def addFailure(self, test, err):
         "Called when a test method fails."
-        self._prepare_callback(_TestInfo(self, test, _TestInfo.FAILURE, err), \
-            self.failures, 'FAIL', 'F')
+        self._prepare_callback(_TestInfo(self, test, _TestInfo.FAILURE, err,
+                                         stdout=self.stdout, stderr=self.stderr),
+                               self.failures, 'FAIL', 'F')
 
     def addError(self, test, err):
         "Called when a test method raises an error."
-        self._prepare_callback(_TestInfo(self, test, _TestInfo.ERROR, err), \
-            self.errors, 'ERROR', 'E')
+        self._prepare_callback(_TestInfo(self, test, _TestInfo.ERROR, err,
+                                         stdout=self.stdout, stderr=self.stderr),
+                               self.errors, 'ERROR', 'E')
 
     def printErrorList(self, flavour, errors):
         "Write some information about the FAIL or ERROR to the stream."
@@ -230,19 +248,17 @@ class _XMLTestResult(_TextTestResult):
 
     _report_testcase = staticmethod(_report_testcase)
 
-    def _report_output(test_runner, xml_testsuite, xml_document):
+    def _report_output(test_runner, xml_testsuite, xml_document, stdout, stderr):
         "Appends the system-out and system-err sections to the XML document."
         systemout = xml_document.createElement('system-out')
         xml_testsuite.appendChild(systemout)
 
-        stdout = test_runner.stdout.getvalue()
         systemout_text = xml_document.createCDATASection(stdout)
         systemout.appendChild(systemout_text)
 
         systemerr = xml_document.createElement('system-err')
         xml_testsuite.appendChild(systemerr)
 
-        stderr = test_runner.stderr.getvalue()
         systemerr_text = xml_document.createCDATASection(stderr)
         systemerr.appendChild(systemerr_text)
 
@@ -262,9 +278,13 @@ class _XMLTestResult(_TextTestResult):
 
             # Build the XML file
             testsuite = _XMLTestResult._report_testsuite(suite, tests, doc)
+            stdout, stderr = [], []
             for test in tests:
                 _XMLTestResult._report_testcase(suite, test, testsuite, doc)
-            _XMLTestResult._report_output(test_runner, testsuite, doc)
+                stdout.append(test.stdout and test.stdout.getvalue() or '')
+                stderr.append(test.stderr and test.stderr.getvalue() or '')
+            _XMLTestResult._report_output(test_runner, testsuite, doc,
+                                          '\n'.join(stdout).strip(), '\n'.join(stderr).strip())
             xml_content = doc.toprettyxml(indent='\t')
 
             if type(test_runner.output) is str:
@@ -297,64 +317,47 @@ class XMLTestRunner(TextTestRunner):
         return _XMLTestResult(self.stream, self.descriptions, \
             self.verbosity, self.elapsed_times)
 
-    def _patch_standard_output(self):
-        """Replace the stdout and stderr streams with string-based streams
-        in order to capture the tests' output.
-        """
-        (self.old_stdout, self.old_stderr) = (sys.stdout, sys.stderr)
-        (sys.stdout, sys.stderr) = (self.stdout, self.stderr) = \
-            (StringIO(), StringIO())
-
-    def _restore_standard_output(self):
-        "Restore the stdout and stderr streams."
-        (sys.stdout, sys.stderr) = (self.old_stdout, self.old_stderr)
-
     def run(self, test):
         "Run the given test case or test suite."
+        # Prepare the test execution
+        result = self._make_result()
 
-        try:
-            # Prepare the test execution
-            self._patch_standard_output()
-            result = self._make_result()
+        # Print a nice header
+        self.stream.writeln()
+        self.stream.writeln('Running tests...')
+        self.stream.writeln(result.separator2)
 
-            # Print a nice header
-            self.stream.writeln()
-            self.stream.writeln('Running tests...')
-            self.stream.writeln(result.separator2)
+        # Execute tests
+        start_time = time.time()
+        test(result)
+        stop_time = time.time()
+        time_taken = stop_time - start_time
 
-            # Execute tests
-            start_time = time.time()
-            test(result)
-            stop_time = time.time()
-            time_taken = stop_time - start_time
+        # Print results
+        result.printErrors()
+        self.stream.writeln(result.separator2)
+        run = result.testsRun
+        self.stream.writeln("Ran %d test%s in %.3fs" %
+            (run, run != 1 and "s" or "", time_taken))
+        self.stream.writeln()
 
-            # Print results
-            result.printErrors()
-            self.stream.writeln(result.separator2)
-            run = result.testsRun
-            self.stream.writeln("Ran %d test%s in %.3fs" %
-                (run, run != 1 and "s" or "", time_taken))
-            self.stream.writeln()
-
-            # Error traces
-            if not result.wasSuccessful():
-                self.stream.write("FAILED (")
-                failed, errored = (len(result.failures), len(result.errors))
+        # Error traces
+        if not result.wasSuccessful():
+            self.stream.write("FAILED (")
+            failed, errored = (len(result.failures), len(result.errors))
+            if failed:
+                self.stream.write("failures=%d" % failed)
+            if errored:
                 if failed:
-                    self.stream.write("failures=%d" % failed)
-                if errored:
-                    if failed:
-                        self.stream.write(", ")
-                    self.stream.write("errors=%d" % errored)
-                self.stream.writeln(")")
-            else:
-                self.stream.writeln("OK")
+                    self.stream.write(", ")
+                self.stream.write("errors=%d" % errored)
+            self.stream.writeln(")")
+        else:
+            self.stream.writeln("OK")
 
-            # Generate reports
-            self.stream.writeln()
-            self.stream.writeln('Generating XML reports...')
-            result.generate_reports(self)
-        finally:
-            self._restore_standard_output()
+        # Generate reports
+        self.stream.writeln()
+        self.stream.writeln('Generating XML reports...')
+        result.generate_reports(self)
 
         return result
