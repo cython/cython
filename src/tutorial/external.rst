@@ -67,9 +67,9 @@ above ``sin()`` function is defined as follows::
   cdef extern from "math.h":
       double sin(double)
 
-This instructs Cython to generate code that imports the ``math.h``
-header file and declares the ``sin()`` function in a way that makes it
-available to Cython code.  The C compiler will see the original
+This declares the ``sin()`` function in a way that makes it available
+to Cython code and instructs Cython to generate C code that imports
+the ``math.h`` header file.  The C compiler will see the original
 declaration in ``math.h`` at compile time, but Cython does not parse
 "math.h" and requires a separate definition.
 
