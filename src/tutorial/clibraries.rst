@@ -96,8 +96,21 @@ but maps to Python's boolean values ``True`` and ``False`` when
 converted to a Python object.  This way of tightening declarations in
 a ``.pxd`` file can often simplify the code that uses them.
 
-After declaring our C library, we can start to design the Queue class
-that should wrap the C queue.  It will live in a file called
+It is good practice to define one ``.pxd`` file for each library that
+you use, and sometimes even for each header file (or functional group)
+if the API is large.  That simplifies their reuse in other projects.
+Sometimes, you may need to use C functions from the standard C
+library, or want to call C-API functions from CPython directly.  For
+common needs like this, Cython ships with a set of standard ``.pxd``
+files that provide these declarations in a readily usable way that is
+adapted to their use in Cython.  The main packages are ``cpython``,
+``libc`` and ``libcpp``.  The NumPy library also has a standard
+``.pxd`` file ``numpy``, as it is often used in Cython code.  See
+Cython's ``Cython/Includes/`` source package for a complete list of
+provided ``.pxd`` files.
+
+After declaring our C library's API, we can start to design the Queue
+class that should wrap the C queue.  It will live in a file called
 ``queue.pyx``. [#]_
 
 .. [#] Note that the name of the ``.pyx`` file must be different from
@@ -166,16 +179,11 @@ We can thus change the init function as follows::
    exception instance in order to raise it may actually fail because
    we are running out of memory.  Luckily, CPython provides a C-API
    function ``PyErr_NoMemory()`` that safely raises the right
-   exception for us.  As of version 0.14.1, Cython automatically
+   exception for us.  Since version 0.14.1, Cython automatically
    substitutes this C-API call whenever you write ``raise
    MemoryError`` or ``raise MemoryError()``.  If you use an older
    version, you have to cimport the C-API function from the standard
-   package ``cpython.exc`` and call it directly.  This package
-   contains pre-defined ``.pxd`` files that ship with Cython.  If you
-   need any CPython C-API functions, you can cimport them from there.
-   See Cython's ``Cython/Includes/`` source package for a complete
-   list of provided ``.pxd`` files, including parts of the standard C
-   library.
+   package ``cpython.exc`` and call it directly.
 
 The next thing to do is to clean up when the Queue instance is no
 longer used (i.e. all references to it have been deleted).  To this
