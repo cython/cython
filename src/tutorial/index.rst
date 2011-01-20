@@ -4,6 +4,7 @@ Tutorials
 .. toctree::
    :maxdepth: 2
 
+   external
    clibraries
    cdef_classes
    pxd_files
