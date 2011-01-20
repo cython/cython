@@ -389,20 +389,19 @@ class CythonBase(object):
                                      value)
 
     def is_initialized(self, cython_func, local_name):
-        islocal = local_name in cython_func.locals
-        if islocal:
-            cyvar = cython_func.locals[local_name]
-            if '->' in cyvar.cname:
-                # Closed over free variable
-                if self.get_cython_lineno() >= cython_func.lineno + 1:
-                    if cyvar.type == PythonObject:
-                        return long(gdb.parse_and_eval(cyvar.cname))
-                    return True
-                return False
-
+        cyvar = cython_func.locals[local_name]
         cur_lineno = self.get_cython_lineno()
-        return (local_name in cython_func.arguments or
-                (islocal and cur_lineno > cyvar.lineno))
+
+        if '->' in cyvar.cname:
+            # Closed over free variable
+            if cur_lineno > cython_func.lineno:
+                if cyvar.type == PythonObject:
+                    return long(gdb.parse_and_eval(cyvar.cname))
+                return True
+            return False
+
+        return cur_lineno > cyvar.lineno
+
 
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
