@@ -238,7 +238,8 @@ flags, such as::
 Once we have compiled the module for the first time, we can now import
 it and instantiate a new Queue::
 
-    PYTHONPATH=. python -c 'import queue.Queue as Q ; Q()'
+    $ export PYTHONPATH=.
+    $ python -c 'import queue.Queue as Q ; Q()'
 
 However, this is all our Queue class can do so far, so let's make it
 more usable.
