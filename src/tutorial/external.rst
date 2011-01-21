@@ -38,8 +38,8 @@ Cython also provides declarations for the C math library::
   cdef double f(double x):
       return sin(x*x)
 
-However, this is a library that is not linked by default on Unix-like
-systems, such as Linux or MacOS-X. In addition to cimporting the
+However, this is a library that is not linked by default on some Unix-like
+systems, such as Linux. In addition to cimporting the
 declarations, you must configure your build system to link against the
 shared library ``m``.  For distutils, it is enough to add it to the
 ``libraries`` parameter of the ``Extension()`` setup::
