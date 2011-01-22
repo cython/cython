@@ -1647,6 +1647,8 @@ class CFuncDefNode(FuncDefNode):
             formal_arg.type = type_arg.type
             formal_arg.name = type_arg.name
             formal_arg.cname = type_arg.cname
+            if type_arg.type.is_buffer and 'inline' in self.modifiers:
+                warning(formal_arg.pos, "Buffer unpacking not optimized away.", 1)
         name = name_declarator.name
         cname = name_declarator.cname
         self.entry = env.declare_cfunction(
