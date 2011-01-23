@@ -3223,7 +3223,9 @@ class CClassDefNode(ClassDefNode):
             home_scope = env
 
         if self.visibility == 'extern':
-            if self.module_name == '__builtin__' and self.class_name in Builtin.builtin_types:
+            if (self.module_name == '__builtin__' and
+                self.class_name in Builtin.builtin_types and
+                env.qualified_name[:8] != 'cpython.'): # allow overloaded names for cimporting from cpython
                 warning(self.pos, "%s already a builtin Cython type" % self.class_name, 1)
 
         self.entry = home_scope.declare_c_class(
