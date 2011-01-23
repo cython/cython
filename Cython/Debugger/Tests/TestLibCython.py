@@ -167,14 +167,26 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             p.stdout.close()
 
         if have_gdb:
+            python_version_script = tempfile.NamedTemporaryFile()
+            python_version_script.write('python import sys; print sys.version_info\n')
+            python_version_script.flush()
+            p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
+                                 stdout=subprocess.PIPE)
+            python_version = p.stdout.read().decode('ascii')
+            p.wait()
+            python_version_number = [int(a.strip()) for a in python_version.strip('()').split(',')[:3]]
+
+        if have_gdb:
             # Based on Lib/test/test_gdb.py
             regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
             gdb_version_number = re.search(regex, gdb_version).groups()
 
         # Be Python 3 compatible
-        if not have_gdb or list(map(int, gdb_version_number)) < [7, 2]:
+        if (not have_gdb
+            or list(map(int, gdb_version_number)) < [7, 2]
+            or python_version_number < [2, 5]):
             self.p = None
-            warnings.warn('Skipping gdb tests, need gdb >= 7.2')
+            warnings.warn('Skipping gdb tests, need gdb >= 7.2 with Python >= 2.5')
         else:
             self.p = subprocess.Popen(
                 args,
