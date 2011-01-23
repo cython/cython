@@ -306,13 +306,17 @@ class Scope(object):
         #return self.parent_scope.mangle(prefix, self.name)
 
     def next_id(self, name=None):
-        # Return a cname fragment that is unique for this scope.
+        # Return a cname fragment that is unique for this module
+        counters = self.global_scope().id_counters
         try:
-            count = self.id_counters[name] + 1
+            count = counters[name] + 1
         except KeyError:
             count = 0
-        self.id_counters[name] = count
+        counters[name] = count
         if name:
+            if not count:
+                # unique names don't need a suffix, reoccurrences will get one
+                return name
             return '%s%d' % (name, count)
         else:
             return '%d' % count
