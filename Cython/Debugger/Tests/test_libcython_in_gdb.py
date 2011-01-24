@@ -232,7 +232,10 @@ class TestStep(DebugStepperTestCase):
         self.assertEqual(curframe.name(), 'PyEval_EvalFrameEx')
 
         pyframe = libpython.Frame(curframe).get_pyop()
-        self.assertEqual(str(pyframe.co_name), 'join')
+        # With Python 3 inferiors, pyframe.co_name will return a PyUnicodePtr,
+        # be compatible
+        frame_name = pyframe.co_name.proxyval(set())
+        self.assertEqual(frame_name, 'join')
         assert re.match(r'\d+    def join\(', result), result
 
 
