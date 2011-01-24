@@ -2281,7 +2281,7 @@ class PythonCodeExecutor(object):
         except RuntimeError:
             # Python 3
             PyString_FromStringAndSize = ('PyUnicode%s_FromStringAndSize' %
-                                               (get_inferior_unicode_postfix,))
+                                               (get_inferior_unicode_postfix(),))
 
         try:
             result = gdb.parse_and_eval(
