@@ -1322,6 +1322,16 @@ class PyUnicodeObjectPtr(PyObjectPtr):
 
         out.write(quote)
 
+    def __unicode__(self):
+        return self.proxyval(set())
+
+    def __str__(self):
+        # In Python 3, everything is unicode (including attributes of e.g.
+        # code objects, such as function names). The Python 2 debugger code
+        # uses PyUnicodePtr objects to format strings etc, whereas with a
+        # Python 2 debuggee we'd get PyStringObjectPtr instances with __str__.
+        # Be compatible with that.
+        return unicode(self).encode('UTF-8')
 
 def int_from_int(gdbval):
     return int(str(gdbval))
@@ -1452,12 +1462,39 @@ class Frame(object):
 
         return False
 
+    def read_var(self, varname):
+        """
+        read_var with respect to code blocks (gdbframe.read_var works with
+        respect to the most recent block)
+
+        Apparently this function doesn't work, though, as it seems to read
+        variables in other frames also sometimes.
+        """
+        block = self._gdbframe.block()
+        var = None
+
+        while block and var is None:
+            try:
+                var = self._gdbframe.read_var(varname, block)
+            except ValueError:
+                pass
+
+            block = block.superblock
+
+        return var
+
     def get_pyop(self):
         try:
-            f = self._gdbframe.read_var('f')
-            return PyFrameObjectPtr.from_pyobject_ptr(f)
-        except ValueError:
+            # self.read_var does not always work properly, so select our frame
+            # and restore the previously selected frame
+            selected_frame = gdb.selected_frame()
+            self._gdbframe.select()
+            f = gdb.parse_and_eval('f')
+            selected_frame.select()
+        except RuntimeError:
             return None
+        else:
+            return PyFrameObjectPtr.from_pyobject_ptr(f)
 
     @classmethod
     def get_selected_frame(cls):
@@ -2174,9 +2211,10 @@ class PythonStepperMixin(object):
     """
 
     def python_step(self, stepinto):
-        frame = gdb.selected_frame()
-        framewrapper = Frame(frame)
-
+        """
+        Set a watchpoint on the Python bytecode instruction pointer and try
+        to finish the frame
+        """
         output = gdb.execute('watch f->f_lasti', to_string=True)
         watchpoint = int(re.search(r'[Ww]atchpoint (\d+):', output).group(1))
         self.step(stepinto=stepinto, stepover_command='finish')
@@ -2392,10 +2430,9 @@ class FixGdbCommand(gdb.Command):
 
     def fix_gdb(self):
         """
-        So, you must be wondering what the story is this time! Yeeees, indeed,
-        I have quite the story for you! It seems that invoking either 'cy exec'
-        and 'py-exec' work perfectly fine, but after this gdb's python API is
-        entirely broken. Some unset exception value is still set?
+        It seems that invoking either 'cy exec' and 'py-exec' work perfectly 
+        fine, but after this gdb's python API is entirely broken. 
+        Maybe some uncleared exception value is still set?
         sys.exc_clear() didn't help. A demonstration:
 
         (gdb) cy exec 'hello'
@@ -2443,7 +2480,7 @@ class PyExec(gdb.Command):
 
                     lines.append(line)
 
-            return '\n'.join(lines), Py_file_input
+            return '\n'.join(lines), PythonCodeExecutor.Py_file_input
 
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
