@@ -2951,6 +2951,7 @@ class SimpleCallNode(CallNode):
             self.has_optional_args = 1
             self.is_temp = 1
         # Coerce arguments
+        some_args_in_temps = False
         for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env)
@@ -2959,8 +2960,22 @@ class SimpleCallNode(CallNode):
                 # make sure it cannot be collected before we return
                 # from the function, so we create an owned temp
                 # reference to it
+                some_args_in_temps = True
                 arg = arg.coerce_to_temp(env)
+            elif arg.is_temp:
+                some_args_in_temps = True
             self.args[i] = arg
+        if some_args_in_temps:
+            # if some args are temps and others are not, they may get
+            # constructed in the wrong order (temps first) => make
+            # sure they are either all temps or all not temps
+            for i in range(min(max_nargs, actual_nargs)):
+                arg = self.args[i]
+                # can't copy a Python reference into a temp in nogil
+                # env (this is safe: a construction would fail in
+                # nogil anyway)
+                if not (env.nogil and arg.type.is_pyobject):
+                    self.args[i] = arg.coerce_to_temp(env)
         for i in range(max_nargs, actual_nargs):
             arg = self.args[i]
             if arg.type.is_pyobject:
