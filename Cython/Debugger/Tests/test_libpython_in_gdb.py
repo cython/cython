@@ -52,14 +52,14 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
 
     def alloc_bytestring(self, string, gdbvar=None):
         if inferior_python_version < (3, 0):
-            funcname = 'PyString_FromString'
+            funcname = 'PyString_FromStringAndSize'
         else:
-            funcname = 'PyBytes_FromString'
+            funcname = 'PyBytes_FromStringAndSize'
 
         assert '"' not in string
 
         # ensure double quotes
-        code = '(PyObject *) %s("%s")' % (funcname, string)
+        code = '(PyObject *) %s("%s", %d)' % (funcname, string, len(string))
         return self.pyobject_fromcode(code, gdbvar=gdbvar)
 
     def alloc_unicodestring(self, string, gdbvar=None):
