@@ -4,10 +4,8 @@ GDB extension that adds Cython support.
 
 from __future__ import with_statement
 
-import os
 import sys
 import textwrap
-import operator
 import traceback
 import functools
 import itertools
@@ -16,8 +14,8 @@ import collections
 import gdb
 
 try:
-  from lxml import etree
-  have_lxml = True
+    from lxml import etree
+    have_lxml = True
 except ImportError:
     have_lxml = False
     try:
@@ -279,7 +277,7 @@ class CythonBase(object):
         if self.is_cython_function(frame) or self.is_python_function(frame):
             return True
         elif older_frame and self.is_cython_function(older_frame):
-            # direct C function call from a Cython function
+            # check for direct C function call from a Cython function
             cython_func = self.get_cython_function(older_frame)
             return name in cython_func.step_into_functions
 
@@ -756,8 +754,8 @@ class CyBreak(CythonCommand):
             breakpoint = '%s:%s' % (cython_module.c_filename, c_lineno)
             gdb.execute('break ' + breakpoint)
         else:
-            raise GdbError("Not a valid line number. "
-                           "Does it contain actual code?")
+            raise gdb.GdbError("Not a valid line number. "
+                               "Does it contain actual code?")
 
     def _break_funcname(self, funcname):
         func = self.cy.functions_by_qualified_name.get(funcname)
@@ -1030,7 +1028,7 @@ class CyBacktrace(CythonCommand):
     @require_running_program
     def invoke(self, args, from_tty):
         # get the first frame
-        selected_frame = frame = gdb.selected_frame()
+        frame = gdb.selected_frame()
         while frame.older():
             frame = frame.older()
 
@@ -1038,21 +1036,16 @@ class CyBacktrace(CythonCommand):
 
         index = 0
         while frame:
-            is_c = False
-
-            is_relevant = False
             try:
                 is_relevant = self.is_relevant_function(frame)
             except CyGDBError:
-                pass
+                is_relevant = False
 
             if print_all or is_relevant:
                 self.print_stackframe(frame, index)
 
             index += 1
             frame = frame.newer()
-
-        selected_frame.select()
 
 
 class CyList(CythonCommand):
@@ -1188,7 +1181,6 @@ class CyExec(CythonCommand, libpython.PyExec):
     def _fill_locals_dict(self, executor, local_dict_pointer):
         "Fill a remotely allocated dict with values from the Cython C stack"
         cython_func = self.get_cython_function()
-        current_lineno = self.get_cython_lineno()
 
         for name, cyvar in cython_func.locals.iteritems():
             if (cyvar.type == PythonObject and
@@ -1244,8 +1236,6 @@ class CyExec(CythonCommand, libpython.PyExec):
             global_dict = gdb.parse_and_eval(
                 '(PyObject *) PyModule_GetDict(__pyx_m)')
             local_dict = gdb.parse_and_eval('(PyObject *) PyDict_New()')
-
-            cython_function = self.get_cython_function()
 
             try:
                 self._fill_locals_dict(executor,
