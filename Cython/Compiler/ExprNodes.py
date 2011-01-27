@@ -3997,6 +3997,10 @@ class TupleNode(SequenceNode):
                 self.is_temp = 0
                 self.is_literal = 1
 
+    def is_simple(self):
+        # either temp or constant => always simple
+        return True
+
     def calculate_result_code(self):
         if len(self.args) > 0:
             return self.result_code
