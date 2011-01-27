@@ -2977,12 +2977,12 @@ class SimpleCallNode(CallNode):
             # if some args are temps and others are not, they may get
             # constructed in the wrong order (temps first) => make
             # sure they are either all temps or all not temps
-            for i in range(min(max_nargs, actual_nargs)):
+            for i in range(min(max_nargs, actual_nargs)-1):
                 arg = self.args[i]
                 if arg.is_name and arg.entry and (
-                    arg.entry.is_local or arg.entry.in_closure or arg.entry.type.is_cfunction):
-                    # local variables are safe
-                    # TODO: what about the non-local keyword?
+                    (arg.entry.is_local and not arg.entry.in_closure)
+                    or arg.entry.type.is_cfunction):
+                    # local variables and C functions are safe
                     pass
                 elif env.nogil and arg.type.is_pyobject:
                     # can't copy a Python reference into a temp in nogil
