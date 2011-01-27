@@ -2979,13 +2979,18 @@ class SimpleCallNode(CallNode):
             # sure they are either all temps or all not temps
             for i in range(min(max_nargs, actual_nargs)):
                 arg = self.args[i]
-                # local variables are safe
-                if not arg.is_name or arg.entry and (not arg.entry.is_local or arg.entry.in_closure):
+                if arg.is_name and arg.entry and (
+                    arg.entry.is_local or arg.entry.in_closure or arg.entry.type.is_cfunction):
+                    # local variables are safe
+                    # TODO: what about the non-local keyword?
+                    pass
+                elif env.nogil and arg.type.is_pyobject:
                     # can't copy a Python reference into a temp in nogil
                     # env (this is safe: a construction would fail in
                     # nogil anyway)
-                    if not (env.nogil and arg.type.is_pyobject):
-                        self.args[i] = arg.coerce_to_temp(env)
+                    pass
+                else:
+                    self.args[i] = arg.coerce_to_temp(env)
         for i in range(max_nargs, actual_nargs):
             arg = self.args[i]
             if arg.type.is_pyobject:
