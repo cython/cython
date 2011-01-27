@@ -2913,6 +2913,13 @@ class SimpleCallNode(CallNode):
             func_type = func_type.base_type
         return func_type
 
+    def is_simple(self):
+        # C function calls could be considered simple, but they may
+        # have side-effects that may hit when multiple operations must
+        # be effected in order, e.g. when constructing the argument
+        # sequence for a function call or comparing values.
+        return False
+
     def analyse_c_function_call(self, env):
         if self.function.type is error_type:
             self.type = error_type
@@ -2954,16 +2961,17 @@ class SimpleCallNode(CallNode):
         some_args_in_temps = False
         for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
-            arg = self.args[i].coerce_to(formal_type, env)
-            if arg.type.is_pyobject and not env.nogil and (arg.is_attribute or not arg.is_simple):
-                # we do not own the argument's reference, but we must
-                # make sure it cannot be collected before we return
-                # from the function, so we create an owned temp
-                # reference to it
+            arg = self.args[i].coerce_to(formal_type, env).coerce_to_simple(env)
+            if arg.is_temp:
                 some_args_in_temps = True
-                arg = arg.coerce_to_temp(env)
-            elif arg.is_temp:
-                some_args_in_temps = True
+            elif arg.type.is_pyobject and not env.nogil:
+                if not arg.is_name or arg.entry and (not arg.entry.is_local or arg.entry.in_closure):
+                    # we do not safely own the argument's reference,
+                    # but we must make sure it cannot be collected
+                    # before we return from the function, so we create
+                    # an owned temp reference to it
+                    some_args_in_temps = True
+                    arg = arg.coerce_to_temp(env)
             self.args[i] = arg
         if some_args_in_temps:
             # if some args are temps and others are not, they may get
@@ -2971,11 +2979,13 @@ class SimpleCallNode(CallNode):
             # sure they are either all temps or all not temps
             for i in range(min(max_nargs, actual_nargs)):
                 arg = self.args[i]
-                # can't copy a Python reference into a temp in nogil
-                # env (this is safe: a construction would fail in
-                # nogil anyway)
-                if not (env.nogil and arg.type.is_pyobject):
-                    self.args[i] = arg.coerce_to_temp(env)
+                # local variables are safe
+                if not arg.is_name or arg.entry and (not arg.entry.is_local or arg.entry.in_closure):
+                    # can't copy a Python reference into a temp in nogil
+                    # env (this is safe: a construction would fail in
+                    # nogil anyway)
+                    if not (env.nogil and arg.type.is_pyobject):
+                        self.args[i] = arg.coerce_to_temp(env)
         for i in range(max_nargs, actual_nargs):
             arg = self.args[i]
             if arg.type.is_pyobject:
