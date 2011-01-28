@@ -7048,6 +7048,9 @@ class PyTypeTestNode(CoercionNode):
             return False
         return self.arg.may_be_none()
 
+    def is_simple(self):
+        return self.arg.is_simple()
+
     def result_in_temp(self):
         return self.arg.result_in_temp()
 
@@ -7097,6 +7100,9 @@ class NoneCheckNode(CoercionNode):
 
     def may_be_none(self):
         return False
+
+    def is_simple(self):
+        return self.arg.is_simple()
 
     def result_in_temp(self):
         return self.arg.result_in_temp()
