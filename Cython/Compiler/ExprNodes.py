@@ -2965,7 +2965,10 @@ class SimpleCallNode(CallNode):
             if arg.is_temp:
                 some_args_in_temps = True
             elif arg.type.is_pyobject and not env.nogil:
-                if not arg.is_name or arg.entry and (not arg.entry.is_local or arg.entry.in_closure):
+                if arg.is_name or (i == 0 and self.self is not None):
+                    # names and a method's cloned "self" argument are ok
+                    pass
+                elif arg.entry and (not arg.entry.is_local or arg.entry.in_closure):
                     # we do not safely own the argument's reference,
                     # but we must make sure it cannot be collected
                     # before we return from the function, so we create
@@ -2978,6 +2981,8 @@ class SimpleCallNode(CallNode):
             # constructed in the wrong order (temps first) => make
             # sure they are either all temps or all not temps
             for i in range(min(max_nargs, actual_nargs)-1):
+                if i == 0 and self.self is not None:
+                    continue # self is ok
                 arg = self.args[i]
                 if arg.is_name and arg.entry and (
                     (arg.entry.is_local and not arg.entry.in_closure)
@@ -7403,6 +7408,9 @@ class CloneNode(CoercionNode):
         self.is_temp = 1
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
+
+    def is_simple(self):
+        return True # result is always in a temp (or a name)
 
     def generate_evaluation_code(self, code):
         pass
