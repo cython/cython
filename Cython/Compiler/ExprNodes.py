@@ -2965,10 +2965,13 @@ class SimpleCallNode(CallNode):
             if arg.is_temp:
                 some_args_in_temps = True
             elif arg.type.is_pyobject and not env.nogil:
-                if arg.is_name or (i == 0 and self.self is not None):
-                    # names and a method's cloned "self" argument are ok
+                if i == 0 and self.self is not None:
+                    # a method's cloned "self" argument is ok
                     pass
-                elif arg.entry and (not arg.entry.is_local or arg.entry.in_closure):
+                elif arg.is_name and arg.entry and arg.entry.is_local and not arg.entry.in_closure:
+                    # plain local variables are ok
+                    pass
+                else:
                     # we do not safely own the argument's reference,
                     # but we must make sure it cannot be collected
                     # before we return from the function, so we create
