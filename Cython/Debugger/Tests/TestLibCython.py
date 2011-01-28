@@ -90,60 +90,65 @@ class DebuggerTestCase(unittest.TestCase):
         self.cfuncs_destfile = os.path.join(self.tempdir, 'cfuncs')
 
         self.cwd = os.getcwd()
-        os.chdir(self.tempdir)
+        try:
+            os.chdir(self.tempdir)
 
-        shutil.copy(codefile, self.destfile)
-        shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
+            shutil.copy(codefile, self.destfile)
+            shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
 
-        compiler = ccompiler.new_compiler()
-        compiler.compile(['cfuncs.c'], debug=True, extra_postargs=['-fPIC'])
+            compiler = ccompiler.new_compiler()
+            compiler.compile(['cfuncs.c'], debug=True, extra_postargs=['-fPIC'])
 
-        opts = dict(
-            test_directory=self.tempdir,
-            module='codefile',
-        )
+            opts = dict(
+                test_directory=self.tempdir,
+                module='codefile',
+            )
 
-        optimization_disabler = build_ext.Optimization()
-        optimization_disabler.disable_optimization()
+            optimization_disabler = build_ext.Optimization()
+            optimization_disabler.disable_optimization()
 
-        cython_compile_testcase = runtests.CythonCompileTestCase(
-            workdir=self.tempdir,
-            # we clean up everything (not only compiled files)
-            cleanup_workdir=False,
-            **opts
-        )
+            cython_compile_testcase = runtests.CythonCompileTestCase(
+                workdir=self.tempdir,
+                # we clean up everything (not only compiled files)
+                cleanup_workdir=False,
+                **opts
+            )
 
-        cython_compile_testcase.run_cython(
-            targetdir=self.tempdir,
-            incdir=None,
-            annotate=False,
-            extra_compile_options={
-                'gdb_debug':True,
-                'output_dir':self.tempdir,
-            },
-            **opts
-        )
+            cython_compile_testcase.run_cython(
+                targetdir=self.tempdir,
+                incdir=None,
+                annotate=False,
+                extra_compile_options={
+                    'gdb_debug':True,
+                    'output_dir':self.tempdir,
+                },
+                **opts
+            )
 
-        cython_compile_testcase.run_distutils(
-            incdir=None,
-            workdir=self.tempdir,
-            extra_extension_args={'extra_objects':['cfuncs.o']},
-            **opts
-        )
+            cython_compile_testcase.run_distutils(
+                incdir=None,
+                workdir=self.tempdir,
+                extra_extension_args={'extra_objects':['cfuncs.o']},
+                **opts
+            )
 
-        optimization_disabler.restore_state()
+            optimization_disabler.restore_state()
 
-        # ext = Cython.Distutils.extension.Extension(
-            # 'codefile',
-            # ['codefile.pyx'],
-            # pyrex_gdb=True,
-            # extra_objects=['cfuncs.o'])
-        #
-        # distutils.core.setup(
-            # script_args=['build_ext', '--inplace'],
-            # ext_modules=[ext],
-            # cmdclass=dict(build_ext=Cython.Distutils.build_ext)
-        # )
+            # ext = Cython.Distutils.extension.Extension(
+                # 'codefile',
+                # ['codefile.pyx'],
+                # pyrex_gdb=True,
+                # extra_objects=['cfuncs.o'])
+            #
+            # distutils.core.setup(
+                # script_args=['build_ext', '--inplace'],
+                # ext_modules=[ext],
+                # cmdclass=dict(build_ext=Cython.Distutils.build_ext)
+            # )
+
+        except:
+            os.chdir(self.cwd)
+            raise
 
     def tearDown(self):
         if not test_gdb():
