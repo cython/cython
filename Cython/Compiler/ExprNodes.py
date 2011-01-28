@@ -2015,6 +2015,8 @@ class IndexNode(ExprNode):
         return self.base.is_ephemeral()
 
     def is_simple(self):
+        if self.is_buffer_access:
+            return False
         base = self.base
         return (base.is_simple() and self.index.is_simple()
                 and base.type and (base.type.is_ptr or base.type.is_array))
