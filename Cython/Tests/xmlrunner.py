@@ -194,7 +194,7 @@ class _XMLTestResult(_TextTestResult):
                     module = ''
                 testcase_name = module + testcase.__name__
 
-                if not tests_by_testcase.has_key(testcase_name):
+                if testcase_name not in tests_by_testcase:
                     tests_by_testcase[testcase_name] = []
                 tests_by_testcase[testcase_name].append(test_info)
 
