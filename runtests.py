@@ -993,6 +993,9 @@ def check_thread_termination(ignore_seen=True):
     raise PendingThreadsError("left-over threads found after running test")
 
 def main():
+
+    DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
+
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
@@ -1063,12 +1066,15 @@ def main():
     parser.add_option("--exit-ok", dest="exit_ok", default=False,
                       action="store_true",
                       help="exit without error code even on test failures")
+    parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
+                      help="working directory")
+    parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'BUILD'),
+                      help="working directory")
 
     options, cmd_args = parser.parse_args()
 
-    DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
-    ROOTDIR = os.path.join(DISTDIR, 'tests')
-    WORKDIR = os.path.join(os.getcwd(), 'BUILD')
+    ROOTDIR = os.path.abspath(options.root_dir)
+    WORKDIR = os.path.abspath(options.work_dir)
 
     if sys.version_info[0] >= 3:
         options.doctests = False
@@ -1179,7 +1185,7 @@ def main():
         exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
 
     if not test_bugs:
-        exclude_selectors += [ FileListExcluder("tests/bugs.txt") ]
+        exclude_selectors += [ FileListExcluder(os.path.join(ROOTDIR, "bugs.txt")) ]
 
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
         exclude_selectors += [ lambda x: x == "run.specialfloat" ]
