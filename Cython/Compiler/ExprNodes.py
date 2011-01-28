@@ -2966,9 +2966,13 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
         # Coerce arguments
         some_args_in_temps = False
-        for i in range(min(max_nargs, actual_nargs)):
+        max_fitting_arg_count = min(max_nargs, actual_nargs)
+        for i in range(max_fitting_arg_count):
             formal_type = func_type.args[i].type
-            arg = self.args[i].coerce_to(formal_type, env).coerce_to_simple(env)
+            arg = self.args[i].coerce_to(formal_type, env)
+            if i < max_fitting_arg_count-1:
+                # last argument will be evaluated last either way
+                arg = arg.coerce_to_simple(env)
             if arg.is_temp:
                 if i > 0: # first argument doesn't matter
                     some_args_in_temps = True
@@ -2992,7 +2996,7 @@ class SimpleCallNode(CallNode):
             # if some args are temps and others are not, they may get
             # constructed in the wrong order (temps first) => make
             # sure they are either all temps or all not temps
-            for i in range(min(max_nargs, actual_nargs)-1):
+            for i in range(max_fitting_arg_count-1):
                 if i == 0 and self.self is not None:
                     continue # self is ok
                 arg = self.args[i]
