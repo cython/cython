@@ -49,7 +49,7 @@ def test_gdb():
             # Based on Lib/test/test_gdb.py
             regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
             gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
-            
+
             if gdb_version_number >= [7, 2]:
                 python_version_script = tempfile.NamedTemporaryFile(mode='w+')
                 python_version_script.write(
@@ -105,7 +105,6 @@ class DebuggerTestCase(unittest.TestCase):
             )
 
             optimization_disabler = build_ext.Optimization()
-            optimization_disabler.disable_optimization()
 
             cython_compile_testcase = runtests.CythonCompileTestCase(
                 workdir=self.tempdir,
@@ -114,25 +113,34 @@ class DebuggerTestCase(unittest.TestCase):
                 **opts
             )
 
-            cython_compile_testcase.run_cython(
-                targetdir=self.tempdir,
-                incdir=None,
-                annotate=False,
-                extra_compile_options={
-                    'gdb_debug':True,
-                    'output_dir':self.tempdir,
-                },
-                **opts
-            )
 
-            cython_compile_testcase.run_distutils(
-                incdir=None,
-                workdir=self.tempdir,
-                extra_extension_args={'extra_objects':['cfuncs.o']},
-                **opts
-            )
+            new_stderr = open(os.devnull, 'w')
 
-            optimization_disabler.restore_state()
+            stderr = sys.stderr
+            sys.stderr = new_stderr
+
+            optimization_disabler.disable_optimization()
+            try:
+                cython_compile_testcase.run_cython(
+                    targetdir=self.tempdir,
+                    incdir=None,
+                    annotate=False,
+                    extra_compile_options={
+                        'gdb_debug':True,
+                        'output_dir':self.tempdir,
+                    },
+                    **opts
+                )
+
+                cython_compile_testcase.run_distutils(
+                    incdir=None,
+                    workdir=self.tempdir,
+                    extra_extension_args={'extra_objects':['cfuncs.o']},
+                    **opts
+                )
+            finally:
+                optimization_disabler.restore_state()
+                sys.stderr = stderr
 
             # ext = Cython.Distutils.extension.Extension(
                 # 'codefile',
@@ -226,7 +234,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             # Based on Lib/test/test_gdb.py
             regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
             gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
-            
+
             if gdb_version_number >= [7, 2]:
                 python_version_script = tempfile.NamedTemporaryFile(mode='w+')
                 python_version_script.write(
@@ -238,7 +246,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
                 p.wait()
                 python_version_number = list(map(int, python_version.split()))
 
-        
+
         # Be Python 3 compatible
         if (not have_gdb
             or gdb_version_number < [7, 2]
@@ -272,12 +280,19 @@ class TestAll(GdbDebuggerTestCase):
 
         out, err = self.p.communicate()
         err = err.decode('UTF-8')
-        border = '*' * 30
-        start = '%s   v INSIDE GDB v   %s' % (border, border)
-        end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
-        errmsg = '\n%s\n%s%s' % (start, err, end)
-        self.assertEquals(0, self.p.wait(), errmsg)
-        sys.stderr.write(err)
+
+        exit_status = self.p.wait()
+
+        if exit_status == 1:
+            sys.stderr.write(err)
+        elif exit_status >= 2:
+            border = '*' * 30
+            start = '%s   v INSIDE GDB v   %s' % (border, border)
+            end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
+            errmsg = '\n%s\n%s%s' % (start, err, end)
+
+            sys.stderr.write(errmsg)
+
 
 if __name__ == '__main__':
     unittest.main()
