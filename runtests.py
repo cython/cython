@@ -26,6 +26,18 @@ try:
 except ImportError: # No threads, no problems
     threading = None
 
+if sys.platform == 'win32':
+    # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
+    config_files = distutils_distro.find_config_files()
+    try: config_files.remove('setup.cfg')
+    except ValueError: pass
+    distutils_distro.parse_config_files(config_files)
+
+    cfgfiles = distutils_distro.find_config_files()
+    try: cfgfiles.remove('setup.cfg')
+    except ValueError: pass
+    distutils_distro.parse_config_files(cfgfiles)
+
 
 WITH_CYTHON = True
 
