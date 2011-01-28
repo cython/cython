@@ -2014,6 +2014,11 @@ class IndexNode(ExprNode):
     def is_ephemeral(self):
         return self.base.is_ephemeral()
 
+    def is_simple(self):
+        base = self.base
+        return (base.is_simple() and self.index.is_simple()
+                and base.type and (base.type.is_ptr or base.type.is_array))
+
     def analyse_target_declaration(self, env):
         pass
 
