@@ -5388,6 +5388,10 @@ class TypecastNode(ExprNode):
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
 
+    def is_simple(self):
+        # either temp or a C cast => no side effects
+        return True
+
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
             self.gil_error()
