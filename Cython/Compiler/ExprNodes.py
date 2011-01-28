@@ -2970,7 +2970,8 @@ class SimpleCallNode(CallNode):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env).coerce_to_simple(env)
             if arg.is_temp:
-                some_args_in_temps = True
+                if i > 0: # first argument doesn't matter
+                    some_args_in_temps = True
             elif arg.type.is_pyobject and not env.nogil:
                 if i == 0 and self.self is not None:
                     # a method's cloned "self" argument is ok
@@ -2983,7 +2984,8 @@ class SimpleCallNode(CallNode):
                     # but we must make sure it cannot be collected
                     # before we return from the function, so we create
                     # an owned temp reference to it
-                    some_args_in_temps = True
+                    if i > 0: # first argument doesn't matter
+                        some_args_in_temps = True
                     arg = arg.coerce_to_temp(env)
             self.args[i] = arg
         if some_args_in_temps:
