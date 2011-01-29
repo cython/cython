@@ -77,6 +77,23 @@ def test_custom():
     assert isinstance(A(), A)
     return True
 
+cdef class B:
+    pass
+
+cdef class C:
+    pass
+
+def test_custom_tuple(obj):
+    """
+    >>> test_custom_tuple(A())
+    True
+    >>> test_custom_tuple(B())
+    True
+    >>> test_custom_tuple(C())
+    False
+    """
+    return isinstance(obj, (A,B))
+
 def test_nested(x):
     """
     >>> test_nested(1)
