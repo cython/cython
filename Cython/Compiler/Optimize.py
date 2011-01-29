@@ -1936,7 +1936,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args = [arg],
                 is_temp = node.is_temp)
-        elif arg.type is PyrexTypes.c_py_unicode_type:
+        elif arg.type.is_unicode_char:
             return ExprNodes.IntNode(node.pos, value='1', constant_result=1,
                                      type=node.type)
         else:
@@ -2028,7 +2028,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
-            if arg.arg.type is PyrexTypes.c_py_unicode_type:
+            if arg.arg.type.is_unicode_char:
                 return arg.arg.coerce_to(node.type, self.current_env())
         return node
 
@@ -2191,7 +2191,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         ustring = args[0]
         if not isinstance(ustring, ExprNodes.CoerceToPyTypeNode) or \
-               ustring.arg.type is not PyrexTypes.c_py_unicode_type:
+               not ustring.arg.type.is_unicode_char:
             return node
         uchar = ustring.arg
         method_name = node.function.attribute
@@ -2230,7 +2230,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         ustring = args[0]
         if not isinstance(ustring, ExprNodes.CoerceToPyTypeNode) or \
-               ustring.arg.type is not PyrexTypes.c_py_unicode_type:
+               not ustring.arg.type.is_unicode_char:
             return node
         uchar = ustring.arg
         method_name = node.function.attribute
