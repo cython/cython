@@ -22,6 +22,9 @@ annotate = False
 # to keep going and printing further error messages.
 fast_fail = False
 
+# Make all warnings into errors.
+warning_errors = False
+
 # This will convert statements of the form "for i in range(...)"
 # to "for i from ..." when i is a cdef'd integer type, and the direction
 # (i.e. sign of step) can be determined.
