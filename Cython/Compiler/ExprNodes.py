@@ -2966,15 +2966,12 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
         # Coerce arguments
         some_args_in_temps = False
-        max_fitting_arg_count = min(max_nargs, actual_nargs)
-        for i in range(max_fitting_arg_count):
+        for i in xrange(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env)
-            if i < max_fitting_arg_count-1:
-                # last argument will be evaluated last either way
-                arg = arg.coerce_to_simple(env)
             if arg.is_temp:
-                if i > 0: # first argument doesn't matter
+                if i > 0:
+                    # first argument in temp doesn't impact subsequent arguments
                     some_args_in_temps = True
             elif arg.type.is_pyobject and not env.nogil:
                 if i == 0 and self.self is not None:
@@ -2992,11 +2989,25 @@ class SimpleCallNode(CallNode):
                         some_args_in_temps = True
                     arg = arg.coerce_to_temp(env)
             self.args[i] = arg
+        # handle additional varargs parameters
+        for i in range(max_nargs, actual_nargs):
+            arg = self.args[i]
+            if arg.type.is_pyobject:
+                arg_ctype = arg.type.default_coerced_ctype()
+                if arg_ctype is None:
+                    error(self.args[i].pos,
+                          "Python object cannot be passed as a varargs parameter")
+                else:
+                    self.args[i] = arg = arg.coerce_to(arg_ctype, env)
+                    if arg.is_temp and i > 0:
+                        some_args_in_temps = True
         if some_args_in_temps:
             # if some args are temps and others are not, they may get
             # constructed in the wrong order (temps first) => make
-            # sure they are either all temps or all not temps
-            for i in range(max_fitting_arg_count-1):
+            # sure they are either all temps or all not temps (except
+            # for the last argument, which is evaluated last in any
+            # case)
+            for i in xrange(actual_nargs-1):
                 if i == 0 and self.self is not None:
                     continue # self is ok
                 arg = self.args[i]
@@ -3012,15 +3023,6 @@ class SimpleCallNode(CallNode):
                     pass
                 else:
                     self.args[i] = arg.coerce_to_temp(env)
-        for i in range(max_nargs, actual_nargs):
-            arg = self.args[i]
-            if arg.type.is_pyobject:
-                arg_ctype = arg.type.default_coerced_ctype()
-                if arg_ctype is None:
-                    error(self.args[i].pos,
-                          "Python object cannot be passed as a varargs parameter")
-                else:
-                    self.args[i] = arg.coerce_to(arg_ctype, env)
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
