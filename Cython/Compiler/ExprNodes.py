@@ -2990,7 +2990,7 @@ class SimpleCallNode(CallNode):
                     arg = arg.coerce_to_temp(env)
             self.args[i] = arg
         # handle additional varargs parameters
-        for i in range(max_nargs, actual_nargs):
+        for i in xrange(max_nargs, actual_nargs):
             arg = self.args[i]
             if arg.type.is_pyobject:
                 arg_ctype = arg.type.default_coerced_ctype()
@@ -2999,8 +2999,8 @@ class SimpleCallNode(CallNode):
                           "Python object cannot be passed as a varargs parameter")
                 else:
                     self.args[i] = arg = arg.coerce_to(arg_ctype, env)
-                    if arg.is_temp and i > 0:
-                        some_args_in_temps = True
+            if arg.is_temp and i > 0:
+                some_args_in_temps = True
         if some_args_in_temps:
             # if some args are temps and others are not, they may get
             # constructed in the wrong order (temps first) => make
