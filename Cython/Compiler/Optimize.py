@@ -1994,20 +1994,21 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                         builtin_type = entry.type
             if builtin_type and builtin_type is not Builtin.type_type:
                 type_check_function = entry.type.type_check_function(exact=False)
+                if type_check_function in tests:
+                    continue
+                tests.append(type_check_function)
                 type_check_args = [arg]
             elif test_type_node.type is Builtin.type_type:
                 type_check_function = '__Pyx_TypeCheck'
                 type_check_args = [arg, test_type_node]
             else:
                 return node
-            if type_check_function not in tests:
-                tests.append(type_check_function)
-                test_nodes.append(
-                    ExprNodes.PythonCapiCallNode(
-                        test_type_node.pos, type_check_function, self.Py_type_check_func_type,
-                        args = type_check_args,
-                        is_temp = True,
-                        ))
+            test_nodes.append(
+                ExprNodes.PythonCapiCallNode(
+                    test_type_node.pos, type_check_function, self.Py_type_check_func_type,
+                    args = type_check_args,
+                    is_temp = True,
+                    ))
 
         def join_with_or(a,b, make_binop_node=ExprNodes.binop_node):
             or_node = make_binop_node(node.pos, 'or', a, b)
