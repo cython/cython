@@ -428,7 +428,7 @@ def run_unittest_in_module(modulename):
                 "debugging information. Either compile python with "
                 "-g or get a debug build (configure with --with-pydebug).")
         warnings.warn(msg)
-        os._exit(0)
+        os._exit(1)
     else:
         m = __import__(modulename, fromlist=[''])
         tests = inspect.getmembers(m, inspect.isclass)
@@ -453,7 +453,7 @@ def runtests():
     success_libpython = run_unittest_in_module(test_libpython_in_gdb.__name__)
 
     if not success_libcython or not success_libpython:
-        sys.exit(1)
+        sys.exit(2)
 
 def main(version, trace_code=False):
     global inferior_python_version
