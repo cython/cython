@@ -2021,6 +2021,13 @@ class IndexNode(ExprNode):
     def is_ephemeral(self):
         return self.base.is_ephemeral()
 
+    def is_simple(self):
+        if self.is_buffer_access:
+            return False
+        base = self.base
+        return (base.is_simple() and self.index.is_simple()
+                and base.type and (base.type.is_ptr or base.type.is_array))
+
     def analyse_target_declaration(self, env):
         pass
 
@@ -2966,25 +2973,50 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
         # Coerce arguments
         some_args_in_temps = False
-        for i in range(min(max_nargs, actual_nargs)):
+        for i in xrange(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
-            arg = self.args[i].coerce_to(formal_type, env).coerce_to_simple(env)
+            arg = self.args[i].coerce_to(formal_type, env)
             if arg.is_temp:
-                some_args_in_temps = True
+                if i > 0:
+                    # first argument in temp doesn't impact subsequent arguments
+                    some_args_in_temps = True
             elif arg.type.is_pyobject and not env.nogil:
-                if not arg.is_name or arg.entry and (not arg.entry.is_local or arg.entry.in_closure):
+                if i == 0 and self.self is not None:
+                    # a method's cloned "self" argument is ok
+                    pass
+                elif arg.is_name and arg.entry and arg.entry.is_local and not arg.entry.in_closure:
+                    # plain local variables are ok
+                    pass
+                else:
                     # we do not safely own the argument's reference,
                     # but we must make sure it cannot be collected
                     # before we return from the function, so we create
                     # an owned temp reference to it
-                    some_args_in_temps = True
+                    if i > 0: # first argument doesn't matter
+                        some_args_in_temps = True
                     arg = arg.coerce_to_temp(env)
             self.args[i] = arg
+        # handle additional varargs parameters
+        for i in xrange(max_nargs, actual_nargs):
+            arg = self.args[i]
+            if arg.type.is_pyobject:
+                arg_ctype = arg.type.default_coerced_ctype()
+                if arg_ctype is None:
+                    error(self.args[i].pos,
+                          "Python object cannot be passed as a varargs parameter")
+                else:
+                    self.args[i] = arg = arg.coerce_to(arg_ctype, env)
+            if arg.is_temp and i > 0:
+                some_args_in_temps = True
         if some_args_in_temps:
             # if some args are temps and others are not, they may get
             # constructed in the wrong order (temps first) => make
-            # sure they are either all temps or all not temps
-            for i in range(min(max_nargs, actual_nargs)-1):
+            # sure they are either all temps or all not temps (except
+            # for the last argument, which is evaluated last in any
+            # case)
+            for i in xrange(actual_nargs-1):
+                if i == 0 and self.self is not None:
+                    continue # self is ok
                 arg = self.args[i]
                 if arg.is_name and arg.entry and (
                     (arg.entry.is_local and not arg.entry.in_closure)
@@ -2998,15 +3030,6 @@ class SimpleCallNode(CallNode):
                     pass
                 else:
                     self.args[i] = arg.coerce_to_temp(env)
-        for i in range(max_nargs, actual_nargs):
-            arg = self.args[i]
-            if arg.type.is_pyobject:
-                arg_ctype = arg.type.default_coerced_ctype()
-                if arg_ctype is None:
-                    error(self.args[i].pos,
-                          "Python object cannot be passed as a varargs parameter")
-                else:
-                    self.args[i] = arg.coerce_to(arg_ctype, env)
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
@@ -5447,6 +5470,10 @@ class TypecastNode(ExprNode):
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
 
+    def is_simple(self):
+        # either temp or a C cast => no side effects
+        return True
+
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
             self.gil_error()
@@ -7103,6 +7130,9 @@ class PyTypeTestNode(CoercionNode):
             return False
         return self.arg.may_be_none()
 
+    def is_simple(self):
+        return self.arg.is_simple()
+
     def result_in_temp(self):
         return self.arg.result_in_temp()
 
@@ -7152,6 +7182,9 @@ class NoneCheckNode(CoercionNode):
 
     def may_be_none(self):
         return False
+
+    def is_simple(self):
+        return self.arg.is_simple()
 
     def result_in_temp(self):
         return self.arg.result_in_temp()
@@ -7452,6 +7485,9 @@ class CloneNode(CoercionNode):
         self.is_temp = 1
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
+
+    def is_simple(self):
+        return True # result is always in a temp (or a name)
 
     def generate_evaluation_code(self, code):
         pass

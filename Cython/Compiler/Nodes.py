@@ -607,9 +607,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             error(self.exception_value.pos,
                                   "Exception value incompatible with function return type")
             exc_check = self.exception_check
-        if return_type.is_array:
-            error(self.pos,
-                "Function cannot return an array")
         if return_type.is_cfunction:
             error(self.pos,
                 "Function cannot return a function")
@@ -1658,6 +1655,9 @@ class CFuncDefNode(FuncDefNode):
             api = self.api, modifiers = self.modifiers)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
+        if self.return_type.is_array and visibility != 'extern':
+            error(self.pos,
+                "Function cannot return an array")
 
         if self.overridable and not env.is_module_scope:
             if len(self.args) < 1 or not self.args[0].type.is_pyobject:
