@@ -50,7 +50,7 @@ cdef list  l_f2 = b1
 cdef list  l_f3 = u1
 
 _ERRORS = u"""
-25:20: Unicode literals do not support coercion to C types other than Py_UNICODE.
+25:20: Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.
 26:22: Unicode objects do not support coercion to C types.
 27:22: 'str' objects do not support coercion to C types (use 'bytes'?).
 
