@@ -49,6 +49,7 @@ class PyrexType(BaseType):
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_unicode            boolean     Is a UTF-8 encoded C char * type
+    #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
     #  is_buffer             boolean     Is buffer access type
@@ -101,6 +102,7 @@ class PyrexType(BaseType):
     is_typedef = 0
     is_string = 0
     is_unicode = 0
+    is_unicode_char = 0
     is_returncode = 0
     is_error = 0
     is_buffer = 0
@@ -924,8 +926,77 @@ class CBIntType(CIntType):
         return "<CNumericType bint>"
 
 
+class CPyUCS4IntType(CIntType):
+    # Py_UCS4
+
+    is_unicode_char = True
+
+    # Py_UCS4 coerces from and to single character unicode strings (or
+    # at most two characters on 16bit Unicode builds), but we also
+    # allow Python integers as input.  The value range for Py_UCS4
+    # is 0..1114111, which is checked when converting from an integer
+    # value.
+
+    to_py_function = "PyUnicode_FromOrdinal"
+    from_py_function = "__Pyx_PyObject_AsPy_UCS4"
+
+    def create_from_py_utility_code(self, env):
+        env.use_utility_code(pyobject_as_py_ucs4_utility_code)
+        return True
+
+    def sign_and_name(self):
+        return "Py_UCS4"
+
+
+pyobject_as_py_ucs4_utility_code = UtilityCode(
+proto='''
+static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject*);
+''',
+impl='''
+static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
+   long ival;
+   if (PyUnicode_Check(x)) {
+       if (likely(PyUnicode_GET_SIZE(x) == 1)) {
+           return PyUnicode_AS_UNICODE(x)[0];
+       } else if (PyUnicode_GET_SIZE(x) == 2) {
+           Py_UCS4 high_val = PyUnicode_AS_UNICODE(x)[0];
+           if (high_val >= 0xD800 && high_val <= 0xDBFF) {
+               Py_UCS4 low_val = PyUnicode_AS_UNICODE(x)[1];
+               if (low_val >= 0xDC00 && low_val <= 0xDFFF) {
+                   return 0x10000 | ((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1));
+               }
+           }
+       }
+       PyErr_Format(PyExc_ValueError,
+           "only single character unicode strings or surrogate pairs can be converted to Py_UCS4, got length "
+           #if PY_VERSION_HEX < 0x02050000
+           "%d",
+           #else
+           "%zd",
+           #endif
+           PyUnicode_GET_SIZE(x));
+       return (Py_UCS4)-1;
+   }
+   ival = __Pyx_PyInt_AsLong(x);
+   if (unlikely(ival < 0)) {
+       if (!PyErr_Occurred())
+           PyErr_SetString(PyExc_OverflowError,
+                           "cannot convert negative value to Py_UCS4");
+       return (Py_UCS4)-1;
+   } else if (unlikely(ival > 1114111)) {
+       PyErr_SetString(PyExc_OverflowError,
+                       "value too large to convert to Py_UCS4");
+       return (Py_UCS4)-1;
+   }
+   return (Py_UCS4)ival;
+}
+''')
+
+
 class CPyUnicodeIntType(CIntType):
     # Py_UNICODE
+
+    is_unicode_char = True
 
     # Py_UNICODE coerces from and to single character unicode strings,
     # but we also allow Python integers as input.  The value range for
@@ -2306,6 +2377,7 @@ c_anon_enum_type =   CAnonEnumType(-1)
 c_returncode_type =  CReturnCodeType(RANK_INT)
 c_bint_type =        CBIntType(RANK_INT)
 c_py_unicode_type =  CPyUnicodeIntType(RANK_INT-0.5, UNSIGNED)
+c_py_ucs4_type =     CPyUCS4IntType(RANK_LONG-0.5, UNSIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
@@ -2367,6 +2439,7 @@ modifiers_and_name_to_type = {
 
     (1,  0, "bint"):       c_bint_type,
     (0,  0, "Py_UNICODE"): c_py_unicode_type,
+    (0,  0, "Py_UCS4"):    c_py_ucs4_type,
     (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
     (2,  0, "ssize_t") :   c_ssize_t_type,
     (0,  0, "size_t") :    c_size_t_type,
@@ -2613,6 +2686,8 @@ def parse_basic_type(name):
     signed = 1
     longness = 0
     if name == 'Py_UNICODE':
+        signed = 0
+    elif name == 'Py_UCS4':
         signed = 0
     elif name == 'Py_ssize_t':
         signed = 2

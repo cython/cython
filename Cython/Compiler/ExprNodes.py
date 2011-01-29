@@ -981,8 +981,8 @@ class BytesNode(ConstNode):
             if not self.can_coerce_to_char_literal():
                 error(self.pos, "Only single-character string literals can be coerced into ints.")
                 return self
-            if dst_type is PyrexTypes.c_py_unicode_type:
-                error(self.pos, "Bytes literals cannot coerce to Py_UNICODE, use a unicode literal instead.")
+            if dst_type.is_unicode_char:
+                error(self.pos, "Bytes literals cannot coerce to Py_UNICODE/Py_UCS4, use a unicode literal instead.")
                 return self
             return CharNode(self.pos, value=self.value)
 
@@ -1033,17 +1033,17 @@ class UnicodeNode(PyConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
             pass
-        elif dst_type is PyrexTypes.c_py_unicode_type:
+        elif dst_type.is_unicode_char:
             if not self.can_coerce_to_char_literal():
-                error(self.pos, "Only single-character Unicode string literals can be coerced into Py_UNICODE.")
+                error(self.pos, "Only single-character Unicode string literals or surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
                 return self
             int_value = ord(self.value)
-            return IntNode(self.pos, value=int_value, constant_result=int_value)
+            return IntNode(self.pos, type=dst_type, value=str(int_value), constant_result=int_value)
         elif not dst_type.is_pyobject:
             if dst_type.is_string and self.bytes_value is not None:
                 # special case: '-3' enforced unicode literal used in a C char* context
                 return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE.")
+            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.")
         elif dst_type is not py_object_type:
             if not self.check_for_coercion_error(dst_type):
                 self.fail_assignment(dst_type)
@@ -1051,6 +1051,9 @@ class UnicodeNode(PyConstNode):
 
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
+            ## or (len(self.value) == 2
+            ##     and (0xD800 <= self.value[0] <= 0xDBFF)
+            ##     and (0xDC00 <= self.value[1] <= 0xDFFF))
 
     def contains_surrogates(self):
         # Check if the unicode string contains surrogate code points
@@ -2165,8 +2168,8 @@ class IndexNode(ExprNode):
             elif not skip_child_analysis:
                 self.index.analyse_types(env)
             self.original_index_type = self.index.type
-            if base_type is PyrexTypes.c_py_unicode_type:
-                # we infer Py_UNICODE for unicode strings in some
+            if base_type.is_unicode_char:
+                # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
                 # cases, but indexing must still work for them
                 if self.index.constant_result in (0, -1):
                     # FIXME: we know that this node is redundant -
@@ -2188,7 +2191,7 @@ class IndexNode(ExprNode):
                     self.index = self.index.coerce_to_pyobject(env)
                     self.is_temp = 1
                 if self.index.type.is_int and base_type is unicode_type:
-                    # Py_UNICODE will automatically coerce to a unicode string
+                    # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
                     # if required, so this is fast and safe
                     self.type = PyrexTypes.c_py_unicode_type
                 elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
@@ -2253,7 +2256,7 @@ class IndexNode(ExprNode):
             return "PyList_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is tuple_type:
             return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
-        elif self.base.type is unicode_type and self.type is PyrexTypes.c_py_unicode_type:
+        elif self.base.type is unicode_type and self.type.is_unicode_char:
             return "PyUnicode_AS_UNICODE(%s)[%s]" % (self.base.result(), self.index.result())
         elif (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
             error(self.pos, "Invalid use of pointer slice")
@@ -2332,7 +2335,7 @@ class IndexNode(ExprNode):
                         self.result(),
                         code.error_goto(self.pos)))
                 code.put_gotref(self.py_result())
-            elif self.type is PyrexTypes.c_py_unicode_type and self.base.type is unicode_type:
+            elif self.type.is_unicode_char and self.base.type is unicode_type:
                 assert self.index.type.is_int
                 index_code = self.index.result()
                 function = "__Pyx_GetItemInt_Unicode"
@@ -5845,8 +5848,8 @@ class NumBinopNode(BinopNode):
                 self.operand2.result())
 
     def is_py_operation_types(self, type1, type2):
-        return (type1 is PyrexTypes.c_py_unicode_type or
-                type2 is PyrexTypes.c_py_unicode_type or
+        return (type1.is_unicode_char or
+                type2.is_unicode_char or
                 BinopNode.is_py_operation_types(self, type1, type2))
 
     def py_operation_function(self):
@@ -6503,7 +6506,7 @@ class CmpNode(object):
         return self.operator in ('in', 'not_in') and \
                ((self.operand1.type.is_int
                  and (self.operand2.type.is_string or self.operand2.type is bytes_type)) or
-                (self.operand1.type is PyrexTypes.c_py_unicode_type
+                (self.operand1.type.is_unicode_char
                  and self.operand2.type is unicode_type))
 
     def is_ptr_contains(self):
@@ -7166,7 +7169,7 @@ class CoerceToPyTypeNode(CoercionNode):
             # be specific about some known types
             if arg.type.is_string:
                 self.type = bytes_type
-            elif arg.type is PyrexTypes.c_py_unicode_type:
+            elif arg.type.is_unicode_char:
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
