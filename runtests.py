@@ -26,6 +26,13 @@ try:
 except ImportError: # No threads, no problems
     threading = None
 
+WITH_CYTHON = True
+
+from distutils.dist import Distribution
+from distutils.core import Extension
+from distutils.command.build_ext import build_ext as _build_ext
+distutils_distro = Distribution()
+
 if sys.platform == 'win32':
     # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
     config_files = distutils_distro.find_config_files()
@@ -37,14 +44,6 @@ if sys.platform == 'win32':
     try: cfgfiles.remove('setup.cfg')
     except ValueError: pass
     distutils_distro.parse_config_files(cfgfiles)
-
-
-WITH_CYTHON = True
-
-from distutils.dist import Distribution
-from distutils.core import Extension
-from distutils.command.build_ext import build_ext as _build_ext
-distutils_distro = Distribution()
 
 TEST_DIRS = ['compile', 'errors', 'run', 'wrappers', 'pyregr', 'build']
 TEST_RUN_DIRS = ['run', 'wrappers', 'pyregr']
