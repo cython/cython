@@ -2691,14 +2691,16 @@ class SliceNode(ExprNode):
     #  stop      ExprNode
     #  step      ExprNode
 
+    subexprs = ['start', 'stop', 'step']
+
     type = py_object_type
     is_temp = 1
 
     def calculate_constant_result(self):
-        self.constant_result = self.base.constant_result[
-            self.start.constant_result : \
-                self.stop.constant_result : \
-                self.step.constant_result]
+        self.constant_result = slice(
+            self.start.constant_result,
+            self.stop.constant_result,
+            self.step.constant_result)
 
     def compile_time_value(self, denv):
         start = self.start.compile_time_value(denv)
@@ -2714,8 +2716,6 @@ class SliceNode(ExprNode):
             return slice(start, stop, step)
         except Exception, e:
             self.compile_time_value_error(e)
-
-    subexprs = ['start', 'stop', 'step']
 
     def analyse_types(self, env):
         self.start.analyse_types(env)
