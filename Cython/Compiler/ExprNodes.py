@@ -2704,14 +2704,8 @@ class SliceNode(ExprNode):
 
     def compile_time_value(self, denv):
         start = self.start.compile_time_value(denv)
-        if self.stop is None:
-            stop = None
-        else:
-            stop = self.stop.compile_time_value(denv)
-        if self.step is None:
-            step = None
-        else:
-            step = self.step.compile_time_value(denv)
+        stop = self.stop.compile_time_value(denv)
+        step = self.step.compile_time_value(denv)
         try:
             return slice(start, stop, step)
         except Exception, e:
