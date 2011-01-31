@@ -958,7 +958,9 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
    if (PyUnicode_Check(x)) {
        if (likely(PyUnicode_GET_SIZE(x) == 1)) {
            return PyUnicode_AS_UNICODE(x)[0];
-       } else if (PyUnicode_GET_SIZE(x) == 2) {
+       }
+       #if Py_UNICODE_SIZE == 2
+       else if (PyUnicode_GET_SIZE(x) == 2) {
            Py_UCS4 high_val = PyUnicode_AS_UNICODE(x)[0];
            if (high_val >= 0xD800 && high_val <= 0xDBFF) {
                Py_UCS4 low_val = PyUnicode_AS_UNICODE(x)[1];
@@ -967,8 +969,9 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
                }
            }
        }
+       #endif
        PyErr_Format(PyExc_ValueError,
-           "only single character unicode strings or surrogate pairs can be converted to Py_UCS4, got length "
+           "only single character unicode strings can be converted to Py_UCS4, got length "
            #if PY_VERSION_HEX < 0x02050000
            "%d",
            #else

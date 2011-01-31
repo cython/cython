@@ -68,13 +68,13 @@ def unicode_ordinal(Py_UCS4 i):
     >>> unicode_ordinal(u0[:0])
     Traceback (most recent call last):
     ...
-    ValueError: only single character unicode strings or surrogate pairs can be converted to Py_UCS4, got length 0
+    ValueError: only single character unicode strings can be converted to Py_UCS4, got length 0
 
     More than one character:
     >>> unicode_ordinal(u0+u1)
     Traceback (most recent call last):
     ...
-    ValueError: only single character unicode strings or surrogate pairs can be converted to Py_UCS4, got length 2
+    ValueError: only single character unicode strings can be converted to Py_UCS4, got length 2
     """
     return i
 
