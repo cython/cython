@@ -2724,10 +2724,21 @@ class SliceNode(ExprNode):
         self.start = self.start.coerce_to_pyobject(env)
         self.stop = self.stop.coerce_to_pyobject(env)
         self.step = self.step.coerce_to_pyobject(env)
+        if self.start.is_literal and self.stop.is_literal and self.step.is_literal:
+            self.is_literal = True
+            self.is_temp = False
 
     gil_message = "Constructing Python slice object"
 
+    def calculate_result_code(self):
+        return self.result_code
+
     def generate_result_code(self, code):
+        if self.is_literal:
+            self.result_code = code.get_py_const(py_object_type, 'slice_', cleanup_level=2)
+            code = code.get_cached_constants_writer()
+            code.mark_pos(self.pos)
+
         code.putln(
             "%s = PySlice_New(%s, %s, %s); %s" % (
                 self.result(),
@@ -2736,6 +2747,8 @@ class SliceNode(ExprNode):
                 self.step.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+        if self.is_literal:
+            code.put_giveref(self.py_result())
 
 
 class CallNode(ExprNode):
