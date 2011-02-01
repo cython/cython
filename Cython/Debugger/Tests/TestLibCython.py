@@ -29,6 +29,49 @@ with open(codefile) as f:
 # can't access the module anymore. Get it from sys.modules instead.
 build_ext = sys.modules['Cython.Distutils.build_ext']
 
+
+have_gdb = None
+def test_gdb():
+    global have_gdb
+    if have_gdb is None:
+        try:
+            p = subprocess.Popen(['gdb', '-v'], stdout=subprocess.PIPE)
+            have_gdb = True
+        except OSError:
+            # gdb was not installed
+            have_gdb = False
+        else:
+            gdb_version = p.stdout.read().decode('ascii')
+            p.wait()
+            p.stdout.close()
+
+        if have_gdb:
+            # Based on Lib/test/test_gdb.py
+            regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
+            gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
+
+            if gdb_version_number >= [7, 2]:
+                python_version_script = tempfile.NamedTemporaryFile(mode='w+')
+                python_version_script.write(
+                    'python import sys; print("%s %s" % sys.version_info[:2])')
+                python_version_script.flush()
+                p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
+                                     stdout=subprocess.PIPE)
+                python_version = p.stdout.read().decode('ascii')
+                p.wait()
+                python_version_number = list(map(int, python_version.split()))
+
+        # Be Python 3 compatible
+        if (not have_gdb
+            or gdb_version_number < [7, 2]
+            or python_version_number < [2, 6]):
+            warnings.warn(
+                'Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
+            have_gdb = False
+
+    return have_gdb
+
+
 class DebuggerTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -36,6 +79,9 @@ class DebuggerTestCase(unittest.TestCase):
         Run gdb and have cygdb import the debug information from the code
         defined in TestParseTreeTransforms's setUp method
         """
+        if not test_gdb():
+            return
+
         self.tempdir = tempfile.mkdtemp()
         self.destfile = os.path.join(self.tempdir, 'codefile.pyx')
         self.debug_dest = os.path.join(self.tempdir,
@@ -44,62 +90,77 @@ class DebuggerTestCase(unittest.TestCase):
         self.cfuncs_destfile = os.path.join(self.tempdir, 'cfuncs')
 
         self.cwd = os.getcwd()
-        os.chdir(self.tempdir)
+        try:
+            os.chdir(self.tempdir)
 
-        shutil.copy(codefile, self.destfile)
-        shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
+            shutil.copy(codefile, self.destfile)
+            shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
 
-        compiler = ccompiler.new_compiler()
-        compiler.compile(['cfuncs.c'], debug=True, extra_postargs=['-fPIC'])
+            compiler = ccompiler.new_compiler()
+            compiler.compile(['cfuncs.c'], debug=True, extra_postargs=['-fPIC'])
 
-        opts = dict(
-            test_directory=self.tempdir,
-            module='codefile',
-        )
+            opts = dict(
+                test_directory=self.tempdir,
+                module='codefile',
+            )
 
-        optimization_disabler = build_ext.Optimization()
-        optimization_disabler.disable_optimization()
+            optimization_disabler = build_ext.Optimization()
 
-        cython_compile_testcase = runtests.CythonCompileTestCase(
-            workdir=self.tempdir,
-            # we clean up everything (not only compiled files)
-            cleanup_workdir=False,
-            **opts
-        )
+            cython_compile_testcase = runtests.CythonCompileTestCase(
+                workdir=self.tempdir,
+                # we clean up everything (not only compiled files)
+                cleanup_workdir=False,
+                **opts
+            )
 
-        cython_compile_testcase.run_cython(
-            targetdir=self.tempdir,
-            incdir=None,
-            annotate=False,
-            extra_compile_options={
-                'gdb_debug':True,
-                'output_dir':self.tempdir,
-            },
-            **opts
-        )
 
-        cython_compile_testcase.run_distutils(
-            incdir=None,
-            workdir=self.tempdir,
-            extra_extension_args={'extra_objects':['cfuncs.o']},
-            **opts
-        )
+            new_stderr = open(os.devnull, 'w')
 
-        optimization_disabler.restore_state()
+            stderr = sys.stderr
+            sys.stderr = new_stderr
 
-        # ext = Cython.Distutils.extension.Extension(
-            # 'codefile',
-            # ['codefile.pyx'],
-            # pyrex_gdb=True,
-            # extra_objects=['cfuncs.o'])
-        #
-        # distutils.core.setup(
-            # script_args=['build_ext', '--inplace'],
-            # ext_modules=[ext],
-            # cmdclass=dict(build_ext=Cython.Distutils.build_ext)
-        # )
+            optimization_disabler.disable_optimization()
+            try:
+                cython_compile_testcase.run_cython(
+                    targetdir=self.tempdir,
+                    incdir=None,
+                    annotate=False,
+                    extra_compile_options={
+                        'gdb_debug':True,
+                        'output_dir':self.tempdir,
+                    },
+                    **opts
+                )
+
+                cython_compile_testcase.run_distutils(
+                    incdir=None,
+                    workdir=self.tempdir,
+                    extra_extension_args={'extra_objects':['cfuncs.o']},
+                    **opts
+                )
+            finally:
+                optimization_disabler.restore_state()
+                sys.stderr = stderr
+
+            # ext = Cython.Distutils.extension.Extension(
+                # 'codefile',
+                # ['codefile.pyx'],
+                # pyrex_gdb=True,
+                # extra_objects=['cfuncs.o'])
+            #
+            # distutils.core.setup(
+                # script_args=['build_ext', '--inplace'],
+                # ext_modules=[ext],
+                # cmdclass=dict(build_ext=Cython.Distutils.build_ext)
+            # )
+
+        except:
+            os.chdir(self.cwd)
+            raise
 
     def tearDown(self):
+        if not test_gdb():
+            return
         os.chdir(self.cwd)
         shutil.rmtree(self.tempdir)
 
@@ -107,6 +168,9 @@ class DebuggerTestCase(unittest.TestCase):
 class GdbDebuggerTestCase(DebuggerTestCase):
 
     def setUp(self):
+        if not test_gdb():
+            return
+
         super(GdbDebuggerTestCase, self).setUp()
 
         prefix_code = textwrap.dedent('''\
@@ -167,24 +231,25 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             p.stdout.close()
 
         if have_gdb:
-            python_version_script = tempfile.NamedTemporaryFile(mode='w+')
-            python_version_script.write(
-                'python import sys; print("%s %s" % sys.version_info[:2])')
-            python_version_script.flush()
-            p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
-                                 stdout=subprocess.PIPE)
-            python_version = p.stdout.read().decode('ascii')
-            p.wait()
-            python_version_number = [int(a) for a in python_version.split()]
-
-        if have_gdb:
             # Based on Lib/test/test_gdb.py
             regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
-            gdb_version_number = re.search(regex, gdb_version).groups()
+            gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
+
+            if gdb_version_number >= [7, 2]:
+                python_version_script = tempfile.NamedTemporaryFile(mode='w+')
+                python_version_script.write(
+                    'python import sys; print("%s %s" % sys.version_info[:2])')
+                python_version_script.flush()
+                p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
+                                     stdout=subprocess.PIPE)
+                python_version = p.stdout.read().decode('ascii')
+                p.wait()
+                python_version_number = list(map(int, python_version.split()))
+
 
         # Be Python 3 compatible
         if (not have_gdb
-            or list(map(int, gdb_version_number)) < [7, 2]
+            or gdb_version_number < [7, 2]
             or python_version_number < [2, 6]):
             self.p = None
             warnings.warn(
@@ -197,6 +262,9 @@ class GdbDebuggerTestCase(DebuggerTestCase):
                 env=env)
 
     def tearDown(self):
+        if not test_gdb():
+            return
+
         super(GdbDebuggerTestCase, self).tearDown()
         if self.p:
             self.p.stderr.close()
@@ -207,17 +275,24 @@ class GdbDebuggerTestCase(DebuggerTestCase):
 class TestAll(GdbDebuggerTestCase):
 
     def test_all(self):
-        if self.p is None:
+        if not test_gdb():
             return
 
         out, err = self.p.communicate()
         err = err.decode('UTF-8')
-        border = '*' * 30
-        start = '%s   v INSIDE GDB v   %s' % (border, border)
-        end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
-        errmsg = '\n%s\n%s%s' % (start, err, end)
-        self.assertEquals(0, self.p.wait(), errmsg)
-        sys.stderr.write(err)
+
+        exit_status = self.p.wait()
+
+        if exit_status == 1:
+            sys.stderr.write(err)
+        elif exit_status >= 2:
+            border = '*' * 30
+            start = '%s   v INSIDE GDB v   %s' % (border, border)
+            end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
+            errmsg = '\n%s\n%s%s' % (start, err, end)
+
+            sys.stderr.write(errmsg)
+
 
 if __name__ == '__main__':
     unittest.main()

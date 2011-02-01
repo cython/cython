@@ -1937,7 +1937,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args = [arg],
                 is_temp = node.is_temp)
-        elif arg.type is PyrexTypes.c_py_unicode_type:
+        elif arg.type.is_unicode_char:
             return ExprNodes.IntNode(node.pos, value='1', constant_result=1,
                                      type=node.type)
         else:
@@ -1995,20 +1995,21 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                         builtin_type = entry.type
             if builtin_type and builtin_type is not Builtin.type_type:
                 type_check_function = entry.type.type_check_function(exact=False)
+                if type_check_function in tests:
+                    continue
+                tests.append(type_check_function)
                 type_check_args = [arg]
             elif test_type_node.type is Builtin.type_type:
                 type_check_function = '__Pyx_TypeCheck'
                 type_check_args = [arg, test_type_node]
             else:
                 return node
-            if type_check_function not in tests:
-                tests.append(type_check_function)
-                test_nodes.append(
-                    ExprNodes.PythonCapiCallNode(
-                        test_type_node.pos, type_check_function, self.Py_type_check_func_type,
-                        args = type_check_args,
-                        is_temp = True,
-                        ))
+            test_nodes.append(
+                ExprNodes.PythonCapiCallNode(
+                    test_type_node.pos, type_check_function, self.Py_type_check_func_type,
+                    args = type_check_args,
+                    is_temp = True,
+                    ))
 
         def join_with_or(a,b, make_binop_node=ExprNodes.binop_node):
             or_node = make_binop_node(node.pos, 'or', a, b)
@@ -2028,7 +2029,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
-            if arg.arg.type is PyrexTypes.c_py_unicode_type:
+            if arg.arg.type.is_unicode_char:
                 return arg.arg.coerce_to(node.type, self.current_env())
         return node
 
@@ -2191,7 +2192,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         ustring = args[0]
         if not isinstance(ustring, ExprNodes.CoerceToPyTypeNode) or \
-               ustring.arg.type is not PyrexTypes.c_py_unicode_type:
+               not ustring.arg.type.is_unicode_char:
             return node
         uchar = ustring.arg
         method_name = node.function.attribute
@@ -2230,7 +2231,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         ustring = args[0]
         if not isinstance(ustring, ExprNodes.CoerceToPyTypeNode) or \
-               ustring.arg.type is not PyrexTypes.c_py_unicode_type:
+               not ustring.arg.type.is_unicode_char:
             return node
         uchar = ustring.arg
         method_name = node.function.attribute

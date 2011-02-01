@@ -987,8 +987,8 @@ class BytesNode(ConstNode):
             if not self.can_coerce_to_char_literal():
                 error(self.pos, "Only single-character string literals can be coerced into ints.")
                 return self
-            if dst_type is PyrexTypes.c_py_unicode_type:
-                error(self.pos, "Bytes literals cannot coerce to Py_UNICODE, use a unicode literal instead.")
+            if dst_type.is_unicode_char:
+                error(self.pos, "Bytes literals cannot coerce to Py_UNICODE/Py_UCS4, use a unicode literal instead.")
                 return self
             return CharNode(self.pos, value=self.value)
 
@@ -1039,17 +1039,17 @@ class UnicodeNode(PyConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
             pass
-        elif dst_type is PyrexTypes.c_py_unicode_type:
+        elif dst_type.is_unicode_char:
             if not self.can_coerce_to_char_literal():
-                error(self.pos, "Only single-character Unicode string literals can be coerced into Py_UNICODE.")
+                error(self.pos, "Only single-character Unicode string literals or surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
                 return self
             int_value = ord(self.value)
-            return IntNode(self.pos, value=int_value, constant_result=int_value)
+            return IntNode(self.pos, type=dst_type, value=str(int_value), constant_result=int_value)
         elif not dst_type.is_pyobject:
             if dst_type.is_string and self.bytes_value is not None:
                 # special case: '-3' enforced unicode literal used in a C char* context
                 return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE.")
+            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.")
         elif dst_type is not py_object_type:
             if not self.check_for_coercion_error(dst_type):
                 self.fail_assignment(dst_type)
@@ -1057,6 +1057,9 @@ class UnicodeNode(PyConstNode):
 
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
+            ## or (len(self.value) == 2
+            ##     and (0xD800 <= self.value[0] <= 0xDBFF)
+            ##     and (0xDC00 <= self.value[1] <= 0xDFFF))
 
     def contains_surrogates(self):
         # Check if the unicode string contains surrogate code points
@@ -2021,6 +2024,13 @@ class IndexNode(ExprNode):
     def is_ephemeral(self):
         return self.base.is_ephemeral()
 
+    def is_simple(self):
+        if self.is_buffer_access:
+            return False
+        base = self.base
+        return (base.is_simple() and self.index.is_simple()
+                and base.type and (base.type.is_ptr or base.type.is_array))
+
     def analyse_target_declaration(self, env):
         pass
 
@@ -2165,8 +2175,8 @@ class IndexNode(ExprNode):
             elif not skip_child_analysis:
                 self.index.analyse_types(env)
             self.original_index_type = self.index.type
-            if base_type is PyrexTypes.c_py_unicode_type:
-                # we infer Py_UNICODE for unicode strings in some
+            if base_type.is_unicode_char:
+                # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
                 # cases, but indexing must still work for them
                 if self.index.constant_result in (0, -1):
                     # FIXME: we know that this node is redundant -
@@ -2188,7 +2198,7 @@ class IndexNode(ExprNode):
                     self.index = self.index.coerce_to_pyobject(env)
                     self.is_temp = 1
                 if self.index.type.is_int and base_type is unicode_type:
-                    # Py_UNICODE will automatically coerce to a unicode string
+                    # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
                     # if required, so this is fast and safe
                     self.type = PyrexTypes.c_py_unicode_type
                 elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
@@ -2253,7 +2263,7 @@ class IndexNode(ExprNode):
             return "PyList_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is tuple_type:
             return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
-        elif self.base.type is unicode_type and self.type is PyrexTypes.c_py_unicode_type:
+        elif self.base.type is unicode_type and self.type.is_unicode_char:
             return "PyUnicode_AS_UNICODE(%s)[%s]" % (self.base.result(), self.index.result())
         elif (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
             error(self.pos, "Invalid use of pointer slice")
@@ -2332,7 +2342,7 @@ class IndexNode(ExprNode):
                         self.result(),
                         code.error_goto(self.pos)))
                 code.put_gotref(self.py_result())
-            elif self.type is PyrexTypes.c_py_unicode_type and self.base.type is unicode_type:
+            elif self.type.is_unicode_char and self.base.type is unicode_type:
                 assert self.index.type.is_int
                 index_code = self.index.result()
                 function = "__Pyx_GetItemInt_Unicode"
@@ -2688,31 +2698,25 @@ class SliceNode(ExprNode):
     #  stop      ExprNode
     #  step      ExprNode
 
+    subexprs = ['start', 'stop', 'step']
+
     type = py_object_type
     is_temp = 1
 
     def calculate_constant_result(self):
-        self.constant_result = self.base.constant_result[
-            self.start.constant_result : \
-                self.stop.constant_result : \
-                self.step.constant_result]
+        self.constant_result = slice(
+            self.start.constant_result,
+            self.stop.constant_result,
+            self.step.constant_result)
 
     def compile_time_value(self, denv):
         start = self.start.compile_time_value(denv)
-        if self.stop is None:
-            stop = None
-        else:
-            stop = self.stop.compile_time_value(denv)
-        if self.step is None:
-            step = None
-        else:
-            step = self.step.compile_time_value(denv)
+        stop = self.stop.compile_time_value(denv)
+        step = self.step.compile_time_value(denv)
         try:
             return slice(start, stop, step)
         except Exception, e:
             self.compile_time_value_error(e)
-
-    subexprs = ['start', 'stop', 'step']
 
     def analyse_types(self, env):
         self.start.analyse_types(env)
@@ -2721,10 +2725,21 @@ class SliceNode(ExprNode):
         self.start = self.start.coerce_to_pyobject(env)
         self.stop = self.stop.coerce_to_pyobject(env)
         self.step = self.step.coerce_to_pyobject(env)
+        if self.start.is_literal and self.stop.is_literal and self.step.is_literal:
+            self.is_literal = True
+            self.is_temp = False
 
     gil_message = "Constructing Python slice object"
 
+    def calculate_result_code(self):
+        return self.result_code
+
     def generate_result_code(self, code):
+        if self.is_literal:
+            self.result_code = code.get_py_const(py_object_type, 'slice_', cleanup_level=2)
+            code = code.get_cached_constants_writer()
+            code.mark_pos(self.pos)
+
         code.putln(
             "%s = PySlice_New(%s, %s, %s); %s" % (
                 self.result(),
@@ -2733,6 +2748,8 @@ class SliceNode(ExprNode):
                 self.step.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+        if self.is_literal:
+            code.put_giveref(self.py_result())
 
 
 class CallNode(ExprNode):
@@ -2920,6 +2937,13 @@ class SimpleCallNode(CallNode):
             func_type = func_type.base_type
         return func_type
 
+    def is_simple(self):
+        # C function calls could be considered simple, but they may
+        # have side-effects that may hit when multiple operations must
+        # be effected in order, e.g. when constructing the argument
+        # sequence for a function call or comparing values.
+        return False
+
     def analyse_c_function_call(self, env):
         if self.function.type is error_type:
             self.type = error_type
@@ -2958,17 +2982,32 @@ class SimpleCallNode(CallNode):
             self.has_optional_args = 1
             self.is_temp = 1
         # Coerce arguments
-        for i in range(min(max_nargs, actual_nargs)):
+        some_args_in_temps = False
+        for i in xrange(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env)
-            if arg.type.is_pyobject and not env.nogil and (arg.is_attribute or not arg.is_simple):
-                # we do not own the argument's reference, but we must
-                # make sure it cannot be collected before we return
-                # from the function, so we create an owned temp
-                # reference to it
-                arg = arg.coerce_to_temp(env)
+            if arg.is_temp:
+                if i > 0:
+                    # first argument in temp doesn't impact subsequent arguments
+                    some_args_in_temps = True
+            elif arg.type.is_pyobject and not env.nogil:
+                if i == 0 and self.self is not None:
+                    # a method's cloned "self" argument is ok
+                    pass
+                elif arg.is_name and arg.entry and arg.entry.is_local and not arg.entry.in_closure:
+                    # plain local variables are ok
+                    pass
+                else:
+                    # we do not safely own the argument's reference,
+                    # but we must make sure it cannot be collected
+                    # before we return from the function, so we create
+                    # an owned temp reference to it
+                    if i > 0: # first argument doesn't matter
+                        some_args_in_temps = True
+                    arg = arg.coerce_to_temp(env)
             self.args[i] = arg
-        for i in range(max_nargs, actual_nargs):
+        # handle additional varargs parameters
+        for i in xrange(max_nargs, actual_nargs):
             arg = self.args[i]
             if arg.type.is_pyobject:
                 arg_ctype = arg.type.default_coerced_ctype()
@@ -2976,7 +3015,31 @@ class SimpleCallNode(CallNode):
                     error(self.args[i].pos,
                           "Python object cannot be passed as a varargs parameter")
                 else:
-                    self.args[i] = arg.coerce_to(arg_ctype, env)
+                    self.args[i] = arg = arg.coerce_to(arg_ctype, env)
+            if arg.is_temp and i > 0:
+                some_args_in_temps = True
+        if some_args_in_temps:
+            # if some args are temps and others are not, they may get
+            # constructed in the wrong order (temps first) => make
+            # sure they are either all temps or all not temps (except
+            # for the last argument, which is evaluated last in any
+            # case)
+            for i in xrange(actual_nargs-1):
+                if i == 0 and self.self is not None:
+                    continue # self is ok
+                arg = self.args[i]
+                if arg.is_name and arg.entry and (
+                    (arg.entry.is_local and not arg.entry.in_closure)
+                    or arg.entry.type.is_cfunction):
+                    # local variables and C functions are safe
+                    pass
+                elif env.nogil and arg.type.is_pyobject:
+                    # can't copy a Python reference into a temp in nogil
+                    # env (this is safe: a construction would fail in
+                    # nogil anyway)
+                    pass
+                else:
+                    self.args[i] = arg.coerce_to_temp(env)
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
@@ -3978,6 +4041,10 @@ class TupleNode(SequenceNode):
             else:
                 self.is_temp = 0
                 self.is_literal = 1
+
+    def is_simple(self):
+        # either temp or constant => always simple
+        return True
 
     def calculate_result_code(self):
         if len(self.args) > 0:
@@ -5413,6 +5480,10 @@ class TypecastNode(ExprNode):
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
 
+    def is_simple(self):
+        # either temp or a C cast => no side effects
+        return True
+
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
             self.gil_error()
@@ -5843,8 +5914,8 @@ class NumBinopNode(BinopNode):
                 self.operand2.result())
 
     def is_py_operation_types(self, type1, type2):
-        return (type1 is PyrexTypes.c_py_unicode_type or
-                type2 is PyrexTypes.c_py_unicode_type or
+        return (type1.is_unicode_char or
+                type2.is_unicode_char or
                 BinopNode.is_py_operation_types(self, type1, type2))
 
     def py_operation_function(self):
@@ -6501,7 +6572,7 @@ class CmpNode(object):
         return self.operator in ('in', 'not_in') and \
                ((self.operand1.type.is_int
                  and (self.operand2.type.is_string or self.operand2.type is bytes_type)) or
-                (self.operand1.type is PyrexTypes.c_py_unicode_type
+                (self.operand1.type.is_unicode_char
                  and self.operand2.type is unicode_type))
 
     def is_ptr_contains(self):
@@ -7069,6 +7140,9 @@ class PyTypeTestNode(CoercionNode):
             return False
         return self.arg.may_be_none()
 
+    def is_simple(self):
+        return self.arg.is_simple()
+
     def result_in_temp(self):
         return self.arg.result_in_temp()
 
@@ -7119,6 +7193,9 @@ class NoneCheckNode(CoercionNode):
     def may_be_none(self):
         return False
 
+    def is_simple(self):
+        return self.arg.is_simple()
+
     def result_in_temp(self):
         return self.arg.result_in_temp()
 
@@ -7158,7 +7235,7 @@ class CoerceToPyTypeNode(CoercionNode):
             # be specific about some known types
             if arg.type.is_string:
                 self.type = bytes_type
-            elif arg.type is PyrexTypes.c_py_unicode_type:
+            elif arg.type.is_unicode_char:
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
@@ -7418,6 +7495,9 @@ class CloneNode(CoercionNode):
         self.is_temp = 1
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
+
+    def is_simple(self):
+        return True # result is always in a temp (or a name)
 
     def generate_evaluation_code(self, code):
         pass
