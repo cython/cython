@@ -2049,6 +2049,7 @@ basic_c_type_names = ("void", "char", "int", "float", "double", "bint")
 special_basic_c_types = {
     # name : (signed, longness)
     "Py_UNICODE" : (0, 0),
+    "Py_UCS4"    : (0, 0),
     "Py_ssize_t" : (2, 0),
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
