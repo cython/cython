@@ -2983,8 +2983,6 @@ class GeneratorBodyDefNode(DefNode):
 
         # Generate closure function definitions
         self.body.generate_function_definitions(lenv, code)
-        # generate lambda function definitions
-        self.generate_lambda_definitions(lenv, code)
 
         # Generate C code for header and body of function
         code.enter_cfunc_scope()

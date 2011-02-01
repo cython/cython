@@ -299,3 +299,19 @@ def test_inside_lambda():
     ('a', 'b')
     """
     return lambda:((yield 1), (yield 2))
+
+def test_nested_gen(int n):
+    """
+    >>> [list(a) for a in test_nested_gen(5)]
+    [[], [0], [0, 1], [0, 1, 2], [0, 1, 2, 3]]
+    """
+    for a in range(n):
+        yield (b for b in range(a))
+
+def test_lambda(n):
+    """
+    >>> [i() for i in test_lambda(3)]
+    [0, 1, 2]
+    """
+    for i in range(n):
+        yield lambda : i
