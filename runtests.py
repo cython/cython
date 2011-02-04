@@ -177,7 +177,8 @@ class TestBuilder(object):
                     self.handle_directory(path, filename))
         if sys.platform not in ['win32'] and sys.version_info[0] < 3:
             # Non-Windows makefile, can't run Cython under Py3.
-            if [1 for selector in self.selectors if selector("embedded")]:
+            if [1 for selector in self.selectors if selector("embedded")] \
+                and not [1 for selector in self.exclude_selectors if selector("embedded")]:
                 suite.addTest(unittest.makeSuite(EmbedTest))
         return suite
 
@@ -194,7 +195,7 @@ class TestBuilder(object):
             if context == "build" and filename.endswith(".srctree"):
                 if not [ 1 for match in self.selectors if match(filename) ]:
                     continue
-                suite.addTest(EndToEndTest(filename, workdir, self.cleanup_workdir))
+                suite.addTest(EndToEndTest(os.path.join(path, filename), workdir, self.cleanup_workdir))
                 continue
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
                 continue
@@ -786,8 +787,9 @@ class EndToEndTest(unittest.TestCase):
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
     def __init__(self, treefile, workdir, cleanup_workdir=True):
+        self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
-        self.workdir = os.path.join(workdir, os.path.splitext(treefile)[0])
+        self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
         cython_syspath = self.cython_root
         for path in sys.path[::-1]:
@@ -800,12 +802,11 @@ class EndToEndTest(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "End-to-end %s" % self.treefile
+        return "End-to-end %s" % self.name
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
-        _, self.commands = unpack_source_tree(
-            os.path.join('tests', 'build', self.treefile), self.workdir)
+        _, self.commands = unpack_source_tree(self.treefile, self.workdir)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
         if self.workdir not in sys.path:
