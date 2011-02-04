@@ -1127,7 +1127,7 @@ def main():
 
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
-    UNITTEST_ROOT = os.path.join(os.getcwd(), UNITTEST_MODULE)
+    UNITTEST_ROOT = os.path.join(os.path.dirname(__file__), UNITTEST_MODULE)
     if WITH_CYTHON:
         if os.path.exists(WORKDIR):
             for path in os.listdir(WORKDIR):
