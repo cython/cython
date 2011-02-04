@@ -195,6 +195,9 @@ class TestBuilder(object):
             if context == "build" and filename.endswith(".srctree"):
                 if not [ 1 for match in self.selectors if match(filename) ]:
                     continue
+                if self.exclude_selectors:
+                    if [1 for match in self.exclude_selectors if match(filename)]:
+                        continue
                 suite.addTest(EndToEndTest(os.path.join(path, filename), workdir, self.cleanup_workdir))
                 continue
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
