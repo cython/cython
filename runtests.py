@@ -713,8 +713,7 @@ def collect_unittests(path, module_prefix, suite, selectors):
     if include_debugger:
         skipped_dirs = []
     else:
-        cython_dir = os.path.dirname(os.path.abspath(__file__))
-        skipped_dirs = [os.path.join(cython_dir, 'Cython', 'Debugger')]
+        skipped_dirs = ['Cython' + os.path.sep + 'Debugger' + os.path.sep]
 
     for dirpath, dirnames, filenames in os.walk(path):
         if dirpath != path and "__init__.py" not in filenames:
