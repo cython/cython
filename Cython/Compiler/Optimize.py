@@ -2183,7 +2183,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     PyUnicode_uchar_predicate_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type, [
-            PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_unicode_type, None),
+            PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
             ])
 
     def _inject_unicode_predicate(self, node, args, is_unbound_method):
@@ -2221,8 +2221,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     _handle_simple_method_unicode_isupper   = _inject_unicode_predicate
 
     PyUnicode_uchar_conversion_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_py_unicode_type, [
-            PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_unicode_type, None),
+        PyrexTypes.c_py_ucs4_type, [
+            PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
             ])
 
     def _inject_unicode_character_conversion(self, node, args, is_unbound_method):
@@ -2702,10 +2702,18 @@ py_unicode_istitle_utility_code = UtilityCode(
 # Py_UNICODE_ISTITLE() doesn't match unicode.istitle() as the latter
 # additionally allows character that comply with Py_UNICODE_ISUPPER()
 proto = '''
+#if PY_VERSION_HEX < 0x030200A2
 static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UNICODE uchar); /* proto */
+#else
+static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar); /* proto */
+#endif
 ''',
 impl = '''
+#if PY_VERSION_HEX < 0x030200A2
 static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UNICODE uchar) {
+#else
+static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
+#endif
     return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
 }
 ''')
