@@ -2387,9 +2387,9 @@ class DefNode(FuncDefNode):
                 self.generate_arg_decref(self.star_arg, code)
                 if self.starstar_arg:
                     if self.starstar_arg.entry.xdecref_cleanup:
-                        code.put_var_xdecref(self.starstar_arg.entry)
+                        code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
-                        code.put_var_decref(self.starstar_arg.entry)
+                        code.put_var_decref_clear(self.starstar_arg.entry)
             code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
             # The arguments are put into the closure one after the
             # other, so when type errors are found, all references in
@@ -2429,11 +2429,11 @@ class DefNode(FuncDefNode):
 
     def generate_arg_xdecref(self, arg, code):
         if arg:
-            code.put_var_xdecref(arg.entry)
+            code.put_var_xdecref_clear(arg.entry)
 
     def generate_arg_decref(self, arg, code):
         if arg:
-            code.put_var_decref(arg.entry)
+            code.put_var_decref_clear(arg.entry)
 
     def generate_stararg_copy_code(self, code):
         if not self.star_arg:
@@ -2641,7 +2641,7 @@ class DefNode(FuncDefNode):
             if self.starstar_arg:
                 code.putln("")
                 code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
-                code.put_decref(self.starstar_arg.entry.cname, py_object_type)
+                code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
                 code.putln('return %s;' % self.error_value())
                 code.putln('}')
             else:
