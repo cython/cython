@@ -965,7 +965,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
            if (high_val >= 0xD800 && high_val <= 0xDBFF) {
                Py_UCS4 low_val = PyUnicode_AS_UNICODE(x)[1];
                if (low_val >= 0xDC00 && low_val <= 0xDFFF) {
-                   return 0x10000 | ((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1));
+                   return 0x10000 + (((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1)));
                }
            }
        }
