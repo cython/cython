@@ -6662,11 +6662,43 @@ static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE cha
 """,
 impl="""
 static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE character) {
+    Py_UNICODE* pos;
     const Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
     Py_UNICODE* char_start = PyUnicode_AS_UNICODE(unicode);
-    Py_UNICODE* pos;
+
     for (pos=char_start; pos < char_start+length; pos++) {
-        if (character == pos[0]) return 1;
+        if (unlikely(character == pos[0])) return 1;
+    }
+    return 0;
+}
+""")
+
+py_ucs4_in_unicode_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character); /*proto*/
+""",
+# additionally handles surrogate pairs in 16bit Unicode builds
+impl="""
+static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
+    Py_UNICODE* pos;
+    Py_UNICODE uchar;
+    const Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
+    Py_UNICODE* char_start = PyUnicode_AS_UNICODE(unicode);
+
+    #if Py_UNICODE_SIZE == 2
+    if (unlikely(character > 65535)) {
+        Py_UNICODE high_val, low_val;
+        high_val = (Py_UNICODE) (0xD800 | (((character - 0x10000) >> 10) & ((1<<10)-1)));
+        low_val  = (Py_UNICODE) (0xDC00 | ( (character - 0x10000)        & ((1<<10)-1)));
+        for (pos=char_start; pos < char_start+length-1; pos++) {
+            if (unlikely(high_val == pos[0]) & unlikely(low_val == pos[1])) return 1;
+        }
+        return 0;
+    }
+    #endif
+    uchar = (Py_UNICODE) character;
+    for (pos=char_start; pos < char_start+length; pos++) {
+        if (unlikely(uchar == pos[0])) return 1;
     }
     return 0;
 }
@@ -6764,7 +6796,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
                     return
                 if self.operand2.type is unicode_type:
-                    env.use_utility_code(pyunicode_in_unicode_utility_code)
+                    self.uchar_test_type = PyrexTypes.widest_numeric_type(
+                        self.operand1.type, PyrexTypes.c_py_unicode_type)
+                    if self.uchar_test_type is PyrexTypes.c_py_unicode_type:
+                        env.use_utility_code(pyunicode_in_unicode_utility_code)
+                    else:
+                        env.use_utility_code(py_ucs4_in_unicode_utility_code)
                 else:
                     if self.operand1.type is PyrexTypes.c_uchar_type:
                         self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
@@ -6854,10 +6891,13 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 self.operand1.result(),
                 self.operand2.result())
         elif self.is_c_string_contains():
-            if self.operand2.type is bytes_type:
-                method = "__Pyx_BytesContains"
+            if self.operand2.type is unicode_type:
+                if self.uchar_test_type is PyrexTypes.c_py_unicode_type:
+                    method = "__Pyx_UnicodeContains"
+                else:
+                    method = "__Pyx_UnicodeContainsUCS4"
             else:
-                method = "__Pyx_UnicodeContains"
+                method = "__Pyx_BytesContains"
             if self.operator == "not_in":
                 negation = "!"
             else:
