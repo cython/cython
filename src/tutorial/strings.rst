@@ -203,18 +203,23 @@ Single bytes and characters
 ---------------------------
 
 The Python C-API uses the normal C ``char`` type to represent a byte
-value, but it has a special ``Py_UNICODE`` integer type for a Unicode
-code point value, i.e. a single Unicode character.  Since version
-0.13, Cython supports the latter natively, which is either defined as
-an unsigned 2-byte or 4-byte integer, or as ``wchar_t``, depending on
-the platform.  The exact type is a compile time option in the build of
-the CPython interpreter and extension modules inherit this definition
-at C compile time.
+value, but it has two special integer types for a Unicode code point
+value, i.e. a single Unicode character: ``Py_UNICODE`` and
+``Py_UCS4``.  Since version 0.13, Cython supports the first natively,
+support for ``Py_UCS4`` is new in Cython 0.15.  ``Py_UNICODE`` is
+either defined as an unsigned 2-byte or 4-byte integer, or as
+``wchar_t``, depending on the platform.  The exact type is a compile
+time option in the build of the CPython interpreter and extension
+modules inherit this definition at C compile time.  The advantage of
+``Py_UCS4`` is that it is guaranteed to be large enough for any
+Unicode code point value, regardless of the platform.  It is defined
+as a 32bit unsigned int or long.
 
-In Cython, the ``char`` and ``Py_UNICODE`` types behave differently
-when coercing to Python objects.  Similar to the behaviour of the
-bytes type in Python 3, the ``char`` type coerces to a Python integer
-value by default, so that the following prints 65 and not ``A``::
+In Cython, the ``char`` type behaves differently from the
+``Py_UNICODE`` and ``Py_UCS4`` types when coercing to Python objects.
+Similar to the behaviour of the bytes type in Python 3, the ``char``
+type coerces to a Python integer value by default, so that the
+following prints 65 and not ``A``::
 
     # -*- coding: ASCII -*-
 
@@ -230,31 +235,32 @@ explicitly, and the following will print ``A`` (or ``b'A'`` in Python
 
 The explicit coercion works for any C integer type.  Values outside of
 the range of a ``char`` or ``unsigned char`` will raise an
-``OverflowError``.  Coercion will also happen automatically when
-assigning to a typed variable, e.g.::
+``OverflowError`` at runtime.  Coercion will also happen automatically
+when assigning to a typed variable, e.g.::
 
-    cdef bytes py_byte_string = char_val
+    cdef bytes py_byte_string
+    py_byte_string = char_val
 
-On the other hand, the ``Py_UNICODE`` type is rarely used outside of
-the context of a Python unicode string, so its default behaviour is to
-coerce to a Python unicode object.  The following will therefore print
-the character ``A``::
+On the other hand, the ``Py_UNICODE`` and ``Py_UCS4`` types are rarely
+used outside of the context of a Python unicode string, so their
+default behaviour is to coerce to a Python unicode object.  The
+following will therefore print the character ``A``, as would the same
+code with the ``Py_UNICODE`` type::
 
-    cdef Py_UNICODE uchar_val = u'A'
+    cdef Py_UCS4 uchar_val = u'A'
     assert uchar_val == 65 # character point value of u'A'
     print( uchar_val )
 
 Again, explicit casting will allow users to override this behaviour.
 The following will print 65::
 
-    cdef Py_UNICODE uchar_val = u'A'
-    print( <int>uchar_val )
+    cdef Py_UCS4 uchar_val = u'A'
+    print( <long>uchar_val )
 
-Note that casting to a C ``int`` (or ``unsigned int``) will do just
-fine on a platform with 32bit or more, as the maximum code point value
-that a Unicode character can have is 1114111 on a 4-byte unicode
-CPython platform ("wide unicode") and 65535 on a narrow (2-byte)
-unicode platform.
+Note that casting to a C ``long`` (or ``unsigned long``) will work
+just fine, as the maximum code point value that a Unicode character
+can have is 1114111 (``0x10FFFF``).  On platforms with 32bit or more,
+``int`` is just as good.
 
 
 Narrow Unicode builds
@@ -263,14 +269,14 @@ Narrow Unicode builds
 In narrow Unicode builds of CPython, i.e. builds where
 ``sys.maxunicode`` is 65535 (such as all Windows builds, as opposed to
 1114111 in wide builds), it is still possible to use Unicode character
-code points that do not fit into the two bytes wide ``Py_UNICODE``
-type.  For example, such a CPython build will accept the unicode
-literal ``u'\U00012345'``.  However, the underlying system level
-encoding leaks into Python space in this case, so that the length of
-this literal becomes 2 instead of 1.  This also shows when iterating
-over it or when indexing into it.  The visible substrings are
-``u'\uD808'`` and ``u'\uDF45'`` in this example.  They form a
-so-called surrogate pair that represents the above character.
+code points that do not fit into the 16 bit wide ``Py_UNICODE`` type.
+For example, such a CPython build will accept the unicode literal
+``u'\U00012345'``.  However, the underlying system level encoding
+leaks into Python space in this case, so that the length of this
+literal becomes 2 instead of 1.  This also shows when iterating over
+it or when indexing into it.  The visible substrings are ``u'\uD808'``
+and ``u'\uDF45'`` in this example.  They form a so-called surrogate
+pair that represents the above character.
 
 For more information on this topic, it is worth reading the `Wikipedia
 article about the UTF-16 encoding`_.
@@ -298,6 +304,20 @@ in question.  Looking for substrings works correctly because the two
 code units in the surrogate pair use distinct value ranges, so the
 pair is always identifiable in a sequence of code points.
 
+As of version 0.15, Cython has extended support for surrogate pairs so
+that you can safely use an ``in`` test to search character values from
+the full ``Py_UCS4`` range even on narrow platforms::
+
+    cdef Py_UCS4 uchar = 0x12345
+    print( uchar in some_unicode_string )
+
+Similarly, it can coerce a one character string with a high Unicode
+code point value to a Py_UCS4 value on both narrow and wide Unicode
+platforms::
+
+    cdef Py_UCS4 uchar = u'\U00012345'
+    assert uchar == 0x12345
+
 
 Iteration
 ---------
@@ -321,7 +341,7 @@ The same applies to bytes objects::
         if c == 'A': ...
 
 For unicode objects, Cython will automatically infer the type of the
-loop variable as ``Py_UNICODE``::
+loop variable as ``Py_UCS4``::
 
     cdef unicode ustring = ...
 
@@ -335,13 +355,16 @@ value to be a Python object, so Cython may end up generating redundant
 conversion code for the loop variable value inside of the loop.  If
 this leads to a performance degradation for a specific piece of code,
 you can either type the loop variable as a Python object explicitly,
-or assign it to a Python typed temporary variable to enforce one-time
-coercion before running Python operations on it.
+or assign its value to a Python typed variable somewhere inside of the
+loop to enforce one-time coercion before running Python operations on
+it.
 
-There is also an optimisation for ``in`` tests, so that the following
+There are also optimisations for ``in`` tests, so that the following
 code will run in plain C code, (actually using a switch statement)::
 
-    cdef Py_UNICODE uchar_val = get_a_unicode_character()
+    cdef Py_UCS4 uchar_val = get_a_unicode_character()
     if uchar_val in u'abcABCxY':
         ...
 
+Combined with the looping optimisation above, this can result in very
+efficient character switching code, e.g. in unicode parsers.
