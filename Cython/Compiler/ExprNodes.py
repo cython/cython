@@ -2087,8 +2087,8 @@ class IndexNode(ExprNode):
                 return base_type.base_type
 
         # may be slicing or indexing, we don't know
-        if base_type is unicode_type:
-            # this type always returns its own type on Python indexing/slicing
+        if base_type in (unicode_type, str_type):
+            # these types always returns their own type on Python indexing/slicing
             return base_type
         else:
             # TODO: Handle buffers (hopefully without too much redundancy).
