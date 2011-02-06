@@ -30,7 +30,7 @@ Other Current Limitations
 ==========================
 
 * The :func:`globals` builtin returns the last Python callers globals, not the current function's locals. This behavior should not be relied upon, as it will probably change in the future. 
-* The :fun:`locals` builtin can only be used if all local variables can be converted to Python objects, and returns a dict.
+* The :func:`locals` builtin can only be used if all local variables can be converted to Python objects, and returns a dict.
 * Class and function definitions cannot be placed inside control structures.
 
 Semantic differences between Python and Cython
