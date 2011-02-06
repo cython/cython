@@ -98,7 +98,7 @@ def indexing():
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
     u1 = u[1]
-    assert typeof(u1) == "Py_UNICODE", typeof(u1)
+    assert typeof(u1) == "Py_UCS4", typeof(u1)
     s = "xyz"
     assert typeof(s) == "str object", typeof(s)
     s1 = s[1]
@@ -313,7 +313,7 @@ def loop_over_str():
 def loop_over_unicode():
     """
     >>> print( loop_over_unicode() )
-    Py_UNICODE
+    Py_UCS4
     """
     cdef unicode ustring = u'abcdefg'
     for uchar in ustring:
