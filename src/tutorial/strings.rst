@@ -281,7 +281,7 @@ pair that represents the above character.
 For more information on this topic, it is worth reading the `Wikipedia
 article about the UTF-16 encoding`_.
 
-.. _`Wikipedia article on the UTF-16 encoding`: http://en.wikipedia.org/wiki/UTF-16/UCS-2
+.. _`Wikipedia article about the UTF-16 encoding`: http://en.wikipedia.org/wiki/UTF-16/UCS-2
 
 The same properties apply to Cython code that gets compiled for a
 narrow CPython runtime environment.  In most cases, e.g. when
