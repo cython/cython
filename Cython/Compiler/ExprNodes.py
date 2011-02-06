@@ -2066,14 +2066,14 @@ class IndexNode(ExprNode):
         if index_type and index_type.is_int or isinstance(self.index, (IntNode, LongNode)):
             # indexing!
             if base_type is unicode_type:
-                # Py_UNICODE will automatically coerce to a unicode string
-                # if required, so this is safe. We only infer Py_UNICODE
-                # when the index is a C integer type. Otherwise, we may
+                # Py_UCS4 will automatically coerce to a unicode string
+                # if required, so this is safe.  We only infer Py_UCS4
+                # when the index is a C integer type.  Otherwise, we may
                 # need to use normal Python item access, in which case
                 # it's faster to return the one-char unicode string than
                 # to receive it, throw it away, and potentially rebuild it
                 # on a subsequent PyObject coercion.
-                return PyrexTypes.c_py_unicode_type
+                return PyrexTypes.c_py_ucs4_type
             elif isinstance(self.base, BytesNode):
                 #if env.global_scope().context.language_level >= 3:
                 #    # infering 'char' can be made to work in Python 3 mode
@@ -2193,7 +2193,7 @@ class IndexNode(ExprNode):
                 if self.index.type.is_int and base_type is unicode_type:
                     # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
                     # if required, so this is fast and safe
-                    self.type = PyrexTypes.c_py_unicode_type
+                    self.type = PyrexTypes.c_py_ucs4_type
                 elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
                     self.type = base_type
                 else:
