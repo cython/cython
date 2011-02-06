@@ -2074,6 +2074,9 @@ class IndexNode(ExprNode):
                 # to receive it, throw it away, and potentially rebuild it
                 # on a subsequent PyObject coercion.
                 return PyrexTypes.c_py_ucs4_type
+            elif base_type is str_type:
+                # always returns str - Py2: bytes, Py3: unicode
+                return base_type
             elif isinstance(self.base, BytesNode):
                 #if env.global_scope().context.language_level >= 3:
                 #    # infering 'char' can be made to work in Python 3 mode
