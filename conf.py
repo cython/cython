@@ -40,6 +40,8 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
+exclude_patterns = ['py*', 'build']
+
 # General substitutions.
 project = 'Cython'
 copyright = '2011, Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
