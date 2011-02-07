@@ -6,6 +6,7 @@ import re
 import gc
 import codecs
 import shutil
+import time
 import unittest
 import doctest
 import operator
@@ -816,7 +817,13 @@ class EndToEndTest(unittest.TestCase):
 
     def tearDown(self):
         if self.cleanup_workdir:
-            shutil.rmtree(self.workdir)
+            for trial in range(5):
+                try:
+                    shutil.rmtree(self.workdir)
+                except OSError:
+                    time.sleep(0.1)
+                else:
+                    break
         os.chdir(self.old_dir)
 
     def runTest(self):
