@@ -151,7 +151,7 @@ def cython_inline(code,
                 if m.groups()[0] == 'numpy':
                     import numpy
                     c_include_dirs.append(numpy.get_include())
-                    cflags.append('-Wno-unused')
+                    # cflags.append('-Wno-unused')
         module_body, func_body = extract_func_code(code)
         params = ', '.join(['%s %s' % a for a in arg_sigs])
         module_code = """
