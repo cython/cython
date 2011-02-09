@@ -366,7 +366,7 @@ builtin_function_table = [
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
                     utility_code = getattr3_utility_code), # Pyrex compatibility
     BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
-    BuiltinFunction('hash',       "O",    "l",     "PyObject_Hash"),
+    BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
