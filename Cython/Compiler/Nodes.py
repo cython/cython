@@ -5129,7 +5129,7 @@ class GILStatNode(TryFinallyStatNode):
             code.putln("#endif")
         else:
             code.putln("#ifdef WITH_THREAD")
-            code.putln("PyThreadState *_save;")
+            code.putln("PyThreadState *_save = NULL;")
             code.putln("#endif")
             code.putln("Py_UNBLOCK_THREADS")
         TryFinallyStatNode.generate_execution_code(self, code)
