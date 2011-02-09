@@ -2,13 +2,13 @@
 extern "C" {
 #endif
 extern DL_EXPORT(void) e1(void);
-extern DL_EXPORT(void *) e2(void);
+extern DL_EXPORT(int*) e2(void);
 #ifdef __cplusplus
 }
 #endif
 
 void e1(void) {return;}
-void *e2(void) {return 0;}
+int* e2(void) {return 0;}
 
 
 
