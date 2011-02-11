@@ -416,6 +416,9 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.finalize_options()
             if COMPILER:
                 build_extension.compiler = COMPILER
+            if (sys.platform == 'win32' and
+                build_extension.compiler == 'mingw32'):
+                CFLAGS.append('-Wno-format')
             ext_include_dirs = []
             for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
                 if match(module):
