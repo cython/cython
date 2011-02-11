@@ -416,23 +416,22 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.finalize_options()
             if COMPILER:
                 build_extension.compiler = COMPILER
-            if (sys.platform == 'win32' and
-                build_extension.compiler == 'mingw32'):
-                CFLAGS.append('-Wno-format')
             ext_include_dirs = []
             for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
-            self.copy_related_files(test_directory, workdir, module)
-
+            ext_compile_flags = CFLAGS[:]
+            if  build_extension.compiler == 'mingw32':
+                ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
                 extra_extension_args = {}
 
+            self.copy_related_files(test_directory, workdir, module)
             extension = Extension(
                 module,
                 sources = self.find_source_files(workdir, module),
                 include_dirs = ext_include_dirs,
-                extra_compile_args = CFLAGS,
+                extra_compile_args = ext_compile_flags,
                 **extra_extension_args
                 )
             if self.language == 'cpp':
