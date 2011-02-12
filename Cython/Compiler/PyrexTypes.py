@@ -1530,7 +1530,7 @@ class CArrayType(CType):
     def __init__(self, base_type, size):
         self.base_type = base_type
         self.size = size
-        if base_type is c_char_type:
+        if base_type in (c_char_type, c_uchar_type, c_schar_type):
             self.is_string = 1
     
     def __repr__(self):
