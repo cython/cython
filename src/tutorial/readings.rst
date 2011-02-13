@@ -15,12 +15,12 @@ features for managing it.
 
 Finally, don't hesitate to ask questions (or post reports on
 successes!) on the Cython users mailing list [UserList]_.  The Cython
-developer mailing list, [DevList]_, is also open to everybody.  Feel
-free to use it to report a bug, ask for guidance, if you have time to
-spare to develop Cython, or if you have suggestions for future
-development.
+developer mailing list, [DevList]_, is also open to everybody, but
+focusses on core development issues.  Feel free to use it to report a
+clear bug, to ask for guidance if you have time to spare to develop
+Cython, or if you have suggestions for future development.
 
-.. [DevList] Cython developer mailing list: http://codespeak.net/mailman/listinfo/cython-dev.
+.. [DevList] Cython developer mailing list: http://mail.python.org/mailman/listinfo/cython-devel
 .. [Seljebotn09] D. S. Seljebotn, Fast numerical computations with Cython,
    Proceedings of the 8th Python in Science Conference, 2009.
 .. [UserList] Cython users mailing list: http://groups.google.com/group/cython-users
