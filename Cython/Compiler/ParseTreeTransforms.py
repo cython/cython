@@ -1377,8 +1377,8 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if collector.yields:
-            for i, yield_expr in enumerate(collector.yields, 1):
-                yield_expr.label_num = i
+            for i, yield_expr in enumerate(collector.yields):
+                yield_expr.label_num = i + 1
 
             gbody = Nodes.GeneratorBodyDefNode(pos=node.pos,
                                                name=node.name,
