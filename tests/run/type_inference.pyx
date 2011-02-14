@@ -94,15 +94,15 @@ def indexing():
     b = b"abc"
     assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "Python object", typeof(b1)
+    assert typeof(b1) == "Python object", typeof(b1) # Py2: bytes, Py3: int
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
     u1 = u[1]
-    assert typeof(u1) == "Py_UNICODE", typeof(u1)
+    assert typeof(u1) == "Py_UCS4", typeof(u1)
     s = "xyz"
     assert typeof(s) == "str object", typeof(s)
     s1 = s[1]
-    assert typeof(s1) == "Python object", typeof(s1)
+    assert typeof(s1) == "str object", typeof(s1)
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     L1 = L[1]
@@ -296,6 +296,7 @@ def loop_over_bytes():
     Python object
     """
     cdef bytes bytes_string = b'abcdefg'
+    # bytes in Py2, int in Py3
     for c in bytes_string:
         pass
     return typeof(c)
@@ -303,9 +304,10 @@ def loop_over_bytes():
 def loop_over_str():
     """
     >>> print( loop_over_str() )
-    Python object
+    str object
     """
     cdef str string = 'abcdefg'
+    # str (bytes) in Py2, str (unicode) in Py3
     for c in string:
         pass
     return typeof(c)
@@ -313,9 +315,10 @@ def loop_over_str():
 def loop_over_unicode():
     """
     >>> print( loop_over_unicode() )
-    Py_UNICODE
+    Py_UCS4
     """
     cdef unicode ustring = u'abcdefg'
+    # Py_UCS4 can represent any Unicode character
     for uchar in ustring:
         pass
     return typeof(uchar)

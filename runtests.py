@@ -6,6 +6,7 @@ import re
 import gc
 import codecs
 import shutil
+import time
 import unittest
 import doctest
 import operator
@@ -97,7 +98,7 @@ KEEP_2X_FILES = [
     os.path.join('Cython', 'Debugger', 'libpython.py'),
 ]
 
-
+COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
@@ -177,7 +178,8 @@ class TestBuilder(object):
                     self.handle_directory(path, filename))
         if sys.platform not in ['win32'] and sys.version_info[0] < 3:
             # Non-Windows makefile, can't run Cython under Py3.
-            if [1 for selector in self.selectors if selector("embedded")]:
+            if [1 for selector in self.selectors if selector("embedded")] \
+                and not [1 for selector in self.exclude_selectors if selector("embedded")]:
                 suite.addTest(unittest.makeSuite(EmbedTest))
         return suite
 
@@ -194,7 +196,10 @@ class TestBuilder(object):
             if context == "build" and filename.endswith(".srctree"):
                 if not [ 1 for match in self.selectors if match(filename) ]:
                     continue
-                suite.addTest(EndToEndTest(filename, workdir, self.cleanup_workdir))
+                if self.exclude_selectors:
+                    if [1 for match in self.exclude_selectors if match(filename)]:
+                        continue
+                suite.addTest(EndToEndTest(os.path.join(path, filename), workdir, self.cleanup_workdir))
                 continue
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
                 continue
@@ -409,20 +414,24 @@ class CythonCompileTestCase(unittest.TestCase):
             if incdir:
                 build_extension.include_dirs.append(incdir)
             build_extension.finalize_options()
+            if COMPILER:
+                build_extension.compiler = COMPILER
             ext_include_dirs = []
             for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
-            self.copy_related_files(test_directory, workdir, module)
-
+            ext_compile_flags = CFLAGS[:]
+            if  build_extension.compiler == 'mingw32':
+                ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
                 extra_extension_args = {}
 
+            self.copy_related_files(test_directory, workdir, module)
             extension = Extension(
                 module,
                 sources = self.find_source_files(workdir, module),
                 include_dirs = ext_include_dirs,
-                extra_compile_args = CFLAGS,
+                extra_compile_args = ext_compile_flags,
                 **extra_extension_args
                 )
             if self.language == 'cpp':
@@ -709,8 +718,7 @@ def collect_unittests(path, module_prefix, suite, selectors):
     if include_debugger:
         skipped_dirs = []
     else:
-        cython_dir = os.path.dirname(os.path.abspath(__file__))
-        skipped_dirs = [os.path.join(cython_dir, 'Cython', 'Debugger')]
+        skipped_dirs = ['Cython' + os.path.sep + 'Debugger' + os.path.sep]
 
     for dirpath, dirnames, filenames in os.walk(path):
         if dirpath != path and "__init__.py" not in filenames:
@@ -786,8 +794,9 @@ class EndToEndTest(unittest.TestCase):
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
     def __init__(self, treefile, workdir, cleanup_workdir=True):
+        self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
-        self.workdir = os.path.join(workdir, os.path.splitext(treefile)[0])
+        self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
         cython_syspath = self.cython_root
         for path in sys.path[::-1]:
@@ -800,12 +809,11 @@ class EndToEndTest(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "End-to-end %s" % self.treefile
+        return "End-to-end %s" % self.name
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
-        _, self.commands = unpack_source_tree(
-            os.path.join('tests', 'build', self.treefile), self.workdir)
+        _, self.commands = unpack_source_tree(self.treefile, self.workdir)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
         if self.workdir not in sys.path:
@@ -813,7 +821,13 @@ class EndToEndTest(unittest.TestCase):
 
     def tearDown(self):
         if self.cleanup_workdir:
-            shutil.rmtree(self.workdir)
+            for trial in range(5):
+                try:
+                    shutil.rmtree(self.workdir)
+                except OSError:
+                    time.sleep(0.1)
+                else:
+                    break
         os.chdir(self.old_dir)
 
     def runTest(self):
@@ -1006,6 +1020,8 @@ def main():
     parser.add_option("--no-cython", dest="with_cython",
                       action="store_false", default=True,
                       help="do not run the Cython compiler, only the C compiler")
+    parser.add_option("--compiler", dest="compiler", default=None,
+                      help="C compiler type")
     parser.add_option("--no-c", dest="use_c",
                       action="store_false", default=True,
                       help="do not test C compilation")
@@ -1123,7 +1139,7 @@ def main():
 
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
-    UNITTEST_ROOT = os.path.join(os.getcwd(), UNITTEST_MODULE)
+    UNITTEST_ROOT = os.path.join(os.path.dirname(__file__), UNITTEST_MODULE)
     if WITH_CYTHON:
         if os.path.exists(WORKDIR):
             for path in os.listdir(WORKDIR):
@@ -1189,6 +1205,9 @@ def main():
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
         exclude_selectors += [ lambda x: x == "run.specialfloat" ]
 
+    global COMPILER
+    if options.compiler:
+        COMPILER = options.compiler
     languages = []
     if options.use_c:
         languages.append('c')

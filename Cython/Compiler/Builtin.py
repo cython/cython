@@ -366,7 +366,7 @@ builtin_function_table = [
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
                     utility_code = getattr3_utility_code), # Pyrex compatibility
     BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
-    BuiltinFunction('hash',       "O",    "l",     "PyObject_Hash"),
+    BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
@@ -503,6 +503,7 @@ builtin_structs_table = [
       ("shape",      PyrexTypes.c_py_ssize_t_ptr_type),
       ("strides",    PyrexTypes.c_py_ssize_t_ptr_type),
       ("suboffsets", PyrexTypes.c_py_ssize_t_ptr_type),
+      ("smalltable", PyrexTypes.CArrayType(PyrexTypes.c_py_ssize_t_type, 2)),
       ("internal",   PyrexTypes.c_void_ptr_type),
       ]),
     ('Py_complex', 'Py_complex',

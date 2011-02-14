@@ -8,9 +8,14 @@ PYTHON -c "import a"
 from Cython.Build.Dependencies import cythonize
 
 from distutils.core import setup
+import sys
+if sys.platform == 'win32':
+   MATH_LIBS = []
+else:
+   MATH_LIBS = ['m']
 
 setup(
-  ext_modules = cythonize("*.pyx", aliases={'MATH_LIBS': ['m']}),
+  ext_modules = cythonize("*.pyx", aliases={'MATH_LIBS': MATH_LIBS}),
 )
 
 ######## my_lib.pxd ########

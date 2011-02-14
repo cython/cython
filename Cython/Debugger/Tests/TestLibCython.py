@@ -1,17 +1,15 @@
-from __future__ import with_statement
 
 import os
 import re
 import sys
-import uuid
 import shutil
 import warnings
 import textwrap
 import unittest
 import tempfile
 import subprocess
-import distutils.core
-from distutils import sysconfig
+#import distutils.core
+#from distutils import sysconfig
 from distutils import ccompiler
 
 import runtests
@@ -22,8 +20,12 @@ from Cython.Debugger import Cygdb as cygdb
 root = os.path.dirname(os.path.abspath(__file__))
 codefile = os.path.join(root, 'codefile')
 cfuncs_file = os.path.join(root, 'cfuncs.c')
-with open(codefile) as f:
-    source_to_lineno = dict((line.strip(), i + 1) for i, line in enumerate(f))
+
+f = open(codefile)
+try:
+    source_to_lineno = dict([ (line.strip(), i + 1) for i, line in enumerate(f) ])
+finally:
+    f.close()
 
 # Cython.Distutils.__init__ imports build_ext from build_ext which means we
 # can't access the module anymore. Get it from sys.modules instead.
@@ -205,8 +207,11 @@ class GdbDebuggerTestCase(DebuggerTestCase):
         self.gdb_command_file = cygdb.make_command_file(self.tempdir,
                                                         prefix_code)
 
-        with open(self.gdb_command_file, 'a') as f:
+        f = open(self.gdb_command_file, 'a')
+        try:
             f.write(code)
+        finally:
+            f.close()
 
         args = ['gdb', '-batch', '-x', self.gdb_command_file, '-n', '--args',
                 sys.executable, '-c', 'import codefile']

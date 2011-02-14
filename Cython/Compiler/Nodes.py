@@ -2654,7 +2654,7 @@ class DefNode(FuncDefNode):
                     max_positional_args, Naming.args_cname))
             code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
             if self.starstar_arg:
-                code.put_decref(self.starstar_arg.entry.cname, py_object_type)
+                code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
             if self.needs_closure:
                 code.put_decref(Naming.cur_scope_cname, self.local_scope.scope_class.type)
             code.put_finish_refcount_context()
@@ -5308,7 +5308,7 @@ class GILStatNode(TryFinallyStatNode):
             code.putln("#endif")
         else:
             code.putln("#ifdef WITH_THREAD")
-            code.putln("PyThreadState *_save;")
+            code.putln("PyThreadState *_save = NULL;")
             code.putln("#endif")
             code.putln("Py_UNBLOCK_THREADS")
         TryFinallyStatNode.generate_execution_code(self, code)

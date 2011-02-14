@@ -1,4 +1,5 @@
-cdef extern int a "c_a", b "c_b"
+cdef extern from "cnamespec.h":
+    int a "c_a", b "c_b"
 
 cdef struct foo "c_foo":
     int i "c_i"

@@ -32,6 +32,7 @@ class Signature(object):
     #    'b'  bint
     #    'I'  int *
     #    'l'  long
+    #    'h'  Py_hash_t
     #    'z'  Py_ssize_t
     #    'Z'  Py_ssize_t *
     #    's'  char *
@@ -52,6 +53,7 @@ class Signature(object):
         'b': PyrexTypes.c_bint_type,
         'I': PyrexTypes.c_int_ptr_type,
         'l': PyrexTypes.c_long_type,
+        'h': PyrexTypes.c_py_hash_t_type,
         'z': PyrexTypes.c_py_ssize_t_type,
         'Z': PyrexTypes.c_py_ssize_t_ptr_type,
         's': PyrexTypes.c_char_ptr_type,
@@ -69,6 +71,7 @@ class Signature(object):
         'b': "-1",
         'l': "-1",
         'r': "-1",
+        'h': "-1",
         'z': "-1",
     }
 
@@ -534,7 +537,7 @@ setattrofunc = Signature("TOO", 'r')       # typedef int (*setattrofunc)(PyObjec
 delattrofunc = Signature("TO", 'r')
 cmpfunc = Signature("TO", "i")             # typedef int (*cmpfunc)(PyObject *, PyObject *);
 reprfunc = Signature("T", "O")             # typedef PyObject *(*reprfunc)(PyObject *);
-hashfunc = Signature("T", "l")             # typedef long (*hashfunc)(PyObject *);
+hashfunc = Signature("T", "h")             # typedef Py_hash_t (*hashfunc)(PyObject *);
                                            # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
 richcmpfunc = Signature("OOi", "O")        # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
 getiterfunc = Signature("T", "O")          # typedef PyObject *(*getiterfunc) (PyObject *);

@@ -965,7 +965,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
            if (high_val >= 0xD800 && high_val <= 0xDBFF) {
                Py_UCS4 low_val = PyUnicode_AS_UNICODE(x)[1];
                if (low_val >= 0xDC00 && low_val <= 0xDFFF) {
-                   return 0x10000 | ((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1));
+                   return 0x10000 + (((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1)));
                }
            }
        }
@@ -1055,6 +1055,14 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
 }
 ''')
 
+
+class CPyHashTType(CIntType):
+
+    to_py_function = "__Pyx_PyInt_FromHash_t"
+    from_py_function = "__Pyx_PyInt_AsHash_t"
+
+    def sign_and_name(self):
+        return "Py_hash_t"
 
 class CPySSizeTType(CIntType):
 
@@ -1522,7 +1530,7 @@ class CArrayType(CType):
     def __init__(self, base_type, size):
         self.base_type = base_type
         self.size = size
-        if base_type is c_char_type:
+        if base_type in (c_char_type, c_uchar_type, c_schar_type):
             self.is_string = 1
     
     def __repr__(self):
@@ -2381,6 +2389,7 @@ c_returncode_type =  CReturnCodeType(RANK_INT)
 c_bint_type =        CBIntType(RANK_INT)
 c_py_unicode_type =  CPyUnicodeIntType(RANK_INT-0.5, UNSIGNED)
 c_py_ucs4_type =     CPyUCS4IntType(RANK_LONG-0.5, UNSIGNED)
+c_py_hash_t_type =   CPyHashTType(RANK_LONG+0.5, SIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
@@ -2443,6 +2452,7 @@ modifiers_and_name_to_type = {
     (1,  0, "bint"):       c_bint_type,
     (0,  0, "Py_UNICODE"): c_py_unicode_type,
     (0,  0, "Py_UCS4"):    c_py_ucs4_type,
+    (2,  0, "Py_hash_t"):  c_py_hash_t_type,
     (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
     (2,  0, "ssize_t") :   c_ssize_t_type,
     (0,  0, "size_t") :    c_size_t_type,
@@ -2692,6 +2702,8 @@ def parse_basic_type(name):
         signed = 0
     elif name == 'Py_UCS4':
         signed = 0
+    elif name == 'Py_hash_t':
+        signed = 2
     elif name == 'Py_ssize_t':
         signed = 2
     elif name == 'ssize_t':
