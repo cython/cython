@@ -195,3 +195,25 @@ def index_and_in():
     for i in range(1,9):
         if u'abcdefgh'[-i] in u'abCDefGh':
             print i
+
+# special test for narrow builds
+
+high_uchar = u'\U00012345'
+high_ustring0 = u'\U00012345\U00012346abc'
+high_ustring1 = u'\U00012346\U00012345abc'
+high_ustring_end = u'\U00012346abc\U00012344\U00012345'
+high_ustring_no = u'\U00012346\U00012346abc'
+
+def uchar_in(Py_UCS4 uchar, unicode ustring):
+    """
+    >>> uchar_in(high_uchar, high_ustring0)
+    True
+    >>> uchar_in(high_uchar, high_ustring1)
+    True
+    >>> uchar_in(high_uchar, high_ustring_end)
+    True
+    >>> uchar_in(high_uchar, high_ustring_no)
+    False
+    """
+    assert uchar == 0x12345, ('%X' % uchar)
+    return uchar in ustring
