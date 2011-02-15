@@ -1540,7 +1540,6 @@ class FuncDefNode(StatNode, BlockNode):
 
     def generate_arg_none_check(self, arg, code):
         # Generate None check for one argument.
-        code.globalstate.use_utility_code(arg_type_test_utility_code)
         code.putln('if (unlikely(((PyObject *)%s) == Py_None)) {' % arg.entry.cname)
         code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%s' must not be None"); %s''' % (
             arg.name,

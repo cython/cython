@@ -368,6 +368,11 @@ class ExprNode(Node):
         else:
             self.not_implemented("infer_type")
 
+    def nonlocally_immutable(self):
+        # Returns whether this variable is a safe reference, i.e.
+        # can't be modified as part of globals or closures.
+        return self.is_temp
+
     # --------------- Type Analysis ------------------
 
     def analyse_as_module(self, env):
@@ -755,6 +760,9 @@ class ConstNode(AtomicExprNode):
     nogil_check = None
 
     def is_simple(self):
+        return 1
+
+    def nonlocally_immutable(self):
         return 1
 
     def may_be_none(self):
@@ -1473,6 +1481,10 @@ class NameNode(AtomicExprNode):
     def is_simple(self):
         #  If it's not a C variable, it'll be in a temp.
         return 1
+
+    def nonlocally_immutable(self):
+        entry = self.entry
+        return entry and (entry.is_local or entry.is_arg) and not entry.in_closure
 
     def calculate_target_results(self, env):
         pass
@@ -2997,7 +3009,7 @@ class SimpleCallNode(CallNode):
                 if i == 0 and self.self is not None:
                     # a method's cloned "self" argument is ok
                     pass
-                elif arg.is_name and arg.entry and arg.entry.is_local and not arg.entry.in_closure:
+                elif arg.nonlocally_immutable():
                     # plain local variables are ok
                     pass
                 else:
@@ -4047,6 +4059,10 @@ class TupleNode(SequenceNode):
 
     def is_simple(self):
         # either temp or constant => always simple
+        return True
+
+    def nonlocally_immutable(self):
+        # either temp or constant => always safe
         return True
 
     def calculate_result_code(self):
@@ -5486,6 +5502,9 @@ class TypecastNode(ExprNode):
     def is_simple(self):
         # either temp or a C cast => no side effects
         return True
+
+    def nonlocally_immutable(self):
+        return self.operand.nonlocally_immutable()
 
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
