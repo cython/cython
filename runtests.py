@@ -28,6 +28,7 @@ except ImportError: # No threads, no problems
     threading = None
 
 WITH_CYTHON = True
+CY3_DIR = None
 
 from distutils.dist import Distribution
 from distutils.core import Extension
@@ -176,8 +177,8 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
-        if sys.platform not in ['win32'] and sys.version_info[0] < 3:
-            # Non-Windows makefile, can't run Cython under Py3.
+        if sys.platform not in ['win32']:
+            # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                 and not [1 for selector in self.exclude_selectors if selector("embedded")]:
                 suite.addTest(unittest.makeSuite(EmbedTest))
@@ -892,8 +893,12 @@ class EmbedTest(unittest.TestCase):
                 if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
                     # report the error for the original directory
                     libdir = sysconfig.get_config_var('LIBDIR')
+        cython = 'cython.py'
+        if sys.version_info[0] >=3:
+            cython = os.path.join(CY3_DIR, cython)
+        cython = os.path.abspath(os.path.join('..', '..', cython))
         self.assert_(os.system(
-            "make PYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, libdir)) == 0)
+            "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)) == 0)
         try:
             os.remove('make.output')
         except OSError:
@@ -967,6 +972,7 @@ def refactor_for_py3(distdir, cy3_dir):
                      recursive-include Cython *.py *.pyx *.pxd
                      recursive-include Cython/Debugger/Tests *
                      include runtests.py
+                     include cython.py
                      ''')
     sys.path.insert(0, cy3_dir)
 
@@ -1105,7 +1111,8 @@ def main():
                 for name in cy_modules:
                     del sys.modules[name]
                 # hasn't been refactored yet - do it now
-                cy3_dir = os.path.join(WORKDIR, 'Cy3')
+                global CY3_DIR
+                CY3_DIR = cy3_dir = os.path.join(WORKDIR, 'Cy3')
                 if sys.version_info >= (3,1):
                     refactor_for_py3(DISTDIR, cy3_dir)
                 elif os.path.isdir(cy3_dir):
