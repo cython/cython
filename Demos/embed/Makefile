@@ -19,8 +19,9 @@ embedded: embedded.o
 embedded.o: embedded.c
 	$(CC) -c $^ -I$(INCDIR)
 
+CYTHON=../../cython.py
 embedded.c: embedded.pyx
-	@$(PYTHON) ../../cython.py --embed embedded.pyx
+	@$(PYTHON) $(CYTHON) --embed embedded.pyx
 
 all: embedded
 
