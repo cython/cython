@@ -53,7 +53,7 @@ where calls occur within Cython code. For example:
         def __init__(self, int x0, int y0, int x1, int y1):
             self.x0 = x0; self.y0 = y0; self.x1 = x1; self.y1 = y1
         cdef int _area(self):
-            int area
+            cdef int area
             area = (self.x1 - self.x0) * (self.y1 - self.y0)
             if area < 0:
                 area = -area
@@ -88,7 +88,7 @@ overheads. Consider this code:
         def __init__(self, int x0, int y0, int x1, int y1):
             self.x0 = x0; self.y0 = y0; self.x1 = x1; self.y1 = y1
         cpdef int area(self):
-            int area
+            cdef int area
             area = (self.x1 - self.x0) * (self.y1 - self.y0)
             if area < 0:
                 area = -area
