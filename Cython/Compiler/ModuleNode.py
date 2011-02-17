@@ -1897,7 +1897,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
-        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name, module_is_main=module_is_main))
+        if Options.embed == "main":
+            wmain = "wmain"
+        else:
+            wmain = Options.embed
+        code.globalstate.use_utility_code(
+            main_method.specialize(
+                module_name = env.module_name,
+                module_is_main = module_is_main,
+                main_method = Options.embed,
+                wmain_method = wmain))
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
@@ -2646,9 +2655,9 @@ impl = """
 #endif
 
 #if PY_MAJOR_VERSION < 3
-int main(int argc, char** argv) {
+int %(main_method)s(int argc, char** argv) {
 #elif defined(WIN32) || defined(MS_WINDOWS)
-int wmain(int argc, wchar_t **argv) {
+int %(wmain_method)s(int argc, wchar_t **argv) {
 #else
 static int __Pyx_main(int argc, wchar_t **argv) {
 #endif
@@ -2665,9 +2674,13 @@ static int __Pyx_main(int argc, wchar_t **argv) {
     m = fpgetmask();
     fpsetmask(m & ~FP_X_OFL);
 #endif
-    Py_SetProgramName(argv[0]);
+    if (argc) {
+        Py_SetProgramName(argv[0]);
+    }
     Py_Initialize();
-    PySys_SetArgv(argc, argv);
+    if (argc) {
+        PySys_SetArgv(argc, argv);
+    }
     %(module_is_main)s = 1;
 #if PY_MAJOR_VERSION < 3
         init%(module_name)s();
@@ -2794,33 +2807,38 @@ oom:
 }
 
 int
-main(int argc, char **argv)
+%(main_method)s(int argc, char **argv)
 {
-	wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
-	/* We need a second copies, as Python might modify the first one. */
-	wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
-	int i, res;
-	char *oldloc;
-	if (!argv_copy || !argv_copy2) {
-		fprintf(stderr, "out of memory\\n");
-		return 1;
-	}
-	oldloc = strdup(setlocale(LC_ALL, NULL));
-	setlocale(LC_ALL, "");
-	for (i = 0; i < argc; i++) {
-		argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
-		if (!argv_copy[i])
-			return 1;
-	}
-	setlocale(LC_ALL, oldloc);
-	free(oldloc);
-	res = __Pyx_main(argc, argv_copy);
-	for (i = 0; i < argc; i++) {
-		free(argv_copy2[i]);
-	}
-	free(argv_copy);
-	free(argv_copy2);
-	return res;
+    if (!argc) {
+        return __Pyx_main(0, NULL);
+    }
+    else {
+        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        /* We need a second copies, as Python might modify the first one. */
+        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        int i, res;
+        char *oldloc;
+        if (!argv_copy || !argv_copy2) {
+            fprintf(stderr, "out of memory\\n");
+            return 1;
+        }
+        oldloc = strdup(setlocale(LC_ALL, NULL));
+        setlocale(LC_ALL, "");
+        for (i = 0; i < argc; i++) {
+            argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
+            if (!argv_copy[i])
+                return 1;
+        }
+        setlocale(LC_ALL, oldloc);
+        free(oldloc);
+        res = __Pyx_main(argc, argv_copy);
+        for (i = 0; i < argc; i++) {
+            free(argv_copy2[i]);
+        }
+        free(argv_copy);
+        free(argv_copy2);
+        return res;
+    }
 }
 #endif
 """)
