@@ -194,7 +194,7 @@ class TestBuilder(object):
         filenames = os.listdir(path)
         filenames.sort()
         for filename in filenames:
-            if context == "build" and filename.endswith(".srctree"):
+            if filename.endswith(".srctree"):
                 if not [ 1 for match in self.selectors if match(filename) ]:
                     continue
                 if self.exclude_selectors:

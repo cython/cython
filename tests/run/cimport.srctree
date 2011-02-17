@@ -1,0 +1,35 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+
+######## setup.py ########
+
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## other.pxd ########
+
+cdef class A:
+    pass
+
+cdef int foo(int)
+
+######## other.pyx ########
+
+cdef class A:
+    pass
+
+cdef int foo(int a):
+     return a**2
+
+######## a.pyx ########
+
+from other cimport A, foo
+print A, foo(10)
+
+cimport other
+print other.A, other.foo(10)
