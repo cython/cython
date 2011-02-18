@@ -272,7 +272,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
-        code.putln("static int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
+        code.putln("int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
 
