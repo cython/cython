@@ -6,6 +6,7 @@ For now this only covers parse tree to value conversion of
 compile-time values.
 """
 
+import sys
 from Nodes import *
 from ExprNodes import *
 from Errors import CompileError
@@ -44,6 +45,10 @@ def interpret_compiletime_options(optlist, optdict, type_env=None, type_args=())
             else:
                 raise CompileError(node.pos, "Type not allowed here.")
         else:
+            if (sys.version_info[0] >=3 and
+                isinstance(node, StringNode) and
+                node.unicode_value is not None):
+                return (node.unicode_value, node.pos)
             return (node.compile_time_value(empty_scope), node.pos)
 
     if optlist:
@@ -52,6 +57,7 @@ def interpret_compiletime_options(optlist, optdict, type_env=None, type_args=())
         assert isinstance(optdict, DictNode)
         new_optdict = {}
         for item in optdict.key_value_pairs:
-            new_optdict[item.key.value] = interpret(item.value, item.key.value)
+            new_key, dummy = interpret(item.key, None)
+            new_optdict[new_key] = interpret(item.value, item.key.value)
         optdict = new_optdict
     return (optlist, new_optdict)

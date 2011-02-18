@@ -527,8 +527,7 @@ def use_py2_buffer_functions(env):
         #if PY_MAJOR_VERSION < 3
         static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
           #if PY_VERSION_HEX >= 0x02060000
-          if (Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_NEWBUFFER)
-              return PyObject_GetBuffer(obj, view, flags);
+          if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
           #endif
     """)
     if len(types) > 0:
@@ -548,11 +547,15 @@ def use_py2_buffer_functions(env):
         static void __Pyx_ReleaseBuffer(Py_buffer *view) {
           PyObject* obj = view->obj;
           if (obj) {
+            #if PY_VERSION_HEX >= 0x02060000
+            if (PyObject_CheckBuffer(obj)) {PyBuffer_Release(view); return;}
+            #endif
     """)
     if len(types) > 0:
         clause = "if"
         for t, get, release in types:
             if release:
+                code += "    "
                 code += "%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release)
                 clause = "else if"
     code += dedent("""
@@ -1113,6 +1116,11 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         ++ts;
         ctx->new_count = 1;
         got_Z = 0;
+        break;
+        case ':':
+        ++ts;
+        while(*ts != ':') ++ts;
+        ++ts;
         break;
       default:
         {
