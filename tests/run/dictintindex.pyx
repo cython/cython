@@ -4,7 +4,10 @@ def test_get_char_neg():
     0
     """
     cdef char key = -1
-    d = {-1:0}
+    if <char>-1 < 0:
+        d = {-1:0}
+    else:
+        d = {255:0}
     return d[key]
 def test_get_char_zero():
     """
