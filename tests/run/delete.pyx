@@ -80,3 +80,10 @@ def del_temp_slice(a):
     while a.attr:
         del a.attr[:]
     return a.attr
+
+def del_local(a):
+    """
+    >>> del_local(object())
+    """
+    del a
+    assert a is None # Until we have unbound locals...
