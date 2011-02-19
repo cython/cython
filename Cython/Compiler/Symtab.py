@@ -449,7 +449,8 @@ class Scope(object):
                 visibility = visibility, defining = scope is not None)
         else:
             if not (entry.is_type and entry.type.is_cpp_class):
-                warning(pos, "'%s' redeclared  " % name, 0)
+                error(pos, "'%s' redeclared " % name)
+                return None
             elif scope and entry.type.scope:
                 warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
             else:
