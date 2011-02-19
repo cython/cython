@@ -1744,6 +1744,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("{")
         tempdecl_code = code.insertion_point()
+        
+        env.use_utility_code(check_binary_version_utility_code)
+        code.putln("__Pyx_check_binary_version();")
 
         code.putln("#if CYTHON_REFNANNY")
         code.putln("void* __pyx_refnanny = NULL;")
@@ -2850,3 +2853,40 @@ packed_struct_utility_code = UtilityCode(proto="""
 #define __Pyx_PACKED
 #endif
 """, impl="", proto_block='utility_code_proto_before_types')
+
+check_binary_version_utility_code = UtilityCode(proto="""
+static int __Pyx_check_binary_version(void);
+""", impl="""
+static int __Pyx_check_binary_version(void) {
+    int res = -1;
+    PyObject *major_info = NULL;
+    PyObject *minor_info = NULL;
+    PyObject *version_info = PySys_GetObject("version_info");
+    if (version_info == NULL) goto bad;
+    major_info = PySequence_GetItem(version_info, 0);
+    if (major_info == NULL || !PyInt_CheckExact(major_info)) goto bad;
+    minor_info = PySequence_GetItem(version_info, 1);
+    if (minor_info == NULL || !PyInt_CheckExact(minor_info)) goto bad;
+    if (PyInt_AsLong(major_info) == PY_MAJOR_VERSION && PyInt_AsLong(minor_info) == PY_MINOR_VERSION) {
+        res = 0;
+    } else {
+        char warning[200];
+        PyOS_snprintf(warning, sizeof(warning),
+            "compiletime version (%d, %d) of module %s does not match runtime version (%ld, %ld)",
+            PY_MAJOR_VERSION, PY_MINOR_VERSION,
+            __Pyx_MODULE_NAME,
+            PyInt_AsLong(major_info), PyInt_AsLong(minor_info));
+        #if PY_VERSION_HEX < 0x02050000
+        PyErr_Warn(NULL, warning);
+        #else
+        PyErr_WarnEx(NULL, warning, 0);
+        #endif
+        res = 1;
+    }
+bad:
+    Py_XDECREF(version_info);
+    Py_XDECREF(major_info);
+    Py_XDECREF(minor_info);
+    return res;
+}
+""")
