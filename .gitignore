@@ -1,5 +1,3 @@
-syntax: glob
-
 *.pyc
 *.pyo
 __pycache__

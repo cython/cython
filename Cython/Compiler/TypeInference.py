@@ -121,6 +121,12 @@ class MarkAssignments(CythonTransform):
         self.visitchildren(node)
         return node
 
+    def visit_DelStatNode(self, node):
+        for arg in node.args:
+            self.mark_assignment(arg, arg)
+        self.visitchildren(node)
+        return node
+
 class MarkOverflowingArithmetic(CythonTransform):
 
     # It may be possible to integrate this with the above for
