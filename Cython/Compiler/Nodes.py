@@ -1057,6 +1057,8 @@ class CppClassNode(CStructOrUnionDefNode):
         self.entry = env.declare_cpp_class(
             self.name, scope, self.pos,
             self.cname, base_class_types, visibility = self.visibility, templates = template_types)
+        if self.entry is None:
+            return
         self.entry.is_cpp_class = 1
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
