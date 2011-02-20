@@ -2884,7 +2884,6 @@ static int __Pyx_check_binary_version(void) {
         res = 1;
     }
 bad:
-    Py_XDECREF(version_info);
     Py_XDECREF(major_info);
     Py_XDECREF(minor_info);
     return res;
