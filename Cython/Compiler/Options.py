@@ -45,7 +45,8 @@ init_local_none = 1
 
 # Whether or not to embed the Python interpreter, for use in making a
 # standalone executable or calling from external libraries.
-# This will provide a method which simply executes the body of this module.
+# This will provide a method which initalizes the interpreter and
+# executes the body of this module.
 embed = None
 
 # Disables function redefinition, allowing all functions to be declared at
