@@ -1745,9 +1745,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{")
         tempdecl_code = code.insertion_point()
         
-        env.use_utility_code(check_binary_version_utility_code)
-        code.putln("__Pyx_check_binary_version();")
-
         code.putln("#if CYTHON_REFNANNY")
         code.putln("void* __pyx_refnanny = NULL;")
         code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
@@ -1759,6 +1756,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
         code.putln("__pyx_refnanny = __Pyx_RefNanny->SetupContext(\"%s\", __LINE__, __FILE__);"% header3)
         code.putln("#endif")
+
+        env.use_utility_code(check_binary_version_utility_code)
+        code.putln("__Pyx_check_binary_version();")
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
