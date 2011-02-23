@@ -76,6 +76,25 @@ bad:
 }
 """)
 
+hasattr_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
+""",
+impl = """
+static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
+    PyObject *v = PyObject_GetAttr(o, n);
+    if (v) {
+        Py_DECREF(v);
+        return 1;
+    }
+    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        PyErr_Clear();
+        return 0;
+    }
+    return -1;
+}
+""")
+
 pyexec_utility_code = UtilityCode(
 proto = """
 #if PY_VERSION_HEX < 0x02040000
@@ -365,7 +384,8 @@ builtin_function_table = [
                     utility_code = getattr3_utility_code),
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
                     utility_code = getattr3_utility_code), # Pyrex compatibility
-    BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
+    BuiltinFunction('hasattr',    "OO",   "b",     "__Pyx_HasAttr",
+                    utility_code = hasattr_utility_code),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
