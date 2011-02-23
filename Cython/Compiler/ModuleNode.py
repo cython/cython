@@ -2858,18 +2858,15 @@ check_binary_version_utility_code = UtilityCode(proto="""
 static int __Pyx_check_binary_version(void);
 """, impl="""
 static int __Pyx_check_binary_version(void) {
-    long version_hex, major_version, minor_version;
-    PyObject *sys_hexversion = PySys_GetObject((char*)"hexversion");
-    if (sys_hexversion == NULL) return -1;
-    version_hex = PyInt_AsLong(sys_hexversion);
-    if (version_hex == -1 && PyErr_Occurred()) return -1;
-    major_version = ((unsigned long)version_hex >> 24);
-    minor_version = ((unsigned long)version_hex >> 16) & 0x00FF;
-    if (!(major_version == PY_MAJOR_VERSION &&  minor_version == PY_MINOR_VERSION)) {
+    char ctversion[4], rtversion[4];
+    PyOS_snprintf(ctversion, 4, "%d.%d", PY_MAJOR_VERSION, PY_MINOR_VERSION);
+    PyOS_snprintf(rtversion, 4, "%s", Py_GetVersion());
+    if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
         char message[200];
         PyOS_snprintf(message, sizeof(message),
-            "compiletime version (%d, %d) of module '%.100s' does not match runtime version (%d, %d).",
-            PY_MAJOR_VERSION, PY_MINOR_VERSION, __Pyx_MODULE_NAME, (int)major_version, (int)minor_version);
+                      "compiletime version %s of module '%.100s' "
+                      "does not match runtime version %s",
+                      ctversion, __Pyx_MODULE_NAME, rtversion);
         #if PY_VERSION_HEX < 0x02050000
         return PyErr_Warn(NULL, message);
         #else
