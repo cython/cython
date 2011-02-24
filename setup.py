@@ -3,7 +3,7 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
-if 'sdist' in sys.argv and sys.platform != "win32":
+if 'sdist' in sys.argv and sys.platform != "win32" and os.path.isdir('.git'):
     assert os.system("git show-ref -s HEAD > .gitrev") == 0
 
 if sys.platform == "darwin":
