@@ -3,7 +3,7 @@
 cdef extern from *:
     ctypedef char const_char "const char"
 
-cdef extern from "locale.h":
+cdef extern from "locale.h" nogil:
 
     struct lconv:
         char *decimal_point
