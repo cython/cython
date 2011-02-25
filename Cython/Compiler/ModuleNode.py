@@ -2664,8 +2664,6 @@ int %(wmain_method)s(int argc, wchar_t **argv) {
 #else
 static int __Pyx_main(int argc, wchar_t **argv) {
 #endif
-    int r = 0;
-    PyObject* m = NULL;
     /* 754 requires that FP exceptions run in "no stop" mode by default,
      * and until C vendors implement C99's ways to control FP exceptions,
      * Python requires non-stop mode.  Alas, some platforms enable FP
@@ -2677,29 +2675,30 @@ static int __Pyx_main(int argc, wchar_t **argv) {
     m = fpgetmask();
     fpsetmask(m & ~FP_X_OFL);
 #endif
-    if (argc) {
+    if (argc && argv)
         Py_SetProgramName(argv[0]);
-    }
     Py_Initialize();
-    if (argc) {
+    if (argc && argv)
         PySys_SetArgv(argc, argv);
+    { /* init module '%(module_name)s' as '__main__' */
+      PyObject* m = NULL;
+      %(module_is_main)s = 1;
+      #if PY_MAJOR_VERSION < 3
+          init%(module_name)s();
+      #else
+          m = PyInit_%(module_name)s();
+      #endif
+      if (PyErr_Occurred()) {
+          PyErr_Print(); /* This exits with the right code if SystemExit. */
+          #if PY_MAJOR_VERSION < 3
+          if (Py_FlushLine()) PyErr_Clear();
+          #endif
+          return 1;
+      }
+      Py_XDECREF(m);
     }
-    %(module_is_main)s = 1;
-#if PY_MAJOR_VERSION < 3
-        init%(module_name)s();
-#else
-        m = PyInit_%(module_name)s();
-#endif
-    if (PyErr_Occurred() != NULL) {
-        r = 1;
-        PyErr_Print(); /* This exits with the right code if SystemExit. */
-#if PY_MAJOR_VERSION < 3
-        if (Py_FlushLine()) PyErr_Clear();
-#endif
-    }
-    Py_XDECREF(m);
     Py_Finalize();
-    return r;
+    return 0;
 }
 
 
@@ -2858,18 +2857,15 @@ check_binary_version_utility_code = UtilityCode(proto="""
 static int __Pyx_check_binary_version(void);
 """, impl="""
 static int __Pyx_check_binary_version(void) {
-    long version_hex, major_version, minor_version;
-    PyObject *sys_hexversion = PySys_GetObject((char*)"hexversion");
-    if (sys_hexversion == NULL) return -1;
-    version_hex = PyInt_AsLong(sys_hexversion);
-    if (version_hex == -1 && PyErr_Occurred()) return -1;
-    major_version = ((unsigned long)version_hex >> 24);
-    minor_version = ((unsigned long)version_hex >> 16) & 0x00FF;
-    if (!(major_version == PY_MAJOR_VERSION &&  minor_version == PY_MINOR_VERSION)) {
+    char ctversion[4], rtversion[4];
+    PyOS_snprintf(ctversion, 4, "%d.%d", PY_MAJOR_VERSION, PY_MINOR_VERSION);
+    PyOS_snprintf(rtversion, 4, "%s", Py_GetVersion());
+    if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
         char message[200];
         PyOS_snprintf(message, sizeof(message),
-            "compiletime version (%d, %d) of module '%.100s' does not match runtime version (%d, %d).",
-            PY_MAJOR_VERSION, PY_MINOR_VERSION, __Pyx_MODULE_NAME, (int)major_version, (int)minor_version);
+                      "compiletime version %s of module '%.100s' "
+                      "does not match runtime version %s",
+                      ctversion, __Pyx_MODULE_NAME, rtversion);
         #if PY_VERSION_HEX < 0x02050000
         return PyErr_Warn(NULL, message);
         #else

@@ -1,4 +1,4 @@
-cdef extern from "math.h":
+cdef extern from "math.h" nogil:
 
     enum: M_E
     enum: M_LOG2E

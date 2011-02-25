@@ -603,7 +603,7 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_multiply", "__imul__"),
     MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", py3 = False),
     MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__"),
-    MethodSlot(ternaryfunc, "nb_inplace_power", "__ipow__"), # NOT iternaryfunc!!!
+    MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"), # actually ternaryfunc!!!
     MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__"),
     MethodSlot(ibinaryfunc, "nb_inplace_rshift", "__irshift__"),
     MethodSlot(ibinaryfunc, "nb_inplace_and", "__iand__"),
