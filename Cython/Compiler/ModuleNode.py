@@ -272,7 +272,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
-        code.putln("static int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
+        code.putln("int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
 
@@ -1744,7 +1744,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("{")
         tempdecl_code = code.insertion_point()
-
+        
         code.putln("#if CYTHON_REFNANNY")
         code.putln("void* __pyx_refnanny = NULL;")
         code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
@@ -1756,6 +1756,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
         code.putln("__pyx_refnanny = __Pyx_RefNanny->SetupContext(\"%s\", __LINE__, __FILE__);"% header3)
         code.putln("#endif")
+
+        env.use_utility_code(check_binary_version_utility_code)
+        code.putln("if ( __Pyx_check_binary_version() < 0) %s" % code.error_goto(self.pos))
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
@@ -1897,7 +1900,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
-        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name, module_is_main=module_is_main))
+        if Options.embed == "main":
+            wmain = "wmain"
+        else:
+            wmain = Options.embed
+        code.globalstate.use_utility_code(
+            main_method.specialize(
+                module_name = env.module_name,
+                module_is_main = module_is_main,
+                main_method = Options.embed,
+                wmain_method = wmain))
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
@@ -2648,9 +2660,9 @@ impl = """
 #endif
 
 #if PY_MAJOR_VERSION < 3
-int main(int argc, char** argv) {
+int %(main_method)s(int argc, char** argv) {
 #elif defined(WIN32) || defined(MS_WINDOWS)
-int wmain(int argc, wchar_t **argv) {
+int %(wmain_method)s(int argc, wchar_t **argv) {
 #else
 static int __Pyx_main(int argc, wchar_t **argv) {
 #endif
@@ -2667,9 +2679,13 @@ static int __Pyx_main(int argc, wchar_t **argv) {
     m = fpgetmask();
     fpsetmask(m & ~FP_X_OFL);
 #endif
-    Py_SetProgramName(argv[0]);
+    if (argc) {
+        Py_SetProgramName(argv[0]);
+    }
     Py_Initialize();
-    PySys_SetArgv(argc, argv);
+    if (argc) {
+        PySys_SetArgv(argc, argv);
+    }
     %(module_is_main)s = 1;
 #if PY_MAJOR_VERSION < 3
         init%(module_name)s();
@@ -2796,33 +2812,38 @@ oom:
 }
 
 int
-main(int argc, char **argv)
+%(main_method)s(int argc, char **argv)
 {
-	wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
-	/* We need a second copies, as Python might modify the first one. */
-	wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
-	int i, res;
-	char *oldloc;
-	if (!argv_copy || !argv_copy2) {
-		fprintf(stderr, "out of memory\\n");
-		return 1;
-	}
-	oldloc = strdup(setlocale(LC_ALL, NULL));
-	setlocale(LC_ALL, "");
-	for (i = 0; i < argc; i++) {
-		argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
-		if (!argv_copy[i])
-			return 1;
-	}
-	setlocale(LC_ALL, oldloc);
-	free(oldloc);
-	res = __Pyx_main(argc, argv_copy);
-	for (i = 0; i < argc; i++) {
-		free(argv_copy2[i]);
-	}
-	free(argv_copy);
-	free(argv_copy2);
-	return res;
+    if (!argc) {
+        return __Pyx_main(0, NULL);
+    }
+    else {
+        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        /* We need a second copies, as Python might modify the first one. */
+        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        int i, res;
+        char *oldloc;
+        if (!argv_copy || !argv_copy2) {
+            fprintf(stderr, "out of memory\\n");
+            return 1;
+        }
+        oldloc = strdup(setlocale(LC_ALL, NULL));
+        setlocale(LC_ALL, "");
+        for (i = 0; i < argc; i++) {
+            argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
+            if (!argv_copy[i])
+                return 1;
+        }
+        setlocale(LC_ALL, oldloc);
+        free(oldloc);
+        res = __Pyx_main(argc, argv_copy);
+        for (i = 0; i < argc; i++) {
+            free(argv_copy2[i]);
+        }
+        free(argv_copy);
+        free(argv_copy2);
+        return res;
+    }
 }
 #endif
 """)
@@ -2834,3 +2855,26 @@ packed_struct_utility_code = UtilityCode(proto="""
 #define __Pyx_PACKED
 #endif
 """, impl="", proto_block='utility_code_proto_before_types')
+
+check_binary_version_utility_code = UtilityCode(proto="""
+static int __Pyx_check_binary_version(void);
+""", impl="""
+static int __Pyx_check_binary_version(void) {
+    char ctversion[4], rtversion[4];
+    PyOS_snprintf(ctversion, 4, "%d.%d", PY_MAJOR_VERSION, PY_MINOR_VERSION);
+    PyOS_snprintf(rtversion, 4, "%s", Py_GetVersion());
+    if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
+        char message[200];
+        PyOS_snprintf(message, sizeof(message),
+                      "compiletime version %s of module '%.100s' "
+                      "does not match runtime version %s",
+                      ctversion, __Pyx_MODULE_NAME, rtversion);
+        #if PY_VERSION_HEX < 0x02050000
+        return PyErr_Warn(NULL, message);
+        #else
+        return PyErr_WarnEx(NULL, message, 1);
+        #endif
+    }
+    return 0;
+}
+""")

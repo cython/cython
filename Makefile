@@ -9,9 +9,12 @@ local:
 .git: REV := $(shell cat .gitrev)
 .git: TMPDIR := $(shell mktemp -d tmprepo.XXXXXX)
 .git: 
+	rm -rf $(TMPDIR)
 	git clone $(REPO) $(TMPDIR)
 	cd $(TMPDIR); git checkout -b working $(REV)
-	mv $(TMPDIR)/{.git,.hgtags,.hgignore} .
+	mv $(TMPDIR)/.hgtags .
+	mv $(TMPDIR)/.hgignore .
+	mv $(TMPDIR)/.git .
 	mv $(TMPDIR)/Doc/s5 Doc/s5
 	rm -rf $(TMPDIR)
 

@@ -371,7 +371,7 @@ class ExprNode(Node):
     def nonlocally_immutable(self):
         # Returns whether this variable is a safe reference, i.e.
         # can't be modified as part of globals or closures.
-        return self.is_temp
+        return self.is_temp or self.type.is_array or self.type.is_cfunction
 
     # --------------- Type Analysis ------------------
 
@@ -1483,6 +1483,8 @@ class NameNode(AtomicExprNode):
         return 1
 
     def nonlocally_immutable(self):
+        if ExprNode.nonlocally_immutable(self):
+            return True
         entry = self.entry
         return entry and (entry.is_local or entry.is_arg) and not entry.in_closure
 
@@ -1681,20 +1683,22 @@ class NameNode(AtomicExprNode):
     def generate_deletion_code(self, code):
         if self.entry is None:
             return # There was an error earlier
-        if not self.entry.is_pyglobal:
-            error(self.pos, "Deletion of local or C global name not supported")
-            return
-        if self.entry.is_pyclass_attr:
+        elif self.entry.is_pyglobal:
+            code.put_error_if_neg(self.pos,
+                '__Pyx_DelAttrString(%s, "%s")' % (
+                    Naming.module_cname,
+                    self.entry.name))
+        elif self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             code.put_error_if_neg(self.pos,
                 'PyMapping_DelItemString(%s, "%s")' % (
                     namespace,
                     self.entry.name))
+        elif self.entry.type.is_pyobject:
+            # Fake it until we can do it for real...
+            self.generate_assignment_code(NoneNode(self.pos), code)
         else:
-            code.put_error_if_neg(self.pos,
-                '__Pyx_DelAttrString(%s, "%s")' % (
-                    Naming.module_cname,
-                    self.entry.name))
+            error(self.pos, "Deletion of C names not supported")
 
     def annotate(self, code):
         if hasattr(self, 'is_called') and self.is_called:
@@ -3043,10 +3047,11 @@ class SimpleCallNode(CallNode):
                 if i == 0 and self.self is not None:
                     continue # self is ok
                 arg = self.args[i]
-                if arg.is_name and arg.entry and (
-                    (arg.entry.is_local and not arg.entry.in_closure)
-                    or arg.entry.type.is_cfunction):
-                    # local variables and C functions are safe
+                if arg.nonlocally_immutable():
+                    # locals, C functions, unassignable types are safe.
+                    pass
+                elif arg.type.is_cpp_class:
+                    # Assignment has side effects, avoid.
                     pass
                 elif env.nogil and arg.type.is_pyobject:
                     # can't copy a Python reference into a temp in nogil

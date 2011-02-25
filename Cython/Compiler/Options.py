@@ -44,9 +44,10 @@ lookup_module_cpdef = 0
 init_local_none = 1
 
 # Whether or not to embed the Python interpreter, for use in making a
-# standalone executable. This will provide a main() method which simply
+# standalone executable or calling from external libraries.
+# This will provide a method which initalizes the interpreter and
 # executes the body of this module.
-embed = False
+embed = None
 
 # Disables function redefinition, allowing all functions to be declared at
 # module creation time. For legacy code only. 
