@@ -2664,8 +2664,6 @@ int %(wmain_method)s(int argc, wchar_t **argv) {
 #else
 static int __Pyx_main(int argc, wchar_t **argv) {
 #endif
-    int r = 0;
-    PyObject* m = NULL;
     /* 754 requires that FP exceptions run in "no stop" mode by default,
      * and until C vendors implement C99's ways to control FP exceptions,
      * Python requires non-stop mode.  Alas, some platforms enable FP
@@ -2677,29 +2675,29 @@ static int __Pyx_main(int argc, wchar_t **argv) {
     m = fpgetmask();
     fpsetmask(m & ~FP_X_OFL);
 #endif
-    if (argc) {
+    if (argc && argv)
         Py_SetProgramName(argv[0]);
-    }
     Py_Initialize();
-    if (argc) {
-        PySys_SetArgv(argc, argv);
+    PySys_SetArgv(argc, argv);
+    { /* init module '%(module_name)s' as '__main__' */
+      PyObject* m = NULL;
+      %(module_is_main)s = 1;
+      #if PY_MAJOR_VERSION < 3
+          init%(module_name)s();
+      #else
+          m = PyInit_%(module_name)s();
+      #endif
+      if (PyErr_Occurred()) {
+          PyErr_Print(); /* This exits with the right code if SystemExit. */
+          #if PY_MAJOR_VERSION < 3
+          if (Py_FlushLine()) PyErr_Clear();
+          #endif
+          return 1;
+      }
+      Py_XDECREF(m);
     }
-    %(module_is_main)s = 1;
-#if PY_MAJOR_VERSION < 3
-        init%(module_name)s();
-#else
-        m = PyInit_%(module_name)s();
-#endif
-    if (PyErr_Occurred() != NULL) {
-        r = 1;
-        PyErr_Print(); /* This exits with the right code if SystemExit. */
-#if PY_MAJOR_VERSION < 3
-        if (Py_FlushLine()) PyErr_Clear();
-#endif
-    }
-    Py_XDECREF(m);
     Py_Finalize();
-    return r;
+    return 0;
 }
 
 
