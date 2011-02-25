@@ -2278,6 +2278,8 @@ class DefNode(FuncDefNode):
                         arg.hdr_type.declaration_code(arg.hdr_cname))
         if not self.entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
+        if (self.entry.scope.is_c_class_scope and self.entry.name == "__ipow__"):
+            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             arg_code_list.append(
                 "PyObject *%s, PyObject *%s"
