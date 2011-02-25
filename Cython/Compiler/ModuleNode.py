@@ -2678,7 +2678,8 @@ static int __Pyx_main(int argc, wchar_t **argv) {
     if (argc && argv)
         Py_SetProgramName(argv[0]);
     Py_Initialize();
-    PySys_SetArgv(argc, argv);
+    if (argc && argv)
+        PySys_SetArgv(argc, argv);
     { /* init module '%(module_name)s' as '__main__' */
       PyObject* m = NULL;
       %(module_is_main)s = 1;
