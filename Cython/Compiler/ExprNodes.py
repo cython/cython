@@ -3043,6 +3043,9 @@ class SimpleCallNode(CallNode):
                     or arg.entry.type.is_cfunction):
                     # local variables and C functions are safe
                     pass
+                elif arg.type.is_cpp_class:
+                    # Assignment has side effects, avoid.
+                    pass
                 elif env.nogil and arg.type.is_pyobject:
                     # can't copy a Python reference into a temp in nogil
                     # env (this is safe: a construction would fail in
