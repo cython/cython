@@ -26,16 +26,16 @@ See LICENSE.txt.
 
 --------------------------
 
-Note that Cython used to ship the Mercurial (hg) repository in its source
+Note that Cython used to ship the full version control repository in its source
 distribution, but no longer does so due to space constraints.  To get the
-full source history, make sure you have hg installed, then step into the
+full source history, make sure you have git installed, then step into the
 base directory of the Cython source distribution and type
 
     make repo
 
 Alternatively, check out the latest developer repository from
 
-    http://hg.cython.org/cython-devel
+    https://github.com/cython/cython
 
 
 

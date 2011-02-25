@@ -737,11 +737,14 @@ ctypedef double complex complex128_t
 # numpy.int corresponds to 'l' and numpy.long to 'q'
 ctypedef npy_long       int_t
 ctypedef npy_longlong   long_t
-ctypedef npy_intp       intp_t
-ctypedef npy_uintp      uintp_t
+ctypedef npy_longlong   longlong_t
 
 ctypedef npy_ulong      uint_t
 ctypedef npy_ulonglong  ulong_t
+ctypedef npy_ulonglong  ulonglong_t
+
+ctypedef npy_intp       intp_t
+ctypedef npy_uintp      uintp_t
 
 ctypedef npy_double     float_t
 ctypedef npy_double     double_t
