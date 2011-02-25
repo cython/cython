@@ -14,7 +14,6 @@ genexpr_T491
 with_statement_module_level_T536
 function_as_method_T494
 closure_inside_cdef_T554
-ipow_crash_T562
 pure_mode_cmethod_inheritance_T583
 genexpr_iterable_lookup_T600
 for_from_pyvar_loop_T601
