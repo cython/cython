@@ -50,7 +50,7 @@ init_local_none = True
 embed = None
 
 # Disables function redefinition, allowing all functions to be declared at
-# module creation time. For legacy code only. Needed for some circular imports.
+# module creation time. For legacy code only, needed for some circular imports.
 disable_function_redefinition = False
 
 

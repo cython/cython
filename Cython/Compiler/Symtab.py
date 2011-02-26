@@ -329,7 +329,7 @@ class Scope(object):
         # Return the module-level scope containing this scope.
         return self.outer_scope.builtin_scope()
 
-    def declare(self, name, cname, type, pos, visibility):
+    def declare(self, name, cname, type, pos, visibility, shadow = 0):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
         # declared.
@@ -339,7 +339,7 @@ class Scope(object):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
-        if name and name in entries:
+        if name and name in entries and not shadow:
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
@@ -352,7 +352,8 @@ class Scope(object):
 #                entries[name].overloaded_alternatives.append(entry)
 #            else:
 #                entries[name] = entry
-            entries[name] = entry
+            if not shadow:
+                entries[name] = entry
         entry.scope = self
         entry.visibility = visibility
         return entry
@@ -373,11 +374,11 @@ class Scope(object):
         return entry
 
     def declare_type(self, name, type, pos,
-            cname = None, visibility = 'private', defining = 1):
+            cname = None, visibility = 'private', defining = 1, shadow = 0):
         # Add an entry for a type definition.
         if not cname:
             cname = name
-        entry = self.declare(name, cname, type, pos, visibility)
+        entry = self.declare(name, cname, type, pos, visibility, shadow)
         entry.is_type = 1
         if defining:
             self.type_entries.append(entry)
@@ -1029,7 +1030,7 @@ class ModuleScope(Scope):
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
         typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
-        buffer_defaults = None):
+        buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
         # declarations for anonymous structs.
@@ -1044,7 +1045,7 @@ class ModuleScope(Scope):
         #  Look for previous declaration as a type
         #
         entry = self.lookup_here(name)
-        if entry:
+        if entry and not shadow:
             type = entry.type
             if not (entry.is_type and type.is_extension_type):
                 entry = None # Will cause redeclaration and produce an error
@@ -1060,7 +1061,7 @@ class ModuleScope(Scope):
         #
         #  Make a new entry if needed
         #
-        if not entry:
+        if not entry or shadow:
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type, visibility == 'extern')
             type.pos = pos
             type.buffer_defaults = buffer_defaults
@@ -1072,7 +1073,7 @@ class ModuleScope(Scope):
                 type.module_name = self.qualified_name
             type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
             entry = self.declare_type(name, type, pos, visibility = visibility,
-                defining = 0)
+                defining = 0, shadow = shadow)
             entry.is_cclass = True
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname

@@ -1018,6 +1018,16 @@ property NAME:
         return ATTR
     """, level='c_class')
 
+    repr_tree = TreeFragment(u"""
+def NAME(self):
+    return FORMAT % ATTRS
+    """, level='c_class')
+
+    init_assign = TreeFragment(u"""
+if VAR is not None:
+    ATTR = VAR
+    """, level='c_class')
+    
     def __call__(self, root):
         self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
@@ -1100,6 +1110,116 @@ property NAME:
         node.analyse_declarations(self.env_stack[-1])
         return node
 
+    def visit_CStructOrUnionDefNode(self, node):
+        # Create a shadow node if needed.
+        # We want to use the struct type information (so it can't happen
+        # before this phase) but also create new objects to be declared
+        # (so it can't happen later).
+        # Note that we don't need to return the original node, as it is
+        # never used after this phase.
+        if True: # private (default)
+            return None
+        # cdef struct_type value
+        class_body = [Nodes.CVarDefNode(
+            node.pos,
+            base_type = Nodes.CSimpleBaseTypeNode(node.pos, name=node.name),
+            declarators = [Nodes.CNameDeclaratorNode(node.pos, name='value', cname='value')],
+            visibility = 'private',
+            in_pxd = False)]
+        # setters/getters
+        self_value = ExprNodes.AttributeNode(
+            pos = node.pos,
+            obj = ExprNodes.NameNode(pos=node.pos, name=u"self"),
+            attribute = EncodedString(u"value"))
+        var_entries = node.entry.type.scope.var_entries
+        attributes = []
+        for entry in var_entries:
+            attributes.append(ExprNodes.AttributeNode(pos = entry.pos,
+                                                      obj = self_value,
+                                                      attribute = entry.name))
+        for entry, attr in zip(var_entries, attributes):
+            # TODO: branch on visibility
+            if entry.type.is_pyobject:
+                template = self.basic_pyobject_property
+            else:
+                template = self.basic_property
+            property = template.substitute({
+                    u"ATTR": attr,
+                }, pos = entry.pos).stats[0]
+            property.name = entry.name
+            class_body.append(property)
+        
+        # __init__
+        self_base_type = Nodes.CSimpleBaseTypeNode(node.pos,
+            name = None, module_path = [],
+            is_basic_c_type = 0, signed = 0,
+            complex = 0, longness = 0,
+            is_self_arg = 1, templates = None)
+        init_args = [Nodes.CArgDeclNode(
+            node.pos,
+            base_type = self_base_type,
+            declarator = Nodes.CNameDeclaratorNode(node.pos, name = u"self", cname = None),
+            default = None)]
+        empty_base_type = Nodes.CSimpleBaseTypeNode(node.pos,
+            name = None, module_path = [],
+            is_basic_c_type = 0, signed = 0,
+            complex = 0, longness = 0,
+            is_self_arg = 0, templates = None)
+        init_body = []
+        for entry, attr in zip(var_entries, attributes):
+            # TODO: branch on visibility
+            init_args.append(Nodes.CArgDeclNode(
+                entry.pos,
+                base_type = empty_base_type,
+                declarator = Nodes.CNameDeclaratorNode(entry.pos, name = entry.name, cname = None),
+                default = ExprNodes.NoneNode(entry.pos)))
+            init_body.append(self.init_assign.substitute({
+                    u"VAR": ExprNodes.NameNode(entry.pos, name = entry.name),
+                    u"ATTR": attr,
+                }, pos = entry.pos))
+        init_method = Nodes.DefNode(
+            pos = node.pos,
+            args = init_args,
+            name = u"__init__",
+            decorators = [],
+            body = Nodes.StatListNode(node.pos, stats=init_body))
+        class_body.append(init_method)
+
+        # __str__
+        attr_tuple = ExprNodes.TupleNode(node.pos, args=attributes)
+        format = u"%s(%s)" % (node.entry.type.name, ("%s, " * len(attributes))[:-2])
+        repr_method = self.repr_tree.substitute({
+                u"FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(format)),
+                u"ATTRS": attr_tuple,
+            }, pos = node.pos).stats[0]
+        repr_method.name = "__str__"
+        class_body.append(repr_method)
+
+        # __repr__
+        format = u"%s(%s)" % (node.entry.type.name, ("%r, " * len(attributes))[:-2])
+        repr_method = self.repr_tree.substitute({
+                u"FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(format)),
+                u"ATTRS": attr_tuple,
+            }, pos = node.pos).stats[0]
+        repr_method.name = "__repr__"
+        class_body.append(repr_method)
+
+        # Now create the class.
+        shadow = Nodes.CClassDefNode(node.pos,
+            visibility = 'public',
+            module_name = None,
+            class_name = node.name,
+            base_class_module = None,
+            base_class_name = None,
+            decorators = None,
+            body = Nodes.StatListNode(node.pos, stats=class_body),
+            in_pxd = False,
+            doc = None,
+            shadow = True)
+
+        shadow.analyse_declarations(self.env_stack[-1])
+        return self.visit_CClassDefNode(shadow)
+
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
     # on these nodes in a seperate recursive process from the
@@ -1120,9 +1240,6 @@ property NAME:
             return node
         else:
             return None
-
-    def visit_CStructOrUnionDefNode(self, node):
-        return None
 
     def visit_CNameDeclaratorNode(self, node):
         if node.name in self.seen_vars_stack[-1]:
