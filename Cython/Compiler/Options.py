@@ -2,10 +2,10 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
-cache_builtins = 1  #  Perform lookups on builtin names only once
+cache_builtins = True  #  Perform lookups on builtin names only once
 
-embed_pos_in_docstring = 0
-gcc_branch_hints = 1
+embed_pos_in_docstring = False
+gcc_branch_hints = True
 
 pre_import = None
 docstrings = True
@@ -14,9 +14,9 @@ docstrings = True
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
 # Mostly for reducing noise for Valgrind, only executes at process exit
 # (when all memory will be reclaimed anyways).
-generate_cleanup_code = 0
+generate_cleanup_code = False
 
-annotate = 0
+annotate = False
 
 # This will abort the compilation on the first error occured rather than trying
 # to keep going and printing further error messages.
@@ -29,19 +29,19 @@ fast_fail = False
 # i to overflow. Specifically, if this option is set, an error will be
 # raised before the loop is entered, wheras without this option the loop
 # will execute until an overflowing value is encountered.
-convert_range = 1
+convert_range = True
 
 # Enable this to allow one to write your_module.foo = ... to overwrite the
 # definition if the cpdef function foo, at the cost of an extra dictionary
 # lookup on every call.
 # If this is 0 it simply creates a wrapper.
-lookup_module_cpdef = 0
+lookup_module_cpdef = False
 
 # This will set local variables to None rather than NULL which may cause
 # surpress what would be an UnboundLocalError in pure Python but eliminates
 # checking for NULL on every use, and can decref rather than xdecref at the end.
 # WARNING: This is a work in progress, may currently segfault.
-init_local_none = 1
+init_local_none = True
 
 # Whether or not to embed the Python interpreter, for use in making a
 # standalone executable or calling from external libraries.
@@ -50,7 +50,7 @@ init_local_none = 1
 embed = None
 
 # Disables function redefinition, allowing all functions to be declared at
-# module creation time. For legacy code only. 
+# module creation time. For legacy code only, needed for some circular imports.
 disable_function_redefinition = False
 
 

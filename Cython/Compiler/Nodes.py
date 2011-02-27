@@ -648,6 +648,9 @@ class CArgDeclNode(Node):
     is_self_arg = 0
     is_type_arg = 0
     is_generic = 1
+    kw_only = 0
+    not_none = 0
+    or_none = 0
     type = None
     name_declarator = None
     default_value = None
@@ -733,6 +736,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
 
     child_attrs = []
     arg_name = None   # in case the argument name was interpreted as a type
+    module_path = []
+    is_basic_c_type = False
+    complex = False
 
     def analyse(self, env, could_be_name = False):
         # Return type descriptor.
@@ -1901,6 +1907,9 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
+    star_arg = None
+    starstar_arg = None
+    doc = None
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -2282,6 +2291,8 @@ class DefNode(FuncDefNode):
                     arg_code_list.append(
                         arg.hdr_type.declaration_code(arg.hdr_cname))
         if not self.entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
+            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
+        if (self.entry.scope.is_c_class_scope and self.entry.name == "__ipow__"):
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             arg_code_list.append(
@@ -3308,6 +3319,7 @@ class CClassDefNode(ClassDefNode):
     objstruct_name = None
     typeobj_name = None
     decorators = None
+    shadow = False
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
@@ -3398,7 +3410,10 @@ class CClassDefNode(ClassDefNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
             api = self.api,
-            buffer_defaults = buffer_defaults)
+            buffer_defaults = buffer_defaults, 
+            shadow = self.shadow)
+        if self.shadow:
+            home_scope.lookup(self.class_name).as_variable = self.entry
         if home_scope is not env and self.visibility == 'extern':
             env.add_imported_entry(self.class_name, self.entry, self.pos)
         self.scope = scope = self.entry.type.scope

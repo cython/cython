@@ -3,9 +3,6 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
-if 'sdist' in sys.argv and sys.platform != "win32":
-    assert os.system("git show-ref -s HEAD > .gitrev") == 0
-
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -17,6 +14,15 @@ def add_command_class(name, cls):
     cmdclasses = setup_args.get('cmdclass', {})
     cmdclasses[name] = cls
     setup_args['cmdclass'] = cmdclasses
+
+from distutils.command.sdist import sdist as sdist_orig
+class sdist(sdist_orig):
+    def run(self):
+        if (sys.platform != "win32" and 
+            os.path.isdir('.git')):
+            assert os.system("git show-ref -s HEAD > .gitrev") == 0
+        sdist_orig.run(self)
+add_command_class('sdist', sdist)
 
 if sys.version_info[0] >= 3:
     import lib2to3.refactor

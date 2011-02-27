@@ -4,7 +4,7 @@
 
 import sys
 from Cython.Utils import open_new_file
-from DebugFlags import debug_exception_on_error
+import DebugFlags
 import Options
 
 
@@ -156,7 +156,7 @@ def error(position, message):
     if position is None:
         raise InternalError(message)
     err = CompileError(position, message)
-    if debug_exception_on_error: raise Exception(err) # debug
+    if DebugFlags.debug_exception_on_error: raise Exception(err) # debug
     report_error(err)
     return err
 
