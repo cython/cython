@@ -1039,6 +1039,27 @@ property NAME:
         return ATTR
     """, level='c_class')
 
+    struct_or_union_wrapper = TreeFragment(u"""
+cdef class NAME:
+    cdef TYPE value
+    def __init__(self, MEMBER=None):
+        cdef int count
+        count = 0
+        INIT_ASSIGNMENTS
+        if IS_UNION and count > 1:
+            raise ValueError, "At most one union member should be specified."
+    def __str__(self):
+        return STR_FORMAT % MEMBER_TUPLE
+    def __repr__(self):
+        return REPR_FORMAT % MEMBER_TUPLE
+    """)
+
+    init_assignment = TreeFragment(u"""
+if VALUE is not None:
+    ATTR = VALUE
+    count += 1
+    """)
+
     def __call__(self, root):
         self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
@@ -1121,6 +1142,80 @@ property NAME:
         node.analyse_declarations(self.env_stack[-1])
         return node
 
+    def visit_CStructOrUnionDefNode(self, node):
+        # Create a wrapper node if needed.
+        # We want to use the struct type information (so it can't happen
+        # before this phase) but also create new objects to be declared
+        # (so it can't happen later).
+        # Note that we don't return the original node, as it is
+        # never used after this phase.
+        if True: # private (default)
+            return None
+
+        self_value = ExprNodes.AttributeNode(
+            pos = node.pos,
+            obj = ExprNodes.NameNode(pos=node.pos, name=u"self"),
+            attribute = EncodedString(u"value"))
+        var_entries = node.entry.type.scope.var_entries
+        attributes = []
+        for entry in var_entries:
+            attributes.append(ExprNodes.AttributeNode(pos = entry.pos,
+                                                      obj = self_value,
+                                                      attribute = entry.name))
+        # __init__ assignments
+        init_assignments = []
+        for entry, attr in zip(var_entries, attributes):
+            # TODO: branch on visibility
+            init_assignments.append(self.init_assignment.substitute({
+                    u"VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
+                    u"ATTR": attr,
+                }, pos = entry.pos))
+
+        # create the class
+        str_format = u"%s(%s)" % (node.entry.type.name, ("%s, " * len(attributes))[:-2])
+        wrapper_class = self.struct_or_union_wrapper.substitute({
+            u"INIT_ASSIGNMENTS": Nodes.StatListNode(node.pos, stats = init_assignments),
+            u"IS_UNION": ExprNodes.BoolNode(node.pos, value = not node.entry.type.is_struct),
+            u"MEMBER_TUPLE": ExprNodes.TupleNode(node.pos, args=attributes),
+            u"STR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format)),
+            u"REPR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format.replace("%s", "%r"))),
+        }, pos = node.pos).stats[0]
+        wrapper_class.class_name = node.name
+        wrapper_class.shadow = True
+        class_body = wrapper_class.body.stats
+
+        # fix value type
+        assert isinstance(class_body[0].base_type, Nodes.CSimpleBaseTypeNode)
+        class_body[0].base_type.name = node.name
+
+        # fix __init__ arguments
+        init_method = class_body[1]
+        assert isinstance(init_method, Nodes.DefNode) and init_method.name == '__init__'
+        arg_template = init_method.args[1]
+        if not node.entry.type.is_struct:
+            arg_template.kw_only = True
+        del init_method.args[1]
+        for entry, attr in zip(var_entries, attributes):
+            arg = copy.deepcopy(arg_template)
+            arg.declarator.name = entry.name
+            init_method.args.append(arg)
+            
+        # setters/getters
+        for entry, attr in zip(var_entries, attributes):
+            # TODO: branch on visibility
+            if entry.type.is_pyobject:
+                template = self.basic_pyobject_property
+            else:
+                template = self.basic_property
+            property = template.substitute({
+                    u"ATTR": attr,
+                }, pos = entry.pos).stats[0]
+            property.name = entry.name
+            wrapper_class.body.stats.append(property)
+            
+        wrapper_class.analyse_declarations(self.env_stack[-1])
+        return self.visit_CClassDefNode(wrapper_class)
+
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
     # on these nodes in a seperate recursive process from the
@@ -1141,9 +1236,6 @@ property NAME:
             return node
         else:
             return None
-
-    def visit_CStructOrUnionDefNode(self, node):
-        return None
 
     def visit_CNameDeclaratorNode(self, node):
         if node.name in self.seen_vars_stack[-1]:
