@@ -1,5 +1,5 @@
 #
-#   Pyrex wrapper for the cheesefinder API
+#   Cython wrapper for the cheesefinder API
 #
 
 cdef extern from "cheesefinder.h":
