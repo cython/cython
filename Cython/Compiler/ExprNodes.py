@@ -5992,7 +5992,7 @@ class DivNode(NumBinopNode):
         operand2 = self.operand2.compile_time_value(denv)
         try:
             func = self.find_compile_time_binary_operator(
-                self, operand1, operand2)
+                operand1, operand2)
             return func(operand1, operand2)
         except Exception, e:
             self.compile_time_value_error(e)
