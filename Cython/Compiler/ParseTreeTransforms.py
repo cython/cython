@@ -462,7 +462,7 @@ def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args)
 
     # right side of the starred target
     for i, (targets, expr) in enumerate(zip(lhs_targets[-lhs_remaining:],
-                                            lhs_args[-lhs_remaining:])):
+                                            lhs_args[starred + 1:])):
         targets.append(expr)
 
     # the starred target itself, must be assigned a (potentially empty) list
