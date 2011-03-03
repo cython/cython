@@ -4349,7 +4349,12 @@ class ForInStatNode(LoopNode, StatNode):
         self.target.analyse_target_types(env)
         self.iterator.analyse_expressions(env)
         self.item = ExprNodes.NextNode(self.iterator, env)
-        self.item = self.item.coerce_to(self.target.type, env)
+        if (self.iterator.type.is_ptr or self.iterator.type.is_array) and \
+            self.target.type.assignable_from(self.iterator.type):
+            # C array slice optimization.
+            pass
+        else:
+            self.item = self.item.coerce_to(self.target.type, env)
         self.body.analyse_expressions(env)
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
