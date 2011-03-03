@@ -2494,6 +2494,8 @@ class SliceIndexNode(ExprNode):
         elif base_type in (bytes_type, str_type, unicode_type,
                            list_type, tuple_type):
             return base_type
+        elif base_type.is_ptr or base_type.is_array:
+            return PyrexTypes.c_array_type(base_type.base_type, None)
         return py_object_type
 
     def calculate_constant_result(self):
