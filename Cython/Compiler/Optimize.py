@@ -375,6 +375,9 @@ class IterationTransform(Visitor.VisitorTransform):
                 base=counter_temp,
                 type=Builtin.bytes_type,
                 is_temp=1)
+        elif node.target.type.is_ptr and not node.target.type.assignable_from(ptr_type.base_type):
+            # Allow iteration with pointer target to avoid copy.
+            target_value = counter_temp
         else:
             target_value = ExprNodes.IndexNode(
                 node.target.pos,

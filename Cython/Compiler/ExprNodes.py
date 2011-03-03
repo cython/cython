@@ -2501,6 +2501,8 @@ class SliceIndexNode(ExprNode):
         elif base_type in (bytes_type, str_type, unicode_type,
                            list_type, tuple_type):
             return base_type
+        elif base_type.is_ptr or base_type.is_array:
+            return PyrexTypes.c_array_type(base_type.base_type, None)
         return py_object_type
 
     def calculate_constant_result(self):
@@ -6049,7 +6051,7 @@ class DivNode(NumBinopNode):
         operand2 = self.operand2.compile_time_value(denv)
         try:
             func = self.find_compile_time_binary_operator(
-                self, operand1, operand2)
+                operand1, operand2)
             return func(operand1, operand2)
         except Exception, e:
             self.compile_time_value_error(e)
