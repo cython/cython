@@ -3785,12 +3785,23 @@ class DelStatNode(StatNode):
 
     child_attrs = ["args"]
 
+    def flatten_args(self):
+        return self._flatten_args(self, [])
+
+    def _flatten_args(self, seq, result):
+        for arg in seq.args:
+            if arg.is_sequence_constructor:
+                self._flatten_args(arg, result)
+            else:
+                result.append(arg)
+        return result
+
     def analyse_declarations(self, env):
-        for arg in self.args:
+        for arg in self.flatten_args():
             arg.analyse_target_declaration(env)
 
     def analyse_expressions(self, env):
-        for arg in self.args:
+        for arg in self.flatten_args():
             arg.analyse_target_expression(env, None)
             if arg.type.is_pyobject:
                 pass
@@ -3803,14 +3814,14 @@ class DelStatNode(StatNode):
             #arg.release_target_temp(env)
 
     def nogil_check(self, env):
-        for arg in self.args:
+        for arg in self.flatten_args():
             if arg.type.is_pyobject:
                 self.gil_error()
 
     gil_message = "Deleting Python object"
 
     def generate_execution_code(self, code):
-        for arg in self.args:
+        for arg in self.flatten_args():
             if arg.type.is_pyobject:
                 arg.generate_deletion_code(code)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
