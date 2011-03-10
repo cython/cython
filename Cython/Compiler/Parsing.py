@@ -2003,7 +2003,7 @@ def looking_at_expr(s):
             is_type = True
         elif s.sy == '*' or s.sy == '**':
             s.next()
-            is_type = s.sy == ')'
+            is_type = s.sy in (')', ']')
             s.put_back(*saved)
         elif s.sy == '(':
             s.next()
