@@ -87,6 +87,7 @@ class _nogil(object):
         return exc_class is None
 
 nogil = _nogil()
+gil = _nogil()
 del _nogil
 
 # Emulated types
