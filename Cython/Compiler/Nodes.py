@@ -1329,9 +1329,11 @@ class FuncDefNode(StatNode, BlockNode):
             code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
+
         for entry in lenv.var_entries:
             if not entry.in_closure:
                 code.put_var_declaration(entry)
+
         init = ""
         if not self.return_type.is_void:
             if self.return_type.is_pyobject:
@@ -1348,16 +1350,20 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_trace_declarations()
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
+
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
-        if acquire_gil:
-            env.use_utility_code(force_init_threads_utility_code)
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
-            code.putln("#endif")
+        acquire_gil_for_var_decls_only = (lenv.nogil and lenv.has_with_gil_block)
+
+        use_refnanny = not lenv.nogil or acquire_gil_for_var_decls_only
+
+        if acquire_gil or acquire_gil_for_var_decls_only:
+            code.put_ensure_gil()
+
         # ----- set up refnanny
-        if not lenv.nogil:
+        if use_refnanny:
             code.put_setup_refcount_context(self.entry.name)
+
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
             self.getbuffer_init(code)
@@ -1372,8 +1378,12 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
             if is_getbuffer_slot:
                 self.getbuffer_error_cleanup(code)
-            if not lenv.nogil:
+
+            if use_refnanny:
                 code.put_finish_refcount_context()
+                if acquire_gil_for_var_decls_only:
+                    code.put_release_ensured_gil()
+
             # FIXME: what if the error return value is a Python value?
             code.putln("return %s;" % self.error_value())
             code.putln("}")
@@ -1418,6 +1428,9 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_buffer:
                 Buffer.put_acquire_arg_buffer(entry, code, self.pos)
+
+        if acquire_gil_for_var_decls_only:
+            code.put_release_ensured_gil()
 
         # -------------------------
         # ----- Function body -----
@@ -1533,13 +1546,22 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_trace_return(Naming.retval_cname)
             else:
                 code.put_trace_return("Py_None")
+
         if not lenv.nogil:
+            # GIL holding funcion
             code.put_finish_refcount_context()
+        elif acquire_gil_for_var_decls_only:
+            # 'nogil' function with 'with gil:' block, tear down refnanny
+            code.putln("#if CYTHON_REFNANNY")
+            code.begin_block()
+            code.put_ensure_gil()
+            code.put_finish_refcount_context()
+            code.put_release_ensured_gil()
+            code.end_block()
+            code.putln("#endif")
 
         if acquire_gil:
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_Release(_save);")
-            code.putln("#endif")
+            code.put_release_ensured_gil()
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -1773,7 +1795,7 @@ class CFuncDefNode(FuncDefNode):
                 error(self.pos,
                       "Function with Python return type cannot be declared nogil")
             for entry in self.local_scope.var_entries:
-                if entry.type.is_pyobject:
+                if entry.type.is_pyobject and not entry.in_with_gil_block:
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
 
     def analyse_expressions(self, env):
@@ -5541,10 +5563,16 @@ class GILStatNode(TryFinallyStatNode):
             body = body,
             finally_clause = GILExitNode(pos, state = state))
 
+    def analyse_declarations(self, env):
+        env._in_with_gil_block = (self.state == 'gil')
+        if self.state == 'gil':
+            env.has_with_gil_block = True
+        return super(GILStatNode, self).analyse_declarations(env)
+
     def analyse_expressions(self, env):
         env.use_utility_code(force_init_threads_utility_code)
         was_nogil = env.nogil
-        env.nogil = 1
+        env.nogil = self.state == 'nogil'
         TryFinallyStatNode.analyse_expressions(self, env)
         env.nogil = was_nogil
 
@@ -5552,18 +5580,14 @@ class GILStatNode(TryFinallyStatNode):
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
-        code.putln("{")
+        code.begin_block()
         if self.state == 'gil':
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
-            code.putln("#endif")
+            code.put_ensure_gil()
         else:
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyThreadState *_save = NULL;")
-            code.putln("#endif")
-            code.putln("Py_UNBLOCK_THREADS")
+            code.put_release_gil()
+
         TryFinallyStatNode.generate_execution_code(self, code)
-        code.putln("}")
+        code.end_block()
 
 
 class GILExitNode(StatNode):
@@ -5578,11 +5602,9 @@ class GILExitNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.state == 'gil':
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_Release(_save);")
-            code.putln("#endif")
+            code.put_release_ensured_gil()
         else:
-            code.putln("Py_BLOCK_THREADS")
+            code.put_acquire_gil()
 
 
 class CImportStatNode(StatNode):

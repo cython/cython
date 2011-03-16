@@ -176,6 +176,7 @@ class Entry(object):
     buffer_aux = None
     prev_entry = None
     might_overflow = 0
+    in_with_gil_block = 0
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -1290,6 +1291,12 @@ class ModuleScope(Scope):
 
 class LocalScope(Scope):
 
+    # Does the function have a 'with gil:' block?
+    has_with_gil_block = False
+
+    # Transient attribute, used for symbol table variable declarations
+    _in_with_gil_block = False
+
     def __init__(self, name, outer_scope, parent_scope = None):
         if parent_scope is None:
             parent_scope = outer_scope
@@ -1322,6 +1329,8 @@ class LocalScope(Scope):
             entry.init = "0"
         entry.init_to_none = (type.is_pyobject or type.is_unspecified) and Options.init_local_none
         entry.is_local = 1
+
+        entry.in_with_gil_block = self._in_with_gil_block
         self.var_entries.append(entry)
         return entry
 
