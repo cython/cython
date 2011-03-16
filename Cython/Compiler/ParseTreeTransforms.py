@@ -639,7 +639,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             return False
         else:
             if directive not in Options.directive_defaults:
-                error(pos, "Invalid directive.")
+                error(pos, "Invalid directive: '%s'." % (directive,))
             return True
 
     # Set up processing and handle the cython: comments.
