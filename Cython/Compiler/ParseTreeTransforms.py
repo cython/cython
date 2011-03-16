@@ -1931,6 +1931,10 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
+
+        # True for 'cdef func() nogil:' functions, as the GIL may be held while
+        # calling this function (thus contained 'nogil' blocks may be valid).
+        self.nogil_declarator_only = False
         return super(GilCheck, self).__call__(root)
 
     def visit_FuncDefNode(self, node):
@@ -1938,10 +1942,17 @@ class GilCheck(VisitorTransform):
         was_nogil = self.nogil
         self.nogil = node.local_scope.nogil
 
+        if self.nogil:
+            self.nogil_declarator_only = True
+
         if self.nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
 
         self.visitchildren(node)
+
+        # This cannot be nested, so it doesn't need backup/restore
+        self.nogil_declarator_only = False
+
         self.env_stack.pop()
         self.nogil = was_nogil
         return node
@@ -1952,6 +1963,15 @@ class GilCheck(VisitorTransform):
 
         was_nogil = self.nogil
         self.nogil = (node.state == 'nogil')
+
+        if was_nogil == self.nogil and not self.nogil_declarator_only:
+            if not was_nogil:
+                error(node.pos, "Trying to acquire the GIL while it is "
+                                "already held.")
+            else:
+                error(node.pos, "Trying to release the GIL while it was "
+                                "previously released.")
+
         self.visitchildren(node)
         self.nogil = was_nogil
         return node
