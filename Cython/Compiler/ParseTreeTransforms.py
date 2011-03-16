@@ -638,6 +638,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                         'is not allowed in %s scope' % (directive, scope)))
             return False
         else:
+            if directive not in Options.directive_defaults:
+                error(pos, "Invalid directive.")
             return True
 
     # Set up processing and handle the cython: comments.
