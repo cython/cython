@@ -1498,7 +1498,6 @@ class FuncDefNode(StatNode, BlockNode):
             if buffers_present or is_getbuffer_slot:
                 code.put_goto(code.return_from_error_cleanup_label)
 
-
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
         for entry in lenv.buffer_entries:
@@ -1550,17 +1549,8 @@ class FuncDefNode(StatNode, BlockNode):
         if not lenv.nogil:
             # GIL holding funcion
             code.put_finish_refcount_context()
-        elif acquire_gil_for_var_decls_only:
-            # 'nogil' function with 'with gil:' block, tear down refnanny
-            code.putln("#if CYTHON_REFNANNY")
-            code.begin_block()
-            code.put_ensure_gil()
-            code.put_finish_refcount_context()
-            code.put_release_ensured_gil()
-            code.end_block()
-            code.putln("#endif")
 
-        if acquire_gil:
+        if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_release_ensured_gil()
 
         if not self.return_type.is_void:
@@ -5605,6 +5595,15 @@ class GILExitNode(StatNode):
             code.put_release_ensured_gil()
         else:
             code.put_acquire_gil()
+
+
+class EnsureGILNode(GILExitNode):
+    """
+    Ensure the GIL in nogil functions for cleanup before returning.
+    """
+
+    def generate_execution_code(self, code):
+        code.put_ensure_gil(declare_gilstate=False)
 
 
 class CImportStatNode(StatNode):

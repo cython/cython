@@ -1363,6 +1363,19 @@ if VALUE is not None:
                 else:
                     error(type_node.pos, "Not a type")
         node.body.analyse_declarations(lenv)
+
+        if lenv.nogil and lenv.has_with_gil_block:
+            # Acquire the GIL for cleanup in 'nogil' functions. The
+            # corresponding release will be taken care of by
+            # Nodes.FuncDefNode.generate_function_definitions()
+            node.body = Nodes.TryFinallyStatNode(
+                node.body.pos,
+                body = node.body,
+                finally_clause = Nodes.EnsureGILNode(node.body.pos),
+                preserve_exception = False,
+                nogil_check = None,
+            )
+
         self.env_stack.append(lenv)
         self.visitchildren(node)
         self.env_stack.pop()
