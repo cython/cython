@@ -1,64 +1,232 @@
 """
-Most of these functions are 'cdef' functions, so we need to test using 'def'
-test wrappers.
+Test the 'with gil:' statement.
 """
 
-from libc.stdio cimport printf
+cimport cython
+
+#from libc.stdio cimport printf, puts
 from cpython.ref cimport PyObject, Py_INCREF
 
 import sys
 
-try:
-    import StringIO
-except ImportError:
-    import io as StringIO
 
-def simple_func():
+def redirect_stderr(func, *args, **kwargs):
     """
-    >>> simple_func()
+    Helper function that redirects stderr to stdout for doctest.
+    """
+    stderr, sys.stderr = sys.stderr, sys.stdout
+    func(*args, **kwargs)
+    sys.stderr = stderr
+
+cdef void puts(char *string) with gil:
+    """
+    We need this for doctest, used from nogil sections.
+    """
+    print string
+
+
+# Start with some normal Python functions
+
+def test_simple():
+    """
+    >>> test_simple()
     ['spam', 'ham']
-    ('star', 'twinkle')
     """
     with nogil:
         with gil:
             print ['spam', 'ham']
-        cdef_simple_func()
 
-cdef void cdef_simple_func() nogil:
-    with gil:
-        print ('star', 'twinkle')
+def test_nested_gil_blocks():
+    """
+    >>> test_nested_gil_blocks()
+    entered outer nogil section
+    entered outer gil section
+    entered inner nogil section
+    entered inner gil section
+    leaving inner gil section
+    leaving inner nogil section
+    leaving outer gil section
+    leaving outer nogil section
+    """
 
-def with_gil():
+    with nogil:
+        puts("entered outer nogil section")
+
+        with gil:
+            print 'entered outer gil section'
+
+            with nogil:
+                puts("entered inner nogil section")
+                with gil:
+                    print 'entered inner gil section'
+                    print 'leaving inner gil section'
+                puts("leaving inner nogil section")
+
+            print "leaving outer gil section"
+        puts("leaving outer nogil section")
+
+def test_propagate_exception():
     """
-    >>> with_gil()
-    None
-    {'spam': 'ham'}
+    >>> test_propagate_exception()
+    Traceback (most recent call last):
+        ...
+    Exception: This exception propagates!
     """
-    print x
+    # Note, doctest doesn't support both output and exceptions
     with nogil:
         with gil:
-            x = dict(spam='ham')
-    print x
+            raise Exception("This exception propagates!")
+
+def test_catch_exception():
+    """
+    >>> test_catch_exception()
+    This is executed
+    Exception value
+    This is also executed
+    """
+    try:
+        with nogil:
+            with gil:
+                print "This is executed"
+                raise Exception("Exception value")
+                print "This is not executed"
+            puts("This is also not executed")
+    except Exception, e:
+        print e
+    print "This is also executed"
+
+def test_try_finally_and_outer_except():
+    """
+    >>> test_try_finally_and_outer_except()
+    First finally clause
+    Second finally clause...
+    Caught: Some Exception
+    End of function
+    """
+    try:
+
+        with nogil:
+            with gil:
+                try:
+                    with nogil:
+                        with gil:
+                            try:
+                                raise Exception("Some Exception")
+                            finally:
+                                puts("First finally clause")
+                finally:
+                    puts("Second finally clause...")
+            puts("This is not executed")
+
+    except Exception, e:
+        print "Caught:", e
+
+    print "End of function"
+
+def test_declared_variables():
+    """
+    >>> test_declared_variables()
+    None
+    None
+    ['s', 'p', 'a', 'm']
+    ['s', 'p', 'a', 'm']
+    """
+    cdef object somevar
+
+    print somevar
+
+    with nogil:
+        with gil:
+            print somevar
+            somevar = list("spam")
+            print somevar
+
+    print somevar
+
+def test_undeclared_variables():
+    """
+    >>> test_undeclared_variables()
+    None
+    None
+    ['s', 'p', 'a', 'm']
+    ['s', 'p', 'a', 'm']
+    """
+    print somevar
+    with nogil:
+        with gil:
+            print somevar
+            somevar = list("spam")
+            print somevar
+
+    print somevar
+
+def test_loops_and_boxing():
+    """
+    >>> test_loops_and_boxing()
+    spamham
+    h
+    a
+    m
+    done looping
+    """
+    cdef char c, *string = "spamham"
+
+    with nogil:
+        with gil:
+            print string
+            for c in string[4:]:
+                print "%c" % c
+            else:
+                print "done looping"
+
+cdef class SomeExtClass(object):
+    cdef int some_attribute
+
+@cython.infer_types(True)
+def test_infer_types():
+    """
+    >>> test_infer_types()
+    10
+    """
+    with nogil:
+        with gil:
+            obj = SomeExtClass()
+            obj.some_attribute = 10
+
+    print obj.some_attribute
+
+cpdef test_cpdef():
+    """
+    >>> test_cpdef()
+    Seems to work!
+    Or does it? ...
+    """
+    with nogil:
+        with gil:
+            print "Seems to work!"
+        puts("Or does it? ...")
 
 
-cdef void without_gil() nogil:
+# Now test some cdef functions with different return types
+
+cdef void void_nogil_ignore_exception() nogil:
     with gil:
-        x = list(('foo', 'bar'))
         raise NameError
 
+    puts("unreachable")
     with gil:
         print "unreachable"
 
-def test_without_gil():
+def test_void_nogil_ignore_exception():
     """
-    >>> test_without_gil()
-    Exception NameError in 'with_gil.without_gil' ignored
+    >>> redirect_stderr(test_void_nogil_ignore_exception)
+    Exception NameError in 'with_gil.void_nogil_ignore_exception' ignored
+    Exception NameError in 'with_gil.void_nogil_ignore_exception' ignored
     """
-    # Doctest doesn't capture-and-match stderr
-    stderr, sys.stderr = sys.stderr, StringIO.StringIO()
-    without_gil()
-    sys.stdout.write(sys.stderr.getvalue())
-    sys.stderr = stderr
+    void_nogil_ignore_exception()
+    with nogil:
+        void_nogil_ignore_exception()
+
 
 cdef PyObject *nogil_propagate_exception() nogil except NULL:
     with nogil:
@@ -75,3 +243,17 @@ def test_nogil_propagate_exception():
     """
     nogil_propagate_exception()
 
+
+cdef with_gil_raise() with gil:
+    raise Exception("This exception propagates!")
+
+def test_release_gil_call_gil_func():
+    """
+    >>> test_release_gil_call_gil_func()
+    Traceback (most recent call last):
+        ...
+    Exception: This exception propagates!
+    """
+    with nogil:
+        with gil:
+            with_gil_raise()

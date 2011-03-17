@@ -1384,7 +1384,7 @@ class CCodeWriter(object):
 
     # GIL methods
 
-    def put_ensure_gil(self):
+    def put_ensure_gil(self, declare_gilstate=True):
         """
         Acquire the GIL. The generated code is safe even when no PyThreadState
         has been allocated for this thread (for threads not initialized by
@@ -1396,7 +1396,9 @@ class CCodeWriter(object):
         self.globalstate.use_utility_code(Nodes.force_init_threads_utility_code)
 
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_STATE _save = PyGILState_Ensure();")
+        if declare_gilstate:
+            self.put("PyGILState_STATE ")
+        self.putln("_save = PyGILState_Ensure();")
         self.putln("#endif")
 
     def put_release_ensured_gil(self):
