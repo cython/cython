@@ -99,7 +99,7 @@ def test_try_finally_and_outer_except():
     """
     >>> test_try_finally_and_outer_except()
     First finally clause
-    Second finally clause...
+    Second finally clause
     Caught: Some Exception
     End of function
     """
@@ -115,7 +115,7 @@ def test_try_finally_and_outer_except():
                             finally:
                                 puts("First finally clause")
                 finally:
-                    puts("Second finally clause...")
+                    puts("Second finally clause")
             puts("This is not executed")
 
     except Exception, e:
@@ -195,37 +195,79 @@ def test_infer_types():
 
     print obj.some_attribute
 
+def test_closure():
+    """
+    >>> test_closure()
+    Traceback (most recent call last):
+        ...
+    Exception: {'twinkle': 'little star'}
+    """
+    a = dict(twinkle='little star')
+
+    def inner_function():
+        with nogil:
+            with gil:
+                raise Exception(a)
+
+    with nogil:
+        with gil:
+            inner_function()
+
+    raise Exception("This should not be raised!")
+
 cpdef test_cpdef():
     """
     >>> test_cpdef()
     Seems to work!
-    Or does it? ...
+    Or does it?
     """
     with nogil:
         with gil:
             print "Seems to work!"
-        puts("Or does it? ...")
+        puts("Or does it?")
 
 
 # Now test some cdef functions with different return types
 
 cdef void void_nogil_ignore_exception() nogil:
     with gil:
-        raise NameError
+        raise Exception("This is swallowed")
 
     puts("unreachable")
     with gil:
         print "unreachable"
 
-def test_void_nogil_ignore_exception():
+cdef void void_nogil_nested_gil() nogil:
+    with gil:
+        with nogil:
+            with gil:
+                print 'Inner gil section'
+            puts("nogil section")
+        raise Exception("Swallow this")
+    puts("Don't print this")
+
+def test_nogil_void_funcs_with_gil():
     """
-    >>> redirect_stderr(test_void_nogil_ignore_exception)
-    Exception NameError in 'with_gil.void_nogil_ignore_exception' ignored
-    Exception NameError in 'with_gil.void_nogil_ignore_exception' ignored
+    >>> redirect_stderr(test_nogil_void_funcs_with_gil)
+    Exception Exception: Exception('This is swallowed',) in 'with_gil.void_nogil_ignore_exception' ignored
+    Inner gil section
+    nogil section
+    Exception Exception: Exception('Swallow this',) in 'with_gil.void_nogil_nested_gil' ignored
     """
     void_nogil_ignore_exception()
+    void_nogil_nested_gil()
+
+def test_nogil_void_funcs_with_nogil():
+    """
+    >>> redirect_stderr(test_nogil_void_funcs_with_nogil)
+    Exception Exception: Exception('This is swallowed',) in 'with_gil.void_nogil_ignore_exception' ignored
+    Inner gil section
+    nogil section
+    Exception Exception: Exception('Swallow this',) in 'with_gil.void_nogil_nested_gil' ignored
+    """
     with nogil:
         void_nogil_ignore_exception()
+        void_nogil_nested_gil()
 
 
 cdef PyObject *nogil_propagate_exception() nogil except NULL:
