@@ -3054,7 +3054,11 @@ class SimpleCallNode(CallNode):
                     # nogil anyway)
                     pass
                 else:
-                    self.args[i] = arg.coerce_to_temp(env)
+                    #self.args[i] = arg.coerce_to_temp(env)
+                    # instead: issue a warning
+                    if i > 0 or i == 1 and self.self is not None: # skip first arg
+                        warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
+                        break
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
