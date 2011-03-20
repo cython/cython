@@ -902,8 +902,8 @@ class ModuleScope(Scope):
         return self.outer_scope.lookup(name, language_level = self.context.language_level)
 
     def declare_builtin(self, name, pos):
-        if not hasattr(builtins, name) and name != 'xrange':
-            # 'xrange' is special cased in Code.py
+        if not hasattr(builtins, name) and name not in ('xrange', 'BaseException'):
+            # 'xrange' and 'BaseException' are special cased in Code.py
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
@@ -1361,7 +1361,7 @@ class GeneratorExpressionScope(Scope):
         self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
 
     def mangle(self, prefix, name):
-        return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(self, prefix, name))
+        return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(prefix, name))
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private', is_cdef = True):

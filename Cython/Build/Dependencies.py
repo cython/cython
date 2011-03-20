@@ -434,9 +434,12 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
                     for key, value in base.values.items():
                         if key not in kwds:
                             kwds[key] = value
+                sources = [file]
+                if template is not None:
+                    sources += template.sources[1:]
                 module_list.append(exn_type(
                         name=module_name,
-                        sources=[file],
+                        sources=sources,
                         **kwds))
                 m = module_list[-1]
                 seen.add(name)
