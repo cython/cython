@@ -15,7 +15,7 @@ called 'foo', and its fully qualified module name is
 'foo.shrubbing'.
 
 So when Pyrex wants to find out whether there is a `.pxd` file for shrubbing,
-it looks for one corresponding to a module called :module:`foo.shrubbing`. It
+it looks for one corresponding to a module called `foo.shrubbing`. It
 does this by searching the include path for a top-level package directory
 called 'foo' containing a file called 'shrubbing.pxd'.
 
