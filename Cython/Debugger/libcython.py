@@ -625,6 +625,7 @@ class CyCy(CythonCommand):
             globals = CyGlobals.register(),
             exec_ = libpython.FixGdbCommand('cy exec', '-cy-exec'),
             _exec = CyExec.register(),
+            set = CySet.register(),
 
             # GDB functions
             cy_cname = CyCName('cy_cname'),
@@ -1282,6 +1283,29 @@ class CyExec(CythonCommand, libpython.PyExec, EvaluateOrExecuteCodeMixin):
         expr, input_type = self.readcode(expr)
         executor = libpython.PythonCodeExecutor()
         executor.xdecref(self.evalcode(expr, executor.Py_single_input))
+
+
+class CySet(CythonCommand):
+    """
+    Set a Cython variable to a certain value
+
+        cy set my_cython_c_variable = 10
+        cy set my_cython_py_variable = $cy_eval("{'doner': 'kebab'}")
+    """
+
+    name = 'cy set'
+    command_class = gdb.COMMAND_DATA
+    completer_class = gdb.COMPLETE_NONE
+
+    @require_cython_frame
+    def invoke(self, expr, from_tty):
+        name_and_expr = expr.split('=', 1)
+        if len(name_and_expr) != 2:
+            raise gdb.GdbError("Invalid expression. Use 'cy set var = expr'.")
+
+        varname, expr = name_and_expr
+        cname = self.cy.cy_cname.invoke(varname.strip())
+        gdb.execute("set %s = %s" % (cname, expr))
 
 
 # Functions

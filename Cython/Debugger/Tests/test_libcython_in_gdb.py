@@ -379,6 +379,16 @@ class TestExec(DebugTestCase):
         self.assertEqual('14', self.eval_command('some_random_var'))
 
 
+class CySet(DebugTestCase):
+
+    def test_cyset(self):
+        self.break_and_run('os.path.join("foo", "bar")')
+
+        gdb.execute('cy set a = $cy_eval("{None: []}")')
+        stringvalue = self.read_var("a", cast_to=str)
+        self.assertEqual(stringvalue, "{None: []}")
+
+
 class TestCyEval(DebugTestCase):
     "Test the $cy_eval() gdb function."
 
