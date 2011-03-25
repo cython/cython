@@ -71,7 +71,7 @@ You can also pass additional arguments to gdb::
     $ cygdb /path/to/build/directory/ GDBARGS
 
 i.e.::
-    
+
     $ cygdb . --args python-dbg mainscript.py
 
 To tell cygdb not to import any debug information, supply ``--`` as the first
@@ -87,7 +87,7 @@ stack inspection, source code listing, stepping, stepping over, etc. Most
 of these commands are analogous to their respective gdb command.
 
 .. function:: cy break breakpoints...
-    
+
     Break in a Python, Cython or C function. First it will look for a Cython
     function with that name, if cygdb doesn't know about a function (or method)
     with that name, it will set a (pending) C breakpoint. The ``-p`` option can
@@ -115,7 +115,7 @@ of these commands are analogous to their respective gdb command.
 
 .. note:: Python breakpoints only work in Python builds where the Python frame
           information can be read from the debugger. To ensure this, use a
-          Python debug build or a non-stripped build compiled with debug 
+          Python debug build or a non-stripped build compiled with debug
           support.
 
 .. function:: cy step
@@ -129,10 +129,10 @@ of these commands are analogous to their respective gdb command.
     Step over Python, Cython or C code.
 
 .. function:: cy run
-    
+
     Run the program. The default interpreter is the interpreter that was used
     to build your extensions with, or the interpreter ``cygdb`` is run with
-    in case the "don't import debug information" option was in effect. 
+    in case the "don't import debug information" option was in effect.
     The interpreter can be overridden using gdb's ``file`` command.
 
 .. function:: cy cont
@@ -146,7 +146,7 @@ of these commands are analogous to their respective gdb command.
 
 .. function:: cy finish
 
-    Execute until an upward relevant frame is met or something halts 
+    Execute until an upward relevant frame is met or something halts
     execution.
 
 .. function:: cy bt
@@ -163,19 +163,23 @@ of these commands are analogous to their respective gdb command.
 
 .. function:: cy print varname
 
-    Print a local or global Cython, Python or C variable (depending on the 
+    Print a local or global Cython, Python or C variable (depending on the
     context). Variables may also be dereferenced::
 
         (gdb) cy print x
         x = 1
         (gdb) cy print *x
         *x = (PyObject) {
-            _ob_next = 0x93efd8, 
-            _ob_prev = 0x93ef88, 
-            ob_refcnt = 65, 
+            _ob_next = 0x93efd8,
+            _ob_prev = 0x93ef88,
+            ob_refcnt = 65,
             ob_type = 0x83a3e0
         }
-                
+
+.. function:: cy set cython_variable = value
+
+    Set a Cython variable on the Cython stack to value.
+
 .. function:: cy list
 
     List the source code surrounding the current line.
@@ -193,14 +197,14 @@ of these commands are analogous to their respective gdb command.
 .. function:: cy exec code
 
     Execute code in the current Python or Cython frame. This works like
-    Python's interactive interpreter. 
+    Python's interactive interpreter.
 
     For Python frames it uses the globals and locals from the Python frame,
     for Cython frames it uses the dict of globals used on the Cython module
     and a new dict filled with the local Cython variables.
 
 .. note:: ``cy exec`` modifies state and executes code in the debuggee and is
-          therefore potentially dangerous.           
+          therefore potentially dangerous.
 
 Example::
 
@@ -228,10 +232,15 @@ gdb expression.
 
     Returns the value of a Cython variable.
 
+.. function:: cy_eval(expression)
+
+    Evaluates Python code in the nearest Python or Cython frame and returns
+    the result of the expression as a gdb value. This gives a new reference
+    if successful, NULL on error.
+
 .. function:: cy_lineno()
 
     Returns the current line number in the selected Cython frame.
-
 
 Example::
 
@@ -239,18 +248,19 @@ Example::
     $1 = "__pyx_v_x"
     (gdb) watch $cy_cvalue("x")
     Hardware watchpoint 13: $cy_cvalue("x")
+    (gdb) cy set my_cython_variable = $cy_eval("{'spam': 'ham'}")
     (gdb) print $cy_lineno()
     $2 = 12
 
-    
+
 Configuring the Debugger
 ========================
-A few aspects of the debugger are configurable with gdb parameters. For 
-instance, colors can be disabled, the terminal background color 
+A few aspects of the debugger are configurable with gdb parameters. For
+instance, colors can be disabled, the terminal background color
 and breakpoint autocompletion can be configured.
 
 .. c:macro:: cy_complete_unqualified
-    
+
     Tells the Cython debugger whether ``cy break`` should also complete
     plain function names, i.e. not prefixed by their module name.
     E.g. if you have a function named ``spam``,
@@ -266,7 +276,7 @@ and breakpoint autocompletion can be configured.
 .. c:macro:: cy_terminal_background_color
 
     Tells the debugger about the terminal background color, which affects
-    source code coloring. The default is "dark", another valid option is 
+    source code coloring. The default is "dark", another valid option is
     "light".
 
 This is how these parameters can be used::
