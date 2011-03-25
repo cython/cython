@@ -2190,12 +2190,12 @@ class PythonInfo(LanguageInfo):
         try:
             tstate = frame.read_var('tstate').dereference()
             if gdb.parse_and_eval('tstate->frame == f'):
-                # tstate local variable initialized
+                # tstate local variable initialized, check for an exception
                 inf_type = tstate['curexc_type']
                 inf_value = tstate['curexc_value']
+
                 if inf_type:
-                    return 'An exception was raised: %s(%s)' % (inf_type,
-                                                                inf_value)
+                    return 'An exception was raised: %s(%s)' % (inf_value,)
         except (ValueError, RuntimeError), e:
             # Could not read the variable tstate or it's memory, it's ok
             pass
@@ -2342,7 +2342,7 @@ class PythonCodeExecutor(object):
         "Increment the reference count of a Python object in the inferior."
         gdb.parse_and_eval('Py_IncRef((PyObject *) %d)' % pointer)
 
-    def decref(self, pointer):
+    def xdecref(self, pointer):
         "Decrement the reference count of a Python object in the inferior."
         # Py_DecRef is like Py_XDECREF, but a function. So we don't have
         # to check for NULL. This should also decref all our allocated
@@ -2382,10 +2382,11 @@ class PythonCodeExecutor(object):
 
         with FetchAndRestoreError():
             try:
-                self.decref(gdb.parse_and_eval(code))
+                pyobject_return_value = gdb.parse_and_eval(code)
             finally:
                 self.free(pointer)
 
+        return pyobject_return_value
 
 class FetchAndRestoreError(PythonCodeExecutor):
     """
@@ -2484,17 +2485,9 @@ class PyExec(gdb.Command):
 
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
-
         executor = PythonCodeExecutor()
-        global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
-        local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
-
-        if pointervalue(global_dict) == 0 or pointervalue(local_dict) == 0:
-            raise gdb.GdbError("Unable to find the locals or globals of the "
-                               "most recent Python function (relative to the "
-                               "selected frame).")
-
-        executor.evalcode(expr, input_type, global_dict, local_dict)
+        result = executor.evalcode(expr, input_type, global_dict, local_dict)
+        executor.xdecref(result)
 
 
 gdb.execute('set breakpoint pending on')
