@@ -592,6 +592,7 @@ class CyCy(CythonCommand):
         cy bt / cy backtrace
         cy list
         cy print
+        cy set
         cy locals
         cy globals
         cy exec
@@ -1245,19 +1246,6 @@ class EvaluateOrExecuteCodeMixin(object):
 
         return result
 
-
-    def _evalcode_python(self, executor, code, input_type):
-        global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
-        local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
-
-        if (libpython.pointervalue(global_dict) == 0 or
-            libpython.pointervalue(local_dict) == 0):
-            raise gdb.GdbError("Unable to find the locals or globals of the "
-                               "most recent Python function (relative to the "
-                               "selected frame).")
-
-        return executor.evalcode(code, input_type, global_dict, local_dict)
-
     def evalcode(self, code, input_type):
         """
         Evaluate `code` in a Python or Cython stack frame using the given
@@ -1266,7 +1254,7 @@ class EvaluateOrExecuteCodeMixin(object):
         frame = self._find_first_cython_or_python_frame()
         executor = libpython.PythonCodeExecutor()
         if self.is_python_function(frame):
-            return self._evalcode_python(executor, code, input_type)
+            return libpython._evalcode_python(executor, code, input_type)
         return self._evalcode_cython(executor, code, input_type)
 
 
@@ -1291,6 +1279,10 @@ class CySet(CythonCommand):
 
         cy set my_cython_c_variable = 10
         cy set my_cython_py_variable = $cy_eval("{'doner': 'kebab'}")
+
+    This is equivalent to
+
+        set $cy_value("my_cython_variable") = 10
     """
 
     name = 'cy set'

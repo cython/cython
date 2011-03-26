@@ -2463,6 +2463,20 @@ class FixGdbCommand(gdb.Command):
         self.fix_gdb()
 
 
+def _evalcode_python(executor, code, input_type):
+    """
+    Execute Python code in the most recent stack frame.
+    """
+    global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
+    local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
+
+    if (pointervalue(global_dict) == 0 or pointervalue(local_dict) == 0):
+        raise gdb.GdbError("Unable to find the locals or globals of the "
+                           "most recent Python function (relative to the "
+                           "selected frame).")
+
+    return executor.evalcode(code, input_type, global_dict, local_dict)
+
 class PyExec(gdb.Command):
 
     def readcode(self, expr):
@@ -2486,8 +2500,8 @@ class PyExec(gdb.Command):
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
         executor = PythonCodeExecutor()
-        result = executor.evalcode(expr, input_type, global_dict, local_dict)
-        executor.xdecref(result)
+        executor.xdecref(_evalcode_python(executor, input_type, global_dict,
+                                          local_dict))
 
 
 gdb.execute('set breakpoint pending on')
