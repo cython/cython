@@ -113,5 +113,3 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         frame = self.pyobject_fromcode('PyEval_GetFrame()')
 
         self.assertEqual(type(frame), libpython.PyFrameObjectPtr)
-
-
