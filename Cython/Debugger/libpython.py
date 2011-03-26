@@ -1949,26 +1949,40 @@ class ExecutionControlCommandBase(gdb.Command):
             gdb.execute("delete %s" % bp)
 
     def filter_output(self, result):
-        output = []
-
-        match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
-                                 re.MULTILINE)
-        if match_finish:
-            output.append('Value returned: %s' % match_finish.group(1))
-
         reflags = re.MULTILINE
-        regexes = [
+
+        output_on_halt = [
             (r'^Program received signal .*', reflags|re.DOTALL),
             (r'.*[Ww]arning.*', 0),
             (r'^Program exited .*', reflags),
-            (r'^(Old|New) value = .*', reflags)
         ]
 
-        for regex, flags in regexes:
-            for match in re.finditer(regex, result, flags):
-                output.append(match.group(0))
+        output_always = [
+            # output when halting on a watchpoint
+            (r'^(Old|New) value = .*', reflags),
+            # output from the 'display' command
+            (r'^\d+: \w+ = .*', reflags),
+        ]
 
-        return '\n'.join(output)
+        def filter_output(regexes):
+            output = []
+            for regex, flags in regexes:
+                for match in re.finditer(regex, result, flags):
+                    output.append(match.group(0))
+
+            return '\n'.join(output)
+
+        # Filter the return value output of the 'finish' command
+        match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
+                                 re.MULTILINE)
+        if match_finish:
+            finish_output = 'Value returned: %s\n' % match_finish.group(1)
+        else:
+            finish_output = ''
+
+        return (filter_output(output_on_halt),
+                finish_output + filter_output(output_always))
+
 
     def stopped(self):
         return get_selected_inferior().pid == 0
@@ -1979,10 +1993,11 @@ class ExecutionControlCommandBase(gdb.Command):
         of source code or the result of the last executed gdb command (passed
         in as the `result` argument).
         """
-        result = self.filter_output(result)
+        output_on_halt, output_always = self.filter_output(result)
 
         if self.stopped():
-            print result.strip()
+            print output_always
+            print output_on_halt
         else:
             frame = gdb.selected_frame()
             source_line = self.lang_info.get_source_line(frame)
@@ -1990,12 +2005,13 @@ class ExecutionControlCommandBase(gdb.Command):
                 raised_exception = self.lang_info.exc_info(frame)
                 if raised_exception:
                     print raised_exception
-                print source_line or result
+
+            if source_line:
+                if output_always.rstrip():
+                    print output_always.rstrip()
+                print source_line
             else:
-                if result.rstrip():
-                    print result.rstrip()
-                if source_line:
-                    print source_line
+                print result
 
     def _finish(self):
         """
