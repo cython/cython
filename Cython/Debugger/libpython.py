@@ -1961,11 +1961,11 @@ class ExecutionControlCommandBase(gdb.Command):
             (r'^Program received signal .*', reflags|re.DOTALL),
             (r'.*[Ww]arning.*', 0),
             (r'^Program exited .*', reflags),
+            (r'^(Old|New) value = .*', reflags)
         ]
 
         for regex, flags in regexes:
-            match = re.search(regex, result, flags)
-            if match:
+            for match in re.finditer(regex, result, flags):
                 output.append(match.group(0))
 
         return '\n'.join(output)
@@ -1985,13 +1985,17 @@ class ExecutionControlCommandBase(gdb.Command):
             print result.strip()
         else:
             frame = gdb.selected_frame()
+            source_line = self.lang_info.get_source_line(frame)
             if self.lang_info.is_relevant_function(frame):
                 raised_exception = self.lang_info.exc_info(frame)
                 if raised_exception:
                     print raised_exception
-                print self.lang_info.get_source_line(frame) or result
+                print source_line or result
             else:
-                print result
+                if result.rstrip():
+                    print result.rstrip()
+                if source_line:
+                    print source_line
 
     def _finish(self):
         """
