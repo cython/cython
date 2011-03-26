@@ -2195,7 +2195,7 @@ class PythonInfo(LanguageInfo):
                 inf_value = tstate['curexc_value']
 
                 if inf_type:
-                    return 'An exception was raised: %s(%s)' % (inf_value,)
+                    return 'An exception was raised: %s' % (inf_value,)
         except (ValueError, RuntimeError), e:
             # Could not read the variable tstate or it's memory, it's ok
             pass
