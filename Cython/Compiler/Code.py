@@ -650,17 +650,27 @@ class GlobalState(object):
             if self.should_declare(entry.cname, entry):
                 self.put_pyobject_decl(entry)
                 w = self.parts['cached_builtins']
+                conditional_name = False
                 if entry.name == 'xrange':
                     # replaced by range() in Py3
+                    conditional_name = True
                     w.putln('#if PY_MAJOR_VERSION >= 3')
                     self.put_cached_builtin_init(
                         entry.pos, StringEncoding.EncodedString('range'),
                         entry.cname)
+                elif entry.name == 'BaseException':
+                    # replace BaseException by Exception in Py<2.5
+                    conditional_name = True
+                    w.putln('#if PY_VERSION_HEX < 0x02050000')
+                    self.put_cached_builtin_init(
+                        entry.pos, StringEncoding.EncodedString('Exception'),
+                        entry.cname)
+                if conditional_name:
                     w.putln('#else')
                 self.put_cached_builtin_init(
                     entry.pos, StringEncoding.EncodedString(entry.name),
                     entry.cname)
-                if entry.name == 'xrange':
+                if conditional_name:
                     w.putln('#endif')
 
     def put_cached_builtin_init(self, pos, name, cname):

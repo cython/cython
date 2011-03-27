@@ -378,6 +378,32 @@ class TestExec(DebugTestCase):
         gdb.execute('cy exec some_random_var = 14')
         self.assertEqual('14', self.eval_command('some_random_var'))
 
+
+class CySet(DebugTestCase):
+
+    def test_cyset(self):
+        self.break_and_run('os.path.join("foo", "bar")')
+
+        gdb.execute('cy set a = $cy_eval("{None: []}")')
+        stringvalue = self.read_var("a", cast_to=str)
+        self.assertEqual(stringvalue, "{None: []}")
+
+
+class TestCyEval(DebugTestCase):
+    "Test the $cy_eval() gdb function."
+
+    def test_cy_eval(self):
+        # This function leaks a few objects in the GDB python process. This
+        # is no biggie
+        self.break_and_run('os.path.join("foo", "bar")')
+
+        result = gdb.execute('print $cy_eval("None")', to_string=True)
+        assert re.match(r'\$\d+ = None\n', result), result
+
+        result = gdb.execute('print $cy_eval("[a]")', to_string=True)
+        assert re.match(r'\$\d+ = \[0\]', result), result
+
+
 class TestClosure(DebugTestCase):
 
     def break_and_run_func(self, funcname):

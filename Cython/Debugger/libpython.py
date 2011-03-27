@@ -1949,26 +1949,40 @@ class ExecutionControlCommandBase(gdb.Command):
             gdb.execute("delete %s" % bp)
 
     def filter_output(self, result):
-        output = []
-
-        match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
-                                 re.MULTILINE)
-        if match_finish:
-            output.append('Value returned: %s' % match_finish.group(1))
-
         reflags = re.MULTILINE
-        regexes = [
+
+        output_on_halt = [
             (r'^Program received signal .*', reflags|re.DOTALL),
             (r'.*[Ww]arning.*', 0),
             (r'^Program exited .*', reflags),
         ]
 
-        for regex, flags in regexes:
-            match = re.search(regex, result, flags)
-            if match:
-                output.append(match.group(0))
+        output_always = [
+            # output when halting on a watchpoint
+            (r'^(Old|New) value = .*', reflags),
+            # output from the 'display' command
+            (r'^\d+: \w+ = .*', reflags),
+        ]
 
-        return '\n'.join(output)
+        def filter_output(regexes):
+            output = []
+            for regex, flags in regexes:
+                for match in re.finditer(regex, result, flags):
+                    output.append(match.group(0))
+
+            return '\n'.join(output)
+
+        # Filter the return value output of the 'finish' command
+        match_finish = re.search(r'^Value returned is \$\d+ = (.*)', result,
+                                 re.MULTILINE)
+        if match_finish:
+            finish_output = 'Value returned: %s\n' % match_finish.group(1)
+        else:
+            finish_output = ''
+
+        return (filter_output(output_on_halt),
+                finish_output + filter_output(output_always))
+
 
     def stopped(self):
         return get_selected_inferior().pid == 0
@@ -1979,17 +1993,23 @@ class ExecutionControlCommandBase(gdb.Command):
         of source code or the result of the last executed gdb command (passed
         in as the `result` argument).
         """
-        result = self.filter_output(result)
+        output_on_halt, output_always = self.filter_output(result)
 
         if self.stopped():
-            print result.strip()
+            print output_always
+            print output_on_halt
         else:
             frame = gdb.selected_frame()
+            source_line = self.lang_info.get_source_line(frame)
             if self.lang_info.is_relevant_function(frame):
                 raised_exception = self.lang_info.exc_info(frame)
                 if raised_exception:
                     print raised_exception
-                print self.lang_info.get_source_line(frame) or result
+
+            if source_line:
+                if output_always.rstrip():
+                    print output_always.rstrip()
+                print source_line
             else:
                 print result
 
@@ -2190,12 +2210,12 @@ class PythonInfo(LanguageInfo):
         try:
             tstate = frame.read_var('tstate').dereference()
             if gdb.parse_and_eval('tstate->frame == f'):
-                # tstate local variable initialized
+                # tstate local variable initialized, check for an exception
                 inf_type = tstate['curexc_type']
                 inf_value = tstate['curexc_value']
+
                 if inf_type:
-                    return 'An exception was raised: %s(%s)' % (inf_type,
-                                                                inf_value)
+                    return 'An exception was raised: %s' % (inf_value,)
         except (ValueError, RuntimeError), e:
             # Could not read the variable tstate or it's memory, it's ok
             pass
@@ -2342,7 +2362,7 @@ class PythonCodeExecutor(object):
         "Increment the reference count of a Python object in the inferior."
         gdb.parse_and_eval('Py_IncRef((PyObject *) %d)' % pointer)
 
-    def decref(self, pointer):
+    def xdecref(self, pointer):
         "Decrement the reference count of a Python object in the inferior."
         # Py_DecRef is like Py_XDECREF, but a function. So we don't have
         # to check for NULL. This should also decref all our allocated
@@ -2382,10 +2402,11 @@ class PythonCodeExecutor(object):
 
         with FetchAndRestoreError():
             try:
-                self.decref(gdb.parse_and_eval(code))
+                pyobject_return_value = gdb.parse_and_eval(code)
             finally:
                 self.free(pointer)
 
+        return pyobject_return_value
 
 class FetchAndRestoreError(PythonCodeExecutor):
     """
@@ -2462,6 +2483,20 @@ class FixGdbCommand(gdb.Command):
         self.fix_gdb()
 
 
+def _evalcode_python(executor, code, input_type):
+    """
+    Execute Python code in the most recent stack frame.
+    """
+    global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
+    local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
+
+    if (pointervalue(global_dict) == 0 or pointervalue(local_dict) == 0):
+        raise gdb.GdbError("Unable to find the locals or globals of the "
+                           "most recent Python function (relative to the "
+                           "selected frame).")
+
+    return executor.evalcode(code, input_type, global_dict, local_dict)
+
 class PyExec(gdb.Command):
 
     def readcode(self, expr):
@@ -2484,17 +2519,9 @@ class PyExec(gdb.Command):
 
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
-
         executor = PythonCodeExecutor()
-        global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
-        local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
-
-        if pointervalue(global_dict) == 0 or pointervalue(local_dict) == 0:
-            raise gdb.GdbError("Unable to find the locals or globals of the "
-                               "most recent Python function (relative to the "
-                               "selected frame).")
-
-        executor.evalcode(expr, input_type, global_dict, local_dict)
+        executor.xdecref(_evalcode_python(executor, input_type, global_dict,
+                                          local_dict))
 
 
 gdb.execute('set breakpoint pending on')
