@@ -64,7 +64,6 @@ class SkipDeclarations(object):
     def visit_CStructOrUnionDefNode(self, node):
         return node
 
-
 class NormalizeTree(CythonTransform):
     """
     This transform fixes up a few things after parsing
