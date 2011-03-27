@@ -894,7 +894,7 @@ class EmbedTest(unittest.TestCase):
                     # report the error for the original directory
                     libdir = sysconfig.get_config_var('LIBDIR')
         cython = 'cython.py'
-        if sys.version_info[0] >=3:
+        if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
         self.assert_(os.system(
