@@ -14,16 +14,24 @@ VARIABLES:
 AUTHORS:
  - David Cournapeau
  - Dag Sverre Seljebotn
+ - Holger Rapp (HolgerRapp@gmx.net)
 
 """
-import SCons
-from SCons.Builder import Builder
-from SCons.Action import Action
+import os.path
 
-#def cython_action(target, source, env):
-#    print target, source, env
-#    from Cython.Compiler.Main import compile as cython_compile
-#    res = cython_compile(str(source[0]))
+import SCons
+from SCons.Action import Action
+from SCons.Builder import Builder
+from SCons.Scanner import Scanner, FindPathDirs
+from SCons.Tool import SourceFileScanner
+
+from _cython_dependencies import CythonDependencyScanner
+
+def cython_dependency_scanner(node, env, path, arg):
+    cdir = os.path.dirname(str(node))
+    scanner = CythonDependencyScanner([cdir] + map(str,path))
+
+    return [os.path.relpath(f, cdir) for f in scanner(str(node))]
 
 cythonAction = Action("$CYTHONCOM")
 
@@ -35,6 +43,7 @@ def create_builder(env):
                   action = cythonAction,
                   emitter = {},
                   suffix = cython_suffix_emitter,
+                  source_scanner = SourceFileScanner,
                   single_source = 1)
         env['BUILDERS']['Cython'] = cython
 
@@ -45,7 +54,11 @@ def cython_suffix_emitter(env, source):
 
 def generate(env):
     env["CYTHON"] = "cython"
-    env["CYTHONCOM"] = "$CYTHON $CYTHONFLAGS -o $TARGET $SOURCE"
+    env["CYTHONPATH"] = []
+    env['CYTHONINCPREFIX']     = '-I'
+    env['CYTHONINCSUFFIX']     = ''
+    env['_CYTHONINCFLAGS']     = '$( ${_concat(CYTHONINCPREFIX, CYTHONPATH, CYTHONINCSUFFIX, __env__, RDirs, TARGET, SOURCE)} $)'
+    env["CYTHONCOM"] = "$CYTHON ${_CYTHONINCFLAGS} $CYTHONFLAGS -o $TARGET $SOURCE"
     env["CYTHONCFILESUFFIX"] = ".c"
 
     c_file, cxx_file = SCons.Tool.createCFileBuilders(env)
@@ -57,6 +70,16 @@ def generate(env):
     c_file.add_action('.py', cythonAction)
 
     create_builder(env)
+
+    __scanner = Scanner(name = 'cython',
+                    function = cython_dependency_scanner,
+                    argument = None,
+                    skeys = ['.pyx', '.pxd'],
+                    path_function = FindPathDirs("CYTHONPATH"),
+                    recursive = False) # CythonDependencyScanner recurses automatically
+
+    env.Append(SCANNERS = __scanner)
+
 
 def exists(env):
     try:
