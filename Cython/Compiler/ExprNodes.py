@@ -861,9 +861,8 @@ class IntNode(ConstNode):
             return self
         elif dst_type.is_float:
             if self.constant_result is not not_a_constant:
-                float_value = float(self.constant_result)
-                return FloatNode(self.pos, value=repr(float_value), type=dst_type,
-                                 constant_result=float_value)
+                return FloatNode(self.pos, value='%d.0' % int(self.constant_result), type=dst_type,
+                                 constant_result=float(self.constant_result))
             else:
                 return FloatNode(self.pos, value=self.value, type=dst_type,
                                  constant_result=not_a_constant)
