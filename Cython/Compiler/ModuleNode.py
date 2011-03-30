@@ -112,12 +112,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 i_code = Code.PyrexCodeWriter(result.i_file)
             else:
                 i_code = None
-            guard = Naming.h_guard_prefix + env.qualified_name.replace(".", "__")
-            h_code.put_h_guard(guard)
+
+            h_guard = Naming.h_guard_prefix + self.api_name(env)
+            h_code.put_h_guard(h_guard)
             self.generate_extern_c_macro_definition(h_code)
             self.generate_type_header_code(h_types, h_code)
             h_code.putln("")
-            h_code.putln("#ifndef %s" % Naming.api_guard_prefix + self.api_name(env))
+            api_guard = Naming.api_guard_prefix + self.api_name(env)
+            h_code.putln("#ifndef %s" % api_guard)
             if h_vars:
                 h_code.putln("")
                 for entry in h_vars:
@@ -685,6 +687,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#define _USE_MATH_DEFINES")
         code.putln("#endif")
         code.putln("#include <math.h>")
+        code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
         code.putln("")
