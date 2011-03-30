@@ -1564,7 +1564,7 @@ class CreateClosureClasses(CythonTransform):
         self.generator_class = entry.type
         return self.generator_class
 
-    def get_scope_use(self, node):
+    def find_entries_used_in_closures(self, node):
         from_closure = []
         in_closure = []
         for name, entry in node.local_scope.entries.items():
@@ -1584,7 +1584,7 @@ class CreateClosureClasses(CythonTransform):
                 if not entry.from_closure:
                     entry.in_closure = True
 
-        from_closure, in_closure = self.get_scope_use(node)
+        from_closure, in_closure = self.find_entries_used_in_closures(node)
         in_closure.sort()
 
         # Now from the begining
