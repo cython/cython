@@ -942,9 +942,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     type.vtabstruct_cname,
                     type.vtabslot_cname))
         for attr in type.scope.var_entries:
+            if attr.is_declared_generic:
+                attr_type = py_object_type
+            else:
+                attr_type = attr.type
             code.putln(
                 "%s;" %
-                    attr.type.declaration_code(attr.cname))
+                    attr_type.declaration_code(attr.cname))
         code.putln(footer)
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
@@ -1241,7 +1245,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in py_attrs:
             name = "p->%s" % entry.cname
             code.putln("tmp = ((PyObject*)%s);" % name)
-            code.put_init_to_py_none(name, entry.type, nanny=False)
+            if entry.is_declared_generic:
+                code.put_init_to_py_none(name, py_object_type, nanny=False)
+            else:
+                code.put_init_to_py_none(name, entry.type, nanny=False)
             code.putln("Py_XDECREF(tmp);")
         code.putln(
             "return 0;")
