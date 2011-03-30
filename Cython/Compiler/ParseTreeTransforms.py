@@ -1570,7 +1570,7 @@ class CreateClosureClasses(CythonTransform):
         for name, entry in node.local_scope.entries.items():
             if entry.from_closure:
                 from_closure.append((name, entry))
-            elif entry.in_closure and not entry.from_closure:
+            elif entry.in_closure:
                 in_closure.append((name, entry))
         return from_closure, in_closure
 
