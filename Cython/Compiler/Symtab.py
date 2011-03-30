@@ -1331,6 +1331,7 @@ class LocalScope(Scope):
                 inner_entry.is_variable = True
                 inner_entry.outer_entry = entry
                 inner_entry.from_closure = True
+                inner_entry.is_declared_generic = entry.is_declared_generic
                 self.entries[name] = inner_entry
                 return inner_entry
         return entry
