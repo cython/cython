@@ -19,3 +19,6 @@ cdef public void g(Blarg *x):
 
 cdef public api void h(Zax *x):
     pass
+
+cdef extern from "a_capi.h":
+    pass
