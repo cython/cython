@@ -970,7 +970,7 @@ class CVarDefNode(StatNode):
                     error(self.pos,
                         "Only 'extern' C variable declaration allowed in .pxd file")
                 entry = dest_scope.declare_var(name, type, declarator.pos,
-                            cname = cname, visibility = visibility, is_cdef = 1)
+                            cname=cname, visibility=visibility, api=self.api, is_cdef=1)
                 entry.needs_property = need_property
 
 
@@ -980,6 +980,7 @@ class CStructOrUnionDefNode(StatNode):
     #  kind          "struct" or "union"
     #  typedef_flag  boolean
     #  visibility    "public" or "private"
+    #  api           boolean
     #  in_pxd        boolean
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
@@ -995,7 +996,8 @@ class CStructOrUnionDefNode(StatNode):
             scope = StructOrUnionScope(self.name)
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
-            self.cname, visibility = self.visibility, packed = self.packed)
+            self.cname, visibility = self.visibility, api = self.api,
+            packed = self.packed)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -1078,15 +1080,16 @@ class CEnumDefNode(StatNode):
     #  items          [CEnumDefItemNode]
     #  typedef_flag   boolean
     #  visibility     "public" or "private"
+    #  api            boolean
     #  in_pxd         boolean
     #  entry          Entry
-
+    
     child_attrs = ["items"]
 
     def analyse_declarations(self, env):
         self.entry = env.declare_enum(self.name, self.pos,
             cname = self.cname, typedef_flag = self.typedef_flag,
-            visibility = self.visibility)
+            visibility = self.visibility, api = self.api)
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -1097,7 +1100,7 @@ class CEnumDefNode(StatNode):
         pass
 
     def generate_execution_code(self, code):
-        if self.visibility == 'public':
+        if self.visibility == 'public' or self.api:
             temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
             for item in self.entry.enum_values:
                 code.putln("%s = PyInt_FromLong(%s); %s" % (
@@ -1127,9 +1130,9 @@ class CEnumDefItemNode(StatNode):
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value.analyse_const_expression(env)
-        entry = env.declare_const(self.name, enum_entry.type,
+        entry = env.declare_const(self.name, enum_entry.type, 
             self.value, self.pos, cname = self.cname,
-            visibility = enum_entry.visibility)
+            visibility = enum_entry.visibility, api = enum_entry.api)
         enum_entry.enum_values.append(entry)
 
 
@@ -1137,6 +1140,7 @@ class CTypeDefNode(StatNode):
     #  base_type    CBaseTypeNode
     #  declarator   CDeclaratorNode
     #  visibility   "public" or "private"
+    #  api          boolean
     #  in_pxd       boolean
 
     child_attrs = ["base_type", "declarator"]
@@ -1147,10 +1151,10 @@ class CTypeDefNode(StatNode):
         name = name_declarator.name
         cname = name_declarator.cname
         entry = env.declare_typedef(name, type, self.pos,
-            cname = cname, visibility = self.visibility)
+            cname = cname, visibility = self.visibility, api = self.api)
         if self.in_pxd and not env.in_cinclude:
             entry.defined_in_pxd = 1
-
+    
     def analyse_expressions(self, env):
         pass
     def generate_execution_code(self, code):
@@ -1740,7 +1744,6 @@ class CFuncDefNode(FuncDefNode):
     def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
         arg_decls = []
         type = self.type
-        visibility = self.entry.visibility
         for arg in type.args[:len(type.args)-type.optional_arg_count]:
             arg_decls.append(arg.declaration_code())
         if with_dispatch and self.overridable:
@@ -1754,24 +1757,20 @@ class CFuncDefNode(FuncDefNode):
         if cname is None:
             cname = self.entry.func_cname
         entity = type.function_header_code(cname, ', '.join(arg_decls))
-        if visibility == 'public':
-            dll_linkage = "DL_EXPORT"
-        else:
-            dll_linkage = None
-        header = self.return_type.declaration_code(entity,
-            dll_linkage = dll_linkage)
-        if visibility == 'extern':
-            storage_class = "%s " % Naming.extern_c_macro
-        elif visibility == 'public':
-            storage_class = ""
-        else:
+        if self.entry.visibility == 'private':
             storage_class = "static "
+        else:
+            storage_class = ""
+        dll_linkage = None
+        modifiers = ""
         if 'inline' in self.modifiers:
             self.modifiers[self.modifiers.index('inline')] = 'cython_inline'
-        code.putln("%s%s %s {" % (
-            storage_class,
-            ' '.join(self.modifiers).upper(), # macro forms
-            header))
+        if self.modifiers:
+            modifiers = "%s " % ' '.join(self.modifiers).upper()
+        
+        header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
+        #print (storage_class, modifiers, header)
+        code.putln("%s%s%s {" % (storage_class, modifiers, header))
 
     def generate_argument_declarations(self, env, code):
         for arg in self.args:

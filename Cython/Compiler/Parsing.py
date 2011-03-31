@@ -2420,7 +2420,7 @@ def p_c_enum_definition(s, pos, ctx):
     return Nodes.CEnumDefNode(
         pos, name = name, cname = cname, items = items,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
-        in_pxd = ctx.level == 'module_pxd')
+        api = ctx.api, in_pxd = ctx.level == 'module_pxd')
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':
@@ -2478,10 +2478,10 @@ def p_c_struct_or_union_definition(s, pos, ctx):
         s.expect_dedent()
     else:
         s.expect_newline("Syntax error in struct or union definition")
-    return Nodes.CStructOrUnionDefNode(pos,
+    return Nodes.CStructOrUnionDefNode(pos, 
         name = name, cname = cname, kind = kind, attributes = attributes,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
-        in_pxd = ctx.level == 'module_pxd', packed = packed)
+        api = ctx.api, in_pxd = ctx.level == 'module_pxd', packed = packed)
 
 def p_visibility(s, prev_visibility):
     pos = s.position()
@@ -2566,7 +2566,8 @@ def p_ctypedef_statement(s, ctx):
         s.expect_newline("Syntax error in ctypedef statement")
         return Nodes.CTypeDefNode(
             pos, base_type = base_type,
-            declarator = declarator, visibility = visibility,
+            declarator = declarator, 
+            visibility = visibility, api = api,
             in_pxd = ctx.level == 'module_pxd')
 
 def p_decorators(s):
@@ -2693,8 +2694,8 @@ def p_c_class_definition(s, pos,  ctx):
         base_class_module = ".".join(base_class_path[:-1])
         base_class_name = base_class_path[-1]
     if s.sy == '[':
-        if ctx.visibility not in ('public', 'extern'):
-            error(s.position(), "Name options only allowed for 'public' or 'extern' C class")
+        if ctx.visibility not in ('public', 'extern') and not ctx.api:
+            error(s.position(), "Name options only allowed for 'public', 'api', or 'extern' C class")
         objstruct_name, typeobj_name = p_c_class_options(s)
     if s.sy == ':':
         if ctx.level == 'module_pxd':
@@ -2718,7 +2719,10 @@ def p_c_class_definition(s, pos,  ctx):
             error(pos, "Type object name specification required for 'public' C class")
     elif ctx.visibility == 'private':
         if ctx.api:
-            error(pos, "Only 'public' C class can be declared 'api'")
+            if not objstruct_name:
+                error(pos, "Object struct name specification required for 'api' C class")
+            if not typeobj_name:
+                error(pos, "Type object name specification required for 'api' C class")
     else:
         error(pos, "Invalid class visibility '%s'" % ctx.visibility)
     return Nodes.CClassDefNode(pos,
