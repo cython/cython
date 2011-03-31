@@ -19,26 +19,24 @@ def test_sizeof():
     else:
         print(cython.sizeof(cython.char) == 1)
 
-## CURRENTLY BROKEN - FIXME!!
-
-## def test_declare(n):
-##     """
-##     >>> test_declare(100)
-##     (100, 100)
-##     >>> test_declare(100.5)
-##     (100, 100)
-##     >>> test_declare(None)
-##     Traceback (most recent call last):
-##     ...
-##     TypeError: an integer is required
-##     """
-##     x = cython.declare(cython.int)
-##     y = cython.declare(cython.int, n)
-##     if cython.compiled:
-##         cython.declare(xx=cython.int, yy=cython.long)
-##         i = sizeof(xx)
-##     ptr = cython.declare(cython.p_int, cython.address(y))
-##     return y, ptr[0]
+def test_declare(n):
+    """
+    >>> test_declare(100)
+    (100, 100)
+    >>> test_declare(100.5)
+    (100, 100)
+    >>> test_declare(None) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: ...
+    """
+    x = cython.declare(cython.int)
+    y = cython.declare(cython.int, n)
+    if cython.compiled:
+        cython.declare(xx=cython.int, yy=cython.long)
+        i = sizeof(xx)
+    ptr = cython.declare(cython.p_int, cython.address(y))
+    return y, ptr[0]
 
 @cython.locals(x=cython.double, n=cython.int)
 def test_cast(x):
@@ -59,6 +57,7 @@ def test_address(x):
     return y[0]
 
 ## CURRENTLY BROKEN - FIXME!!
+## Is this test make sense? Implicit conversion in pure Python??
 
 ## @cython.locals(x=cython.int)
 ## @cython.locals(y=cython.bint)
@@ -93,21 +92,19 @@ def test_with_nogil(nogil):
             result = True
     return result
 
-## CURRENTLY BROKEN - FIXME!!
+MyUnion = cython.union(n=cython.int, x=cython.double)
+MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
+MyStruct2 = cython.typedef(MyStruct[2])
 
-## MyUnion = cython.union(n=cython.int, x=cython.double)
-## MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
-## MyStruct2 = cython.typedef(MyStruct[2])
-
-## def test_struct(n, x):
-##     """
-##     >>> test_struct(389, 1.64493)
-##     (389, 1.64493)
-##     """
-##     a = cython.declare(MyStruct2)
-##     a[0] = MyStruct(True, data=MyUnion(n=n))
-##     a[1] = MyStruct(is_integral=False, data={'x': x})
-##     return a[0].data.n, a[1].data.x
+def test_struct(n, x):
+    """
+    >>> test_struct(389, 1.64493)
+    (389, 1.64493)
+    """
+    a = cython.declare(MyStruct2)
+    a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
+    a[1] = MyStruct(is_integral=False, data={'x': x})
+    return a[0].data.n, a[1].data.x
 
 import cython as cy
 from cython import declare, cast, locals, address, typedef, p_void, compiled
@@ -116,24 +113,21 @@ from cython import declare as my_declare, locals as my_locals, p_void as my_void
 @my_locals(a=cython.p_void)
 def test_imports():
     """
-    >>> test_imports()  # (True, True)
-    True
+    >>> test_imports()
+    (True, True)
     """
     a = cython.NULL
     b = declare(p_void, cython.NULL)
     c = my_declare(my_void_star, cython.NULL)
     d = cy.declare(cy.p_void, cython.NULL)
 
-    ## CURRENTLY BROKEN - FIXME!!
-    #return a == d, compiled == my_compiled
-
-    return compiled == my_compiled
+    return a == d, compiled == my_compiled
 
 ## CURRENTLY BROKEN - FIXME!!
 
-## MyStruct3 = typedef(MyStruct[3])
-## MyStruct4 = my_typedef(MyStruct[4])
-## MyStruct5 = cy.typedef(MyStruct[5])
+# MyStruct3 = typedef(MyStruct[3])
+# MyStruct4 = my_typedef(MyStruct[4])
+# MyStruct5 = cy.typedef(MyStruct[5])
 
 def test_declare_c_types(n):
     """
