@@ -361,10 +361,10 @@ class Scope(object):
     def qualify_name(self, name):
         return EncodedString("%s.%s" % (self.qualified_name, name))
 
-    def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
+    def declare_const(self, name, type, value, pos, cname = None, visibility = 'private', api = 0):
         # Add an entry for a named constant.
         if not cname:
-            if self.in_cinclude or visibility == 'public':
+            if self.in_cinclude or (visibility == 'public' or api):
                 cname = name
             else:
                 cname = self.mangle(Naming.enum_prefix, name)
@@ -374,21 +374,22 @@ class Scope(object):
         return entry
 
     def declare_type(self, name, type, pos,
-            cname = None, visibility = 'private', defining = 1, shadow = 0):
+            cname = None, visibility = 'private', api = 0, defining = 1, shadow = 0):
         # Add an entry for a type definition.
         if not cname:
             cname = name
         entry = self.declare(name, cname, type, pos, visibility, shadow)
         entry.is_type = 1
+        entry.api = api
         if defining:
             self.type_entries.append(entry)
         # here we would set as_variable to an object representing this type
         return entry
 
     def declare_typedef(self, name, base_type, pos, cname = None,
-            visibility = 'private'):
+                        visibility = 'private', api = 0):
         if not cname:
-            if self.in_cinclude or visibility == 'public':
+            if self.in_cinclude or (visibility == 'public' or api):
                 cname = name
             else:
                 cname = self.mangle(Naming.type_prefix, name)
@@ -398,16 +399,18 @@ class Scope(object):
         except ValueError, e:
             error(pos, e.args[0])
             type = PyrexTypes.error_type
-        entry = self.declare_type(name, type, pos, cname, visibility)
+        entry = self.declare_type(name, type, pos, cname, 
+                                  visibility = visibility, api = api)
         type.qualified_name = entry.qualified_name
         return entry
-
-    def declare_struct_or_union(self, name, kind, scope,
-            typedef_flag, pos, cname = None, visibility = 'private',
-            packed = False):
+        
+    def declare_struct_or_union(self, name, kind, scope, 
+                                typedef_flag, pos, cname = None, 
+                                visibility = 'private', api = 0,
+                                packed = False):
         # Add an entry for a struct or union definition.
         if not cname:
-            if self.in_cinclude or visibility == 'public':
+            if self.in_cinclude or (visibility == 'public' or api):
                 cname = name
             else:
                 cname = self.mangle(Naming.type_prefix, name)
@@ -416,7 +419,8 @@ class Scope(object):
             type = PyrexTypes.CStructOrUnionType(
                 name, kind, scope, typedef_flag, cname, packed)
             entry = self.declare_type(name, type, pos, cname,
-                visibility = visibility, defining = scope is not None)
+                visibility = visibility, api = api,
+                defining = scope is not None)
             self.sue_entries.append(entry)
             type.entry = entry
         else:
@@ -482,12 +486,12 @@ class Scope(object):
         if entry.visibility != visibility:
             error(pos, "'%s' previously declared as '%s'" % (
                 entry.name, entry.visibility))
-
+    
     def declare_enum(self, name, pos, cname, typedef_flag,
-            visibility = 'private'):
+            visibility = 'private', api = 0):
         if name:
             if not cname:
-                if self.in_cinclude or visibility == 'public':
+                if self.in_cinclude or (visibility == 'public' or api):
                     cname = name
                 else:
                     cname = self.mangle(Naming.type_prefix, name)
@@ -495,13 +499,13 @@ class Scope(object):
         else:
             type = PyrexTypes.c_anon_enum_type
         entry = self.declare_type(name, type, pos, cname = cname,
-            visibility = visibility)
+            visibility = visibility, api = api)
         entry.enum_values = []
         self.sue_entries.append(entry)
-        return entry
+        return entry    
 
     def declare_var(self, name, type, pos,
-            cname = None, visibility = 'private', is_cdef = 0):
+                    cname = None, visibility = 'private', api = 0, is_cdef = 0):
         # Add an entry for a variable.
         if not cname:
             if visibility != 'private':
@@ -514,6 +518,7 @@ class Scope(object):
                 error(pos, "C++ class must have a default constructor to be stack allocated")
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
+        entry.api = api
         self.control_flow.set_state((), (name, 'initialized'), False)
         return entry
 
@@ -995,13 +1000,13 @@ class ModuleScope(Scope):
         return entry
 
     def declare_var(self, name, type, pos,
-            cname = None, visibility = 'private', is_cdef = 0):
+                    cname = None, visibility = 'private', api = 0, is_cdef = 0):
         # Add an entry for a global variable. If it is a Python
         # object type, and not declared with cdef, it will live
         # in the module dictionary, otherwise it will be a C
         # global variable.
         entry = Scope.declare_var(self, name, type, pos,
-            cname, visibility, is_cdef)
+                                  cname=cname, visibility=visibility, api=api, is_cdef=is_cdef)
         if not visibility in ('private', 'public', 'extern'):
             error(pos, "Module-level variable cannot be declared %s" % visibility)
         if not is_cdef:
@@ -1033,10 +1038,10 @@ class ModuleScope(Scope):
         buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
-        # declarations for anonymous structs.
+        # declarations for anonymous structs. 
         if typedef_flag and visibility != 'extern':
-            if visibility != 'public':
-                warning(pos, "ctypedef only valid for public and extern classes", 2)
+            if not (visibility == 'public' or api):
+                warning(pos, "ctypedef only valid for 'extern' , 'public', and 'api'", 2)
             objtypedef_cname = objstruct_cname
             typedef_flag = 0
         else:
@@ -1283,12 +1288,12 @@ class LocalScope(Scope):
         return entry
 
     def declare_var(self, name, type, pos,
-            cname = None, visibility = 'private', is_cdef = 0):
+                    cname = None, visibility = 'private', api = 0, is_cdef = 0):
         # Add an entry for a local variable.
         if visibility in ('public', 'readonly'):
             error(pos, "Local variable cannot be declared %s" % visibility)
         entry = Scope.declare_var(self, name, type, pos,
-            cname, visibility, is_cdef)
+                                  cname=cname, visibility=visibility, api=api, is_cdef=is_cdef)
         if type.is_pyobject and not Options.init_local_none:
             entry.init = "0"
         entry.init_to_none = (type.is_pyobject or type.is_unspecified) and Options.init_local_none
@@ -1365,7 +1370,7 @@ class GeneratorExpressionScope(Scope):
         return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(prefix, name))
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private', is_cdef = True):
+                    cname = None, visibility = 'private', api = 0, is_cdef = True):
         if type is unspecified_type:
             # if the outer scope defines a type for this variable, inherit it
             outer_entry = self.outer_scope.lookup(name)
@@ -1408,7 +1413,7 @@ class StructOrUnionScope(Scope):
         Scope.__init__(self, name, None, None)
 
     def declare_var(self, name, type, pos,
-            cname = None, visibility = 'private', is_cdef = 0, allow_pyobject = 0):
+                    cname = None, visibility = 'private', api = 0, is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
             cname = name
@@ -1430,7 +1435,8 @@ class StructOrUnionScope(Scope):
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', defining = 0,
                           api = 0, in_pxd = 0, modifiers = ()): # currently no utility code ...
-        return self.declare_var(name, type, pos, cname, visibility)
+        return self.declare_var(name, type, pos, 
+                                cname=cname, visibility=visibility)
 
 class ClassScope(Scope):
     #  Abstract base class for namespace of
@@ -1474,12 +1480,12 @@ class PyClassScope(ClassScope):
     is_py_class_scope = 1
 
     def declare_var(self, name, type, pos,
-            cname = None, visibility = 'private', is_cdef = 0):
+                    cname = None, visibility = 'private', api = 0, is_cdef = 0):
         if type is unspecified_type:
             type = py_object_type
         # Add an entry for a class attribute.
         entry = Scope.declare_var(self, name, type, pos,
-            cname, visibility, is_cdef)
+                                  cname=cname, visibility=visibility, api=api, is_cdef=is_cdef)
         entry.is_pyglobal = 1
         entry.is_pyclass_attr = 1
         return entry
@@ -1536,7 +1542,7 @@ class CClassScope(ClassScope):
                 self.parent_type.base_type.scope.needs_gc())
 
     def declare_var(self, name, type, pos,
-            cname = None, visibility = 'private', is_cdef = 0):
+                    cname = None, visibility = 'private', api = 0, is_cdef = 0):
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:
@@ -1576,7 +1582,7 @@ class CClassScope(ClassScope):
                 type = py_object_type
             # Add an entry for a class attribute.
             entry = Scope.declare_var(self, name, type, pos,
-                cname, visibility, is_cdef)
+                                      cname=cname, visibility=visibility, api=api, is_cdef=is_cdef)
             entry.is_member = 1
             entry.is_pyglobal = 1 # xxx: is_pyglobal changes behaviour in so many places that
                                   # I keep it in for now. is_member should be enough
@@ -1592,7 +1598,8 @@ class CClassScope(ClassScope):
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-        entry = self.declare_var(name, py_object_type, pos, visibility='extern')
+        entry = self.declare_var(name, py_object_type, pos, 
+                                 visibility='extern')
         special_sig = get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
@@ -1717,7 +1724,8 @@ class CppClassScope(Scope):
         self.inherited_var_entries = []
 
     def declare_var(self, name, type, pos,
-            cname = None, visibility = 'extern', is_cdef = 0, allow_pyobject = 0):
+                    cname = None, visibility = 'extern', api = 0, 
+                    is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
             cname = name
@@ -1758,15 +1766,16 @@ class CppClassScope(Scope):
             error(pos, "no matching function for call to %s::%s()" %
                   (self.default_constructor, self.default_constructor))
 
-    def declare_cfunction(self, name, type, pos,
-            cname = None, visibility = 'extern', defining = 0,
-            api = 0, in_pxd = 0, modifiers = (), utility_code = None):
+    def declare_cfunction(self, name, type, pos, cname = None, 
+                          visibility = 'extern', api = 0, defining = 0,
+                          in_pxd = 0, modifiers = (), utility_code = None):
         if name == self.name.split('::')[-1] and cname is None:
             self.check_base_default_constructor(pos)
             name = '<init>'
             type.return_type = self.lookup(self.name).type
         prev_entry = self.lookup_here(name)
-        entry = self.declare_var(name, type, pos, cname, visibility)
+        entry = self.declare_var(name, type, pos, 
+                                 cname=cname, visibility=visibility)
         if prev_entry:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
@@ -1790,8 +1799,9 @@ class CppClassScope(Scope):
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
-                                       base_entry.pos, base_entry.cname,
-                                       base_entry.visibility, base_entry.func_modifiers,
+                                           base_entry.pos, base_entry.cname,
+                                           base_entry.visibility, 0,
+                                           modifiers = base_entry.func_modifiers,
                                            utility_code = base_entry.utility_code)
             entry.is_inherited = 1
 
