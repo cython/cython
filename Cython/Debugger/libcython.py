@@ -592,6 +592,7 @@ class CyCy(CythonCommand):
         cy bt / cy backtrace
         cy list
         cy print
+        cy set
         cy locals
         cy globals
         cy exec
@@ -607,6 +608,7 @@ class CyCy(CythonCommand):
                                             completer_class, prefix=True)
 
         commands = dict(
+            # GDB commands
             import_ = CyImport.register(),
             break_ = CyBreak.register(),
             step = CyStep.register(),
@@ -624,9 +626,13 @@ class CyCy(CythonCommand):
             globals = CyGlobals.register(),
             exec_ = libpython.FixGdbCommand('cy exec', '-cy-exec'),
             _exec = CyExec.register(),
+            set = CySet.register(),
+
+            # GDB functions
             cy_cname = CyCName('cy_cname'),
             cy_cvalue = CyCValue('cy_cvalue'),
             cy_lineno = CyLine('cy_lineno'),
+            cy_eval = CyEval('cy_eval'),
         )
 
         for command_name, command in commands.iteritems():
@@ -1169,14 +1175,13 @@ class CyGlobals(CyLocals):
                                              max_name_length, '    ')
 
 
-class CyExec(CythonCommand, libpython.PyExec):
-    """
-    Execute Python code in the nearest Python or Cython frame.
-    """
 
-    name = '-cy-exec'
-    command_class = gdb.COMMAND_STACK
-    completer_class = gdb.COMPLETE_NONE
+class EvaluateOrExecuteCodeMixin(object):
+    """
+    Evaluate or execute Python code in a Cython or Python frame. The 'evalcode'
+    method evaluations Python code, prints a traceback if an exception went
+    uncaught, and returns any return value as a gdb.Value (NULL on exception).
+    """
 
     def _fill_locals_dict(self, executor, local_dict_pointer):
         "Fill a remotely allocated dict with values from the Cython C stack"
@@ -1208,28 +1213,22 @@ class CyExec(CythonCommand, libpython.PyExec):
                         raise gdb.GdbError("Unable to execute Python code.")
                 finally:
                     # PyDict_SetItem doesn't steal our reference
-                    executor.decref(pystringp)
+                    executor.xdecref(pystringp)
 
     def _find_first_cython_or_python_frame(self):
         frame = gdb.selected_frame()
         while frame:
             if (self.is_cython_function(frame) or
                 self.is_python_function(frame)):
+                frame.select()
                 return frame
 
             frame = frame.older()
 
         raise gdb.GdbError("There is no Cython or Python frame on the stack.")
 
-    def invoke(self, expr, from_tty):
-        frame = self._find_first_cython_or_python_frame()
-        if self.is_python_function(frame):
-            libpython.py_exec.invoke(expr, from_tty)
-            return
 
-        expr, input_type = self.readcode(expr)
-        executor = libpython.PythonCodeExecutor()
-
+    def _evalcode_cython(self, executor, code, input_type):
         with libpython.FetchAndRestoreError():
             # get the dict of Cython globals and construct a dict in the
             # inferior with Cython locals
@@ -1240,9 +1239,65 @@ class CyExec(CythonCommand, libpython.PyExec):
             try:
                 self._fill_locals_dict(executor,
                                        libpython.pointervalue(local_dict))
-                executor.evalcode(expr, input_type, global_dict, local_dict)
+                result = executor.evalcode(code, input_type, global_dict,
+                                           local_dict)
             finally:
-                executor.decref(libpython.pointervalue(local_dict))
+                executor.xdecref(libpython.pointervalue(local_dict))
+
+        return result
+
+    def evalcode(self, code, input_type):
+        """
+        Evaluate `code` in a Python or Cython stack frame using the given
+        `input_type`.
+        """
+        frame = self._find_first_cython_or_python_frame()
+        executor = libpython.PythonCodeExecutor()
+        if self.is_python_function(frame):
+            return libpython._evalcode_python(executor, code, input_type)
+        return self._evalcode_cython(executor, code, input_type)
+
+
+class CyExec(CythonCommand, libpython.PyExec, EvaluateOrExecuteCodeMixin):
+    """
+    Execute Python code in the nearest Python or Cython frame.
+    """
+
+    name = '-cy-exec'
+    command_class = gdb.COMMAND_STACK
+    completer_class = gdb.COMPLETE_NONE
+
+    def invoke(self, expr, from_tty):
+        expr, input_type = self.readcode(expr)
+        executor = libpython.PythonCodeExecutor()
+        executor.xdecref(self.evalcode(expr, executor.Py_single_input))
+
+
+class CySet(CythonCommand):
+    """
+    Set a Cython variable to a certain value
+
+        cy set my_cython_c_variable = 10
+        cy set my_cython_py_variable = $cy_eval("{'doner': 'kebab'}")
+
+    This is equivalent to
+
+        set $cy_value("my_cython_variable") = 10
+    """
+
+    name = 'cy set'
+    command_class = gdb.COMMAND_DATA
+    completer_class = gdb.COMPLETE_NONE
+
+    @require_cython_frame
+    def invoke(self, expr, from_tty):
+        name_and_expr = expr.split('=', 1)
+        if len(name_and_expr) != 2:
+            raise gdb.GdbError("Invalid expression. Use 'cy set var = expr'.")
+
+        varname, expr = name_and_expr
+        cname = self.cy.cy_cname.invoke(varname.strip())
+        gdb.execute("set %s = %s" % (cname, expr))
 
 
 # Functions
@@ -1311,6 +1366,18 @@ class CyLine(gdb.Function, CythonBase):
     @require_cython_frame
     def invoke(self):
         return self.get_cython_lineno()
+
+
+class CyEval(gdb.Function, CythonBase, EvaluateOrExecuteCodeMixin):
+    """
+    Evaluate Python code in the nearest Python or Cython frame and return
+    """
+
+    @gdb_function_value_to_unicode
+    def invoke(self, python_expression):
+        input_type = libpython.PythonCodeExecutor.Py_eval_input
+        return self.evalcode(python_expression, input_type)
+
 
 cython_info = CythonInfo()
 cy = CyCy.register()

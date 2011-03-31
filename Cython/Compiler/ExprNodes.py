@@ -867,9 +867,8 @@ class IntNode(ConstNode):
             return self
         elif dst_type.is_float:
             if self.constant_result is not not_a_constant:
-                float_value = float(self.constant_result)
-                return FloatNode(self.pos, value=repr(float_value), type=dst_type,
-                                 constant_result=float_value)
+                return FloatNode(self.pos, value='%d.0' % int(self.constant_result), type=dst_type,
+                                 constant_result=float(self.constant_result))
             else:
                 return FloatNode(self.pos, value=self.value, type=dst_type,
                                  constant_result=not_a_constant)
@@ -3061,7 +3060,11 @@ class SimpleCallNode(CallNode):
                     # nogil anyway)
                     pass
                 else:
-                    self.args[i] = arg.coerce_to_temp(env)
+                    #self.args[i] = arg.coerce_to_temp(env)
+                    # instead: issue a warning
+                    if i > 0 or i == 1 and self.self is not None: # skip first arg
+                        warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
+                        break
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
