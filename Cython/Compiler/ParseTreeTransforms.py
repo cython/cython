@@ -1617,8 +1617,9 @@ class CreateClosureClasses(CythonTransform):
             inner_node.needs_self_code = False
             node.needs_outer_scope = False
 
+        base_type = None
         if node.is_generator:
-            generator_class = self.create_generator_class(target_module_scope, node.pos)
+            base_type = self.create_generator_class(target_module_scope, node.pos)
         elif not in_closure and not from_closure:
             return
         elif not in_closure:
@@ -1629,12 +1630,10 @@ class CreateClosureClasses(CythonTransform):
 
         as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
 
-        if node.is_generator:
-            entry = target_module_scope.declare_c_class(name = as_name,
-                        pos = node.pos, defining = True, implementing = True, base_type=generator_class)
-        else:
-            entry = target_module_scope.declare_c_class(name = as_name,
-                        pos = node.pos, defining = True, implementing = True)
+        entry = target_module_scope.declare_c_class(
+            name=as_name, pos=node.pos, defining=True,
+            implementing=True, base_type=base_type)
+
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
