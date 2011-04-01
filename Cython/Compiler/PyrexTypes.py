@@ -1190,8 +1190,8 @@ class CComplexType(CNumericType):
                     visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            scope.declare_var("real", self.real_type, None, "real", is_cdef=True)
-            scope.declare_var("imag", self.real_type, None, "imag", is_cdef=True)
+            scope.declare_var("real", self.real_type, None, cname="real", is_cdef=True)
+            scope.declare_var("imag", self.real_type, None, cname="imag", is_cdef=True)
             entry = scope.declare_cfunction(
                     "conjugate",
                     CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
