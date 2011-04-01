@@ -168,7 +168,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return env.qualified_name.replace(".", "__")
     
     def generate_api_code(self, env, result):
-        def api_entries(entries, pxd=1):
+        def api_entries(entries, pxd=0):
             return [entry for entry in entries
                     if entry.api or (pxd and entry.defined_in_pxd)]
         api_vars = api_entries(env.var_entries)

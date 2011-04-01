@@ -20,6 +20,23 @@ __doc__ = u"""
     KeyError: 'f_noprof'
     >>> short_stats['f_raise']
     100
+
+    >>> short_stats['withgil_prof']
+    100
+    >>> short_stats['withgil_noprof']
+    Traceback (most recent call last):
+    ...
+    KeyError: 'withgil_noprof'
+
+    >>> short_stats['nogil_prof']
+    Traceback (most recent call last):
+    ...
+    KeyError: 'nogil_prof'
+    >>> short_stats['nogil_noprof']
+    Traceback (most recent call last):
+    ...
+    KeyError: 'nogil_noprof'
+
     >>> try:
     ...    os.unlink(statsfile)
     ... except:
@@ -43,6 +60,10 @@ def test_profile(long N):
         n += f_inline(i)
         n += f_inline_prof(i)
         n += f_noprof(i)
+        n += nogil_noprof(i)
+        n += nogil_prof(i)
+        n += withgil_noprof(i)
+        n += withgil_prof(i)
         try:
             n += f_raise(i+2)
         except RuntimeError:
@@ -68,3 +89,18 @@ cdef int f_noprof(long a):
 
 cdef long f_raise(long) except -2:
     raise RuntimeError
+
+@cython.profile(False)
+cdef int withgil_noprof(long a) with gil:
+    return (a)
+@cython.profile(True)
+cdef int withgil_prof(long a) with gil:
+    return (a)
+
+@cython.profile(False)
+cdef int nogil_noprof(long a) nogil:
+    return a
+@cython.profile(True)
+cdef int nogil_prof(long a) nogil:
+    return a
+
