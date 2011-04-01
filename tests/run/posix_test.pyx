@@ -1,3 +1,4 @@
+# tag: posix
 from libc.stdio   cimport *
 from posix.unistd cimport *
 from posix.fcntl  cimport *
