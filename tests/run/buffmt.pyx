@@ -155,7 +155,7 @@ def char3int(fmt):
     >>> char3int("c3i")
     >>> char3int("ci2i")
 
-    #TODO > char3int("c@i@2i")
+    >>> char3int("c@i@2i")
 
     Extra pad bytes (assuming int size is 4 or more)
     >>> char3int("cxiii")
@@ -169,7 +169,7 @@ def char3int(fmt):
         ...
     ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
 
-    #TODO char3int("=cxxx@iii")
+    >>> char3int("=cxxx@iii")
 
     Error:
     >>> char3int("cii")
@@ -277,11 +277,25 @@ cdef packed struct PackedSubStruct:
     char x
     int y
 
+cdef struct UnpackedSubStruct:
+    char x
+    int y
+
 cdef packed struct PackedStruct:
     char a
     int b
     PackedSubStruct sub
 
+cdef struct PartiallyPackedStruct:
+    char a
+    int b
+    PackedSubStruct sub
+
+cdef packed struct PartiallyPackedStruct2:
+    char a
+    UnpackedSubStruct sub
+    char b
+    int c
 
 @testcase
 def packed_struct(fmt):
@@ -291,12 +305,13 @@ def packed_struct(fmt):
     >>> packed_struct("^cici")
     >>> packed_struct("=cibi")
 
+    However aligned access won't work:
+
     >>> packed_struct("^c@i^ci")
     Traceback (most recent call last):
         ...
-    ValueError: Buffer packing mode currently only allowed at beginning of format string (this is a defect)
+    ValueError: Buffer dtype mismatch; next field is at offset 4 but 1 expected
 
-    However aligned access won't work:
     >>> packed_struct("@cici")
     Traceback (most recent call last):
         ...
@@ -304,6 +319,63 @@ def packed_struct(fmt):
 
     """
     cdef object[PackedStruct] buf = MockBuffer(fmt, sizeof(PackedStruct))
+
+@testcase
+def partially_packed_struct(fmt):
+    """
+    Assuming int is four bytes:
+
+    >>> partially_packed_struct("^c@i^ci")
+    >>> partially_packed_struct("@ci^ci")
+    >>> partially_packed_struct("^c@i=ci")
+    >>> partially_packed_struct("@ci=ci")
+    >>> partially_packed_struct("ci^ci")
+    >>> partially_packed_struct("ci=ci")
+
+    Incorrectly aligned accesses won't work:
+
+    >>> partially_packed_struct("^cici")
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
+
+    >>> partially_packed_struct("=cibi")
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
+
+    """
+    cdef object[PartiallyPackedStruct] buf = MockBuffer(
+        fmt, sizeof(PartiallyPackedStruct))
+
+@testcase
+def partially_packed_struct_2(fmt):
+    """
+    Assuming int is four bytes:
+
+    >>> partially_packed_struct_2("^ccxxxici")
+    >>> partially_packed_struct_2("^ccxxxi^ci")
+    >>> partially_packed_struct_2("c=cxxxi^ci")
+    >>> partially_packed_struct_2("c^cxxxi^ci")
+    >>> partially_packed_struct_2("c^cxxxi=ci")
+    >>> partially_packed_struct_2("ccxxx^i@c^i")
+
+    Incorrectly aligned accesses won't work:
+
+    >>> partially_packed_struct_2("ccxxxici")
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 8 but 5 expected
+    
+    >>> partially_packed_struct_2("ccici")
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 4 but 5 expected
+
+    """
+    cdef object[PartiallyPackedStruct2] buf = MockBuffer(
+        fmt, sizeof(PartiallyPackedStruct2))
+
 
 # TODO: empty struct
 # TODO: Incomplete structs
