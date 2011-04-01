@@ -2928,7 +2928,7 @@ class GeneratorDefNode(DefNode):
     is_generator = True
     needs_closure = True
 
-    child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "gbody"]
+    child_attrs = DefNode.child_attrs + ["gbody"]
 
     def __init__(self, **kwargs):
         # XXX: don't actually needs a body
@@ -2961,8 +2961,6 @@ class GeneratorBodyDefNode(DefNode):
     #
 
     is_generator_body = True
-
-    child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
     def __init__(self, pos=None, name=None, body=None):
         super(GeneratorBodyDefNode, self).__init__(pos=pos, body=body, name=name, doc=None,
@@ -3032,7 +3030,6 @@ class GeneratorBodyDefNode(DefNode):
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
             code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
-            # XXX: ^^^ is this enough?
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -4900,7 +4897,8 @@ class TryExceptStatNode(StatNode):
         code.put_goto(try_end_label)
         if code.label_used(try_return_label):
             code.put_label(try_return_label)
-            for var in exc_save_vars: code.put_xgiveref(var)
+            for var in exc_save_vars:
+                code.put_xgiveref(var)
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(exc_save_vars))
             code.put_goto(old_return_label)
@@ -4914,7 +4912,8 @@ class TryExceptStatNode(StatNode):
         if error_label_used or not self.has_default_clause:
             if error_label_used:
                 code.put_label(except_error_label)
-            for var in exc_save_vars: code.put_xgiveref(var)
+            for var in exc_save_vars:
+                code.put_xgiveref(var)
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(exc_save_vars))
             code.put_goto(old_error_label)
@@ -4925,14 +4924,16 @@ class TryExceptStatNode(StatNode):
 
             if code.label_used(exit_label):
                 code.put_label(exit_label)
-                for var in exc_save_vars: code.put_xgiveref(var)
+                for var in exc_save_vars:
+                    code.put_xgiveref(var)
                 code.putln("__Pyx_ExceptionReset(%s);" %
                            ', '.join(exc_save_vars))
                 code.put_goto(old_label)
 
         if code.label_used(except_end_label):
             code.put_label(except_end_label)
-            for var in exc_save_vars: code.put_xgiveref(var)
+            for var in exc_save_vars:
+                code.put_xgiveref(var)
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(exc_save_vars))
         code.put_label(try_end_label)
