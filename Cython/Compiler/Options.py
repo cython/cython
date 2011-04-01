@@ -95,6 +95,7 @@ directive_types = {
     'final' : bool,  # final cdef classes and methods
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool, # values can be True/None/False
+    'cfunc' : None, # decorators do not take directive value
     }
 
 for key, val in directive_defaults.items():

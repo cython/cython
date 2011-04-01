@@ -1378,6 +1378,51 @@ class ExpandInplaceOperators(EnvTransform):
         # In-place assignments can't happen within an expression.
         return node
 
+class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
+    """
+    Adjust function and class definitions by the decorator directives:
+
+    @cython.cfunc
+    @cython.cclass
+    @cython.ccall
+    """
+
+    def visit_ModuleNode(self, node):
+        self.directives = node.directives
+        self.in_py_class = False
+        self.visitchildren(node)
+        return node
+
+    def visit_CompilerDirectivesNode(self, node):
+        old_directives = self.directives
+        self.directives = node.directives
+        self.visitchildren(node)
+        self.directives = old_directives
+        return node
+
+    def visit_DefNode(self, node):
+        if 'cfunc' in self.directives:
+            if self.in_py_class:
+                error(node.pos, "cfunc directive is not allowed here")
+            else:
+                node = node.as_cfunction(overridable=False)
+                return self.visit(node)
+        self.visitchildren(node)
+        return node
+
+    def visit_PyClassDefNode(self, node):
+        old_in_pyclass = self.in_py_class
+        self.in_py_class = True
+        self.visitchildren(node)
+        self.in_py_class = old_in_pyclass
+        return node
+
+    def visit_CClassDefNode(self, node):
+        old_in_pyclass = self.in_py_class
+        self.in_py_class = False
+        self.visitchildren(node)
+        self.in_py_class = old_in_pyclass
+        return node
 
 class AlignFunctionDefinitions(CythonTransform):
     """

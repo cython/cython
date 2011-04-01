@@ -108,7 +108,7 @@ class Context(object):
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from ParseTreeTransforms import ExpandInplaceOperators
         from TypeInference import MarkAssignments, MarkOverflowingArithmetic
-        from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
+        from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions, GilCheck
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
@@ -135,6 +135,7 @@ class Context(object):
             PostParse(self),
             _specific_post_parse,
             InterpretCompilerDirectives(self, self.compiler_directives),
+            AdjustDefByDirectives(self),
             _align_function_definitions,
             MarkClosureVisitor(self),
             ConstantFolding(),
