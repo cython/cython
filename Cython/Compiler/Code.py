@@ -1423,6 +1423,11 @@ class CCodeWriter(object):
         self.putln("#endif")
         self.putln("Py_UNBLOCK_THREADS")
 
+    def declare_gilstate(self):
+        self.putln("#ifdef WITH_THREAD")
+        self.putln("PyGILState_STATE _save;")
+        self.putln("#endif")
+
     # error handling
 
     def put_error_if_neg(self, pos, value):
