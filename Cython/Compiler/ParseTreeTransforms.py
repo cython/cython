@@ -1365,15 +1365,14 @@ if VALUE is not None:
         node.body.analyse_declarations(lenv)
 
         if lenv.nogil and lenv.has_with_gil_block:
-            # Acquire the GIL for cleanup in 'nogil' functions. The
-            # corresponding release will be taken care of by
+            # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
+            # the entire function body in try/finally.
+            # The corresponding release will be taken care of by
             # Nodes.FuncDefNode.generate_function_definitions()
-            node.body = Nodes.TryFinallyStatNode(
+            node.body = Nodes.NogilTryFinallyStatNode(
                 node.body.pos,
                 body = node.body,
                 finally_clause = Nodes.EnsureGILNode(node.body.pos),
-                preserve_exception = False,
-                nogil_check = None,
             )
 
         self.env_stack.append(lenv)
@@ -1547,6 +1546,7 @@ if VALUE is not None:
         # ---------------------------------------
         return property
 
+
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
@@ -1567,6 +1567,7 @@ class AnalyseExpressionsTransform(CythonTransform):
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
+
 
 class ExpandInplaceOperators(EnvTransform):
 
@@ -1942,7 +1943,11 @@ class GilCheck(VisitorTransform):
     Call `node.gil_check(env)` on each node to make sure we hold the
     GIL when we need it.  Raise an error when on Python operations
     inside a `nogil` environment.
+
+    Additionally, raise exceptions for closely nested with gil or with nogil
+    statements. The latter would abort Python.
     """
+
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
@@ -1987,6 +1992,14 @@ class GilCheck(VisitorTransform):
                 error(node.pos, "Trying to release the GIL while it was "
                                 "previously released.")
 
+        if isinstance(node.finally_clause, Nodes.StatListNode):
+            # The finally clause of the GILStatNode is a GILExitNode,
+            # which is wrapped in a StatListNode. Just unpack that.
+            node.finally_clause, = node.finally_clause.stats
+
+        if node.state == 'gil':
+            self.seen_with_gil_statement = True
+
         self.visitchildren(node)
         self.nogil = was_nogil
         return node
@@ -2018,6 +2031,27 @@ class GilCheck(VisitorTransform):
             node.nogil_check(self.env_stack[-1])
 
         self.visitchildren(node)
+
+    def visit_TryFinallyStatNode(self, node):
+        """
+        Take care of try/finally statements in nogil code sections. The
+        'try' must contain a 'with gil:' statement somewhere.
+        """
+        if not self.nogil or isinstance(node, Nodes.GILStatNode):
+            return self.visit_Node(node)
+
+        node.nogil_check = None
+        node.is_try_finally_in_nogil = True
+
+        # First, visit the body and check for errors
+        self.seen_with_gil_statement = False
+        self.visitchildren(node.body)
+
+        if not self.seen_with_gil_statement:
+            error(node.pos, "Cannot use try/finally in nogil sections unless "
+                            "it contains a 'with gil' statement.")
+
+        self.visitchildren(node.finally_clause)
         return node
 
     def visit_Node(self, node):

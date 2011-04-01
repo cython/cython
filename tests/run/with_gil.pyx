@@ -123,6 +123,22 @@ def test_try_finally_and_outer_except():
 
     print "End of function"
 
+def test_restore_exception():
+    """
+    >>> test_restore_exception()
+    Traceback (most recent call last):
+        ...
+    Exception: Override the raised exception
+    """
+    with nogil:
+        with gil:
+            try:
+                with nogil:
+                    with gil:
+                        raise Exception("Override this please")
+            finally:
+                raise Exception("Override the raised exception")
+
 def test_declared_variables():
     """
     >>> test_declared_variables()
@@ -299,3 +315,75 @@ def test_release_gil_call_gil_func():
     with nogil:
         with gil:
             with_gil_raise()
+
+
+# Test try/finally in nogil blocks
+
+def test_try_finally_in_nogil():
+    """
+    >>> test_try_finally_in_nogil()
+    Traceback (most recent call last):
+        ...
+    Exception: Override exception!
+    """
+    with nogil:
+        try:
+            with gil:
+                raise Exception("This will be overridden")
+        finally:
+            with gil:
+                raise Exception("Override exception!")
+
+            with gil:
+                raise Exception("This code should not be executed!")
+
+def test_nogil_try_finally_no_exception():
+    """
+    >>> test_nogil_try_finally_no_exception()
+    first nogil try
+    nogil try gil
+    second nogil try
+    nogil finally
+    ------
+    First with gil block
+    Second with gil block
+    finally block
+    """
+    with nogil:
+        try:
+            puts("first nogil try")
+            with gil:
+                print "nogil try gil"
+            puts("second nogil try")
+        finally:
+            puts("nogil finally")
+
+    print '------'
+
+    with nogil:
+        try:
+            with gil:
+                print "First with gil block"
+
+            with gil:
+                print "Second with gil block"
+        finally:
+            puts("finally block")
+
+def test_nogil_try_finally_propagate_exception():
+    """
+    >>> test_nogil_try_finally_propagate_exception()
+    Execute finally clause
+    Propagate this!
+    """
+    try:
+        with nogil:
+            try:
+                with gil:
+                    raise Exception("Propagate this!")
+                with gil:
+                    raise Exception("Don't reach this section!")
+            finally:
+                puts("Execute finally clause")
+    except Exception, e:
+        print e
