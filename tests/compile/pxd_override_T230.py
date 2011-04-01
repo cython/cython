@@ -1,3 +1,5 @@
+# mode: compile
+
 class A:
     def foo(self):
         return "A"

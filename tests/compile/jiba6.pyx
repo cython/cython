@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef extern from "string.h":
     void memcpy(void* des, void* src, int size)
 

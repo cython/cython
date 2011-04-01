@@ -1,3 +1,5 @@
+# mode: error
+
 def f(*args, **kwargs):
     pass
 

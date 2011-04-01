@@ -1,3 +1,6 @@
+# ticket: 517
+# mode: error
+
 ctypedef void* VoidP
 
 cdef class Spam:

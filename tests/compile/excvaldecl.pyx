@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef int spam() except 42:
     pass
 

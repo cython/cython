@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef void f1(char *argv[]):
     f2(argv)
 

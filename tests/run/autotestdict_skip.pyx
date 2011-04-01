@@ -1,4 +1,5 @@
 #cython: autotestdict=True
+
 """
 Tests that autotestdict doesn't come into effect when
 a __test__ is defined manually.

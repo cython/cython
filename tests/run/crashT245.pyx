@@ -1,3 +1,5 @@
+# ticket: 245
+
 cimport crashT245_pxd
 
 def f():

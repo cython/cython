@@ -1,3 +1,5 @@
+# ticket: 18
+
 __doc__ = u"""
 >>> f = PyFoo()
 >>> print(f.bar)

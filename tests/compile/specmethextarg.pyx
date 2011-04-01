@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class Spam:
     cdef int eggs
 

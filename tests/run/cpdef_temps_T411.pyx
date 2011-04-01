@@ -1,3 +1,5 @@
+# ticket: 411
+
 cdef class A:
     """
     >>> A().is_True()

@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef enum E:
     spam, eggs
 

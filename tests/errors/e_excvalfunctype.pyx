@@ -1,3 +1,5 @@
+# mode: error
+
 ctypedef int (*spamfunc)(int, char *) except 42
 ctypedef int (*grailfunc)(int, char *)
 

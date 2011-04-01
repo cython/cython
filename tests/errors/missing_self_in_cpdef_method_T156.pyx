@@ -1,3 +1,5 @@
+# ticket: 156
+# mode: error
 
 cdef class B:
     cpdef b():

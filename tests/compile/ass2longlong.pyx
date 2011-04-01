@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef void spam():
     cdef long long L
     cdef unsigned long long U

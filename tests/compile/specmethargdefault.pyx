@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class Grail:
 
     def __cinit__(self, spam = None):

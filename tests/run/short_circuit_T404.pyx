@@ -1,3 +1,5 @@
+# ticket: 404
+
 cdef long foo(long x):
     print "foo(%s)" % x
     return x

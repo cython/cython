@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class Grail:
 
     def __add__(int x, float y):

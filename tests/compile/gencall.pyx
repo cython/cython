@@ -1,3 +1,5 @@
+# mode: compile
+
 def f(x, y):
     x = y
 

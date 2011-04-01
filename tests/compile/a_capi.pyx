@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef public struct Foo:
     int a, b
 

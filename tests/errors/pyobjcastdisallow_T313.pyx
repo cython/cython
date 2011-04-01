@@ -1,3 +1,5 @@
+# ticket: 313
+# mode: error
 
 a = 3
 

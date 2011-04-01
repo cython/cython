@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef int a_global_int
 cdef a_global_pyobject
 

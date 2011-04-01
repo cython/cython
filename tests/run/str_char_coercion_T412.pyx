@@ -1,3 +1,5 @@
+# ticket: 412
+
 cdef int   i = 'x'
 cdef char  c = 'x'
 cdef char* s = 'x'

@@ -1,3 +1,5 @@
+# mode: error
+
 cdef struct S:
 	int m
 

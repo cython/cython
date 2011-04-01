@@ -1,3 +1,5 @@
+# mode: error
+
 cdef object blarg
 
 def foo(obj):

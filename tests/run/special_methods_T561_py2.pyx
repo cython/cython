@@ -1,3 +1,5 @@
+# ticket: 561
+# tag: py2
 # This file tests the behavior of special methods under Python 2
 # after #561.  (Only methods whose behavior differs between Python 2 and 3
 # are tested here; see special_methods_T561.pyx for the rest of the tests.)

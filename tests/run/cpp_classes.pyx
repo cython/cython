@@ -1,3 +1,5 @@
+# tag: cpp
+
 __doc__ = u"""
     >>> test_new_del()
     (2, 2)

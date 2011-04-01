@@ -1,3 +1,4 @@
+# mode: error
 
 u'\u12'
 

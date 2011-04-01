@@ -1,3 +1,6 @@
+# ticket: 172
+# tag: numpy
+
 __doc__ = u"""
     >>> 1
     1

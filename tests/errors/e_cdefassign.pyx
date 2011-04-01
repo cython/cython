@@ -1,3 +1,5 @@
+# mode: error
+
 cdef class A:
     cdef int value = 3
 

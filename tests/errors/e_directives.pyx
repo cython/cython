@@ -1,3 +1,4 @@
+# mode: error
 
 # cython: nonexistant = True
 # cython: boundscheck = true

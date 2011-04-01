@@ -1,3 +1,5 @@
+# mode: error
+
 cdef void g():
 	cdef int i
 	return i # error

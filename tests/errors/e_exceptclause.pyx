@@ -1,3 +1,4 @@
+# mode: error
 
 try:
     raise KeyError

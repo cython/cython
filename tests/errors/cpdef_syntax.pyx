@@ -1,3 +1,4 @@
+# mode: error
 
 cpdef nogil: pass
 cpdef nogil class test: pass

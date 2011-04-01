@@ -1,3 +1,5 @@
+# ticket: 664
+
 def assign():
     """
     >>> assign()

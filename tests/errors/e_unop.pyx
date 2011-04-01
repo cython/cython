@@ -1,3 +1,5 @@
+# mode: error
+
 def f():
 	cdef int int1
 	cdef char *str2

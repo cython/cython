@@ -1,3 +1,5 @@
+# tag: cpp
+
 cimport cython.operator
 from cython.operator cimport dereference as deref
 

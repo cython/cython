@@ -1,3 +1,5 @@
+# ticket: 554
+
 def call_f(x):
     """
     >>> call_f(2)

@@ -1,3 +1,5 @@
+# mode: compile
+
 from libc.signal cimport *
 
 cdef void sighdl(int signum) nogil:

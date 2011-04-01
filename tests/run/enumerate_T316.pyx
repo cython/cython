@@ -1,3 +1,5 @@
+# ticket: 316
+
 cimport cython
 
 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")

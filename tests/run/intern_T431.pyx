@@ -1,3 +1,5 @@
+# ticket: 431
+
 __doc__ = u"""
 >>> s == s_interned
 True

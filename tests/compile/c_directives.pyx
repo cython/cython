@@ -1,3 +1,4 @@
+# mode: compile
 # cython: boundscheck  =  False
 # cython: ignoreme = OK
 # cython: warn.undeclared = False

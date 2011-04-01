@@ -1,3 +1,5 @@
+# mode: compile
+
 "Welcome to the parrot module. It is currently resting."
 
 def zap(polly, volts):

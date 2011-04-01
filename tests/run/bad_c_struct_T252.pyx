@@ -1,3 +1,5 @@
+# ticket: 252
+
 cdef cf(default=None):
     return default
 

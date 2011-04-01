@@ -1,3 +1,5 @@
+# mode: error
+
 cdef int c1 = "t"     # works
 cdef int c2 = "te"    # fails
 cdef int cx = "test"  # fails

@@ -1,3 +1,5 @@
+# ticket: 336
+
 __doc__ = u"""
 >>> print('\\n'.join(calls))
 Py-Honk PyTestClass

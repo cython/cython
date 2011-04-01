@@ -1,3 +1,5 @@
+# ticket: 408
+
 __doc__ = """
 >>> call_with_tuple(1, 1.2, 'test', [1,2,3])
 (1, 1.2, 'test', [1, 2, 3])

@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef extern from "cnamespec.h":
     int a "c_a", b "c_b"
 

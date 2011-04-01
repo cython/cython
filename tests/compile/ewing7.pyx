@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class A:
     cdef void f(self, x):
         pass

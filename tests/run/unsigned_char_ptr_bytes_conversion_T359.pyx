@@ -1,3 +1,5 @@
+# ticket: 359
+
 __doc__ = u"""
 >>> py_string1.decode('ASCII') == 'test toast taste'
 True

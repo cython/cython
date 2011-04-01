@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef extern class external.Spam:
     pass
 

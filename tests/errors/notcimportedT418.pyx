@@ -1,3 +1,6 @@
+# ticket: 418
+# mode: error
+
 import somemod.child
 
 cdef somemod.child.something x

@@ -1,3 +1,4 @@
+# ticket: 561
 # The patch in #561 changes code generation for most special methods
 # to remove the Cython-generated wrapper and let PyType_Ready()
 # generate its own wrapper.  (This wrapper would be used, for instance,

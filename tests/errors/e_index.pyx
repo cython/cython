@@ -1,3 +1,5 @@
+# mode: error
+
 def f(obj1, obj2):
 	cdef int int1, int2, int3
 	cdef float flt1, *ptr1

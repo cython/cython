@@ -1,3 +1,5 @@
+# mode: error
+
 cdef char *spam() except -1:
 	pass
 

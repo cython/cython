@@ -1,3 +1,5 @@
+# mode: error
+
 cdef int x = 3
 
 if x == NONEXISTING:

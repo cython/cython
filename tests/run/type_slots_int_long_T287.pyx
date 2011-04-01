@@ -1,3 +1,5 @@
+# ticket: 287
+
 __doc__ = u"""
 >>> print( "%d" % Int() )
 2

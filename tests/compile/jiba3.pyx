@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class Position
 cdef class Point(Position)
 cdef class Vector(Point)

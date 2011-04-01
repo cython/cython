@@ -1,3 +1,5 @@
+# mode: error
+
 def f():
     a = <foao>True
 

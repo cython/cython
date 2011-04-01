@@ -1,3 +1,5 @@
+# mode: compile
+
 """A long module docstring.
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer sit amet

@@ -1,3 +1,5 @@
+# mode: compile
+
 def f(a, b, c):
     cdef int i
     for a in b:

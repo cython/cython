@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class Spam
 
 cdef class Grail:

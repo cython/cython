@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef void foo():
     cdef int i1, i2=0
     cdef char c1=0, c2

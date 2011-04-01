@@ -1,3 +1,5 @@
+# mode: compile
+
 ctypedef struct Foo:
     int blarg
 

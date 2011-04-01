@@ -1,3 +1,5 @@
+# mode: error
+
 cdef extern from *:
     void foo(void)
 

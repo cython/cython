@@ -1,3 +1,4 @@
+# mode: error
 # cython: language_level=3
 
 def int_literals():

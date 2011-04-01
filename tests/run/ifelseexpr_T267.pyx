@@ -1,3 +1,5 @@
+# ticket: 267
+
 """
 >>> constants(4)
 1

@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef char *p1
 cdef int *p2
 cdef int x

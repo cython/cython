@@ -1,3 +1,5 @@
+# mode: error
+
 def f():
 	cdef int int1, int3
 	cdef int *ptr1, *ptr2, *ptr3

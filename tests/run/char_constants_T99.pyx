@@ -1,3 +1,5 @@
+# ticket: 99
+
 cdef char c = 'c'
 cdef char* s = 'abcdef'
 

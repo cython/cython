@@ -1,3 +1,5 @@
+# tag: cpp
+
 from libcpp cimport bool
 
 def test_bool(bool a):

@@ -1,3 +1,5 @@
+# mode: error
+
 ctypedef struct struct_type_not_boolean:
     int i
     float f

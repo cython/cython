@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef extern from *:
     ctypedef int intptr_t
 

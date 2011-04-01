@@ -1,3 +1,5 @@
+# ticket: 425
+
 cimport cython
 
 @cython.test_assert_path_exists(

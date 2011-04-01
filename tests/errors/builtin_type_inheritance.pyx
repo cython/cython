@@ -1,3 +1,4 @@
+# mode: error
 
 # current restriction: cannot inherit from PyVarObject (see ticket #152)
 

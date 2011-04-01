@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef void foo():
     cdef int bool, int1=0, int2=0, int3=0, int4=0
     cdef object obj1, obj2, obj3, obj4

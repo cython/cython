@@ -1,3 +1,4 @@
+# mode: error
 
 cimport cython
 

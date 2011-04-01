@@ -1,3 +1,6 @@
+# ticket: 158
+# mode: error
+
 def mult_decl_test():
     print "%s" % vv
     print "%s" % s

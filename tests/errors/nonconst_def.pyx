@@ -1,3 +1,5 @@
+# mode: error
+
 import os
 DEF ospath = os.path
 

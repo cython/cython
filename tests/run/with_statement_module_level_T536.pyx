@@ -1,3 +1,4 @@
+# ticket: 536
 
 __doc__ = """
 >>> inner_result

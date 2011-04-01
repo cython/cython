@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef enum Spam:
     a
     b, c,

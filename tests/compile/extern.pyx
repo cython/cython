@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef extern int i
 cdef extern char *s[]
 cdef extern void spam(char c)

@@ -1,3 +1,5 @@
+# mode: error
+
 cdef void spam():
 	None = 42
 _ERRORS = u"""

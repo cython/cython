@@ -1,3 +1,5 @@
+# mode: error
+
 cimport cython
 
 @cython.autotestdict(False)

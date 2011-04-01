@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class Foo1: pass
 cdef class Foo2: pass
 cdef class Foo3: pass

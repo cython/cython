@@ -1,3 +1,5 @@
+# ticket: 284
+
 def no_cdef():
     """
     >>> no_cdef()

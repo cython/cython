@@ -1,3 +1,5 @@
+# mode: error
+
 __doc__ = u"""
 >>> e = ExtClass()
 >>> e.get()

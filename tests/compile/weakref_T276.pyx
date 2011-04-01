@@ -1,3 +1,6 @@
+# ticket: 276
+# mode: compile
+
 __doc__ = u"""
 """
 

@@ -1,3 +1,5 @@
+# mode: error
+
 cdef extern grail(char *s, int i)
 cdef extern spam(char *s, int i,...)
 

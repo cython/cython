@@ -1,4 +1,6 @@
+# ticket: 517
 #cython: embedsignature=True
+
 __doc__ = u"""
 >>> a = A()
 >>> a.h = 7
