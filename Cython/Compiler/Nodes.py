@@ -925,9 +925,11 @@ class CVarDefNode(StatNode):
     child_attrs = ["base_type", "declarators"]
 
     decorators = None
-    directive_locals = {}
+    directive_locals = None
 
     def analyse_declarations(self, env, dest_scope = None):
+        if self.directive_locals is None:
+            self.directive_locals = {}
         if not dest_scope:
             dest_scope = env
         self.dest_scope = dest_scope
@@ -962,7 +964,7 @@ class CVarDefNode(StatNode):
                     cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
                     api = self.api)
                 if entry is not None:
-                    entry.directive_locals = self.directive_locals
+                    entry.directive_locals = copy.copy(self.directive_locals)
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
@@ -1194,6 +1196,22 @@ class FuncDefNode(StatNode, BlockNode):
                 default_seen = 1
             elif default_seen:
                 error(arg.pos, "Non-default argument following default argument")
+
+    def align_argument_type(self, env, arg):
+        directive_locals = self.directive_locals
+        type = arg.type
+        if arg.name in directive_locals:
+            type_node = directive_locals[arg.name]
+            other_type = type_node.analyse_as_type(env)
+            if other_type is None:
+                error(type_node.pos, "Not a type")
+            elif (type is not PyrexTypes.py_object_type 
+                    and not type.same_as(other_type)):
+                error(arg.base_type.pos, "Signature does not agree with previous declaration")
+                error(type_node.pos, "Previous declaration here")
+            else:
+                arg.type = other_type
+        return arg
 
     def need_gil_acquisition(self, lenv):
         return 0
@@ -1627,12 +1645,14 @@ class CFuncDefNode(FuncDefNode):
 
     inline_in_pxd = False
     decorators = None
-    directive_locals = {}
+    directive_locals = None
 
     def unqualified_name(self):
         return self.entry.name
 
     def analyse_declarations(self, env):
+        if self.directive_locals is None:
+            self.directive_locals = {}
         self.directive_locals.update(env.directives['locals'])
         base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names.
@@ -1651,6 +1671,7 @@ class CFuncDefNode(FuncDefNode):
             declarator = declarator.base
         self.args = declarator.args
         for formal_arg, type_arg in zip(self.args, type.args):
+            self.align_argument_type(env, type_arg)
             formal_arg.type = type_arg.type
             formal_arg.name = type_arg.name
             formal_arg.cname = type_arg.cname
@@ -2017,28 +2038,18 @@ class DefNode(FuncDefNode):
         allow_none_for_extension_args = env.directives['allow_none_for_extension_args']
         for arg in self.args:
             if hasattr(arg, 'name'):
-                type = arg.type
                 name_declarator = None
             else:
                 base_type = arg.base_type.analyse(env)
                 name_declarator, type = \
                     arg.declarator.analyse(base_type, env)
                 arg.name = name_declarator.name
-            if arg.name in directive_locals:
-                type_node = directive_locals[arg.name]
-                other_type = type_node.analyse_as_type(env)
-                if other_type is None:
-                    error(type_node.pos, "Not a type")
-                elif (type is not PyrexTypes.py_object_type
-                        and not type.same_as(other_type)):
-                    error(arg.base_type.pos, "Signature does not agree with previous declaration")
-                    error(type_node.pos, "Previous declaration here")
-                else:
-                    type = other_type
+                arg.type = type
+            self.align_argument_type(env, arg)
             if name_declarator and name_declarator.cname:
                 error(self.pos,
                     "Python function argument cannot have C name specification")
-            arg.type = type.as_argument_type()
+            arg.type = arg.type.as_argument_type()
             arg.hdr_type = None
             arg.needs_conversion = 0
             arg.needs_type_test = 0
