@@ -75,6 +75,7 @@ VER_DEP_MODULES = {
                                           ]),
     (2,5) : (operator.lt, lambda x: x in ['run.any',
                                           'run.all',
+                                          'run.relativeimport_T542',
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
