@@ -1257,9 +1257,10 @@ class FuncDefNode(StatNode, BlockNode):
                     preprocessor_guard = None
 
         profile = code.globalstate.directives['profile']
+        if profile and lenv.nogil:
+            warning(self.pos, "Cannot profile nogil function.", 1)
+            profile = False
         if profile:
-            if lenv.nogil:
-                error(self.pos, "Cannot profile nogil function.")
             code.globalstate.use_utility_code(profile_utility_code)
 
         # Generate C code for header and body of function

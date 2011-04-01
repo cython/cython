@@ -320,6 +320,20 @@ class PostParse(ScopeTrackingTransform):
 
         return assign_node
 
+    def _flatten_sequence(self, seq, result):
+        for arg in seq.args:
+            if arg.is_sequence_constructor:
+                self._flatten_sequence(arg, result)
+            else:
+                result.append(arg)
+        return result
+
+    def visit_DelStatNode(self, node):
+        self.visitchildren(node)
+        node.args = self._flatten_sequence(node, [])
+        return node
+
+
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     """Replace rhs items by LetRefNodes if they appear more than once.
     Creates a sequence of LetRefNodes that set up the required temps
