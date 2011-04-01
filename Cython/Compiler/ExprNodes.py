@@ -1742,12 +1742,19 @@ class ImportNode(ExprNode):
     #                        0: absolute import;
     #                       >0: the number of parent directories to search
     #                           relative to the current module.
+    #                     None: decide the level according to language level and
+    #                           directives
 
     type = py_object_type
 
     subexprs = ['module_name', 'name_list']
 
     def analyse_types(self, env):
+        if self.level is None:
+            if env.directives['language_level'] < 3 or env.directives['py2_import']:
+                self.level = -1
+            else:
+                self.level = 0
         self.module_name.analyse_types(env)
         self.module_name = self.module_name.coerce_to_pyobject(env)
         if self.name_list:

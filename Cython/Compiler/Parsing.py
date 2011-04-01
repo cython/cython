@@ -1183,11 +1183,6 @@ def p_raise_statement(s):
         return Nodes.ReraiseStatNode(pos)
 
 def p_import_statement(s):
-    # will do absolute import in Py3 and try both relative and absolute in Py2.
-    if s.context.language_level >= 3:
-        level = 0
-    else:
-        level = -1
     # s.sy in ('import', 'cimport')
     pos = s.position()
     kind = s.sy
@@ -1215,7 +1210,7 @@ def p_import_statement(s):
                 rhs = ExprNodes.ImportNode(pos,
                     module_name = ExprNodes.IdentifierStringNode(
                         pos, value = dotted_name),
-                    level = level,
+                    level = None,
                     name_list = name_list))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats = stats)
@@ -1230,18 +1225,16 @@ def p_from_import_statement(s, first_statement = 0):
         while s.sy == '.':
             level += 1
             s.next()
+        if s.sy == 'cimport':
+            s.error("Relative cimport is not supported yet")
     else:
-        # will do absolute import in Py3 and try both relative and absolute in Py2.
-        if s.context.language_level >= 3:
-            level = 0
-        else:
-            level = -1
-
-    if level > 0 and s.sy == 'cimport':
-        s.error("Relative cimport is not supported yet")
-    if level > 0 and s.sy == 'import':
+        level = None
+    if level is not None and s.sy == 'import':
         # we are dealing with "from .. import foo, bar"
         dotted_name_pos, dotted_name = s.position(), ''
+    elif level is not None and s.sy == 'cimport':
+        # "from .. cimport"
+        s.error("Relative cimport is not supported yet")
     else:
         (dotted_name_pos, _, dotted_name, _) = \
             p_dotted_name(s, as_allowed = 0)
