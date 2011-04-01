@@ -61,16 +61,16 @@ def typed_imports():
     cdef type t
 
     from sys import maxunicode
-    print maxunicode == sys.maxunicode
+    print(maxunicode == sys.maxunicode)
     from types import ModuleType as t
-    print t is types.ModuleType
+    print(t is types.ModuleType)
 
     try:
         from sys import version_info as maxunicode
     except TypeError, e:
-        print e
+        print(e)
 
     try:
         from sys import maxunicode as t
     except TypeError, e:
-        print e
+        print(e)
