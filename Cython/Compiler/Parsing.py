@@ -1190,7 +1190,10 @@ def p_raise_statement(s):
 
 def p_import_statement(s):
     # will do absolute import in Py3 and try both relative and absolute in Py2.
-    level = 0 if s.context.language_level >= 3 else -1
+    if s.context.language_level >= 3:
+        level = 0
+    else:
+        level = -1
     # s.sy in ('import', 'cimport')
     pos = s.position()
     kind = s.sy
@@ -1235,7 +1238,10 @@ def p_from_import_statement(s, first_statement = 0):
             s.next()
     else:
         # will do absolute import in Py3 and try both relative and absolute in Py2.
-        level = 0 if s.context.language_level >= 3 else -1
+        if s.context.language_level >= 3:
+            level = 0
+        else:
+            level = -1
 
     if level > 0 and s.sy == 'cimport':
         s.error("Relative cimport is not supported yet")
