@@ -1309,7 +1309,8 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
         tempvardecl_code = code.insertion_point()
-        code.put_declare_refcount_context()
+        if not lenv.nogil:
+            code.put_declare_refcount_context()
         self.generate_keyword_list(code)
         if profile:
             code.put_trace_declarations()
