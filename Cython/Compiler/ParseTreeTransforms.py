@@ -1411,11 +1411,15 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_PyClassDefNode(self, node):
-        old_in_pyclass = self.in_py_class
-        self.in_py_class = True
-        self.visitchildren(node)
-        self.in_py_class = old_in_pyclass
-        return node
+        if 'cclass' in self.directives:
+            node = node.as_cclass()
+            return self.visit(node)
+        else:
+            old_in_pyclass = self.in_py_class
+            self.in_py_class = True
+            self.visitchildren(node)
+            self.in_py_class = old_in_pyclass
+            return node
 
     def visit_CClassDefNode(self, node):
         old_in_pyclass = self.in_py_class
