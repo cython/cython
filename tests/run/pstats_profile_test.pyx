@@ -1,3 +1,4 @@
+# tag: pstats
 # cython: profile = True
 
 __doc__ = u"""

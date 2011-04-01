@@ -1,3 +1,4 @@
+# tag: posix
 # mode: compile
 
 cimport posix
