@@ -122,7 +122,7 @@ class MarkAssignments(CythonTransform):
         return node
 
     def visit_DelStatNode(self, node):
-        for arg in node.flatten_args():
+        for arg in node.args:
             self.mark_assignment(arg, arg)
         self.visitchildren(node)
         return node
