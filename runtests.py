@@ -84,7 +84,9 @@ VER_DEP_MODULES = {
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
     # last 2.x release, things would have to change drastically for this
     # to be unsafe...
-    (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3']),
+    (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
+                                           'run.test_raisefrom',
+                                           ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice',
