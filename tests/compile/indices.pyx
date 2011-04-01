@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef int* a
 cdef object x
 

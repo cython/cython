@@ -1,3 +1,5 @@
+# mode: error
+
 def eggs(int x not None, char* y not None):
 	pass
 _ERRORS = u"""

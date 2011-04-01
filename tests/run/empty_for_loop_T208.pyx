@@ -1,3 +1,5 @@
+# ticket: 208
+
 def go_py_empty():
     """
     >>> go_py_empty()

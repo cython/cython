@@ -1,3 +1,5 @@
+# mode: error
+
 def f():
     cdef int* p
     if false():

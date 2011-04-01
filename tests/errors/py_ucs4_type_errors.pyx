@@ -1,3 +1,4 @@
+# mode: error
 # -*- coding: iso-8859-1 -*-
 
 cdef Py_UCS4 char_ASCII = u'A'

@@ -1,3 +1,4 @@
+# ticket: 417
 #cython: autotestdict=True
 
 cdef class Foo:

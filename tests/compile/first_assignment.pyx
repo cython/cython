@@ -1,3 +1,4 @@
+# mode: compile
 
 cimport cython
 

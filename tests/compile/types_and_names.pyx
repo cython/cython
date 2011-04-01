@@ -1,3 +1,5 @@
+# mode: compile
+
 print sizeof(point*)
 
 cdef foo(int i0, int i, list L0, list L, point p0, point p, point* ps):

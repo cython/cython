@@ -1,3 +1,5 @@
+# mode: error
+
 cdef void foo(obj):
 	cdef int i1
 	cdef char *p1

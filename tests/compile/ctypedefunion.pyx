@@ -1,3 +1,5 @@
+# mode: compile
+
 ctypedef union pet:
     int cat
     float dog

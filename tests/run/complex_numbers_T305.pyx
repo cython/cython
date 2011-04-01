@@ -1,3 +1,5 @@
+# ticket: 305
+
 cimport cython
 
 def test_object_conversion(o):

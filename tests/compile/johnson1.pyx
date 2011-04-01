@@ -1,3 +1,5 @@
+# mode: compile
+
 ctypedef enum foo:
     FOO
 

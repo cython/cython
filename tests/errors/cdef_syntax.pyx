@@ -1,3 +1,4 @@
+# mode: error
 
 cdef pass
 cdef void

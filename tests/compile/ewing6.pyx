@@ -1,3 +1,4 @@
+# mode: compile
 # Spurious gcc3.3 warnings about incompatible pointer
 # types passed to C method
 

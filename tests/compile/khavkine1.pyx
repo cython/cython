@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class T:
     cdef int a[1]
 

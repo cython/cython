@@ -1,3 +1,4 @@
+# mode: error
 
 # wrong size RHS (as handled by the parser)
 

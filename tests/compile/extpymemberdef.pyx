@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class Spam:
     cdef public char c
     cdef public int i

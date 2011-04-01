@@ -1,3 +1,5 @@
+# mode: compile
+
 from crunchytype cimport Crunchy
 
 cdef class Sub2(Crunchy):

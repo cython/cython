@@ -1,3 +1,5 @@
+# mode: compile
+
 __doc__ = u"""
     >>> s = Swallow()
     >>> s.spam(1)

@@ -1,3 +1,5 @@
+# mode: error
+
 cdef object f(object x) nogil:
     pass
 

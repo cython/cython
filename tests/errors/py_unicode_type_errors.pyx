@@ -1,3 +1,4 @@
+# mode: error
 # -*- coding: iso-8859-1 -*-
 
 cdef Py_UNICODE char_ASCII = u'A'

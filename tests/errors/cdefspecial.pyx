@@ -1,3 +1,4 @@
+# mode: error
 
 cdef class Test:
     cdef __cinit__(self):

@@ -1,3 +1,6 @@
+# ticket: 241
+# mode: error
+
 cdef some_function(x, y):
     pass
 

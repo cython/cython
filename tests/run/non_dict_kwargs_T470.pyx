@@ -1,3 +1,5 @@
+# ticket: 470
+
 __doc__ = u"""
 >>> func(**{'a' : 7})
 True

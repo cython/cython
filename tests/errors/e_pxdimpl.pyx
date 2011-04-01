@@ -1,3 +1,5 @@
+# mode: error
+
 cimport e_pxdimpl_imported
 
 _ERRORS = u"""

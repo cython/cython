@@ -1,3 +1,5 @@
+# mode: error
+
 cdef extern void fa[5]()
 cdef extern int af()[5]
 cdef extern int ff()()

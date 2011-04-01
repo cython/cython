@@ -1,3 +1,5 @@
+# mode: error
+
 cdef class C:
 	cdef object __weakref__
 

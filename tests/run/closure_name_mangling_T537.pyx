@@ -1,3 +1,4 @@
+# ticket: 537
 
 __doc__ = u"""
 >>> f1 = nested1()

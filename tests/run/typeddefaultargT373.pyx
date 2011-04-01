@@ -1,3 +1,5 @@
+# ticket: 373
+
 import math
 
 cdef class MyClass:

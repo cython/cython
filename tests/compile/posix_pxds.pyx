@@ -1,3 +1,5 @@
+# mode: compile
+
 cimport posix
 
 cimport posix.unistd

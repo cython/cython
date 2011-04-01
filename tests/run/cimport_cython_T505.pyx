@@ -1,3 +1,5 @@
+# ticket: 505
+
 cimport cython
 
 cdef extern from "Python.h":

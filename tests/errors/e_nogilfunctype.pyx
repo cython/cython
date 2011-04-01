@@ -1,3 +1,5 @@
+# mode: error
+
 cdef extern from *:
 	cdef void f()
 	cdef void (*fp)() nogil

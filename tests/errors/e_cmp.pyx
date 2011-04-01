@@ -1,3 +1,5 @@
+# mode: error
+
 cdef void foo():
 	cdef int bool, int1
 	cdef char *ptr2

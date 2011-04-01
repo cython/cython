@@ -1,3 +1,4 @@
+# ticket: 87
 
 __doc__ = u"""
 >>> d = Defined()

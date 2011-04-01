@@ -1,3 +1,5 @@
+# tag: cpp
+
 cdef extern from "vector" namespace "std":
 
     cdef cppclass vector[T]:

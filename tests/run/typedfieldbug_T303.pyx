@@ -1,3 +1,5 @@
+# ticket: 303
+
 __doc__ = """
 >>> readonly() #doctest: +ELLIPSIS
 Traceback (most recent call last):

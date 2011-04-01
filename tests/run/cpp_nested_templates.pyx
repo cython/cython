@@ -1,3 +1,5 @@
+# tag: cpp
+
 from cython.operator cimport dereference as deref
 
 cdef extern from "cpp_templates_helper.h":

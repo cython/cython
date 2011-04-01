@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef extern from "declarations.h":
     pass
 

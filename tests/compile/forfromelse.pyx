@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef void spam():
     cdef int i, j=0, k=0
     for i from 0 <= i < 10:

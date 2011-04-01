@@ -1,3 +1,5 @@
+# mode: error
+
 cimport e_func_in_pxd_support
 
 _ERRORS = u"""

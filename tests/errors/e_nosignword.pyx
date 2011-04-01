@@ -1,3 +1,5 @@
+# mode: error
+
 cdef signed   float       e
 cdef unsigned float       f
 cdef signed   double      g

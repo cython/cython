@@ -1,3 +1,6 @@
+# ticket: 286
+# mode: error
+
 cdef class A:
     pass
 

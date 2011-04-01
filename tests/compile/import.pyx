@@ -1,3 +1,5 @@
+# mode: compile
+
 def f():
     import spam
     import spam.eggs

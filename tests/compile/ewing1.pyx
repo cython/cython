@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef int blarg(int i):
     pass
 

@@ -1,3 +1,5 @@
+# ticket: 596
+
 def simple(a, b):
     """
     >>> kls = simple(1, 2)

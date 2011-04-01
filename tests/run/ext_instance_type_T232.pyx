@@ -1,3 +1,5 @@
+# ticket: 232
+
 cdef class MyExt:
     cdef object attr
 

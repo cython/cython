@@ -1,3 +1,6 @@
+# ticket: 355
+# mode: compile
+
 ctypedef public class Time [type MyTime_Type, object MyTimeObject]:
      def __init__(self, seconds):
          self.seconds = seconds

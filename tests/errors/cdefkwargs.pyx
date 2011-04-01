@@ -1,3 +1,5 @@
+# mode: error
+
 __doc__ = u"""
     >>> call2()
     >>> call3()

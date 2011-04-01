@@ -1,3 +1,6 @@
+# tag: cpp
+# mode: compile
+
 cdef extern from "point.h" namespace "geometry":
 
     cdef struct Point:

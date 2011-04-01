@@ -1,3 +1,5 @@
+# ticket: 165
+# mode: error
 
 cdef class A:
     cpdef a(int not_self):

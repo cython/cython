@@ -1,3 +1,6 @@
+# ticket: 262
+# mode: error
+
 cdef class Album
 
 cdef class SessionStruct:

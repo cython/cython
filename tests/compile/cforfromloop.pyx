@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef int i, j, k
 cdef object a, b, x
 

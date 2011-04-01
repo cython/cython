@@ -1,3 +1,5 @@
+# ticket: 562
+
 class IPOW:
     """
     >>> IPOW().__ipow__('a')

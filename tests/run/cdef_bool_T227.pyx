@@ -1,3 +1,5 @@
+# ticket: 227
+
 from cpython.bool cimport bool
 
 def foo(bool a):

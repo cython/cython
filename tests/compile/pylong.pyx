@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef extern from "Python.h":
     ctypedef struct PyTypeObject:
         pass

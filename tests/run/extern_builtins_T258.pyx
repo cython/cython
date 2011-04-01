@@ -1,3 +1,5 @@
+# ticket: 258
+
 cdef extern from "Python.h":
 
     ctypedef class __builtin__.list  [object PyListObject]:

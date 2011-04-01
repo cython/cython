@@ -1,3 +1,5 @@
+# tag: numpy
+
 """
 >>> import sys
 >>> 'numpy' in sys.modules

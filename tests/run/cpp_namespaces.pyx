@@ -1,3 +1,5 @@
+# tag: cpp
+
 cdef extern from "cpp_namespaces_helper.h" namespace "A":
     ctypedef int A_t
     A_t A_func(A_t first, A_t)

@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef void foo():
     cdef int bool, int1=0, int2=0
     cdef float float1=0, float2=0

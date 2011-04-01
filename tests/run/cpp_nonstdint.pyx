@@ -1,3 +1,5 @@
+# tag: cpp
+
 cdef extern from "cpp_nonstdint.h":
     ctypedef int Int24
     ctypedef int Int56

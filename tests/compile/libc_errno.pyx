@@ -1,3 +1,5 @@
+# mode: compile
+
 from libc.errno  cimport *
 
 if errno == EDOM   : pass

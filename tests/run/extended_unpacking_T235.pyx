@@ -1,3 +1,5 @@
+# ticket: 235
+
 __doc__ = u"""
     >>> class FakeSeq(object):
     ...     def __init__(self, length):

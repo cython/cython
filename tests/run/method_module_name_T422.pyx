@@ -1,3 +1,5 @@
+# ticket: 422
+
 """
 >>> Foo.incr.__module__ is not None
 True

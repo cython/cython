@@ -1,3 +1,6 @@
+# ticket: 290
+# mode: error
+
 cdef extern:
     cdef packed struct MyStruct:
         char a

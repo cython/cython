@@ -1,3 +1,5 @@
+# mode: error
+
 i = _this_global_name_does_not_exist_
 
 def test(i):

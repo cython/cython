@@ -1,3 +1,5 @@
+# mode: compile
+
 def f():
     cdef int int1, int2=0, int3=1
     cdef char char1=0

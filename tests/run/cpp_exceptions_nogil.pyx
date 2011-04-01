@@ -1,3 +1,5 @@
+# tag: cpp
+
 cdef int raise_TypeError() except *:
     raise TypeError("custom")
 

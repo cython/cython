@@ -1,3 +1,5 @@
+# mode: error
+
 cdef object x
 
 cdef struct spam:

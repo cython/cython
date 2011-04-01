@@ -1,3 +1,5 @@
+# tag: py3
+
 __doc__ = u"""
 >>> test_xrange()
 0

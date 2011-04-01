@@ -1,3 +1,5 @@
+# ticket: 494
+
 cimport cython
 
 class SomeNumber(object):

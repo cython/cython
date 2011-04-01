@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef int f() except -1:
     cdef object x, y, z, w
     cdef int i

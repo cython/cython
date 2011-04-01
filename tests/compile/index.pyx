@@ -1,3 +1,5 @@
+# mode: compile
+
 def f(obj1, obj2, obj3):
     cdef int int1, int2=0, int3=0
     cdef float flt1, *ptr1=NULL

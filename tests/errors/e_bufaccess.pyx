@@ -1,3 +1,5 @@
+# mode: error
+
 cdef object[int] buf
 cdef class A:
     cdef object[int] buf

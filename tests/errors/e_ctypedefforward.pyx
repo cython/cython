@@ -1,3 +1,5 @@
+# mode: error
+
 ctypedef struct Spam
 
 cdef extern from *:

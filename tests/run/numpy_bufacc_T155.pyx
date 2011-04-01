@@ -1,3 +1,6 @@
+# ticket: 155
+# tag: numpy
+
 """
 >>> myfunc()
 0.5

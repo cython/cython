@@ -1,3 +1,5 @@
+# mode: error
+
 cdef struct spam:
 	pass
 

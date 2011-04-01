@@ -1,3 +1,5 @@
+# mode: compile
+
 def f(a, b, c, x):
     cdef int i
     a = b + c

@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef int grail():
     cdef int (*spam)()
     spam = &grail

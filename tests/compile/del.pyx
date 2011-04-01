@@ -1,3 +1,5 @@
+# mode: compile
+
 def f(a, b):
     global g
     del g

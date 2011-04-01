@@ -1,3 +1,5 @@
+# ticket: 478
+
 __doc__ = """
     >>> Num(13).is_prime()
     args (Num(13),) kwds {}

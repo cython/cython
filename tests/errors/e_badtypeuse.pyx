@@ -1,3 +1,5 @@
+# mode: error
+
 cdef struct Grail
 
 cdef extern object xobj # Python object cannot be extern

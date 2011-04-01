@@ -1,3 +1,5 @@
+# mode: compile
+
 ctypedef enum someenum_t:
     ENUMVALUE_1
     ENUMVALUE_2

@@ -1,3 +1,5 @@
+# mode: error
+
 cdef struct Spam
 
 cdef extern int spam(void)           # function argument cannot be void

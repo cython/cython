@@ -1,3 +1,5 @@
+# mode: error
+
 cdef int
 
 cdef extern from *:

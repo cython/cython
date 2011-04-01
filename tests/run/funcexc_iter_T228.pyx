@@ -1,3 +1,5 @@
+# ticket: 228
+
 __doc__ = u"""
 >>> def py_iterator():
 ...    if True: return

@@ -1,3 +1,5 @@
+# mode: compile
+
 cimport libc
 
 cimport libc.stdio

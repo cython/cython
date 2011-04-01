@@ -1,3 +1,5 @@
+# ticket: 135
+# mode: error
 
 def _runtime_True():
     return True

@@ -1,3 +1,5 @@
+# mode: compile
+
 ctypedef int *IntPtr
 ctypedef unsigned long ULong
 cdef extern IntPtr spam

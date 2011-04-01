@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef class C:
     def __cinit__(self):
         "This is an unusable docstring."

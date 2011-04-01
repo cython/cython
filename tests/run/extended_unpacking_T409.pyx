@@ -1,3 +1,5 @@
+# ticket: 409
+
 def simple():
     """
     >>> simple()

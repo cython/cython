@@ -1,3 +1,5 @@
+# tag: cpp
+
 from cython.operator cimport dereference as d
 from cython.operator cimport preincrement as incr
 

@@ -1,3 +1,4 @@
+# mode: error
 
 # invalid syntax (as handled by the parser)
 

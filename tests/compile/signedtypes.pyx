@@ -1,3 +1,5 @@
+# mode: compile
+
 cdef struct S:
     char c
     unsigned char uc

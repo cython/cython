@@ -1,3 +1,5 @@
+# mode: compile
+
 def spam():
     raise Exception
 

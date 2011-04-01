@@ -1,3 +1,5 @@
+# mode: error
+
 cdef spam(int i, char *s = "blarg", float f): # can't have default value
 	pass
 

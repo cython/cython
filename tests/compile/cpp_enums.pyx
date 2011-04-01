@@ -1,3 +1,6 @@
+# tag: cpp
+# mode: compile
+
 cdef extern from "cpp_enums.h":
     cdef enum Enum1:
         Item1

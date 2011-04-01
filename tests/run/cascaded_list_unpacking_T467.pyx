@@ -1,3 +1,4 @@
+# ticket: 467
 
 def simple_parallel_assignment_from_call():
     """

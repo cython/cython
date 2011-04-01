@@ -1,3 +1,4 @@
+# ticket: 354
 
 cdef class Test:
     """

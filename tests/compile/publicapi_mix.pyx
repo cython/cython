@@ -1,3 +1,4 @@
+# mode: compile
 # --
 
 ctypedef            int Int0

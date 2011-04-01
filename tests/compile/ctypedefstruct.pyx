@@ -1,3 +1,5 @@
+# mode: compile
+
 ctypedef struct order:
     int spam
     int eggs

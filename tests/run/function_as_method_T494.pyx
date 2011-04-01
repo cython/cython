@@ -1,3 +1,5 @@
+# ticket: 494
+
 __doc__ = """
     >>> A.foo = foo
     >>> print A().foo()

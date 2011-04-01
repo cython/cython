@@ -1,3 +1,6 @@
+# tag: cpp
+# mode: compile
+
 cdef extern from "operators.h":
     cdef cppclass Operators:
         Operators(int)

@@ -1,3 +1,4 @@
+# mode: compile
 
 cdef extern from *:
 

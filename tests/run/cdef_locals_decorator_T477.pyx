@@ -1,3 +1,5 @@
+# ticket: 477
+
 import cython
 @cython.locals(x=double)
 cdef func(x):

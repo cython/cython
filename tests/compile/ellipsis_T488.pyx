@@ -1,3 +1,5 @@
+# ticket: 488
+# mode: compile
 #from ... import foo
 
 print ...

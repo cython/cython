@@ -1,3 +1,5 @@
+# tag: cpp
+
 cdef int raise_py_error() except *:
     raise TypeError("custom")
 

@@ -1,3 +1,5 @@
+# ticket: 166
+
 __doc__ = u"""
 >>> l = None
 >>> l.append(2)

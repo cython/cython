@@ -1,3 +1,5 @@
+# ticket: 370
+# mode: error
 
 cdef int raiseit():
     raise IndexError
