@@ -1,5 +1,10 @@
 # cython: language_level=3
-__name__='distutils.baregg' # fool Python we are in distutils
+import sys
+# fool Python we are in distutils
+if sys.version_info >= (3,):
+    __package__='distutils'
+else:
+    __package__=b'distutils'
 from distutils import cmd, core, version
 
 from .core import *
