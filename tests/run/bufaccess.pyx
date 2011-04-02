@@ -1281,6 +1281,16 @@ cdef struct NestedStruct:
     SmallStruct y
     int z
 
+cdef packed struct PackedStruct:
+    char a
+    int b
+
+cdef struct NestedPackedStruct:
+    char a
+    int b
+    PackedStruct sub
+    int c
+
 cdef class MyStructMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         cdef MyStruct* s
@@ -1300,6 +1310,26 @@ cdef class NestedStructMockBuffer(MockBuffer):
 
     cdef get_itemsize(self): return sizeof(NestedStruct)
     cdef get_default_format(self): return b"2T{ii}i"
+
+cdef class PackedStructMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef PackedStruct* s
+        s = <PackedStruct*>buf;
+        s.a, s.b = value
+        return 0
+
+    cdef get_itemsize(self): return sizeof(PackedStruct)
+    cdef get_default_format(self): return b"^ci"
+
+cdef class NestedPackedStructMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef NestedPackedStruct* s
+        s = <NestedPackedStruct*>buf;
+        s.a, s.b, s.sub.a, s.sub.b, s.c = value
+        return 0
+
+    cdef get_itemsize(self): return sizeof(NestedPackedStruct)
+    cdef get_default_format(self): return b"ci^ci@i"
 
 @testcase
 def basic_struct(object[MyStruct] buf):
@@ -1324,6 +1354,35 @@ def nested_struct(object[NestedStruct] buf):
     1 2 3 4 5
     """
     print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
+
+@testcase
+def packed_struct(object[PackedStruct] buf):
+    """
+    See also buffmt.pyx
+
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)]))
+    1 2
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c^i}"))
+    1 2
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c=i}"))
+    1 2
+
+    """
+    print buf[0].a, buf[0].b
+
+@testcase
+def nested_packed_struct(object[NestedPackedStruct] buf):
+    """
+    See also buffmt.pyx
+
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
+    1 2 3 4 5
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ci^ci@i"))
+    1 2 3 4 5
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))
+    1 2 3 4 5
+    """
+    print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
 
 cdef struct LongComplex:
     long double real
