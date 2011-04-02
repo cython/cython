@@ -1,4 +1,4 @@
-# cython: language_level=3
+# cython: language_level=3, py2_import=True
 #
 #   Cython Scanner - Lexical Definitions
 #
