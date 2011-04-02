@@ -1500,6 +1500,8 @@ class PyClassScope(ClassScope):
             if entry is None:
                 error(pos, "no binding for nonlocal '%s' found" % name)
             else:
+                # FIXME: this works, but it's unclear if it's the
+                # right thing to do
                 self.entries[name] = entry
 
     def add_default_value(self, type):
