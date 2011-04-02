@@ -1253,7 +1253,8 @@ if VALUE is not None:
     def visit_CNameDeclaratorNode(self, node):
         if node.name in self.seen_vars_stack[-1]:
             entry = self.env_stack[-1].lookup(node.name)
-            if entry is None or entry.visibility != 'extern':
+            if (entry is None or entry.visibility != 'extern'
+                and not entry.scope.is_c_class_scope):
                 warning(node.pos, "cdef variable '%s' declared after it is used" % node.name, 2)
         self.visitchildren(node)
         return node
