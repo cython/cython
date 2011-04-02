@@ -5295,7 +5295,8 @@ class UnaryPlusNode(UnopNode):
     operator = '+'
 
     def analyse_c_operation(self, env):
-        self.type = self.operand.type
+        self.type = PyrexTypes.widest_numeic_type(
+            self.operand.type, PyreXTypes.c_int_type)
 
     def py_operation_function(self):
         return "PyNumber_Positive"
@@ -5314,7 +5315,8 @@ class UnaryMinusNode(UnopNode):
 
     def analyse_c_operation(self, env):
         if self.operand.type.is_numeric:
-            self.type = self.operand.type
+            self.type = PyrexTypes.widest_numeric_type(
+                self.operand.type, PyrexTypes.c_int_type)
         else:
             self.type_error()
         if self.type.is_complex:
@@ -5339,7 +5341,8 @@ class TildeNode(UnopNode):
 
     def analyse_c_operation(self, env):
         if self.operand.type.is_int:
-            self.type = self.operand.type
+            self.type = PyrexTypes.widest_numeric_type(
+                self.operand.type, PyrexTypes.c_int_type)
         else:
             self.type_error()
 
@@ -5374,7 +5377,10 @@ class DecrementIncrementNode(CUnopNode):
     #  unary ++/-- operator
 
     def analyse_c_operation(self, env):
-        if self.operand.type.is_ptr or self.operand.type.is_numeric:
+        if self.operand.type.is_numeric:
+            self.type = PyrexTypes.widest_numeric_type(
+                self.operand.type, PyrexTypes.c_int_type)
+        elif self.operand.type.is_ptr:
             self.type = self.operand.type
         else:
             self.type_error()
@@ -5913,6 +5919,9 @@ class NumBinopNode(BinopNode):
                 if self.operator not in '|^&':
                     # False + False == 0 # not False!
                     widest_type = PyrexTypes.c_int_type
+            else:
+                widest_type = PyrexTypes.widest_numeric_type(
+                    widest_type, PyrexTypes.c_int_type)
             return widest_type
         else:
             return None
