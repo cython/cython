@@ -95,6 +95,7 @@ VER_DEP_MODULES = {
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
                                           'run.pure_py', # decorators, with statement
+                                          'run.purecdef',
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
