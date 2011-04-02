@@ -10,9 +10,9 @@ cdef f():
 	spam() # too few args
 	spam("blarg") # too few args
 _ERRORS = u"""
-5:6: Call with wrong number of arguments (expected 2, got 0)
-6:6: Call with wrong number of arguments (expected 2, got 1)
-7:6: Call with wrong number of arguments (expected 2, got 3)
-8:5: Call with wrong number of arguments (expected at least 2, got 0)
-9:5: Call with wrong number of arguments (expected at least 2, got 1)
+7:6: Call with wrong number of arguments (expected 2, got 0)
+8:6: Call with wrong number of arguments (expected 2, got 1)
+9:6: Call with wrong number of arguments (expected 2, got 3)
+10:5: Call with wrong number of arguments (expected at least 2, got 0)
+11:5: Call with wrong number of arguments (expected at least 2, got 1)
 """

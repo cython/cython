@@ -8,6 +8,6 @@ cdef extern from *:
         int value = 3
 
 _ERRORS = u"""
-2:13: Cannot assign default value to fields in cdef classes, structs or unions
-6:12: Cannot assign default value to fields in cdef classes, structs or unions
+4:13: Cannot assign default value to fields in cdef classes, structs or unions
+8:12: Cannot assign default value to fields in cdef classes, structs or unions
 """

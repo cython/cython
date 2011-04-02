@@ -10,9 +10,9 @@ def int_literals():
 
 
 _ERRORS = """
-4:8: illegal integer literal syntax in Python source file
 5:8: illegal integer literal syntax in Python source file
 6:8: illegal integer literal syntax in Python source file
 7:8: illegal integer literal syntax in Python source file
 8:8: illegal integer literal syntax in Python source file
+9:8: illegal integer literal syntax in Python source file
 """

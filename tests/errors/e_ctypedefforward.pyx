@@ -10,5 +10,5 @@ ctypedef struct Spam:
 
 ctypedef struct Spam
 _ERRORS = u"""
-1:0: Forward-referenced type must use 'cdef', not 'ctypedef'
+3:0: Forward-referenced type must use 'cdef', not 'ctypedef'
 """

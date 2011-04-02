@@ -24,10 +24,10 @@ cdef void eggs(Spam s):
 
 
 _ERRORS = u"""
-5:36: C struct/union member cannot be a Python object
-15:6: Object of type 'Spam' has no attribute 'k'
-16:6: Cannot assign type 'float *[42]' to 'int'
-17:21: Cannot assign type 'int' to 'float *[42]'
-20:7: Cannot select attribute of incomplete type 'Grail'
-21:3: Cannot select attribute of incomplete type 'Grail'
+7:36: C struct/union member cannot be a Python object
+17:6: Object of type 'Spam' has no attribute 'k'
+18:6: Cannot assign type 'float *[42]' to 'int'
+19:21: Cannot assign type 'int' to 'float *[42]'
+22:7: Cannot select attribute of incomplete type 'Grail'
+23:3: Cannot select attribute of incomplete type 'Grail'
 """

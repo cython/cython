@@ -29,9 +29,9 @@ def withnogil_acquire(x):
         buf = x
 
 _ERRORS = u"""
-3:9: 'nothing' is not a type identifier
-10:11: Cannot check buffer index bounds without gil; use boundscheck(False) directive
-22:11: Cannot access buffer with object dtype without gil
-22:11: Assignment of Python object not allowed without gil
-27:12: Assignment of Python object not allowed without gil
+ 3: 9: 'nothing' is not a type identifier
+12:11: Cannot check buffer index bounds without gil; use boundscheck(False) directive
+24:11: Cannot access buffer with object dtype without gil
+24:11: Assignment of Python object not allowed without gil
+29:12: Assignment of Python object not allowed without gil
 """

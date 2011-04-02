@@ -7,6 +7,6 @@ def syntax():
 
 
 _ERRORS = u"""
-5:4: more than 1 starred expression in assignment
-5:8: more than 1 starred expression in assignment
+6:4: more than 1 starred expression in assignment
+6:8: more than 1 starred expression in assignment
 """

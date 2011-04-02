@@ -10,6 +10,6 @@ print 3
 # cython: boundscheck = true
 
 _ERRORS = u"""
-3:0: boundscheck directive must be set to True or False, got 'true'
-4:0: boundscheck directive must be set to True or False, got '9'
+4:0: boundscheck directive must be set to True or False, got 'true'
+5:0: boundscheck directive must be set to True or False, got '9'
 """

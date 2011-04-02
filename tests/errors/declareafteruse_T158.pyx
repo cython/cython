@@ -54,24 +54,24 @@ cdef unsigned long long var[100][100]
 
 # in 0.11.1 these are warnings
 FUTURE_ERRORS = u"""
-4:13: cdef variable 's' declared after it is used
-4:16: cdef variable 'vv' declared after it is used
-9:14: cdef variable 'i' declared after it is used
-15:14: cdef variable 'i' declared after it is used
-21:14: cdef variable 'i' declared after it is used
-24:9: cdef variable 's' declared after it is used
-30:17: cdef variable 't' declared after it is used
-34:13: cdef variable 'r' declared after it is used
-40:17: cdef variable 't' declared after it is used
-47:10: cdef variable 'baz' declared after it is used
-50:24: cdef variable 'var' declared after it is used
+6:13: cdef variable 's' declared after it is used
+6:16: cdef variable 'vv' declared after it is used
+11:14: cdef variable 'i' declared after it is used
+17:14: cdef variable 'i' declared after it is used
+23:14: cdef variable 'i' declared after it is used
+26:9: cdef variable 's' declared after it is used
+32:17: cdef variable 't' declared after it is used
+36:13: cdef variable 'r' declared after it is used
+42:17: cdef variable 't' declared after it is used
+49:10: cdef variable 'baz' declared after it is used
+52:24: cdef variable 'var' declared after it is used
 """
 
 syntax error
 
 _ERRORS = u"""
-40:17: cdef variable 't' declared after it is used
-47:10: cdef variable 'baz' declared after it is used
-50:24: cdef variable 'var' declared after it is used
-67:7: Syntax error in simple statement list
+42:17: cdef variable 't' declared after it is used
+49:10: cdef variable 'baz' declared after it is used
+52:24: cdef variable 'var' declared after it is used
+70:7: Syntax error in simple statement list
 """

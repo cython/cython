@@ -28,7 +28,7 @@ def redef_in_class_scope():
 
 
 _ERRORS = u"""
-3:4: no binding for nonlocal 'no_such_name' found
+ 3:4: no binding for nonlocal 'no_such_name' found
 10:8: 'x' redeclared as nonlocal
 15:4: no binding for nonlocal 'global_name' found
 27:8: 'x' redeclared as nonlocal

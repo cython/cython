@@ -6,5 +6,5 @@ cdef extern:
         char a
 
 _ERRORS = u"""
-2:9: Cannot declare extern struct as 'packed'
+5:9: Cannot declare extern struct as 'packed'
 """

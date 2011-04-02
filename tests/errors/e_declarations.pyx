@@ -12,8 +12,8 @@ cdef void f():
 
 
 _ERRORS = u"""
-1:19: Array element cannot be a function
-3:18: Function cannot return a function
-8:10: Function cannot return a function
-8:5: Cannot cast to a function type
+3:19: Array element cannot be a function
+5:18: Function cannot return a function
+10:10: Function cannot return a function
+10:5: Cannot cast to a function type
 """

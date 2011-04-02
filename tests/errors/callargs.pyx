@@ -18,5 +18,5 @@ def test():
 # too bad we don't get more errors here ...
 
 _ERRORS = u"""
-8:13: Non-keyword arg following star-arg
+10:13: Non-keyword arg following star-arg
 """

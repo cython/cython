@@ -9,7 +9,7 @@ cdef int h():
 	return # error
 	return p # error
 _ERRORS = u"""
-3:17: Return with value in void function
-7:1: Return value required
-8:17: Cannot assign type 'int *' to 'int'
+5:17: Return with value in void function
+9:1: Return value required
+10:17: Cannot assign type 'int *' to 'int'
 """

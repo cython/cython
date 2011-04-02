@@ -9,10 +9,10 @@ cdef unsigned long double j
 
 
 _ERRORS = u"""
-1:5: Unrecognised type modifier combination
-2:5: Unrecognised type modifier combination
 3:5: Unrecognised type modifier combination
 4:5: Unrecognised type modifier combination
 5:5: Unrecognised type modifier combination
 6:5: Unrecognised type modifier combination
+7:5: Unrecognised type modifier combination
+8:5: Unrecognised type modifier combination
 """

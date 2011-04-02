@@ -3,5 +3,5 @@
 '\x'
 
 _ERRORS = '''
-2:1: Invalid hex escape '\x'
+3:1: Invalid hex escape '\x'
 '''

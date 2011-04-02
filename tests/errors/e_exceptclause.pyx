@@ -12,6 +12,6 @@ except AttributeError:
     pass
 
 _ERRORS = u"""
-8:0: default 'except:' must be last
-10:0: default 'except:' must be last
+9:0: default 'except:' must be last
+11:0: default 'except:' must be last
 """

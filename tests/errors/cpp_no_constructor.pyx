@@ -9,5 +9,5 @@ cdef extern from *:
 new Foo(1, 2)
 
 _ERRORS = u"""
-6:7: no suitable method found
+9:7: no suitable method found
 """

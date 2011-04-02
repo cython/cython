@@ -18,12 +18,12 @@ cdef class Bar:
     pass
 
 _ERRORS = u"""
-5:24: C attribute of type 'VoidP' cannot be accessed from Python
-5:24: Cannot convert 'VoidP' to Python object
-6:24: C attribute of type 'VoidP' cannot be accessed from Python
-6:24: Cannot convert 'VoidP' to Python object
-6:24: Cannot convert Python object to 'VoidP'
-14:22: C attribute of type 'Foo' cannot be accessed from Python
-14:22: Cannot convert Python object to 'Foo'
+8:24: C attribute of type 'VoidP' cannot be accessed from Python
+8:24: Cannot convert 'VoidP' to Python object
+9:24: C attribute of type 'VoidP' cannot be accessed from Python
+9:24: Cannot convert 'VoidP' to Python object
+9:24: Cannot convert Python object to 'VoidP'
+17:22: C attribute of type 'Foo' cannot be accessed from Python
+17:22: Cannot convert Python object to 'Foo'
 """
 

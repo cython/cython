@@ -10,7 +10,7 @@ cdef void foo(obj):
 	obj = p2 # error
 
 _ERRORS = u"""
-5:16: Cannot assign type 'char *' to 'int'
-6:17: Cannot convert Python object to 'int *'
-8:17: Cannot convert 'int *' to Python object
+7:16: Cannot assign type 'char *' to 'int'
+8:17: Cannot convert Python object to 'int *'
+10:17: Cannot convert 'int *' to Python object
 """
