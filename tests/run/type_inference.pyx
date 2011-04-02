@@ -156,7 +156,7 @@ def unary_operators():
     a = int(1)
     assert typeof(a) == "Python object", typeof(a)
     b = not int(3)
-    assert typeof(b) == "int", typeof(b)
+    assert typeof(b) == "bint", typeof(b)
     c = +int(3)
     assert typeof(c) == "Python object", typeof(c)
     d = -int(5)
