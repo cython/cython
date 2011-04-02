@@ -57,13 +57,13 @@ Cython generates.  Here is the list:
     the operands have opposite signs) and raise a
     ``ZeroDivisionError`` when the right operand is 0. This has about
     a 35% speed penalty. If set to True, no checks are performed.  See
-    `CEP 516 <http://wiki.cython.org/enhancements/division>`.  Default
+    `CEP 516 <http://wiki.cython.org/enhancements/division>`_.  Default
     is False.
 
 ``cdivision_warnings`` (True / False)
     If set to True, Cython will emit a runtime warning whenever
     division is performed with negative operands.  See `CEP 516
-    <http://wiki.cython.org/enhancements/division>`.  Default is
+    <http://wiki.cython.org/enhancements/division>`_.  Default is
     False.
 
 ``always_allow_keywords`` (True / False)
@@ -81,11 +81,55 @@ Cython generates.  Here is the list:
     Infer types of untyped variables in function bodies. Default is
     False.
 
+How to set directives
+---------------------
+
+Globally
+:::::::::
+
+One can set compiler directives through a special header comment at the top of the file, like this::
+
+    #!python
+    #cython: boundscheck=False
+
+The comment must appear before any code (but can appear after other
+comments or whitespace).
+
+One can also pass a directive on the command line by using the -X switch::
+
+    $ cython -X boundscheck=True ...
+
+Directives passed on the command line will override directives set in
+header comments.
+
+Locally
+::::::::
+
+For local blocks, you need to cimport the special builtin ``cython``
+module::
+
+    #!python
+    cimport cython
+
+Then you can use the directives either as decorators or in a with
+statement, like this::
+
+    #!python
+    @cython.boundscheck(False) # turn off boundscheck for this function
+    def f():
+        ...
+    	with cython.boundscheck(True): # turn it temporarily on again for this block
+            ...
+
+.. Warning:: These two methods of setting directives are **not**
+    affected by overriding the directive on the command-line using the
+    -X option.
+
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
 
-From the command line
-=====================
+Compiling from the command line
+===============================
 
 Run the Cython compiler command with your options and list of ``.pyx``
 files to generate.  For example::
@@ -109,9 +153,8 @@ paths to libraries you need to link with]
 A ``yourmod.so`` file is now in the same directory and your module,
 ``yourmod``, is available for you to import as you normally would.
 
-
-Distutils
-=========
+Compiling with ``distutils``
+============================
 
 First, make sure that ``distutils`` package is installed in your
 system.  The following assumes a Cython file to be compiled called
@@ -121,10 +164,14 @@ system.  The following assumes a Cython file to be compiled called
     from distutils.extension import Extension
     from Cython.Distutils import build_ext
 
-    ext_modules = [Extension("hello", ["hello.pyx"])]
-
+    ext_modules = [Extension("spam", ["spam.pyx"]),
+                   Extension("ham", ["ham.pyx"])]
+    # You can add directives for each extension too
+    # by attaching the `pyrex_directives`
+    for e in ext modules:
+        e.pyrex_directives = {"boundscheck": False}
     setup(
-        name = ’Hello world app’,
+        name = ’My hello app’,
         cmdclass = {’build_ext’: build_ext},
         ext_modules = ext_modules
     )
@@ -133,8 +180,8 @@ Run the command ``python setup.py build_ext --inplace`` in your
 system's command shell and you are done.  Import your new extension
 module into your python shell or script as normal.
 
-Pyximport
-=========
+Compiling with ``pyximport``
+=============================
 
 For generating Cython code right in your pure python module just type::
 
@@ -156,11 +203,11 @@ using this feature, just tell that to ``pyximport``::
 
     >>> pyximport.install(pyimport = True)
 
-Sage
-====
+Compiling with Sage
+===================
 
 The Sage notebook allows transparently editing and compiling Cython
-code simply by typing %cython at the top of a cell and evaluate
+code simply by typing ``%cython`` at the top of a cell and evaluate
 it. Variables and functions deﬁned in a Cython cell imported into the
 running session.  Please check `Sage documentation
-<http://www.sagemath.org/doc/>` for details.
+<http://www.sagemath.org/doc/>`_ for details.
