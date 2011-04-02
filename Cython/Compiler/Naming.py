@@ -19,6 +19,7 @@ funcdoc_prefix    = pyrex_prefix + "doc_"
 enum_prefix       = pyrex_prefix + "e_"
 func_prefix       = pyrex_prefix + "f_"
 pyfunc_prefix     = pyrex_prefix + "pf_"
+genbody_prefix    = pyrex_prefix + "gb_"
 gstab_prefix      = pyrex_prefix + "getsets_"
 prop_get_prefix   = pyrex_prefix + "getprop_"
 const_prefix      = pyrex_prefix + "k_"
@@ -51,6 +52,7 @@ lambda_func_prefix = pyrex_prefix + "lambda_"
 module_is_main   = pyrex_prefix + "module_is_main_"
 
 args_cname       = pyrex_prefix + "args"
+sent_value_cname = pyrex_prefix + "sent_value"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
 obj_base_cname   = pyrex_prefix + "base"
 builtins_cname   = pyrex_prefix + "b"
@@ -106,10 +108,6 @@ exc_tb_name     = pyrex_prefix + "exc_tb"
 exc_lineno_name = pyrex_prefix + "exc_lineno"
 
 exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
-
-exc_save_vars = (pyrex_prefix + 'save_exc_type',
-                 pyrex_prefix + 'save_exc_value',
-                 pyrex_prefix + 'save_exc_tb')
 
 api_name        = pyrex_prefix + "capi__"
 
