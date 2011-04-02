@@ -2,9 +2,9 @@
 import sys
 # fool Python we are in distutils
 if sys.version_info >= (3,):
-    __package__='distutils'
+    __name__='distutils.cytest_relativeimport_T542'
 else:
-    __package__=b'distutils'
+    __name__=b'distutils.cytest_relativeimport_T542'
 from distutils import cmd, core, version
 
 from .core import *
