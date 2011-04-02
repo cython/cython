@@ -1,5 +1,6 @@
 # mode: run
-# tag: cdefclass, #677
+# tag: cdefclass
+# ticket: 677
 """
 >>> str(Foo(4))
 '4'
