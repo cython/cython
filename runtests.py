@@ -27,6 +27,22 @@ try:
 except ImportError: # No threads, no problems
     threading = None
 
+try:
+    from collections import defaultdict
+except ImportError:
+    class defaultdict(object):
+        def __init__(self, default_factory=lambda : None):
+            self._dict = {}
+            self.default_factory = default_factory
+        def __getitem__(self, key):
+            if key not in self._dict:
+                self._dict[key] = self.default_factory()
+            return self._dict[key]
+        def __setitem__(self, key, value):
+            self._dict[key] = value
+        def __repr__(self):
+            return repr(self._dict)
+
 WITH_CYTHON = True
 CY3_DIR = None
 
@@ -102,6 +118,21 @@ KEEP_2X_FILES = [
 COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
+
+def parse_tags(filepath):
+    tags = defaultdict(list)
+    for line in open(filepath):
+        line = line.strip()
+        if not line:
+            continue
+        if line[0] != '#':
+            break
+        ix = line.find(':')
+        if ix != -1:
+            tag = line[1:ix].strip()
+            values = line[ix+1:].split(',')
+            tags[tag].extend([value.strip() for value in values])
+    return tags
 
 class build_ext(_build_ext):
     def build_extension(self, ext):
