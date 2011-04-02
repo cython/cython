@@ -9,6 +9,6 @@ cdef class D(C):
         pass
 
 _ERRORS = u"""
-6: 9: Signature not compatible with previous declaration
-2: 9: Previous declaration is here
+8: 9: Signature not compatible with previous declaration
+4: 9: Previous declaration is here
 """

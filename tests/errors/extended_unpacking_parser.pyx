@@ -23,11 +23,11 @@ def length_recursive():
 
 
 _ERRORS = u"""
- 5:4: too many values to unpack (expected 2, got 3)
- 8:4: need more than 1 value to unpack
-11:4: need more than 0 values to unpack
-14:4: need more than 0 values to unpack
-17:4: need more than 0 values to unpack
-18:4: need more than 1 value to unpack
-21:6: need more than 1 value to unpack
+6:4: too many values to unpack (expected 2, got 3)
+9:4: need more than 1 value to unpack
+12:4: need more than 0 values to unpack
+15:4: need more than 0 values to unpack
+18:4: need more than 0 values to unpack
+19:4: need more than 1 value to unpack
+22:6: need more than 1 value to unpack
 """

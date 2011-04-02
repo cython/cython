@@ -17,6 +17,6 @@ a.some_method(1, 2)
 a.some_method(1, y=2)
 
 _ERRORS = u"""
-9:13: Keyword and starred arguments not allowed in cdef functions.
-14:13: Keyword and starred arguments not allowed in cdef functions.
+12:13: Keyword and starred arguments not allowed in cdef functions.
+17:13: Keyword and starred arguments not allowed in cdef functions.
 """

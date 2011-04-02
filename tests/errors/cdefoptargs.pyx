@@ -7,5 +7,5 @@ cdef b(a, b, c=1, d=2):
     pass
 
 _ERRORS = u"""
-2:5:Call with wrong number of arguments (expected at most 4, got 5)
+4:5:Call with wrong number of arguments (expected at most 4, got 5)
 """

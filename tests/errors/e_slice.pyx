@@ -17,10 +17,10 @@ for a in int_ptr[2:2:a]:
     pass
 
 _ERRORS = u"""
-3:20: Cannot convert 'int *' to Python object
-4:21: Cannot convert 'int *' to Python object
-5:22: Cannot convert 'int *' to Python object
-10:16: C array iteration requires known end index
+5:20: Cannot convert 'int *' to Python object
+6:21: Cannot convert 'int *' to Python object
+7:22: Cannot convert 'int *' to Python object
 12:16: C array iteration requires known end index
-14:22: C array iteration requires known step size and end index
+14:16: C array iteration requires known end index
+16:22: C array iteration requires known step size and end index
 """

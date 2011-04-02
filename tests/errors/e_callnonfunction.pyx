@@ -16,7 +16,7 @@ cdef int x():
 x()()
 
 _ERRORS = u"""
-2:1: Calling non-function type 'int'
-5:1: Calling non-function type 'float'
-14:3: Calling non-function type 'int'
+4:1: Calling non-function type 'int'
+7:1: Calling non-function type 'float'
+16:3: Calling non-function type 'int'
 """

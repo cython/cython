@@ -6,5 +6,5 @@ cdef class B:
         pass
 
 _ERRORS = u"""
-3:10: C method has no self argument
+5:10: C method has no self argument
 """

@@ -12,8 +12,8 @@ cdef int u3 = u"\xFF"          # fails
 
 
 _ERRORS = """
-2:14: Only single-character string literals can be coerced into ints.
-3:14: Only single-character string literals can be coerced into ints.
-6:15: Only single-character string literals can be coerced into ints.
-9:14: Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.
+4:14: Only single-character string literals can be coerced into ints.
+5:14: Only single-character string literals can be coerced into ints.
+8:15: Only single-character string literals can be coerced into ints.
+11:14: Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.
 """

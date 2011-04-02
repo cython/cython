@@ -14,7 +14,7 @@ cdef void foo():
 	bool = 1 in 2 in 3
 
 _ERRORS = u"""
- 8:13: Invalid types for '==' (int *, Python object)
- 9:13: Invalid types for '==' (int, char *)
-10:13: Invalid types for '==' (char *, int *)
+10:13: Invalid types for '==' (int *, Python object)
+11:13: Invalid types for '==' (int, char *)
+12:13: Invalid types for '==' (char *, int *)
 """

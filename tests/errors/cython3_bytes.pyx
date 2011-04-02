@@ -6,5 +6,5 @@ escaped = b'abc\xc3\xbc\xc3\xb6\xc3\xa4'
 invalid = b'abcüöä'
 
 _ERRORS = """
-5:10: bytes can only contain ASCII literal characters.
+6:10: bytes can only contain ASCII literal characters.
 """

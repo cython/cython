@@ -15,5 +15,5 @@ cdef class ExtClass:
     _attribute = 5     # FIXME: this is not currently handled!!!
 
 _ERRORS = u"""
-8:13: Cannot assign default value to fields in cdef classes, structs or unions
+10:13: Cannot assign default value to fields in cdef classes, structs or unions
 """

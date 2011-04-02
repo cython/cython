@@ -1,3 +1,5 @@
+# mode: error
+
 def foo():
     yield
     return 0
@@ -12,8 +14,8 @@ class Foo:
     yield
 
 _ERRORS = u"""
-3:4: 'return' with argument inside generator
-7:4: 'yield' outside function
-9:0: 'yield' not supported here
-12:4: 'yield' not supported here
+5:4: 'return' with argument inside generator
+9:4: 'yield' outside function
+11:0: 'yield' not supported here
+14:4: 'yield' not supported here
 """

@@ -9,8 +9,8 @@ def f(obj1, obj2):
 	int1 = int2[int3] # error
 	obj1 = obj2[ptr1] # error
 _ERRORS = u"""
-5:14: Invalid index type 'float'
-6:14: Invalid index type 'float *'
-7:12: Attempting to index non-array type 'int'
-8:17: Cannot convert 'float *' to Python object
+7:14: Invalid index type 'float'
+8:14: Invalid index type 'float *'
+9:12: Attempting to index non-array type 'int'
+10:17: Cannot convert 'float *' to Python object
 """

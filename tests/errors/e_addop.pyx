@@ -6,5 +6,5 @@ def f():
 	ptr1 = ptr2 + ptr3 # error
 
 _ERRORS = u"""
-4:13: Invalid operand types for '+' (int *; int *)
+6:13: Invalid operand types for '+' (int *; int *)
 """

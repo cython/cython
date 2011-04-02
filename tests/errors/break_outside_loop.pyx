@@ -27,11 +27,11 @@ def bool_result():
 
 
 _ERRORS = u'''
-2:0: break statement not inside loop
-5:4: break statement not inside loop
-8:4: break statement not inside loop
-11:4: break statement not inside loop
-16:5: break statement not inside loop
-20:4: break statement not inside loop
-22:4: break statement not inside loop
+3:0: break statement not inside loop
+6:4: break statement not inside loop
+9:4: break statement not inside loop
+12:4: break statement not inside loop
+17:5: break statement not inside loop
+21:4: break statement not inside loop
+23:4: break statement not inside loop
 '''

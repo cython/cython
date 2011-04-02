@@ -8,5 +8,5 @@ def foo(obj):
 	p = <void *>(obj + blarg) # error - temporary
 
 _ERRORS = u"""
-6:5: Casting temporary Python object to non-numeric non-Python type
+8:5: Casting temporary Python object to non-numeric non-Python type
 """
