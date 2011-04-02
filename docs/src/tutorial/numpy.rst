@@ -110,16 +110,6 @@ compatibility. Here's :file:`convolve2.pyx`. *Read the comments!*  ::
     # every type in the numpy module there's a corresponding compile-time
     # type with a _t-suffix.
     ctypedef np.int_t DTYPE_t
-    # The builtin min and max functions works with Python objects, and are
-    # so very slow. So we create our own.
-    #  - "cdef" declares a function which has much less overhead than a normal
-    #    def function (but it is not Python-callable)
-    #  - "inline" is passed on to the C compiler which may inline the functions
-    #  - The C type "int" is chosen as return type and argument types
-    #  - Cython allows some newer Python constructs like "a if x else b", but
-    #    the resulting C file compiles with Python 2.3 through to Python 3.0 beta.
-    cdef inline int int_max(int a, int b): return a if a >= b else b
-    cdef inline int int_min(int a, int b): return a if a <= b else b
     # "def" can type its arguments but not have a return type. The type of the
     # arguments for a "def" function is checked at run-time when entering the
     # function.
@@ -163,10 +153,10 @@ compatibility. Here's :file:`convolve2.pyx`. *Read the comments!*  ::
         cdef DTYPE_t value
         for x in range(xmax):
             for y in range(ymax):
-                s_from = int_max(smid - x, -smid)
-                s_to = int_min((xmax - x) - smid, smid + 1)
-                t_from = int_max(tmid - y, -tmid)
-                t_to = int_min((ymax - y) - tmid, tmid + 1)
+                s_from = max(smid - x, -smid)
+                s_to = min((xmax - x) - smid, smid + 1)
+                t_from = max(tmid - y, -tmid)
+                t_to = min((ymax - y) - tmid, tmid + 1)
                 value = 0
                 for s in range(s_from, s_to):
                     for t in range(t_from, t_to):
