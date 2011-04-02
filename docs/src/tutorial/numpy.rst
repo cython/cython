@@ -1,14 +1,17 @@
-Using Cython with NumPy
+=======================
+Working with NumPy
 =======================
 
-Cython has support for fast access to NumPy arrays. Let's see how this
-works with a simple example.
+You can use NumPy from Cython exactly the same as in regular Python, but by
+doing so you are loosing potentially high speedups because Cython has support
+for fast access to NumPy arrays. Let's see how this works with a simple
+example.
 
 The code below does 2D discrete convolution of an image with a filter (and I'm
 sure you can do better!, let it serve for demonstration purposes). It is both
 valid Python and valid Cython code. I'll refer to it as both
-:file:`convolve_py.py` for the Python version and :file:`convolve1.pyx` for the
-Cython version -- Cython uses ".pyx" as its file suffix.
+:file:`convolve_py.py` for the Python version and :file:`convolve1.pyx` for
+the Cython version -- Cython uses ".pyx" as its file suffix.
 
 .. code-block:: python
 
@@ -94,7 +97,7 @@ Adding types
 =============
 
 To add types we use custom Cython syntax, so we are now breaking Python source
-compatibility. Here's :file:`convolve2.pyx`. *Read the comments!*  ::
+compatibility. Consider this code (*read the comments!*) ::
 
     from __future__ import division
     import numpy as np
@@ -187,9 +190,7 @@ We do this with a special "buffer" syntax which must be told the datatype
 (first argument) and number of dimensions ("ndim" keyword-only argument, if
 not provided then one-dimensional is assumed).
 
-More information on this syntax [:enhancements/buffer:can be found here].
-
-Showing the changes needed to produce :file:`convolve3.pyx` only::
+These are the needed changes::
 
     ...
     def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
