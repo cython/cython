@@ -1,5 +1,5 @@
 import cython
-from cython import cfunc, cclass
+from cython import cfunc, cclass, ccall
 
 @cython.test_assert_path_exists('//CFuncDefNode')
 @cython.cfunc
@@ -75,3 +75,38 @@ def test_method():
     else:
         print(True)
     return
+
+@cython.ccall
+def ccall_sqr(x):
+    return x*x
+
+@cclass
+class Overidable(object):
+    @ccall
+    def meth(self):
+        return 0
+
+def test_ccall():
+    """
+    >>> test_ccall()
+    25
+    >>> ccall_sqr(5)
+    25
+    """
+    return ccall_sqr(5)
+
+def test_ccall_method(x):
+    """
+    >>> test_ccall_method(Overidable())
+    0
+    >>> Overidable().meth()
+    0
+    >>> class Foo(Overidable):
+    ...    def meth(self):
+    ...        return 1
+    >>> test_ccall_method(Foo())
+    1
+    >>> Foo().meth()
+    1
+    """
+    return x.meth()
