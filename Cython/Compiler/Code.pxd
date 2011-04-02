@@ -34,6 +34,8 @@ cdef class FunctionState:
     cdef public dict temps_used_type
     cdef public size_t temp_counter
 
+    cdef public object closure_temps
+
     @cython.locals(n=size_t)
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)

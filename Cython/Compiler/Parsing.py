@@ -1045,6 +1045,12 @@ def p_global_statement(s):
     names = p_ident_list(s)
     return Nodes.GlobalNode(pos, names = names)
 
+def p_nonlocal_statement(s):
+    pos = s.position()
+    s.next()
+    names = p_ident_list(s)
+    return Nodes.NonlocalNode(pos, names = names)
+
 def p_expression_or_assignment(s):
     expr_list = [p_testlist_star_expr(s)]
     while s.sy == '=':
@@ -1598,6 +1604,8 @@ def p_simple_statement(s, first_statement = 0):
     #print "p_simple_statement:", s.sy, s.systring ###
     if s.sy == 'global':
         node = p_global_statement(s)
+    elif s.sy == 'nonlocal':
+        node = p_nonlocal_statement(s)
     elif s.sy == 'print':
         node = p_print_statement(s)
     elif s.sy == 'exec':

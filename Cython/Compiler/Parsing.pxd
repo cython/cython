@@ -84,6 +84,7 @@ cdef p_genexp(PyrexScanner s, expr)
 #-------------------------------------------------------
 
 cdef p_global_statement(PyrexScanner s)
+cdef p_nonlocal_statement(PyrexScanner s)
 cdef p_expression_or_assignment(PyrexScanner s)
 cdef p_print_statement(PyrexScanner s)
 cdef p_exec_statement(PyrexScanner s)
