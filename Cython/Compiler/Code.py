@@ -117,6 +117,7 @@ class FunctionState(object):
         self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {} # name -> (type, manage_ref)
         self.temp_counter = 0
+        self.closure_temps = None
 
     # labels
 
@@ -269,6 +270,9 @@ class FunctionState(object):
                 for (type, manage_ref), freelist in self.temps_free.items()
                 if manage_ref
                 for cname in freelist]
+
+    def init_closure_temps(self, scope):
+        self.closure_temps = ClosureTempAllocator(scope)
 
 
 class IntConst(object):
@@ -475,6 +479,7 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static int __Pyx_InitCachedConstants(void) {")
+        w.put_declare_refcount_context()
         w.put_setup_refcount_context("__Pyx_InitCachedConstants")
 
         w = self.parts['init_globals']
@@ -1297,6 +1302,8 @@ class CCodeWriter(object):
         #if entry.type.is_extension_type:
         #    code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type, nanny)
+        if entry.in_closure:
+            self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
@@ -1366,6 +1373,9 @@ class CCodeWriter(object):
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
 
+    def put_declare_refcount_context(self):
+        self.putln('__Pyx_RefNannyDeclareContext;')
+
     def put_setup_refcount_context(self, name):
         self.putln('__Pyx_RefNannySetupContext("%s");' % name)
 
@@ -1402,3 +1412,26 @@ class PyrexCodeWriter(object):
     def dedent(self):
         self.level -= 1
 
+
+class ClosureTempAllocator(object):
+    def __init__(self, klass):
+        self.klass = klass
+        self.temps_allocated = {}
+        self.temps_free = {}
+        self.temps_count = 0
+
+    def reset(self):
+        for type, cnames in self.temps_allocated.items():
+            self.temps_free[type] = list(cnames)
+
+    def allocate_temp(self, type):
+        if not type in self.temps_allocated:
+            self.temps_allocated[type] = []
+            self.temps_free[type] = []
+        elif self.temps_free[type]:
+            return self.temps_free[type].pop(0)
+        cname = '%s%d' % (Naming.codewriter_temp_prefix, self.temps_count)
+        self.klass.declare_var(pos=None, name=cname, cname=cname, type=type, is_cdef=True)
+        self.temps_allocated[type].append(cname)
+        self.temps_count += 1
+        return cname

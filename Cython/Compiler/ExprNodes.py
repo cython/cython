@@ -77,12 +77,15 @@ class ExprNode(Node):
     #               [ExprNode or [ExprNode or None] or None]
     #                            Cached result of subexpr_nodes()
     #  use_managed_ref boolean   use ref-counted temps/assignments/etc.
+    #  result_is_used  boolean   indicates that the result will be dropped and the
+    #                            result_code/temp_result can safely be set to None
 
     result_ctype = None
     type = None
     temp_code = None
     old_temp = None # error checker for multiple frees etc.
     use_managed_ref = True # can be set by optimisation transforms
+    result_is_used = True
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -452,6 +455,9 @@ class ExprNode(Node):
 
     def release_temp_result(self, code):
         if not self.temp_code:
+            if not self.result_is_used:
+                # not used anyway, so ignore if not set up
+                return
             if self.old_temp:
                 raise RuntimeError("temp %s released multiple times in %s" % (
                         self.old_temp, self.__class__.__name__))
@@ -497,7 +503,7 @@ class ExprNode(Node):
 
     def generate_disposal_code(self, code):
         if self.is_temp:
-            if self.type.is_pyobject:
+            if self.type.is_pyobject and self.result():
                 code.put_decref_clear(self.result(), self.ctype())
         else:
             # Already done if self.is_temp
@@ -1628,9 +1634,10 @@ class NameNode(AtomicExprNode):
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
                 if self.use_managed_ref:
                     rhs.make_owned_reference(code)
-                    if entry.is_cglobal:
-                        code.put_gotref(self.py_result())
+                    is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
                     if not self.lhs_of_first_assignment:
+                        if is_external_ref:
+                            code.put_gotref(self.py_result())
                         if entry.is_local and not Options.init_local_none:
                             initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
                             if initialized is True:
@@ -1639,7 +1646,7 @@ class NameNode(AtomicExprNode):
                                 code.put_xdecref(self.result(), self.ctype())
                         else:
                             code.put_decref(self.result(), self.ctype())
-                    if entry.is_cglobal:
+                    if is_external_ref:
                         code.put_giveref(rhs.py_result())
 
             code.putln('%s = %s;' % (self.result(),
@@ -4442,37 +4449,7 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
         self.value_expr.annotate(code)
 
 
-class GeneratorExpressionNode(ScopedExprNode):
-    # A generator expression, e.g.  (i for i in range(10))
-    #
-    # Result is a generator.
-    #
-    # loop      ForStatNode   the for-loop, containing a YieldExprNode
-
-    child_attrs = ["loop"]
-
-    type = py_object_type
-
-    def analyse_scoped_declarations(self, env):
-        self.loop.analyse_declarations(env)
-
-    def analyse_types(self, env):
-        if not self.has_local_scope:
-            self.loop.analyse_expressions(env)
-        self.is_temp = True
-
-    def analyse_scoped_expressions(self, env):
-        if self.has_local_scope:
-            self.loop.analyse_expressions(env)
-
-    def may_be_none(self):
-        return False
-
-    def annotate(self, code):
-        self.loop.annotate(code)
-
-
-class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
+class InlinedGeneratorExpressionNode(ScopedExprNode):
     # An inlined generator expression for which the result is
     # calculated inside of the loop.  This will only be created by
     # transforms when replacing builtin calls on generator
@@ -4484,6 +4461,21 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
 
     child_attrs = ["loop"]
     loop_analysed = False
+    type = py_object_type
+
+    def analyse_scoped_declarations(self, env):
+        self.loop.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        if not self.has_local_scope:
+            self.loop.analyse_expressions(env)
+        self.is_temp = True
+
+    def may_be_none(self):
+        return False
+
+    def annotate(self, code):
+        self.loop.annotate(code)
 
     def infer_type(self, env):
         return self.result_node.infer_type(env)
@@ -4497,7 +4489,8 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
 
     def analyse_scoped_expressions(self, env):
         self.loop_analysed = True
-        GeneratorExpressionNode.analyse_scoped_expressions(self, env)
+        if self.has_local_scope:
+            self.loop.analyse_expressions(env)
 
     def coerce_to(self, dst_type, env):
         if self.orig_func == 'sum' and dst_type.is_numeric and not self.loop_analysed:
@@ -4508,7 +4501,7 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
             # assignments.
             self.result_node.type = self.type = dst_type
             return self
-        return GeneratorExpressionNode.coerce_to(self, dst_type, env)
+        return super(InlinedGeneratorExpressionNode, self).coerce_to(dst_type, env)
 
     def generate_result_code(self, code):
         self.result_node.result_code = self.result()
@@ -5055,32 +5048,98 @@ class LambdaNode(InnerFunctionNode):
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
 
+
+class GeneratorExpressionNode(LambdaNode):
+    # A generator expression, e.g.  (i for i in range(10))
+    #
+    # Result is a generator.
+    #
+    # loop      ForStatNode   the for-loop, containing a YieldExprNode
+    # def_node  DefNode       the underlying generator 'def' node
+
+    name = StringEncoding.EncodedString('genexpr')
+    binding = False
+
+    def analyse_declarations(self, env):
+        self.def_node.no_assignment_synthesis = True
+        self.def_node.analyse_declarations(env)
+        env.add_lambda_def(self.def_node)
+
+    def generate_result_code(self, code):
+        code.putln(
+            '%s = %s(%s, NULL); %s' % (
+                self.result(),
+                self.def_node.entry.func_cname,
+                self.self_result_code(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+
 class YieldExprNode(ExprNode):
     # Yield expression node
     #
     # arg         ExprNode   the value to return from the generator
     # label_name  string     name of the C label used for this yield
+    # label_num   integer    yield label number
 
     subexprs = ['arg']
     type = py_object_type
+    label_num = 0
 
     def analyse_types(self, env):
+        if not self.label_num:
+            error(self.pos, "'yield' not supported here")
         self.is_temp = 1
         if self.arg is not None:
             self.arg.analyse_types(env)
             if not self.arg.type.is_pyobject:
                 self.arg = self.arg.coerce_to_pyobject(env)
-        error(self.pos, "Generators are not supported")
+        env.use_utility_code(generator_utility_code)
 
-    def generate_result_code(self, code):
+    def generate_evaluation_code(self, code):
         self.label_name = code.new_label('resume_from_yield')
         code.use_label(self.label_name)
-        code.putln("/* FIXME: save temporary variables */")
-        code.putln("/* FIXME: return from function, yielding value */")
-        code.put_label(self.label_name)
-        code.putln("/* FIXME: restore temporary variables and  */")
-        code.putln("/* FIXME: extract sent value from closure */")
+        if self.arg:
+            self.arg.generate_evaluation_code(code)
+            self.arg.make_owned_reference(code)
+            code.putln(
+                "%s = %s;" % (
+                    Naming.retval_cname,
+                    self.arg.result_as(py_object_type)))
+            self.arg.generate_post_assignment_code(code)
+            #self.arg.generate_disposal_code(code)
+            self.arg.free_temps(code)
+        else:
+            code.put_init_to_py_none(Naming.retval_cname, py_object_type)
+        saved = []
+        code.funcstate.closure_temps.reset()
+        for cname, type, manage_ref in code.funcstate.temps_in_use():
+            save_cname = code.funcstate.closure_temps.allocate_temp(type)
+            saved.append((cname, save_cname, type))
+            if type.is_pyobject:
+                code.put_xgiveref(cname)
+            code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
+        code.put_xgiveref(Naming.retval_cname)
+        code.put_finish_refcount_context()
+        code.putln("/* return from generator, yielding value */")
+        code.putln("%s->%s.resume_label = %d;" % (Naming.cur_scope_cname, Naming.obj_base_cname, self.label_num))
+        code.putln("return %s;" % Naming.retval_cname);
+        code.put_label(self.label_name)
+        for cname, save_cname, type in saved:
+            code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
+            if type.is_pyobject:
+                code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
+            if type.is_pyobject:
+                code.put_xgotref(cname)
+        if self.result_is_used:
+            self.allocate_temp_result(code)
+            code.putln('%s = %s; %s' %
+                       (self.result(), Naming.sent_value_cname,
+                        code.error_goto_if_null(self.result(), self.pos)))
+            code.put_incref(self.result(), py_object_type)
+        else:
+            code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
 
 #-------------------------------------------------------------------
 #
@@ -8403,3 +8462,101 @@ static int %(binding_cfunc)s_init(void) {
 
 }
 """ % Naming.__dict__)
+
+generator_utility_code = UtilityCode(
+proto="""
+static PyObject *__Pyx_Generator_Next(PyObject *self);
+static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
+static PyObject *__Pyx_Generator_Close(PyObject *self);
+static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args, CYTHON_UNUSED PyObject *kwds);
+
+typedef PyObject *(*__pyx_generator_body_t)(PyObject *, PyObject *);
+""",
+impl="""
+static CYTHON_INLINE PyObject *__Pyx_Generator_SendEx(struct __pyx_Generator_object *self, PyObject *value)
+{
+    PyObject *retval;
+
+    if (self->is_running) {
+        PyErr_SetString(PyExc_ValueError,
+                        "generator already executing");
+        return NULL;
+    }
+
+    if (self->resume_label == 0) {
+        if (value && value != Py_None) {
+            PyErr_SetString(PyExc_TypeError,
+                            "can't send non-None value to a "
+                            "just-started generator");
+            return NULL;
+        }
+    }
+
+    if (self->resume_label == -1) {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
+    }
+
+    self->is_running = 1;
+    retval = self->body((PyObject *) self, value);
+    self->is_running = 0;
+
+    return retval;
+}
+
+static PyObject *__Pyx_Generator_Next(PyObject *self)
+{
+    return __Pyx_Generator_SendEx((struct __pyx_Generator_object *) self, Py_None);
+}
+
+static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value)
+{
+    return __Pyx_Generator_SendEx((struct __pyx_Generator_object *) self, value);
+}
+
+static PyObject *__Pyx_Generator_Close(PyObject *self)
+{
+    struct __pyx_Generator_object *generator = (struct __pyx_Generator_object *) self;
+    PyObject *retval;
+#if PY_VERSION_HEX < 0x02050000
+    PyErr_SetNone(PyExc_StopIteration);
+#else
+    PyErr_SetNone(PyExc_GeneratorExit);
+#endif
+    retval = __Pyx_Generator_SendEx(generator, NULL);
+    if (retval) {
+        Py_DECREF(retval);
+        PyErr_SetString(PyExc_RuntimeError,
+                        "generator ignored GeneratorExit");
+        return NULL;
+    }
+#if PY_VERSION_HEX < 0x02050000
+    if (PyErr_ExceptionMatches(PyExc_StopIteration))
+#else
+    if (PyErr_ExceptionMatches(PyExc_StopIteration)
+        || PyErr_ExceptionMatches(PyExc_GeneratorExit))
+#endif
+    {
+        PyErr_Clear();          /* ignore these errors */
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    return NULL;
+}
+
+static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args, CYTHON_UNUSED PyObject *kwds)
+{
+    struct __pyx_Generator_object *generator = (struct __pyx_Generator_object *) self;
+    PyObject *typ;
+    PyObject *tb = NULL;
+    PyObject *val = NULL;
+
+    if (!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb))
+        return NULL;
+    __Pyx_Raise(typ, val, tb);
+    return __Pyx_Generator_SendEx(generator, NULL);
+}
+""",
+proto_block='utility_code_proto_before_types',
+requires=[Nodes.raise_utility_code],
+)
