@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True, infer_types=True, language_level=3
+# cython: auto_cpdef=True, infer_types=True, language_level=3, py2_import=True
 #
 #   Pyrex Parser
 #

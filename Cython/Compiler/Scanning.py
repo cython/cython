@@ -1,4 +1,4 @@
-# cython: infer_types=True, language_level=3
+# cython: infer_types=True, language_level=3, py2_import=True
 #
 #   Cython Scanner
 #
