@@ -182,6 +182,7 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_ModuleNode(self, node):
         self.lambda_counter = 1
+        self.genexpr_counter = 1
         return super(PostParse, self).visit_ModuleNode(node)
 
     def visit_LambdaNode(self, node):
@@ -189,14 +190,34 @@ class PostParse(ScopeTrackingTransform):
         lambda_id = self.lambda_counter
         self.lambda_counter += 1
         node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
-
-        body = Nodes.ReturnStatNode(
-            node.result_expr.pos, value = node.result_expr)
+        collector = YieldNodeCollector()
+        collector.visitchildren(node.result_expr)
+        if collector.yields or isinstance(node.result_expr, ExprNodes.YieldExprNode):
+            body = ExprNodes.YieldExprNode(
+                node.result_expr.pos, arg=node.result_expr)
+            body = Nodes.ExprStatNode(node.result_expr.pos, expr=body)
+        else:
+            body = Nodes.ReturnStatNode(
+                node.result_expr.pos, value=node.result_expr)
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, lambda_name=node.lambda_name,
             args=node.args, star_arg=node.star_arg,
             starstar_arg=node.starstar_arg,
-            body=body)
+            body=body, doc=None)
+        self.visitchildren(node)
+        return node
+
+    def visit_GeneratorExpressionNode(self, node):
+        # unpack a generator expression into the corresponding DefNode
+        genexpr_id = self.genexpr_counter
+        self.genexpr_counter += 1
+        node.genexpr_name = EncodedString(u'genexpr%d' % genexpr_id)
+
+        node.def_node = Nodes.DefNode(node.pos, name=node.name,
+                                      doc=None,
+                                      args=[], star_arg=None,
+                                      starstar_arg=None,
+                                      body=node.loop)
         self.visitchildren(node)
         return node
 
@@ -1408,6 +1429,42 @@ class AlignFunctionDefinitions(CythonTransform):
         return node
 
 
+class YieldNodeCollector(TreeVisitor):
+
+    def __init__(self):
+        super(YieldNodeCollector, self).__init__()
+        self.yields = []
+        self.returns = []
+        self.has_return_value = False
+
+    def visit_Node(self, node):
+        return self.visitchildren(node)
+
+    def visit_YieldExprNode(self, node):
+        if self.has_return_value:
+            error(node.pos, "'yield' outside function")
+        self.yields.append(node)
+        self.visitchildren(node)
+
+    def visit_ReturnStatNode(self, node):
+        if node.value:
+            self.has_return_value = True
+            if self.yields:
+                error(node.pos, "'return' with argument inside generator")
+        self.returns.append(node)
+
+    def visit_ClassDefNode(self, node):
+        pass
+
+    def visit_DefNode(self, node):
+        pass
+
+    def visit_LambdaNode(self, node):
+        pass
+
+    def visit_GeneratorExpressionNode(self, node):
+        pass
+
 class MarkClosureVisitor(CythonTransform):
 
     def visit_ModuleNode(self, node):
@@ -1420,6 +1477,27 @@ class MarkClosureVisitor(CythonTransform):
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
         self.needs_closure = True
+
+        collector = YieldNodeCollector()
+        collector.visitchildren(node)
+
+        if collector.yields:
+            for i, yield_expr in enumerate(collector.yields):
+                yield_expr.label_num = i + 1
+
+            gbody = Nodes.GeneratorBodyDefNode(pos=node.pos,
+                                               name=node.name,
+                                               body=node.body)
+            generator = Nodes.GeneratorDefNode(pos=node.pos,
+                                               name=node.name,
+                                               args=node.args,
+                                               star_arg=node.star_arg,
+                                               starstar_arg=node.starstar_arg,
+                                               doc=node.doc,
+                                               decorators=node.decorators,
+                                               gbody=gbody,
+                                               lambda_name=node.lambda_name)
+            return generator
         return node
 
     def visit_CFuncDefNode(self, node):
@@ -1440,7 +1518,6 @@ class MarkClosureVisitor(CythonTransform):
         self.needs_closure = True
         return node
 
-
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
     # that really need it.
@@ -1449,24 +1526,78 @@ class CreateClosureClasses(CythonTransform):
         super(CreateClosureClasses, self).__init__(context)
         self.path = []
         self.in_lambda = False
+        self.generator_class = None
 
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.visitchildren(node)
         return node
 
-    def get_scope_use(self, node):
+    def create_generator_class(self, target_module_scope, pos):
+        if self.generator_class:
+            return self.generator_class
+        # XXX: make generator class creation cleaner
+        entry = target_module_scope.declare_c_class(name='__pyx_Generator',
+                    objstruct_cname='__pyx_Generator_object',
+                    typeobj_cname='__pyx_Generator_type',
+                    pos=pos, defining=True, implementing=True)
+        klass = entry.type.scope
+        klass.is_internal = True
+        klass.directives = {'final': True}
+
+        body_type = PyrexTypes.create_typedef_type('generator_body',
+                                                   PyrexTypes.c_void_ptr_type,
+                                                   '__pyx_generator_body_t')
+        klass.declare_var(pos=pos, name='body', cname='body',
+                          type=body_type, is_cdef=True)
+        klass.declare_var(pos=pos, name='is_running', cname='is_running', type=PyrexTypes.c_int_type,
+                          is_cdef=True)
+        klass.declare_var(pos=pos, name='resume_label', cname='resume_label', type=PyrexTypes.c_int_type,
+                          is_cdef=True)
+
+        import TypeSlots
+        e = klass.declare_pyfunction('send', pos)
+        e.func_cname = '__Pyx_Generator_Send'
+        e.signature = TypeSlots.binaryfunc
+
+        e = klass.declare_pyfunction('close', pos)
+        e.func_cname = '__Pyx_Generator_Close'
+        e.signature = TypeSlots.unaryfunc
+
+        e = klass.declare_pyfunction('throw', pos)
+        e.func_cname = '__Pyx_Generator_Throw'
+        e.signature = TypeSlots.pyfunction_signature
+
+        e = klass.declare_var('__iter__', PyrexTypes.py_object_type, pos, visibility='public')
+        e.func_cname = 'PyObject_SelfIter'
+
+        e = klass.declare_var('__next__', PyrexTypes.py_object_type, pos, visibility='public')
+        e.func_cname = '__Pyx_Generator_Next'
+
+        self.generator_class = entry.type
+        return self.generator_class
+
+    def find_entries_used_in_closures(self, node):
         from_closure = []
         in_closure = []
         for name, entry in node.local_scope.entries.items():
             if entry.from_closure:
                 from_closure.append((name, entry))
-            elif entry.in_closure and not entry.from_closure:
+            elif entry.in_closure:
                 in_closure.append((name, entry))
         return from_closure, in_closure
 
     def create_class_from_scope(self, node, target_module_scope, inner_node=None):
-        from_closure, in_closure = self.get_scope_use(node)
+        # skip generator body
+        if node.is_generator_body:
+            return
+        # move local variables into closure
+        if node.is_generator:
+            for entry in node.local_scope.entries.values():
+                if not entry.from_closure:
+                    entry.in_closure = True
+
+        from_closure, in_closure = self.find_entries_used_in_closures(node)
         in_closure.sort()
 
         # Now from the begining
@@ -1485,8 +1616,11 @@ class CreateClosureClasses(CythonTransform):
                 inner_node = node.assmt.rhs
             inner_node.needs_self_code = False
             node.needs_outer_scope = False
-        # Simple cases
-        if not in_closure and not from_closure:
+
+        base_type = None
+        if node.is_generator:
+            base_type = self.create_generator_class(target_module_scope, node.pos)
+        elif not in_closure and not from_closure:
             return
         elif not in_closure:
             func_scope.is_passthrough = True
@@ -1496,8 +1630,10 @@ class CreateClosureClasses(CythonTransform):
 
         as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
 
-        entry = target_module_scope.declare_c_class(name = as_name,
-            pos = node.pos, defining = True, implementing = True)
+        entry = target_module_scope.declare_c_class(
+            name=as_name, pos=node.pos, defining=True,
+            implementing=True, base_type=base_type)
+
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
@@ -1512,11 +1648,13 @@ class CreateClosureClasses(CythonTransform):
                                     is_cdef=True)
             node.needs_outer_scope = True
         for name, entry in in_closure:
-            class_scope.declare_var(pos=entry.pos,
+            closure_entry = class_scope.declare_var(pos=entry.pos,
                                     name=entry.name,
                                     cname=entry.cname,
                                     type=entry.type,
                                     is_cdef=True)
+            if entry.is_declared_generic:
+                closure_entry.is_declared_generic = 1
         node.needs_closure = True
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)

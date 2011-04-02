@@ -19,6 +19,7 @@ cdef class NormalizeTree(CythonTransform):
 cdef class PostParse(ScopeTrackingTransform):
     cdef dict specialattribute_handlers
     cdef size_t lambda_counter
+    cdef size_t genexpr_counter
     cdef _visit_assignment_node(self, node, list expr_list)
 
 
@@ -45,6 +46,11 @@ cdef class AlignFunctionDefinitions(CythonTransform):
     cdef dict directives
     cdef scope
 
+cdef class YieldNodeCollector(TreeVisitor):
+    cdef public list yields
+    cdef public list returns
+    cdef public bint has_return_value
+
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
 
@@ -52,6 +58,7 @@ cdef class CreateClosureClasses(CythonTransform):
     cdef list path
     cdef bint in_lambda
     cdef module_scope
+    cdef generator_class
 
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack

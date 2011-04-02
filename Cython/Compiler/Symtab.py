@@ -1309,6 +1309,16 @@ class LocalScope(Scope):
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
 
+    def declare_nonlocal(self, name, pos):
+        # Pull entry from outer scope into local scope
+        orig_entry = self.lookup_here(name)
+        if orig_entry and orig_entry.scope is self and not orig_entry.from_closure:
+            error(pos, "'%s' redeclared as nonlocal" % name)
+        else:
+            entry = self.lookup(name)
+            if entry is None or not entry.from_closure:
+                error(pos, "no binding for nonlocal '%s' found" % name)
+
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
@@ -1326,6 +1336,7 @@ class LocalScope(Scope):
                 inner_entry.is_variable = True
                 inner_entry.outer_entry = entry
                 inner_entry.from_closure = True
+                inner_entry.is_declared_generic = entry.is_declared_generic
                 self.entries[name] = inner_entry
                 return inner_entry
         return entry
@@ -1478,6 +1489,20 @@ class PyClassScope(ClassScope):
         entry.is_pyglobal = 1
         entry.is_pyclass_attr = 1
         return entry
+
+    def declare_nonlocal(self, name, pos):
+        # Pull entry from outer scope into local scope
+        orig_entry = self.lookup_here(name)
+        if orig_entry and orig_entry.scope is self and not orig_entry.from_closure:
+            error(pos, "'%s' redeclared as nonlocal" % name)
+        else:
+            entry = self.lookup(name)
+            if entry is None:
+                error(pos, "no binding for nonlocal '%s' found" % name)
+            else:
+                # FIXME: this works, but it's unclear if it's the
+                # right thing to do
+                self.entries[name] = entry
 
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
