@@ -925,6 +925,9 @@ class CBIntType(CIntType):
     def __repr__(self):
         return "<CNumericType bint>"
 
+    def __str__(self):
+        return 'bint'
+
 
 class CPyUCS4IntType(CIntType):
     # Py_UCS4
