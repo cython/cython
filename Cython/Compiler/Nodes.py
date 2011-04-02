@@ -1474,7 +1474,7 @@ class FuncDefNode(StatNode, BlockNode):
                 # TODO: Fix exception tracing (though currently unused by cProfile).
                 # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
                 # code.put_trace_exception()
-                code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+                code.put_add_traceback(self.entry.qualified_name)
             else:
                 warning(self.entry.pos, "Unraisable exception in function '%s'." \
                             % self.entry.qualified_name, 0)
@@ -1563,6 +1563,12 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
+        if code.funcstate.should_declare_error_indicator:
+            tempvardecl_code.putln("int %s;" % Naming.lineno_cname)
+            tempvardecl_code.putln("const char *%s;" % Naming.filename_cname)
+            if code.c_line_in_traceback:
+                tempvardecl_code.putln("int %s;" % Naming.clineno_cname)
+
         # ----- Python version
         code.exit_cfunc_scope()
         if self.py_func:
@@ -2457,7 +2463,7 @@ class DefNode(FuncDefNode):
                         code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
                         code.put_var_decref_clear(self.starstar_arg.entry)
-            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.put_add_traceback(self.entry.qualified_name)
             # The arguments are put into the closure one after the
             # other, so when type errors are found, all references in
             # the closure instance must be properly ref-counted to
@@ -5272,7 +5278,7 @@ class ExceptClauseNode(Node):
         exc_vars = [code.funcstate.allocate_temp(py_object_type,
                                                  manage_ref=True)
                     for i in xrange(3)]
-        code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
+        code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
         # exception and stores it in the thread state.
@@ -7125,15 +7131,22 @@ requires=[raise_double_keywords_utility_code])
 #------------------------------------------------------------------------------------
 
 traceback_utility_code = UtilityCode(
-proto = """
-static void __Pyx_AddTraceback(const char *funcname); /*proto*/
-""",
-impl = """
+    proto = """
+static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
+                               int %(LINENO)s, const char *%(FILENAME)s); /*proto*/
+""" % {
+    'FILENAME': Naming.filename_cname,
+    'LINENO':  Naming.lineno_cname,
+    'CLINENO':  Naming.clineno_cname,
+},
+
+    impl = """
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 
-static void __Pyx_AddTraceback(const char *funcname) {
+static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
+                               int %(LINENO)s, const char *%(FILENAME)s) {
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
     PyObject *py_globals = 0;

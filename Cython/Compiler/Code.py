@@ -134,6 +134,12 @@ class FunctionState(object):
         self.temp_counter = 0
         self.closure_temps = None
 
+        # This is used for the error indicator, which needs to be local to the
+        # function. It used to be global, which relies on the GIL being held.
+        # However, exceptions may need to be propagated through 'nogil'
+        # sections, in which case we introduce a race condition.
+        self.should_declare_error_indicator = False
+
     # labels
 
     def new_label(self, name=None):
@@ -1435,10 +1441,12 @@ class CCodeWriter(object):
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def set_error_info(self, pos):
+        self.funcstate.should_declare_error_indicator = True
         if self.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
+
         return "%s = %s[%s]; %s = %s;%s" % (
             Naming.filename_cname,
             Naming.filetable_cname,
@@ -1477,6 +1485,20 @@ class CCodeWriter(object):
 
     def put_finish_refcount_context(self):
         self.putln("__Pyx_RefNannyFinishContext();")
+
+    def put_add_traceback(self, qualified_name):
+        """
+        Build a Python traceback for propagating exceptions.
+
+        qualified_name should be the qualified name of the function
+        """
+        format_tuple = (
+            qualified_name,
+            Naming.clineno_cname,
+            Naming.lineno_cname,
+            Naming.filename_cname,
+        )
+        self.putln('__Pyx_AddTraceback("%s", %s, %s, %s);' % format_tuple)
 
     def put_trace_declarations(self):
         self.putln('__Pyx_TraceDeclarations');
