@@ -2,31 +2,99 @@
 
 .. _compilation:
 
-***********
+=============
 Compilation
-***********
+=============
 
 Cython code, unlike Python, must be compiled.  This happens in two stages:
 
   * A ``.pyx`` file is compiles by Cython to a ``.c`` file.
 
-  * The ``.c`` file is compiled by a C comiler to a ``.so`` file (or a
+  * The ``.c`` file is compiled by a C compiler to a ``.so`` file (or a
     ``.pyd`` file on Windows)
 
-The following sub-sections describe several ways to build your
-extension modules.
+You can tailor the behaviour of the Cython compiler by specifying the
+directives below.
 
-=====================
-From the Command Line
+Compiler directives
+====================
+
+Compiler directives are instructions which affect which sort of code
+Cython generates.  Here is the list:
+
+``boundscheck``  (True / False)
+    If set to False, Cython is free to assume that indexing operations
+    ([]-operator) in the code will not cause any IndexErrors to be
+    raised. Currently this is only made use of for buffers, but lists
+    and tuples could be affected in the future. Conditions which would
+    normally trigger an IndexError may instead cause segfaults or data
+    corruption if this is set to False.  Default is True.
+
+``wraparound``  (True / False)
+    In Python arrays can be indexed relative to the end. For example
+    A[-1] indexes the last value of a list. In C negative indexing is
+    not supported. If set to False, Cython will not ensure that python
+    indexing is not used.  Default is True.
+
+``nonecheck``  (True / False)
+    If set to False, Cython is free to assume that native field
+    accesses on variables typed as an extension type, or buffer
+    accesses on a buffer variable, never occurs when the variable is
+    set to ``None``. Otherwise a check is inserted and the
+    appropriate exception is raised. This is off by default for
+    performance reasons.  Default is False.
+
+``embedsignature`` (True / False)
+    If set to True, Cython will embed a textual copy of the call
+    signature in the docstring of all Python visible functions and
+    classes. Tools like IPython and epydoc can thus display the
+    signature, which cannot otherwise be retrieved after
+    compilation.  Default is False.
+
+``cdivision`` (True / False)
+    If set to False, Cython will adjust the remainder and quotient
+    operators C types to match those of Python ints (which differ when
+    the operands have opposite signs) and raise a
+    ``ZeroDivisionError`` when the right operand is 0. This has about
+    a 35% speed penalty. If set to True, no checks are performed.  See
+    `CEP 516 <http://wiki.cython.org/enhancements/division>`.  Default
+    is False.
+
+``cdivision_warnings`` (True / False)
+    If set to True, Cython will emit a runtime warning whenever
+    division is performed with negative operands.  See `CEP 516
+    <http://wiki.cython.org/enhancements/division>`.  Default is
+    False.
+
+``always_allow_keywords`` (True / False)
+    Avoid the ``METH_NOARGS`` and ``METH_O`` when constructing
+    functions/methods which take zero or one arguments. Has no effect
+    on special methods and functions with more than one argument. The
+    ``METH_NOARGS`` and ``METH_O`` signatures provide faster
+    calling conventions but disallow the use of keywords.
+
+``profile`` (True / False)
+    Add hooks for Python profilers into the compiled C code.  Default
+    is False.
+
+``infer_types`` (True / False)
+    Infer types of untyped variables in function bodies. Default is
+    False.
+
+The following sub-sections describe several ways to build your
+extension modules, and how to pass directives to the Cython compiler.
+
+From the command line
 =====================
 
 Run the Cython compiler command with your options and list of ``.pyx``
-  files to generate.  For example::
+files to generate.  For example::
 
     $ cython -a yourmod.pyx
 
-This creates a ``yourmod.c`` file (and the -a switch produces a
-generated html file).
+This creates a ``yourmod.c`` file, and the -a switch produces a
+generated html file.  Pass the ``-h`` flag for a complete list of
+supported flags.
 
 Compiling your ``.c`` files will vary depending on your operating
 system.  Python documentation for writing extension modules should
@@ -41,7 +109,7 @@ paths to libraries you need to link with]
 A ``yourmod.so`` file is now in the same directory and your module,
 ``yourmod``, is available for you to import as you normally would.
 
-=========
+
 Distutils
 =========
 
@@ -65,7 +133,6 @@ Run the command ``python setup.py build_ext --inplace`` in your
 system's command shell and you are done.  Import your new extension
 module into your python shell or script as normal.
 
-=========
 Pyximport
 =========
 
@@ -89,7 +156,6 @@ using this feature, just tell that to ``pyximport``::
 
     >>> pyximport.install(pyimport = True)
 
-====
 Sage
 ====
 
