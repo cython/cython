@@ -109,7 +109,7 @@ class PointerType(CythonType):
             self._items = [cast(self._basetype, a) for a in value._items]
         elif isinstance(value, list):
             self._items = [cast(self._basetype, a) for a in value]
-        elif value is None:
+        elif value is None or value is 0:
             self._items = []
         else:
             raise ValueError
@@ -130,7 +130,7 @@ class PointerType(CythonType):
         elif type(self) != type(value):
             return False
         else:
-            return self._items == value._items
+            return not self._items and not value._items
 
 class ArrayType(PointerType):
 
@@ -273,5 +273,4 @@ for t in int_types + float_types + complex_types + other_types:
         gs["%s_%s" % ('p'*i, t)] = globals()[t]._pointer(i)
 
 void = typedef(None)
-NULL = None
-
+NULL = p_void(0)
