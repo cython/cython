@@ -10,9 +10,9 @@ Tutorials
    pxd_files
    caveats
    profiling_tutorial
-   numpy
    strings
    pure
+   numpy
    readings
    related_work
    appendix
