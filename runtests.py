@@ -119,6 +119,17 @@ COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
+def memoize(f):
+    uncomputed = object()
+    f._cache = {}
+    def func(*args):
+        res = f._cache.get(args, uncomputed)
+        if res is uncomputed:
+            res = f._cache[args] = f(*args)
+        return res
+    return func
+
+@memoize
 def parse_tags(filepath):
     tags = defaultdict(list)
     for line in open(filepath):
@@ -199,9 +210,6 @@ class TestBuilder(object):
         filenames = os.listdir(self.rootdir)
         filenames.sort()
         for filename in filenames:
-            if not WITH_CYTHON and filename == "errors":
-                # we won't get any errors without running Cython
-                continue
             path = os.path.join(self.rootdir, filename)
             if os.path.isdir(path) and filename in test_dirs:
                 if filename == 'pyregr' and not self.with_pyregr:
@@ -220,47 +228,55 @@ class TestBuilder(object):
         if not os.path.exists(workdir):
             os.makedirs(workdir)
 
-        expect_errors = (context == 'errors')
         suite = unittest.TestSuite()
         filenames = os.listdir(path)
         filenames.sort()
         for filename in filenames:
-            if filename.endswith(".srctree"):
-                if not [ 1 for match in self.selectors if match(filename) ]:
-                    continue
-                if self.exclude_selectors:
-                    if [1 for match in self.exclude_selectors if match(filename)]:
-                        continue
-                suite.addTest(EndToEndTest(os.path.join(path, filename), workdir, self.cleanup_workdir))
+            filepath = os.path.join(path, filename)
+            module, ext = os.path.splitext(filename)
+            if ext not in ('.py', '.pyx', '.srctree'):
                 continue
-            if not (filename.endswith(".pyx") or filename.endswith(".py")):
-                continue
-            if filename.startswith('.'): continue # certain emacs backup files
-            if context == 'pyregr' and not filename.startswith('test_'):
-                continue
-            module = os.path.splitext(filename)[0]
-            fqmodule = "%s.%s" % (context, module)
+            if filename.startswith('.'):
+                continue # certain emacs backup files
+            tags = parse_tags(filepath)
+            fqmodule = "%s.%s" % (context, filename)
             if not [ 1 for match in self.selectors
                      if match(fqmodule) ]:
                 continue
             if self.exclude_selectors:
                 if [1 for match in self.exclude_selectors if match(fqmodule)]:
                     continue
-            if context == 'pyregr':
+
+            mode = 'run' # default
+            if tags['mode']:
+                mode = tags['mode'][0]
+            elif context == 'pyregr':
+                mode = 'pyregr'
+
+            if ext == '.srctree':
+                suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir))
+                continue
+
+            # Choose the test suite.
+            if mode == 'pyregr':
+                if not filename.startswith('test_'):
+                    continue
                 test_class = CythonPyregrTestCase
-            elif context in TEST_RUN_DIRS:
+            elif mode == 'run':
                 if module.startswith("test_"):
                     test_class = CythonUnitTestCase
                 else:
                     test_class = CythonRunTestCase
             else:
                 test_class = CythonCompileTestCase
+
             for test in self.build_tests(test_class, path, workdir,
-                                         module, expect_errors):
+                                         module, mode == 'error'):
                 suite.addTest(test)
-            if context == 'run' and filename.endswith('.py'):
+            if mode == 'run' and ext == '.py':
                 # additionally test file in real Python
                 suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
+                
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors):
