@@ -63,11 +63,9 @@ if sys.platform == 'win32':
     except ValueError: pass
     distutils_distro.parse_config_files(cfgfiles)
 
-TEST_DIRS = ['compile', 'errors', 'run', 'wrappers', 'pyregr', 'build']
-TEST_RUN_DIRS = ['run', 'wrappers', 'pyregr']
-
 # Lists external modules, and a matcher matching tests
 # which should be excluded if the module is not present.
+# TODO: use tags for these
 EXT_DEP_MODULES = {
     'numpy' : re.compile('.*\.numpy_.*').match,
     'pstats' : re.compile('.*\.pstats_.*').match,
@@ -78,8 +76,6 @@ def get_numpy_include_dirs():
     import numpy
     return [numpy.get_include()]
 
-
-# TODO: use tags for these
 
 EXT_DEP_INCLUDES = [
     # test name matcher , callable returning list
@@ -209,12 +205,11 @@ class TestBuilder(object):
 
     def build_suite(self):
         suite = unittest.TestSuite()
-        test_dirs = TEST_DIRS
         filenames = os.listdir(self.rootdir)
         filenames.sort()
         for filename in filenames:
             path = os.path.join(self.rootdir, filename)
-            if os.path.isdir(path) and filename in test_dirs:
+            if os.path.isdir(path):
                 if filename == 'pyregr' and not self.with_pyregr:
                     continue
                 suite.addTest(
