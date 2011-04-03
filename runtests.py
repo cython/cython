@@ -78,6 +78,9 @@ def get_numpy_include_dirs():
     import numpy
     return [numpy.get_include()]
 
+
+# TODO: use tags for these
+
 EXT_DEP_INCLUDES = [
     # test name matcher , callable returning list
     (re.compile('numpy_.*').match, get_numpy_include_dirs),
@@ -239,12 +242,13 @@ class TestBuilder(object):
             if filename.startswith('.'):
                 continue # certain emacs backup files
             tags = parse_tags(filepath)
-            fqmodule = "%s.%s" % (context, filename)
+            fqmodule = "%s.%s" % (context, module)
             if not [ 1 for match in self.selectors
-                     if match(fqmodule) ]:
+                     if match(fqmodule, tags) ]:
                 continue
             if self.exclude_selectors:
-                if [1 for match in self.exclude_selectors if match(fqmodule)]:
+                if [1 for match in self.exclude_selectors 
+                        if match(fqmodule, tags)]:
                     continue
 
             mode = 'run' # default
@@ -271,7 +275,7 @@ class TestBuilder(object):
                 test_class = CythonCompileTestCase
 
             for test in self.build_tests(test_class, path, workdir,
-                                         module, mode == 'error'):
+                                         module, mode == 'error', tags):
                 suite.addTest(test)
             if mode == 'run' and ext == '.py':
                 # additionally test file in real Python
@@ -279,15 +283,15 @@ class TestBuilder(object):
                 
         return suite
 
-    def build_tests(self, test_class, path, workdir, module, expect_errors):
+    def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
         if expect_errors:
-            if 'cpp' in module and 'cpp' in self.languages:
+            if 'cpp' in tags['tag'] and 'cpp' in self.languages:
                 languages = ['cpp']
             else:
                 languages = self.languages[:1]
         else:
             languages = self.languages
-        if 'cpp' in module and 'c' in languages:
+        if 'cpp' in tags['tag'] and 'c' in languages:
             languages = list(languages)
             languages.remove('c')
         tests = [ self.build_test(test_class, path, workdir, module,
@@ -961,7 +965,7 @@ class MissingDependencyExcluder:
             except ImportError:
                 self.exclude_matchers.append(matcher)
         self.tests_missing_deps = []
-    def __call__(self, testname):
+    def __call__(self, testname, tags=None):
         for matcher in self.exclude_matchers:
             if matcher(testname):
                 self.tests_missing_deps.append(testname)
@@ -977,7 +981,7 @@ class VersionDependencyExcluder:
             if compare(version_info, ver):
                 self.exclude_matchers.append(matcher)
         self.tests_missing_deps = []
-    def __call__(self, testname):
+    def __call__(self, testname, tags=None):
         for matcher in self.exclude_matchers:
             if matcher(testname):
                 self.tests_missing_deps.append(testname)
@@ -997,8 +1001,37 @@ class FileListExcluder:
         finally:
             f.close()
 
-    def __call__(self, testname):
+    def __call__(self, testname, tags=None):
+        print testname
         return testname in self.excludes or testname.split('.')[-1] in self.excludes
+
+class TagsSelector:
+
+    def __init__(self, tag, value):
+        self.tag = tag
+        self.value = value
+    
+    def __call__(self, testname, tags=None):
+        if tags is None:
+            return False
+        else:
+            return self.value in tags[self.tag]
+
+class RegExSelector:
+    
+    def __init__(self, pattern_string):
+        self.pattern = re.compile(pattern_string, re.I|re.U)
+
+    def __call__(self, testname, tags=None):
+        return self.pattern.search(testname)
+
+def string_selector(s):
+    ix = s.find(':')
+    if ix == -1:
+        return RegExSelector(s)
+    else:
+        return TagsSelector(s[:ix], s[ix+1:])
+        
 
 def refactor_for_py3(distdir, cy3_dir):
     # need to convert Cython sources first
@@ -1239,9 +1272,9 @@ def main():
                 test_bugs = True
 
     import re
-    selectors = [ re.compile(r, re.I|re.U).search for r in cmd_args ]
+    selectors = [ string_selector(r) for r in cmd_args ]
     if not selectors:
-        selectors = [ lambda x:True ]
+        selectors = [ lambda x, tags=None: True ]
 
     # Chech which external modules are not present and exclude tests
     # which depends on them (by prefix)
@@ -1251,7 +1284,7 @@ def main():
     exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to pring msg at exit
 
     if options.exclude:
-        exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
+        exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
     if not test_bugs:
         exclude_selectors += [ FileListExcluder(os.path.join(ROOTDIR, "bugs.txt")) ]
