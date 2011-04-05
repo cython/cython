@@ -18,6 +18,7 @@ def add_command_class(name, cls):
 from distutils.command.sdist import sdist as sdist_orig
 class sdist(sdist_orig):
     def run(self):
+        self.force_manifest = 1
         if (sys.platform != "win32" and 
             os.path.isdir('.git')):
             assert os.system("git show-ref -s HEAD > .gitrev") == 0
