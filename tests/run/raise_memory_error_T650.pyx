@@ -23,3 +23,12 @@ def raise_me_instance():
     ... else: print('NOT RAISED!')
     """
     raise MemoryError()
+
+def raise_me_instance_value():
+    """
+    >>> raise_me_instance_value()
+    Traceback (most recent call last):
+        ...
+    MemoryError: oom
+    """
+    raise MemoryError("oom")

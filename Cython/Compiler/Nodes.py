@@ -4145,7 +4145,9 @@ class RaiseStatNode(StatNode):
         if self.exc_type and not self.exc_value and not self.exc_tb:
             exc = self.exc_type
             import ExprNodes
-            if isinstance(exc, ExprNodes.SimpleCallNode) and not exc.args:
+            if (isinstance(exc, ExprNodes.SimpleCallNode) and 
+                not (exc.args or (exc.arg_tuple is not None and 
+                                  exc.arg_tuple.args))):
                 exc = exc.function # extract the exception type
             if exc.is_name and exc.entry.is_builtin:
                 self.builtin_exc_name = exc.name
