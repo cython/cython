@@ -212,6 +212,8 @@ class TestBuilder(object):
             if os.path.isdir(path):
                 if filename == 'pyregr' and not self.with_pyregr:
                     continue
+                if filename == 'broken' and not self.test_bugs:
+                    continue
                 suite.addTest(
                     self.handle_directory(path, filename))
         if sys.platform not in ['win32']:
