@@ -5296,7 +5296,7 @@ class UnaryPlusNode(UnopNode):
 
     def analyse_c_operation(self, env):
         self.type = PyrexTypes.widest_numeric_type(
-            self.operand.type, PyreXTypes.c_int_type)
+            self.operand.type, PyrexTypes.c_int_type)
 
     def py_operation_function(self):
         return "PyNumber_Positive"
