@@ -1776,8 +1776,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{")
         tempdecl_code = code.insertion_point()
         
+        code.put_declare_refcount_context()
         code.putln("#if CYTHON_REFNANNY")
-        code.putln("void* __pyx_refnanny = NULL;")
         code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
         code.putln("if (!__Pyx_RefNanny) {")
         code.putln("  PyErr_Clear();")
@@ -1785,8 +1785,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  if (!__Pyx_RefNanny)")
         code.putln("      Py_FatalError(\"failed to import 'refnanny' module\");")
         code.putln("}")
-        code.putln("__pyx_refnanny = __Pyx_RefNanny->SetupContext(\"%s\", __LINE__, __FILE__);"% header3)
         code.putln("#endif")
+        code.put_setup_refcount_context(header3)
 
         env.use_utility_code(check_binary_version_utility_code)
         code.putln("if ( __Pyx_check_binary_version() < 0) %s" % code.error_goto(self.pos))
@@ -2741,7 +2741,8 @@ bad:
 """ % {'IMPORT_STAR'     : Naming.import_star,
        'IMPORT_STAR_SET' : Naming.import_star_set }
 
-refnanny_utility_code = UtilityCode(proto="""
+refnanny_utility_code = UtilityCode(
+proto="""
 #ifndef CYTHON_REFNANNY
   #define CYTHON_REFNANNY 0
 #endif
@@ -2756,7 +2757,37 @@ refnanny_utility_code = UtilityCode(proto="""
     void (*FinishContext)(void**);
   } __Pyx_RefNannyAPIStruct;
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNanny = NULL;
-  static __Pyx_RefNannyAPIStruct * __Pyx_RefNannyImportAPI(const char *modname) {
+  static __Pyx_RefNannyAPIStruct *__Pyx_RefNannyImportAPI(const char *modname); /*proto*/
+  #define __Pyx_RefNannyDeclarations void *__pyx_refnanny = NULL
+  #define __Pyx_RefNannySetupContext(name) \
+          __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
+  #define __Pyx_RefNannyFinishContext() \
+          __Pyx_RefNanny->FinishContext(&__pyx_refnanny)
+  #define __Pyx_INCREF(r)  __Pyx_RefNanny->INCREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_DECREF(r)  __Pyx_RefNanny->DECREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_GOTREF(r)  __Pyx_RefNanny->GOTREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_GIVEREF(r) __Pyx_RefNanny->GIVEREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_XINCREF(r)  do { if((r) != NULL) {__Pyx_INCREF(r); }} while(0)
+  #define __Pyx_XDECREF(r)  do { if((r) != NULL) {__Pyx_DECREF(r); }} while(0)
+  #define __Pyx_XGOTREF(r)  do { if((r) != NULL) {__Pyx_GOTREF(r); }} while(0)
+  #define __Pyx_XGIVEREF(r) do { if((r) != NULL) {__Pyx_GIVEREF(r);}} while(0)
+#else
+  #define __Pyx_RefNannyDeclarations
+  #define __Pyx_RefNannySetupContext(name)
+  #define __Pyx_RefNannyFinishContext()
+  #define __Pyx_INCREF(r) Py_INCREF(r)
+  #define __Pyx_DECREF(r) Py_DECREF(r)
+  #define __Pyx_GOTREF(r)
+  #define __Pyx_GIVEREF(r)
+  #define __Pyx_XINCREF(r) Py_XINCREF(r)
+  #define __Pyx_XDECREF(r) Py_XDECREF(r)
+  #define __Pyx_XGOTREF(r)
+  #define __Pyx_XGIVEREF(r)
+#endif /* CYTHON_REFNANNY */
+""",
+impl="""
+#if CYTHON_REFNANNY
+static __Pyx_RefNannyAPIStruct *__Pyx_RefNannyImportAPI(const char *modname) {
     PyObject *m = NULL, *p = NULL;
     void *r = NULL;
     m = PyImport_ImportModule((char *)modname);
@@ -2764,35 +2795,14 @@ refnanny_utility_code = UtilityCode(proto="""
     p = PyObject_GetAttrString(m, (char *)\"RefNannyAPI\");
     if (!p) goto end;
     r = PyLong_AsVoidPtr(p);
-  end:
+end:
     Py_XDECREF(p);
     Py_XDECREF(m);
     return (__Pyx_RefNannyAPIStruct *)r;
-  }
-  #define __Pyx_RefNannyDeclareContext void *__pyx_refnanny;
-  #define __Pyx_RefNannySetupContext(name) \
-          __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
-  #define __Pyx_RefNannyFinishContext() \
-          __Pyx_RefNanny->FinishContext(&__pyx_refnanny)
-  #define __Pyx_INCREF(r) __Pyx_RefNanny->INCREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
-  #define __Pyx_DECREF(r) __Pyx_RefNanny->DECREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
-  #define __Pyx_GOTREF(r) __Pyx_RefNanny->GOTREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
-  #define __Pyx_GIVEREF(r) __Pyx_RefNanny->GIVEREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
-  #define __Pyx_XDECREF(r) do { if((r) != NULL) {__Pyx_DECREF(r);} } while(0)
-#else
-  #define __Pyx_RefNannyDeclareContext
-  #define __Pyx_RefNannySetupContext(name)
-  #define __Pyx_RefNannyFinishContext()
-  #define __Pyx_INCREF(r) Py_INCREF(r)
-  #define __Pyx_DECREF(r) Py_DECREF(r)
-  #define __Pyx_GOTREF(r)
-  #define __Pyx_GIVEREF(r)
-  #define __Pyx_XDECREF(r) Py_XDECREF(r)
+}
 #endif /* CYTHON_REFNANNY */
-#define __Pyx_XGIVEREF(r) do { if((r) != NULL) {__Pyx_GIVEREF(r);} } while(0)
-#define __Pyx_XGOTREF(r) do { if((r) != NULL) {__Pyx_GOTREF(r);} } while(0)
-""")
-
+""",
+)
 
 main_method = UtilityCode(
 impl = """
