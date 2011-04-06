@@ -4,13 +4,5 @@
 #   Cython -- Main Program, Unix
 #
 
-import os
-import sys
-
-# Make sure we import the right Cython
-binpath, _ = os.path.split(os.path.realpath(__file__))
-cythonpath, _ = os.path.split(binpath)
-sys.path.insert(0, cythonpath)
-
 from Cython.Compiler.Main import main
 main(command_line = 1)
