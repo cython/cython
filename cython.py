@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #
 #   Cython -- Main Program, generic
 #
