@@ -1,3 +1,4 @@
+# tag: cpp
 
 cimport cppwrap_lib
 
