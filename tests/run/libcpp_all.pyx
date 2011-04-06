@@ -1,3 +1,5 @@
+# tag: cpp
+
 cimport libcpp
 
 cimport libcpp.deque
