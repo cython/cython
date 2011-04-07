@@ -1,3 +1,4 @@
+# mode: error
 
 def test_non_existant():
     nonlocal no_such_name
@@ -28,8 +29,8 @@ def redef_in_class_scope():
 
 
 _ERRORS = u"""
- 3:4: no binding for nonlocal 'no_such_name' found
-10:8: 'x' redeclared as nonlocal
-15:4: no binding for nonlocal 'global_name' found
-27:8: 'x' redeclared as nonlocal
+ 4:4: no binding for nonlocal 'no_such_name' found
+11:8: 'x' redeclared as nonlocal
+16:4: no binding for nonlocal 'global_name' found
+28:8: 'x' redeclared as nonlocal
 """
