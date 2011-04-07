@@ -190,6 +190,9 @@ cdef extern from "numpy/arrayobject.h":
             # requirements, and does not yet fullfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
+
+            if info == NULL: return
+
             cdef int copy_shape, i, ndim
             cdef int endian_detector = 1
             cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
