@@ -1001,7 +1001,6 @@ class FileListExcluder:
             f.close()
 
     def __call__(self, testname, tags=None):
-        print testname
         return testname in self.excludes or testname.split('.')[-1] in self.excludes
 
 class TagsSelector:
