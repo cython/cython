@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 # ticket: 598
 # cython: language_level=3
 

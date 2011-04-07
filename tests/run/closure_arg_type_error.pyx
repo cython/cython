@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 
 # The arguments in f() are put into the closure one after the other,
 # so the reference of 'o' is filled in before the type errors are

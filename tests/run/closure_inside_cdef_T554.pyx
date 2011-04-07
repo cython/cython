@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 # ticket: 554
 
 def call_f(x):

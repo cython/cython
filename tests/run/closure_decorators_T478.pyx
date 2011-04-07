@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 # ticket: 478
 
 __doc__ = """
