@@ -255,6 +255,7 @@ class SimpleAssignmentTypeInferer(object):
                             entries_by_dependancy[dep].add(entry)
                 else:
                     ready_to_infer.append(entry)
+
         def resolve_dependancy(dep):
             if dep in entries_by_dependancy:
                 for entry in entries_by_dependancy[dep]:
@@ -263,6 +264,7 @@ class SimpleAssignmentTypeInferer(object):
                     if not entry_deps and entry != dep:
                         del dependancies_by_entry[entry]
                         ready_to_infer.append(entry)
+
         # Try to infer things in order...
         while True:
             while ready_to_infer:
