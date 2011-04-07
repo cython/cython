@@ -23,6 +23,11 @@ except ImportError:
     import pickle
 
 try:
+    from io import open as io_open
+except ImportError:
+    from codecs import open as io_open
+
+try:
     import threading
 except ImportError: # No threads, no problems
     threading = None
@@ -130,17 +135,21 @@ def memoize(f):
 
 def parse_tags(filepath):
     tags = defaultdict(list)
-    for line in open(filepath):
-        line = line.strip()
-        if not line:
-            continue
-        if line[0] != '#':
-            break
-        ix = line.find(':')
-        if ix != -1:
-            tag = line[1:ix].strip()
-            values = line[ix+1:].split(',')
-            tags[tag].extend([value.strip() for value in values])
+    f = io_open(filepath, encoding='ISO-8859-1', errors='replace')
+    try:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if line[0] != '#':
+                break
+            ix = line.find(':')
+            if ix != -1:
+                tag = line[1:ix].strip()
+                values = line[ix+1:].split(',')
+                tags[tag].extend([value.strip() for value in values])
+    finally:
+        f.close()
     return tags
 
 parse_tags = memoize(parse_tags)
@@ -400,10 +409,10 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
-        source_and_output = codecs.open(source_file, 'rU', 'ISO-8859-1')
+        source_and_output = io_open(source_file, 'rU', encoding='ISO-8859-1')
         try:
-            out = codecs.open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
-                              'w', 'ISO-8859-1')
+            out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
+                              'w', encoding='ISO-8859-1')
             for line in source_and_output:
                 last_line = line
                 if line.startswith("_ERRORS"):
