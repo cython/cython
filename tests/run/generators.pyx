@@ -1,3 +1,5 @@
+# mode: run
+# tag: generators
 
 try:
     from builtins import next # Py3k
