@@ -1623,20 +1623,24 @@ class FuncDefNode(StatNode, BlockNode):
         info = self.local_scope.arg_entries[1].cname
         # Python 3.0 betas have a bug in memoryview which makes it call
         # getbuffer with a NULL parameter. For now we work around this;
-        # the following line should be removed when this bug is fixed.
-        code.putln("if (%s == NULL) return 0;" % info)
+        # the following block should be removed when this bug is fixed.
+        code.putln("if (%s != NULL) {" % info)
         code.putln("%s->obj = Py_None; __Pyx_INCREF(Py_None);" % info)
         code.put_giveref("%s->obj" % info) # Do not refnanny object within structs
+        code.putln("}")
 
     def getbuffer_error_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
+        code.putln("if (%s != NULL && %s->obj != NULL) {"
+                   % (info, info))
         code.put_gotref("%s->obj" % info)
-        code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;" %
-                   (info, info))
+        code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;"
+                   % (info, info))
+        code.putln("}")
 
     def getbuffer_normal_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s->obj == Py_None) {" % info)
+        code.putln("if (%s != NULL && %s->obj == Py_None) {" % (info, info))
         code.put_gotref("Py_None")
         code.putln("__Pyx_DECREF(Py_None); %s->obj = NULL;" % info)
         code.putln("}")
