@@ -535,7 +535,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     overridable = 0
     optional_arg_count = 0
 
-    def analyse(self, return_type, env, nonempty = 0):
+    def analyse(self, return_type, env, nonempty = 0, directive_locals = {}):
         if nonempty:
             nonempty -= 1
         func_type_args = []
@@ -543,6 +543,17 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             name_declarator, type = arg_node.analyse(env, nonempty = nonempty,
                                                      is_self_arg = (i == 0 and env.is_c_class_scope))
             name = name_declarator.name
+            if name in directive_locals:
+                type_node = directive_locals[name]
+                other_type = type_node.analyse_as_type(env)
+                if other_type is None:
+                    error(type_node.pos, "Not a type")
+                elif (type is not PyrexTypes.py_object_type 
+                      and not type.same_as(other_type)):
+                    error(self.base.pos, "Signature does not agree with previous declaration")
+                    error(type_node.pos, "Previous declaration here")
+                else:
+                    type = other_type
             if name_declarator.cname:
                 error(self.pos,
                     "Function argument cannot have C name specification")
@@ -946,7 +957,10 @@ class CVarDefNode(StatNode):
         visibility = self.visibility
 
         for declarator in self.declarators:
-            name_declarator, type = declarator.analyse(base_type, env)
+            if isinstance(declarator, CFuncDeclaratorNode):
+                name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
+            else:
+                name_declarator, type = declarator.analyse(base_type, env)
             if not type.is_complete():
                 if not (self.visibility == 'extern' and type.is_array):
                     error(declarator.pos,
@@ -1659,7 +1673,12 @@ class CFuncDefNode(FuncDefNode):
         self.directive_locals.update(env.directives['locals'])
         base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names.
-        name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
+        if isinstance(self.declarator, CFuncDeclaratorNode):
+            name_declarator, type = self.declarator.analyse(base_type, env,
+                                                            nonempty = 2 * (self.body is not None),
+                                                            directive_locals = self.directive_locals)
+        else:
+            name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
         if not type.is_cfunction:
             error(self.pos,
                 "Suite attached to non-function declaration")
