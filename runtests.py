@@ -128,7 +128,6 @@ def memoize(f):
         return res
     return func
 
-@memoize
 def parse_tags(filepath):
     tags = defaultdict(list)
     for line in open(filepath):
@@ -143,6 +142,9 @@ def parse_tags(filepath):
             values = line[ix+1:].split(',')
             tags[tag].extend([value.strip() for value in values])
     return tags
+
+parse_tags = memoize(parse_tags)
+
 
 class build_ext(_build_ext):
     def build_extension(self, ext):
