@@ -1,3 +1,5 @@
+# mode: run
+# tag: lambda
 # ticket: 195
 
 __doc__ = u"""
