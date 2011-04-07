@@ -239,7 +239,7 @@ class SimpleAssignmentTypeInferer(object):
         ready_to_infer = []
         for name, entry in scope.entries.items():
             if entry.type is unspecified_type:
-                if entry.in_closure:
+                if entry.in_closure or entry.from_closure:
                     # cross-closure type inference is not currently supported
                     entry.type = py_object_type
                     continue
