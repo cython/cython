@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 # ticket: 658
 
 def outer(int x, *args, **kwargs):

@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 # ticket: 82
 
 cimport cython

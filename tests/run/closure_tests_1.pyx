@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 #
 # closure_tests_1.pyx
 #

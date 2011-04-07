@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 # ticket: 596
 
 def simple(a, b):

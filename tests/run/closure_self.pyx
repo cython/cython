@@ -1,3 +1,5 @@
+# mode: run
+# tag: closures
 cdef class Test:
     cdef int x
 
