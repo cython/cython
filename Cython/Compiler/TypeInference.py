@@ -221,9 +221,9 @@ class SimpleAssignmentTypeInferer(object):
     # TODO: Implement a real type inference algorithm.
     # (Something more powerful than just extending this one...)
     def infer_types(self, scope):
-        closure_or_inner = scope.is_closure_scope or (scope.outer_scope and scope.outer_scope.is_closure_scope)
-        enabled = not closure_or_inner and scope.directives['infer_types']
+        enabled = scope.directives['infer_types']
         verbose = scope.directives['infer_types.verbose']
+
         if enabled == True:
             spanning_type = aggressive_spanning_type
         elif enabled is None: # safe mode
@@ -239,6 +239,10 @@ class SimpleAssignmentTypeInferer(object):
         ready_to_infer = []
         for name, entry in scope.entries.items():
             if entry.type is unspecified_type:
+                if entry.in_closure:
+                    # cross-closure type inference is not currently supported
+                    entry.type = py_object_type
+                    continue
                 all = set()
                 for expr in entry.assignments:
                     all.update(expr.type_dependencies(scope))
