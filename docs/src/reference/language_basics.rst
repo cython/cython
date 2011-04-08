@@ -12,7 +12,7 @@ Language Basics
 Cython File Types
 =================
 
-There are three file types in cython:
+There are three file types in Cython:
 
 * Implementation files carry a ``.pyx`` suffix
 * Definition files carry a ``.pxd`` suffix
@@ -41,7 +41,7 @@ What can it contain?
 --------------------
 
 * Any kind of C type declaration.
-* ``extern`` C function or variable decarations.
+* ``extern`` C function or variable declarations.
 * Declarations for module implementations.
 * The definition parts of **extension types**.
 * All declarations of functions, etc., for an **external library**
@@ -69,12 +69,12 @@ cimport
 * **cimport** does not need to be called in ``.pyx`` file for for ``.pxd`` file that has the
   same name, as they are already in the same namespace.
 * For cimport to find the stated definition file, the path to the file must be appended to the
-  ``-I`` option of the **cython compile command**.
+  ``-I`` option of the **Cython compile command**.
 
 compilation order
 `````````````````
 
-* When a ``.pyx`` file is to be compiled, cython first checks to see if a corresponding ``.pxd`` file
+* When a ``.pyx`` file is to be compiled, Cython first checks to see if a corresponding ``.pxd`` file
   exits and processes it first.
 
 
@@ -92,7 +92,7 @@ How do I use it?
 ----------------
 
 * Include the ``.pxi`` file with an ``include`` statement like: ``include "spamstuff.pxi``
-* The ``include`` statement can appear anywhere in your cython file and at any indentation level
+* The ``include`` statement can appear anywhere in your Cython file and at any indentation level
 * The code in the ``.pxi`` file needs to be rooted at the "zero" indentation level.
 * The included code can itself contain other ``include`` statements.
 
@@ -154,14 +154,14 @@ The ``cdef`` statement is used to make C level declarations for:
         soft = 2
         runny = 3
 
-:Funtions:
+:Functions:
 
 ::
 
     cdef int eggs(unsigned long l, float f):
         ...
 
-:Extenstion Types:
+:Extension Types:
 
 ::
 
@@ -242,7 +242,7 @@ Parameters
 
 * The name ``object`` can be used to explicitly declare something as a Python Object.
 
- * For sake of code clarity, it recomened to always use ``object`` explicitly in your code.
+ * For sake of code clarity, it recommended to always use ``object`` explicitly in your code.
 
  * This is also useful for cases where the name being declared would otherwise be taken for a type::
 
@@ -301,7 +301,7 @@ Keyword-only Arguments
  * Shown above, the ``c``, ``d`` and ``e`` arguments can not be passed as positional arguments and must be passed as keyword arguments.
  * Furthermore, ``c`` and ``e`` are required keyword arguments since they do not have a default value.
 
-* If the parameter name after the ``"*"`` is omitted, the function will not accept any extra positional argumrents::
+* If the parameter name after the ``"*"`` is omitted, the function will not accept any extra positional arguments::
 
     def g(a, b, *, c, d):
         ...
@@ -315,7 +315,7 @@ Automatic Type Conversion
 
 * For basic numeric and string types, in most situations, when a Python object is used in the context of a C value and vice versa.
 
-* The following table summarises the conversion possibilities, assuming ``sizeof(int) == sizeof(long)``:
+* The following table summarizes the conversion possibilities, assuming ``sizeof(int) == sizeof(long)``:
 
     +----------------------------+--------------------+------------------+
     | C types                    | From Python types  | To Python types  |
@@ -344,7 +344,7 @@ Automatic Type Conversion
 
     * A Python string, passed to C context expecting a ``char*``, is only valid as long as the Python string exists.
     * A reference to the Python string must be kept around for as long as the C string is needed.
-    * If this can't be guarenteed, then make a copy of the C string.
+    * If this can't be guaranteed, then make a copy of the C string.
     * Cython may produce an error message: ``Obtaining char* from a temporary Python value`` and will not resume compiling in situations like this::
 
         cdef char *s
@@ -363,7 +363,7 @@ Automatic Type Conversion
         s = p
 
     .. note::
-        **It is up to you to be aware of this, and not to depend on Cython's error message, as it is not guarenteed to be generated for every situation.**
+        **It is up to you to be aware of this, and not to depend on Cython's error message, as it is not guaranteed to be generated for every situation.**
 
 
 Type Casting
@@ -379,7 +379,7 @@ Type Casting
         cdef char *p, float *q
         p = <char*>q
 
-* If one of the types is a python object for ``<type>x``, Cython will try and do a coersion.
+* If one of the types is a python object for ``<type>x``, Cython will try and do a coercion.
 
  .. note:: Cython will not stop a casting where there is no conversion, but it will emit a warning.
 
@@ -391,11 +391,11 @@ Type Checking
 
 * A cast like ``<MyExtensionType>x`` will cast x to type ``MyExtensionType`` without type checking at all.
 
-* To have a cast type checked, use the syntax like: ``<MyExtenstionType?>x``.
+* To have a cast type checked, use the syntax like: ``<MyExtensionType?>x``.
 
- * In this case, Cython will throw an error if ``"x"`` is not a (subclass) of ``MyExtenstionClass``
+ * In this case, Cython will throw an error if ``"x"`` is not a (subclass) of ``MyExtensionType``
 
-* Automatic type checking for extension types can be obtained by whenever ``isinstance()`` is used as the second parameter
+* Automatic type checking for extension types can be obtained whenever ``isinstance()`` is used as the second parameter
 
 
 Python Objects
@@ -463,7 +463,7 @@ Scope Rules
 Built-in Constants
 ==================
 
-Pre-defined Python built-in constants:
+Predefined Python built-in constants:
 
 * None
 * True
@@ -511,13 +511,13 @@ Functions and Methods
 =====================
 
 * There are three types of function declarations in Cython as the sub-sections show below.
-* Only "Python" functions can be called outside a Cython module from *Python interpretted code*.
+* Only "Python" functions can be called outside a Cython module from *Python interpreted code*.
 
 
 Callable from Python
 =====================
 
-* Are decalared with the ``def`` statement
+* Are declared with the ``def`` statement
 * Are called with Python objects
 * Return Python objects
 * See **Parameters** for special consideration
@@ -613,7 +613,7 @@ Error and Exception Handling
  * Has no way of reporting a Python exception to it's caller.
  * Will only print a warning message and the exception is ignored.
 
-* Inorder to propagate exceptions like this to it's caller, you need to declare an exception value for it.
+* In order to propagate exceptions like this to it's caller, you need to declare an exception value for it.
 * There are three forms of declaring an exception for a C compiled program.
 
  * First::
@@ -631,7 +631,7 @@ Error and Exception Handling
 
   * Used when a ``-1`` may possibly be returned and is not to be considered an error.
   * The ``"?"`` tells Cython that ``-1`` only indicates a *possible* error.
-  * Now, each time ``-1`` is returned, Cython generates a call to ``PyErr_Occurrd`` to verify it is an actual error.
+  * Now, each time ``-1`` is returned, Cython generates a call to ``PyErr_Occurred`` to verify it is an actual error.
 
  * Third::
 
@@ -713,7 +713,7 @@ Compile-Time Definitions
  * Names defined by other ``DEF`` statements
 
 * They can be combined using any of the Python expression syntax
-* Cython provides the following pre-defined names
+* Cython provides the following predefined names
 
  * Corresponding to the values returned by ``os.uname()``
 
@@ -726,7 +726,7 @@ Compile-Time Definitions
 * A name defined by ``DEF`` can appear anywhere an identifier can appear.
 * Cython replaces the name with the literal value before compilation.
 
- * The compile-time expression, in this case, must eveluate to a Python value of ``int``, ``long``, ``float``, or ``str``::
+ * The compile-time expression, in this case, must evaluate to a Python value of ``int``, ``long``, ``float``, or ``str``::
 
      cdef int a1[ArraySize]
      cdef int a2[OtherArraySize]
@@ -736,8 +736,8 @@ Compile-Time Definitions
 Conditional Statements
 =======================
 
-* Similiar semantics of the C pre-processor
-* The following statements can be used to conditinally include or exclude sections of code to compile.
+* Similar semantics of the C pre-processor
+* The following statements can be used to conditionally include or exclude sections of code to compile.
 
  * ``IF``
  * ``ELIF``
