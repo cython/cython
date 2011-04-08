@@ -269,7 +269,7 @@ class PyImporter(PyxImporter):
             # prevent infinite recursion
             return None
         if DEBUG_IMPORT:
-            print("trying import of module", fullname)
+            print("trying import of module '%s'" % fullname)
         if fullname in self.uncompilable_modules:
             path, last_modified = self.uncompilable_modules[fullname]
             try:
