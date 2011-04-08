@@ -13,28 +13,31 @@ Cython code, unlike Python, must be compiled.  This happens in two stages:
   * The ``.c`` file is compiled by a C compiler to a ``.so`` file (or a
     ``.pyd`` file on Windows)
 
-You can tailor the behaviour of the Cython compiler by specifying the
+You can tailor the behavior of the Cython compiler by specifying the
 directives below.
 
 Compiler directives
 ====================
 
-Compiler directives are instructions which affect which sort of code
-Cython generates.  Here is the list:
+Compiler directives are instructions which affect the behavior of
+Cython code.  Here is the list of currently supported directives:
 
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
-    raised. Currently this is only made use of for buffers, but lists
-    and tuples could be affected in the future. Conditions which would
-    normally trigger an IndexError may instead cause segfaults or data
-    corruption if this is set to False.  Default is True.
+    raised. Currently this is only made use of for buffers, lists and
+    tuples, but could be affected other types in the future. Conditions
+    which would normally trigger an IndexError may instead cause
+    segfaults or data corruption if this is set to False.
+    Default is True.
 
 ``wraparound``  (True / False)
     In Python arrays can be indexed relative to the end. For example
     A[-1] indexes the last value of a list. In C negative indexing is
-    not supported. If set to False, Cython will not ensure that python
-    indexing is not used.  Default is True.
+    not supported. If set to False, Cython will neither check for nor
+    correctly handle negative indices, possibly causing segfaults or
+    data corruption.
+    Default is True.
 
 ``nonecheck``  (True / False)
     If set to False, Cython is free to assume that native field
@@ -55,7 +58,7 @@ Cython generates.  Here is the list:
     If set to False, Cython will adjust the remainder and quotient
     operators C types to match those of Python ints (which differ when
     the operands have opposite signs) and raise a
-    ``ZeroDivisionError`` when the right operand is 0. This has about
+    ``ZeroDivisionError`` when the right operand is 0. This has up to
     a 35% speed penalty. If set to True, no checks are performed.  See
     `CEP 516 <http://wiki.cython.org/enhancements/division>`_.  Default
     is False.
@@ -79,7 +82,8 @@ Cython generates.  Here is the list:
 
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is
-    False.
+    None, indicating that on safe (semantically-unchanging) inferences
+   are allowed.
 
 How to set directives
 ---------------------
@@ -108,7 +112,6 @@ Locally
 For local blocks, you need to cimport the special builtin ``cython``
 module::
 
-    #!python
     cimport cython
 
 Then you can use the directives either as decorators or in a with
