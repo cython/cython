@@ -7776,7 +7776,7 @@ static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
 #if PY_MAJOR_VERSION < 3
     if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = PyObject_GetAttrString(base, "__class__");
+        metaclass = PyObject_GetAttrString(base, (char *)"__class__");
         if (!metaclass) {
             PyErr_Clear();
             metaclass = (PyObject*) Py_TYPE(base);
@@ -7854,7 +7854,7 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
     PyObject *ns;
     PyObject *str;
 
-    prep = PyObject_GetAttrString(metaclass, "__prepare__");
+    prep = PyObject_GetAttrString(metaclass, (char *)"__prepare__");
     if (!prep) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             return NULL;
@@ -8560,7 +8560,7 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args, CYTHON_UN
     PyObject *tb = NULL;
     PyObject *val = NULL;
 
-    if (!PyArg_UnpackTuple(args, "throw", 1, 3, &typ, &val, &tb))
+    if (!PyArg_UnpackTuple(args, (char *)"throw", 1, 3, &typ, &val, &tb))
         return NULL;
     __Pyx_Raise(typ, val, tb);
     return __Pyx_Generator_SendEx(generator, NULL);
