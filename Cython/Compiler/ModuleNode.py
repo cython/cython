@@ -2758,7 +2758,7 @@ proto="""
   } __Pyx_RefNannyAPIStruct;
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNanny = NULL;
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNannyImportAPI(const char *modname); /*proto*/
-  #define __Pyx_RefNannyDeclarations void *__pyx_refnanny = NULL
+  #define __Pyx_RefNannyDeclarations void *__pyx_refnanny = NULL;
   #define __Pyx_RefNannySetupContext(name) \
           __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
   #define __Pyx_RefNannyFinishContext() \
