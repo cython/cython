@@ -1,5 +1,8 @@
 import cython
 
+NULL = 5
+_NULL = NULL
+
 def test_sizeof():
     """
     >>> test_sizeof()
