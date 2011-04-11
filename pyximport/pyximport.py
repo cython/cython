@@ -261,7 +261,7 @@ class PyImporter(PyxImporter):
         self.super = super(PyImporter, self)
         self.super.__init__(extension='.py', pyxbuild_dir=pyxbuild_dir)
         self.uncompilable_modules = {}
-        self.blocked_modules = ['Cython']
+        self.blocked_modules = ['Cython', 'distutils.extension']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
@@ -288,13 +288,13 @@ class PyImporter(PyxImporter):
         try:
             importer = self.super.find_module(fullname, package_path)
             if importer is not None:
-                if DEBUG_IMPORT:
-                    print("importer found")
                 try:
                     if importer.init_path:
                         path = importer.init_path
                     else:
                         path = importer.path
+                    if DEBUG_IMPORT:
+                        print("importer found path %s" % path)
                     build_module(fullname, path,
                                  pyxbuild_dir=self.pyxbuild_dir)
                 except Exception, e:
