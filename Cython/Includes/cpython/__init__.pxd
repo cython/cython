@@ -24,15 +24,17 @@
 #     cdef extern from "Python.h":
 #         PyObject* PyNumber_Add(PyObject *o1, PyObject *o2)
 #
-# in your file after any .pxi includes.  Cython will use the latest
-# declaration.
+# in your .pyx file or into a cimported .pxd file.  You just have to
+# use the one from the right (pxd-)namespace then.
 #
-# Cython takes care of this automatically for anything of type object.
+# Cython automatically takes care of reference counting for anything
+# of type object.
+#
 ## More precisely, I think the correct convention for
-## using the Python/C API from Pyrex is as follows.
+## using the Python/C API from Cython is as follows.
 ##
 ## (1) Declare all input arguments as type "object".  This way no explicit
-##    <PyObject*> casting is needed, and moreover Pyrex doesn't generate
+##    <PyObject*> casting is needed, and moreover Cython doesn't generate
 ##    any funny reference counting.
 ## (2) Declare output as object if a new reference is returned.
 ## (3) Declare output as PyObject* if a borrowed reference is returned.
@@ -40,7 +42,7 @@
 ## This way when you call objects, no cast is needed, and if the api
 ## calls returns a new reference (which is about 95% of them), then
 ## you can just assign to a variable of type object.  With borrowed
-## references if you do an explicit typecast to <object>, Pyrex generates an
+## references if you do an explicit typecast to <object>, Cython generates an
 ## INCREF and DECREF so you have to be careful.  However, you got a
 ## borrowed reference in this case, so there's got to be another reference
 ## to your object, so you're OK, as long as you relealize this
