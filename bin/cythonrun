@@ -28,10 +28,21 @@ LINKFORSHARED = sysconfig.get_config_var('LINKFORSHARED')
 LIBS = sysconfig.get_config_var('LIBS')
 SYSLIBS = sysconfig.get_config_var('SYSLIBS')
 
+if DEBUG:
+    print('INCDIR: %s' % INCDIR)
+    print('LIBDIR1: %s' % LIBDIR1)
+    print('LIBDIR2: %s' % LIBDIR2)
+    print('PYLIB: %s' % PYLIB)
+
 def runcmd(cmd, shell=True):
-    cmd = ' '.join(cmd)
-    if DEBUG:
-        print(cmd)
+    if shell:
+        cmd = ' '.join(cmd)
+        if DEBUG:
+            print(cmd)
+    else:
+        if DEBUG:
+            print(' '.join(cmd))
+
     returncode = subprocess.call(cmd, shell=shell)
     if returncode:
         sys.exit(returncode)
@@ -43,24 +54,34 @@ def clink(basename):
 def ccompile(basename):
     runcmd([CC, '-c', '-o', basename+'.o', basename+'.c', '-I' + INCDIR] + CFLAGS.split())
 
-def cycompile(input_file):
+def cycompile(input_file, options=()):
     from Cython.Compiler import Version, CmdLine, Main
-    options, sources = CmdLine.parse_command_line(['--embed', input_file])
+    options, sources = CmdLine.parse_command_line(list(options or ()) + ['--embed', input_file])
     if DEBUG:
         print('Using Cython %s to compile %s' % (Version.version, input_file))
     result = Main.compile(sources, options)
     if result.num_errors > 0:
         sys.exit(1)
 
-def exec_file(basename, *args):
+def exec_file(basename, args=()):
     runcmd([os.path.abspath(basename)] + list(args), shell=False)
 
-def main(input_file, *args):
+def main(args):
+    cy_args = []
+    for i, arg in enumerate(args):
+        if arg.startswith('-'):
+            cy_args.append(arg)
+        else:
+            input_file = arg
+            args = args[i+1:]
+            break
+    else:
+        raise ValueError('no input file provided')
     basename = os.path.splitext(input_file)[0]
-    cycompile(input_file)
+    cycompile(input_file, cy_args)
     ccompile(basename)
     clink(basename)
-    exec_file(basename)
+    exec_file(basename, args)
 
 if __name__ == '__main__':
-    main(*sys.argv[1:])
+    main(sys.argv[1:])
