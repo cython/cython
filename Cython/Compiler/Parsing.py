@@ -615,7 +615,7 @@ def p_atom(s):
             return ExprNodes.BoolNode(pos, value=True)
         elif name == "False":
             return ExprNodes.BoolNode(pos, value=False)
-        elif name == "NULL":
+        elif name == "NULL" and not s.in_python_file:
             return ExprNodes.NullNode(pos)
         else:
             return p_name(s, name)
