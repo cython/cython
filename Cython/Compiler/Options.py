@@ -63,6 +63,10 @@ disable_function_redefinition = False
 # globals in the call stack.  Sage relies on this behavior for variable injection.
 old_style_globals = False
 
+# Allows cimporting from a pyx file without a pxd file.
+cimport_from_pyx = True
+
+
 
 # Declare compiler directives
 directive_defaults = {
