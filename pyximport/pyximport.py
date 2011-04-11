@@ -205,7 +205,10 @@ class PyxImporter(object):
         try:
             fp, pathname, (ext,mode,ty) = imp.find_module(fullname,package_path)
             if fp: fp.close()  # Python should offer a Default-Loader to avoid this double find/open!
-            if ty!=imp.C_EXTENSION: # only when an extension, check if we have a .pyx next!
+            if pathname.endswith(self.extension):
+                return PyxLoader(fullname, pathname,
+                                 pyxbuild_dir=self.pyxbuild_dir)
+            if ty != imp.C_EXTENSION: # only when an extension, check if we have a .pyx next!
                 return None
 
             # find .pyx fast, when .so/.pyd exist --inplace
