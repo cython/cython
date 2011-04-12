@@ -68,25 +68,23 @@ if sys.platform == 'win32':
     except ValueError: pass
     distutils_distro.parse_config_files(cfgfiles)
 
-# Lists external modules, and a matcher matching tests
-# which should be excluded if the module is not present.
-# TODO: use tags for these
 EXT_DEP_MODULES = {
-    'numpy' : re.compile('.*\.numpy_.*').match,
-    'pstats' : re.compile('.*\.pstats_.*').match,
-    'posix' : re.compile('.*\.posix_.*').match,
+    'numpy' : 'tag:numpy',
+    'pstats' : 'tag:pstats',
+    'posix' : 'tag:posix',
 }
 
 def get_numpy_include_dirs():
     import numpy
     return [numpy.get_include()]
 
-
+# TODO: use tags
 EXT_DEP_INCLUDES = [
     # test name matcher , callable returning list
     (re.compile('numpy_.*').match, get_numpy_include_dirs),
 ]
 
+# TODO: use tags
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
@@ -971,11 +969,11 @@ class MissingDependencyExcluder:
             try:
                 __import__(mod)
             except ImportError:
-                self.exclude_matchers.append(matcher)
+                self.exclude_matchers.append(string_selector(matcher))
         self.tests_missing_deps = []
     def __call__(self, testname, tags=None):
         for matcher in self.exclude_matchers:
-            if matcher(testname):
+            if matcher(testname, tags):
                 self.tests_missing_deps.append(testname)
                 return True
         return False
