@@ -1272,7 +1272,7 @@ def main():
     if options.tickets:
         for ticket_number in options.tickets:
             test_bugs = True
-            cmd_args.append('.*T%s$' % ticket_number)
+            cmd_args.append('ticket:%s' % ticket_number)
     if not test_bugs:
         for selector in cmd_args:
             if selector.startswith('bugs'):
