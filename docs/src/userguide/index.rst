@@ -1,5 +1,5 @@
-Cython Users Guide
-======================
+Users Guide
+===========
 
 Contents:
 
