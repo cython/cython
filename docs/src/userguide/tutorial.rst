@@ -2,9 +2,9 @@
 
 .. _tutorial:
 
-*********
-Tutorial
-*********
+**************
+Basic Tutorial
+**************
 
 The Basics of Cython
 ====================
