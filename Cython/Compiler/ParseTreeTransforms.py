@@ -1418,7 +1418,7 @@ class AlignFunctionDefinitions(CythonTransform):
 
     def visit_DefNode(self, node):
         pxd_def = self.scope.lookup(node.name)
-        if pxd_def:
+        if pxd_def and (not pxd_def.scope or not pxd_def.scope.is_builtin_scope):
             if not pxd_def.is_cfunction:
                 error(node.pos, "'%s' redeclared" % node.name)
                 if pxd_def.pos:
