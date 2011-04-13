@@ -33,7 +33,7 @@ def from_loop_indices():
     incremented one step after the last iteration.
     """
     cdef int i, j, k
-    for i from 0 <= i < 10 by get_step(): pass
+    for i from 0 <= i < 5+5 by get_step(): pass
     for j from 0 <= j < 10: pass
     for k from 10 > k > 0: pass
     return i, j, k

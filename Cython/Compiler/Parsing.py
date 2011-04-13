@@ -1432,7 +1432,7 @@ def p_for_from_relation(s):
         s.error("Expected one of '<', '<=', '>' '>='")
 
 def p_for_from_step(s):
-    if s.sy == 'by':
+    if s.sy == 'IDENT' and s.systring == 'by':
         s.next()
         step = p_bit_expr(s)
         return step

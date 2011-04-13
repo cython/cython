@@ -45,7 +45,7 @@ py_reserved_words = [
 
 pyx_reserved_words = py_reserved_words + [
     "include", "ctypedef", "cdef", "cpdef",
-    "cimport", "by", "DEF", "IF", "ELIF", "ELSE"
+    "cimport", "DEF", "IF", "ELIF", "ELSE"
 ]
 
 class Method(object):
