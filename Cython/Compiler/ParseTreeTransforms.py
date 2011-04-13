@@ -1399,7 +1399,8 @@ class AlignFunctionDefinitions(CythonTransform):
                 return self.visit_CClassDefNode(node.as_cclass(), pxd_def)
             else:
                 error(node.pos, "'%s' redeclared" % node.name)
-                error(pxd_def.pos, "previous declaration here")
+                if pxd_def.pos:
+                    error(pxd_def.pos, "previous declaration here")
                 return None
         else:
             return node
@@ -1420,7 +1421,8 @@ class AlignFunctionDefinitions(CythonTransform):
         if pxd_def:
             if not pxd_def.is_cfunction:
                 error(node.pos, "'%s' redeclared" % node.name)
-                error(pxd_def.pos, "previous declaration here")
+                if pxd_def.pos:
+                    error(pxd_def.pos, "previous declaration here")
                 return None
             node = node.as_cfunction(pxd_def)
         elif self.scope.is_module_scope and self.directives['auto_cpdef']:
