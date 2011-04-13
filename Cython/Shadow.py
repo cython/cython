@@ -15,6 +15,9 @@ def locals(**arg_types):
 def test_assert_path_exists(path):
     return _empty_decorator
 
+def test_fail_if_path_exists(path):
+    return _empty_decorator
+
 class _EmptyDecoratorAndManager(object):
     def __call__(self, x):
         return x
