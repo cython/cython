@@ -1682,16 +1682,16 @@ class NameNode(AtomicExprNode):
     def generate_deletion_code(self, code):
         if self.entry is None:
             return # There was an error earlier
-        elif self.entry.is_pyglobal:
-            code.put_error_if_neg(self.pos,
-                '__Pyx_DelAttrString(%s, "%s")' % (
-                    Naming.module_cname,
-                    self.entry.name))
         elif self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             code.put_error_if_neg(self.pos,
                 'PyMapping_DelItemString(%s, "%s")' % (
                     namespace,
+                    self.entry.name))
+        elif self.entry.is_pyglobal:
+            code.put_error_if_neg(self.pos,
+                '__Pyx_DelAttrString(%s, "%s")' % (
+                    Naming.module_cname,
                     self.entry.name))
         elif self.entry.type.is_pyobject:
             # Fake it until we can do it for real...

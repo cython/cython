@@ -1490,7 +1490,7 @@ class PyClassScope(ClassScope):
         # Add an entry for a class attribute.
         entry = Scope.declare_var(self, name, type, pos,
                                   cname=cname, visibility=visibility, api=api, is_cdef=is_cdef)
-        entry.is_pyglobal = 1
+        entry.is_pyglobal = 1 # FIXME: WTF?
         entry.is_pyclass_attr = 1
         return entry
 
