@@ -1,13 +1,23 @@
-__doc__ = u"""
->>> sorted( get_locals(1,2,3, k=5) .items())
-[('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
-
-"""
+# mode: run
+# tag: builtins, locals, dir
 
 def get_locals(x, *args, **kwds):
+    """
+    >>> sorted( get_locals(1,2,3, k=5) .items())
+    [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
+    """
     cdef int z = 5
     y = "hi"
     return locals()
+
+def get_dir(x, *args, **kwds):
+    """
+    >>> sorted( get_dir(1,2,3, k=5) )
+    ['args', 'kwds', 'x', 'y', 'z']
+    """
+    cdef int z = 5
+    y = "hi"
+    return dir()
 
 def in_locals(x, *args, **kwds):
     """
@@ -21,6 +31,19 @@ def in_locals(x, *args, **kwds):
     cdef int z = 5
     y = "hi"
     return x in locals()
+
+def in_dir(x, *args, **kwds):
+    """
+    >>> in_dir('z')
+    True
+    >>> in_dir('args')
+    True
+    >>> in_dir('X')
+    False
+    """
+    cdef int z = 5
+    y = "hi"
+    return x in dir()
 
 def sorted(it):
     l = list(it)
