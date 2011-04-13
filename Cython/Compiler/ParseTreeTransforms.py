@@ -1750,25 +1750,35 @@ class TransformBuiltinMethods(EnvTransform):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
-    def visit_SimpleCallNode(self, node):
+    def _inject_locals(self, node, func_name):
+        # locals()/dir() builtins
+        lenv = self.current_env()
+        entry = lenv.lookup_here(func_name)
+        if entry:
+            # not the builtin
+            return node
+        max_args_count = {'dir': 1, 'locals': 0}[func_name]
+        if len(node.args) > max_args_count:
+            error(self.pos, "Builtin '%s()' called with wrong number of args, expected %d, got %d" % (
+                func_name, max_args_count, len(node.args)))
+            return node
+        pos = node.pos
+        if func_name =='locals':
+            items = [ ExprNodes.DictItemNode(pos,
+                                             key=ExprNodes.StringNode(pos, value=var),
+                                             value=ExprNodes.NameNode(pos, name=var))
+                      for var in lenv.entries ]
+            return ExprNodes.DictNode(pos, key_value_pairs=items)
+        else:
+            items = [ ExprNodes.StringNode(pos, value=var)
+                      for var in lenv.entries ]
+            return ExprNodes.ListNode(pos, args=items)
 
-        # locals builtin
+    def visit_SimpleCallNode(self, node):
         if isinstance(node.function, ExprNodes.NameNode):
-            if node.function.name == 'locals':
-                lenv = self.current_env()
-                entry = lenv.lookup_here('locals')
-                if entry:
-                    # not the builtin 'locals'
-                    return node
-                if len(node.args) > 0:
-                    error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d" % len(node.args))
-                    return node
-                pos = node.pos
-                items = [ ExprNodes.DictItemNode(pos,
-                                                 key=ExprNodes.StringNode(pos, value=var),
-                                                 value=ExprNodes.NameNode(pos, name=var))
-                          for var in lenv.entries ]
-                return ExprNodes.DictNode(pos, key_value_pairs=items)
+            func_name = node.function.name
+            if func_name in ('dir', 'locals'):
+                return self._inject_locals(node, func_name)
 
         # cython.foo
         function = node.function.as_cython_attribute()
