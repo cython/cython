@@ -211,6 +211,7 @@ class Scope(object):
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
     # int_to_entry      {int : Entry}      Temp cname to entry mapping
     # return_type       PyrexType or None  Return type of function owning scope
+    # is_builtin_scope  boolean            Is the builtin scope of Python/Cython
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # is_closure_scope  boolean            Is a closure scope
@@ -228,6 +229,7 @@ class Scope(object):
     #                                      analysis, contains directive values.
     # is_internal       boolean            Is only used internally (simpler setup)
 
+    is_builtin_scope = 0
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
@@ -732,6 +734,8 @@ class PreImportScope(Scope):
 
 class BuiltinScope(Scope):
     #  The builtin namespace.
+
+    is_builtin_scope = True
 
     def __init__(self):
         if Options.pre_import is None:
