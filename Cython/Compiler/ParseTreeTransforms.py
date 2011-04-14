@@ -1757,21 +1757,26 @@ class TransformBuiltinMethods(EnvTransform):
         if entry:
             # not the builtin
             return node
-        max_args_count = {'dir': 1, 'locals': 0}[func_name]
-        if len(node.args) > max_args_count:
-            error(self.pos, "Builtin '%s()' called with wrong number of args, expected %d, got %d" % (
-                func_name, max_args_count, len(node.args)))
-            return node
         pos = node.pos
-        if func_name =='locals':
+        if func_name == 'locals':
+            if len(node.args) > 0:
+                error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d"
+                      % len(node.args))
+                return node
             items = [ ExprNodes.DictItemNode(pos,
                                              key=ExprNodes.StringNode(pos, value=var),
                                              value=ExprNodes.NameNode(pos, name=var))
                       for var in lenv.entries ]
             return ExprNodes.DictNode(pos, key_value_pairs=items)
         else:
-            items = [ ExprNodes.StringNode(pos, value=var)
-                      for var in lenv.entries ]
+            if len(node.args) > 1:
+                error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
+                      % len(node.args))
+                return node
+            elif len(node.args) == 1:
+                # optimised in Builtin.py
+                return node
+            items = [ ExprNodes.StringNode(pos, value=var) for var in lenv.entries ]
             return ExprNodes.ListNode(pos, args=items)
 
     def visit_SimpleCallNode(self, node):
