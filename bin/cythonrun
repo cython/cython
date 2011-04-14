@@ -29,19 +29,25 @@ LIBS = sysconfig.get_config_var('LIBS')
 SYSLIBS = sysconfig.get_config_var('SYSLIBS')
 
 if DEBUG:
-    print('INCDIR: %s' % INCDIR)
-    print('LIBDIR1: %s' % LIBDIR1)
-    print('LIBDIR2: %s' % LIBDIR2)
-    print('PYLIB: %s' % PYLIB)
+    def _debug(msg, *args):
+        if args:
+            msg = msg % args
+        sys.stderr.write(msg + '\n')
+else:
+    def _debug(*args):
+        pass
+
+_debug('INCDIR: %s', INCDIR)
+_debug('LIBDIR1: %s', LIBDIR1)
+_debug('LIBDIR2: %s', LIBDIR2)
+_debug('PYLIB: %s', PYLIB)
 
 def runcmd(cmd, shell=True):
     if shell:
         cmd = ' '.join(cmd)
-        if DEBUG:
-            print(cmd)
+        _debug(cmd)
     else:
-        if DEBUG:
-            print(' '.join(cmd))
+        _debug(' '.join(cmd))
 
     returncode = subprocess.call(cmd, shell=shell)
     if returncode:
@@ -57,8 +63,7 @@ def ccompile(basename):
 def cycompile(input_file, options=()):
     from Cython.Compiler import Version, CmdLine, Main
     options, sources = CmdLine.parse_command_line(list(options or ()) + ['--embed', input_file])
-    if DEBUG:
-        print('Using Cython %s to compile %s' % (Version.version, input_file))
+    _debug('Using Cython %s to compile %s', Version.version, input_file)
     result = Main.compile(sources, options)
     if result.num_errors > 0:
         sys.exit(1)
