@@ -9,84 +9,8 @@ Basic usage:
     python cythonrun somefile.py [ARGS]
 """
 
-DEBUG = True
-
-import sys
-import os
-import subprocess
-from distutils import sysconfig
-
-INCDIR = sysconfig.get_python_inc()
-LIBDIR1 = sysconfig.get_config_var('LIBDIR')
-LIBDIR2 = sysconfig.get_config_var('LIBPL')
-PYLIB = sysconfig.get_config_var('LIBRARY')[3:-2]
-
-CC = sysconfig.get_config_var('CC')
-CFLAGS = sysconfig.get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
-LINKCC = sysconfig.get_config_var('LINKCC')
-LINKFORSHARED = sysconfig.get_config_var('LINKFORSHARED')
-LIBS = sysconfig.get_config_var('LIBS')
-SYSLIBS = sysconfig.get_config_var('SYSLIBS')
-
-if DEBUG:
-    def _debug(msg, *args):
-        if args:
-            msg = msg % args
-        sys.stderr.write(msg + '\n')
-else:
-    def _debug(*args):
-        pass
-
-_debug('INCDIR: %s', INCDIR)
-_debug('LIBDIR1: %s', LIBDIR1)
-_debug('LIBDIR2: %s', LIBDIR2)
-_debug('PYLIB: %s', PYLIB)
-
-def runcmd(cmd, shell=True):
-    if shell:
-        cmd = ' '.join(cmd)
-        _debug(cmd)
-    else:
-        _debug(' '.join(cmd))
-
-    returncode = subprocess.call(cmd, shell=shell)
-    if returncode:
-        sys.exit(returncode)
-
-def clink(basename):
-    runcmd([LINKCC, '-o', basename, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2, '-l'+PYLIB]
-           + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split())
-
-def ccompile(basename):
-    runcmd([CC, '-c', '-o', basename+'.o', basename+'.c', '-I' + INCDIR] + CFLAGS.split())
-
-def cycompile(input_file, options=()):
-    from Cython.Compiler import Version, CmdLine, Main
-    options, sources = CmdLine.parse_command_line(list(options or ()) + ['--embed', input_file])
-    _debug('Using Cython %s to compile %s', Version.version, input_file)
-    result = Main.compile(sources, options)
-    if result.num_errors > 0:
-        sys.exit(1)
-
-def exec_file(basename, args=()):
-    runcmd([os.path.abspath(basename)] + list(args), shell=False)
-
-def main(args):
-    cy_args = []
-    for i, arg in enumerate(args):
-        if arg.startswith('-'):
-            cy_args.append(arg)
-        else:
-            input_file = arg
-            args = args[i+1:]
-            break
-    else:
-        raise ValueError('no input file provided')
-    basename = os.path.splitext(input_file)[0]
-    cycompile(input_file, cy_args)
-    ccompile(basename)
-    clink(basename)
-    exec_file(basename, args)
+from Cython.Build.BuildExecutable import build, build_and_run
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    import sys
+    build_and_run(sys.argv[1:])
