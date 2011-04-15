@@ -22,3 +22,18 @@ def call_str(arg):
     STR
     """
     return str(arg)
+
+
+def stararg_func(*args):
+    """
+    >>> stararg_func(1, 2)
+    (1, 2)
+    """
+    return args
+
+def starstararg_func(**kwargs):
+    """
+    >>> starstararg_func(a=1)
+    1
+    """
+    return kwargs['a']

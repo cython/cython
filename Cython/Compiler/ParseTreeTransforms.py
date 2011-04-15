@@ -1425,9 +1425,8 @@ class AlignFunctionDefinitions(CythonTransform):
                     error(pxd_def.pos, "previous declaration here")
                 return None
             node = node.as_cfunction(pxd_def)
-        elif (self.scope.is_module_scope
-              and not node.needs_closure
-              and self.directives['auto_cpdef']):
+        elif (self.scope.is_module_scope and self.directives['auto_cpdef']
+              and node.is_cdef_func_compatible()):
             node = node.as_cfunction(scope=self.scope)
         # Enable this when nested cdef functions are allowed.
         # self.visitchildren(node)
