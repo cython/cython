@@ -723,6 +723,9 @@ class Scope(object):
         else:
             return outer.is_cpp()
 
+    def add_include_file(self, filename):
+        self.outer_scope.add_include_file(filename)
+
 class PreImportScope(Scope):
 
     namespace_cname = Naming.preimport_cname
@@ -1856,8 +1859,6 @@ class CppClassScope(Scope):
                                             utility_code = e.utility_code)
         return scope
 
-    def add_include_file(self, filename):
-        self.outer_scope.add_include_file(filename)
 
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
