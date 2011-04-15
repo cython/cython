@@ -612,8 +612,15 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     }
 
     special_methods = cython.set(['declare', 'union', 'struct', 'typedef', 'sizeof',
-                                  'cast', 'pointer', 'compiled', 'NULL'])
+                                  'cast', 'pointer', 'compiled', 'NULL', 'parallel'])
     special_methods.update(unop_method_nodes.keys())
+
+    valid_parallel_directives = cython.set([
+        "parallel",
+        "prange",
+        "threadid",
+#        "threadsavailable",
+    ])
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
@@ -622,6 +629,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             self.compilation_directive_defaults[unicode(key)] = copy.deepcopy(value)
         self.cython_module_names = cython.set()
         self.directive_names = {}
+        self.parallel_directives = {}
 
     def check_directive_scope(self, pos, directive, scope):
         legal_scopes = Options.directive_scopes.get(directive, None)
@@ -644,6 +652,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         directives.update(node.directive_comments)
         self.directives = directives
         node.directives = directives
+        node.parallel_directives = self.parallel_directives
         self.visitchildren(node)
         node.cython_module_names = self.cython_module_names
         return node
@@ -655,11 +664,31 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 name in self.special_methods or
                 PyrexTypes.parse_basic_type(name))
 
+    def is_parallel_directive(self, full_name, pos):
+        result = (full_name + ".").startswith("cython.parallel.")
+
+        if result:
+            directive = full_name.rsplit('.', 1)
+            if (len(directive) != 2 or directive[1] not in
+                    self.valid_parallel_directives):
+                error(pos, "No such directive: %s" % full_name)
+
+        return result
+
     def visit_CImportStatNode(self, node):
         if node.module_name == u"cython":
             self.cython_module_names.add(node.as_name or u"cython")
         elif node.module_name.startswith(u"cython."):
-            if node.as_name:
+            if node.module_name.startswith(u"cython.parallel."):
+                error(node.pos, node.module_name + " is not a module")
+            if node.module_name == u"cython.parallel":
+                if node.as_name:
+                    self.parallel_directives[node.as_name] = node.module_name
+                else:
+                    self.cython_module_names.add(u"cython")
+                    self.parallel_directives[
+                                    u"cython.parallel"] = node.module_name
+            elif node.as_name:
                 self.directive_names[node.as_name] = node.module_name[7:]
             else:
                 self.cython_module_names.add(u"cython")
@@ -673,19 +702,29 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                node.module_name.startswith(u"cython."):
             submodule = (node.module_name + u".")[7:]
             newimp = []
+
             for pos, name, as_name, kind in node.imported_names:
                 full_name = submodule + name
-                if self.is_cython_directive(full_name):
+                qualified_name = u"cython." + full_name
+
+                if self.is_parallel_directive(qualified_name, node.pos):
+                    # from cython cimport parallel, or
+                    # from cython.parallel cimport parallel, prange, ...
+                    self.parallel_directives[as_name or name] = qualified_name
+                elif self.is_cython_directive(full_name):
                     if as_name is None:
                         as_name = full_name
+
                     self.directive_names[as_name] = full_name
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler directive imports must be plain imports"))
                 else:
                     newimp.append((pos, name, as_name, kind))
+
             if not newimp:
                 return None
+
             node.imported_names = newimp
         return node
 
@@ -696,7 +735,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             newimp = []
             for name, name_node in node.items:
                 full_name = submodule + name
-                if self.is_cython_directive(full_name):
+                qualified_name = u"cython." + full_name
+                if self.is_parallel_directive(qualified_name, node.pos):
+                    self.parallel_directives[name_node.name] = qualified_name
+                elif self.is_cython_directive(full_name):
                     self.directive_names[name_node.name] = full_name
                 else:
                     newimp.append((name, name_node))
@@ -707,11 +749,25 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
     def visit_SingleAssignmentNode(self, node):
         if (isinstance(node.rhs, ExprNodes.ImportNode) and
-                node.rhs.module_name.value == u'cython'):
+            node.rhs.module_name.value in (u'cython', u"cython.parallel")):
+
+            module_name = node.rhs.module_name.value
+            as_name = node.lhs.name
+
+            if module_name == u"cython.parallel" and as_name == u"cython":
+                # Be consistent with the cimport variant
+                as_name = u"cython.parallel"
+
             node = Nodes.CImportStatNode(node.pos,
-                                         module_name = u'cython',
-                                         as_name = node.lhs.name)
+                                         module_name = module_name,
+                                         as_name = as_name)
+
             self.visit_CImportStatNode(node)
+            if node.module_name == u"cython.parallel":
+                # This is an import for a fake module, remove it
+                return None
+            if node.module_name.startswith(u"cython.parallel."):
+                error(node.pos, node.module_name + " is not a module")
         else:
             self.visitchildren(node)
         return node
@@ -896,6 +952,188 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if directive_dict:
             return self.visit_with_directives(node.body, directive_dict)
         return self.visit_Node(node)
+
+
+class ParallelRangeTransform(CythonTransform, SkipDeclarations):
+    """
+    Transform cython.parallel stuff. The parallel_directives come from the
+    module node, set there by InterpretCompilerDirectives.
+
+        x = cython.parallel.threadavailable()   -> ParallelThreadAvailableNode
+        with cython.parallel(nogil=True):       -> ParallelWithBlockNode
+            print cython.parallel.threadid()    -> ParallelThreadIdNode
+            for i in cython.parallel.prange(...):  -> ParallelRangeNode
+                ...
+    """
+
+    # a list of names, maps 'cython.parallel.prange' in the code to
+    # ['cython', 'parallel', 'prange']
+    parallel_directive = None
+
+    # Indicates whether a namenode in an expression is the cython module
+    namenode_is_cython_module = False
+
+    # Keep track of whether we are the context manager of a 'with' statement
+    in_context_manager_section = False
+
+    # Keep track of whether we are in a parallel range section
+    in_prange = False
+
+    directive_to_node = {
+        u"cython.parallel.parallel": Nodes.ParallelWithBlockNode,
+        # u"cython.parallel.threadsavailable": ExprNodes.ParallelThreadsAvailableNode,
+        u"cython.parallel.threadid": ExprNodes.ParallelThreadIdNode,
+        u"cython.parallel.prange": Nodes.ParallelRangeNode,
+    }
+
+    def node_is_parallel_directive(self, node):
+        return node.name in self.parallel_directives or node.is_cython_module
+
+    def get_directive_class_node(self, node):
+        """
+        Figure out which parallel directive was used and return the associated
+        Node class.
+
+        E.g. for a cython.parallel.prange() call we return ParallelRangeNode
+
+        Also disallow break, continue and return in a prange section
+        """
+        if self.namenode_is_cython_module:
+            directive = '.'.join(self.parallel_directive)
+        else:
+            directive = self.parallel_directives[self.parallel_directive[0]]
+            directive = '%s.%s' % (directive,
+                                   '.'.join(self.parallel_directive[1:]))
+            directive = directive.rstrip('.')
+
+        cls = self.directive_to_node.get(directive)
+        if cls is None:
+            error(node.pos, "Invalid directive: %s" % directive)
+
+        self.namenode_is_cython_module = False
+        self.parallel_directive = None
+
+        return cls
+
+    def visit_ModuleNode(self, node):
+        """
+        If any parallel directives were imported, copy them over and visit
+        the AST
+        """
+        if node.parallel_directives:
+            self.parallel_directives = node.parallel_directives
+            self.assignment_stack = []
+            return self.visit_Node(node)
+
+        # No parallel directives were imported, so they can't be used :)
+        return node
+
+    def visit_NameNode(self, node):
+        if self.node_is_parallel_directive(node):
+            self.parallel_directive = [node.name]
+            self.namenode_is_cython_module = node.is_cython_module
+        return node
+
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        if self.parallel_directive:
+            self.parallel_directive.append(node.attribute)
+        return node
+
+    def visit_CallNode(self, node):
+        self.visitchildren(node)
+        if not self.parallel_directive:
+            return node
+
+        # We are a parallel directive, replace this node with the
+        # corresponding ParallelSomethingSomething node
+
+        if isinstance(node, ExprNodes.GeneralCallNode):
+            args = node.positional_args.args
+            kwargs = node.keyword_args
+        else:
+            args = node.args
+            kwargs = {}
+
+        parallel_directive_class = self.get_directive_class_node(node)
+        if parallel_directive_class:
+            node = parallel_directive_class(node.pos, args=args, kwargs=kwargs)
+
+        return node
+
+    def visit_WithStatNode(self, node):
+        "Rewrite with cython.parallel() blocks"
+        self.visit(node.manager)
+
+        if self.parallel_directive:
+            parallel_directive_class = self.get_directive_class_node(node)
+            if not parallel_directive_class:
+                # There was an error, stop here and now
+                return None
+
+            self.visit(node.body)
+
+            newnode = Nodes.ParallelWithBlockNode(node.pos, body=node.body)
+        else:
+            newnode = node
+
+        self.visit(node.body)
+
+        return newnode
+
+    def visit_ForInStatNode(self, node):
+        "Rewrite 'for i in cython.parallel.prange(...):'"
+        self.visit(node.iterator)
+        self.visit(node.target)
+
+        was_in_prange = self.in_prange
+        self.in_prange = isinstance(node.iterator.sequence,
+                                    Nodes.ParallelRangeNode)
+
+        if self.in_prange:
+            # This will replace the entire ForInStatNode, so copy the
+            # attributes
+            parallel_range_node = node.iterator.sequence
+
+            parallel_range_node.target = node.target
+            parallel_range_node.body = node.body
+            parallel_range_node.else_clause = node.else_clause
+
+            node = parallel_range_node
+
+            if not isinstance(node.target, ExprNodes.NameNode):
+                error(node.target.pos,
+                      "Can only iterate over an iteration variable")
+
+        self.visit(node.body)
+
+        self.in_prange = was_in_prange
+        self.visit(node.else_clause)
+
+        return node
+
+    def ensure_not_in_prange(name):
+        "Creates error checking functions for break, continue and return"
+        def visit_method(self, node):
+            if self.in_prange:
+                error(node.pos,
+                      name + " not allowed in a parallel range section")
+
+            # Do a visit for 'return'
+            self.visitchildren(node)
+            return node
+
+        return visit_method
+
+    visit_BreakStatNode = ensure_not_in_prange("break")
+    visit_ContinueStatNode = ensure_not_in_prange("continue")
+    visit_ReturnStatNode = ensure_not_in_prange("return")
+
+    def visit(self, node):
+        "Visit a node that may be None"
+        if node is not None:
+            super(ParallelRangeTransform, self).visit(node)
+
 
 class WithTransform(CythonTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
@@ -1715,20 +1953,52 @@ class GilCheck(VisitorTransform):
         self.env_stack.append(node.local_scope)
         was_nogil = self.nogil
         self.nogil = node.local_scope.nogil
+
         if self.nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
+
         self.visitchildren(node)
         self.env_stack.pop()
         self.nogil = was_nogil
         return node
 
     def visit_GILStatNode(self, node):
-        env = self.env_stack[-1]
-        if self.nogil and node.nogil_check: node.nogil_check()
+        if self.nogil and node.nogil_check:
+            node.nogil_check()
+
         was_nogil = self.nogil
         self.nogil = (node.state == 'nogil')
         self.visitchildren(node)
         self.nogil = was_nogil
+        return node
+
+    def visit_ParallelRangeNode(self, node):
+        if node.is_nogil:
+            node.is_nogil = False
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            return self.visit_GILStatNode(node)
+
+        if not self.nogil:
+            error(node.pos, "prange() can only be used without the GIL")
+            # Forget about any GIL-related errors that may occur in the body
+            return None
+
+        node.nogil_check(self.env_stack[-1])
+        self.visitchildren(node)
+        return node
+
+    def visit_ParallelWithBlockNode(self, node):
+        if not self.nogil:
+            error(node.pos, "The parallel section may only be used without "
+                            "the GIL")
+            return None
+
+        if node.nogil_check:
+            # It does not currently implement this, but test for it anyway to
+            # avoid potential future surprises
+            node.nogil_check(self.env_stack[-1])
+
+        self.visitchildren(node)
         return node
 
     def visit_Node(self, node):
@@ -1857,8 +2127,7 @@ class TransformBuiltinMethods(EnvTransform):
 
 class DebugTransform(CythonTransform):
     """
-    Create debug information and all functions' visibility to extern in order
-    to enable debugging.
+    Write debug information for this Cython module.
     """
 
     def __init__(self, context, options, result):

@@ -2061,6 +2061,62 @@ class RawCNameExprNode(ExprNode):
 
 #-------------------------------------------------------------------
 #
+#  Parallel nodes (cython.parallel.thread(savailable|id))
+#
+#-------------------------------------------------------------------
+
+class ParallelThreadsAvailableNode(AtomicExprNode):
+    """
+    Implements cython.parallel.threadsavailable(). If we are called from the
+    sequential part of the application, we need to call omp_get_max_threads(),
+    and in the parallel part we can just call omp_get_num_threads()
+    """
+
+    type = PyrexTypes.c_int_type
+
+    def analyse_types(self, env):
+        self.is_temp = True
+        env.add_include_file("omp.h")
+        return self.type
+
+    def generate_result_code(self, code):
+        code.putln("#ifdef _OPENMP")
+        code.putln("if (omp_in_parallel()) %s = omp_get_max_threads();" %
+                                                            self.temp_code)
+        code.putln("else %s = omp_get_num_threads();" % self.temp_code)
+        code.putln("#else")
+        code.putln("%s = 1;" % self.temp_code)
+        code.putln("#endif")
+
+    def result(self):
+        return self.temp_code
+
+
+class ParallelThreadIdNode(AtomicExprNode): #, Nodes.ParallelNode):
+    """
+    Implements cython.parallel.threadid()
+    """
+
+    type = PyrexTypes.c_int_type
+
+    def analyse_types(self, env):
+        self.is_temp = True
+        env.add_include_file("omp.h")
+        return self.type
+
+    def generate_result_code(self, code):
+        code.putln("#ifdef _OPENMP")
+        code.putln("%s = omp_get_thread_num();" % self.temp_code)
+        code.putln("#else")
+        code.putln("%s = 0;" % self.temp_code)
+        code.putln("#endif")
+
+    def result(self):
+        return self.temp_code
+
+
+#-------------------------------------------------------------------
+#
 #  Trailer nodes
 #
 #-------------------------------------------------------------------
@@ -3465,8 +3521,11 @@ class AttributeNode(ExprNode):
     needs_none_check = True
 
     def as_cython_attribute(self):
-        if isinstance(self.obj, NameNode) and self.obj.is_cython_module:
+        if (isinstance(self.obj, NameNode) and
+                self.obj.is_cython_module and not
+                self.attribute == u"parallel"):
             return self.attribute
+
         cy = self.obj.as_cython_attribute()
         if cy:
             return "%s.%s" % (cy, self.attribute)
