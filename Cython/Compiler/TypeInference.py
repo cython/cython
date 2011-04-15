@@ -23,12 +23,24 @@ object_expr = TypedExprNode(py_object_type)
 
 class MarkAssignments(CythonTransform):
 
-    def mark_assignment(self, lhs, rhs):
+    def __init__(self, context):
+        super(CythonTransform, self).__init__()
+        self.context = context
+
+        # Track the parallel block scopes (with parallel, for i in prange())
+        self.parallel_block_stack = []
+
+    def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
                 return
             lhs.entry.assignments.append(rhs)
+
+            if self.parallel_block_stack:
+                parallel_node = self.parallel_block_stack[-1]
+                parallel_node.assignments[lhs.entry] = (lhs.pos, inplace_op)
+
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for arg in lhs.args:
                 self.mark_assignment(arg, object_expr)
@@ -48,7 +60,7 @@ class MarkAssignments(CythonTransform):
         return node
 
     def visit_InPlaceAssignmentNode(self, node):
-        self.mark_assignment(node.lhs, node.create_binop_node())
+        self.mark_assignment(node.lhs, node.create_binop_node(), node.operator)
         self.visitchildren(node)
         return node
 
@@ -126,6 +138,27 @@ class MarkAssignments(CythonTransform):
             self.mark_assignment(arg, arg)
         self.visitchildren(node)
         return node
+
+    def visit_ParallelStatNode(self, node):
+        if self.parallel_block_stack:
+            node.parent = self.parallel_block_stack[-1]
+        else:
+            node.parent = None
+
+        if node.is_prange:
+            if not node.parent:
+                node.is_parallel = True
+            else:
+                node.is_parallel = (node.parent.is_prange or not
+                                    node.parent.is_parallel)
+        else:
+            node.is_parallel = True
+
+        self.parallel_block_stack.append(node)
+        self.visitchildren(node)
+        self.parallel_block_stack.pop()
+        return node
+
 
 class MarkOverflowingArithmetic(CythonTransform):
 

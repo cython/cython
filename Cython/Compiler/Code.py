@@ -1444,6 +1444,10 @@ class CCodeWriter(object):
     def put_trace_return(self, retvalue_cname):
         self.putln("__Pyx_TraceReturn(%s);" % retvalue_cname)
 
+    def putln_openmp(self, string):
+        self.putln("#ifdef _OPENMP")
+        self.putln(string)
+        self.putln("#endif")
 
 class PyrexCodeWriter(object):
     # f                file      output file
