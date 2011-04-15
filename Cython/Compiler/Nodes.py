@@ -2032,6 +2032,17 @@ class DefNode(FuncDefNode):
                             api = False,
                             directive_locals = getattr(cfunc, 'directive_locals', {}))
 
+    def is_cdef_func_compatible(self):
+        """Determines if the function's signature is compatible with a
+        cdef function.  This can be used before calling
+        .as_cfunction() to see if that will be successful.
+        """
+        if self.needs_closure:
+            return False
+        if self.star_arg or self.starstar_arg:
+            return False
+        return True
+
     def analyse_declarations(self, env):
         self.is_classmethod = self.is_staticmethod = False
         if self.decorators:
