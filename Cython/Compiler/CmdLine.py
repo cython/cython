@@ -133,10 +133,14 @@ def parse_command_line(args):
                 Options.fast_fail = True
             elif option == "--disable-function-redefinition":
                 Options.disable_function_redefinition = True
-            elif option in ("-X", "--directive"):
+            elif option == "--directive" or option.startswith('-X'):
+                if option.startswith('-X') and option[2:].strip():
+                    x_args = option[2:]
+                else:
+                    x_args = pop_arg()
                 try:
                     options.compiler_directives = Options.parse_directive_list(
-                        pop_arg(), relaxed_bool=True,
+                        x_args, relaxed_bool=True,
                         current_settings=options.compiler_directives)
                 except ValueError, e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
