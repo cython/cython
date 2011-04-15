@@ -1461,7 +1461,7 @@ class YieldNodeCollector(TreeVisitor):
     def visit_ClassDefNode(self, node):
         pass
 
-    def visit_DefNode(self, node):
+    def visit_FuncDefNode(self, node):
         pass
 
     def visit_LambdaNode(self, node):
