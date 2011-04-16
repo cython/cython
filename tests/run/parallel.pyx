@@ -5,14 +5,10 @@
 cimport cython.parallel
 from cython.parallel import prange, threadid
 from libc.stdlib cimport malloc, free
+from libc.stdio cimport puts
+cimport numpy as np
 
-cdef extern from "Python.h":
-    void PyEval_InitThreads()
-
-PyEval_InitThreads()
-
-cdef void print_int(int x) with gil:
-    print x
+import sys
 
 #@cython.test_assert_path_exists(
 #    "//ParallelWithBlockNode//ParallelRangeNode[@schedule = 'dynamic']",
@@ -173,3 +169,64 @@ def test_closure_parallel_privates():
     g = test_generator()
     print g.next(), x, g.next(), x
 
+def test_pure_mode():
+    """
+    >>> test_pure_mode()
+    0
+    1
+    2
+    3
+    4
+    4
+    3
+    2
+    1
+    0
+    0
+    """
+    import Cython.Shadow
+    pure_parallel = sys.modules['cython.parallel']
+
+    for i in pure_parallel.prange(5):
+        print i
+
+    for i in pure_parallel.prange(4, -1, -1, schedule='dynamic', nogil=True):
+        print i
+
+    with pure_parallel.parallel:
+        print pure_parallel.threadid()
+
+@cython.boundscheck(False)
+def test_parallel_numpy_arrays():
+    """
+    Disabled for now, need to handle buffer auxiliary variables.
+
+    test_parallel_numpy_arrays()
+    -5
+    -4
+    -3
+    -2
+    -1
+    0
+    1
+    2
+    3
+    4
+    """
+    cdef Py_ssize_t i
+    cdef np.ndarray[np.int_t] x
+    
+    try:
+        import numpy
+    except ImportError:
+        for i in range(-5, 5):
+            print i
+        return
+    
+    x = numpy.zeros(10, dtype=np.int)
+    
+    for i in prange(x.shape[0], nogil=True):
+        x[i] = i - 5
+    
+    for i in x:
+        print x
