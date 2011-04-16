@@ -2,7 +2,10 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
-cache_builtins = True  #  Perform lookups on builtin names only once
+# Perform lookups on builtin names only once, at module initialisation
+# time.  This will prevent the module from getting imported if a
+# builtin name that it uses cannot be found during initialisation.
+cache_builtins = True
 
 embed_pos_in_docstring = False
 gcc_branch_hints = True
@@ -24,6 +27,12 @@ fast_fail = False
 
 # Make all warnings into errors.
 warning_errors = False
+
+# Make unknown names an error.  Python raises a NameError when
+# encountering unknown names at runtime, whereas this option makes
+# them a compile time error.  If you want full Python compatibility,
+# you should disable this option and also 'cache_builtins'.
+error_on_unknown_names = True
 
 # This will convert statements of the form "for i in range(...)"
 # to "for i from ..." when i is a cdef'd integer type, and the direction
