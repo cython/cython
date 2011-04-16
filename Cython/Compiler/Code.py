@@ -1447,7 +1447,7 @@ class CCodeWriter(object):
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")
         self.putln(string)
-        self.putln("#endif")
+        self.putln("#endif /* _OPENMP */")
 
 class PyrexCodeWriter(object):
     # f                file      output file
