@@ -5848,7 +5848,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
 class ParallelWithBlockNode(ParallelStatNode):
     """
-    This node represents a 'with cython.parallel:' block
+    This node represents a 'with cython.parallel.parallel:' block
     """
 
     nogil_check = None
@@ -5889,6 +5889,7 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
+    is_nogil = False
 
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
@@ -5924,13 +5925,16 @@ class ParallelRangeNode(ParallelStatNode):
             error(self.pos, "Invalid keyword argument to prange: %s" % kw)
 
     def analyse_expressions(self, env):
-        self.target.analyse_target_types(env)
+        if self.target is None:
+            error(self.pos, "prange() can only be used as part of a for loop")
+            return
 
+        self.target.analyse_target_types(env)
         self.index_type = self.target.type
 
         if self.index_type.is_pyobject:
-            # nogil_check will catch this
-            return
+            # nogil_check will catch this, for now, assume a valid type
+            self.index_type = PyrexTypes.c_py_ssize_t_type
 
         # Setup start, stop and step, allocating temps if needed
         self.names = 'start', 'stop', 'step'
@@ -5959,7 +5963,7 @@ class ParallelRangeNode(ParallelStatNode):
 
     def nogil_check(self, env):
         names = 'start', 'stop', 'step', 'target'
-        nodes =  self.start, self.stop, self.step, self.target
+        nodes = self.start, self.stop, self.step, self.target
         for name, node in zip(names, nodes):
             if node is not None and node.type.is_pyobject:
                 error(node.pos, "%s may not be a Python object "
@@ -6045,9 +6049,8 @@ class ParallelRangeNode(ParallelStatNode):
                       "(%(start)s > %(stop)s && %(step)s < 0) ) " % fmt_dict)
         code.begin_block()
 
-        # code.putln_openmp("#pragma omp single")
+        code.putln_openmp("#pragma omp critical")
         code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
-        # code.putln_openmp("#pragma omp barrier")
 
         self.generate_loop(code, fmt_dict)
 
@@ -6087,7 +6090,10 @@ class ParallelRangeNode(ParallelStatNode):
         if self.schedule:
             code.put(" schedule(%s)" % self.schedule)
 
-        code.putln(" lastprivate(%s)" % target_index_cname)
+        if self.is_parallel or self.target.entry not in self.parent.assignments:
+            code.putln(" lastprivate(%s)" % target_index_cname)
+        else:
+            code.putln("")
 
         code.putln("#endif")
 

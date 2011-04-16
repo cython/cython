@@ -756,6 +756,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 code.putln('#include "%s"' % byte_decoded_filenname)
 
+        code.putln_openmp("#include <omp.h>")
+
     def generate_filename_table(self, code):
         code.putln("")
         code.putln("static const char *%s[] = {" % Naming.filetable_cname)
