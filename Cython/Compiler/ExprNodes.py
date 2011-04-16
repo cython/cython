@@ -2076,7 +2076,7 @@ class ParallelThreadsAvailableNode(AtomicExprNode):
 
     def analyse_types(self, env):
         self.is_temp = True
-        env.add_include_file("omp.h")
+        # env.add_include_file("omp.h")
         return self.type
 
     def generate_result_code(self, code):
@@ -2101,7 +2101,7 @@ class ParallelThreadIdNode(AtomicExprNode): #, Nodes.ParallelNode):
 
     def analyse_types(self, env):
         self.is_temp = True
-        env.add_include_file("omp.h")
+        # env.add_include_file("omp.h")
         return self.type
 
     def generate_result_code(self, code):
