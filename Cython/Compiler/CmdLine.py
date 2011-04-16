@@ -38,6 +38,7 @@ Options:
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
   --fast-fail                    Abort the compilation on the first error
+  --warning-error, -Werror       Make all warnings into errors
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
@@ -131,6 +132,8 @@ def parse_command_line(args):
                 options.language_level = 3
             elif option == "--fast-fail":
                 Options.fast_fail = True
+            elif option in ('-Werror', '--warning-errors'):
+                Options.warning_errors = True
             elif option == "--disable-function-redefinition":
                 Options.disable_function_redefinition = True
             elif option == "--directive" or option.startswith('-X'):
