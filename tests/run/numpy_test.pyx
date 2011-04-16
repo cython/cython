@@ -210,6 +210,30 @@ try:
           dtype=[('x', '!f8'), ('y', '!f8')])
     
 """
+
+    if np.__version__ >= '1.6':
+        __doc__ += u"""
+        The following expose bugs in Numpy (versions prior to 2011-04-02):
+        
+        >>> print(test_partially_packed_align(np.zeros((1,), dtype=np.dtype([('a', 'b'), ('b', 'i'), ('sub', np.dtype('b,i')), ('c', 'i')], align=True))))
+        array([(22, 23, (24, 25), 26)], 
+              dtype=[('a', '|i1'), ('', '|V3'), ('b', '!i4'), ('sub', [('f0', '|i1'), ('f1', '!i4')]), ('', '|V3'), ('c', '!i4')])
+    
+        >>> print(test_partially_packed_align_2(np.zeros((1,), dtype=np.dtype([('a', 'b'), ('b', 'i'), ('c', 'b'), ('sub', np.dtype('b,i', align=True))]))))
+        array([(22, 23, 24, (27, 28))], 
+              dtype=[('a', '|i1'), ('b', '!i4'), ('c', '|i1'), ('sub', [('f0', '|i1'), ('', '|V3'), ('f1', '!i4')])])
+    
+        >>> print(test_partially_packed_align(np.zeros((1,), dtype=np.dtype([('a', 'b'), ('b', 'i'), ('sub', np.dtype('b,i')), ('c', 'i')], align=False)))) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+            ...
+        ValueError: ...
+    
+        >>> print(test_partially_packed_align_2(np.zeros((1,), dtype=np.dtype([('a', 'b'), ('b', 'i'), ('c', 'b'), ('sub', np.dtype('b,i', align=False))])))) #doctest: +ELLIPSIS
+        Traceback (most recent call last):
+            ...
+        ValueError: ...
+        """
+
 except:
     __doc__ = u""
 
@@ -402,6 +426,18 @@ cdef struct UnpackedStruct:
     char a
     int b
 
+cdef struct PartiallyPackedStruct:
+    char a
+    int b
+    PackedStruct sub
+    int c
+
+cdef packed struct PartiallyPackedStruct2:
+    char a
+    int b
+    char c
+    UnpackedStruct sub
+
 def test_packed_align(np.ndarray[PackedStruct] arr):
     arr[0].a = 22
     arr[0].b = 23
@@ -410,6 +446,22 @@ def test_packed_align(np.ndarray[PackedStruct] arr):
 def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     arr[0].a = 22
     arr[0].b = 23    
+    return repr(arr).replace('<', '!').replace('>', '!')
+
+def test_partially_packed_align(np.ndarray[PartiallyPackedStruct] arr):
+    arr[0].a = 22
+    arr[0].b = 23
+    arr[0].sub.a = 24
+    arr[0].sub.b = 25
+    arr[0].c = 26
+    return repr(arr).replace('<', '!').replace('>', '!')
+
+def test_partially_packed_align_2(np.ndarray[PartiallyPackedStruct2] arr):
+    arr[0].a = 22
+    arr[0].b = 23
+    arr[0].c = 24
+    arr[0].sub.a = 27
+    arr[0].sub.b = 28
     return repr(arr).replace('<', '!').replace('>', '!')
 
 def test_complextypes():
