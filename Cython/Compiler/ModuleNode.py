@@ -2134,19 +2134,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             objstruct = "struct %s" % type.objstruct_cname
         module_name = type.module_name
+        condition = None
         if module_name not in ('__builtin__', 'builtins'):
             module_name = '"%s"' % module_name
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
-        if type.name in self.py3_type_name_map:
-            code.putln("#if PY_MAJOR_VERSION >= 3")
-            code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), 1); %s' % (
-                    type.typeptr_cname,
-                    module_name,
-                    self.py3_type_name_map[type.name],
-                    objstruct,
-                    error_code))
-            code.putln("#else")
+            if type.name in Code.non_portable_builtins_map:
+                condition, replacement = Code.non_portable_builtins_map[entry.name]
+                code.putln("#if %s" % condition)
+                code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), 1); %s' % (
+                        type.typeptr_cname,
+                        module_name,
+                        replacement,
+                        objstruct,
+                        error_code))
+                code.putln("#else")
         code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), %i); %s' % (
                 type.typeptr_cname,
                 module_name,
@@ -2154,7 +2156,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 objstruct,
                 not type.is_external or type.is_subclassed,
                 error_code))
-        if type.name in self.py3_type_name_map:
+        if condition:
             code.putln("#endif")
 
     def generate_type_ready_code(self, env, entry, code):
