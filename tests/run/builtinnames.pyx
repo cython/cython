@@ -56,14 +56,3 @@ def test_for_in_range(arg):
     for c in range(arg):
         l.append(c)
     return l
-
-def raise_and_catch_BaseException():
-    """
-    >>> raise_and_catch_BaseException()
-    1
-    """
-    try:
-        raise BaseException
-    except BaseException:
-        return 1
-    return 2
