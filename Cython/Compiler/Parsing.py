@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True, infer_types=True, language_level=3
+# cython: auto_cpdef=True, infer_types=True, language_level=3, py2_import=True
 #
 #   Pyrex Parser
 #
@@ -1216,6 +1216,7 @@ def p_import_statement(s):
                 rhs = ExprNodes.ImportNode(pos,
                     module_name = ExprNodes.IdentifierStringNode(
                         pos, value = dotted_name),
+                    level = None,
                     name_list = name_list))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats = stats)
@@ -1224,13 +1225,31 @@ def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
-    (dotted_name_pos, _, dotted_name, _) = \
-        p_dotted_name(s, as_allowed = 0)
+    if s.sy == '.':
+        # count relative import level
+        level = 0
+        while s.sy == '.':
+            level += 1
+            s.next()
+        if s.sy == 'cimport':
+            s.error("Relative cimport is not supported yet")
+    else:
+        level = None
+    if level is not None and s.sy == 'import':
+        # we are dealing with "from .. import foo, bar"
+        dotted_name_pos, dotted_name = s.position(), ''
+    elif level is not None and s.sy == 'cimport':
+        # "from .. cimport"
+        s.error("Relative cimport is not supported yet")
+    else:
+        (dotted_name_pos, _, dotted_name, _) = \
+            p_dotted_name(s, as_allowed = 0)
     if s.sy in ('import', 'cimport'):
         kind = s.sy
         s.next()
     else:
         s.error("Expected 'import' or 'cimport'")
+
     is_cimport = kind == 'cimport'
     is_parenthesized = False
     if s.sy == '*':
@@ -1252,6 +1271,8 @@ def p_from_import_statement(s, first_statement = 0):
     if dotted_name == '__future__':
         if not first_statement:
             s.error("from __future__ imports must occur at the beginning of the file")
+        elif level is not None:
+            s.error("invalid syntax")
         else:
             for (name_pos, name, as_name, kind) in imported_names:
                 if name == "braces":
@@ -1285,6 +1306,7 @@ def p_from_import_statement(s, first_statement = 0):
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
                 module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
+                level = level,
                 name_list = import_list),
             items = items)
 
