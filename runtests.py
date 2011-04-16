@@ -290,6 +290,11 @@ class TestBuilder(object):
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
+        if 'werror' in tags['tags']:
+            warning_errors = True
+        else:
+            warning_errors = False
+
         if expect_errors:
             if 'cpp' in tags['tag'] and 'cpp' in self.languages:
                 languages = ['cpp']
@@ -301,12 +306,12 @@ class TestBuilder(object):
             languages = list(languages)
             languages.remove('c')
         tests = [ self.build_test(test_class, path, workdir, module,
-                                  language, expect_errors)
+                                  language, expect_errors, warning_errors)
                   for language in languages ]
         return tests
 
     def build_test(self, test_class, path, workdir, module,
-                   language, expect_errors):
+                   language, expect_errors, warning_errors):
         workdir = os.path.join(workdir, language)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
@@ -318,13 +323,14 @@ class TestBuilder(object):
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
                           cython_only=self.cython_only,
                           fork=self.fork,
-                          language_level=self.language_level)
+                          language_level=self.language_level,
+                          warning_errors=warning_errors)
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cython_only=False, fork=True,
-                 language_level=2):
+                 language_level=2, warning_errors=False):
         self.test_directory = test_directory
         self.workdir = workdir
         self.module = module
@@ -336,16 +342,23 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cython_only = cython_only
         self.fork = fork
         self.language_level = language_level
+        self.warning_errors = warning_errors
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
         return "compiling (%s) %s" % (self.language, self.module)
 
     def setUp(self):
+        from Cython.Compiler import Options
+        Options.warning_errors = self.warning_errors
+
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
 
     def tearDown(self):
+        from Cython.Compiler import Options
+        Options.warning_errors = False
+
         try:
             sys.path.remove(self.workdir)
         except ValueError:

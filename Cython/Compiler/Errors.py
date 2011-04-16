@@ -176,6 +176,8 @@ def message(position, message, level=1):
 def warning(position, message, level=0):
     if level < LEVEL:
         return
+    if Options.warning_errors and position:
+        return error(position, message)
     warn = CompileWarning(position, message)
     line = "warning: %s\n" % warn
     if listing_file:
