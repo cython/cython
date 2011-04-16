@@ -1735,20 +1735,33 @@ class BackquoteNode(ExprNode):
         code.put_gotref(self.py_result())
 
 
-
 class ImportNode(ExprNode):
     #  Used as part of import statement implementation.
     #  Implements result =
-    #    __import__(module_name, globals(), None, name_list)
+    #    __import__(module_name, globals(), None, name_list, level)
     #
-    #  module_name   StringNode            dotted name of module
+    #  module_name   StringNode            dotted name of module. Empty module
+    #                       name means importing the parent package accourding
+    #                       to level
     #  name_list     ListNode or None      list of names to be imported
+    #  level         int                   relative import level:
+    #                       -1: attempt both relative import and absolute import;
+    #                        0: absolute import;
+    #                       >0: the number of parent directories to search
+    #                           relative to the current module.
+    #                     None: decide the level according to language level and
+    #                           directives
 
     type = py_object_type
 
     subexprs = ['module_name', 'name_list']
 
     def analyse_types(self, env):
+        if self.level is None:
+            if env.directives['language_level'] < 3 or env.directives['py2_import']:
+                self.level = -1
+            else:
+                self.level = 0
         self.module_name.analyse_types(env)
         self.module_name = self.module_name.coerce_to_pyobject(env)
         if self.name_list:
@@ -1765,10 +1778,11 @@ class ImportNode(ExprNode):
         else:
             name_list_code = "0"
         code.putln(
-            "%s = __Pyx_Import(%s, %s); %s" % (
+            "%s = __Pyx_Import(%s, %s, %d); %s" % (
                 self.result(),
                 self.module_name.py_result(),
                 name_list_code,
+                self.level,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -7659,10 +7673,10 @@ static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
 
 import_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level); /*proto*/
 """,
 impl = """
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
     PyObject *py_import = 0;
     PyObject *empty_list = 0;
     PyObject *module = 0;
@@ -7686,8 +7700,23 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
     empty_dict = PyDict_New();
     if (!empty_dict)
         goto bad;
+    #if PY_VERSION_HEX >= 0x02050000
+    {
+        PyObject *py_level = PyInt_FromLong(level);
+        if (!py_level)
+            goto bad;
+        module = PyObject_CallFunctionObjArgs(py_import,
+            name, global_dict, empty_dict, list, py_level, NULL);
+        Py_DECREF(py_level);
+    }
+    #else
+    if (level>0) {
+        PyErr_SetString(PyExc_RuntimeError, "Relative import is not supported for Python <=2.4.");
+        goto bad;
+    }
     module = PyObject_CallFunctionObjArgs(py_import,
         name, global_dict, empty_dict, list, NULL);
+    #endif
 bad:
     Py_XDECREF(empty_list);
     Py_XDECREF(py_import);

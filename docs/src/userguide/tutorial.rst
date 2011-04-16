@@ -15,7 +15,7 @@ with C data types.
 Cython is Python: Almost any piece of Python code is also valid Cython code.
 (There are a few :ref:`cython-limitations`, but this approximation will
 serve for now.) The Cython compiler will convert it into C code which makes
-equivalent calls to the Python/C API. 
+equivalent calls to the Python/C API.
 
 But Cython is much more than that, because parameters and variables can be
 declared to have C data types. Code which manipulates Python values and C
@@ -48,7 +48,7 @@ information see :ref:`compilation`). Your :file:`setup.py` should look like::
     setup(
         cmdclass = {'build_ext': build_ext},
         ext_modules = [Extension("helloworld", ["helloworld.pyx"])]
-    ) 
+    )
 
 To use this to build your Cython file use the commandline options:
 
@@ -95,7 +95,7 @@ Fibonacci Fun
 
 From the official Python tutorial a simple fibonacci function is defined as:
 
-.. literalinclude:: ../examples/tutorial/fib1/fib.pyx
+.. literalinclude:: ../../examples/tutorial/fib1/fib.pyx
 
 Now following the steps for the Hello World example we first rename the file
 to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
@@ -103,7 +103,7 @@ to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
 that you need to change is the name of the Cython filename, and the resulting
 module name, doing this we have:
 
-.. literalinclude:: ../examples/tutorial/fib1/setup.py
+.. literalinclude:: ../../examples/tutorial/fib1/setup.py
 
 Build the extension with the same command used for the helloworld.pyx:
 
@@ -124,9 +124,9 @@ Here's a small example showing some of what can be done. It's a routine for
 finding prime numbers. You tell it how many primes you want, and it returns
 them as a Python list.
 
-:file:`primes.pyx`: 
+:file:`primes.pyx`:
 
-.. literalinclude:: ../examples/tutorial/primes/primes.pyx
+.. literalinclude:: ../../examples/tutorial/primes/primes.pyx
     :linenos:
 
 You'll see that it starts out just like a normal Python function definition,
@@ -161,11 +161,11 @@ which we can try out in the interactive interpreter as follows::
     [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
 
 See, it works! And if you're curious about how much work Cython has saved you,
-take a look at the C code generated for this module. 
+take a look at the C code generated for this module.
 
 Language Details
 ================
 
-For more about the Cython language, see :ref:`language-basics`. 
+For more about the Cython language, see :ref:`language-basics`.
 To dive right in to using Cython in a numerical computation context, see :ref:`numpy_tutorial`.
 
