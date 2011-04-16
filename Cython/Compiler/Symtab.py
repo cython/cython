@@ -760,7 +760,10 @@ class BuiltinScope(Scope):
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
-                warning(pos, "undeclared name not builtin: %s" % name, 2)
+                if Options.error_on_unknown_names:
+                    error(pos, "undeclared name not builtin: %s" % name)
+                else:
+                    warning(pos, "undeclared name not builtin: %s" % name, 2)
 
     def declare_builtin_cfunction(self, name, type, cname, python_equiv = None,
             utility_code = None):
@@ -802,6 +805,8 @@ class BuiltinScope(Scope):
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
+        if Options.cache_builtins:
+            var_entry.is_const = True
         entry.as_variable = var_entry
 
         return type
@@ -911,7 +916,7 @@ class ModuleScope(Scope):
         return self.outer_scope.lookup(name, language_level = self.context.language_level)
 
     def declare_builtin(self, name, pos):
-        if not hasattr(builtins, name) and name not in ('xrange', 'BaseException'):
+        if not hasattr(builtins, name) and name not in Code.non_portable_builtins_map:
             # 'xrange' and 'BaseException' are special cased in Code.py
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
@@ -922,7 +927,10 @@ class ModuleScope(Scope):
             ##     return entry
             else:
                 # unknown - assume it's builtin and look it up at runtime
-                warning(pos, "undeclared name not builtin: %s" % name, 2)
+                if Options.error_on_unknown_names:
+                    error(pos, "undeclared name not builtin: %s" % name)
+                else:
+                    warning(pos, "undeclared name not builtin: %s" % name, 2)
                 entry = self.declare(name, None, py_object_type, pos, 'private')
                 entry.is_builtin = 1
                 return entry
@@ -933,7 +941,7 @@ class ModuleScope(Scope):
         entry = self.declare(None, None, py_object_type, pos, 'private')
         if Options.cache_builtins:
             entry.is_builtin = 1
-            entry.is_const = 1
+            entry.is_const = 1 # cached
             entry.name = name
             entry.cname = Naming.builtin_prefix + name
             self.cached_builtins.append(entry)
