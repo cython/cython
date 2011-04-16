@@ -669,8 +669,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
         if result:
             directive = full_name.rsplit('.', 1)
-            if (len(directive) != 2 or directive[1] not in
-                    self.valid_parallel_directives):
+            if len(directive) == 2 and directive[1] == '*':
+                # star import
+                for name in self.valid_parallel_directives:
+                    self.parallel_directives[name] = u"cython.parallel.%s" % name
+            elif (len(directive) != 2 or
+                  directive[1] not in self.valid_parallel_directives):
                 error(pos, "No such directive: %s" % full_name)
 
         return result
@@ -682,7 +686,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             if node.module_name.startswith(u"cython.parallel."):
                 error(node.pos, node.module_name + " is not a module")
             if node.module_name == u"cython.parallel":
-                if node.as_name:
+                if node.as_name and node.as_name != u"cython":
                     self.parallel_directives[node.as_name] = node.module_name
                 else:
                     self.cython_module_names.add(u"cython")
@@ -748,28 +752,23 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_SingleAssignmentNode(self, node):
-        if (isinstance(node.rhs, ExprNodes.ImportNode) and
-            node.rhs.module_name.value in (u'cython', u"cython.parallel")):
+        if isinstance(node.rhs, ExprNodes.ImportNode):
+            module_name = node.rhs.module_name.value
+            is_parallel = (module_name + u".").startswith(u"cython.parallel.")
+
+            if module_name != u"cython" and not is_parallel:
+                return node
 
             module_name = node.rhs.module_name.value
             as_name = node.lhs.name
 
-            if module_name == u"cython.parallel" and as_name == u"cython":
-                # Be consistent with the cimport variant
-                as_name = u"cython.parallel"
-
             node = Nodes.CImportStatNode(node.pos,
                                          module_name = module_name,
                                          as_name = as_name)
-
-            self.visit_CImportStatNode(node)
-            if node.module_name == u"cython.parallel":
-                # This is an import for a fake module, remove it
-                return None
-            if node.module_name.startswith(u"cython.parallel."):
-                error(node.pos, node.module_name + " is not a module")
+            node = self.visit_CImportStatNode(node)
         else:
             self.visitchildren(node)
+
         return node
 
     def visit_NameNode(self, node):
@@ -1041,7 +1040,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         return node
 
     def visit_CallNode(self, node):
-        self.visitchildren(node)
+        self.visit(node.function)
         if not self.parallel_directive:
             return node
 

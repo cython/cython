@@ -18,6 +18,7 @@ Contents:
    limitations
    pyrex_differences
    early_binding_for_speed
+   parallelism
    debugging
 
 Indices and tables
