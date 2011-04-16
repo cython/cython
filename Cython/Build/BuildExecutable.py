@@ -11,7 +11,6 @@ DEBUG = True
 
 import sys
 import os
-import subprocess
 from distutils import sysconfig
 
 INCDIR = sysconfig.get_python_inc()
@@ -51,7 +50,13 @@ def runcmd(cmd, shell=True):
     else:
         _debug(' '.join(cmd))
 
-    returncode = subprocess.call(cmd, shell=shell)
+    try:
+        import subprocess
+    except ImportError: # Python 2.3 ...
+        returncode = os.system(cmd)
+    else:
+        returncode = subprocess.call(cmd, shell=shell)
+    
     if returncode:
         sys.exit(returncode)
 
