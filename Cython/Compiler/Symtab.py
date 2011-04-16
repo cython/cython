@@ -760,7 +760,7 @@ class BuiltinScope(Scope):
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
-                error(pos, "undeclared name not builtin: %s"%name)
+                warning(pos, "undeclared name not builtin: %s" % name, 2)
 
     def declare_builtin_cfunction(self, name, type, cname, python_equiv = None,
             utility_code = None):
@@ -916,10 +916,16 @@ class ModuleScope(Scope):
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
-            elif self.outer_scope is not None:
-                return self.outer_scope.declare_builtin(name, pos)
+            ## elif self.outer_scope is not None:
+            ##     entry = self.outer_scope.declare_builtin(name, pos)
+            ##     print entry
+            ##     return entry
             else:
-                error(pos, "undeclared name not builtin: %s"%name)
+                # unknown - assume it's builtin and look it up at runtime
+                warning(pos, "undeclared name not builtin: %s" % name, 2)
+                entry = self.declare(name, None, py_object_type, pos, 'private')
+                entry.is_builtin = 1
+                return entry
         if Options.cache_builtins:
             for entry in self.cached_builtins:
                 if entry.name == name:

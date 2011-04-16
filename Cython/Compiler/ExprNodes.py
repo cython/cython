@@ -1339,7 +1339,7 @@ class NameNode(AtomicExprNode):
             if entry and entry.is_cfunction:
                 var_entry = entry.as_variable
                 if var_entry:
-                    if var_entry.is_builtin and Options.cache_builtins:
+                    if var_entry.is_builtin and var_entry.is_const:
                         var_entry = env.declare_builtin(var_entry.name, self.pos)
                     node = NameNode(self.pos, name = self.name)
                     node.entry = var_entry
@@ -1436,7 +1436,7 @@ class NameNode(AtomicExprNode):
         if entry.is_declared_generic:
             self.result_ctype = py_object_type
         if entry.is_pyglobal or entry.is_builtin:
-            if Options.cache_builtins and entry.is_builtin:
+            if entry.is_builtin and entry.is_const:
                 self.is_temp = 0
             else:
                 self.is_temp = 1
@@ -1447,7 +1447,7 @@ class NameNode(AtomicExprNode):
         if self.is_used_as_rvalue:
             entry = self.entry
             if entry.is_builtin:
-                if not Options.cache_builtins: # cached builtins are ok
+                if not entry.is_const: # cached builtins are ok
                     self.gil_error()
             elif entry.is_pyglobal:
                 self.gil_error()
@@ -1525,7 +1525,7 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
-        if entry.is_builtin and Options.cache_builtins:
+        if entry.is_builtin and entry.is_const:
             return # Lookup already cached
         elif entry.is_pyclass_attr:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
