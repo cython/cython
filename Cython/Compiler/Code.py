@@ -23,6 +23,14 @@ try:
 except ImportError:
     from builtins import str as basestring
 
+
+non_portable_builtins_map = {
+    'bytes'         : ('PY_MAJOR_VERSION < 3',  'str'),
+    'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
+    'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
+    'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
+    }
+
 class UtilityCode(object):
     # Stores utility code to add during code generation.
     #
@@ -651,31 +659,22 @@ class GlobalState(object):
         return "%s%s%d" % (Naming.const_prefix, prefix, n)
 
     def add_cached_builtin_decl(self, entry):
-        if Options.cache_builtins:
+        if entry.is_builtin and entry.is_const:
             if self.should_declare(entry.cname, entry):
                 self.put_pyobject_decl(entry)
                 w = self.parts['cached_builtins']
-                conditional_name = False
-                if entry.name == 'xrange':
-                    # replaced by range() in Py3
-                    conditional_name = True
-                    w.putln('#if PY_MAJOR_VERSION >= 3')
+                condition = None
+                if entry.name in non_portable_builtins_map:
+                    condition, replacement = non_portable_builtins_map[entry.name]
+                    w.putln('#if %s' % condition)
                     self.put_cached_builtin_init(
-                        entry.pos, StringEncoding.EncodedString('range'),
+                        entry.pos, StringEncoding.EncodedString(replacement),
                         entry.cname)
-                elif entry.name == 'BaseException':
-                    # replace BaseException by Exception in Py<2.5
-                    conditional_name = True
-                    w.putln('#if PY_VERSION_HEX < 0x02050000')
-                    self.put_cached_builtin_init(
-                        entry.pos, StringEncoding.EncodedString('Exception'),
-                        entry.cname)
-                if conditional_name:
                     w.putln('#else')
                 self.put_cached_builtin_init(
                     entry.pos, StringEncoding.EncodedString(entry.name),
                     entry.cname)
-                if conditional_name:
+                if condition:
                     w.putln('#endif')
 
     def put_cached_builtin_init(self, pos, name, cname):
