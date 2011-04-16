@@ -4,6 +4,7 @@
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
+cimport openmp
 from libc.stdlib cimport malloc, free
 from libc.stdio cimport puts
 cimport numpy as np
@@ -67,28 +68,29 @@ def test_nested_prange():
 
     return sum
 
-# threadsavailable test, disable this for now as it won't compile
-#def test_parallel():
-#    """
-#    >>> test_parallel()
-#    """
-#    cdef int *buf = <int *> malloc(sizeof(int) * threadsavailable())
-#
-#    if buf == NULL:
-#        raise MemoryError
-#
-#    with nogil, cython.parallel.parallel:
-#        buf[threadid()] = threadid()
-#
-#    for i in range(threadsavailable()):
-#        assert buf[i] == i
-#
-#    free(buf)
+
+def test_parallel():
+    """
+    >>> test_parallel()
+    """
+    cdef int maxthreads = openmp.omp_get_max_threads()
+    cdef int *buf = <int *> malloc(sizeof(int) * maxthreads)
+
+    if buf == NULL:
+        raise MemoryError
+
+    with nogil, cython.parallel.parallel:
+        buf[threadid()] = threadid()
+
+    for i in range(maxthreads):
+        assert buf[i] == i
+
+    free(buf)
 
 def test_unsigned_operands():
     """
     This test is disabled, as this currently does not work (neither does it
-    for 'for i from x < i < y:'. I'm not sure we should strife to support 
+    for 'for i from x < i < y:'. I'm not sure we should strife to support
     this, at least the C compiler gives a warning.
 
     test_unsigned_operands()
@@ -215,18 +217,19 @@ def test_parallel_numpy_arrays():
     """
     cdef Py_ssize_t i
     cdef np.ndarray[np.int_t] x
-    
+
     try:
         import numpy
     except ImportError:
         for i in range(-5, 5):
             print i
         return
-    
+
     x = numpy.zeros(10, dtype=np.int)
-    
+
     for i in prange(x.shape[0], nogil=True):
         x[i] = i - 5
-    
+
     for i in x:
         print x
+
