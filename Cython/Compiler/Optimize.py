@@ -1604,6 +1604,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node.operand
         return node
 
+    def visit_ExprStatNode(self, node):
+        """
+        Drop useless coercions.
+        """
+        self.visitchildren(node)
+        if isinstance(node.expr, ExprNodes.CoerceToPyTypeNode):
+            node.expr = node.expr.arg
+        return node
+
     def visit_CoerceToBooleanNode(self, node):
         """Drop redundant conversion nodes after tree changes.
         """
@@ -2146,7 +2155,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     _handle_simple_method_list_pop = _handle_simple_method_object_pop
 
     single_param_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_int_type, [
+        PyrexTypes.c_returncode_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
             ],
         exception_value = "-1")
@@ -2158,7 +2167,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         return self._substitute_method_call(
             node, "PyList_Sort", self.single_param_func_type,
-            'sort', is_unbound_method, args)
+            'sort', is_unbound_method, args).coerce_to(node.type, self.current_env)
 
     Pyx_PyDict_GetItem_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
