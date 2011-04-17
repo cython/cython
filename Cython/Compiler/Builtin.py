@@ -478,9 +478,9 @@ builtin_types_table = [
 
     ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "i", "PyList_Insert"),
-                                    BuiltinMethod("reverse", "T",    "i", "PyList_Reverse"),
-                                    BuiltinMethod("append",  "TO",   "i", "PyList_Append"),
+    ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
+                                    BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
+                                    BuiltinMethod("append",  "TO",   "r", "PyList_Append"),
                                     ]),
 
     ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),  # FIXME: Py3 mode?
@@ -494,9 +494,9 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "i", "PySet_Clear"),
-                                    BuiltinMethod("discard", "TO", "i", "PySet_Discard"),
-                                    BuiltinMethod("add",     "TO", "i", "PySet_Add"),
+    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
+                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
+                                    BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),
 ]
