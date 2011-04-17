@@ -913,6 +913,8 @@ class CAnonEnumType(CIntType):
 
 class CReturnCodeType(CIntType):
 
+    to_py_function = "__Pyx_Owned_Py_None"
+
     is_returncode = 1
 
 
@@ -2783,6 +2785,7 @@ type_conversion_predeclarations = """
 #define __Pyx_PyBytes_FromUString(s) PyBytes_FromString((char*)s)
 #define __Pyx_PyBytes_AsUString(s)   ((unsigned char*) PyBytes_AsString(s))
 
+#define __Pyx_Owned_Py_None(b) (Py_INCREF(Py_None), Py_None)
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
