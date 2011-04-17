@@ -155,6 +155,22 @@ def check_throw():
         except ValueError:
             pass
 
+def check_yield_in_except():
+    """
+    >>> import sys
+    >>> orig_exc = sys.exc_info()[0]
+    >>> g = check_yield_in_except()
+    >>> next(g)
+    >>> next(g)
+    >>> orig_exc is sys.exc_info()[0] or sys.exc_info()[0]
+    True
+    """
+    try:
+        yield
+        raise ValueError
+    except ValueError:
+        yield
+
 def test_swap_assignment():
     """
     >>> gen = test_swap_assignment()
