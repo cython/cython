@@ -978,6 +978,10 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     # Keep track of whether we are in a parallel range section
     in_prange = False
 
+    # One of 'prange' or 'with parallel'. This is used to disallow closely
+    # nested 'with parallel:' blocks
+    state = None
+
     directive_to_node = {
         u"cython.parallel.parallel": Nodes.ParallelWithBlockNode,
         # u"cython.parallel.threadsavailable": ExprNodes.ParallelThreadsAvailableNode,
@@ -1070,9 +1074,16 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                 # There was an error, stop here and now
                 return None
 
+            if self.state == 'parallel with':
+                error(node.manager.pos,
+                      "Closely nested 'with parallel:' blocks are disallowed")
+
+            self.state = 'parallel with'
             self.visit(node.body)
+            self.state = None
 
             newnode = Nodes.ParallelWithBlockNode(node.pos, body=node.body)
+
         else:
             newnode = node
 
@@ -1088,6 +1099,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         was_in_prange = self.in_prange
         self.in_prange = isinstance(node.iterator.sequence,
                                     Nodes.ParallelRangeNode)
+        previous_state = self.state
 
         if self.in_prange:
             # This will replace the entire ForInStatNode, so copy the
@@ -1104,11 +1116,13 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                 error(node.target.pos,
                       "Can only iterate over an iteration variable")
 
+            self.state = 'prange'
+
         self.visit(node.body)
-
+        self.state = previous_state
         self.in_prange = was_in_prange
-        self.visit(node.else_clause)
 
+        self.visit(node.else_clause)
         return node
 
     def ensure_not_in_prange(name):

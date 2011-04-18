@@ -43,30 +43,25 @@ def test_descending_prange():
 
     return sum
 
-def test_nested_prange():
+def test_propagation():
     """
-    Reduction propagation is not (yet) supported.
-
-    >>> test_nested_prange()
-    50
+    >>> test_propagation()
+    (9, 9, 9, 9, 450, 450)
     """
-    cdef int i, j
-    cdef int sum = 0
+    cdef int i, j, x, y
+    cdef int sum1 = 0, sum2 = 0
 
-    for i in prange(5, nogil=True):
-        for j in prange(5):
-            sum += i
+    for i in prange(10, nogil=True):
+        for j in prange(10):
+            sum1 += i
 
-    # The value of sum is undefined here
+    with nogil, cython.parallel.parallel:
+        for x in prange(10):
+            with cython.parallel.parallel:
+                for y in prange(10):
+                    sum2 += y
 
-    sum = 0
-
-    for i in prange(5, nogil=True):
-        for j in prange(5):
-            sum += i
-        sum += 0
-
-    return sum
+    return i, j, x, y, sum1, sum2
 
 
 def test_parallel():
@@ -225,11 +220,11 @@ def test_parallel_numpy_arrays():
             print i
         return
 
-    x = numpy.zeros(10, dtype=np.int)
+    x = numpy.zeros(10, dtype=numpy.int)
 
     for i in prange(x.shape[0], nogil=True):
         x[i] = i - 5
 
     for i in x:
-        print x
+        print i
 
