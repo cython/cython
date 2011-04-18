@@ -5770,36 +5770,101 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     def __init__(self, pos, **kwargs):
         super(ParallelStatNode, self).__init__(pos, **kwargs)
+
+        # All assignments in this scope
         self.assignments = kwargs.get('assignments') or {}
-        # Insertion point before the outermost parallel section
-        self.before_parallel_section_point = None
-        # Insertion point after the outermost parallel section
-        self.post_parallel_section_point = None
+
+        # All seen closure cnames and their temporary cnames
+        self.seen_closure_vars = set()
+
+        # Dict of variables that should be declared (first|last|)private or
+        # reduction { Entry: op }. If op is not None, it's a reduction.
+        self.privates = {}
+
+    def analyse_declarations(self, env):
+        self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
 
-    def analyse_declarations(self, env):
-        super(ParallelStatNode, self).analyse_declarations(env)
-        self.body.analyse_declarations(env)
-
-    def lookup_assignment(self, entry):
+    def analyse_sharing_attributes(self, env):
         """
-        Return an assignment's pos and operator. If the parent has the
-        assignment, return the parent's assignment, otherwise our own.
+        Analyse the privates for this block and set them in self.privates.
+        This should be called in a post-order fashion during the
+        analyse_expressions phase
         """
-        parent_assignment = self.parent and self.parent.lookup_assignment(entry)
-        return parent_assignment or self.assignments.get(entry)
+        for entry, (pos, op) in self.assignments.iteritems():
+            if self.is_private(entry):
+                self.propagate_var_privatization(entry, op)
 
     def is_private(self, entry):
         """
         True if this scope should declare the variable private, lastprivate
         or reduction.
         """
-        parent_or_our_entry = self.lookup_assignment(entry)
-        our_entry = self.assignments.get(entry)
+        return (self.is_parallel or
+                (self.parent and entry not in self.parent.privates))
 
-        return self.is_parallel or parent_or_our_entry == our_entry
+    def propagate_var_privatization(self, entry, op):
+        """
+        Propagate the sharing attributes of a variable. If the privatization is
+        determined by a parent scope, done propagate further.
+
+        If we are a prange, we propagate our sharing attributes outwards to
+        other pranges. If we are a prange in parallel block and the parallel
+        block does not determine the variable private, we propagate to the
+        parent of the parent. Recursion stops at parallel blocks, as they have
+        no concept of lastprivate or reduction.
+
+        So the following cases propagate:
+
+            sum is a reduction for all loops:
+
+                for i in prange(n):
+                    for j in prange(n):
+                        for k in prange(n):
+                            sum += i * j * k
+
+            sum is a reduction for both loops, local_var is private to the
+            parallel with block:
+
+                for i in prange(n):
+                    with parallel:
+                        local_var = ... # private to the parallel
+                        for j in prange(n):
+                            sum += i * j
+
+        This does not propagate to the outermost prange:
+
+            #pragma omp parallel for lastprivate(i)
+            for i in prange(n):
+
+                #pragma omp parallel private(j, sum)
+                with parallel:
+
+                    #pragma omp parallel
+                    with parallel:
+
+                        #pragma omp for lastprivate(j) reduction(+:sum)
+                        for j in prange(n):
+                            sum += i
+
+                    # sum and j are well-defined here
+
+                # sum and j are undefined here
+
+            # sum and j are undefined here
+        """
+        self.privates[entry] = op
+        if self.is_prange:
+            if not self.is_parallel and entry not in self.parent.assignments:
+                # Parent is a parallel with block
+                parent = self.parent.parent
+            else:
+                parent = self.parent
+
+            if parent:
+                parent.propagate_var_privatization(entry, op)
 
     def _allocate_closure_temp(self, code, entry):
         """
@@ -5809,11 +5874,19 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.parent:
             return self.parent._allocate_closure_temp(code, entry)
 
+        if entry.cname in self.seen_closure_vars:
+            return entry.cname
+
         cname = code.funcstate.allocate_temp(entry.type, False)
+
+        # Add both the actual cname and the temp cname, as the actual cname
+        # will be replaced with the temp cname on the entry
+        self.seen_closure_vars.add(entry.cname)
+        self.seen_closure_vars.add(cname)
+
         self.modified_entries.append((entry, entry.cname))
         code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
-        return cname
 
     def declare_closure_privates(self, code):
         """
@@ -5827,19 +5900,18 @@ class ParallelStatNode(StatNode, ParallelNode):
         after the parallel section. This kind of copying should be done only
         in the outermost parallel section.
         """
-        self.privates = {}
         self.modified_entries = []
 
         for entry, (pos, op) in self.assignments.iteritems():
-            cname = entry.cname
             if entry.from_closure or entry.in_closure:
-                cname = self._allocate_closure_temp(code, entry)
-
-            if self.is_private(entry):
-                self.privates[cname] = op
+                self._allocate_closure_temp(code, entry)
 
     def release_closure_privates(self, code):
-        "Release any temps used for variables in scope objects"
+        """
+        Release any temps used for variables in scope objects. As this is the
+        outermost parallel block, we don't need to delete the cnames from
+        self.seen_closure_vars
+        """
         for entry, original_cname in self.modified_entries:
             code.putln("%s = %s;" % (original_cname, entry.cname))
             code.funcstate.release_temp(entry.cname)
@@ -5853,15 +5925,23 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     nogil_check = None
 
+    def analyse_expressions(self, env):
+        super(ParallelWithBlockNode, self).analyse_expressions(env)
+        self.analyse_sharing_attributes(env)
+
     def generate_execution_code(self, code):
         self.declare_closure_privates(code)
 
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
-        code.putln(' '.join(["private(%s)" % e.cname
-                                   for e in self.assignments
-                                       if self.is_private(e)]))
-        code.putln("#endif")
+
+        if self.privates:
+            code.put(
+                'private(%s)' % ', '.join([e.cname for e in self.privates]))
+
+        code.putln("")
+        code.putln("#endif /* _OPENMP */")
+
         code.begin_block()
         self.body.generate_execution_code(code)
         code.end_block()
@@ -5930,11 +6010,18 @@ class ParallelRangeNode(ParallelStatNode):
             return
 
         self.target.analyse_target_types(env)
-        self.index_type = self.target.type
 
-        if self.index_type.is_pyobject:
-            # nogil_check will catch this, for now, assume a valid type
+        if not self.target.type.is_numeric:
+            # Not a valid type, assume one for now anyway
+
+            if not self.target.type.is_pyobject:
+                # nogil_check will catch the is_pyobject case
+                error(self.target.pos,
+                      "Must be of numeric type, not %s" % self.target.type)
+
             self.index_type = PyrexTypes.c_py_ssize_t_type
+        else:
+            self.index_type = self.target.type
 
         # Setup start, stop and step, allocating temps if needed
         self.names = 'start', 'stop', 'step'
@@ -5957,9 +6044,19 @@ class ParallelRangeNode(ParallelStatNode):
                 self.index_type = PyrexTypes.widest_numeric_type(
                                         self.index_type, node.type)
 
-        self.body.analyse_expressions(env)
+        super(ParallelRangeNode, self).analyse_expressions(env)
         if self.else_clause is not None:
             self.else_clause.analyse_expressions(env)
+
+        # Although not actually an assignment in this scope, it should be
+        # treated as such to ensure it is unpacked if a closure temp, and to
+        # ensure lastprivate behaviour and propagation. If the target index is
+        # not a NameNode, it won't have an entry, and an error was issued by
+        # ParallelRangeTransform
+        if hasattr(self.target, 'entry'):
+            self.assignments[self.target.entry] = self.target.pos, None
+
+        self.analyse_sharing_attributes(env)
 
     def nogil_check(self, env):
         names = 'start', 'stop', 'step', 'target'
@@ -6009,9 +6106,7 @@ class ParallelRangeNode(ParallelStatNode):
 
             4) release our temps and write back any private closure variables
         """
-        # Ensure to unpack the target index variable if it's a closure temp
-        self.assignments[self.target.entry] = self.target.pos, None
-        self.declare_closure_privates(code) #self.insertion_point(code))
+        self.declare_closure_privates(code)
 
         # This can only be a NameNode
         target_index_cname = self.target.entry.cname
@@ -6070,8 +6165,6 @@ class ParallelRangeNode(ParallelStatNode):
         code.end_block()
 
     def generate_loop(self, code, fmt_dict):
-        target_index_cname = fmt_dict['target']
-
         code.putln("#ifdef _OPENMP")
 
         if not self.is_parallel:
@@ -6079,29 +6172,26 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             code.put("#pragma omp parallel for")
 
-        for private, op in self.privates.iteritems():
+        for entry, op in self.privates.iteritems():
             # Don't declare the index variable as a reduction
-            if private != target_index_cname:
-                if op and op in "+*-&^|":
-                    code.put(" reduction(%s:%s)" % (op, private))
-                else:
-                    code.put(" lastprivate(%s)" % private)
+            if op and op in "+*-&^|" and entry != self.target.entry:
+                code.put(" reduction(%s:%s)" % (op, entry.cname))
+            else:
+                code.put(" lastprivate(%s)" % entry.cname)
 
         if self.schedule:
             code.put(" schedule(%s)" % self.schedule)
 
-        if self.is_parallel or self.target.entry not in self.parent.assignments:
-            code.putln(" lastprivate(%s)" % target_index_cname)
-        else:
-            code.putln("")
-
-        code.putln("#endif")
+        code.putln("")
+        code.putln("#endif /* _OPENMP */")
 
         code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
         code.begin_block()
         code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
         self.body.generate_execution_code(code)
         code.end_block()
+
+
 
 
 #------------------------------------------------------------------------------------
