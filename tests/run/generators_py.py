@@ -7,10 +7,6 @@ except ImportError:
     def next(it):
         return it.next()
 
-if hasattr(__builtins__, 'GeneratorExit'):
-    GeneratorExit = __builtins__.GeneratorExit
-else: # < 2.5
-    GeneratorExit = StopIteration
 
 def very_simple():
     """
@@ -280,10 +276,11 @@ def test_inside_lambda():
     >>> obj = test_inside_lambda()()
     >>> next(obj)
     1
-    >>> obj.send('a')
+    >>> next(obj)
     2
-    >>> obj.send('b')
-    ('a', 'b')
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
     """
     return lambda:((yield 1), (yield 2))
 
