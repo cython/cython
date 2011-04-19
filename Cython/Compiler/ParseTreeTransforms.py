@@ -193,9 +193,8 @@ class PostParse(ScopeTrackingTransform):
         collector = YieldNodeCollector()
         collector.visitchildren(node.result_expr)
         if collector.yields or isinstance(node.result_expr, ExprNodes.YieldExprNode):
-            body = ExprNodes.YieldExprNode(
-                node.result_expr.pos, arg=node.result_expr)
-            body = Nodes.ExprStatNode(node.result_expr.pos, expr=body)
+            body = Nodes.ExprStatNode(
+                node.result_expr.pos, expr=node.result_expr)
         else:
             body = Nodes.ReturnStatNode(
                 node.result_expr.pos, value=node.result_expr)
