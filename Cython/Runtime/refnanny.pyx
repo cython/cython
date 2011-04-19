@@ -1,5 +1,6 @@
 from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF
 from cpython.exc cimport PyErr_Fetch, PyErr_Restore
+from cpython.pystate cimport PyThreadState_Get
 
 
 loglevel = 0
@@ -80,6 +81,7 @@ cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except N
         return NULL
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     cdef PyObject* result = NULL
+    PyThreadState_Get()
     PyErr_Fetch(&type, &value, &tb)
     try:
         ctx = Context(funcname, lineno, filename)
@@ -131,16 +133,19 @@ cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
 
 cdef void INCREF(PyObject* ctx, PyObject* obj, int lineno):
     if obj is not NULL: Py_INCREF(<object>obj)
+    PyThreadState_Get()
     GOTREF(ctx, obj, lineno)
 
 cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
     if GIVEREF_and_report(ctx, obj, lineno):
         if obj is not NULL: Py_DECREF(<object>obj)
+    PyThreadState_Get()
 
 cdef void FinishContext(PyObject** ctx):
     if ctx == NULL or ctx[0] == NULL: return
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     cdef object errors = None
+    PyThreadState_Get()
     PyErr_Fetch(&type, &value, &tb)
     try:
         try:

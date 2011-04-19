@@ -1564,10 +1564,12 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         if code.funcstate.should_declare_error_indicator:
-            tempvardecl_code.putln("int %s;" % Naming.lineno_cname)
-            tempvardecl_code.putln("const char *%s;" % Naming.filename_cname)
+            # Initialize these variables to shut up compiler warnings
+            tempvardecl_code.putln("int %s = 0;" % Naming.lineno_cname)
+            tempvardecl_code.putln("const char *%s = NULL;" %
+                                                    Naming.filename_cname)
             if code.c_line_in_traceback:
-                tempvardecl_code.putln("int %s;" % Naming.clineno_cname)
+                tempvardecl_code.putln("int %s = 0;" % Naming.clineno_cname)
 
         # ----- Python version
         code.exit_cfunc_scope()
