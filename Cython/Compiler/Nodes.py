@@ -5828,10 +5828,13 @@ class ParallelStatNode(StatNode, ParallelNode):
                         for j in prange(n):
                             sum += i * j
 
-        This does not propagate to the outermost prange:
+        Nested with parallel blocks are disallowed, because they wouldn't
+        allow you to propagate lastprivates or reductions:
 
             #pragma omp parallel for lastprivate(i)
             for i in prange(n):
+
+                sum = 0
 
                 #pragma omp parallel private(j, sum)
                 with parallel:
