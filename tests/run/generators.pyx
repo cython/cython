@@ -7,6 +7,10 @@ except ImportError:
     def next(it):
         return it.next()
 
+if hasattr(__builtins__, 'GeneratorExit'):
+    GeneratorExit = __builtins__.GeneratorExit
+else: # < 2.5
+    GeneratorExit = StopIteration
 
 def very_simple():
     """
