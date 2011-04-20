@@ -10,6 +10,12 @@ from libc.stdio cimport puts
 
 import sys
 
+try:
+    from builtins import next # Py3k
+except ImportError:
+    def next(it):
+        return it.next()
+
 #@cython.test_assert_path_exists(
 #    "//ParallelWithBlockNode//ParallelRangeNode[@schedule = 'dynamic']",
 #    "//GILStatNode[@state = 'nogil]//ParallelRangeNode")
@@ -163,7 +169,7 @@ def test_closure_parallel_privates():
         yield x
 
     g = test_generator()
-    print g.next(), x, g.next(), x
+    print next(g), x, next(g), x
 
 def test_pure_mode():
     """

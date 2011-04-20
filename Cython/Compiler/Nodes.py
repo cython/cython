@@ -5993,6 +5993,9 @@ class ParallelRangeNode(ParallelStatNode):
         self.is_nogil = self.kwargs.pop('nogil', False)
         self.schedule = self.kwargs.pop('schedule', None)
 
+        if hasattr(self.schedule, 'decode'):
+            self.schedule = self.schedule.decode('ascii')
+
         if self.schedule not in (None, 'static', 'dynamic', 'guided',
                                  'runtime'):
             error(self.pos, "Invalid schedule argument to prange: %r" %
