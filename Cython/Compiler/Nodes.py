@@ -6004,7 +6004,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.schedule not in (None, 'static', 'dynamic', 'guided',
                                  'runtime'):
-            error(self.pos, "Invalid schedule argument to prange: %r" %
+            error(self.pos, "Invalid schedule argument to prange: %s" %
                                                         (self.schedule,))
 
         for kw in self.kwargs:
