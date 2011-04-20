@@ -1,4 +1,4 @@
-# tag: run
+# tag: numpy
 # distutils: libraries = gomp
 # distutils: extra_compile_args = -fopenmp
 
