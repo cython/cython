@@ -2,9 +2,13 @@
 
 from libcpp.string cimport string
 
+b_asdf = b'asdf'
+b_asdg = b'asdg'
+b_s = b's'
+
 def test_indexing(char *py_str):
     """
-    >>> test_indexing("asdf")
+    >>> test_indexing(b_asdf)
     ('s', 's')
     """
     cdef string s
@@ -13,7 +17,7 @@ def test_indexing(char *py_str):
 
 def test_size(char *py_str):
     """
-    >>> test_size("asdf")
+    >>> test_size(b_asdf)
     (4, 4)
     """
     cdef string s
@@ -22,10 +26,10 @@ def test_size(char *py_str):
 
 def test_compare(char *a, char *b):
     """
-    >>> test_compare("aa", "aa")
+    >>> test_compare(b_asdf, b_asdf)
     0
 
-    >>> test_compare("aa", "ab") < 0
+    >>> test_compare(b_asdf, b_asdg) < 0
     True
     """
     cdef string s = string(a)
@@ -37,23 +41,23 @@ def test_empty():
     >>> test_empty()
     (True, False)
     """
-    cdef string a = string(<char *>"")
-    cdef string b = string(<char *>"aa")
+    cdef string a = string(<char *>b"")
+    cdef string b = string(<char *>b"aa")
     return a.empty(), b.empty()
 
 def test_push_back(char *a):
     """
-    >>> test_push_back("asdf")
-    'asdfZ'
+    >>> test_push_back(b_asdf) == b_asdf + b_s
+    True
     """
     cdef string s = string(a)
-    s.push_back(<char>ord('Z'))
+    s.push_back(<char>ord('s'))
     return s.c_str()
 
 def test_insert(char *a, char *b, int i):
     """
-    >>> test_insert("AAAA", "BBBB", 2)
-    'AABBBBAA'
+    >>> test_insert('AAAA'.encode('ASCII'), 'BBBB'.encode('ASCII'), 2) == 'AABBBBAA'.encode('ASCII')
+    True
     """
     cdef string s = string(a)
     cdef string t = string(b)
@@ -62,8 +66,8 @@ def test_insert(char *a, char *b, int i):
 
 def test_copy(char *a):
     """
-    >>> test_copy("asdf")
-    'sdf'
+    >>> test_copy(b_asdf) == b_asdf[1:]
+    True
     """
     cdef string t = string(a)
     cdef char buffer[6]
@@ -73,7 +77,7 @@ def test_copy(char *a):
 
 def test_find(char *a, char *b):
     """
-    >>> test_find("asdf", "df")
+    >>> test_find(b_asdf, 'df'.encode('ASCII'))
     2
     """
     cdef string s = string(a)
@@ -83,8 +87,8 @@ def test_find(char *a, char *b):
 
 def test_clear():
     """
-    >>> test_clear()
-    ''
+    >>> test_clear() == ''.encode('ASCII')
+    True
     """
     cdef string s = string(<char *>"asdf")
     s.clear()
@@ -92,8 +96,8 @@ def test_clear():
 
 def test_assign(char *a):
     """
-    >>> test_assign("asdf")
-    'ggg'
+    >>> test_assign(b_asdf) == 'ggg'.encode('ASCII')
+    True
     """
     cdef string s = string(a)
     s.assign(<char *>"ggg")
@@ -102,8 +106,8 @@ def test_assign(char *a):
 
 def test_substr(char *a):
     """
-    >>> test_substr("ABCDEFGH")
-    ('BCDEFGH', 'BCDE', 'ABCDEFGH')
+    >>> test_substr('ABCDEFGH'.encode('ASCII')) == ('BCDEFGH'.encode('ASCII'), 'BCDE'.encode('ASCII'), 'ABCDEFGH'.encode('ASCII'))
+    True
     """
     cdef string s = string(a)
     cdef string x, y, z
@@ -114,8 +118,8 @@ def test_substr(char *a):
 
 def test_append(char *a, char *b):
     """
-    >>> test_append("asdf", "1234")
-    'asdf1234'
+    >>> test_append(b_asdf, '1234'.encode('ASCII')) == b_asdf + '1234'.encode('ASCII')
+    True
     """
     cdef string s = string(a)
     cdef string t = string(b)
@@ -124,7 +128,7 @@ def test_append(char *a, char *b):
 
 def test_char_compare(py_str):
     """
-    >>> test_char_compare("asdf")
+    >>> test_char_compare(b_asdf)
     True
     """
     cdef char *a = py_str
@@ -133,15 +137,15 @@ def test_char_compare(py_str):
 
 def test_cstr(char *a):
     """
-    >>> test_cstr("asdf")
-    'asdf'
+    >>> test_cstr(b_asdf) == b_asdf
+    True
     """
     cdef string b = string(a)
     return b.c_str()
 
 def test_equals_operator(char *a, char *b):
     """
-    >>> test_equals_operator("asdf", "asdf")
+    >>> test_equals_operator(b_asdf, b_asdf)
     (True, False)
     """
     cdef string s = string(a)
@@ -150,10 +154,10 @@ def test_equals_operator(char *a, char *b):
 
 def test_less_than(char *a, char *b):
     """
-    >>> test_less_than("asd", "asdf")
+    >>> test_less_than(b_asdf[:-1], b_asdf)
     (True, True, True)
 
-    >>> test_less_than("asd", "asd")
+    >>> test_less_than(b_asdf[:-1], b_asdf[:-1])
     (False, False, True)
     """
     cdef string s = string(a)
@@ -162,10 +166,10 @@ def test_less_than(char *a, char *b):
 
 def test_greater_than(char *a, char *b):
     """
-    >>> test_greater_than("asd", "asdf")
+    >>> test_greater_than(b_asdf[:-1], b_asdf)
     (False, False, False)
 
-    >>> test_greater_than("asd", "asd")
+    >>> test_greater_than(b_asdf[:-1], b_asdf[:-1])
     (False, False, True)
     """
     cdef string s = string(a)
