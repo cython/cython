@@ -43,7 +43,7 @@ e_cython_parallel.pyx:6:7: cython.parallel.parallel is not a module
 e_cython_parallel.pyx:7:0: No such directive: cython.parallel.something
 e_cython_parallel.pyx:13:6: prange() can only be used as part of a for loop
 e_cython_parallel.pyx:13:6: prange() can only be used without the GIL
-e_cython_parallel.pyx:18:19: Invalid schedule argument to prange: 'invalid_schedule'
+e_cython_parallel.pyx:18:19: Invalid schedule argument to prange: invalid_schedule
 e_cython_parallel.pyx:21:5: The parallel section may only be used without the GIL
 e_cython_parallel.pyx:27:10: target may not be a Python object as we don't have the GIL
 e_cython_parallel.pyx:30:9: Can only iterate over an iteration variable
