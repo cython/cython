@@ -1557,6 +1557,12 @@ class CreateClosureClasses(CythonTransform):
                           is_cdef=True)
         klass.declare_var(pos=pos, name='resume_label', cname='resume_label', type=PyrexTypes.c_int_type,
                           is_cdef=True)
+        klass.declare_var(pos=pos, name='exc_type', cname='exc_type',
+                          type=PyrexTypes.py_object_type, is_cdef=True)
+        klass.declare_var(pos=pos, name='exc_value', cname='exc_value',
+                          type=PyrexTypes.py_object_type, is_cdef=True)
+        klass.declare_var(pos=pos, name='exc_traceback', cname='exc_traceback',
+                          type=PyrexTypes.py_object_type, is_cdef=True)
 
         import TypeSlots
         e = klass.declare_pyfunction('send', pos)

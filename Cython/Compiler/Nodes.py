@@ -6112,6 +6112,31 @@ static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) 
 
 #------------------------------------------------------------------------------------
 
+swap_exception_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+""",
+impl = """
+static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+
+    tstate->exc_type = *type;
+    tstate->exc_value = *value;
+    tstate->exc_traceback = *tb;
+
+    *type = tmp_type;
+    *value = tmp_value;
+    *tb = tmp_tb;
+}
+""")
+
+#------------------------------------------------------------------------------------
+
 arg_type_test_utility_code = UtilityCode(
 proto = """
 static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
