@@ -8511,6 +8511,17 @@ static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args, CYTHON_UNU
 typedef PyObject *(*__pyx_generator_body_t)(PyObject *, PyObject *);
 """,
 impl="""
+static CYTHON_INLINE void __Pyx_Generator_ExceptionClear(struct __pyx_Generator_object *self)
+{
+    Py_XDECREF(self->exc_type);
+    Py_XDECREF(self->exc_value);
+    Py_XDECREF(self->exc_traceback);
+
+    self->exc_type = NULL;
+    self->exc_value = NULL;
+    self->exc_traceback = NULL;
+}
+
 static CYTHON_INLINE PyObject *__Pyx_Generator_SendEx(struct __pyx_Generator_object *self, PyObject *value)
 {
     PyObject *retval;
@@ -8535,9 +8546,20 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_SendEx(struct __pyx_Generator_obj
         return NULL;
     }
 
+
+    if (value)
+        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
+    else
+        __Pyx_Generator_ExceptionClear(self);
+
     self->is_running = 1;
     retval = self->body((PyObject *) self, value);
     self->is_running = 0;
+
+    if (retval)
+        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
+    else
+        __Pyx_Generator_ExceptionClear(self);
 
     return retval;
 }
@@ -8596,5 +8618,5 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args, CYTHON_UN
 }
 """,
 proto_block='utility_code_proto_before_types',
-requires=[Nodes.raise_utility_code],
+requires=[Nodes.raise_utility_code, Nodes.swap_exception_utility_code],
 )
