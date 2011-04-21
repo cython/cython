@@ -1,4 +1,6 @@
 # cython: language_level=3
+# mode: run
+# tag: generators, python3
 
 cimport cython
 
@@ -86,6 +88,16 @@ def list_comp():
     """
     x = 'abc'
     result = [x*2 for x in range(5) if x % 2 == 0]
+    assert x == 'abc' # don't leak in Py3 code
+    return result
+
+def list_comp_with_lambda():
+    """
+    >>> list_comp_with_lambda()
+    [0, 4, 8]
+    """
+    x = 'abc'
+    result = [x*2 for x in range(5) if (lambda x:x % 2)(x) == 0]
     assert x == 'abc' # don't leak in Py3 code
     return result
 
