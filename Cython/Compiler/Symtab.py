@@ -556,10 +556,16 @@ class Scope(object):
         entry.is_anonymous = True
         return entry
 
-    def declare_lambda_function(self, func_cname, pos):
+    def declare_lambda_function(self, lambda_name, pos):
         # Add an entry for an anonymous Python function.
+        func_cname = self.mangle(Naming.lambda_func_prefix + u'funcdef_', lambda_name)
+        pymethdef_cname = self.mangle(Naming.lambda_func_prefix + u'methdef_', lambda_name)
+        qualified_name = self.qualify_name(lambda_name)
+
         entry = self.declare(None, func_cname, py_object_type, pos, 'private')
-        entry.name = EncodedString(func_cname)
+        entry.name = lambda_name
+        entry.qualified_name = qualified_name
+        entry.pymethdef_cname = pymethdef_cname
         entry.func_cname = func_cname
         entry.signature = pyfunction_signature
         entry.is_anonymous = True

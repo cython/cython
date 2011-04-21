@@ -2232,14 +2232,7 @@ class DefNode(FuncDefNode):
             entry.doc = None
 
     def declare_lambda_function(self, env):
-        name = self.name
-        prefix = env.scope_prefix
-        func_cname = \
-            Naming.lambda_func_prefix + u'funcdef' + prefix + self.lambda_name
-        entry = env.declare_lambda_function(func_cname, self.pos)
-        entry.pymethdef_cname = \
-            Naming.lambda_func_prefix + u'methdef' + prefix + self.lambda_name
-        entry.qualified_name = env.qualify_name(self.lambda_name)
+        entry = env.declare_lambda_function(self.lambda_name, self.pos)
         entry.doc = None
         self.entry = entry
 
