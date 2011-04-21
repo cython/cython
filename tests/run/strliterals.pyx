@@ -132,6 +132,17 @@ __doc__ = ur"""
     >>> len(bytes_uescape)
     28
 
+    >>> (sys.version_info[0] >= 3 and len(str_uescape) == 3 or
+    ...  sys.version_info[0] <  3 and len(str_uescape) == 17 or
+    ...  len(str_uescape))
+    True
+    >>> (sys.version_info[0] >= 3 and str_uescape[0] == 'c' or
+    ...  sys.version_info[0] <  3 and str_uescape[0] == '\\' or
+    ...  str_uescape[0])
+    True
+    >>> print(str_uescape[-1])
+    B
+
     >>> newlines == "Aaa\n"
     True
     
@@ -173,6 +184,7 @@ bresc = br'\12\'\"\\'
 uresc = ur'\12\'\"\\'
 
 bytes_uescape = b'\u1234\U12345678\u\u1\u12\uX'
+str_uescape = '\u0063\U00012345\x42'
 
 newlines = "Aaa\n"
 
