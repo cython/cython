@@ -334,7 +334,9 @@ class StringConst(object):
         self.py_versions = []
 
     def add_py_version(self, version):
-        if version and version not in self.py_versions:
+        if not version:
+            self.py_versions = [2,3]
+        elif version not in self.py_versions:
             self.py_versions.append(version)
 
     def get_py_string_const(self, encoding, identifier=None,
