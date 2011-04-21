@@ -39,7 +39,7 @@ class UnrecognizedInput(PlexError):
 
   def __init__(self, scanner, state_name):
     self.scanner = scanner
-    self.position = scanner.position()
+    self.position = scanner.get_position()
     self.state_name = state_name
 
   def __str__(self):
