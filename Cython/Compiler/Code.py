@@ -25,11 +25,18 @@ except ImportError:
 
 
 non_portable_builtins_map = {
+    # builtins that have different names in different Python versions
     'bytes'         : ('PY_MAJOR_VERSION < 3',  'str'),
     'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
     'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
     }
+
+uncachable_builtins = [
+    # builtin names that cannot be cached because they may or may not
+    # be available at import time
+    'WindowsError',
+    ]
 
 class UtilityCode(object):
     # Stores utility code to add during code generation.
