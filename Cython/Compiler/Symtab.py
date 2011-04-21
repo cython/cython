@@ -916,21 +916,18 @@ class ModuleScope(Scope):
         return self.outer_scope.lookup(name, language_level = self.context.language_level)
 
     def declare_builtin(self, name, pos):
-        if not hasattr(builtins, name) and name not in Code.non_portable_builtins_map:
-            # 'xrange' and 'BaseException' are special cased in Code.py
+        if not hasattr(builtins, name) \
+               and name not in Code.non_portable_builtins_map \
+               and name not in Code.uncachable_builtins:
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
-            ## elif self.outer_scope is not None:
-            ##     entry = self.outer_scope.declare_builtin(name, pos)
-            ##     print entry
-            ##     return entry
             else:
-                # unknown - assume it's builtin and look it up at runtime
                 if Options.error_on_unknown_names:
                     error(pos, "undeclared name not builtin: %s" % name)
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
+                # unknown - assume it's builtin and look it up at runtime
                 entry = self.declare(name, None, py_object_type, pos, 'private')
                 entry.is_builtin = 1
                 return entry
@@ -939,7 +936,7 @@ class ModuleScope(Scope):
                 if entry.name == name:
                     return entry
         entry = self.declare(None, None, py_object_type, pos, 'private')
-        if Options.cache_builtins:
+        if Options.cache_builtins and name not in Code.uncachable_builtins:
             entry.is_builtin = 1
             entry.is_const = 1 # cached
             entry.name = name
