@@ -353,6 +353,8 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def setUp(self):
         from Cython.Compiler import Options
+        self._saved_options = [ (name, getattr(Options, name))
+                                for name in ('warning_errors', 'error_on_unknown_names') ]
         Options.warning_errors = self.warning_errors
 
         if self.workdir not in sys.path:
@@ -360,7 +362,8 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def tearDown(self):
         from Cython.Compiler import Options
-        Options.warning_errors = False
+        for name, value in self._saved_options:
+            setattr(Options, name, value)
 
         try:
             sys.path.remove(self.workdir)
@@ -738,6 +741,11 @@ class CythonUnitTestCase(CythonRunTestCase):
 
 
 class CythonPyregrTestCase(CythonRunTestCase):
+    def setUp(self):
+        CythonRunTestCase.setUp(self)
+        from Cython.Compiler import Options
+        Options.error_on_unknown_names = False
+
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
         valid_types = (unittest.TestSuite, unittest.TestCase)
