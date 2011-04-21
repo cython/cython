@@ -762,8 +762,8 @@ class GlobalState(object):
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
-                        encoding,
-                        1, 1, 0,
+                        '0', 1, 0,
+                        py_string.intern
                         ))
                     w.putln("#else")
                 w.putln(
