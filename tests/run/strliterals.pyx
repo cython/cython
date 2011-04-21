@@ -132,7 +132,8 @@ __doc__ = ur"""
     >>> len(bytes_uescape)
     28
 
-    >>> (sys.version_info[0] >= 3 and len(str_uescape) == 3 or
+    >>> (sys.version_info[0] >= 3 and sys.maxunicode == 1114111 and len(str_uescape) == 3 or
+    ...  sys.version_info[0] >= 3 and sys.maxunicode == 65536   and len(str_uescape) == 4 or
     ...  sys.version_info[0] <  3 and len(str_uescape) == 17 or
     ...  len(str_uescape))
     True
