@@ -1339,15 +1339,15 @@ def main():
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
-        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
-                                options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, True,
-                                options.cython_only, languages, test_bugs,
-                                options.fork, options.language_level)
-        test_suite.addTest(
-            filetests.handle_directory(
-                os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
-                'pyregr'))
+        sys_pyregr_dir = os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test')
+        if os.path.isdir(sys_pyregr_dir):
+            filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
+                                    options.annotate_source, options.cleanup_workdir,
+                                    options.cleanup_sharedlibs, True,
+                                    options.cython_only, languages, test_bugs,
+                                    options.fork, options.language_level)
+            sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
+            test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
     if options.xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
