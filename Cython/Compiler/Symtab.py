@@ -558,8 +558,7 @@ class Scope(object):
 
     def declare_lambda_function(self, func_cname, pos):
         # Add an entry for an anonymous Python function.
-        entry = self.declare_var(None, py_object_type, pos,
-                                 cname=func_cname, visibility='private')
+        entry = self.declare(None, func_cname, py_object_type, pos, 'private')
         entry.name = EncodedString(func_cname)
         entry.func_cname = func_cname
         entry.signature = pyfunction_signature
@@ -1400,6 +1399,12 @@ class GeneratorExpressionScope(Scope):
         self.var_entries.append(entry)
         self.entries[name] = entry
         return entry
+
+    def declare_lambda_function(self, func_cname, pos):
+        return self.outer_scope.declare_lambda_function(func_cname, pos)
+
+    def add_lambda_def(self, def_node):
+        return self.outer_scope.add_lambda_def(def_node)
 
 
 class ClosureScope(LocalScope):
