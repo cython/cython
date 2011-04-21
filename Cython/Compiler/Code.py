@@ -332,7 +332,8 @@ class StringConst(object):
         self.escaped_value = StringEncoding.escape_byte_string(byte_string)
         self.py_strings = None
 
-    def get_py_string_const(self, encoding, identifier=None, is_str=False):
+    def get_py_string_const(self, encoding, identifier=None,
+                            is_str=False, py3str_cstring=None):
         py_strings = self.py_strings
         text = self.text
 
@@ -351,47 +352,52 @@ class StringConst(object):
             else:
                 encoding_key = ''.join(find_alphanums(encoding))
 
-        key = (is_str, is_unicode, encoding_key)
-        if py_strings is not None and key in py_strings:
-            py_string = py_strings[key]
+        key = (is_str, is_unicode, encoding_key, py3str_cstring)
+        if py_strings is not None:
+            try:
+                return py_strings[key]
+            except KeyError:
+                pass
         else:
-            if py_strings is None:
-                self.py_strings = {}
-            if identifier:
-                intern = True
-            elif identifier is None:
-                if isinstance(text, unicode):
-                    intern = bool(possible_unicode_identifier(text))
-                else:
-                    intern = bool(possible_bytes_identifier(text))
-            else:
-                intern = False
-            if intern:
-                prefix = Naming.interned_str_prefix
-            else:
-                prefix = Naming.py_const_prefix
-            pystring_cname = "%s%s_%s" % (
-                prefix,
-                (is_str and 's') or (is_unicode and 'u') or 'b',
-                self.cname[len(Naming.const_prefix):])
+            self.py_strings = {}
 
-            py_string = PyStringConst(
-                pystring_cname, encoding, is_unicode, is_str, intern)
-            self.py_strings[key] = py_string
+        if identifier:
+            intern = True
+        elif identifier is None:
+            if isinstance(text, unicode):
+                intern = bool(possible_unicode_identifier(text))
+            else:
+                intern = bool(possible_bytes_identifier(text))
+        else:
+            intern = False
+        if intern:
+            prefix = Naming.interned_str_prefix
+        else:
+            prefix = Naming.py_const_prefix
+        pystring_cname = "%s%s_%s" % (
+            prefix,
+            (is_str and 's') or (is_unicode and 'u') or 'b',
+            self.cname[len(Naming.const_prefix):])
 
+        py_string = PyStringConst(
+            pystring_cname, encoding, is_unicode, is_str, py3str_cstring, intern)
+        self.py_strings[key] = py_string
         return py_string
 
 class PyStringConst(object):
     """Global info about a Python string constant held by GlobalState.
     """
     # cname       string
+    # py3str_cstring string
     # encoding    string
     # intern      boolean
     # is_unicode  boolean
     # is_str      boolean
 
-    def __init__(self, cname, encoding, is_unicode, is_str=False, intern=False):
+    def __init__(self, cname, encoding, is_unicode, is_str=False,
+                 py3str_cstring=None, intern=False):
         self.cname = cname
+        self.py3str_cstring = py3str_cstring
         self.encoding = encoding
         self.is_str = is_str
         self.is_unicode = is_unicode
@@ -614,10 +620,16 @@ class GlobalState(object):
             c = self.new_string_const(text, byte_string)
         return c
 
-    def get_py_string_const(self, text, identifier=None, is_str=False):
+    def get_py_string_const(self, text, identifier=None,
+                            is_str=False, unicode_value=None):
         # return a Python string constant, creating a new one if necessary
         c_string = self.get_string_const(text)
-        py_string = c_string.get_py_string_const(text.encoding, identifier, is_str)
+        py3str_cstring = None
+        if is_str and unicode_value is not None \
+               and unicode_value.utf8encode() != text.byteencode():
+            py3str_cstring = self.get_string_const(unicode_value)
+        py_string = c_string.get_py_string_const(
+            text.encoding, identifier, is_str, py3str_cstring)
         return py_string
 
     def get_interned_identifier(self, text):
@@ -743,6 +755,17 @@ class GlobalState(object):
 
                 decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
+                if py_string.py3str_cstring:
+                    w.putln("#if PY_MAJOR_VERSION >= 3")
+                    w.putln(
+                        "{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                        py_string.cname,
+                        py_string.py3str_cstring.cname,
+                        py_string.py3str_cstring.cname,
+                        encoding,
+                        1, 1, 0,
+                        ))
+                    w.putln("#else")
                 w.putln(
                     "{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
@@ -753,6 +776,8 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
+                if py_string.py3str_cstring:
+                    w.putln("#endif")
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
@@ -1010,8 +1035,10 @@ class CCodeWriter(object):
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
 
-    def get_py_string_const(self, text, identifier=None, is_str=False):
-        return self.globalstate.get_py_string_const(text, identifier, is_str).cname
+    def get_py_string_const(self, text, identifier=None,
+                            is_str=False, unicode_value=None):
+        return self.globalstate.get_py_string_const(
+            text, identifier, is_str, unicode_value).cname
 
     def get_argument_default_const(self, type):
         return self.globalstate.get_py_const(type).cname

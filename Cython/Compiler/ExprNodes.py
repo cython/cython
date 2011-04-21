@@ -1115,16 +1115,6 @@ class StringNode(PyConstNode):
             if not dst_type.is_pyobject:
                 return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
             self.check_for_coercion_error(dst_type, fail=True)
-
-        # this will be a unicode string in Py3, so make sure we can decode it
-        if self.value.encoding and isinstance(self.value, StringEncoding.BytesLiteral):
-            try:
-                self.value.decode(self.value.encoding)
-            except UnicodeDecodeError:
-                error(self.pos, ("Decoding unprefixed string literal from '%s' failed. Consider using"
-                                 "a byte string or unicode string explicitly, "
-                                 "or adjust the source code encoding.") % self.value.encoding)
-
         return self
 
     def can_coerce_to_char_literal(self):
@@ -1132,7 +1122,8 @@ class StringNode(PyConstNode):
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(
-            self.value, identifier=self.is_identifier, is_str=True)
+            self.value, identifier=self.is_identifier, is_str=True,
+            unicode_value=self.unicode_value)
 
     def get_constant_c_result_code(self):
         return None
