@@ -331,6 +331,11 @@ class StringConst(object):
         self.text = text
         self.escaped_value = StringEncoding.escape_byte_string(byte_string)
         self.py_strings = None
+        self.py_versions = []
+
+    def add_py_version(self, version):
+        if version and version not in self.py_versions:
+            self.py_versions.append(version)
 
     def get_py_string_const(self, encoding, identifier=None,
                             is_str=False, py3str_cstring=None):
@@ -608,7 +613,7 @@ class GlobalState(object):
             cleanup_writer.put_xdecref_clear(const.cname, type, nanny=False)
         return const
 
-    def get_string_const(self, text):
+    def get_string_const(self, text, py_version=None):
         # return a C string constant, creating a new one if necessary
         if text.is_unicode:
             byte_string = text.utf8encode()
@@ -618,16 +623,19 @@ class GlobalState(object):
             c = self.string_const_index[byte_string]
         except KeyError:
             c = self.new_string_const(text, byte_string)
+        c.add_py_version(py_version)
         return c
 
     def get_py_string_const(self, text, identifier=None,
                             is_str=False, unicode_value=None):
         # return a Python string constant, creating a new one if necessary
-        c_string = self.get_string_const(text)
         py3str_cstring = None
         if is_str and unicode_value is not None \
                and unicode_value.utf8encode() != text.byteencode():
-            py3str_cstring = self.get_string_const(unicode_value)
+            py3str_cstring = self.get_string_const(unicode_value, py_version=3)
+            c_string = self.get_string_const(text, py_version=2)
+        else:
+            c_string = self.get_string_const(text)
         py_string = c_string.get_py_string_const(
             text.encoding, identifier, is_str, py3str_cstring)
         return py_string
@@ -730,8 +738,15 @@ class GlobalState(object):
 
         decls_writer = self.parts['decls']
         for _, cname, c in c_consts:
+            conditional = False
+            if c.py_versions and (2 not in c.py_versions or 3 not in c.py_versions):
+                conditional = True
+                decls_writer.putln("#if PY_MAJOR_VERSION %s 3" % (
+                    (2 in c.py_versions) and '<' or '>='))
             decls_writer.putln('static char %s[] = "%s";' % (
                 cname, StringEncoding.split_string_literal(c.escaped_value)))
+            if conditional:
+                decls_writer.putln("#endif")
             if c.py_strings is not None:
                 for py_string in c.py_strings.values():
                     py_strings.append((c.cname, len(py_string.cname), py_string))
