@@ -945,6 +945,7 @@ class ModuleScope(Scope):
             self.undeclared_cached_builtins.append(entry)
         else:
             entry.is_builtin = 1
+            entry.name = name
         return entry
 
     def find_module(self, module_name, pos):
