@@ -1345,7 +1345,7 @@ def main():
                                     options.annotate_source, options.cleanup_workdir,
                                     options.cleanup_sharedlibs, True,
                                     options.cython_only, languages, test_bugs,
-                                    options.fork, options.language_level)
+                                    options.fork, sys.version_info[0])
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
