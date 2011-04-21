@@ -1660,15 +1660,27 @@ def p_simple_statement_list(s, ctx, first_statement = 0):
     # Parse a series of simple statements on one line
     # separated by semicolons.
     stat = p_simple_statement(s, first_statement = first_statement)
-    if s.sy == ';':
-        stats = [stat]
-        while s.sy == ';':
-            #print "p_simple_statement_list: maybe more to follow" ###
-            s.next()
-            if s.sy in ('NEWLINE', 'EOF'):
-                break
-            stats.append(p_simple_statement(s))
-        stat = Nodes.StatListNode(stats[0].pos, stats = stats)
+    pos = stat.pos
+    stats = []
+    if not isinstance(stat, Nodes.PassStatNode):
+        stats.append(stat)
+    while s.sy == ';':
+        #print "p_simple_statement_list: maybe more to follow" ###
+        s.next()
+        if s.sy in ('NEWLINE', 'EOF'):
+            break
+        stat = p_simple_statement(s, first_statement = first_statement)
+        if isinstance(stat, Nodes.PassStatNode):
+            continue
+        stats.append(stat)
+        first_statement = False
+
+    if not stats:
+        stat = Nodes.PassStatNode(pos)
+    elif len(stats) == 1:
+        stat = stats[0]
+    else:
+        stat = Nodes.StatListNode(pos, stats = stats)
     s.expect_newline("Syntax error in simple statement list")
     return stat
 
@@ -1805,9 +1817,14 @@ def p_statement_list(s, ctx, first_statement = 0):
     pos = s.position()
     stats = []
     while s.sy not in ('DEDENT', 'EOF'):
-        stats.append(p_statement(s, ctx, first_statement = first_statement))
-        first_statement = 0
-    if len(stats) == 1:
+        stat = p_statement(s, ctx, first_statement = first_statement)
+        if isinstance(stat, Nodes.PassStatNode):
+            continue
+        stats.append(stat)
+        first_statement = False
+    if not stats:
+        return Nodes.PassStatNode(pos)
+    elif len(stats) == 1:
         return stats[0]
     else:
         return Nodes.StatListNode(pos, stats = stats)
