@@ -261,7 +261,8 @@ class PyImporter(PyxImporter):
         self.super = super(PyImporter, self)
         self.super.__init__(extension='.py', pyxbuild_dir=pyxbuild_dir)
         self.uncompilable_modules = {}
-        self.blocked_modules = ['Cython', 'distutils.extension']
+        self.blocked_modules = ['Cython', 'distutils.extension',
+                                'distutils.sysconfig']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
