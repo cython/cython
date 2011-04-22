@@ -13,17 +13,22 @@ import sys
 import os
 from distutils import sysconfig
 
-INCDIR = sysconfig.get_python_inc()
-LIBDIR1 = sysconfig.get_config_var('LIBDIR')
-LIBDIR2 = sysconfig.get_config_var('LIBPL')
-PYLIB = sysconfig.get_config_var('LIBRARY')[3:-2]
+def get_config_var(name):
+    return sysconfig.get_config_var(name) or ''
 
-CC = sysconfig.get_config_var('CC')
-CFLAGS = sysconfig.get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
-LINKCC = sysconfig.get_config_var('LINKCC')
-LINKFORSHARED = sysconfig.get_config_var('LINKFORSHARED')
-LIBS = sysconfig.get_config_var('LIBS')
-SYSLIBS = sysconfig.get_config_var('SYSLIBS')
+INCDIR = sysconfig.get_python_inc()
+LIBDIR1 = get_config_var('LIBDIR')
+LIBDIR2 = get_config_var('LIBPL')
+PYLIB = get_config_var('LIBRARY')
+if PYLIB:
+    PYLIB = '-l%s' % PYLIB[3:-2]
+
+CC = get_config_var('CC')
+CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
+LINKCC = get_config_var('LINKCC')
+LINKFORSHARED = get_config_var('LINKFORSHARED')
+LIBS = get_config_var('LIBS')
+SYSLIBS = get_config_var('SYSLIBS')
 
 def _debug(msg, *args):
     if DEBUG:
@@ -61,7 +66,7 @@ def runcmd(cmd, shell=True):
         sys.exit(returncode)
 
 def clink(basename):
-    runcmd([LINKCC, '-o', basename, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2, '-l'+PYLIB]
+    runcmd([LINKCC, '-o', basename, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2, PYLIB]
            + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split())
 
 def ccompile(basename):
@@ -114,3 +119,6 @@ def build_and_run(args):
 
     program_name = build(input_file, cy_args)
     exec_file(program_name, args)
+
+if __name__ == '__main__':
+    build_and_run(sys.argv[1:])
