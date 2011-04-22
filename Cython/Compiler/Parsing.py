@@ -2525,7 +2525,7 @@ def p_c_struct_or_union_definition(s, pos, ctx):
         s.expect_dedent()
     else:
         s.expect_newline("Syntax error in struct or union definition")
-    return Nodes.CStructOrUnionDefNode(pos, 
+    return Nodes.CStructOrUnionDefNode(pos,
         name = name, cname = cname, kind = kind, attributes = attributes,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
         api = ctx.api, in_pxd = ctx.level == 'module_pxd', packed = packed)
@@ -2613,7 +2613,7 @@ def p_ctypedef_statement(s, ctx):
         s.expect_newline("Syntax error in ctypedef statement")
         return Nodes.CTypeDefNode(
             pos, base_type = base_type,
-            declarator = declarator, 
+            declarator = declarator,
             visibility = visibility, api = api,
             in_pxd = ctx.level == 'module_pxd')
 

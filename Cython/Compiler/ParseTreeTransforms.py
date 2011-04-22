@@ -1211,7 +1211,7 @@ if VALUE is not None:
             arg = copy.deepcopy(arg_template)
             arg.declarator.name = entry.name
             init_method.args.append(arg)
-            
+
         # setters/getters
         for entry, attr in zip(var_entries, attributes):
             # TODO: branch on visibility
@@ -1224,7 +1224,7 @@ if VALUE is not None:
                 }, pos = entry.pos).stats[0]
             property.name = entry.name
             wrapper_class.body.stats.append(property)
-            
+
         wrapper_class.analyse_declarations(self.env_stack[-1])
         return self.visit_CClassDefNode(wrapper_class)
 

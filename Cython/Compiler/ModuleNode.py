@@ -73,7 +73,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
         self.generate_api_code(env, result)
-    
+
     def has_imported_c_functions(self):
         for module in self.referenced_modules:
             for entry in module.cfunc_entries:
@@ -166,7 +166,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def api_name(self, env):
         return env.qualified_name.replace(".", "__")
-    
+
     def generate_api_code(self, env, result):
         def api_entries(entries, pxd=0):
             return [entry for entry in entries
@@ -249,7 +249,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_cclass_header_code(self, type, h_code):
         h_code.putln("%s %s %s;" % (
-            Naming.extern_c_macro, 
+            Naming.extern_c_macro,
             PyrexTypes.public_decl("PyTypeObject", "DL_IMPORT"),
             type.typeobj_cname))
 
@@ -1002,7 +1002,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     storage_class = "static "
                     dll_linkage = None
                 type = entry.type
-                
+
                 if not definition and entry.defined_in_pxd:
                     type = CPtrType(type)
                 header = type.declaration_code(entry.cname,
@@ -1775,7 +1775,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("{")
         tempdecl_code = code.insertion_point()
-        
+
         code.put_declare_refcount_context()
         code.putln("#if CYTHON_REFNANNY")
         code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")

@@ -401,13 +401,13 @@ class Scope(object):
         except ValueError, e:
             error(pos, e.args[0])
             type = PyrexTypes.error_type
-        entry = self.declare_type(name, type, pos, cname, 
+        entry = self.declare_type(name, type, pos, cname,
                                   visibility = visibility, api = api)
         type.qualified_name = entry.qualified_name
         return entry
-        
-    def declare_struct_or_union(self, name, kind, scope, 
-                                typedef_flag, pos, cname = None, 
+
+    def declare_struct_or_union(self, name, kind, scope,
+                                typedef_flag, pos, cname = None,
                                 visibility = 'private', api = 0,
                                 packed = False):
         # Add an entry for a struct or union definition.
@@ -488,7 +488,7 @@ class Scope(object):
         if entry.visibility != visibility:
             error(pos, "'%s' previously declared as '%s'" % (
                 entry.name, entry.visibility))
-    
+
     def declare_enum(self, name, pos, cname, typedef_flag,
             visibility = 'private', api = 0):
         if name:
@@ -504,7 +504,7 @@ class Scope(object):
             visibility = visibility, api = api)
         entry.enum_values = []
         self.sue_entries.append(entry)
-        return entry    
+        return entry
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private', api = 0, is_cdef = 0):
@@ -1059,7 +1059,7 @@ class ModuleScope(Scope):
         buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
-        # declarations for anonymous structs. 
+        # declarations for anonymous structs.
         if typedef_flag and visibility != 'extern':
             if not (visibility == 'public' or api):
                 warning(pos, "ctypedef only valid for 'extern' , 'public', and 'api'", 2)
@@ -1462,7 +1462,7 @@ class StructOrUnionScope(Scope):
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', defining = 0,
                           api = 0, in_pxd = 0, modifiers = ()): # currently no utility code ...
-        return self.declare_var(name, type, pos, 
+        return self.declare_var(name, type, pos,
                                 cname=cname, visibility=visibility)
 
 class ClassScope(Scope):
@@ -1627,7 +1627,7 @@ class CClassScope(ClassScope):
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-        entry = self.declare_var(name, py_object_type, pos, 
+        entry = self.declare_var(name, py_object_type, pos,
                                  visibility='extern')
         special_sig = get_special_method_signature(name)
         if special_sig:
@@ -1753,7 +1753,7 @@ class CppClassScope(Scope):
         self.inherited_var_entries = []
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'extern', api = 0, 
+                    cname = None, visibility = 'extern', api = 0,
                     is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
@@ -1795,7 +1795,7 @@ class CppClassScope(Scope):
             error(pos, "no matching function for call to %s::%s()" %
                   (self.default_constructor, self.default_constructor))
 
-    def declare_cfunction(self, name, type, pos, cname = None, 
+    def declare_cfunction(self, name, type, pos, cname = None,
                           visibility = 'extern', api = 0, defining = 0,
                           in_pxd = 0, modifiers = (), utility_code = None):
         if name == self.name.split('::')[-1] and cname is None:
@@ -1803,7 +1803,7 @@ class CppClassScope(Scope):
             name = '<init>'
             type.return_type = self.lookup(self.name).type
         prev_entry = self.lookup_here(name)
-        entry = self.declare_var(name, type, pos, 
+        entry = self.declare_var(name, type, pos,
                                  cname=cname, visibility=visibility)
         if prev_entry:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
