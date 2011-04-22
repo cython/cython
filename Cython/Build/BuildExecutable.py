@@ -20,8 +20,6 @@ INCDIR = sysconfig.get_python_inc()
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB = get_config_var('LIBRARY')
-if PYLIB:
-    PYLIB = '-l%s' % PYLIB[3:-2]
 
 CC = get_config_var('CC')
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
@@ -66,7 +64,8 @@ def runcmd(cmd, shell=True):
         sys.exit(returncode)
 
 def clink(basename):
-    runcmd([LINKCC, '-o', basename, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2, PYLIB]
+    runcmd([LINKCC, '-o', basename, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2,
+            os.path.join(LIBDIR1, PYLIB)]
            + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split())
 
 def ccompile(basename):
