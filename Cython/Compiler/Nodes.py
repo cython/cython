@@ -548,7 +548,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 other_type = type_node.analyse_as_type(env)
                 if other_type is None:
                     error(type_node.pos, "Not a type")
-                elif (type is not PyrexTypes.py_object_type 
+                elif (type is not PyrexTypes.py_object_type
                       and not type.same_as(other_type)):
                     error(self.base.pos, "Signature does not agree with previous declaration")
                     error(type_node.pos, "Previous declaration here")
@@ -1099,7 +1099,7 @@ class CEnumDefNode(StatNode):
     #  api            boolean
     #  in_pxd         boolean
     #  entry          Entry
-    
+
     child_attrs = ["items"]
 
     def analyse_declarations(self, env):
@@ -1146,7 +1146,7 @@ class CEnumDefItemNode(StatNode):
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value.analyse_const_expression(env)
-        entry = env.declare_const(self.name, enum_entry.type, 
+        entry = env.declare_const(self.name, enum_entry.type,
             self.value, self.pos, cname = self.cname,
             visibility = enum_entry.visibility, api = enum_entry.api)
         enum_entry.enum_values.append(entry)
@@ -1170,7 +1170,7 @@ class CTypeDefNode(StatNode):
             cname = cname, visibility = self.visibility, api = self.api)
         if self.in_pxd and not env.in_cinclude:
             entry.defined_in_pxd = 1
-    
+
     def analyse_expressions(self, env):
         pass
     def generate_execution_code(self, code):
@@ -1221,7 +1221,7 @@ class FuncDefNode(StatNode, BlockNode):
             other_type = type_node.analyse_as_type(env)
             if other_type is None:
                 error(type_node.pos, "Not a type")
-            elif (type is not PyrexTypes.py_object_type 
+            elif (type is not PyrexTypes.py_object_type
                     and not type.same_as(other_type)):
                 error(arg.base_type.pos, "Signature does not agree with previous declaration")
                 error(type_node.pos, "Previous declaration here")
@@ -1815,7 +1815,7 @@ class CFuncDefNode(FuncDefNode):
             self.modifiers[self.modifiers.index('inline')] = 'cython_inline'
         if self.modifiers:
             modifiers = "%s " % ' '.join(self.modifiers).upper()
-        
+
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
@@ -3446,7 +3446,7 @@ class CClassDefNode(ClassDefNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
             api = self.api,
-            buffer_defaults = buffer_defaults, 
+            buffer_defaults = buffer_defaults,
             shadow = self.shadow)
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry
@@ -4172,8 +4172,8 @@ class RaiseStatNode(StatNode):
         if self.exc_type and not self.exc_value and not self.exc_tb:
             exc = self.exc_type
             import ExprNodes
-            if (isinstance(exc, ExprNodes.SimpleCallNode) and 
-                not (exc.args or (exc.arg_tuple is not None and 
+            if (isinstance(exc, ExprNodes.SimpleCallNode) and
+                not (exc.args or (exc.arg_tuple is not None and
                                   exc.arg_tuple.args))):
                 exc = exc.function # extract the exception type
             if exc.is_name and exc.entry.is_builtin:
