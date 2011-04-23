@@ -1290,10 +1290,10 @@ class CCodeWriter(object):
 
     def put_var_decref(self, entry):
         if entry.type.is_pyobject:
-            if entry.init_to_none is False:  # FIXME: 0 and False are treated differently???
-                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
-            else:
+            if entry.init_to_none:
                 self.putln("__Pyx_DECREF(%s);" % self.entry_as_pyobject(entry))
+            else:
+                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_var_decref_clear(self, entry):
         if entry.type.is_pyobject:
