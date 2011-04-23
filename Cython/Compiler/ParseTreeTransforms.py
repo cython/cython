@@ -11,11 +11,12 @@ import Naming
 import ExprNodes
 import Nodes
 import Options
+import Builtin
 
 from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
 from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from Cython.Compiler.ModuleNode import ModuleNode
-from Cython.Compiler.UtilNodes import LetNode, LetRefNode
+from Cython.Compiler.UtilNodes import LetNode, LetRefNode, ResultRefNode
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
@@ -908,7 +909,6 @@ class WithTransform(CythonTransform, SkipDeclarations):
         EXC = True
         try:
             try:
-                EXCINFO = None
                 BODY
             except:
                 EXC = False
@@ -927,7 +927,6 @@ class WithTransform(CythonTransform, SkipDeclarations):
         EXC = True
         try:
             try:
-                EXCINFO = None
                 TARGET = VALUE
                 BODY
             except:
@@ -937,39 +936,30 @@ class WithTransform(CythonTransform, SkipDeclarations):
         finally:
             if EXC:
                 EXIT(None, None, None)
-            MGR = EXIT = VALUE = EXC = None
-
+            MGR = EXIT = VALUE = None
     """, temps=[u'MGR', u'EXC', u"EXIT", u"VALUE"],
     pipeline=[NormalizeTree(None)])
 
     def visit_WithStatNode(self, node):
-        # TODO: Cleanup badly needed
-        TemplateTransform.temp_name_counter += 1
-        handle = "__tmpvar_%d" % TemplateTransform.temp_name_counter
-
+        exc_info = ResultRefNode(pos=node.pos, type=Builtin.tuple_type, may_hold_none=False)
         self.visitchildren(node, ['body'])
-        excinfo_temp = ExprNodes.NameNode(node.pos, name=handle)#TempHandle(Builtin.tuple_type)
         if node.target is not None:
             result = self.template_with_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
                 u'TARGET' : node.target,
-                u'EXCINFO' : excinfo_temp
+                u'EXCINFO' : exc_info,
                 }, pos=node.pos)
         else:
             result = self.template_without_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
-                u'EXCINFO' : excinfo_temp
+                u'EXCINFO' : exc_info,
                 }, pos=node.pos)
 
         # Set except excinfo target to EXCINFO
         try_except = result.stats[-1].body.stats[-1]
-        try_except.except_clauses[0].excinfo_target = ExprNodes.NameNode(node.pos, name=handle)
-#            excinfo_temp.ref(node.pos))
-
-#        result.stats[-1].body.stats[-1] = TempsBlockNode(
-#            node.pos, temps=[excinfo_temp], body=try_except)
+        try_except.except_clauses[0].excinfo_target = exc_info
 
         return result
 
