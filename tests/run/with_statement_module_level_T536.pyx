@@ -4,7 +4,7 @@ __doc__ = """
 >>> inner_result
 ['ENTER']
 >>> result  # doctest: +ELLIPSIS
-['ENTER', "EXIT (<type 'exceptions.ValueError'>, ValueError('TEST',), <traceback object at ...)"]
+['ENTER', "EXIT (<type...ValueError'>, ValueError('TEST',), <traceback object at ...)"]
 
 >>> inner_result_no_exc
 ['ENTER']
