@@ -10,7 +10,6 @@ cfunc_call_tuple_args_T408
 compile.cpp_operators
 cpp_templated_ctypedef
 cpp_structs
-with_statement_module_level_T536
 function_as_method_T494
 closure_inside_cdef_T554
 pure_mode_cmethod_inheritance_T583
