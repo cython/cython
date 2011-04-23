@@ -86,13 +86,13 @@ def del_local(a):
     >>> del_local(object())
     """
     del a
-    assert a is None # Until we have unbound locals...
+    assert 'a' not in locals()
 
 def del_seq(a, b, c):
     """
     >>> del_seq(1, 2, 3)
     """
     del a, (b, c)
-    assert a is None # Until we have unbound locals...
-    assert b is None # Until we have unbound locals...
-    assert c is None # Until we have unbound locals...
+    assert 'a' not in locals()
+    assert 'b' not in locals()
+    assert 'c' not in locals()
