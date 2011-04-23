@@ -1388,7 +1388,7 @@ class LocalScope(Scope):
                                   api=api, in_pxd=in_pxd, is_cdef=is_cdef)
         if type.is_pyobject and not Options.init_local_none:
             entry.init = "0"
-        entry.init_to_none = (type.is_pyobject or type.is_unspecified) and Options.init_local_none
+        entry.init_to_none = False
         entry.is_local = 1
 
         entry.in_with_gil_block = self._in_with_gil_block
