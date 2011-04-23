@@ -1269,6 +1269,7 @@ class NameNode(AtomicExprNode):
     #  type_entry      Entry     For extension type names, the original type entry
     #  cf_is_null      boolean   Is uninitialized before this node
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
+    #  allow_null      boolean   Don't raise UnboundLocalError
 
     is_name = True
     is_cython_module = False
@@ -1279,6 +1280,7 @@ class NameNode(AtomicExprNode):
     type_entry = None
     cf_maybe_null = True
     cf_is_null = False
+    allow_null = False
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1556,7 +1558,7 @@ class NameNode(AtomicExprNode):
 
         elif entry.is_local:
             if entry.type.is_pyobject:
-                if self.cf_maybe_null or self.cf_is_null:
+                if (self.cf_maybe_null or self.cf_is_null) and not self.allow_null:
                     code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
                                (entry.cname, entry.name, code.error_goto(self.pos)))
 
@@ -4737,12 +4739,14 @@ class SetNode(ExprNode):
 class DictNode(ExprNode):
     #  Dictionary constructor.
     #
-    #  key_value_pairs  [DictItemNode]
+    #  key_value_pairs     [DictItemNode]
+    #  exclude_null_values [boolean]          Do not add NULL values to dict
     #
     # obj_conversion_errors    [PyrexError]   used internally
 
     subexprs = ['key_value_pairs']
     is_temp = 1
+    exclude_null_values = False
     type = dict_type
 
     obj_conversion_errors = []
@@ -4830,11 +4834,15 @@ class DictNode(ExprNode):
         for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
             if self.type.is_pyobject:
+                if self.exclude_null_values:
+                    code.putln('if (%s) {' % item.value.py_result())
                 code.put_error_if_neg(self.pos,
                     "PyDict_SetItem(%s, %s, %s)" % (
                         self.result(),
                         item.key.py_result(),
                         item.value.py_result()))
+                if self.exclude_null_values:
+                    code.putln('}')
             else:
                 code.putln("%s.%s = %s;" % (
                         self.result(),
