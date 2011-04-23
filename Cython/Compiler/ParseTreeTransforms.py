@@ -958,7 +958,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
                 }, pos=node.pos)
 
         # Set except excinfo target to EXCINFO
-        try_except = result.stats[-1].body.stats[-1]
+        try_except = result.body.stats[-1].body.stats[-1]
         try_except.except_clauses[0].excinfo_target = exc_info
 
         return result
