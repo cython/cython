@@ -2203,9 +2203,9 @@ class TransformBuiltinMethods(EnvTransform):
                     return node # nothing to do
             items = [ ExprNodes.DictItemNode(pos,
                                              key=ExprNodes.StringNode(pos, value=var),
-                                             value=ExprNodes.NameNode(pos, name=var))
+                                             value=ExprNodes.NameNode(pos, name=var, allow_null=True))
                       for var in lenv.entries ]
-            return ExprNodes.DictNode(pos, key_value_pairs=items)
+            return ExprNodes.DictNode(pos, key_value_pairs=items, exclude_null_values=True)
         else: # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
