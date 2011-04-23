@@ -1267,14 +1267,18 @@ class NameNode(AtomicExprNode):
     #  name            string    Python name of the variable
     #  entry           Entry     Symbol table entry
     #  type_entry      Entry     For extension type names, the original type entry
+    #  cf_is_null      boolean   Is uninitialized before this node
+    #  cf_maybe_null   boolean   Maybe uninitialized before this node
 
     is_name = True
     is_cython_module = False
     cython_attribute = None
-    lhs_of_first_assignment = False
+    lhs_of_first_assignment = False # TODO: remove me
     is_used_as_rvalue = 0
     entry = None
     type_entry = None
+    cf_maybe_null = True
+    cf_is_null = False
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1550,15 +1554,11 @@ class NameNode(AtomicExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
-        elif entry.is_local and False:
-            # control flow not good enough yet
-            assigned = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
-            if assigned is False:
-                error(self.pos, "local variable '%s' referenced before assignment" % entry.name)
-            elif not Options.init_local_none and assigned is None:
-                code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
-                           (entry.cname, entry.name, code.error_goto(self.pos)))
-                entry.scope.control_flow.set_state(self.pos, (entry.name, 'initialized'), True)
+        elif entry.is_local:
+            if entry.type.is_pyobject:
+                if self.cf_maybe_null or self.cf_is_null:
+                    code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
+                               (entry.cname, entry.name, code.error_goto(self.pos)))
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -1627,17 +1627,20 @@ class NameNode(AtomicExprNode):
                 if self.use_managed_ref:
                     rhs.make_owned_reference(code)
                     is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
-                    if not self.lhs_of_first_assignment:
-                        if is_external_ref:
-                            code.put_gotref(self.py_result())
-                        if entry.is_local and not Options.init_local_none:
-                            initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
-                            if initialized is True:
-                                code.put_decref(self.result(), self.ctype())
-                            elif initialized is None:
+                    if is_external_ref:
+                        if not self.cf_is_null:
+                            if self.cf_maybe_null:
+                                code.put_xgotref(self.py_result())
+                            else:
+                                code.put_gotref(self.py_result())
+                    if entry.is_local:
+                        if not self.cf_is_null:
+                            if self.cf_maybe_null:
                                 code.put_xdecref(self.result(), self.ctype())
-                        else:
-                            code.put_decref(self.result(), self.ctype())
+                            else:
+                                code.put_decref(self.result(), self.ctype())
+                    else:
+                        code.put_decref(self.result(), self.ctype())
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
 
@@ -1686,8 +1689,12 @@ class NameNode(AtomicExprNode):
                     Naming.module_cname,
                     self.entry.name))
         elif self.entry.type.is_pyobject:
-            # Fake it until we can do it for real...
-            self.generate_assignment_code(NoneNode(self.pos), code)
+            if not self.cf_is_null:
+                if self.cf_maybe_null:
+                    code.put_xdecref(self.result(), self.ctype())
+                else:
+                    code.put_decref(self.result(), self.ctype())
+            code.putln('%s = NULL;' % self.result())
         else:
             error(self.pos, "Deletion of C names not supported")
 
