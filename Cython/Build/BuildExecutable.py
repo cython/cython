@@ -20,6 +20,12 @@ INCDIR = sysconfig.get_python_inc()
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB = get_config_var('LIBRARY')
+PYLIB_DYN = get_config_var('LDLIBRARY')
+if PYLIB_DYN == PYLIB:
+    # no shared library
+    PYLIB_DYN = ''
+else:
+    PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0] # 'lib(XYZ).so' -> XYZ
 
 CC = get_config_var('CC')
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
@@ -27,6 +33,7 @@ LINKCC = get_config_var('LINKCC')
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
 SYSLIBS = get_config_var('SYSLIBS')
+EXE_EXT = sysconfig.get_config_var('EXE')
 
 def _debug(msg, *args):
     if DEBUG:
@@ -39,12 +46,14 @@ def dump_config():
     _debug('LIBDIR1: %s', LIBDIR1)
     _debug('LIBDIR2: %s', LIBDIR2)
     _debug('PYLIB: %s', PYLIB)
+    _debug('PYLIB_DYN: %s', PYLIB_DYN)
     _debug('CC: %s', CC)
     _debug('CFLAGS: %s', CFLAGS)
     _debug('LINKCC: %s', LINKCC)
     _debug('LINKFORSHARED: %s', LINKFORSHARED)
     _debug('LIBS: %s', LIBS)
     _debug('SYSLIBS: %s', SYSLIBS)
+    _debug('EXE_EXT: %s', EXE_EXT)
 
 def runcmd(cmd, shell=True):
     if shell:
@@ -64,8 +73,8 @@ def runcmd(cmd, shell=True):
         sys.exit(returncode)
 
 def clink(basename):
-    runcmd([LINKCC, '-o', basename, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2,
-            os.path.join(LIBDIR1, PYLIB)]
+    runcmd([LINKCC, '-o', basename + EXE_EXT, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2]
+           + [PYLIB_DYN and ('-l'+PYLIB_DYN) or os.path.join(LIBDIR1, PYLIB)]
            + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split())
 
 def ccompile(basename):
@@ -79,8 +88,8 @@ def cycompile(input_file, options=()):
     if result.num_errors > 0:
         sys.exit(1)
 
-def exec_file(basename, args=()):
-    runcmd([os.path.abspath(basename)] + list(args), shell=False)
+def exec_file(program_name, args=()):
+    runcmd([os.path.abspath(program_name)] + list(args), shell=False)
 
 def build(input_file, compiler_args=()):
     """
@@ -92,7 +101,7 @@ def build(input_file, compiler_args=()):
     cycompile(input_file, compiler_args)
     ccompile(basename)
     clink(basename)
-    return basename
+    return basename + EXE_EXT
 
 def build_and_run(args):
     """
