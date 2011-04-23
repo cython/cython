@@ -134,6 +134,10 @@ class ResultRefNode(AtomicExprNode):
             self.type = type
         assert self.pos is not None
 
+    def clone_node(self):
+        # nothing to do here
+        return self
+
     def analyse_types(self, env):
         if self.expression is not None:
             self.type = self.expression.type

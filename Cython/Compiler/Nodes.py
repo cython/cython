@@ -5008,7 +5008,7 @@ class ExceptClauseNode(Node):
     #  pattern        [ExprNode]
     #  target         ExprNode or None
     #  body           StatNode
-    #  excinfo_target NameNode or None   optional target for exception info
+    #  excinfo_target ResultRefNode or None   optional target for exception info
     #  match_flag     string             result of exception match
     #  exc_value      ExcValueNode       used internally
     #  function_name  string             qualified name of enclosing function
@@ -5026,8 +5026,6 @@ class ExceptClauseNode(Node):
     def analyse_declarations(self, env):
         if self.target:
             self.target.analyse_target_declaration(env)
-        if self.excinfo_target is not None:
-            self.excinfo_target.analyse_target_declaration(env)
         self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
@@ -5048,7 +5046,6 @@ class ExceptClauseNode(Node):
             self.excinfo_tuple = ExprNodes.TupleNode(pos=self.pos, args=[
                 ExprNodes.ExcValueNode(pos=self.pos, env=env) for x in range(3)])
             self.excinfo_tuple.analyse_expressions(env)
-            self.excinfo_target.analyse_target_expression(env, self.excinfo_tuple)
 
         self.body.analyse_expressions(env)
 
@@ -5103,7 +5100,7 @@ class ExceptClauseNode(Node):
             for tempvar, node in zip(exc_vars, self.excinfo_tuple.args):
                 node.set_var(tempvar)
             self.excinfo_tuple.generate_evaluation_code(code)
-            self.excinfo_target.generate_assignment_code(self.excinfo_tuple, code)
+            self.excinfo_target.result_code = self.excinfo_tuple.result()
 
         old_break_label, old_continue_label = code.break_label, code.continue_label
         code.break_label = code.new_label('except_break')
@@ -5113,24 +5110,32 @@ class ExceptClauseNode(Node):
         code.funcstate.exc_vars = exc_vars
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
+        if self.excinfo_target is not None:
+            self.excinfo_tuple.generate_disposal_code(code)
         for var in exc_vars:
-            code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
+            code.put_decref_clear(var, py_object_type)
         code.put_goto(end_label)
 
         if code.label_used(code.break_label):
             code.put_label(code.break_label)
+            if self.excinfo_target is not None:
+                self.excinfo_tuple.generate_disposal_code(code)
             for var in exc_vars:
-                code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
+                code.put_decref_clear(var, py_object_type)
             code.put_goto(old_break_label)
         code.break_label = old_break_label
 
         if code.label_used(code.continue_label):
             code.put_label(code.continue_label)
+            if self.excinfo_target is not None:
+                self.excinfo_tuple.generate_disposal_code(code)
             for var in exc_vars:
-                code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
+                code.put_decref_clear(var, py_object_type)
             code.put_goto(old_continue_label)
         code.continue_label = old_continue_label
 
+        if self.excinfo_target is not None:
+            self.excinfo_tuple.free_temps(code)
         for temp in exc_vars:
             code.funcstate.release_temp(temp)
 

@@ -1944,7 +1944,7 @@ class TempNode(ExprNode):
 
     subexprs = []
 
-    def __init__(self, pos, type, env):
+    def __init__(self, pos, type, env=None):
         ExprNode.__init__(self, pos)
         self.type = type
         if type.is_pyobject:
@@ -1953,6 +1953,9 @@ class TempNode(ExprNode):
 
     def analyse_types(self, env):
         return self.type
+
+    def analyse_target_declaration(self, env):
+        pass
 
     def generate_result_code(self, code):
         pass
