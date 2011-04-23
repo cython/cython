@@ -1140,7 +1140,7 @@ static CYTHON_INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
 }
 
 static CYTHON_INLINE int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack) {
-  if (obj == Py_None) {
+  if (obj == Py_None || obj == NULL) {
     __Pyx_ZeroBuffer(buf);
     return 0;
   }
