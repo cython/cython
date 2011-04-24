@@ -4835,7 +4835,7 @@ class WithStatNode(StatNode):
     """
     Represents a Python with statement.
 
-    Implemented as follows:
+    Implemented by the WithTransform as follows:
 
         MGR = EXPR
         EXIT = MGR.__exit__
@@ -4855,60 +4855,12 @@ class WithStatNode(StatNode):
             MGR = EXIT = VALUE = None
     """
     #  manager          The with statement manager object
+    #  target           ExprNode  the target lhs of the __enter__() call
     #  body             StatNode
 
-    child_attrs = ["manager", "body"]
+    child_attrs = ["manager", "target", "body"]
 
     has_target = False
-
-    def __init__(self, pos, manager, target, body):
-        StatNode.__init__(self, pos, manager = manager)
-
-        import ExprNodes
-        self.target_temp = ExprNodes.TempNode(pos, type=py_object_type)
-        if target is not None:
-            self.has_target = True
-            body = StatListNode(
-                pos, stats = [
-                    WithTargetAssignmentStatNode(
-                        pos, lhs = target, rhs = self.target_temp),
-                    body
-                    ])
-
-        import UtilNodes
-        excinfo_target = UtilNodes.ResultRefNode(
-            pos=pos, type=Builtin.tuple_type, may_hold_none=False)
-        except_clause = ExceptClauseNode(
-            pos, body = IfStatNode(
-                pos, if_clauses = [
-                    IfClauseNode(
-                        pos, condition = ExprNodes.NotNode(
-                            pos, operand = ExprNodes.WithExitCallNode(
-                                pos, with_stat = self,
-                                args = excinfo_target)),
-                        body = ReraiseStatNode(pos),
-                        ),
-                    ],
-                else_clause = None),
-            pattern = None,
-            target = None,
-            excinfo_target = excinfo_target,
-            )
-
-        self.body = TryFinallyStatNode(
-            pos, body = TryExceptStatNode(
-                pos, body = body,
-                except_clauses = [except_clause],
-                else_clause = None,
-                ),
-            finally_clause = ExprStatNode(
-                pos, expr = ExprNodes.WithExitCallNode(
-                    pos, with_stat = self,
-                    args = ExprNodes.TupleNode(
-                        pos, args = [ExprNodes.NoneNode(pos) for _ in range(3)]
-                        ))),
-            handle_error_case = False,
-            )
 
     def analyse_declarations(self, env):
         self.manager.analyse_declarations(env)
