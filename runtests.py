@@ -98,9 +98,10 @@ VER_DEP_MODULES = {
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
-                                          'run.withstat_py',
                                           'run.generators_py', # generators, with statement
                                           'run.pure_py', # decorators, with statement
+                                          ]),
+    (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
