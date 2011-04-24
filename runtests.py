@@ -98,6 +98,7 @@ VER_DEP_MODULES = {
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
+                                          'run.withstat_py',
                                           'run.generators_py', # generators, with statement
                                           'run.pure_py', # decorators, with statement
                                           ]),
