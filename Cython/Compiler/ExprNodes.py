@@ -1910,6 +1910,40 @@ class NextNode(AtomicExprNode):
         code.putln("}")
 
 
+class WithExitCallNode(ExprNode):
+    # The __exit__() call of a 'with' statement.  Used in both the
+    # except and finally clauses.
+
+    # with_stat  WithStatNode                the surrounding 'with' statement
+    # args       TupleNode or ResultStatNode the exception info tuple
+
+    subexprs = ['args']
+
+    def analyse_types(self, env):
+        self.args.analyse_types(env)
+        self.type = PyrexTypes.c_bint_type
+        self.is_temp = True
+
+    def generate_result_code(self, code):
+        if isinstance(self.args, TupleNode):
+            # call only if it was not already called (and decref-cleared)
+            code.putln("if (%s) {" % self.with_stat.exit_var)
+        result_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        code.putln("%s = PyObject_Call(%s, %s, NULL);" % (
+            result_var,
+            self.with_stat.exit_var,
+            self.args.result()))
+        code.put_decref_clear(self.with_stat.exit_var, type=py_object_type)
+        code.putln(code.error_goto_if_null(result_var, self.pos))
+        code.put_gotref(result_var)
+        code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
+        code.put_decref_clear(result_var, type=py_object_type)
+        code.putln(code.error_goto_if_neg(self.result(), self.pos))
+        code.funcstate.release_temp(result_var)
+        if isinstance(self.args, TupleNode):
+            code.putln("}")
+
+
 class ExcValueNode(AtomicExprNode):
     #  Node created during analyse_types phase
     #  of an ExceptClauseNode to fetch the current
