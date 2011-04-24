@@ -897,6 +897,61 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             return self.visit_with_directives(node.body, directive_dict)
         return self.visit_Node(node)
 
+class WithTransform(CythonTransform, SkipDeclarations):
+    def visit_WithStatNode(self, node):
+        self.visitchildren(node, 'body')
+        pos = node.pos
+        body, target, manager = node.body, node.target, node.manager
+        node.target_temp = ExprNodes.TempNode(pos, type=PyrexTypes.py_object_type)
+        if target is not None:
+            node.has_target = True
+            body = Nodes.StatListNode(
+                pos, stats = [
+                    Nodes.WithTargetAssignmentStatNode(
+                        pos, lhs = target, rhs = node.target_temp),
+                    body
+                    ])
+            node.target = None
+
+        excinfo_target = ResultRefNode(
+            pos=pos, type=Builtin.tuple_type, may_hold_none=False)
+        except_clause = Nodes.ExceptClauseNode(
+            pos, body = Nodes.IfStatNode(
+                pos, if_clauses = [
+                    Nodes.IfClauseNode(
+                        pos, condition = ExprNodes.NotNode(
+                            pos, operand = ExprNodes.WithExitCallNode(
+                                pos, with_stat = node,
+                                args = excinfo_target)),
+                        body = Nodes.ReraiseStatNode(pos),
+                        ),
+                    ],
+                else_clause = None),
+            pattern = None,
+            target = None,
+            excinfo_target = excinfo_target,
+            )
+
+        node.body = Nodes.TryFinallyStatNode(
+            pos, body = Nodes.TryExceptStatNode(
+                pos, body = body,
+                except_clauses = [except_clause],
+                else_clause = None,
+                ),
+            finally_clause = Nodes.ExprStatNode(
+                pos, expr = ExprNodes.WithExitCallNode(
+                    pos, with_stat = node,
+                    args = ExprNodes.TupleNode(
+                        pos, args = [ExprNodes.NoneNode(pos) for _ in range(3)]
+                        ))),
+            handle_error_case = False,
+            )
+        return node
+
+    def visit_ExprNode(self, node):
+        # With statements are never inside expressions.
+        return node
+
 
 class DecoratorTransform(CythonTransform, SkipDeclarations):
 
