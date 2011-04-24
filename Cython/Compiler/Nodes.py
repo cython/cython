@@ -4835,13 +4835,177 @@ class WithStatNode(StatNode):
     """
     Represents a Python with statement.
 
-    This is only used at parse tree level; and is not present in
-    analysis or generation phases.
+    Implemented as follows:
+
+        MGR = EXPR
+        EXIT = MGR.__exit__
+        VALUE = MGR.__enter__()
+        EXC = True
+        try:
+            try:
+                TARGET = VALUE  # optional
+                BODY
+            except:
+                EXC = False
+                if not EXIT(*EXCINFO):
+                    raise
+        finally:
+            if EXC:
+                EXIT(None, None, None)
+            MGR = EXIT = VALUE = None
     """
     #  manager          The with statement manager object
-    #  target            Node (lhs expression)
     #  body             StatNode
-    child_attrs = ["manager", "target", "body"]
+
+    child_attrs = ["manager", "body"]
+
+    has_target = False
+
+    def __init__(self, pos, manager, target, body):
+        StatNode.__init__(self, pos, manager = manager)
+
+        import ExprNodes
+        self.target_temp = ExprNodes.TempNode(pos, type=py_object_type)
+        if target is not None:
+            self.has_target = True
+            body = StatListNode(
+                pos, stats = [
+                    WithTargetAssignmentStatNode(
+                        pos, lhs = target, rhs = self.target_temp),
+                    body
+                    ])
+
+        import UtilNodes
+        excinfo_target = UtilNodes.ResultRefNode(
+            pos=pos, type=Builtin.tuple_type, may_hold_none=False)
+        except_clause = ExceptClauseNode(
+            pos, body = IfStatNode(
+                pos, if_clauses = [
+                    IfClauseNode(
+                        pos, condition = ExprNodes.NotNode(
+                            pos, operand = ExprNodes.WithExitCallNode(
+                                pos, with_stat = self,
+                                args = excinfo_target)),
+                        body = ReraiseStatNode(pos),
+                        ),
+                    ],
+                else_clause = None),
+            pattern = None,
+            target = None,
+            excinfo_target = excinfo_target,
+            )
+
+        self.body = TryFinallyStatNode(
+            pos, body = TryExceptStatNode(
+                pos, body = body,
+                except_clauses = [except_clause],
+                else_clause = None,
+                ),
+            finally_clause = ExprStatNode(
+                pos, expr = ExprNodes.WithExitCallNode(
+                    pos, with_stat = self,
+                    args = ExprNodes.TupleNode(
+                        pos, args = [ExprNodes.NoneNode(pos) for _ in range(3)]
+                        ))),
+            handle_error_case = False,
+            )
+
+    def analyse_declarations(self, env):
+        self.manager.analyse_declarations(env)
+        self.body.analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.manager.analyse_types(env)
+        self.body.analyse_expressions(env)
+
+    def generate_execution_code(self, code):
+        code.putln("/*with:*/ {")
+        self.manager.generate_evaluation_code(code)
+        self.exit_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
+            self.exit_var,
+            self.manager.py_result(),
+            code.get_py_string_const(EncodedString('__exit__'), identifier=True),
+            code.error_goto_if_null(self.exit_var, self.pos),
+            ))
+        code.put_gotref(self.exit_var)
+
+        # need to free exit_var in the face of exceptions during setup
+        old_error_label = code.new_error_label()
+        intermediate_error_label = code.error_label
+
+        enter_func = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
+            enter_func,
+            self.manager.py_result(),
+            code.get_py_string_const(EncodedString('__enter__'), identifier=True),
+            code.error_goto_if_null(enter_func, self.pos),
+            ))
+        code.put_gotref(enter_func)
+        self.manager.generate_disposal_code(code)
+        self.manager.free_temps(code)
+        self.target_temp.allocate(code)
+        code.putln('%s = PyObject_Call(%s, ((PyObject *)%s), NULL); %s' % (
+            self.target_temp.result(),
+            enter_func,
+            Naming.empty_tuple,
+            code.error_goto_if_null(self.target_temp.result(), self.pos),
+            ))
+        code.put_gotref(self.target_temp.result())
+        code.put_decref_clear(enter_func, py_object_type)
+        code.funcstate.release_temp(enter_func)
+        if not self.has_target:
+            code.put_decref_clear(self.target_temp.result(), type=py_object_type)
+            self.target_temp.release(code)
+            # otherwise, WithTargetAssignmentStatNode will do it for us
+
+        code.error_label = old_error_label
+        self.body.generate_execution_code(code)
+
+        step_over_label = code.new_label()
+        code.put_goto(step_over_label)
+        code.put_label(intermediate_error_label)
+        code.put_decref_clear(self.exit_var, py_object_type)
+        code.put_goto(old_error_label)
+        code.put_label(step_over_label)
+
+        code.funcstate.release_temp(self.exit_var)
+        code.putln('}')
+
+class WithTargetAssignmentStatNode(AssignmentNode):
+    # The target assignment of the 'with' statement value (return
+    # value of the __enter__() call).
+    #
+    # This is a special cased assignment that steals the RHS reference
+    # and frees its temp.
+    #
+    # lhs  ExprNode  the assignment target
+    # rhs  TempNode  the return value of the __enter__() call
+
+    child_attrs = ["lhs", "rhs"]
+
+    def analyse_declarations(self, env):
+        self.lhs.analyse_target_declaration(env)
+
+    def analyse_types(self, env):
+        self.rhs.analyse_types(env)
+        self.lhs.analyse_target_types(env)
+        self.lhs.gil_assignment_check(env)
+        self.orig_rhs = self.rhs
+        self.rhs = self.rhs.coerce_to(self.lhs.type, env)
+
+    def generate_execution_code(self, code):
+        self.rhs.generate_evaluation_code(code)
+        self.lhs.generate_assignment_code(self.rhs, code)
+        self.orig_rhs.release(code)
+
+    def generate_function_definitions(self, env, code):
+        self.rhs.generate_function_definitions(env, code)
+
+    def annotate(self, code):
+        self.lhs.annotate(code)
+        self.rhs.annotate(code)
+
 
 class TryExceptStatNode(StatNode):
     #  try .. except statement
@@ -5175,6 +5339,9 @@ class TryFinallyStatNode(StatNode):
 
     preserve_exception = 1
 
+    # handle exception case, in addition to return/break/continue
+    handle_error_case = True
+
     disallow_continue_in_try_finally = 0
     # There doesn't seem to be any point in disallowing
     # continue in the try block, since we have no problem
@@ -5208,6 +5375,8 @@ class TryFinallyStatNode(StatNode):
         old_labels = code.all_new_labels()
         new_labels = code.get_all_labels()
         new_error_label = code.error_label
+        if not self.handle_error_case:
+            code.error_label = old_error_label
         catch_label = code.new_label()
         code.putln(
             "/*try:*/ {")

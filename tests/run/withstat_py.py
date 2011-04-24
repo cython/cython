@@ -1,5 +1,3 @@
-from __future__ import with_statement
-
 import sys
 
 def typename(t):
@@ -9,7 +7,7 @@ def typename(t):
             name = 'type'
         elif name == 'instance' and isinstance(t, MyException):
             name = 'MyException'
-    return u"<type '%s'>" % name
+    return "<type '%s'>" % name
 
 class MyException(Exception):
     pass
@@ -20,11 +18,11 @@ class ContextManager(object):
         self.exit_ret = exit_ret
 
     def __exit__(self, a, b, tb):
-        print u"exit", typename(a), typename(b), typename(tb)
+        print("exit %s %s %s" % (typename(a), typename(b), typename(tb)))
         return self.exit_ret
 
     def __enter__(self):
-        print u"enter"
+        print("enter")
         return self.value
 
 def no_as():
@@ -34,8 +32,8 @@ def no_as():
     hello
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
-    with ContextManager(u"value"):
-        print u"hello"
+    with ContextManager("value"):
+        print("hello")
 
 def basic():
     """
@@ -44,8 +42,8 @@ def basic():
     value
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
-    with ContextManager(u"value") as x:
-        print x
+    with ContextManager("value") as x:
+        print(x)
 
 def with_pass():
     """
@@ -53,8 +51,48 @@ def with_pass():
     enter
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
-    with ContextManager(u"value") as x:
+    with ContextManager("value") as x:
         pass
+
+def with_return():
+    """
+    >>> print(with_return())
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    value
+    """
+    with ContextManager("value") as x:
+        return x
+
+def with_break():
+    """
+    >>> print(with_break())
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    a
+    """
+    for c in list("abc"):
+        with ContextManager("value") as x:
+            break
+        print("FAILED")
+    return c
+
+def with_continue():
+    """
+    >>> print(with_continue())
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    c
+    """
+    for c in list("abc"):
+        with ContextManager("value") as x:
+            continue
+        print("FAILED")
+    return c
 
 def with_exception(exit_ret):
     """
@@ -69,11 +107,11 @@ def with_exception(exit_ret):
     exit <type 'type'> <type 'MyException'> <type 'traceback'>
     """
     try:
-        with ContextManager(u"value", exit_ret=exit_ret) as value:
-            print value
+        with ContextManager("value", exit_ret=exit_ret) as value:
+            print(value)
             raise MyException()
     except:
-        print u"outer except"
+        print("outer except")
 
 def multitarget():
     """
@@ -83,7 +121,7 @@ def multitarget():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
     with ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):
-        print a, b, c, d, e
+        print('%s %s %s %s %s' % (a, b, c, d, e))
 
 def tupletarget():
     """
@@ -93,20 +131,7 @@ def tupletarget():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
     with ContextManager((1, 2, (3, (4, 5)))) as t:
-        print t
-
-def typed():
-    """
-    >>> typed()
-    enter
-    10
-    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
-    """
-    cdef unsigned char i
-    c = ContextManager(255)
-    with c as i:
-        i += 11
-        print i
+        print(t)
 
 def multimanager():
     """
@@ -128,13 +153,13 @@ def multimanager():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
-    with ContextManager(1), ContextManager(2) as x, ContextManager(u'value') as y,\
+    with ContextManager(1), ContextManager(2) as x, ContextManager('value') as y,\
             ContextManager(3), ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):
-        with ContextManager(u'nested') as nested:
-            print x
-            print y
-            print a, b, c, d, e
-            print nested
+        with ContextManager('nested') as nested:
+            print(x)
+            print(y)
+            print('%s %s %s %s %s' % (a, b, c, d, e))
+            print(nested)
 
 # Tests borrowed from pyregr test_with.py,
 # modified to follow the constraints of Cython.
