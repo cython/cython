@@ -2546,7 +2546,7 @@ def best_match(args, functions, pos=None):
 
     possibilities = []
     bad_types = []
-    for func, func_type in candidates:
+    for index, (func, func_type) in enumerate(candidates):
         score = [0,0,0]
         for i in range(min(len(args), len(func_type.args))):
             src_type = args[i].type
@@ -2566,14 +2566,14 @@ def best_match(args, functions, pos=None):
                 bad_types.append((func, error_mesg))
                 break
         else:
-            possibilities.append((score, func)) # so we can sort it
+            possibilities.append((score, index, func)) # so we can sort it
     if possibilities:
         possibilities.sort()
         if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
             if pos is not None:
                 error(pos, "ambiguous overloaded method")
             return None
-        return possibilities[0][1]
+        return possibilities[0][-1]
     if pos is not None:
         if len(bad_types) == 1:
             error(pos, bad_types[0][1])
