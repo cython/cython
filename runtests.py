@@ -595,8 +595,8 @@ class CythonRunTestCase(CythonCompileTestCase):
 
 
 def run_forked_test(result, run_func, test_name, fork=True):
-    if sys.version_info[0] >= 3 or not hasattr(os, 'fork') or not fork:
-        run_test(result)
+    if not fork or sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
+        run_func(result)
         gc.collect()
         return
 
