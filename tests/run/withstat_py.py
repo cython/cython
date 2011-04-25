@@ -113,6 +113,26 @@ def with_exception(exit_ret):
     except:
         print("outer except")
 
+def functions_in_with():
+    """
+    >>> f = functions_in_with()
+    enter
+    exit <type 'type'> <type 'MyException'> <type 'traceback'>
+    outer except
+    >>> f(1)[0]
+    1
+    >>> print(f(1)[1])
+    value
+    """
+    try:
+        with ContextManager("value") as value:
+            def f(x): return x, value
+            make = lambda x:x()
+            raise make(MyException)
+    except:
+        print("outer except")
+    return f
+
 def multitarget():
     """
     >>> multitarget()

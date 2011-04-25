@@ -4870,6 +4870,10 @@ class WithStatNode(StatNode):
         self.manager.analyse_types(env)
         self.body.analyse_expressions(env)
 
+    def generate_function_definitions(self, env, code):
+        self.manager.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
+
     def generate_execution_code(self, code):
         code.putln("/*with:*/ {")
         self.manager.generate_evaluation_code(code)
