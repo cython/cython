@@ -18,40 +18,40 @@ def short_binop(short val):
     """
     Arithmetic in C is always done with at least int precision.
     
-    >>> short_binop(3)
-    'int called'
+    >>> print(short_binop(3))
+    int called
     """
     assert typeof(val + val) == "int", typeof(val + val)
     assert typeof(val - val) == "int", typeof(val - val)
     assert typeof(val & val) == "int", typeof(val & val)
     cdef int_return x = f(val + val)
-    return x.msg
+    return x.msg.decode('ASCII')
 
 def short_unnop(short val):
     """
     Arithmetic in C is always done with at least int precision.
     
-    >>> short_unnop(3)
-    'int called'
+    >>> print(short_unnop(3))
+    int called
     """
     cdef int_return x = f(-val)
-    return x.msg
+    return x.msg.decode('ASCII')
 
 def longlong_binop(long long val):
     """
-    >>> longlong_binop(3)
-    'long long called'
+    >>> print(longlong_binop(3))
+    long long called
     """
     cdef longlong_return x = f(val * val)
-    return x.msg
+    return x.msg.decode('ASCII')
 
 def longlong_unnop(long long val):
     """
-    >>> longlong_unnop(3)
-    'long long called'
+    >>> print(longlong_unnop(3))
+    long long called
     """
     cdef longlong_return x = f(~val)
-    return x.msg
+    return x.msg.decode('ASCII')
 
 
 def test_bint(bint a):
