@@ -1172,6 +1172,7 @@ def p_raise_statement(s):
     exc_type = None
     exc_value = None
     exc_tb = None
+    cause = None
     if s.sy not in statement_terminators:
         exc_type = p_test(s)
         if s.sy == ',':
@@ -1180,11 +1181,15 @@ def p_raise_statement(s):
             if s.sy == ',':
                 s.next()
                 exc_tb = p_test(s)
+        elif s.sy == 'from':
+            s.next()
+            cause = p_test(s)
     if exc_type or exc_value or exc_tb:
         return Nodes.RaiseStatNode(pos,
             exc_type = exc_type,
             exc_value = exc_value,
-            exc_tb = exc_tb)
+            exc_tb = exc_tb,
+            cause = cause)
     else:
         return Nodes.ReraiseStatNode(pos)
 
