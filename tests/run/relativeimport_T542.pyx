@@ -20,10 +20,9 @@ def test_relative():
 
 def test_absolute():
     """
-    >>> test_absolute()
+    >>> test_absolute()   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    ImportError: No module named debug
+    ImportError: No module named ...debug...
     """
     import debug
     return
