@@ -13,7 +13,7 @@ def test_in(s):
     >>> test_in('')
     5
     """
-    if s in (u'ABC', u'BCD'):
+    if s in (u'ABC', u'BCD', u'ABC'[:3], u'ABC'[::-1], u'ABC'[-1]):
         return 1
     elif s.upper() in (u'ABC', u'BCD'):
         return 2
