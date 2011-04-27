@@ -610,8 +610,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'operator.comma'        : ExprNodes.c_binop_constructor(','),
     }
 
-    special_methods = cython.set(['declare', 'union', 'struct', 'typedef', 'sizeof',
-                                  'cast', 'pointer', 'compiled', 'NULL'])
+    special_methods = cython.set(['declare', 'union', 'struct', 'typedef',
+                                  'sizeof', 'cast', 'pointer', 'compiled',
+                                  'NULL', 'fused_type'])
     special_methods.update(unop_method_nodes.keys())
 
     def __init__(self, context, compilation_directive_defaults):
@@ -896,6 +897,36 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             return self.visit_with_directives(node.body, directive_dict)
         return self.visit_Node(node)
 
+    def visit_CTypeDefNode(self, node):
+        "Don't skip ctypedefs"
+        self.visitchildren(node)
+        return node
+
+    def visit_FusedTypeNode(self, node):
+        """
+        See if a function call expression in a ctypedef is actually
+        cython.fused_type()
+        """
+        def err():
+            error(node.pos, "Can only fuse types with cython.fused_type()")
+
+        if len(node.funcname) == 1:
+            fused_type, = node.funcname
+        else:
+            cython_module, fused_type = node.funcname
+
+            wrong_module = cython_module not in self.cython_module_names
+            if wrong_module or fused_type != u'fused_type':
+                err()
+
+            return node
+
+        if not self.directive_names.get(fused_type):
+            err()
+
+        return node
+
+
 class WithTransform(CythonTransform, SkipDeclarations):
 
     # EXCINFO is manually set to a variable that contains
@@ -1115,6 +1146,14 @@ if VALUE is not None:
         return node
 
     def visit_FuncDefNode(self, node):
+        """
+        Analyse a function and its body, as that hasn't happend yet. Also
+        analyse the directive_locals set by @cython.locals(). Then, if we are
+        a function with fused arguments, replace the function (after it has
+        declared itself in the symbol table!) with a FusedCFuncDefNode, and
+        analyse its children (which are in turn normal functions). If we're a
+        normal function, just analyse the body of the function.
+        """
         self.seen_vars_stack.append(cython.set())
         lenv = node.local_scope
         node.body.analyse_control_flow(lenv) # this will be totally refactored
@@ -1126,10 +1165,16 @@ if VALUE is not None:
                     lenv.declare_var(var, type, type_node.pos)
                 else:
                     error(type_node.pos, "Not a type")
-        node.body.analyse_declarations(lenv)
-        self.env_stack.append(lenv)
-        self.visitchildren(node)
-        self.env_stack.pop()
+
+        if node.has_fused_arguments:
+            node = Nodes.FusedCFuncDefNode(node, self.env_stack[-1])
+            self.visitchildren(node)
+        else:
+            node.body.analyse_declarations(lenv)
+            self.env_stack.append(lenv)
+            self.visitchildren(node)
+            self.env_stack.pop()
+
         self.seen_vars_stack.pop()
         return node
 

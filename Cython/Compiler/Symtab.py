@@ -176,6 +176,7 @@ class Entry(object):
     buffer_aux = None
     prev_entry = None
     might_overflow = 0
+    fused_cfunction = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -241,6 +242,7 @@ class Scope(object):
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
+    fused_to_specific = None
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -278,6 +280,9 @@ class Scope(object):
         self.control_flow = ControlFlow.LinearControlFlow()
         self.return_type = None
         self.id_counters = {}
+
+    def __deepcopy__(self, memo):
+        return self
 
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
@@ -677,6 +682,8 @@ class Scope(object):
     def lookup_type(self, name):
         entry = self.lookup(name)
         if entry and entry.is_type:
+            if entry.type.is_fused and self.fused_to_specific:
+                return entry.type.specialize(self.fused_to_specific)
             return entry.type
 
     def lookup_operator(self, operator, operands):

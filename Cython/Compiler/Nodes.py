@@ -681,6 +681,7 @@ class CArgDeclNode(Node):
                 could_be_name = True
             else:
                 could_be_name = False
+            self.base_type.is_arg = True
             base_type = self.base_type.analyse(env, could_be_name = could_be_name)
             if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
@@ -777,9 +778,10 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             if scope:
                 if scope.is_c_class_scope:
                     scope = scope.global_scope()
-                entry = scope.lookup(self.name)
-                if entry and entry.is_type:
-                    type = entry.type
+
+                type = scope.lookup_type(self.name)
+                if type is not None:
+                    pass
                 elif could_be_name:
                     if self.is_self_arg and env.is_c_class_scope:
                         type = env.parent_type
@@ -919,6 +921,26 @@ class CComplexBaseTypeNode(CBaseTypeNode):
         base = self.base_type.analyse(env, could_be_name)
         _, type = self.declarator.analyse(base, env)
         return type
+
+
+class FusedTypeNode(CBaseTypeNode):
+    """
+    Represents a fused type in a ctypedef statement:
+
+        ctypedef cython.fused_type(int, long, long long) integral
+
+    types           [CSimpleBaseTypeNode]   is the list of types to be fused
+    """
+
+    child_attrs = []
+
+    def analyse(self, env):
+        self.types = [type.analyse_as_type(env) for type in self.types]
+
+        if len(self.types) == 1:
+            return self.types[0]
+
+        return PyrexTypes.FusedType(self.types)
 
 
 class CVarDefNode(StatNode):
@@ -1162,15 +1184,29 @@ class CTypeDefNode(StatNode):
     child_attrs = ["base_type", "declarator"]
 
     def analyse_declarations(self, env):
+        """
+        If we are a fused type, do a normal type declaration, as we want
+        declared variables to have a FusedType type, not a CTypeDefType.
+        """
         base = self.base_type.analyse(env)
         name_declarator, type = self.declarator.analyse(base, env)
         name = name_declarator.name
         cname = name_declarator.cname
         entry = env.declare_typedef(name, type, self.pos,
             cname = cname, visibility = self.visibility, api = self.api)
+
         if self.in_pxd and not env.in_cinclude:
             entry.defined_in_pxd = 1
-    
+
+        if base.is_fused:
+            # Omit the typedef declaration that self.declarator would produce
+            entry.in_cinclude = True
+
+            if self.visibility == 'public' or self.api:
+                error(self.pos, "Fused types cannot be public or api")
+
+            base.name = name
+
     def analyse_expressions(self, env):
         pass
     def generate_execution_code(self, code):
@@ -1187,6 +1223,11 @@ class FuncDefNode(StatNode, BlockNode):
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
 
+    #  has_fused_arguments  boolean
+    #       Whether this cdef function has fused parameters. This is needed
+    #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
+    #       with fused argument types with a FusedCFuncDefNode
+
     py_func = None
     assmt = None
     needs_closure = False
@@ -1194,6 +1235,7 @@ class FuncDefNode(StatNode, BlockNode):
     is_generator = False
     is_generator_body = False
     modifiers = []
+    has_fused_arguments = False
 
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1652,6 +1694,9 @@ class CFuncDefNode(FuncDefNode):
     #  visibility    'private' or 'public' or 'extern'
     #  base_type     CBaseTypeNode
     #  declarator    CDeclaratorNode
+    #  cfunc_declarator  the CFuncDeclarator of this function
+    #                    (this is also available through declarator or a
+    #                     base thereof)
     #  body          StatListNode
     #  api           boolean
     #  decorators    [DecoratorNode]        list of decorators
@@ -1667,6 +1712,7 @@ class CFuncDefNode(FuncDefNode):
     inline_in_pxd = False
     decorators = None
     directive_locals = None
+    cname_postfix = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -1695,21 +1741,31 @@ class CFuncDefNode(FuncDefNode):
         declarator = self.declarator
         while not hasattr(declarator, 'args'):
             declarator = declarator.base
+
+        self.cfunc_declarator = declarator
         self.args = declarator.args
+
         for formal_arg, type_arg in zip(self.args, type.args):
             self.align_argument_type(env, type_arg)
             formal_arg.type = type_arg.type
             formal_arg.name = type_arg.name
             formal_arg.cname = type_arg.cname
+
+            if type_arg.type.is_fused:
+                self.has_fused_arguments = True
+
             if type_arg.type.is_buffer and 'inline' in self.modifiers:
                 warning(formal_arg.pos, "Buffer unpacking not optimized away.", 1)
+
         name = name_declarator.name
         cname = name_declarator.cname
+
         self.entry = env.declare_cfunction(
             name, type, self.pos,
             cname = cname, visibility = self.visibility,
             defining = self.body is not None,
             api = self.api, modifiers = self.modifiers)
+
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         if self.return_type.is_array and visibility != 'extern':
@@ -1898,6 +1954,96 @@ class CFuncDefNode(FuncDefNode):
                 arglist.append('NULL')
             code.putln('%s(%s);' % (self.entry.func_cname, ', '.join(arglist)))
             code.putln('}')
+
+
+class FusedCFuncDefNode(StatListNode):
+    """
+    This node replaces a function with fused arguments. It deep-copies the
+    function for every permutation of fused types, and allocates a new local
+    scope for it. It keeps track of the original function in self.node, and
+    the entry of the original function in the symbol table is given the
+    'fused_cfunction' attribute which points back to us.
+    Then when a function lookup occurs (to e.g. call it), the call can be
+    dispatched to the right function.
+
+    node   FuncDefNode    the original function
+    nodes  [FuncDefNode]  list of copies of node with different specific types
+    """
+
+    child_attrs = ['nodes']
+
+    def __init__(self, node, env):
+        super(FusedCFuncDefNode, self).__init__(node.pos)
+
+        self.nodes = self.stats = []
+        self.node = node
+
+        self.copy_cdefs(node.type.get_fused_types(), env)
+
+        # Perform some sanity checks. If anything fails, it's a bug
+        for n in self.nodes:
+            assert not n.type.is_fused
+            assert not n.local_scope.return_type.is_fused
+            if node.return_type.is_fused:
+                assert not n.return_type.is_fused
+
+        assert node.type.is_fused
+
+        node.entry.fused_cfunction = self
+
+    def copy_cdefs(self, fused_types, env):
+        """
+        Gives a list of fused types and the parent environment, make copies
+        of the original cdef function.
+        """
+        permutations = self.get_all_specific_permutations(fused_types)
+        for cname, fused_to_specific in permutations:
+            copied_node = copy.deepcopy(self.node)
+
+            # Make the types in our CFuncType specific
+            newtype = copied_node.type.specialize(fused_to_specific)
+            copied_node.type = newtype
+            copied_node.entry.type = newtype
+
+            copied_node.return_type = newtype.return_type
+            copied_node.create_local_scope(env)
+            copied_node.local_scope.fused_to_specific = fused_to_specific
+
+            # This is copied from the original function, set it to false to
+            # stop recursivon
+            copied_node.has_fused_arguments = False
+            self.nodes.append(copied_node)
+
+            # Make the argument types in the CFuncDeclarator specific
+            for arg in copied_node.cfunc_declarator.args:
+                arg.type = arg.type.specialize(fused_to_specific)
+
+            cname = '%s%s%s' % (Naming.fused_func_prefix,
+                                cname,
+                                self.node.entry.func_cname)
+            copied_node.entry.func_cname = copied_node.entry.cname = cname
+
+    def get_all_specific_permutations(self, fused_types):
+        """
+        Permute all the types. For every specific instance of a fused type, we
+        want all other specific instances of all other fused types.
+
+        It returns an iterable of two-tuples of the cname that should prefix
+        the cname of the function, and a dict mapping any fused types to their
+        respective specific types.
+        """
+        fused_type = fused_types[0]
+        for specific_type in fused_type.types:
+            cname = str(specific_type)
+            result_fused_to_specific = { fused_type: specific_type }
+
+            if len(fused_types) > 1:
+                it = self.get_all_specific_permutations(fused_types[1:])
+                for next_cname, fused_to_specific in it:
+                    d = dict(fused_to_specific, **result_fused_to_specific)
+                    yield '%s_%s' % (cname, next_cname), d
+            else:
+                yield cname, result_fused_to_specific
 
 
 class PyArgDeclNode(Node):
@@ -3653,6 +3799,20 @@ class SingleAssignmentNode(AssignmentNode):
                     if len(args) > 2 or kwds is not None:
                         error(self.rhs.pos, "Can only declare one type at a time.")
                         return
+
+                    # See if we're dealing with this:
+                    #     dtype = cython.typedef(cython.fused_type(...))
+                    nested_func_name = args[0].function.as_cython_attribute()
+                    if nested_func_name == u'fused_type':
+                        nested_args, nested_kwds = args[0].explicit_args_kwds()
+                        if nested_kwds is not None:
+                            error(self.rhs.pos,
+                                  "fused_type does not take keyword arguments")
+
+                        args[0] = FusedTypeNode(self.rhs.pos,
+                                                types=nested_args)
+                        args[0].name = self.lhs.name
+
                     type = args[0].analyse_as_type(env)
                     if type is None:
                         error(args[0].pos, "Unknown type")

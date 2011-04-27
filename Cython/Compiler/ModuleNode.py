@@ -156,13 +156,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f.close()
 
     def generate_public_declaration(self, entry, h_code, i_code):
+        if entry.fused_cfunction:
+            for cfunction in entry.fused_cfunction.nodes:
+                self._generate_public_declaration(cfunction.entry,
+                            cfunction.entry.cname, h_code, i_code)
+        else:
+            self._generate_public_declaration(entry, entry.cname,
+                                              h_code, i_code)
+
+    def _generate_public_declaration(self, entry, cname, h_code, i_code):
         h_code.putln("%s %s;" % (
             Naming.extern_c_macro,
             entry.type.declaration_code(
-                entry.cname, dll_linkage = "DL_IMPORT")))
+                cname, dll_linkage = "DL_IMPORT")))
         if i_code:
             i_code.putln("cdef extern %s" %
-                entry.type.declaration_code(entry.cname, pyrex = 1))
+                entry.type.declaration_code(cname, pyrex = 1))
 
     def api_name(self, env):
         return env.qualified_name.replace(".", "__")
@@ -987,34 +996,43 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_cfunction_predeclarations(self, env, code, definition):
         for entry in env.cfunc_entries:
-            if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
-                    or entry.defined_in_pxd or entry.visibility == 'extern')):
-                if entry.visibility == 'public':
-                    storage_class = "%s " % Naming.extern_c_macro
-                    dll_linkage = "DL_EXPORT"
-                elif entry.visibility == 'extern':
-                    storage_class = "%s " % Naming.extern_c_macro
-                    dll_linkage = "DL_IMPORT"
-                elif entry.visibility == 'private':
-                    storage_class = "static "
-                    dll_linkage = None
-                else:
-                    storage_class = "static "
-                    dll_linkage = None
-                type = entry.type
-                
-                if not definition and entry.defined_in_pxd:
-                    type = CPtrType(type)
-                header = type.declaration_code(entry.cname,
-                                               dll_linkage = dll_linkage)
-                if entry.func_modifiers:
-                    modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
-                else:
-                    modifiers = ''
-                code.putln("%s%s%s; /*proto*/" % (
-                    storage_class,
-                    modifiers,
-                    header))
+            if entry.fused_cfunction:
+                for node in entry.fused_cfunction.nodes:
+                    self._generate_cfunction_predeclaration(
+                                code, definition, node.entry)
+            else:
+                self._generate_cfunction_predeclaration(code, definition, entry)
+
+
+    def _generate_cfunction_predeclaration(self, code, definition, entry):
+        if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
+                or entry.defined_in_pxd or entry.visibility == 'extern')):
+            if entry.visibility == 'public':
+                storage_class = "%s " % Naming.extern_c_macro
+                dll_linkage = "DL_EXPORT"
+            elif entry.visibility == 'extern':
+                storage_class = "%s " % Naming.extern_c_macro
+                dll_linkage = "DL_IMPORT"
+            elif entry.visibility == 'private':
+                storage_class = "static "
+                dll_linkage = None
+            else:
+                storage_class = "static "
+                dll_linkage = None
+            type = entry.type
+
+            if not definition and entry.defined_in_pxd:
+                type = CPtrType(type)
+            header = type.declaration_code(entry.cname,
+                                           dll_linkage = dll_linkage)
+            if entry.func_modifiers:
+                modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
+            else:
+                modifiers = ''
+            code.putln("%s%s%s; /*proto*/" % (
+                storage_class,
+                modifiers,
+                header))
 
     def generate_typeobj_definitions(self, env, code):
         full_module_name = env.qualified_name

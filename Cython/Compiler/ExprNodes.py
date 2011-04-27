@@ -2949,6 +2949,7 @@ class SimpleCallNode(CallNode):
         else:
             for arg in self.args:
                 arg.analyse_types(env)
+
             if self.self and func_type.args:
                 # Coerce 'self' to the type expected by the method.
                 self_arg = func_type.args[0]
@@ -2965,10 +2966,13 @@ class SimpleCallNode(CallNode):
 
     def function_type(self):
         # Return the type of the function being called, coercing a function
-        # pointer to a function if necessary.
+        # pointer to a function if necessary. If the function has fused
+        # arguments, return the specific type.
         func_type = self.function.type
+
         if func_type.is_ptr:
             func_type = func_type.base_type
+
         return func_type
 
     def is_simple(self):
@@ -2982,6 +2986,7 @@ class SimpleCallNode(CallNode):
         if self.function.type is error_type:
             self.type = error_type
             return
+
         if self.function.type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
             if overloaded_entry is None:
@@ -2992,8 +2997,16 @@ class SimpleCallNode(CallNode):
             overloaded_entry = self.function.entry
         else:
             overloaded_entry = None
+
         if overloaded_entry:
-            entry = PyrexTypes.best_match(self.args, overloaded_entry.all_alternatives(), self.pos)
+            if overloaded_entry.fused_cfunction:
+                specific_cdef_funcs = overloaded_entry.fused_cfunction.nodes
+                alternatives = [n.entry for n in specific_cdef_funcs]
+            else:
+                alternatives = overloaded_entry.all_alternatives()
+
+            entry = PyrexTypes.best_match(self.args, alternatives, self.pos, env)
+
             if not entry:
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
@@ -3130,8 +3143,8 @@ class SimpleCallNode(CallNode):
 
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.result())
-        result = "%s(%s)" % (self.function.result(),
-            ', '.join(arg_list_code))
+
+        result = "%s(%s)" % (self.function.result(), ', '.join(arg_list_code))
         return result
 
     def generate_result_code(self, code):

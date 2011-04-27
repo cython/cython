@@ -2572,6 +2572,24 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             overridable = ctx.overridable)
     return result
 
+def p_typelist(s):
+    """
+    parse a list of basic c types as part of a function call, like
+    cython.fused_type(int, long, double)
+    """
+    types = []
+    pos = s.position()
+
+    while s.sy == 'IDENT':
+        types.append(p_c_base_type(s))
+        if s.sy != ',':
+            if s.sy != ')':
+                s.expect(',')
+            break
+        s.next()
+
+    return Nodes.FusedTypeNode(pos, types=types)
+
 def p_ctypedef_statement(s, ctx):
     # s.sy == 'ctypedef'
     pos = s.position()
@@ -2588,17 +2606,37 @@ def p_ctypedef_statement(s, ctx):
             return p_c_enum_definition(s, pos, ctx)
         else:
             return p_c_struct_or_union_definition(s, pos, ctx)
+    elif looking_at_expr(s):
+        # ctypedef cython.fused_types(int, long) integral
+        if s.sy == 'IDENT':
+            funcname = [s.systring]
+            s.next()
+            if s.systring == u'.':
+                s.next()
+                funcname.append(s.systring)
+                s.expect('IDENT')
+
+            s.expect('(')
+            base_type = p_typelist(s)
+            s.expect(')')
+
+            # Check if funcname equals cython.fused_types in
+            # InterpretCompilerDirectives
+            base_type.funcname = funcname
+        else:
+            s.error("Syntax error in ctypedef statement")
     else:
         base_type = p_c_base_type(s, nonempty = 1)
         if base_type.name is None:
             s.error("Syntax error in ctypedef statement")
-        declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
-        s.expect_newline("Syntax error in ctypedef statement")
-        return Nodes.CTypeDefNode(
-            pos, base_type = base_type,
-            declarator = declarator, 
-            visibility = visibility, api = api,
-            in_pxd = ctx.level == 'module_pxd')
+
+    declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
+    s.expect_newline("Syntax error in ctypedef statement")
+    return Nodes.CTypeDefNode(
+        pos, base_type = base_type,
+        declarator = declarator,
+        visibility = visibility, api = api,
+        in_pxd = ctx.level == 'module_pxd')
 
 def p_decorators(s):
     decorators = []

@@ -2,6 +2,8 @@
 #   Pyrex - Types
 #
 
+import cython
+
 from Code import UtilityCode
 import StringEncoding
 import Naming
@@ -11,6 +13,9 @@ from Errors import error
 class BaseType(object):
     #
     #  Base class for all Pyrex types including pseudo-types.
+
+    # List of attribute names of any subtypes
+    subtypes = []
 
     def can_coerce_to_pyobject(self, env):
         return False
@@ -26,6 +31,42 @@ class BaseType(object):
             return "%s %s" % (base_code, entity_code)
         else:
             return base_code
+
+    def __deepcopy__(self, memo):
+        """
+        Types never need to be copied, if we do copy, Unfortunate Things
+        Will Happen!
+        """
+        return self
+
+    def get_fused_types(self, result=None, seen=None):
+        if self.subtypes:
+
+            def add_fused_types(types):
+                for type in types or ():
+                    if type not in seen:
+                        seen.add(type)
+                        result.append(type)
+
+            if result is None:
+                result = []
+                seen = cython.set()
+
+            for attr in self.subtypes:
+                list_or_subtype = getattr(self, attr)
+
+                if isinstance(list_or_subtype, BaseType):
+                    list_or_subtype.get_fused_types(result, seen)
+                else:
+                    for subtype in list_or_subtype:
+                        subtype.get_fused_types(result, seen)
+
+            return result
+
+        return None
+
+    is_fused = property(get_fused_types, doc="Whether this type or any of its "
+                                             "subtypes is a fused type")
 
 class PyrexType(BaseType):
     #
@@ -195,7 +236,8 @@ class CTypedefType(BaseType):
 
     to_py_utility_code = None
     from_py_utility_code = None
-    
+
+    subtypes = ['typedef_base_type']
     
     def __init__(self, name, base_type, cname, is_external=0):
         assert not base_type.is_complex
@@ -314,6 +356,9 @@ class BufferType(BaseType):
 
     is_buffer = 1
     writable = True
+
+    subtypes = ['dtype']
+
     def __init__(self, base, dtype, ndim, mode, negative_indices, cast):
         self.base = base
         self.dtype = dtype
@@ -345,7 +390,7 @@ class PyObjectType(PyrexType):
     buffer_defaults = None
     is_extern = False
     is_subclassed = False
-    
+
     def __str__(self):
         return "Python object"
     
@@ -616,6 +661,45 @@ class CType(PyrexType):
             return " && ".join(conds)
         else:
             return 0
+
+
+class FusedType(CType):
+    """
+    Represents a Fused Type. All it needs to do is keep track of the types
+    it aggregates, as it will be replaced with its specific version wherever
+    needed.
+
+    See http://wiki.cython.org/enhancements/fusedtypes
+
+    types           [CSimpleBaseTypeNode]   is the list of types to be fused
+    name            str                     the name of the ctypedef
+    """
+
+    is_fused = 1
+
+    def __init__(self, types):
+        self.types = types
+
+    def declaration_code(self, entity_code, for_display = 0,
+                         dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            return self.name
+
+        raise Exception("This may never happen, please report a bug")
+
+    def __repr__(self):
+        return 'FusedType(name=%r)' % self.name
+
+    def specialize(self, values):
+        return values[self]
+
+    def get_fused_types(self, result=None, seen=None):
+        if result is None:
+            return [self]
+
+        if self not in seen:
+            result.append(self)
+            seen.add(self)
 
 
 class CVoidType(CType):
@@ -1531,7 +1615,9 @@ class CArrayType(CType):
     #  size          integer or None    Number of elements
     
     is_array = 1
-    
+
+    subtypes = ['base_type']
+
     def __init__(self, base_type, size):
         self.base_type = base_type
         self.size = size
@@ -1577,6 +1663,8 @@ class CPtrType(CType):
     
     is_ptr = 1
     default_value = "0"
+
+    subtypes = ['base_type']
     
     def __init__(self, base_type):
         self.base_type = base_type
@@ -1675,7 +1763,9 @@ class CFuncType(CType):
     
     is_cfunction = 1
     original_sig = None
-    
+
+    subtypes = ['return_type', 'args']
+
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
@@ -1691,7 +1781,7 @@ class CFuncType(CType):
         self.with_gil = with_gil
         self.is_overridable = is_overridable
         self.templates = templates
-    
+
     def __repr__(self):
         arg_reprs = map(repr, self.args)
         if self.has_varargs:
@@ -1915,7 +2005,7 @@ class CFuncType(CType):
         return self.op_arg_struct.base_type.scope.lookup(arg_name).cname
 
 
-class CFuncTypeArg(object):
+class CFuncTypeArg(BaseType):
     #  name       string
     #  cname      string
     #  type       PyrexType
@@ -1925,6 +2015,8 @@ class CFuncTypeArg(object):
     not_none = False
     or_none = False
     accept_none = True
+
+    subtypes = ['type']
 
     def __init__(self, name, type, pos, cname=None):
         self.name = name
@@ -2478,7 +2570,7 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(args, functions, pos=None):
+def best_match(args, functions, pos=None, env=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -2546,12 +2638,33 @@ def best_match(args, functions, pos=None):
         
     possibilities = []
     bad_types = []
+    needed_coercions = {}
     for func, func_type in candidates:
         score = [0,0,0]
         for i in range(min(len(args), len(func_type.args))):
             src_type = args[i].type
             dst_type = func_type.args[i].type
-            if dst_type.assignable_from(src_type):
+
+            assignable = dst_type.assignable_from(src_type)
+
+            # Now take care of normal string literals. So when you call a cdef
+            # function that takes a char *, the coercion will mean that the
+            # type will simply become bytes. We need to do this coercion
+            # manually for overloaded and fused functions
+            if not assignable and src_type.is_pyobject:
+                if (src_type.is_builtin_type and src_type.name == 'str' and
+                        dst_type.resolve() is c_char_ptr_type):
+                    c_src_type = c_char_ptr_type
+                else:
+                    c_src_type = src_type.default_coerced_ctype()
+
+                if c_src_type:
+                    assignable = dst_type.assignable_from(c_src_type)
+                    if assignable:
+                        src_type = c_src_type
+                        needed_coercions[func] = i, dst_type
+
+            if assignable:
                 if src_type == dst_type or dst_type.same_as(src_type):
                     pass # score 0
                 elif is_promotion(src_type, dst_type):
@@ -2567,18 +2680,28 @@ def best_match(args, functions, pos=None):
                 break
         else:
             possibilities.append((score, func)) # so we can sort it
+
     if possibilities:
         possibilities.sort()
         if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
             if pos is not None:
                 error(pos, "ambiguous overloaded method")
             return None
-        return possibilities[0][1]
+
+        function = possibilities[0][1]
+
+        if function in needed_coercions and env:
+            arg_i, coerce_to_type = needed_coercions[function]
+            args[arg_i] = args[arg_i].coerce_to(coerce_to_type, env)
+
+        return function
+
     if pos is not None:
         if len(bad_types) == 1:
             error(pos, bad_types[0][1])
         else:
             error(pos, "no suitable method found")
+
     return None
 
 def widest_numeric_type(type1, type2):
