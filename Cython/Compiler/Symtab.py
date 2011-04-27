@@ -390,6 +390,9 @@ class Scope(object):
         entry.api = api
         if defining:
             self.type_entries.append(entry)
+
+        type.entry = entry
+
         # here we would set as_variable to an object representing this type
         return entry
 

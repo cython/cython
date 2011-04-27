@@ -96,6 +96,7 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  default_value         string      Initial value
+    #  entry                 Entry       The Entry for this type
     #
     #  declaration_code(entity_code, 
     #      for_display = 0, dll_linkage = None, pyrex = 0)

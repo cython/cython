@@ -1745,17 +1745,27 @@ class CFuncDefNode(FuncDefNode):
         self.cfunc_declarator = declarator
         self.args = declarator.args
 
+        opt_arg_count = self.cfunc_declarator.optional_arg_count
+        if (self.visibility == 'public' or self.api) and opt_arg_count:
+            error(self.cfunc_declarator.pos,
+                  "Function with optional arguments may not be declared "
+                  "public or api")
+
         for formal_arg, type_arg in zip(self.args, type.args):
             self.align_argument_type(env, type_arg)
             formal_arg.type = type_arg.type
             formal_arg.name = type_arg.name
             formal_arg.cname = type_arg.cname
 
+            self._validate_type_visibility(type_arg.type, type_arg.pos, env)
+
             if type_arg.type.is_fused:
                 self.has_fused_arguments = True
 
             if type_arg.type.is_buffer and 'inline' in self.modifiers:
                 warning(formal_arg.pos, "Buffer unpacking not optimized away.", 1)
+
+        self._validate_type_visibility(type.return_type, self.pos, env)
 
         name = name_declarator.name
         cname = name_declarator.cname
@@ -1768,7 +1778,7 @@ class CFuncDefNode(FuncDefNode):
 
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
-        if self.return_type.is_array and visibility != 'extern':
+        if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos,
                 "Function cannot return an array")
 
@@ -1797,6 +1807,19 @@ class CFuncDefNode(FuncDefNode):
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
         self.create_local_scope(env)
+
+    def _validate_type_visibility(self, type, pos, env):
+        """
+        Ensure that types used in cdef functions are public or api, or
+        defined in a C header.
+        """
+        public_or_api = (self.visibility == 'public' or self.api)
+        entry = getattr(type, 'entry', None)
+        if public_or_api and entry and env.is_module_scope:
+            if not (entry.visibility in ('public', 'extern') or
+                    entry.api or entry.in_cinclude):
+                error(pos, "Function declared public or api may not have "
+                           "private types")
 
     def call_self_node(self, omit_optional_args=0, is_module_scope=0):
         import ExprNodes
