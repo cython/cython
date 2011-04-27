@@ -930,7 +930,15 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         conds = []
         temps = []
         for arg in args:
-            if not arg.is_simple():
+            try:
+                # Trial optimisation to avoid redundant temp
+                # assignments.  However, since is_simple() is meant to
+                # be called after type analysis, we ignore any errors
+                # and just play safe in that case.
+                is_simple_arg = arg.is_simple()
+            except Exception:
+                is_simple_arg = False
+            if not is_simple_arg:
                 # must evaluate all non-simple RHS before doing the comparisons
                 arg = UtilNodes.LetRefNode(arg)
                 temps.append(arg)
