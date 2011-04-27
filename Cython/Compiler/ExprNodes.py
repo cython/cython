@@ -8473,8 +8473,8 @@ static int __Pyx_cdivision_warning(void) {
 # from intobject.c
 division_overflow_test_code = UtilityCode(
 proto="""
-#define UNARY_NEG_WOULD_OVERFLOW(x)	\
-	(((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
+#define UNARY_NEG_WOULD_OVERFLOW(x)    \
+        (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
 
 
@@ -8497,29 +8497,29 @@ static int %(binding_cfunc)s_init(void); /* proto */
 impl="""
 
 static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
-	%(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object, %(binding_cfunc)s);
+    %(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object, %(binding_cfunc)s);
     if (op == NULL)
         return NULL;
-	op->func.m_ml = ml;
-	Py_XINCREF(self);
-	op->func.m_self = self;
-	Py_XINCREF(module);
-	op->func.m_module = module;
-	PyObject_GC_Track(op);
-	return (PyObject *)op;
+    op->func.m_ml = ml;
+    Py_XINCREF(self);
+    op->func.m_self = self;
+    Py_XINCREF(module);
+    op->func.m_module = module;
+    PyObject_GC_Track(op);
+    return (PyObject *)op;
 }
 
 static void %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m) {
-	PyObject_GC_UnTrack(m);
-	Py_XDECREF(m->func.m_self);
-	Py_XDECREF(m->func.m_module);
+    PyObject_GC_UnTrack(m);
+    Py_XDECREF(m->func.m_self);
+    Py_XDECREF(m->func.m_module);
     PyObject_GC_Del(m);
 }
 
 static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyObject *type) {
-	if (obj == Py_None)
-		obj = NULL;
-	return PyMethod_New(func, obj, type);
+    if (obj == Py_None)
+            obj = NULL;
+    return PyMethod_New(func, obj, type);
 }
 
 static int %(binding_cfunc)s_init(void) {
