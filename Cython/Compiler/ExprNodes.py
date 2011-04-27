@@ -8641,7 +8641,7 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args, CYTHON_UN
 
     if (!PyArg_UnpackTuple(args, (char *)"throw", 1, 3, &typ, &val, &tb))
         return NULL;
-    __Pyx_Raise(typ, val, tb);
+    __Pyx_Raise(typ, val, tb, NULL);
     return __Pyx_Generator_SendEx(generator, NULL);
 }
 """,
