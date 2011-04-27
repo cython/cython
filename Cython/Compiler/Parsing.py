@@ -2024,10 +2024,12 @@ def looking_at_expr(s):
         name = s.systring
         dotted_path = []
         s.next()
+
         while s.sy == '.':
             s.next()
             dotted_path.append(s.systring)
             s.expect('IDENT')
+
         saved = s.sy, s.systring
         if s.sy == 'IDENT':
             is_type = True
@@ -2043,12 +2045,14 @@ def looking_at_expr(s):
             s.next()
             is_type = s.sy == ']'
             s.put_back(*saved)
+
         dotted_path.reverse()
         for p in dotted_path:
             s.put_back('IDENT', p)
             s.put_back('.', '.')
+
         s.put_back('IDENT', name)
-        return not is_type
+        return not is_type and saved[0]
     else:
         return True
 
@@ -2065,6 +2069,17 @@ def looking_at_dotted_name(s):
         return result
     else:
         return 0
+
+def looking_at_call(s):
+    "See if we're looking at a.b.c("
+    # Don't mess up the original position, so save and restore it.
+    # Unfortunately there's no good way to handle this, as a subsequent call
+    # to next() will not advance the position until it reads a new token.
+    position = s.start_line, s.start_col
+    result = looking_at_expr(s) == '('
+    if not result:
+        s.start_line, s.start_col = position
+    return result
 
 basic_c_type_names = ("void", "char", "int", "float", "double", "bint")
 
@@ -2606,7 +2621,7 @@ def p_ctypedef_statement(s, ctx):
             return p_c_enum_definition(s, pos, ctx)
         else:
             return p_c_struct_or_union_definition(s, pos, ctx)
-    elif looking_at_expr(s):
+    elif looking_at_call(s):
         # ctypedef cython.fused_types(int, long) integral
         if s.sy == 'IDENT':
             funcname = [s.systring]
