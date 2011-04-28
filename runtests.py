@@ -1189,6 +1189,9 @@ def main():
     parser.add_option("--coverage-xml", dest="coverage_xml",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler in XML format")
+    parser.add_option("--coverage-html", dest="coverage_html",
+                      action="store_true", default=False,
+                      help="collect source coverage data for the Compiler in HTML format")
     parser.add_option("-A", "--annotate", dest="annotate_source",
                       action="store_true", default=True,
                       help="generate annotated HTML versions of the test source files")
@@ -1244,9 +1247,9 @@ def main():
 
     WITH_CYTHON = options.with_cython
 
-    if options.coverage or options.coverage_xml:
+    if options.coverage or options.coverage_xml or options.coverage_html:
         if not WITH_CYTHON:
-            options.coverage = options.coverage_xml = False
+            options.coverage = options.coverage_xml = options.coverage_html = False
         else:
             from coverage import coverage as _coverage
             coverage = _coverage(branch=True)
@@ -1379,7 +1382,7 @@ def main():
 
     result = test_runner.run(test_suite)
 
-    if options.coverage or options.coverage_xml:
+    if options.coverage or options.coverage_xml or options.coverage_html:
         coverage.stop()
         ignored_modules = ('Options', 'Version', 'DebugFlags', 'CmdLine')
         modules = [ module for name, module in sys.modules.items()
@@ -1390,6 +1393,8 @@ def main():
             coverage.report(modules, show_missing=0)
         if options.coverage_xml:
             coverage.xml_report(modules, outfile="coverage-report.xml")
+        if options.coverage_html:
+            coverage.html_report(modules, directory="coverage-report-html")
 
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
