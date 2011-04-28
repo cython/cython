@@ -5,7 +5,7 @@ class TestCause(unittest.TestCase):
         try:
             raise IndexError from 5
         except TypeError as e:
-            self.assertIn("exception cause", str(e))
+            self.assertTrue("exception cause" in str(e))
         else:
             self.fail("No exception raised")
 
@@ -13,7 +13,7 @@ class TestCause(unittest.TestCase):
         try:
             raise IndexError from KeyError
         except IndexError as e:
-            self.assertIsInstance(e.__cause__, KeyError)
+            self.assertTrue(isinstance(e.__cause__, KeyError))
         else:
             self.fail("No exception raised")
 
