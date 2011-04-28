@@ -249,7 +249,11 @@ except ValueError:
 
 try:
     sys.argv.remove("--no-cython-compile")
+    compile_cython_itself = False
 except ValueError:
+    compile_cython_itself = True
+
+if compile_cython_itself:
     compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
 
 setup_args.update(setuptools_extra_args)
