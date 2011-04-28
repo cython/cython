@@ -1,30 +1,51 @@
+# mode: run
+# tag: condexpr
 # ticket: 267
 
-"""
->>> constants(4)
-1
->>> constants(5)
-10
->>> temps(4)
-1
->>> temps(5)
-10
->>> nested(1)
-1
->>> nested(2)
-2
->>> nested(3)
-3
-"""
+cimport cython
 
 def ident(x): return x
 
 def constants(x):
+    """
+    >>> constants(4)
+    1
+    >>> constants(5)
+    10
+    """
     a = 1 if x < 5 else 10
     return a
 
 def temps(x):
+    """
+    >>> temps(4)
+    1
+    >>> temps(5)
+    10
+    """
     return ident(1) if ident(x) < ident(5) else ident(10)
 
 def nested(x):
+    """
+    >>> nested(1)
+    1
+    >>> nested(2)
+    2
+    >>> nested(3)
+    3
+    """
     return 1 if x == 1 else (2 if x == 2 else 3)
+
+def const_true():
+    """
+    >>> const_true()
+    1
+    """
+    return 1 if 1 == 1 else 2
+
+def const_false():
+    """
+    >>> const_false()
+    2
+    """
+    return 1 if 1 != 1 else 2
