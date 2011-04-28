@@ -3138,6 +3138,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return ExprNodes.BoolNode(node.pos, value=bool_result,
                                   constant_result=bool_result)
 
+    def visit_CondExprNode(self, node):
+        self._calculate_const(node)
+        if node.test.constant_result is ExprNodes.not_a_constant:
+            return node
+        if node.test.constant_result:
+            return node.true_val
+        else:
+            return node.false_val
+
     def visit_IfStatNode(self, node):
         self.visitchildren(node)
         # eliminate dead code based on constant condition results
