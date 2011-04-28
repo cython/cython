@@ -69,20 +69,18 @@ if sys.platform == 'win32':
     distutils_distro.parse_config_files(cfgfiles)
 
 EXT_DEP_MODULES = {
-    'numpy' : 'tag:numpy',
-    'pstats' : 'tag:pstats',
-    'posix' : 'tag:posix',
+    'tag:numpy' : 'numpy',
+    'tag:pstats': 'pstats',
+    'tag:posix' : 'posix',
 }
 
-def get_numpy_include_dirs():
+def update_numpy_extension(ext):
     import numpy
-    return [numpy.get_include()]
+    ext.include_dirs.append(numpy.get_include())
 
-# TODO: use tags
-EXT_DEP_INCLUDES = [
-    # test name matcher , callable returning list
-    (re.compile('numpy_.*').match, get_numpy_include_dirs),
-]
+EXT_EXTRAS = {
+    'tag:numpy' : update_numpy_extension,
+}
 
 # TODO: use tags
 VER_DEP_MODULES = {
@@ -135,8 +133,6 @@ def memoize(f):
         res = f._cache.get(args, uncomputed)
         if res is uncomputed:
             res = f._cache[args] = f(*args)
-        else:
-            print "dup", args
         return res
     return func
 
@@ -493,6 +489,12 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def run_distutils(self, test_directory, module, workdir, incdir,
                       extra_extension_args=None):
+        original_source = self.find_module_source_file(
+            os.path.join(test_directory, module + '.pyx'))
+        try:
+            tags = parse_tags(original_source)
+        except IOError:
+            tags = {}
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
@@ -503,10 +505,6 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.finalize_options()
             if COMPILER:
                 build_extension.compiler = COMPILER
-            ext_include_dirs = []
-            for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
-                if match(module):
-                    ext_include_dirs += get_additional_include_dirs()
             ext_compile_flags = CFLAGS[:]
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
@@ -518,10 +516,16 @@ class CythonCompileTestCase(unittest.TestCase):
             extension = Extension(
                 module,
                 sources = self.source_files(workdir, module, related_files),
-                include_dirs = ext_include_dirs,
                 extra_compile_args = ext_compile_flags,
                 **extra_extension_args
                 )
+            for matcher, fixer in EXT_EXTRAS.items():
+                if isinstance(matcher, str):
+                    del EXT_EXTRAS[matcher]
+                    matcher = string_selector(matcher)
+                    EXT_EXTRAS[matcher] = fixer
+                if matcher(module, tags):
+                    extension = fixer(extension) or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
             build_extension.extensions = [extension]
@@ -1007,9 +1011,9 @@ class EmbedTest(unittest.TestCase):
 
 class MissingDependencyExcluder:
     def __init__(self, deps):
-        # deps: { module name : matcher func }
+        # deps: { matcher func : module name }
         self.exclude_matchers = []
-        for mod, matcher in deps.items():
+        for matcher, mod in deps.items():
             try:
                 __import__(mod)
             except ImportError:
