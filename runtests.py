@@ -297,7 +297,7 @@ class TestBuilder(object):
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
-        if 'werror' in tags['tags']:
+        if 'werror' in tags['tag']:
             warning_errors = True
         else:
             warning_errors = False
