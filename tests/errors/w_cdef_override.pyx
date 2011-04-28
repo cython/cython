@@ -1,5 +1,5 @@
 # mode: error
-# tags: werror
+# tag: werror
 
 cdef foo():
     pass

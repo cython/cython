@@ -69,20 +69,18 @@ if sys.platform == 'win32':
     distutils_distro.parse_config_files(cfgfiles)
 
 EXT_DEP_MODULES = {
-    'numpy' : 'tag:numpy',
-    'pstats' : 'tag:pstats',
-    'posix' : 'tag:posix',
+    'tag:numpy' : 'numpy',
+    'tag:pstats': 'pstats',
+    'tag:posix' : 'posix',
 }
 
-def get_numpy_include_dirs():
+def update_numpy_extension(ext):
     import numpy
-    return [numpy.get_include()]
+    ext.include_dirs.append(numpy.get_include())
 
-# TODO: use tags
-EXT_DEP_INCLUDES = [
-    # test name matcher , callable returning list
-    (re.compile('numpy_.*').match, get_numpy_include_dirs),
-]
+EXT_EXTRAS = {
+    'tag:numpy' : update_numpy_extension,
+}
 
 # TODO: use tags
 VER_DEP_MODULES = {
@@ -158,6 +156,8 @@ def parse_tags(filepath):
     return tags
 
 parse_tags = memoize(parse_tags)
+
+list_unchanging_dir = memoize(lambda x: os.listdir(x))
 
 
 class build_ext(_build_ext):
@@ -245,7 +245,7 @@ class TestBuilder(object):
             os.makedirs(workdir)
 
         suite = unittest.TestSuite()
-        filenames = os.listdir(path)
+        filenames = list_unchanging_dir(path)
         filenames.sort()
         for filename in filenames:
             filepath = os.path.join(path, filename)
@@ -297,7 +297,7 @@ class TestBuilder(object):
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
-        if 'werror' in tags['tags']:
+        if 'werror' in tags['tag']:
             warning_errors = True
         else:
             warning_errors = False
@@ -414,19 +414,21 @@ class CythonCompileTestCase(unittest.TestCase):
     def build_target_filename(self, module_name):
         target = '%s.%s' % (module_name, self.language)
         return target
-
-    def copy_related_files(self, test_directory, target_directory, module_name):
+    
+    def related_files(self, test_directory, module_name):
         is_related = re.compile('%s_.*[.].*' % module_name).match
-        for filename in os.listdir(test_directory):
-            if is_related(filename):
-                shutil.copy(os.path.join(test_directory, filename),
-                            target_directory)
+        return [filename for filename in list_unchanging_dir(test_directory)
+            if is_related(filename)]
 
-    def find_source_files(self, workdir, module_name):
-        is_related = re.compile('%s_.*[.]%s' % (module_name, self.language)).match
-        return [self.build_target_filename(module_name)] + [
-            filename for filename in os.listdir(workdir)
-            if is_related(filename) and os.path.isfile(os.path.join(workdir, filename)) ]
+    def copy_files(self, test_directory, target_directory, file_list):
+        for filename in file_list:
+            shutil.copy(os.path.join(test_directory, filename),
+                        target_directory)
+
+    def source_files(self, workdir, module_name, file_list):
+        return ([self.build_target_filename(module_name)] +
+            [filename for filename in file_list
+                if not os.path.isfile(os.path.join(workdir, filename))])
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
@@ -487,6 +489,12 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def run_distutils(self, test_directory, module, workdir, incdir,
                       extra_extension_args=None):
+        original_source = self.find_module_source_file(
+            os.path.join(test_directory, module + '.pyx'))
+        try:
+            tags = parse_tags(original_source)
+        except IOError:
+            tags = {}
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
@@ -497,24 +505,27 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.finalize_options()
             if COMPILER:
                 build_extension.compiler = COMPILER
-            ext_include_dirs = []
-            for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
-                if match(module):
-                    ext_include_dirs += get_additional_include_dirs()
             ext_compile_flags = CFLAGS[:]
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
                 extra_extension_args = {}
 
-            self.copy_related_files(test_directory, workdir, module)
+            related_files = self.related_files(test_directory, module)
+            self.copy_files(test_directory, workdir, related_files)
             extension = Extension(
                 module,
-                sources = self.find_source_files(workdir, module),
-                include_dirs = ext_include_dirs,
+                sources = self.source_files(workdir, module, related_files),
                 extra_compile_args = ext_compile_flags,
                 **extra_extension_args
                 )
+            for matcher, fixer in EXT_EXTRAS.items():
+                if isinstance(matcher, str):
+                    del EXT_EXTRAS[matcher]
+                    matcher = string_selector(matcher)
+                    EXT_EXTRAS[matcher] = fixer
+                if matcher(module, tags):
+                    extension = fixer(extension) or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
             build_extension.extensions = [extension]
@@ -1000,9 +1011,9 @@ class EmbedTest(unittest.TestCase):
 
 class MissingDependencyExcluder:
     def __init__(self, deps):
-        # deps: { module name : matcher func }
+        # deps: { matcher func : module name }
         self.exclude_matchers = []
-        for mod, matcher in deps.items():
+        for matcher, mod in deps.items():
             try:
                 __import__(mod)
             except ImportError:
