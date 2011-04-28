@@ -22,6 +22,7 @@ import TypeSlots
 from PyrexTypes import py_object_type, error_type, CFuncType
 from Symtab import ModuleScope, LocalScope, ClosureScope, \
     StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
+from Cython.Compiler import Symtab
 from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode, ClosureTempAllocator
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
@@ -940,7 +941,14 @@ class FusedTypeNode(CBaseTypeNode):
         if len(self.types) == 1:
             return self.types[0]
 
-        return PyrexTypes.FusedType(self.types)
+        types = []
+        for type in self.types:
+            if type.is_fused:
+                types.extend(type.types)
+            else:
+                types.append(type)
+
+        return PyrexTypes.FusedType(types)
 
 
 class CVarDefNode(StatNode):
@@ -2001,7 +2009,7 @@ class FusedCFuncDefNode(StatListNode):
         self.nodes = self.stats = []
         self.node = node
 
-        self.copy_cdefs(node.type.get_fused_types(), env)
+        self.copy_cdefs(env)
 
         # Perform some sanity checks. If anything fails, it's a bug
         for n in self.nodes:
@@ -2014,12 +2022,12 @@ class FusedCFuncDefNode(StatListNode):
 
         node.entry.fused_cfunction = self
 
-    def copy_cdefs(self, fused_types, env):
+    def copy_cdefs(self, env):
         """
         Gives a list of fused types and the parent environment, make copies
         of the original cdef function.
         """
-        permutations = self.get_all_specific_permutations(fused_types)
+        permutations = self.node.type.get_all_specific_permutations()
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
 
@@ -2027,6 +2035,7 @@ class FusedCFuncDefNode(StatListNode):
             newtype = copied_node.type.specialize(fused_to_specific)
             copied_node.type = newtype
             copied_node.entry.type = newtype
+            newtype.entry = copied_node.entry
 
             copied_node.return_type = newtype.return_type
             copied_node.create_local_scope(env)
@@ -2041,32 +2050,8 @@ class FusedCFuncDefNode(StatListNode):
             for arg in copied_node.cfunc_declarator.args:
                 arg.type = arg.type.specialize(fused_to_specific)
 
-            cname = '%s%s%s' % (Naming.fused_func_prefix,
-                                cname,
-                                self.node.entry.func_cname)
+            cname = self.node.type.get_specific_cname(cname)
             copied_node.entry.func_cname = copied_node.entry.cname = cname
-
-    def get_all_specific_permutations(self, fused_types):
-        """
-        Permute all the types. For every specific instance of a fused type, we
-        want all other specific instances of all other fused types.
-
-        It returns an iterable of two-tuples of the cname that should prefix
-        the cname of the function, and a dict mapping any fused types to their
-        respective specific types.
-        """
-        fused_type = fused_types[0]
-        for specific_type in fused_type.types:
-            cname = str(specific_type)
-            result_fused_to_specific = { fused_type: specific_type }
-
-            if len(fused_types) > 1:
-                it = self.get_all_specific_permutations(fused_types[1:])
-                for next_cname, fused_to_specific in it:
-                    d = dict(fused_to_specific, **result_fused_to_specific)
-                    yield '%s_%s' % (cname, next_cname), d
-            else:
-                yield cname, result_fused_to_specific
 
 
 class PyArgDeclNode(Node):

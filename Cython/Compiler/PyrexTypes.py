@@ -664,7 +664,7 @@ class CType(PyrexType):
             return 0
 
 
-class FusedType(CType):
+class FusedType(PyrexType):
     """
     Represents a Fused Type. All it needs to do is keep track of the types
     it aggregates, as it will be replaced with its specific version wherever
@@ -2005,6 +2005,87 @@ class CFuncType(CType):
     def opt_arg_cname(self, arg_name):
         return self.op_arg_struct.base_type.scope.lookup(arg_name).cname
 
+    # Methods that deal with Fused Types
+    # All but map_with_specific_entries should be called only on functions
+    # with fused types (and not on their corresponding specific versions).
+
+    def get_all_specific_permutations(self, fused_types=None):
+        """
+        Permute all the types. For every specific instance of a fused type, we
+        want all other specific instances of all other fused types.
+
+        It returns an iterable of two-tuples of the cname that should prefix
+        the cname of the function, and a dict mapping any fused types to their
+        respective specific types.
+        """
+        assert self.is_fused
+
+        if fused_types is None:
+            fused_types = self.get_fused_types()
+
+        fused_type = fused_types[0]
+        for specific_type in fused_type.types:
+            cname = str(specific_type)
+            result_fused_to_specific = { fused_type: specific_type }
+
+            if len(fused_types) > 1:
+                it = self.get_all_specific_permutations(fused_types[1:])
+                for next_cname, fused_to_specific in it:
+                    d = dict(fused_to_specific, **result_fused_to_specific)
+                    yield '%s_%s' % (cname, next_cname), d
+            else:
+                yield cname, result_fused_to_specific
+
+    def get_all_specific_function_types(self):
+        """
+        Get all the specific function types of this one.
+        """
+        assert self.is_fused
+
+        permutations = self.get_all_specific_permutations()
+        for cname, fused_to_specific in permutations:
+            new_func_type = self.entry.type.specialize(fused_to_specific)
+
+            new_entry = copy.deepcopy(self.entry)
+            new_entry.cname = self.get_specific_cname(cname)
+            new_entry.type = new_func_type
+
+            new_func_type.entry = new_entry
+            yield new_func_type
+
+    def get_specific_cname(self, fused_cname):
+        """
+        Given the cname for a permutation of fused types, return the cname
+        for the corresponding function with specific types.
+
+        The fused_cname is usually '_'.join(str(t) for t in specific_types)
+        """
+        assert self.is_fused
+        return '%s%s%s' % (Naming.fused_func_prefix,
+                           fused_cname,
+                           self.entry.func_cname)
+
+    def map_with_specific_entries(self, func, *args, **kwargs):
+        """
+        Call func for every specific function instance. If this is not a
+        signature with fused types, call it with the entry for this cdef
+        function.
+        """
+        entry = self.entry
+
+        if entry.fused_cfunction:
+            # cdef with fused types defined in this file
+            for cfunction in entry.fused_cfunction.nodes:
+                func(cfunction.entry, *args, **kwargs)
+        elif entry.type.is_fused:
+            # cdef with fused types defined in another file, create their
+            # signatures
+            for func_type in self.get_all_specific_function_types():
+                func(func_type.entry, *args, **kwargs)
+        else:
+            # a normal cdef
+            return func(entry, *args, **kwargs)
+
 
 class CFuncTypeArg(BaseType):
     #  name       string
@@ -2641,7 +2722,7 @@ def best_match(args, functions, pos=None, env=None):
     bad_types = []
     needed_coercions = {}
     for func, func_type in candidates:
-        score = [0,0,0]
+        score = [0,0,0,0]
         for i in range(min(len(args), len(func_type.args))):
             src_type = args[i].type
             dst_type = func_type.args[i].type
@@ -2669,6 +2750,9 @@ def best_match(args, functions, pos=None, env=None):
                 if src_type == dst_type or dst_type.same_as(src_type):
                     pass # score 0
                 elif is_promotion(src_type, dst_type):
+                    score[3] += 1
+                elif ((src_type.is_int and dst_type.is_int) or
+                      (src_type.is_float and dst_type.is_float)):
                     score[2] += 1
                 elif not src_type.is_pyobject:
                     score[1] += 1

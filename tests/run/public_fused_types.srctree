@@ -1,0 +1,74 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import b"
+
+######## setup.py ########
+
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## a.pxd ########
+
+cimport cython
+
+cdef extern from "header.h":
+    ctypedef int extern_int
+    ctypedef long extern_long
+
+
+cdef struct mystruct_t:
+    extern_int a
+
+ctypedef union myunion_t:
+    extern_long a
+
+cdef public class MyExt [ type MyExtType, object MyExtObject ]:
+    cdef unsigned char a
+
+ctypedef char *string_t
+ctypedef cython.fused_type(int, float) simple_t
+ctypedef cython.fused_type(simple_t, string_t) less_simple_t
+ctypedef cython.fused_type(mystruct_t, myunion_t, MyExt) object_t
+ctypedef cython.fused_type(str, unicode, bytes) builtin_t
+
+cdef object_t add_simple(object_t obj, simple_t simple)
+cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple)
+
+######## header.h ########
+
+typedef int extern_int;
+typedef long extern_long;
+
+######## a.pyx ########
+
+cimport cython
+
+cdef object_t add_simple(object_t obj, simple_t simple):
+     obj.a = <int> (obj.a + simple)
+     return obj
+
+cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple):
+    return obj.a + simple
+
+######## b.pyx ########
+
+from a cimport *
+
+cdef mystruct_t mystruct
+cdef myunion_t myunion
+cdef MyExt myext = MyExt()
+
+mystruct.a = 5
+myunion.a = 5
+myext.a = 5
+
+assert add_simple(mystruct, 5).a == 10
+assert add_simple(myunion, 5.0).a == 10.0
+
+assert add_to_simple(mystruct, 5.0) == 10.0
+assert add_to_simple(myunion, b"spamhameggs") == b"ameggs"
+assert add_to_simple(myext, 5) == 10

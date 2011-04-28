@@ -2999,9 +2999,9 @@ class SimpleCallNode(CallNode):
             overloaded_entry = None
 
         if overloaded_entry:
-            if overloaded_entry.fused_cfunction:
-                specific_cdef_funcs = overloaded_entry.fused_cfunction.nodes
-                alternatives = [n.entry for n in specific_cdef_funcs]
+            if self.function.type.is_fused:
+                alternatives = []
+                self.function.type.map_with_specific_entries(alternatives.append)
             else:
                 alternatives = overloaded_entry.all_alternatives()
 

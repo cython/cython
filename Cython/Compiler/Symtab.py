@@ -629,6 +629,7 @@ class Scope(object):
         if modifiers:
             entry.func_modifiers = modifiers
         entry.utility_code = utility_code
+        type.entry = entry
         return entry
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
