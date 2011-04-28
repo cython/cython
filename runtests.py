@@ -135,6 +135,8 @@ def memoize(f):
         res = f._cache.get(args, uncomputed)
         if res is uncomputed:
             res = f._cache[args] = f(*args)
+        else:
+            print "dup", args
         return res
     return func
 
@@ -158,6 +160,8 @@ def parse_tags(filepath):
     return tags
 
 parse_tags = memoize(parse_tags)
+
+list_unchanging_dir = memoize(lambda x: os.listdir(x))
 
 
 class build_ext(_build_ext):
@@ -245,7 +249,7 @@ class TestBuilder(object):
             os.makedirs(workdir)
 
         suite = unittest.TestSuite()
-        filenames = os.listdir(path)
+        filenames = list_unchanging_dir(path)
         filenames.sort()
         for filename in filenames:
             filepath = os.path.join(path, filename)
@@ -414,19 +418,21 @@ class CythonCompileTestCase(unittest.TestCase):
     def build_target_filename(self, module_name):
         target = '%s.%s' % (module_name, self.language)
         return target
-
-    def copy_related_files(self, test_directory, target_directory, module_name):
+    
+    def related_files(self, test_directory, module_name):
         is_related = re.compile('%s_.*[.].*' % module_name).match
-        for filename in os.listdir(test_directory):
-            if is_related(filename):
-                shutil.copy(os.path.join(test_directory, filename),
-                            target_directory)
+        return [filename for filename in list_unchanging_dir(test_directory)
+            if is_related(filename)]
 
-    def find_source_files(self, workdir, module_name):
-        is_related = re.compile('%s_.*[.]%s' % (module_name, self.language)).match
-        return [self.build_target_filename(module_name)] + [
-            filename for filename in os.listdir(workdir)
-            if is_related(filename) and os.path.isfile(os.path.join(workdir, filename)) ]
+    def copy_files(self, test_directory, target_directory, file_list):
+        for filename in file_list:
+            shutil.copy(os.path.join(test_directory, filename),
+                        target_directory)
+
+    def source_files(self, workdir, module_name, file_list):
+        return ([self.build_target_filename(module_name)] +
+            [filename for filename in file_list
+                if not os.path.isfile(os.path.join(workdir, filename))])
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
@@ -507,10 +513,11 @@ class CythonCompileTestCase(unittest.TestCase):
             if extra_extension_args is None:
                 extra_extension_args = {}
 
-            self.copy_related_files(test_directory, workdir, module)
+            related_files = self.related_files(test_directory, module)
+            self.copy_files(test_directory, workdir, related_files)
             extension = Extension(
                 module,
-                sources = self.find_source_files(workdir, module),
+                sources = self.source_files(workdir, module, related_files),
                 include_dirs = ext_include_dirs,
                 extra_compile_args = ext_compile_flags,
                 **extra_extension_args
