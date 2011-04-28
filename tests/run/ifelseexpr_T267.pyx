@@ -37,17 +37,17 @@ def nested(x):
     return 1 if x == 1 else (2 if x == 2 else 3)
 
 @cython.test_fail_if_path_exists('//CondExprNode')
-def const_true():
+def const_true(a,b):
     """
-    >>> const_true()
+    >>> const_true(1,2)
     1
     """
-    return 1 if 1 == 1 else 2
+    return a if 1 == 1 else b
 
 @cython.test_fail_if_path_exists('//CondExprNode')
-def const_false():
+def const_false(a,b):
     """
-    >>> const_false()
+    >>> const_false(1,2)
     2
     """
-    return 1 if 1 != 1 else 2
+    return a if 1 != 1 else b
