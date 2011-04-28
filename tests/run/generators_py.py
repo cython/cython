@@ -167,6 +167,40 @@ def check_yield_in_except():
     except ValueError:
         yield
 
+def yield_in_except_throw_exc_type():
+    """
+    >>> import sys
+    >>> g = yield_in_except_throw_exc_type()
+    >>> next(g)
+    >>> g.throw(TypeError)
+    Traceback (most recent call last):
+    TypeError
+    >>> next(g)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    try:
+        raise ValueError
+    except ValueError:
+        yield
+
+def yield_in_except_throw_instance():
+    """
+    >>> import sys
+    >>> g = yield_in_except_throw_instance()
+    >>> next(g)
+    >>> g.throw(TypeError())
+    Traceback (most recent call last):
+    TypeError
+    >>> next(g)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    try:
+        raise ValueError
+    except ValueError:
+        yield
+
 def test_swap_assignment():
     """
     >>> gen = test_swap_assignment()
