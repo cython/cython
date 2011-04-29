@@ -1,9 +1,9 @@
 cimport cython
+cimport check_fused_types_pxd
 
 ctypedef char *string_t
 ctypedef cython.fused_type(int, long, float, string_t) fused_t
 ctypedef cython.fused_type(int, long) other_t
-ctypedef cython.fused_type(int, float) unresolved_t
 
 cdef func(fused_t a, other_t b):
     cdef int int_a
@@ -22,13 +22,13 @@ cdef func(fused_t a, other_t b):
         print 'fused_t is string_t'
         string_a = a
 
-    if fused_t in unresolved_t:
+    if fused_t in check_fused_types_pxd.unresolved_t:
         print 'fused_t in unresolved_t'
 
-    if int in unresolved_t:
+    if int in check_fused_types_pxd.unresolved_t:
         print 'int in unresolved_t'
 
-    if string_t in unresolved_t:
+    if string_t in check_fused_types_pxd.unresolved_t:
         print 'string_t in unresolved_t'
 
 

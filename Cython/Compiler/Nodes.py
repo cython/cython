@@ -2055,6 +2055,7 @@ class FusedCFuncDefNode(StatListNode):
             cname = self.node.type.get_specific_cname(cname)
             copied_node.entry.func_cname = copied_node.entry.cname = cname
 
+#            TransformBuiltinMethods(copied_node)
             ParseTreeTransforms.ReplaceFusedTypeChecks(copied_node.local_scope)(copied_node)
 
 

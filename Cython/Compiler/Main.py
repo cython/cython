@@ -141,7 +141,9 @@ class Context(object):
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
+#            PrintTree(),
             AnalyseDeclarationsTransform(self),
+#            PrintTree(),
             AutoTestDictTransform(self),
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
@@ -159,6 +161,7 @@ class Context(object):
             DropRefcountingTransform(),
             FinalOptimizePhase(self),
             GilCheck(),
+#            PrintTree(),
             ]
 
     def create_pyx_pipeline(self, options, result, py=False):

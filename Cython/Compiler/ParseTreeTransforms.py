@@ -1912,11 +1912,13 @@ class ReplaceFusedTypeChecks(VisitorTransform):
     def visit_IfClauseNode(self, node):
         cond = node.condition
         if isinstance(cond, ExprNodes.PrimaryCmpNode):
-            type1, type2 = self.get_types(cond)
-            op = cond.operator
+            type1 = cond.operand1.analyse_as_type(self.local_scope)
+            type2 = cond.operand2.analyse_as_type(self.local_scope)
 
-            type1 = self.specialize_type(type1, cond.operand1.pos)
             if type1 and type2:
+                type1 = self.specialize_type(type1, cond.operand1.pos)
+                op = cond.operator
+
                 if op == 'is':
                     type2 = self.specialize_type(type2, cond.operand1.pos)
                     if type1.same_as(type2):
@@ -1941,22 +1943,6 @@ class ReplaceFusedTypeChecks(VisitorTransform):
                 return None
 
         return node
-
-    def get_types(self, node):
-        if node.operand1.is_name and node.operand2.is_name:
-            return self.get_type(node.operand1), self.get_type(node.operand2)
-
-        return None, None
-
-    def get_type(self, node):
-        type = PyrexTypes.parse_basic_type(node.name)
-        if not type:
-            # Don't use self.lookup_type() as it will specialize
-            entry = self.local_scope.lookup(node.name)
-            if entry and entry.is_type:
-                type = entry.type
-
-        return type
 
     def specialize_type(self, type, pos):
         try:
