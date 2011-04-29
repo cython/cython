@@ -1882,6 +1882,94 @@ class TransformBuiltinMethods(EnvTransform):
         return node
 
 
+class ReplaceFusedTypeChecks(VisitorTransform):
+    """
+    This is not a transform in the pipeline. It is invoked on the specific
+    versions of a cdef function with fused argument types. It filters out any
+    type branches that don't match. e.g.
+
+        if fused_t is mytype:
+            ...
+        elif fused_t in other_fused_type:
+            ...
+    """
+
+    def __init__(self, local_scope):
+        super(ReplaceFusedTypeChecks, self).__init__()
+        self.local_scope = local_scope
+
+    def visit_IfStatNode(self, node):
+        if_clauses = node.if_clauses[:]
+        self.visitchildren(node)
+
+        if if_clauses != node.if_clauses:
+            if node.if_clauses:
+                return node.if_clauses[0]
+            return node.else_clause
+
+        return node
+
+    def visit_IfClauseNode(self, node):
+        cond = node.condition
+        if isinstance(cond, ExprNodes.PrimaryCmpNode):
+            type1, type2 = self.get_types(cond)
+            op = cond.operator
+
+            type1 = self.specialize_type(type1, cond.operand1.pos)
+            if type1 and type2:
+                if op == 'is':
+                    type2 = self.specialize_type(type2, cond.operand1.pos)
+                    if type1.same_as(type2):
+                        return node.body
+                elif op in ('in', 'not_in'):
+                    # We have to do an instance check directly, as operand2
+                    # needs to be a fused type and not a type with a subtype
+                    # that is fused. First unpack the typedef
+                    if isinstance(type2, PyrexTypes.CTypedefType):
+                        type2 = type2.typedef_base_type
+
+                    if type1.is_fused or not isinstance(type2, PyrexTypes.FusedType):
+                        error(cond.pos, "Can use 'in' or 'not in' only on a "
+                                        "specific and a fused type")
+                    elif op == 'in':
+                        if type1 in type2.types:
+                            return node.body
+                    else:
+                        if type1 not in type2.types:
+                            return node.body
+
+                return None
+
+        return node
+
+    def get_types(self, node):
+        if node.operand1.is_name and node.operand2.is_name:
+            return self.get_type(node.operand1), self.get_type(node.operand2)
+
+        return None, None
+
+    def get_type(self, node):
+        type = PyrexTypes.parse_basic_type(node.name)
+        if not type:
+            # Don't use self.lookup_type() as it will specialize
+            entry = self.local_scope.lookup(node.name)
+            if entry and entry.is_type:
+                type = entry.type
+
+        return type
+
+    def specialize_type(self, type, pos):
+        try:
+            return type.specialize(self.local_scope.fused_to_specific)
+        except KeyError:
+            error(pos, "Type is not specific")
+            return type
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+
 class DebugTransform(CythonTransform):
     """
     Create debug information and all functions' visibility to extern in order

@@ -2027,6 +2027,8 @@ class FusedCFuncDefNode(StatListNode):
         Gives a list of fused types and the parent environment, make copies
         of the original cdef function.
         """
+        from Cython.Compiler import ParseTreeTransforms
+
         permutations = self.node.type.get_all_specific_permutations()
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
@@ -2052,6 +2054,8 @@ class FusedCFuncDefNode(StatListNode):
 
             cname = self.node.type.get_specific_cname(cname)
             copied_node.entry.func_cname = copied_node.entry.cname = cname
+
+            ParseTreeTransforms.ReplaceFusedTypeChecks(copied_node.local_scope)(copied_node)
 
 
 class PyArgDeclNode(Node):
