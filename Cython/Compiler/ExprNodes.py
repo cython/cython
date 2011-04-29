@@ -42,6 +42,8 @@ except ImportError:
     basestring = str # Python 3
 
 class NotConstant(object):
+    def __deepcopy__(self, memo):
+        return self
     def __repr__(self):
         return "<NOT CONSTANT>"
 
