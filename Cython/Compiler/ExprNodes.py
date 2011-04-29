@@ -6672,6 +6672,14 @@ class CmpNode(object):
                     env.use_utility_code(pyunicode_equals_utility_code)
                     self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
                     return True
+                elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
+                    env.use_utility_code(pybytes_equals_utility_code)
+                    self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
+                    return True
+                elif type1 is Builtin.str_type or type2 is Builtin.str_type:
+                    env.use_utility_code(pystr_equals_utility_code)
+                    self.special_bool_cmp_function = "__Pyx_PyString_Equals"
+                    return True
         return False
 
     def generate_operation_code(self, code, result_code,
@@ -6883,6 +6891,49 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     }
 }
 """)
+
+pybytes_equals_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
+    if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
+        return (equals == Py_EQ);
+    } else if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
+        if (PyBytes_GET_SIZE(s1) != PyBytes_GET_SIZE(s2)) {
+            return (equals == Py_NE);
+        } else if (PyBytes_GET_SIZE(s1) == 1) {
+            if (equals == Py_EQ)
+                return (PyBytes_AS_STRING(s1)[0] == PyBytes_AS_STRING(s2)[0]);
+            else
+                return (PyBytes_AS_STRING(s1)[0] != PyBytes_AS_STRING(s2)[0]);
+        }
+    } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
+        return (equals == Py_NE);
+    } else if ((s2 == Py_None) & PyBytes_CheckExact(s1)) {
+        return (equals == Py_NE);
+    } else {
+        int result;
+        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
+        if (!py_result)
+            return -1;
+        result = __Pyx_PyObject_IsTrue(py_result);
+        Py_DECREF(py_result);
+        return result;
+    }
+}
+""")
+
+pystr_equals_utility_code = UtilityCode(
+proto="""
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyString_Equals __Pyx_PyUnicode_Equals
+#else
+#define __Pyx_PyString_Equals __Pyx_PyBytes_Equals
+#endif
+""",
+requires=[pybytes_equals_utility_code, pyunicode_equals_utility_code])
 
 
 class PrimaryCmpNode(ExprNode, CmpNode):
