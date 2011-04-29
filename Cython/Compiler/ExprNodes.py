@@ -6908,13 +6908,15 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
                 return (PyBytes_AS_STRING(s1)[0] == PyBytes_AS_STRING(s2)[0]);
             else
                 return (PyBytes_AS_STRING(s1)[0] != PyBytes_AS_STRING(s2)[0]);
-        } /* else: fall back to PyObject_RichCompare() below */
+        } else {
+            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), PyBytes_GET_SIZE(s1));
+            return (equals == Py_EQ) ? (result == 0) : (result != 0);
+        }
     } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
         return (equals == Py_NE);
     } else if ((s2 == Py_None) & PyBytes_CheckExact(s1)) {
         return (equals == Py_NE);
-    }
-    {
+    } else {
         int result;
         PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
         if (!py_result)
@@ -6924,7 +6926,8 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         return result;
     }
 }
-""")
+""",
+requires=[Builtin.include_string_h_utility_code])
 
 pystr_equals_utility_code = UtilityCode(
 proto="""
