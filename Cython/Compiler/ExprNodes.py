@@ -6868,8 +6868,6 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
                 return -1;
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
-    } else if ((s1 == Py_None) & (s2 == Py_None)) {
-        return (equals == Py_EQ);
     } else if ((s1 == Py_None) & PyUnicode_CheckExact(s2)) {
         return (equals == Py_NE);
     } else if ((s2 == Py_None) & PyUnicode_CheckExact(s1)) {
