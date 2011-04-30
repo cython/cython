@@ -2,8 +2,16 @@ cimport cython
 cimport check_fused_types_pxd
 
 ctypedef char *string_t
+
 ctypedef cython.fused_type(int, long, float, string_t) fused_t
 ctypedef cython.fused_type(int, long) other_t
+ctypedef cython.fused_type(short, short int, short, int) base_t
+ctypedef cython.fused_type(float complex, double complex,
+                           int complex, long complex) complex_t
+
+ctypedef base_t **base_t_p_p
+ctypedef cython.fused_type(char, base_t_p_p, fused_t, complex_t) composed_t
+
 
 cdef func(fused_t a, other_t b):
     cdef int int_a
@@ -120,4 +128,60 @@ def test_if_then_else_float_int():
     cdef float x = 0.0
     cdef int y = 1
     if_then_else(x, y)
+
+
+cdef composed_t composed(composed_t x, composed_t y):
+    if composed_t in base_t_p_p or composed_t is string_t:
+        if string_t == composed_t:
+            print x, y
+        else:
+            print x[0][0], y[0][0]
+
+        return x
+    elif composed_t == string_t:
+        print 'this is never executed'
+    elif list():
+        print 'neither is this one'
+    else:
+        if composed_t not in complex_t:
+            print 'not a complex number'
+            print <int> x, <int> y
+        else:
+            print 'it is a complex number'
+            print x.real, x.imag
+
+        return x + y
+
+def test_composed_types():
+    """
+    >>> test_composed_types()
+    it is a complex number
+    0.5 0.6
+    (0.9+0.4j)
+    <BLANKLINE>
+    not a complex number
+    9 10
+    19
+    <BLANKLINE>
+    7 8
+    <BLANKLINE>
+    spam eggs
+    spam
+    """
+    cdef double complex a = 0.5 + 0.6j, b = 0.4 -0.2j, result
+    cdef int c = 7, d = 8
+    cdef int *cp = &c, *dp = &d
+    cdef string_t e = "spam", f = "eggs"
+
+    result = composed(a, b)
+    print result
+    print
+
+    print composed(c + 2, d + 2)
+    print
+
+    composed(&cp, &dp)
+    print
+
+    print composed(e, f)
 

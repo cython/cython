@@ -29,6 +29,7 @@ from StringEncoding import EncodedString, escape_byte_string, split_string_liter
 import Options
 import ControlFlow
 import DebugFlags
+from Cython.Compiler import Errors
 
 absolute_path_length = 0
 
@@ -942,13 +943,22 @@ class FusedTypeNode(CBaseTypeNode):
             return self.types[0]
 
         types = []
+        seen = cython.set()
+
         for type in self.types:
-            if type.is_fused:
-                types.extend(type.types)
-            else:
-                types.append(type)
+            self.add_type(type, types, seen)
 
         return PyrexTypes.FusedType(types)
+
+    def add_type(self, type, types, seen):
+        if type not in seen:
+            seen.add(type)
+
+            if type.is_fused:
+                for specific_type in PyrexTypes.get_specific_types(type):
+                    self.add_type(specific_type, types, seen)
+            else:
+                types.append(type)
 
 
 class CVarDefNode(StatNode):
@@ -2055,8 +2065,13 @@ class FusedCFuncDefNode(StatListNode):
             cname = self.node.type.get_specific_cname(cname)
             copied_node.entry.func_cname = copied_node.entry.cname = cname
 
-#            TransformBuiltinMethods(copied_node)
-            ParseTreeTransforms.ReplaceFusedTypeChecks(copied_node.local_scope)(copied_node)
+            num_errors = Errors.num_errors
+            transform = ParseTreeTransforms.ReplaceFusedTypeChecks(
+                                           copied_node.local_scope)
+            transform(copied_node)
+
+            if Errors.num_errors > num_errors:
+                break
 
 
 class PyArgDeclNode(Node):

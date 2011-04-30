@@ -2023,18 +2023,7 @@ class CFuncType(CType):
         if fused_types is None:
             fused_types = self.get_fused_types()
 
-        fused_type = fused_types[0]
-        for specific_type in fused_type.types:
-            cname = str(specific_type)
-            result_fused_to_specific = { fused_type: specific_type }
-
-            if len(fused_types) > 1:
-                it = self.get_all_specific_permutations(fused_types[1:])
-                for next_cname, fused_to_specific in it:
-                    d = dict(fused_to_specific, **result_fused_to_specific)
-                    yield '%s_%s' % (cname, next_cname), d
-            else:
-                yield cname, result_fused_to_specific
+        return get_all_specific_permutations(fused_types)
 
     def get_all_specific_function_types(self):
         """
@@ -2042,23 +2031,25 @@ class CFuncType(CType):
         """
         assert self.is_fused
 
+        result = []
         permutations = self.get_all_specific_permutations()
         for cname, fused_to_specific in permutations:
             new_func_type = self.entry.type.specialize(fused_to_specific)
 
             new_entry = copy.deepcopy(self.entry)
             new_entry.cname = self.get_specific_cname(cname)
-            new_entry.type = new_func_type
 
+            new_entry.type = new_func_type
             new_func_type.entry = new_entry
-            yield new_func_type
+
+            result.append(new_func_type)
+
+        return result
 
     def get_specific_cname(self, fused_cname):
         """
         Given the cname for a permutation of fused types, return the cname
         for the corresponding function with specific types.
-
-        The fused_cname is usually '_'.join(str(t) for t in specific_types)
         """
         assert self.is_fused
         return '%s%s%s' % (Naming.fused_func_prefix,
@@ -2085,6 +2076,31 @@ class CFuncType(CType):
         else:
             # a normal cdef
             return func(entry, *args, **kwargs)
+
+def get_all_specific_permutations(fused_types, id="0", f2s=()):
+    fused_type = fused_types[0]
+    result = []
+
+    for newid, specific_type in enumerate(fused_type.types):
+        f2s = dict(f2s, **{ fused_type: specific_type })
+        cname = '%s_%s' % (id, newid)
+
+        if len(fused_types) > 1:
+            result.extend(get_all_specific_permutations(
+                                            fused_types[1:], cname, f2s))
+        else:
+            result.append((cname, f2s))
+
+    return result
+
+def get_specific_types(type):
+    assert type.is_fused
+
+    result = []
+    for cname, f2s in get_all_specific_permutations(type.get_fused_types()):
+        result.append(type.specialize(f2s))
+
+    return result
 
 
 class CFuncTypeArg(BaseType):

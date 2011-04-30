@@ -1899,48 +1899,94 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         self.local_scope = local_scope
 
     def visit_IfStatNode(self, node):
-        if_clauses = node.if_clauses[:]
+        """
+        Filters out any if clauses with false compile time type check
+        expression.
+        """
+        from Cython.Compiler import Optimize
+
         self.visitchildren(node)
 
-        if if_clauses != node.if_clauses:
-            if node.if_clauses:
-                return node.if_clauses[0]
-            return node.else_clause
+        if_clauses = []
+        seen_true = False
+        seen_true_anywhere = False
+
+        for if_clause in node.if_clauses:
+            transform = Optimize.ConstantFolding()
+            transform.check_constant_value_not_set = False
+            transform(if_clause.condition)
+
+            is_const = if_clause.condition.has_constant_result()
+            const = if_clause.condition.constant_result
+
+            if is_const:
+                if const and not seen_true:
+                    seen_true = True
+                    seen_true_anywhere = True
+                    if_clauses.append(if_clause)
+            else:
+                seen_true = False
+                if_clauses.append(if_clause)
+
+        if if_clauses:
+            node.if_clauses = if_clauses
+            if seen_true_anywhere:
+                node.else_clause = None
+        else:
+            node = node.else_clause
 
         return node
 
-    def visit_IfClauseNode(self, node):
-        cond = node.condition
-        if isinstance(cond, ExprNodes.PrimaryCmpNode):
-            type1 = cond.operand1.analyse_as_type(self.local_scope)
-            type2 = cond.operand2.analyse_as_type(self.local_scope)
+    def visit_PrimaryCmpNode(self, node):
+        type1 = node.operand1.analyse_as_type(self.local_scope)
+        type2 = node.operand2.analyse_as_type(self.local_scope)
 
-            if type1 and type2:
-                type1 = self.specialize_type(type1, cond.operand1.pos)
-                op = cond.operator
+        if type1 and type2:
+            false = ExprNodes.BoolNode(node.pos, value=False)
+            true = ExprNodes.BoolNode(node.pos, value=True)
 
-                if op == 'is':
-                    type2 = self.specialize_type(type2, cond.operand1.pos)
-                    if type1.same_as(type2):
-                        return node.body
-                elif op in ('in', 'not_in'):
-                    # We have to do an instance check directly, as operand2
-                    # needs to be a fused type and not a type with a subtype
-                    # that is fused. First unpack the typedef
-                    if isinstance(type2, PyrexTypes.CTypedefType):
-                        type2 = type2.typedef_base_type
+            type1 = self.specialize_type(type1, node.operand1.pos)
+            op = node.operator
 
-                    if type1.is_fused or not isinstance(type2, PyrexTypes.FusedType):
-                        error(cond.pos, "Can use 'in' or 'not in' only on a "
-                                        "specific and a fused type")
-                    elif op == 'in':
-                        if type1 in type2.types:
-                            return node.body
+            if op in ('is', 'is not', '==', '!='):
+                type2 = self.specialize_type(type2, node.operand2.pos)
+
+                is_same = type1.same_as(type2)
+                eq = op in ('is', '==')
+
+                if (is_same and eq) or (not is_same and not eq):
+                    return true
+
+            elif op in ('in', 'not_in'):
+                # We have to do an instance check directly, as operand2
+                # needs to be a fused type and not a type with a subtype
+                # that is fused. First unpack the typedef
+                if isinstance(type2, PyrexTypes.CTypedefType):
+                    type2 = type2.typedef_base_type
+
+                if type1.is_fused:
+                    error(node.operand1.pos, "Type is fused")
+                elif not type2.is_fused:
+                    error(node.operand2.pos,
+                          "Can only use 'in' or 'not in' on a fused type")
+                else:
+                    if not isinstance(type2, PyrexTypes.FusedType):
+                        # Composed fused type, get all specific versions
+                        types = PyrexTypes.get_specific_types(type2)
                     else:
-                        if type1 not in type2.types:
-                            return node.body
+                        types = type2.types
 
-                return None
+                    for specific_type in types:
+                        if type1.same_as(specific_type):
+                            if op == 'in':
+                                return true
+                            else:
+                                return false
+
+                    if op == 'not_in':
+                        return true
+
+            return false
 
         return node
 
