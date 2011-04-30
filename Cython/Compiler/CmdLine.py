@@ -163,15 +163,7 @@ def parse_command_line(args):
                 sys.stderr.write("Unknown compiler flag: %s\n" % option)
                 sys.exit(1)
         else:
-            arg = pop_arg()
-            if arg.endswith(".pyx"):
-                sources.append(arg)
-            elif arg.endswith(".py"):
-                # maybe do some other stuff, but this should work for now
-                sources.append(arg)
-            else:
-                sys.stderr.write(
-                    "cython: %s: Unknown filename suffix\n" % arg)
+            sources.append(pop_arg())
     if options.use_listing_file and len(sources) > 1:
         sys.stderr.write(
             "cython: Only one source file allowed when using -o\n")

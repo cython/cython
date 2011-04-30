@@ -616,7 +616,7 @@ def run_pipeline(source, options, full_module_name = None):
                 options.annotate = True
 
     # Get pipeline
-    if source_ext.lower() == '.py':
+    if source_ext.lower() == '.py' or not source_ext:
         pipeline = context.create_py_pipeline(options, result)
     else:
         pipeline = context.create_pyx_pipeline(options, result)
