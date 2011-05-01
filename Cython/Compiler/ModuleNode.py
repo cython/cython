@@ -156,8 +156,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f.close()
 
     def generate_public_declaration(self, entry, h_code, i_code):
-        entry.type.map_with_specific_entries(self._generate_public_declaration,
-                                             h_code, i_code)
+        PyrexTypes.map_with_specific_entries(entry,
+                                             self._generate_public_declaration,
+                                             h_code,
+                                             i_code)
 
     def _generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
@@ -990,9 +992,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             dll_linkage = "DL_EXPORT", definition = definition)
 
     def generate_cfunction_predeclarations(self, env, code, definition):
+        func = self._generate_cfunction_predeclaration
         for entry in env.cfunc_entries:
-            entry.type.map_with_specific_entries(
-                    self._generate_cfunction_predeclaration, code, definition)
+            PyrexTypes.map_with_specific_entries(entry, func, code, definition)
 
     def _generate_cfunction_predeclaration(self, entry, code, definition):
         if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
@@ -2050,7 +2052,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.cfunc_entries:
             from_fused = entry.type.is_fused
             if entry.api or entry.defined_in_pxd:
-                entry.type.map_with_specific_entries(func, env, code, from_fused)
+                PyrexTypes.map_with_specific_entries(entry, func, env,
+                                                     code, from_fused)
 
     def _generate_c_function_export_code(self, entry, env, code, from_fused):
         env.use_utility_code(function_export_utility_code)
@@ -2094,7 +2097,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto(self.pos)))
 
             for entry in entries:
-                entry.type.map_with_specific_entries(self._import_cdef_func,
+                PyrexTypes.map_with_specific_entries(entry,
+                                                     self._import_cdef_func,
                                                      code,
                                                      temp,
                                                      entry.type.is_fused)

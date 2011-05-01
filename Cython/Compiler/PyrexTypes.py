@@ -2056,26 +2056,28 @@ class CFuncType(CType):
                            fused_cname,
                            self.entry.func_cname)
 
-    def map_with_specific_entries(self, func, *args, **kwargs):
-        """
-        Call func for every specific function instance. If this is not a
-        signature with fused types, call it with the entry for this cdef
-        function.
-        """
-        entry = self.entry
 
+def map_with_specific_entries(entry, func, *args, **kwargs):
+    """
+    Call func for every specific function instance. If this is not a
+    signature with fused types, call it with the entry for this cdef
+    function.
+    """
+    type = entry.type
+
+    if type.is_cfunction and (entry.fused_cfunction or type.is_fused):
         if entry.fused_cfunction:
             # cdef with fused types defined in this file
             for cfunction in entry.fused_cfunction.nodes:
                 func(cfunction.entry, *args, **kwargs)
-        elif entry.type.is_fused:
+        else:
             # cdef with fused types defined in another file, create their
             # signatures
-            for func_type in self.get_all_specific_function_types():
+            for func_type in type.get_all_specific_function_types():
                 func(func_type.entry, *args, **kwargs)
-        else:
-            # a normal cdef
-            return func(entry, *args, **kwargs)
+    else:
+        # a normal cdef or not a c function
+        func(entry, *args, **kwargs)
 
 def get_all_specific_permutations(fused_types, id="0", f2s=()):
     fused_type = fused_types[0]

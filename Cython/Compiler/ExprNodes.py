@@ -3008,7 +3008,8 @@ class SimpleCallNode(CallNode):
         if overloaded_entry:
             if self.function.type.is_fused:
                 alternatives = []
-                self.function.type.map_with_specific_entries(alternatives.append)
+                PyrexTypes.map_with_specific_entries(self.function.entry,
+                                                     alternatives.append)
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
