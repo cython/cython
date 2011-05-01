@@ -73,7 +73,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
         self.generate_api_code(env, result)
-    
+
     def has_imported_c_functions(self):
         for module in self.referenced_modules:
             for entry in module.cfunc_entries:
@@ -172,7 +172,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def api_name(self, env):
         return env.qualified_name.replace(".", "__")
-    
+
     def generate_api_code(self, env, result):
         def api_entries(entries, pxd=0):
             return [entry for entry in entries
@@ -255,7 +255,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_cclass_header_code(self, type, h_code):
         h_code.putln("%s %s %s;" % (
-            Naming.extern_c_macro, 
+            Naming.extern_c_macro,
             PyrexTypes.public_decl("PyTypeObject", "DL_IMPORT"),
             type.typeobj_cname))
 
@@ -1785,7 +1785,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("{")
         tempdecl_code = code.insertion_point()
-        
+
         code.put_declare_refcount_context()
         code.putln("#if CYTHON_REFNANNY")
         code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
@@ -2900,104 +2900,104 @@ static int __Pyx_main(int argc, wchar_t **argv) {
 static wchar_t*
 __Pyx_char2wchar(char* arg)
 {
-	wchar_t *res;
+    wchar_t *res;
 #ifdef HAVE_BROKEN_MBSTOWCS
-	/* Some platforms have a broken implementation of
-	 * mbstowcs which does not count the characters that
-	 * would result from conversion.  Use an upper bound.
-	 */
-	size_t argsize = strlen(arg);
+    /* Some platforms have a broken implementation of
+     * mbstowcs which does not count the characters that
+     * would result from conversion.  Use an upper bound.
+     */
+    size_t argsize = strlen(arg);
 #else
-	size_t argsize = mbstowcs(NULL, arg, 0);
+    size_t argsize = mbstowcs(NULL, arg, 0);
 #endif
-	size_t count;
-	unsigned char *in;
-	wchar_t *out;
+    size_t count;
+    unsigned char *in;
+    wchar_t *out;
 #ifdef HAVE_MBRTOWC
-	mbstate_t mbs;
+    mbstate_t mbs;
 #endif
-	if (argsize != (size_t)-1) {
-		res = (wchar_t *)malloc((argsize+1)*sizeof(wchar_t));
-		if (!res)
-			goto oom;
-		count = mbstowcs(res, arg, argsize+1);
-		if (count != (size_t)-1) {
-			wchar_t *tmp;
-			/* Only use the result if it contains no
-			   surrogate characters. */
-			for (tmp = res; *tmp != 0 &&
-				     (*tmp < 0xd800 || *tmp > 0xdfff); tmp++)
-				;
-			if (*tmp == 0)
-				return res;
-		}
-		free(res);
-	}
-	/* Conversion failed. Fall back to escaping with surrogateescape. */
+    if (argsize != (size_t)-1) {
+        res = (wchar_t *)malloc((argsize+1)*sizeof(wchar_t));
+        if (!res)
+            goto oom;
+        count = mbstowcs(res, arg, argsize+1);
+        if (count != (size_t)-1) {
+            wchar_t *tmp;
+            /* Only use the result if it contains no
+               surrogate characters. */
+            for (tmp = res; *tmp != 0 &&
+                     (*tmp < 0xd800 || *tmp > 0xdfff); tmp++)
+                ;
+            if (*tmp == 0)
+                return res;
+        }
+        free(res);
+    }
+    /* Conversion failed. Fall back to escaping with surrogateescape. */
 #ifdef HAVE_MBRTOWC
-	/* Try conversion with mbrtwoc (C99), and escape non-decodable bytes. */
+    /* Try conversion with mbrtwoc (C99), and escape non-decodable bytes. */
 
-	/* Overallocate; as multi-byte characters are in the argument, the
-	   actual output could use less memory. */
-	argsize = strlen(arg) + 1;
-	res = malloc(argsize*sizeof(wchar_t));
-	if (!res) goto oom;
-	in = (unsigned char*)arg;
-	out = res;
-	memset(&mbs, 0, sizeof mbs);
-	while (argsize) {
-		size_t converted = mbrtowc(out, (char*)in, argsize, &mbs);
-		if (converted == 0)
-			/* Reached end of string; null char stored. */
-			break;
-		if (converted == (size_t)-2) {
-			/* Incomplete character. This should never happen,
-			   since we provide everything that we have -
-			   unless there is a bug in the C library, or I
-			   misunderstood how mbrtowc works. */
-			fprintf(stderr, "unexpected mbrtowc result -2\\n");
-			return NULL;
-		}
-		if (converted == (size_t)-1) {
-			/* Conversion error. Escape as UTF-8b, and start over
-			   in the initial shift state. */
-			*out++ = 0xdc00 + *in++;
-			argsize--;
-			memset(&mbs, 0, sizeof mbs);
-			continue;
-		}
-		if (*out >= 0xd800 && *out <= 0xdfff) {
-			/* Surrogate character.  Escape the original
-			   byte sequence with surrogateescape. */
-			argsize -= converted;
-			while (converted--)
-				*out++ = 0xdc00 + *in++;
-			continue;
-		}
-		/* successfully converted some bytes */
-		in += converted;
-		argsize -= converted;
-		out++;
-	}
+    /* Overallocate; as multi-byte characters are in the argument, the
+       actual output could use less memory. */
+    argsize = strlen(arg) + 1;
+    res = malloc(argsize*sizeof(wchar_t));
+    if (!res) goto oom;
+    in = (unsigned char*)arg;
+    out = res;
+    memset(&mbs, 0, sizeof mbs);
+    while (argsize) {
+        size_t converted = mbrtowc(out, (char*)in, argsize, &mbs);
+        if (converted == 0)
+            /* Reached end of string; null char stored. */
+            break;
+        if (converted == (size_t)-2) {
+            /* Incomplete character. This should never happen,
+               since we provide everything that we have -
+               unless there is a bug in the C library, or I
+               misunderstood how mbrtowc works. */
+            fprintf(stderr, "unexpected mbrtowc result -2\\n");
+            return NULL;
+        }
+        if (converted == (size_t)-1) {
+            /* Conversion error. Escape as UTF-8b, and start over
+               in the initial shift state. */
+            *out++ = 0xdc00 + *in++;
+            argsize--;
+            memset(&mbs, 0, sizeof mbs);
+            continue;
+        }
+        if (*out >= 0xd800 && *out <= 0xdfff) {
+            /* Surrogate character.  Escape the original
+               byte sequence with surrogateescape. */
+            argsize -= converted;
+            while (converted--)
+                *out++ = 0xdc00 + *in++;
+            continue;
+        }
+        /* successfully converted some bytes */
+        in += converted;
+        argsize -= converted;
+        out++;
+    }
 #else
-	/* Cannot use C locale for escaping; manually escape as if charset
-	   is ASCII (i.e. escape all bytes > 128. This will still roundtrip
-	   correctly in the locale's charset, which must be an ASCII superset. */
-	res = malloc((strlen(arg)+1)*sizeof(wchar_t));
-	if (!res) goto oom;
-	in = (unsigned char*)arg;
-	out = res;
-	while(*in)
-		if(*in < 128)
-			*out++ = *in++;
-		else
-			*out++ = 0xdc00 + *in++;
-	*out = 0;
+    /* Cannot use C locale for escaping; manually escape as if charset
+       is ASCII (i.e. escape all bytes > 128. This will still roundtrip
+       correctly in the locale's charset, which must be an ASCII superset. */
+    res = malloc((strlen(arg)+1)*sizeof(wchar_t));
+    if (!res) goto oom;
+    in = (unsigned char*)arg;
+    out = res;
+    while(*in)
+        if(*in < 128)
+            *out++ = *in++;
+        else
+            *out++ = 0xdc00 + *in++;
+    *out = 0;
 #endif
-	return res;
+    return res;
 oom:
-	fprintf(stderr, "out of memory\\n");
-	return NULL;
+    fprintf(stderr, "out of memory\\n");
+    return NULL;
 }
 
 int

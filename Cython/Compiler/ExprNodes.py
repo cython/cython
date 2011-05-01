@@ -1122,16 +1122,6 @@ class StringNode(PyConstNode):
             if not dst_type.is_pyobject:
                 return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
             self.check_for_coercion_error(dst_type, fail=True)
-
-        # this will be a unicode string in Py3, so make sure we can decode it
-        if self.value.encoding and isinstance(self.value, StringEncoding.BytesLiteral):
-            try:
-                self.value.decode(self.value.encoding)
-            except UnicodeDecodeError:
-                error(self.pos, ("Decoding unprefixed string literal from '%s' failed. Consider using"
-                                 "a byte string or unicode string explicitly, "
-                                 "or adjust the source code encoding.") % self.value.encoding)
-
         return self
 
     def can_coerce_to_char_literal(self):
@@ -1139,7 +1129,8 @@ class StringNode(PyConstNode):
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(
-            self.value, identifier=self.is_identifier, is_str=True)
+            self.value, identifier=self.is_identifier, is_str=True,
+            unicode_value=self.unicode_value)
 
     def get_constant_c_result_code(self):
         return None
@@ -1926,6 +1917,40 @@ class NextNode(AtomicExprNode):
         code.putln("}")
 
 
+class WithExitCallNode(ExprNode):
+    # The __exit__() call of a 'with' statement.  Used in both the
+    # except and finally clauses.
+
+    # with_stat  WithStatNode                the surrounding 'with' statement
+    # args       TupleNode or ResultStatNode the exception info tuple
+
+    subexprs = ['args']
+
+    def analyse_types(self, env):
+        self.args.analyse_types(env)
+        self.type = PyrexTypes.c_bint_type
+        self.is_temp = True
+
+    def generate_result_code(self, code):
+        if isinstance(self.args, TupleNode):
+            # call only if it was not already called (and decref-cleared)
+            code.putln("if (%s) {" % self.with_stat.exit_var)
+        result_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        code.putln("%s = PyObject_Call(%s, %s, NULL);" % (
+            result_var,
+            self.with_stat.exit_var,
+            self.args.result()))
+        code.put_decref_clear(self.with_stat.exit_var, type=py_object_type)
+        code.putln(code.error_goto_if_null(result_var, self.pos))
+        code.put_gotref(result_var)
+        code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
+        code.put_decref_clear(result_var, type=py_object_type)
+        code.putln(code.error_goto_if_neg(self.result(), self.pos))
+        code.funcstate.release_temp(result_var)
+        if isinstance(self.args, TupleNode):
+            code.putln("}")
+
+
 class ExcValueNode(AtomicExprNode):
     #  Node created during analyse_types phase
     #  of an ExceptClauseNode to fetch the current
@@ -1960,7 +1985,7 @@ class TempNode(ExprNode):
 
     subexprs = []
 
-    def __init__(self, pos, type, env):
+    def __init__(self, pos, type, env=None):
         ExprNode.__init__(self, pos)
         self.type = type
         if type.is_pyobject:
@@ -1969,6 +1994,9 @@ class TempNode(ExprNode):
 
     def analyse_types(self, env):
         return self.type
+
+    def analyse_target_declaration(self, env):
+        pass
 
     def generate_result_code(self, code):
         pass
@@ -6665,6 +6693,14 @@ class CmpNode(object):
                     env.use_utility_code(pyunicode_equals_utility_code)
                     self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
                     return True
+                elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
+                    env.use_utility_code(pybytes_equals_utility_code)
+                    self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
+                    return True
+                elif type1 is Builtin.str_type or type2 is Builtin.str_type:
+                    env.use_utility_code(pystr_equals_utility_code)
+                    self.special_bool_cmp_function = "__Pyx_PyString_Equals"
+                    return True
         return False
 
     def generate_operation_code(self, code, result_code,
@@ -6861,8 +6897,6 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
                 return -1;
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
-    } else if ((s1 == Py_None) & (s2 == Py_None)) {
-        return (equals == Py_EQ);
     } else if ((s1 == Py_None) & PyUnicode_CheckExact(s2)) {
         return (equals == Py_NE);
     } else if ((s2 == Py_None) & PyUnicode_CheckExact(s1)) {
@@ -6878,6 +6912,53 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     }
 }
 """)
+
+pybytes_equals_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
+    if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
+        return (equals == Py_EQ);
+    } else if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
+        if (PyBytes_GET_SIZE(s1) != PyBytes_GET_SIZE(s2)) {
+            return (equals == Py_NE);
+        } else if (PyBytes_GET_SIZE(s1) == 1) {
+            if (equals == Py_EQ)
+                return (PyBytes_AS_STRING(s1)[0] == PyBytes_AS_STRING(s2)[0]);
+            else
+                return (PyBytes_AS_STRING(s1)[0] != PyBytes_AS_STRING(s2)[0]);
+        } else {
+            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), PyBytes_GET_SIZE(s1));
+            return (equals == Py_EQ) ? (result == 0) : (result != 0);
+        }
+    } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
+        return (equals == Py_NE);
+    } else if ((s2 == Py_None) & PyBytes_CheckExact(s1)) {
+        return (equals == Py_NE);
+    } else {
+        int result;
+        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
+        if (!py_result)
+            return -1;
+        result = __Pyx_PyObject_IsTrue(py_result);
+        Py_DECREF(py_result);
+        return result;
+    }
+}
+""",
+requires=[Builtin.include_string_h_utility_code])
+
+pystr_equals_utility_code = UtilityCode(
+proto="""
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyString_Equals __Pyx_PyUnicode_Equals
+#else
+#define __Pyx_PyString_Equals __Pyx_PyBytes_Equals
+#endif
+""",
+requires=[pybytes_equals_utility_code, pyunicode_equals_utility_code])
 
 
 class PrimaryCmpNode(ExprNode, CmpNode):
@@ -7684,11 +7765,18 @@ impl = """
 static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
     PyObject *result;
     result = PyObject_GetAttr(dict, name);
-    if (!result)
-        PyErr_SetObject(PyExc_NameError, name);
+    if (!result) {
+        if (dict != %(BUILTINS)s) {
+            PyErr_Clear();
+            result = PyObject_GetAttr(%(BUILTINS)s, name);
+        }
+        if (!result) {
+            PyErr_SetObject(PyExc_NameError, name);
+        }
+    }
     return result;
 }
-""")
+""" % {'BUILTINS' : Naming.builtins_cname})
 
 #------------------------------------------------------------------------------------
 
@@ -8459,8 +8547,8 @@ static int __Pyx_cdivision_warning(void) {
 # from intobject.c
 division_overflow_test_code = UtilityCode(
 proto="""
-#define UNARY_NEG_WOULD_OVERFLOW(x)	\
-	(((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
+#define UNARY_NEG_WOULD_OVERFLOW(x)    \
+        (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
 
 
@@ -8483,29 +8571,29 @@ static int %(binding_cfunc)s_init(void); /* proto */
 impl="""
 
 static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
-	%(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object, %(binding_cfunc)s);
+    %(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object, %(binding_cfunc)s);
     if (op == NULL)
         return NULL;
-	op->func.m_ml = ml;
-	Py_XINCREF(self);
-	op->func.m_self = self;
-	Py_XINCREF(module);
-	op->func.m_module = module;
-	PyObject_GC_Track(op);
-	return (PyObject *)op;
+    op->func.m_ml = ml;
+    Py_XINCREF(self);
+    op->func.m_self = self;
+    Py_XINCREF(module);
+    op->func.m_module = module;
+    PyObject_GC_Track(op);
+    return (PyObject *)op;
 }
 
 static void %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m) {
-	PyObject_GC_UnTrack(m);
-	Py_XDECREF(m->func.m_self);
-	Py_XDECREF(m->func.m_module);
+    PyObject_GC_UnTrack(m);
+    Py_XDECREF(m->func.m_self);
+    Py_XDECREF(m->func.m_module);
     PyObject_GC_Del(m);
 }
 
 static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyObject *type) {
-	if (obj == Py_None)
-		obj = NULL;
-	return PyMethod_New(func, obj, type);
+    if (obj == Py_None)
+            obj = NULL;
+    return PyMethod_New(func, obj, type);
 }
 
 static int %(binding_cfunc)s_init(void) {
@@ -8532,6 +8620,17 @@ static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args, CYTHON_UNU
 typedef PyObject *(*__pyx_generator_body_t)(PyObject *, PyObject *);
 """,
 impl="""
+static CYTHON_INLINE void __Pyx_Generator_ExceptionClear(struct __pyx_Generator_object *self)
+{
+    Py_XDECREF(self->exc_type);
+    Py_XDECREF(self->exc_value);
+    Py_XDECREF(self->exc_traceback);
+
+    self->exc_type = NULL;
+    self->exc_value = NULL;
+    self->exc_traceback = NULL;
+}
+
 static CYTHON_INLINE PyObject *__Pyx_Generator_SendEx(struct __pyx_Generator_object *self, PyObject *value)
 {
     PyObject *retval;
@@ -8556,9 +8655,20 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_SendEx(struct __pyx_Generator_obj
         return NULL;
     }
 
+
+    if (value)
+        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
+    else
+        __Pyx_Generator_ExceptionClear(self);
+
     self->is_running = 1;
     retval = self->body((PyObject *) self, value);
     self->is_running = 0;
+
+    if (retval)
+        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
+    else
+        __Pyx_Generator_ExceptionClear(self);
 
     return retval;
 }
@@ -8612,10 +8722,10 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args, CYTHON_UN
 
     if (!PyArg_UnpackTuple(args, (char *)"throw", 1, 3, &typ, &val, &tb))
         return NULL;
-    __Pyx_Raise(typ, val, tb);
+    __Pyx_Raise(typ, val, tb, NULL);
     return __Pyx_Generator_SendEx(generator, NULL);
 }
 """,
 proto_block='utility_code_proto_before_types',
-requires=[Nodes.raise_utility_code],
+requires=[Nodes.raise_utility_code, Nodes.swap_exception_utility_code],
 )

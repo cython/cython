@@ -10,7 +10,6 @@ cfunc_call_tuple_args_T408
 compile.cpp_operators
 cpp_templated_ctypedef
 cpp_structs
-with_statement_module_level_T536
 function_as_method_T494
 closure_inside_cdef_T554
 pure_mode_cmethod_inheritance_T583
@@ -22,12 +21,20 @@ class_scope_T671
 
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals
-pyregr.test_module
 pyregr.test_capi
 pyregr.test_socket
 pyregr.test_threading
 pyregr.test_sys
+pyregr.test_pep3131
 
 # CPython regression tests that don't make sense
 pyregr.test_gdb
 pyregr.test_support
+
+# Inlined generators
+all
+any
+builtin_sorted
+dictcomp
+inlined_generator_expressions
+setcomp

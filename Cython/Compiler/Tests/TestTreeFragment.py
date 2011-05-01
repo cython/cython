@@ -54,11 +54,10 @@ class TestTreeFragments(CythonTest):
             x = TMP
         """)
         T = F.substitute(temps=[u"TMP"])
-        s = T.stats
-        self.assert_(s[0].expr.name == "__tmpvar_1")
-#        self.assert_(isinstance(s[0].expr, TempRefNode))
-#        self.assert_(isinstance(s[1].rhs, TempRefNode))
-#        self.assert_(s[0].expr.handle is s[1].rhs.handle)
+        s = T.body.stats
+        self.assert_(isinstance(s[0].expr, TempRefNode))
+        self.assert_(isinstance(s[1].rhs, TempRefNode))
+        self.assert_(s[0].expr.handle is s[1].rhs.handle)
 
 if __name__ == "__main__":
     import unittest

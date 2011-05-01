@@ -59,9 +59,10 @@ cdef class StringConst:
     cdef public object text
     cdef public object escaped_value
     cdef public dict py_strings
+    cdef public list py_versions
 
     @cython.locals(intern=bint, is_str=bint, is_unicode=bint)
-    cpdef get_py_string_const(self, encoding, identifier=*, is_str=*)
+    cpdef get_py_string_const(self, encoding, identifier=*, is_str=*, py3str_cstring=*)
 
 ## cdef class PyStringConst:
 ##     cdef public object cname

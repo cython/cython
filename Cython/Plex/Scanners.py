@@ -299,6 +299,11 @@ class Scanner(object):
     """
     return (self.name, self.start_line, self.start_col)
 
+  def get_position(self):
+    """Python accessible wrapper around position(), only for error reporting.
+    """
+    return self.position()
+
   def begin(self, state_name):
     """Set the current state of the scanner to the named state."""
     self.initial_state = (

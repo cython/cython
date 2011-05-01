@@ -930,7 +930,15 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         conds = []
         temps = []
         for arg in args:
-            if not arg.is_simple():
+            try:
+                # Trial optimisation to avoid redundant temp
+                # assignments.  However, since is_simple() is meant to
+                # be called after type analysis, we ignore any errors
+                # and just play safe in that case.
+                is_simple_arg = arg.is_simple()
+            except Exception:
+                is_simple_arg = False
+            if not is_simple_arg:
                 # must evaluate all non-simple RHS before doing the comparisons
                 arg = UtilNodes.LetRefNode(arg)
                 temps.append(arg)
@@ -3133,6 +3141,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         bool_result = bool(node.constant_result)
         return ExprNodes.BoolNode(node.pos, value=bool_result,
                                   constant_result=bool_result)
+
+    def visit_CondExprNode(self, node):
+        self._calculate_const(node)
+        if node.test.constant_result is ExprNodes.not_a_constant:
+            return node
+        if node.test.constant_result:
+            return node.true_val
+        else:
+            return node.false_val
 
     def visit_IfStatNode(self, node):
         self.visitchildren(node)

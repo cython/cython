@@ -95,6 +95,54 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
 }
 """)
 
+globals_utility_code = UtilityCode(
+# This is a stub implementation until we have something more complete.
+# Currently, we only handle the most common case of a read-only dict
+# of Python names.  Supporting cdef names in the module and write
+# access requires a rewrite as a dedicated class.
+proto = """
+static PyObject* __Pyx_Globals(); /*proto*/
+""",
+impl = '''
+static PyObject* __Pyx_Globals() {
+    Py_ssize_t i;
+    /*PyObject *d;*/
+    PyObject *names = NULL;
+    PyObject *globals = PyObject_GetAttrString(%(MODULE)s, "__dict__");
+    if (!globals) {
+        PyErr_SetString(PyExc_TypeError,
+            "current module must have __dict__ attribute");
+        goto bad;
+    }
+    names = PyObject_Dir(%(MODULE)s);
+    if (!names)
+        goto bad;
+    for (i = 0; i < PyList_GET_SIZE(names); i++) {
+        PyObject* name = PyList_GET_ITEM(names, i);
+        if (!PyDict_Contains(globals, name)) {
+            PyObject* value = PyObject_GetAttr(%(MODULE)s, PyList_GET_ITEM(names, i));
+            if (!value)
+                goto bad;
+            if (PyDict_SetItem(globals, name, value) < 0) {
+                Py_DECREF(value);
+                goto bad;
+            }
+        }
+    }
+    Py_DECREF(names);
+    return globals;
+    /*
+    d = PyDictProxy_New(globals);
+    Py_DECREF(globals);
+    return d;
+    */
+bad:
+    Py_XDECREF(names);
+    Py_XDECREF(globals);
+    return NULL;
+}
+''' % {'MODULE' : Naming.module_cname})
+
 pyexec_utility_code = UtilityCode(
 proto = """
 #if PY_VERSION_HEX < 0x02040000
@@ -384,6 +432,8 @@ builtin_function_table = [
                     utility_code = getattr3_utility_code),
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
                     utility_code = getattr3_utility_code), # Pyrex compatibility
+    BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
+                    utility_code = globals_utility_code),
     BuiltinFunction('hasattr',    "OO",   "b",     "__Pyx_HasAttr",
                     utility_code = hasattr_utility_code),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),

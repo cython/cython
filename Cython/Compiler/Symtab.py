@@ -409,13 +409,13 @@ class Scope(object):
         except ValueError, e:
             error(pos, e.args[0])
             type = PyrexTypes.error_type
-        entry = self.declare_type(name, type, pos, cname, 
+        entry = self.declare_type(name, type, pos, cname,
                                   visibility = visibility, api = api)
         type.qualified_name = entry.qualified_name
         return entry
-        
-    def declare_struct_or_union(self, name, kind, scope, 
-                                typedef_flag, pos, cname = None, 
+
+    def declare_struct_or_union(self, name, kind, scope,
+                                typedef_flag, pos, cname = None,
                                 visibility = 'private', api = 0,
                                 packed = False):
         # Add an entry for a struct or union definition.
@@ -496,7 +496,7 @@ class Scope(object):
         if entry.visibility != visibility:
             error(pos, "'%s' previously declared as '%s'" % (
                 entry.name, entry.visibility))
-    
+
     def declare_enum(self, name, pos, cname, typedef_flag,
             visibility = 'private', api = 0):
         if name:
@@ -512,7 +512,7 @@ class Scope(object):
             visibility = visibility, api = api)
         entry.enum_values = []
         self.sue_entries.append(entry)
-        return entry    
+        return entry
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private', api = 0, is_cdef = 0):
@@ -564,11 +564,16 @@ class Scope(object):
         entry.is_anonymous = True
         return entry
 
-    def declare_lambda_function(self, func_cname, pos):
+    def declare_lambda_function(self, lambda_name, pos):
         # Add an entry for an anonymous Python function.
-        entry = self.declare_var(None, py_object_type, pos,
-                                 cname=func_cname, visibility='private')
-        entry.name = EncodedString(func_cname)
+        func_cname = self.mangle(Naming.lambda_func_prefix + u'funcdef_', lambda_name)
+        pymethdef_cname = self.mangle(Naming.lambda_func_prefix + u'methdef_', lambda_name)
+        qualified_name = self.qualify_name(lambda_name)
+
+        entry = self.declare(None, func_cname, py_object_type, pos, 'private')
+        entry.name = lambda_name
+        entry.qualified_name = qualified_name
+        entry.pymethdef_cname = pymethdef_cname
         entry.func_cname = func_cname
         entry.signature = pyfunction_signature
         entry.is_anonymous = True
@@ -927,21 +932,18 @@ class ModuleScope(Scope):
         return self.outer_scope.lookup(name, language_level = self.context.language_level)
 
     def declare_builtin(self, name, pos):
-        if not hasattr(builtins, name) and name not in Code.non_portable_builtins_map:
-            # 'xrange' and 'BaseException' are special cased in Code.py
+        if not hasattr(builtins, name) \
+               and name not in Code.non_portable_builtins_map \
+               and name not in Code.uncachable_builtins:
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
-            ## elif self.outer_scope is not None:
-            ##     entry = self.outer_scope.declare_builtin(name, pos)
-            ##     print entry
-            ##     return entry
             else:
-                # unknown - assume it's builtin and look it up at runtime
                 if Options.error_on_unknown_names:
                     error(pos, "undeclared name not builtin: %s" % name)
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
+                # unknown - assume it's builtin and look it up at runtime
                 entry = self.declare(name, None, py_object_type, pos, 'private')
                 entry.is_builtin = 1
                 return entry
@@ -950,7 +952,7 @@ class ModuleScope(Scope):
                 if entry.name == name:
                     return entry
         entry = self.declare(None, None, py_object_type, pos, 'private')
-        if Options.cache_builtins:
+        if Options.cache_builtins and name not in Code.uncachable_builtins:
             entry.is_builtin = 1
             entry.is_const = 1 # cached
             entry.name = name
@@ -959,6 +961,7 @@ class ModuleScope(Scope):
             self.undeclared_cached_builtins.append(entry)
         else:
             entry.is_builtin = 1
+            entry.name = name
         return entry
 
     def find_module(self, module_name, pos):
@@ -1067,7 +1070,7 @@ class ModuleScope(Scope):
         buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
-        # declarations for anonymous structs. 
+        # declarations for anonymous structs.
         if typedef_flag and visibility != 'extern':
             if not (visibility == 'public' or api):
                 warning(pos, "ctypedef only valid for 'extern' , 'public', and 'api'", 2)
@@ -1414,6 +1417,12 @@ class GeneratorExpressionScope(Scope):
         self.entries[name] = entry
         return entry
 
+    def declare_lambda_function(self, func_cname, pos):
+        return self.outer_scope.declare_lambda_function(func_cname, pos)
+
+    def add_lambda_def(self, def_node):
+        return self.outer_scope.add_lambda_def(def_node)
+
 
 class ClosureScope(LocalScope):
 
@@ -1464,7 +1473,7 @@ class StructOrUnionScope(Scope):
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', defining = 0,
                           api = 0, in_pxd = 0, modifiers = ()): # currently no utility code ...
-        return self.declare_var(name, type, pos, 
+        return self.declare_var(name, type, pos,
                                 cname=cname, visibility=visibility)
 
 class ClassScope(Scope):
@@ -1629,7 +1638,7 @@ class CClassScope(ClassScope):
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-        entry = self.declare_var(name, py_object_type, pos, 
+        entry = self.declare_var(name, py_object_type, pos,
                                  visibility='extern')
         special_sig = get_special_method_signature(name)
         if special_sig:
@@ -1755,7 +1764,7 @@ class CppClassScope(Scope):
         self.inherited_var_entries = []
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'extern', api = 0, 
+                    cname = None, visibility = 'extern', api = 0,
                     is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
@@ -1797,7 +1806,7 @@ class CppClassScope(Scope):
             error(pos, "no matching function for call to %s::%s()" %
                   (self.default_constructor, self.default_constructor))
 
-    def declare_cfunction(self, name, type, pos, cname = None, 
+    def declare_cfunction(self, name, type, pos, cname = None,
                           visibility = 'extern', api = 0, defining = 0,
                           in_pxd = 0, modifiers = (), utility_code = None):
         if name == self.name.split('::')[-1] and cname is None:
@@ -1805,7 +1814,7 @@ class CppClassScope(Scope):
             name = '<init>'
             type.return_type = self.lookup(self.name).type
         prev_entry = self.lookup_here(name)
-        entry = self.declare_var(name, type, pos, 
+        entry = self.declare_var(name, type, pos,
                                  cname=cname, visibility=visibility)
         if prev_entry:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
