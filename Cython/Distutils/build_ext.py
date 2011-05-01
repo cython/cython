@@ -19,7 +19,9 @@ from distutils.dir_util import mkpath
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 
-from Cython.Utils import any
+if sys.version_info < (3, 0):
+    from Cython.Utils import any
+
 
 extension_name_re = _build_ext.extension_name_re
 
