@@ -585,6 +585,11 @@ class ExprNode(Node):
         if dst_type.is_reference:
             dst_type = dst_type.ref_base_type
 
+        if src_type.is_fused or dst_type.is_fused:
+            error(self.pos, "Type is not specific")
+            self.type = error_type
+            return self
+
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 if dst_type is bytes_type and src.type.is_int:
