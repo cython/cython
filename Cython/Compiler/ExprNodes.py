@@ -1832,6 +1832,8 @@ class IteratorNode(ExprNode):
                 "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                     self.sequence.py_result(),
                     self.sequence.py_result()))
+        if not is_builtin_sequence:
+            self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
         if is_builtin_sequence or self.may_be_a_sequence:
             code.putln(
                 "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
@@ -1839,6 +1841,8 @@ class IteratorNode(ExprNode):
                     self.result(),
                     self.sequence.py_result(),
                     self.result()))
+            if self.iter_func_ptr:
+                code.putln("%s = NULL;" % self.iter_func_ptr)
         if not is_builtin_sequence:
             if self.may_be_a_sequence:
                 code.putln("} else {")
@@ -1848,7 +1852,6 @@ class IteratorNode(ExprNode):
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-            self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
             code.putln("%s = Py_TYPE(%s)->tp_iternext;" % (self.iter_func_ptr, self.py_result()))
         if self.may_be_a_sequence:
             code.putln("}")
