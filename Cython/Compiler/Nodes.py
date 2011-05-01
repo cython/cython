@@ -3823,16 +3823,17 @@ class SingleAssignmentNode(AssignmentNode):
 
                     # See if we're dealing with this:
                     #     dtype = cython.typedef(cython.fused_type(...))
-                    nested_func_name = args[0].function.as_cython_attribute()
-                    if nested_func_name == u'fused_type':
-                        nested_args, nested_kwds = args[0].explicit_args_kwds()
-                        if nested_kwds is not None:
-                            error(self.rhs.pos,
-                                  "fused_type does not take keyword arguments")
+                    if isinstance(args[0], ExprNodes.SimpleCallNode):
+                        nested_func_name = args[0].function.as_cython_attribute()
+                        if nested_func_name == u'fused_type':
+                            nested_args, nested_kwds = args[0].explicit_args_kwds()
+                            if nested_kwds is not None:
+                                error(self.rhs.pos,
+                                      "fused_type does not take keyword arguments")
 
-                        args[0] = FusedTypeNode(self.rhs.pos,
-                                                types=nested_args)
-                        args[0].name = self.lhs.name
+                            args[0] = FusedTypeNode(self.rhs.pos,
+                                                    types=nested_args)
+                            args[0].name = self.lhs.name
 
                     type = args[0].analyse_as_type(env)
                     if type is None:

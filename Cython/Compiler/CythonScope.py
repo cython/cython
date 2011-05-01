@@ -22,6 +22,8 @@ class CythonScope(ModuleScope):
         if type:
             return type
 
+        return super(CythonScope, self).lookup_type(name)
+
 def create_cython_scope(context):
     create_utility_scope(context)
     return CythonScope(context)

@@ -270,7 +270,7 @@ class SimpleAssignmentTypeInferer(object):
             while ready_to_infer:
                 entry = ready_to_infer.pop()
                 types = [expr.infer_type(scope) for expr in entry.assignments]
-                if Utils.all(types):
+                if types and Utils.all(types):
                     entry.type = spanning_type(types, entry.might_overflow)
                 else:
                     # FIXME: raise a warning?
