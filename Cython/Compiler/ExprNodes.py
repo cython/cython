@@ -1789,6 +1789,7 @@ class IteratorNode(ExprNode):
     #  sequence   ExprNode
 
     type = py_object_type
+    iter_func_ptr = None
 
     subexprs = ['sequence']
 
@@ -1813,6 +1814,11 @@ class IteratorNode(ExprNode):
 
     def release_counter_temp(self, code):
         code.funcstate.release_temp(self.counter_cname)
+
+    _func_iternext_type = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None),
+            ]))
 
     def generate_result_code(self, code):
         if self.sequence.type.is_array or self.sequence.type.is_ptr:
@@ -1841,8 +1847,16 @@ class IteratorNode(ExprNode):
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+            self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
+            code.putln("%s = Py_TYPE(%s)->tp_iternext;" % (self.iter_func_ptr, self.py_result()))
             if may_be_a_sequence:
                 code.putln("}")
+
+    def free_temps(self, code):
+        if self.iter_func_ptr:
+            code.funcstate.release_temp(self.iter_func_ptr)
+            self.iter_func_ptr = None
+        ExprNode.free_temps(self, code)
 
 
 class NextNode(AtomicExprNode):
@@ -1851,7 +1865,7 @@ class NextNode(AtomicExprNode):
     #  Created during analyse_types phase.
     #  The iterator is not owned by this node.
     #
-    #  iterator   ExprNode
+    #  iterator   IteratorNode
 
     type = py_object_type
 
@@ -1896,16 +1910,30 @@ class NextNode(AtomicExprNode):
         if len(type_checks) == 1:
             return
         code.putln("{")
-        code.putln(
-            "%s = PyIter_Next(%s);" % (
-                self.result(),
-                self.iterator.py_result()))
-        code.putln(
-            "if (!%s) {" %
-                self.result())
-        code.putln(code.error_goto_if_PyErr(self.pos))
-        code.putln("break;")
-        code.putln("}")
+        if self.iterator.iter_func_ptr:
+            code.putln(
+                "%s = %s(%s);" % (
+                    self.result(),
+                    self.iterator.iter_func_ptr,
+                    self.iterator.py_result()))
+            code.putln("if (unlikely(!%s)) {" % self.result())
+            code.putln("if (PyErr_Occurred()) {")
+            code.putln("if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) PyErr_Clear();")
+            code.putln("else %s" % code.error_goto(self.pos))
+            code.putln("}")
+            code.putln("break;")
+            code.putln("}")
+        else:
+            code.putln(
+                "%s = PyIter_Next(%s);" % (
+                    self.result(),
+                    self.iterator.py_result()))
+            code.putln(
+                "if (unlikely(!%s)) {" %
+                    self.result())
+            code.putln(code.error_goto_if_PyErr(self.pos))
+            code.putln("break;")
+            code.putln("}")
         code.put_gotref(self.py_result())
         code.putln("}")
 
