@@ -1821,17 +1821,18 @@ class IteratorNode(ExprNode):
             ]))
 
     def generate_result_code(self, code):
-        if self.sequence.type.is_array or self.sequence.type.is_ptr:
+        sequence_type = self.sequence.type
+        if sequence_type.is_array or sequence_type.is_ptr:
             raise InternalError("for in carray slice not transformed")
-        is_builtin_sequence = self.sequence.type is list_type or \
-                              self.sequence.type is tuple_type
-        may_be_a_sequence = not self.sequence.type.is_builtin_type
-        if may_be_a_sequence:
+        is_builtin_sequence = sequence_type is list_type or \
+                              sequence_type is tuple_type
+        self.may_be_a_sequence = not sequence_type.is_builtin_type
+        if self.may_be_a_sequence:
             code.putln(
                 "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                     self.sequence.py_result(),
                     self.sequence.py_result()))
-        if is_builtin_sequence or may_be_a_sequence:
+        if is_builtin_sequence or self.may_be_a_sequence:
             code.putln(
                 "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
                     self.counter_cname,
@@ -1839,7 +1840,7 @@ class IteratorNode(ExprNode):
                     self.sequence.py_result(),
                     self.result()))
         if not is_builtin_sequence:
-            if may_be_a_sequence:
+            if self.may_be_a_sequence:
                 code.putln("} else {")
             code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
                     self.counter_cname,
@@ -1849,8 +1850,54 @@ class IteratorNode(ExprNode):
             code.put_gotref(self.py_result())
             self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
             code.putln("%s = Py_TYPE(%s)->tp_iternext;" % (self.iter_func_ptr, self.py_result()))
-            if may_be_a_sequence:
-                code.putln("}")
+        if self.may_be_a_sequence:
+            code.putln("}")
+
+    def generate_next_sequence_item(self, test_name, result_name, code):
+        code.putln(
+            "if (%s >= Py%s_GET_SIZE(%s)) break;" % (
+                self.counter_cname,
+                test_name,
+                self.py_result()))
+        code.putln(
+            "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s++;" % (
+                result_name,
+                test_name,
+                self.py_result(),
+                self.counter_cname,
+                result_name,
+                self.counter_cname))
+
+    def generate_iter_next_result_code(self, result_name, code):
+        sequence_type = self.sequence.type
+        if sequence_type is list_type:
+            self.generate_next_sequence_item('List', result_name, code)
+            return
+        elif sequence_type is tuple_type:
+            self.generate_next_sequence_item('Tuple', result_name, code)
+            return
+
+        if self.may_be_a_sequence:
+            for test_name in ('List', 'Tuple'):
+                code.putln("if (Py%s_CheckExact(%s)) {" % (test_name, self.py_result()))
+                self.generate_next_sequence_item(test_name, result_name, code)
+                code.put("} else ")
+
+        code.putln("{")
+        code.putln(
+            "%s = %s(%s);" % (
+                result_name,
+                self.iter_func_ptr,
+                self.py_result()))
+        code.putln("if (unlikely(!%s)) {" % result_name)
+        code.putln("if (PyErr_Occurred()) {")
+        code.putln("if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("else %s" % code.error_goto(self.pos))
+        code.putln("}")
+        code.putln("break;")
+        code.putln("}")
+        code.put_gotref(result_name)
+        code.putln("}")
 
     def free_temps(self, code):
         if self.iter_func_ptr:
@@ -1877,65 +1924,7 @@ class NextNode(AtomicExprNode):
         self.is_temp = 1
 
     def generate_result_code(self, code):
-        sequence_type = self.iterator.sequence.type
-        if sequence_type is list_type:
-            type_checks = [(list_type, "List")]
-        elif sequence_type is tuple_type:
-            type_checks = [(tuple_type, "Tuple")]
-        elif not sequence_type.is_builtin_type:
-            type_checks = [(list_type, "List"), (tuple_type, "Tuple")]
-        else:
-            type_checks = []
-
-        for py_type, prefix in type_checks:
-            if len(type_checks) > 1:
-                code.putln(
-                    "if (likely(Py%s_CheckExact(%s))) {" % (
-                        prefix, self.iterator.py_result()))
-            code.putln(
-                "if (%s >= Py%s_GET_SIZE(%s)) break;" % (
-                    self.iterator.counter_cname,
-                    prefix,
-                    self.iterator.py_result()))
-            code.putln(
-                "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s++;" % (
-                    self.result(),
-                    prefix,
-                    self.iterator.py_result(),
-                    self.iterator.counter_cname,
-                    self.result(),
-                    self.iterator.counter_cname))
-            if len(type_checks) > 1:
-                code.put("} else ")
-        if len(type_checks) == 1:
-            return
-        code.putln("{")
-        if self.iterator.iter_func_ptr:
-            code.putln(
-                "%s = %s(%s);" % (
-                    self.result(),
-                    self.iterator.iter_func_ptr,
-                    self.iterator.py_result()))
-            code.putln("if (unlikely(!%s)) {" % self.result())
-            code.putln("if (PyErr_Occurred()) {")
-            code.putln("if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) PyErr_Clear();")
-            code.putln("else %s" % code.error_goto(self.pos))
-            code.putln("}")
-            code.putln("break;")
-            code.putln("}")
-        else:
-            code.putln(
-                "%s = PyIter_Next(%s);" % (
-                    self.result(),
-                    self.iterator.py_result()))
-            code.putln(
-                "if (unlikely(!%s)) {" %
-                    self.result())
-            code.putln(code.error_goto_if_PyErr(self.pos))
-            code.putln("break;")
-            code.putln("}")
-        code.put_gotref(self.py_result())
-        code.putln("}")
+        self.iterator.generate_iter_next_result_code(self.result(), code)
 
 
 class WithExitCallNode(ExprNode):
