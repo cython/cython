@@ -1177,6 +1177,8 @@ class FuncDefNode(StatNode, BlockNode):
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
+    # star_arg      PyArgDeclNode or None  * argument
+    # starstar_arg  PyArgDeclNode or None  ** argument
 
     py_func = None
     assmt = None
@@ -1185,6 +1187,8 @@ class FuncDefNode(StatNode, BlockNode):
     is_generator = False
     is_generator_body = False
     modifiers = []
+    star_arg = None
+    starstar_arg = None
 
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1940,8 +1944,6 @@ class DefNode(FuncDefNode):
     # lambda_name   string                 the internal name of a lambda 'function'
     # decorators    [DecoratorNode]        list of decorators
     # args          [CArgDeclNode]         formal arguments
-    # star_arg      PyArgDeclNode or None  * argument
-    # starstar_arg  PyArgDeclNode or None  ** argument
     # doc           EncodedString or None
     # body          StatListNode
     # return_type_annotation
@@ -1966,8 +1968,6 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
-    star_arg = None
-    starstar_arg = None
     doc = None
 
     def __init__(self, pos, **kwds):
