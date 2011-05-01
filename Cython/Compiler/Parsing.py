@@ -2076,7 +2076,7 @@ def looking_at_call(s):
     # Unfortunately there's no good way to handle this, as a subsequent call
     # to next() will not advance the position until it reads a new token.
     position = s.start_line, s.start_col
-    result = looking_at_expr(s) == '('
+    result = looking_at_expr(s) == u'('
     if not result:
         s.start_line, s.start_col = position
     return result
