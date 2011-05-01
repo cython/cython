@@ -3,13 +3,17 @@
 
 import sys
 
-_next = next
+try:
+    from builtins import next
+except ImportError:
+    def next(it):
+        return it.next()
 
 def for_in_pyiter_pass(it):
     """
     >>> it = Iterable(5)
     >>> for_in_pyiter_pass(it)
-    >>> _next(it)
+    >>> next(it)
     Traceback (most recent call last):
     StopIteration
     """
@@ -100,5 +104,5 @@ def for_in_gen(N):
     >>> for_in_pyiter(for_in_gen(10))
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
-    for i in xrange(N):
+    for i in range(N):
         yield i
