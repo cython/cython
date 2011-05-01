@@ -106,7 +106,7 @@ static PyObject* __Pyx_Globals(); /*proto*/
 impl = '''
 static PyObject* __Pyx_Globals() {
     Py_ssize_t i;
-    PyObject *d;
+    /*PyObject *d;*/
     PyObject *names = NULL;
     PyObject *globals = PyObject_GetAttrString(%(MODULE)s, "__dict__");
     if (!globals) {
@@ -130,9 +130,12 @@ static PyObject* __Pyx_Globals() {
         }
     }
     Py_DECREF(names);
+    return globals;
+    /*
     d = PyDictProxy_New(globals);
     Py_DECREF(globals);
     return d;
+    */
 bad:
     Py_XDECREF(names);
     Py_XDECREF(globals);
