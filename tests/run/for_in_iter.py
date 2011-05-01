@@ -3,6 +3,19 @@
 
 import sys
 
+_next = next
+
+def for_in_pyiter_pass(it):
+    """
+    >>> it = Iterable(5)
+    >>> for_in_pyiter_pass(it)
+    >>> _next(it)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    for item in it:
+        pass
+
 def for_in_pyiter(it):
     """
     >>> for_in_pyiter(Iterable(5))
