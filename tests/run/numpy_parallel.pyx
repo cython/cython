@@ -1,6 +1,5 @@
 # tag: numpy
-# distutils: libraries = gomp
-# distutils: extra_compile_args = -fopenmp
+# tag: openmp
 
 cimport cython
 from cython.parallel import prange
