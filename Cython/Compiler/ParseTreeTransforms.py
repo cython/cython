@@ -1887,36 +1887,9 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         from Cython.Compiler import Optimize
 
         self.visitchildren(node)
-
-        if_clauses = []
-        seen_true = False
-        seen_true_anywhere = False
-
-        for if_clause in node.if_clauses:
-            transform = Optimize.ConstantFolding()
-            transform.check_constant_value_not_set = False
-            transform(if_clause.condition)
-
-            is_const = if_clause.condition.has_constant_result()
-            const = if_clause.condition.constant_result
-
-            if is_const:
-                if const and not seen_true:
-                    seen_true = True
-                    seen_true_anywhere = True
-                    if_clauses.append(if_clause)
-            else:
-                seen_true = False
-                if_clauses.append(if_clause)
-
-        if if_clauses:
-            node.if_clauses = if_clauses
-            if seen_true_anywhere:
-                node.else_clause = None
-        else:
-            node = node.else_clause
-
-        return node
+        transform = Optimize.ConstantFolding()
+        transform.check_constant_value_not_set = False
+        return transform(node)
 
     def visit_PrimaryCmpNode(self, node):
         type1 = node.operand1.analyse_as_type(self.local_scope)
