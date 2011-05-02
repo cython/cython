@@ -11,6 +11,7 @@ import unittest
 import doctest
 import operator
 import tempfile
+import warnings
 import traceback
 try:
     from StringIO import StringIO
