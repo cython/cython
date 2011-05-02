@@ -3823,7 +3823,7 @@ class SingleAssignmentNode(AssignmentNode):
 
                     # See if we're dealing with this:
                     #     dtype = cython.typedef(cython.fused_type(...))
-                    if isinstance(args[0], ExprNodes.SimpleCallNode):
+                    if isinstance(args[0], ExprNodes.CallNode):
                         nested_func_name = args[0].function.as_cython_attribute()
                         if nested_func_name == u'fused_type':
                             nested_args, nested_kwds = args[0].explicit_args_kwds()
