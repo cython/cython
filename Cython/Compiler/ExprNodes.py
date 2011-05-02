@@ -586,6 +586,17 @@ class ExprNode(Node):
             dst_type = dst_type.ref_base_type
 
         if src_type.is_fused or dst_type.is_fused:
+            # See if we are coercing a fused function to a pointer to a
+            # specialized function
+            if (src_type.is_cfunction and not dst_type.is_fused and
+                    dst_type.is_ptr and dst_type.base_type.is_cfunction):
+
+                dst_type = dst_type.base_type
+
+                for signature in src_type.get_all_specific_function_types():
+                    if signature.same_as(dst_type):
+                        return CoerceFusedToSpecific(src, signature)
+
             error(self.pos, "Type is not specific")
             self.type = error_type
             return self
@@ -5577,6 +5588,9 @@ class TypecastNode(ExprNode):
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
+        elif self.operand.type.is_fused:
+            self.operand = self.operand.coerce_to(self.type, env)
+            self.type = self.operand.type
 
     def is_simple(self):
         # either temp or a C cast => no side effects
@@ -7294,6 +7308,18 @@ class CoercionNode(ExprNode):
             file, line, col = self.pos
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+class CoerceFusedToSpecific(CoercionNode):
+
+    def __init__(self, arg, dst_type):
+        super(CoerceFusedToSpecific, self).__init__(arg)
+        self.type = dst_type
+        self.specialized_cname = dst_type.entry.cname
+
+    def calculate_result_code(self):
+        return self.specialized_cname
+
+    def generate_result_code(self, code):
+        pass
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.

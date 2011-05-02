@@ -72,3 +72,10 @@ assert add_simple(myunion, 5.0).a == 10.0
 assert add_to_simple(mystruct, 5.0) == 10.0
 assert add_to_simple(myunion, b"spamhameggs") == b"ameggs"
 assert add_to_simple(myext, 5) == 10
+
+cdef mystruct_t (*f)(mystruct_t, int)
+f = add_simple
+assert f(mystruct, 5).a == 10
+
+f = <mystruct_t (*)(mystruct_t, int)> add_simple
+assert f(mystruct, 5).a == 10
