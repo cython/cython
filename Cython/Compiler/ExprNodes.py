@@ -2332,9 +2332,7 @@ class IndexNode(ExprNode):
         """
         base_type = self.base.type
 
-        def err(msg, pos=None):
-            error(pos or self.pos, msg)
-            self.type = PyrexTypes.error_type
+        self.type = PyrexTypes.error_type
 
         specific_types = []
         positions = []
@@ -2347,11 +2345,15 @@ class IndexNode(ExprNode):
                 positions.append(arg.pos)
                 specific_types.append(arg.analyse_as_type(env))
         else:
-            return err("Can only index fused functions with types")
+            return error(self.pos, "Can only index fused functions with types")
 
         fused_types = base_type.get_fused_types()
         if len(specific_types) > len(fused_types):
-            return err("Too many types specified")
+            return error(self.pos, "Too many types specified")
+        elif len(specific_types) < len(fused_types):
+            t = fused_types[len(specific_types)]
+            return error(self.pos, "Not enough types specified to specialize "
+                                   "the function, %s is still fused" % t)
 
         # See if our index types form valid specializations
         for pos, specific_type, fused_type in zip(positions,
@@ -2359,27 +2361,19 @@ class IndexNode(ExprNode):
                                                   fused_types):
             if not Utils.any([specific_type.same_as(t)
                                   for t in fused_type.types]):
-                return err("Type not in fused type", pos=pos)
+                return error(pos, "Type not in fused type")
 
             if specific_type is None or specific_type.is_error:
                 return
 
         fused_to_specific = dict(zip(fused_types, specific_types))
-
-        # If we are only partially fused, specialize accordingly
-        for fused_type in fused_types:
-            if fused_type not in fused_to_specific:
-                fused_to_specific[fused_type] = fused_type
-
         type = base_type.specialize(fused_to_specific)
 
-        if type is not base_type:
-            import copy
-            e = copy.copy(base_type.entry)
-            e.type = type
-            type.entry = e
-
-        if not type.is_fused:
+        if type.is_fused:
+            # Only partially specific, this is invalid
+            error(self.pos,
+                  "Index operation makes function only partially specific")
+        else:
             # Fully specific, find the signature with the specialized entry
             for signature in self.base.type.get_all_specific_function_types():
                 if type.same_as(signature):
@@ -2387,9 +2381,6 @@ class IndexNode(ExprNode):
                     break
             else:
                 assert False
-        else:
-            # Only partially specific
-            self.type = type
 
     gil_message = "Indexing Python object"
 
@@ -3117,8 +3108,10 @@ class SimpleCallNode(CallNode):
                 return
         elif hasattr(self.function, 'entry'):
             overloaded_entry = self.function.entry
-        elif isinstance(self.function, IndexNode) and self.function.type.is_fused:
+        elif (isinstance(self.function, IndexNode) and
+              self.function.base.type.is_fused):
             overloaded_entry = self.function.type.entry
+            self.function.entry = self.function.type.entry
         else:
             overloaded_entry = None
 

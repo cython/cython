@@ -677,6 +677,7 @@ class FusedType(PyrexType):
     """
 
     is_fused = 1
+    name = None
 
     def __init__(self, types):
         self.types = types

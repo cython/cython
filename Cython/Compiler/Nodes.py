@@ -937,28 +937,23 @@ class FusedTypeNode(CBaseTypeNode):
     child_attrs = []
 
     def analyse(self, env):
-        self.types = [type.analyse_as_type(env) for type in self.types]
+        # Note: this list may still contain multiple of the same entries
+        types = [type.analyse_as_type(env) for type in self.types]
 
         if len(self.types) == 1:
-            return self.types[0]
+            return types[0]
 
-        types = []
         seen = cython.set()
-
-        for type in self.types:
-            self.add_type(type, types, seen)
-
-        return PyrexTypes.FusedType(types)
-
-    def add_type(self, type, types, seen):
-        if type not in seen:
-            seen.add(type)
-
-            if type.is_fused:
-                for specific_type in PyrexTypes.get_specific_types(type):
-                    self.add_type(specific_type, types, seen)
+        for type_node, type in zip(self.types, types):
+            if type in seen:
+                error(type_node.pos, "Type specified multiple times")
             else:
-                types.append(type)
+                seen.add(type)
+                if type.is_fused:
+                    error(type_node.pos, "Cannot fuse a fused type")
+
+        self.types = types
+        return PyrexTypes.FusedType(types)
 
 
 class CVarDefNode(StatNode):
@@ -1202,14 +1197,11 @@ class CTypeDefNode(StatNode):
     child_attrs = ["base_type", "declarator"]
 
     def analyse_declarations(self, env):
-        """
-        If we are a fused type, do a normal type declaration, as we want
-        declared variables to have a FusedType type, not a CTypeDefType.
-        """
         base = self.base_type.analyse(env)
         name_declarator, type = self.declarator.analyse(base, env)
         name = name_declarator.name
         cname = name_declarator.cname
+
         entry = env.declare_typedef(name, type, self.pos,
             cname = cname, visibility = self.visibility, api = self.api)
 
@@ -2040,6 +2032,9 @@ class FusedCFuncDefNode(StatListNode):
         from Cython.Compiler import ParseTreeTransforms
 
         permutations = self.node.type.get_all_specific_permutations()
+        # print 'Node %s has %d specializations:' % (self.node.entry.name,
+        #                                            len(permutations))
+        # import pprint; pprint.pprint([d for cname, d in permutations])
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
 

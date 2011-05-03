@@ -1347,24 +1347,17 @@ class AnalyseExpressionsTransform(CythonTransform):
         argument types with a NameNode referring to the function with
         specialized entry and type.
         """
-        was_nested = self.nested_index_node
-        self.nested_index_node = True
         self.visit_Node(node)
-        self.nested_index_node = was_nested
-
         type = node.type
 
-        if type.is_cfunction and type.is_fused and not self.nested_index_node:
-            error(node.pos, "Not enough types were specified to indicate a "
-                            "specialized function")
-        elif type.is_cfunction and node.base.type.is_fused:
-            while not node.is_name:
-                node = node.base
-
-            node.type = type
-            node.entry = type.entry
-            print node.entry.cname
-            return node
+        if type.is_cfunction and node.base.type.is_fused:
+            node = node.base
+            if not node.is_name:
+                error(node.pos, "Can only index a fused function once")
+                node.type = PyrexTypes.error_type
+            else:
+                node.type = type
+                node.entry = type.entry
 
         return node
 
@@ -1905,6 +1898,12 @@ class ReplaceFusedTypeChecks(VisitorTransform):
             ...
     """
 
+    # Defer the import until now to avoid circularity...
+    from Cython.Compiler import Optimize
+
+    transform = Optimize.ConstantFolding()
+    transform.check_constant_value_not_set = False
+
     def __init__(self, local_scope):
         super(ReplaceFusedTypeChecks, self).__init__()
         self.local_scope = local_scope
@@ -1914,12 +1913,8 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         Filters out any if clauses with false compile time type check
         expression.
         """
-        from Cython.Compiler import Optimize
-
         self.visitchildren(node)
-        transform = Optimize.ConstantFolding()
-        transform.check_constant_value_not_set = False
-        return transform(node)
+        return self.transform(node)
 
     def visit_PrimaryCmpNode(self, node):
         type1 = node.operand1.analyse_as_type(self.local_scope)
@@ -1932,7 +1927,7 @@ class ReplaceFusedTypeChecks(VisitorTransform):
             type1 = self.specialize_type(type1, node.operand1.pos)
             op = node.operator
 
-            if op in ('is', 'is not', '==', '!='):
+            if op in ('is', 'is_not', '==', '!='):
                 type2 = self.specialize_type(type2, node.operand2.pos)
 
                 is_same = type1.same_as(type2)

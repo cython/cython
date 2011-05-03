@@ -31,7 +31,7 @@ cdef public class MyExt [ type MyExtType, object MyExtObject ]:
 
 ctypedef char *string_t
 ctypedef cython.fused_type(int, float) simple_t
-ctypedef cython.fused_type(simple_t, string_t) less_simple_t
+ctypedef cython.fused_type(int, float, string_t) less_simple_t
 ctypedef cython.fused_type(mystruct_t, myunion_t, MyExt) object_t
 ctypedef cython.fused_type(str, unicode, bytes) builtin_t
 
@@ -81,7 +81,4 @@ f = <mystruct_t (*)(mystruct_t, int)> add_simple
 assert f(mystruct, 5).a == 10
 
 f = add_simple[mystruct_t, int]
-assert f(mystruct, 5).a == 10
-
-f = add_simple[mystruct_t][int]
 assert f(mystruct, 5).a == 10

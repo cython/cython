@@ -5,12 +5,15 @@ ctypedef char *string_t
 
 ctypedef cython.fused_type(int, long, float, string_t) fused_t
 ctypedef cython.fused_type(int, long) other_t
-ctypedef cython.fused_type(short, short int, short, int) base_t
+ctypedef cython.fused_type(short int, int) base_t
 ctypedef cython.fused_type(float complex, double complex,
                            int complex, long complex) complex_t
 
 ctypedef base_t **base_t_p_p
-ctypedef cython.fused_type(char, base_t_p_p, fused_t, complex_t) composed_t
+# ctypedef cython.fused_type(char, base_t_p_p, fused_t, complex_t) composed_t
+ctypedef cython.fused_type(char, int, float, string_t, float complex,
+                           double complex, int complex, long complex,
+                           cython.p_p_int) composed_t
 
 
 cdef func(fused_t a, other_t b):
@@ -160,8 +163,8 @@ def test_composed_types():
     (0.9+0.4j)
     <BLANKLINE>
     not a complex number
-    9 10
-    19
+    7 8
+    15
     <BLANKLINE>
     7 8
     <BLANKLINE>
@@ -177,7 +180,7 @@ def test_composed_types():
     print result
     print
 
-    print composed(c + 2, d + 2)
+    print composed(c, d)
     print
 
     composed(&cp, &dp)
