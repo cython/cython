@@ -576,7 +576,7 @@ class CreateControlFlowGraph(CythonTransform):
 
     def visit_SingleAssignmentNode(self, node):
         self.visit(node.rhs)
-        self.mark_assignment(node.lhs)
+        self.mark_assignment(node.lhs, node.rhs)
         return node
 
     def visit_CascadedAssignmentNode(self, node):
