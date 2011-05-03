@@ -249,11 +249,13 @@ class Context(object):
                     FlattenInListTransform,
                     WithTransform,
                     ]:
-                pass # continue
+                continue
             pipeline.append(stage)
             if isinstance(stage, AnalyseDeclarationsTransform):
                 break
         def fake_pxd(root):
+            for entry in root.scope.entries.values():
+                entry.defined_in_pxd = 1
             return StatListNode(root.pos, stats=[]), root.scope
         pipeline.append(fake_pxd)
         return pipeline
@@ -605,7 +607,9 @@ def create_parse(context):
         source_desc = compsrc.source_desc
         full_module_name = compsrc.full_module_name
         initial_pos = (source_desc, 1, 0)
+        saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, False
         scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+        Options.cimport_from_pyx = saved_cimport_from_pyx
         tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
         tree.compilation_source = compsrc
         tree.scope = scope
