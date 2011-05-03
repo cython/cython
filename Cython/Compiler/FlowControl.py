@@ -500,6 +500,9 @@ class CreateControlFlowGraph(CythonTransform):
                                     TypedExprNode(Builtin.dict_type),
                                     node.starstar_arg.entry)
         self.visitchildren(node)
+        # Workaround for generators
+        if node.is_generator:
+            self.visit(node.gbody.body)
 
         # Exit point
         if self.flow.block:
@@ -521,6 +524,9 @@ class CreateControlFlowGraph(CythonTransform):
         node.used = True
         self.flow.mark_assignment(node, object_expr, self.env.lookup(node.name))
         return self.visit_FuncDefNode(node)
+
+    def visit_GeneratorBodyDefNode(self, node):
+        return node
 
     def visit_CTypeDefNode(self, node):
         return node
