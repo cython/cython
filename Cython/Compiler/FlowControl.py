@@ -387,7 +387,7 @@ def check_definitions(flow, compiler_directives):
             elif isinstance(stat, NameReference):
                 stat.entry.cf_references.append(stat)
                 if Uninitialized in state[stat.entry]:
-                    if stat.entry.from_closure:
+                    if stat.entry.from_closure or stat.node.allow_null:
                         pass # Can be uninitialized here
                     elif len(state[stat.entry]) == 1:
                         messages.error(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
