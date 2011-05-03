@@ -2115,7 +2115,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate code to create PyCFunction wrappers for exported C functions.
         entries = []
         for entry in env.var_entries:
-            if entry.api or entry.defined_in_pxd:
+            if entry.api or entry.defined_in_pxd or Options.cimport_from_pyx:
                 entries.append(entry)
         if entries:
             env.use_utility_code(voidptr_export_utility_code)
@@ -2129,7 +2129,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate code to create PyCFunction wrappers for exported C functions.
         entries = []
         for entry in env.cfunc_entries:
-            if entry.api or entry.defined_in_pxd:
+            if entry.api or entry.defined_in_pxd or Options.cimport_from_pyx:
                 entries.append(entry)
         if entries:
             env.use_utility_code(function_export_utility_code)
