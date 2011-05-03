@@ -3940,7 +3940,6 @@ class SequenceNode(ExprNode):
     #  Contains common code for performing sequence unpacking.
     #
     #  args                    [ExprNode]
-    #  iterator                ExprNode
     #  unpacked_items          [ExprNode] or None
     #  coerced_unpacked_items  [ExprNode] or None
 
@@ -3983,7 +3982,6 @@ class SequenceNode(ExprNode):
         return False
 
     def analyse_target_types(self, env):
-        self.iterator = PyTempNode(self.pos, env)
         self.unpacked_items = []
         self.coerced_unpacked_items = []
         for arg in self.args:
@@ -4013,18 +4011,18 @@ class SequenceNode(ExprNode):
             item.release(code)
         rhs.free_temps(code)
 
+    _func_iternext_type = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None),
+            ]))
+
     def generate_parallel_assignment_code(self, rhs, code):
         # Need to work around the fact that generate_evaluation_code
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
-
-        if rhs.type is tuple_type:
-            tuple_check = "likely(%s != Py_None)"
-        else:
-            tuple_check = "PyTuple_CheckExact(%s)"
         code.putln(
-            "if (%s && likely(PyTuple_GET_SIZE(%s) == %s)) {" % (
-                tuple_check % rhs.py_result(),
+            "if (PyTuple_CheckExact(%s) && likely(PyTuple_GET_SIZE(%s) == %s)) {" % (
+                rhs.py_result(),
                 rhs.py_result(),
                 len(self.args)))
         code.putln("PyObject* tuple = %s;" % rhs.py_result())
@@ -4033,9 +4031,8 @@ class SequenceNode(ExprNode):
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
             code.put(
-                "%s = PyTuple_GET_ITEM(tuple, %s); " % (
-                    item.result(),
-                    i))
+                "%s = PyTuple_GET_ITEM(tuple, %d); " % (
+                    item.result(), i))
             code.put_incref(item.result(), item.ctype())
             value_node = self.coerced_unpacked_items[i]
             value_node.generate_evaluation_code(code)
@@ -4053,37 +4050,55 @@ class SequenceNode(ExprNode):
                         rhs.py_result(), len(self.args)))
             code.putln(code.error_goto(self.pos))
         else:
-            code.globalstate.use_utility_code(unpacking_utility_code)
+            code.globalstate.use_utility_code(iternext_unpacking_end_utility_code)
+            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+            code.putln("Py_ssize_t index = -1;")
 
-            self.iterator.allocate(code)
+            iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln(
                 "%s = PyObject_GetIter(%s); %s" % (
-                    self.iterator.result(),
+                    iterator_temp,
                     rhs.py_result(),
-                    code.error_goto_if_null(self.iterator.result(), self.pos)))
-            code.put_gotref(self.iterator.py_result())
+                    code.error_goto_if_null(iterator_temp, self.pos)))
+            code.put_gotref(iterator_temp)
             rhs.generate_disposal_code(code)
+
+            iternext_func = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
+            code.putln("%s = Py_TYPE(%s)->tp_iternext;" % (
+                iternext_func, iterator_temp))
+
+            unpacking_error_label = code.new_label('unpacking_failed')
+            code.use_label(unpacking_error_label)
+            unpack_code = "%s(%s)" % (iternext_func, iterator_temp)
             for i in range(len(self.args)):
                 item = self.unpacked_items[i]
-                unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
-                    self.iterator.py_result(), i)
                 code.putln(
-                    "%s = %s; %s" % (
+                    "index = %d; %s = %s; if (unlikely(!%s)) goto %s;" % (
+                        i,
                         item.result(),
                         typecast(item.ctype(), py_object_type, unpack_code),
-                        code.error_goto_if_null(item.result(), self.pos)))
+                        item.result(),
+                        unpacking_error_label))
                 code.put_gotref(item.py_result())
                 value_node = self.coerced_unpacked_items[i]
                 value_node.generate_evaluation_code(code)
-            code.put_error_if_neg(self.pos, "__Pyx_EndUnpack(%s, %d)" % (
-                self.iterator.py_result(),
+            code.put_error_if_neg(self.pos, "__Pyx_IternextUnpackEndCheck(%s(%s), %d)" % (
+                iternext_func,
+                iterator_temp,
                 len(self.args)))
-            if debug_disposal_code:
-                print("UnpackNode.generate_assignment_code:")
-                print("...generating disposal code for %s" % self.iterator)
-            self.iterator.generate_disposal_code(code)
-            self.iterator.free_temps(code)
-            self.iterator.release(code)
+            code.put_decref_clear(iterator_temp, py_object_type)
+            code.funcstate.release_temp(iterator_temp)
+            code.funcstate.release_temp(iternext_func)
+            unpacking_done_label = code.new_label('unpacking_done')
+            code.put_goto(unpacking_done_label)
+
+            code.put_label(unpacking_error_label)
+            code.put_decref_clear(iterator_temp, py_object_type)
+            code.putln("if (PyErr_Occurred() && PyErr_ExceptionMatches(PyExc_StopIteration)) PyErr_Clear();")
+            code.putln("if (!PyErr_Occurred()) __Pyx_RaiseNeedMoreValuesError(index);")
+            code.putln(code.error_goto(self.pos))
+
+            code.put_label(unpacking_done_label)
 
             for i in range(len(self.args)):
                 self.args[i].generate_assignment_code(
@@ -4092,8 +4107,6 @@ class SequenceNode(ExprNode):
         code.putln("}")
 
     def generate_starred_assignment_code(self, rhs, code):
-        code.globalstate.use_utility_code(unpacking_utility_code)
-
         for i, arg in enumerate(self.args):
             if arg.is_starred:
                 starred_target = self.unpacked_items[i]
@@ -4101,21 +4114,22 @@ class SequenceNode(ExprNode):
                 fixed_args_right = self.args[i+1:]
                 break
 
-        self.iterator.allocate(code)
+        iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
             "%s = PyObject_GetIter(%s); %s" % (
-                self.iterator.result(),
+                iterator_temp,
                 rhs.py_result(),
-                code.error_goto_if_null(self.iterator.result(), self.pos)))
-        code.put_gotref(self.iterator.py_result())
+                code.error_goto_if_null(iterator_temp, self.pos)))
+        code.put_gotref(iterator_temp)
         rhs.generate_disposal_code(code)
 
         for item in self.unpacked_items:
             item.allocate(code)
+        code.globalstate.use_utility_code(unpacking_utility_code)
         for i in range(len(fixed_args_left)):
             item = self.unpacked_items[i]
             unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
-                self.iterator.py_result(), i)
+                iterator_temp, i)
             code.putln(
                 "%s = %s; %s" % (
                     item.result(),
@@ -4127,7 +4141,7 @@ class SequenceNode(ExprNode):
 
         target_list = starred_target.result()
         code.putln("%s = PySequence_List(%s); %s" % (
-            target_list, self.iterator.py_result(),
+            target_list, iterator_temp,
             code.error_goto_if_null(target_list, self.pos)))
         code.put_gotref(target_list)
         if fixed_args_right:
@@ -4150,9 +4164,8 @@ class SequenceNode(ExprNode):
                 code.put_gotref(arg.py_result())
                 coerced_arg.generate_evaluation_code(code)
 
-        self.iterator.generate_disposal_code(code)
-        self.iterator.free_temps(code)
-        self.iterator.release(code)
+        code.put_decref_clear(iterator_temp, py_object_type)
+        code.funcstate.release_temp(iterator_temp)
 
         for i in range(len(self.args)):
             self.args[i].generate_assignment_code(
@@ -8457,7 +8470,6 @@ requires = [raise_none_iter_error_utility_code,
 unpacking_utility_code = UtilityCode(
 proto = """
 static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
-static int __Pyx_EndUnpack(PyObject *, Py_ssize_t expected); /*proto*/
 """,
 impl = """
 static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
@@ -8469,22 +8481,32 @@ static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
     }
     return item;
 }
+""",
+requires = [raise_need_more_values_to_unpack]
+)
 
-static int __Pyx_EndUnpack(PyObject *iter, Py_ssize_t expected) {
-    PyObject *item;
-    if ((item = PyIter_Next(iter))) {
-        Py_DECREF(item);
+iternext_unpacking_end_utility_code = UtilityCode(
+proto = """
+static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected); /*proto*/
+""",
+impl = """
+static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected) {
+    if (unlikely(retval)) {
+        Py_DECREF(retval);
         __Pyx_RaiseTooManyValuesError(expected);
         return -1;
+    } else if (PyErr_Occurred()) {
+        if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) {
+            PyErr_Clear();
+            return 0;
+        } else {
+            return -1;
+        }
     }
-    else if (!PyErr_Occurred())
-        return 0;
-    else
-        return -1;
+    return 0;
 }
 """,
-requires = [raise_need_more_values_to_unpack,
-            raise_too_many_values_to_unpack]
+requires = [raise_too_many_values_to_unpack]
 )
 
 #------------------------------------------------------------------------------------
