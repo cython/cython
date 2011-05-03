@@ -758,9 +758,14 @@ class CreateControlFlowGraph(CythonTransform):
     def visit_LoopNode(self, node):
         raise InternalError, "Generic loops are not supported"
 
+    def visit_WithTargetAssignmentStatNode(self, node):
+        self.mark_assignment(node.lhs)
+        return node
+
     def visit_WithStatNode(self, node):
-        # never be here: WithStatNode is replaced with try except finally
-        raise InternalError, "with statement is not supported"
+        self.visit(node.manager)
+        self.visit(node.body)
+        return node
 
     def visit_TryExceptStatNode(self, node):
         # After exception handling
