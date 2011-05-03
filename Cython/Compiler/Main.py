@@ -110,6 +110,7 @@ class Context(object):
         from TypeInference import MarkAssignments, MarkOverflowingArithmetic
         from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
         from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+        from FlowControl import CreateControlFlowGraph
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
@@ -149,9 +150,10 @@ class Context(object):
             AutoTestDictTransform(self),
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
+            TransformBuiltinMethods(self),  ## Necessary?
+            CreateControlFlowGraph(self),
             MarkAssignments(self),
             MarkOverflowingArithmetic(self),
-            TransformBuiltinMethods(self),  ## Necessary?
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
