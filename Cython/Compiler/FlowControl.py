@@ -383,9 +383,9 @@ def check_definitions(flow, compiler_directives):
                 else:
                     state[stat.entry] = set([Uninitialized])
                 assignments.add(stat)
-                stat.entry._assignments.append(stat)
+                stat.entry.cf_assignments.append(stat)
             elif isinstance(stat, NameReference):
-                stat.entry.references.append(stat)
+                stat.entry.cf_references.append(stat)
                 if Uninitialized in state[stat.entry]:
                     if stat.entry.from_closure:
                         pass # Can be uninitialized here
@@ -406,21 +406,21 @@ def check_definitions(flow, compiler_directives):
     for assmt in assignments:
         if not assmt.refs and not assmt.entry.is_pyclass_attr \
                and not assmt.entry.in_closure:
-            if assmt.entry.references and warn_unused_result:
+            if assmt.entry.cf_references and warn_unused_result:
                 if assmt.is_arg:
                     messages.warning(assmt.pos, "Unused argument value '%s'" % assmt.entry.name)
                 else:
                     messages.warning(assmt.pos, "Unused result in '%s'" % assmt.entry.name)
-            assmt.lhs.used = False
+            assmt.lhs.cf_used = False
 
     for entry in flow.entries:
-        if not entry.references and not entry.is_pyclass_attr and not entry.in_closure:
+        if not entry.cf_references and not entry.is_pyclass_attr and not entry.in_closure:
             # TODO: handle unused buffers
             if entry.type.is_buffer:
-                entry.used = True
+                entry.cf_used = True
                 continue
             # TODO: starred args entries are not marked with is_arg flag
-            for assmt in entry._assignments:
+            for assmt in entry.cf_assignments:
                 if assmt.is_arg:
                     is_arg = True
                     break
@@ -430,11 +430,11 @@ def check_definitions(flow, compiler_directives):
                 if warn_unused_arg:
                     messages.warning(entry.pos, "Unused argument '%s'" % entry.name)
                 # TODO: handle unused arguments
-                entry.used = True
+                entry.cf_used = True
             else:
                 if warn_unused:
                     messages.warning(entry.pos, "Unused entry '%s'" % entry.name)
-                entry.used = False
+                entry.cf_used = False
 
     # Sort warnings by position
     messages.sort()
