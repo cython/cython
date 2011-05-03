@@ -2079,13 +2079,16 @@ def map_with_specific_entries(entry, func, *args, **kwargs):
         # a normal cdef or not a c function
         func(entry, *args, **kwargs)
 
-def get_all_specific_permutations(fused_types, id="0", f2s=()):
+def get_all_specific_permutations(fused_types, id="", f2s=()):
     fused_type = fused_types[0]
     result = []
 
     for newid, specific_type in enumerate(fused_type.types):
         f2s = dict(f2s, **{ fused_type: specific_type })
-        cname = '%s_%s' % (id, newid)
+        if id:
+            cname = '%s_%s' % (id, newid)
+        else:
+            cname = newid
 
         if len(fused_types) > 1:
             result.extend(get_all_specific_permutations(
@@ -2097,6 +2100,9 @@ def get_all_specific_permutations(fused_types, id="0", f2s=()):
 
 def get_specific_types(type):
     assert type.is_fused
+
+    if isinstance(type, FusedType):
+       return type.types
 
     result = []
     for cname, f2s in get_all_specific_permutations(type.get_fused_types()):

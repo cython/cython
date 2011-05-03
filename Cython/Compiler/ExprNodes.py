@@ -2248,11 +2248,15 @@ class IndexNode(ExprNode):
                     self.base.entry.buffer_aux.writable_needed = True
         else:
             base_type = self.base.type
-            if isinstance(self.index, TupleNode):
-                self.index.analyse_types(env, skip_children=skip_child_analysis)
-            elif not skip_child_analysis:
-                self.index.analyse_types(env)
-            self.original_index_type = self.index.type
+
+            fused_index_operation = base_type.is_cfunction and base_type.is_fused
+            if not fused_index_operation:
+                if isinstance(self.index, TupleNode):
+                    self.index.analyse_types(env, skip_children=skip_child_analysis)
+                elif not skip_child_analysis:
+                    self.index.analyse_types(env)
+                self.original_index_type = self.index.type
+
             if base_type.is_unicode_char:
                 # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
                 # cases, but indexing must still work for them
@@ -2309,11 +2313,83 @@ class IndexNode(ExprNode):
                     self.type = func_type.return_type
                     if setting and not func_type.return_type.is_reference:
                         error(self.pos, "Can't set non-reference result '%s'" % self.type)
+                elif fused_index_operation:
+                    self.parse_indexed_fused_cdef(env)
                 else:
                     error(self.pos,
                         "Attempting to index non-array type '%s'" %
                             base_type)
                     self.type = PyrexTypes.error_type
+
+    def parse_indexed_fused_cdef(self, env):
+        """
+        Interpret fused_cdef_func[specific_type1, ...]
+
+        Note that if this method is called, we are an indexed cdef function
+        with fused argument types, and this IndexNode will be replaced by the
+        NameNode with specific entry just after analysis of expressions by
+        AnalyseExpressionsTransform.
+        """
+        base_type = self.base.type
+
+        def err(msg, pos=None):
+            error(pos or self.pos, msg)
+            self.type = PyrexTypes.error_type
+
+        specific_types = []
+        positions = []
+
+        if self.index.is_name:
+            positions.append(self.index.pos)
+            specific_types.append(self.index.analyse_as_type(env))
+        elif isinstance(self.index, TupleNode):
+            for arg in self.index.args:
+                positions.append(arg.pos)
+                specific_types.append(arg.analyse_as_type(env))
+        else:
+            return err("Can only index fused functions with types")
+
+        fused_types = base_type.get_fused_types()
+        if len(specific_types) > len(fused_types):
+            return err("Too many types specified")
+
+        # See if our index types form valid specializations
+        for pos, specific_type, fused_type in zip(positions,
+                                                  specific_types,
+                                                  fused_types):
+            if not Utils.any([specific_type.same_as(t)
+                                  for t in fused_type.types]):
+                return err("Type not in fused type", pos=pos)
+
+            if specific_type is None or specific_type.is_error:
+                return
+
+        fused_to_specific = dict(zip(fused_types, specific_types))
+
+        # If we are only partially fused, specialize accordingly
+        for fused_type in fused_types:
+            if fused_type not in fused_to_specific:
+                fused_to_specific[fused_type] = fused_type
+
+        type = base_type.specialize(fused_to_specific)
+
+        if type is not base_type:
+            import copy
+            e = copy.copy(base_type.entry)
+            e.type = type
+            type.entry = e
+
+        if not type.is_fused:
+            # Fully specific, find the signature with the specialized entry
+            for signature in self.base.type.get_all_specific_function_types():
+                if type.same_as(signature):
+                    self.type = signature
+                    break
+            else:
+                assert False
+        else:
+            # Only partially specific
+            self.type = type
 
     gil_message = "Indexing Python object"
 
@@ -3041,6 +3117,8 @@ class SimpleCallNode(CallNode):
                 return
         elif hasattr(self.function, 'entry'):
             overloaded_entry = self.function.entry
+        elif isinstance(self.function, IndexNode) and self.function.type.is_fused:
+            overloaded_entry = self.function.type.entry
         else:
             overloaded_entry = None
 

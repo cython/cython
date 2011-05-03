@@ -79,3 +79,9 @@ assert f(mystruct, 5).a == 10
 
 f = <mystruct_t (*)(mystruct_t, int)> add_simple
 assert f(mystruct, 5).a == 10
+
+f = add_simple[mystruct_t, int]
+assert f(mystruct, 5).a == 10
+
+f = add_simple[mystruct_t][int]
+assert f(mystruct, 5).a == 10

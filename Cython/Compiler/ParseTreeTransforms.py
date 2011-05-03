@@ -1320,6 +1320,8 @@ if VALUE is not None:
 
 class AnalyseExpressionsTransform(CythonTransform):
 
+    nested_index_node = False
+
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
         node.body.analyse_expressions(node.scope)
@@ -1338,6 +1340,34 @@ class AnalyseExpressionsTransform(CythonTransform):
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
+
+    def visit_IndexNode(self, node):
+        """
+        Replace index nodes used to specialize cdef functions with fused
+        argument types with a NameNode referring to the function with
+        specialized entry and type.
+        """
+        was_nested = self.nested_index_node
+        self.nested_index_node = True
+        self.visit_Node(node)
+        self.nested_index_node = was_nested
+
+        type = node.type
+
+        if type.is_cfunction and type.is_fused and not self.nested_index_node:
+            error(node.pos, "Not enough types were specified to indicate a "
+                            "specialized function")
+        elif type.is_cfunction and node.base.type.is_fused:
+            while not node.is_name:
+                node = node.base
+
+            node.type = type
+            node.entry = type.entry
+            print node.entry.cname
+            return node
+
+        return node
+
 
 class ExpandInplaceOperators(EnvTransform):
 
@@ -1924,11 +1954,7 @@ class ReplaceFusedTypeChecks(VisitorTransform):
                     error(node.operand2.pos,
                           "Can only use 'in' or 'not in' on a fused type")
                 else:
-                    if not isinstance(type2, PyrexTypes.FusedType):
-                        # Composed fused type, get all specific versions
-                        types = PyrexTypes.get_specific_types(type2)
-                    else:
-                        types = type2.types
+                    types = PyrexTypes.get_specific_types(type2)
 
                     for specific_type in types:
                         if type1.same_as(specific_type):
