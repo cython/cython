@@ -186,6 +186,8 @@ class Entry(object):
         self.init = init
         self.overloaded_alternatives = []
         self.assignments = []
+        self.cf_assignments = []
+        self.cf_references = []
 
     def __repr__(self):
         return "Entry(name=%s, type=%s)" % (self.name, self.type)
