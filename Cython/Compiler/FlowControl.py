@@ -390,7 +390,13 @@ def check_definitions(flow, compiler_directives):
                     if stat.entry.from_closure or stat.node.allow_null:
                         pass # Can be uninitialized here
                     elif len(state[stat.entry]) == 1:
-                        messages.error(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
+                        if stat.entry.type.is_buffer:
+                            pass
+                        elif stat.entry.type.is_pyobject or stat.entry.type.is_unspecified:
+                            messages.error(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
+                        elif not stat.entry.type.is_array and not stat.entry.type.is_struct_or_union:
+                            # TODO: not sure here
+                            messages.warning(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
                     else:
                         if compiler_directives['warn.maybe_uninitialized']:
                             messages.warning(stat.pos, "local variable '%s' might be referenced before assignment" % stat.entry.name)
