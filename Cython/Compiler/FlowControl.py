@@ -574,6 +574,9 @@ class CreateControlFlowGraph(CythonTransform):
         self.visitchildren(node)
         return node
 
+    def visit_AssignmentNode(self, node):
+        raise InternalError, "Unhandled assignment node"
+
     def visit_SingleAssignmentNode(self, node):
         self.visit(node.rhs)
         self.mark_assignment(node.lhs, node.rhs)
