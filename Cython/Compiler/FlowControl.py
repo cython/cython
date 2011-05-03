@@ -280,6 +280,7 @@ class GVContext(object):
     def escape(self, text):
         return text.replace('"', '\\"').replace('\n', '\\n')
 
+
 class GV(object):
     """Graphviz DOT renderer."""
 
@@ -307,6 +308,7 @@ class GV(object):
             for child in block.children:
                 fp.write('  %s -> %s;\n' % (pid, ctx.nodeid(child)))
         fp.write(' }\n')
+
 
 class MessageCollection(list):
     """Collect error/warnings messages first then sort"""
