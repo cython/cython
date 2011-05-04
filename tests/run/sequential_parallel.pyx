@@ -2,7 +2,7 @@
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
-from libc.stdlib cimport malloc, free
+from libc.stdlib cimport malloc, free, abort
 from libc.stdio cimport puts
 
 import sys
@@ -67,11 +67,7 @@ def test_propagation():
 
 def test_unsigned_operands():
     """
-    This test is disabled, as this currently does not work (neither does it
-    for 'for i from x < i < y:'. I'm not sure we should strife to support
-    this, at least the C compiler gives a warning.
-
-    test_unsigned_operands()
+    >>> test_unsigned_operands()
     10
     """
     cdef int i
@@ -83,6 +79,8 @@ def test_unsigned_operands():
 
     for i in prange(start, stop, step, nogil=True):
         steps_taken += 1
+        if steps_taken > 10:
+            abort()
 
     return steps_taken
 

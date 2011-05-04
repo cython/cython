@@ -6152,7 +6152,19 @@ class ParallelRangeNode(ParallelStatNode):
         # Note: nsteps is private in an outer scope if present
         code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
 
+        # The target iteration variable might not be initialized, do it only if
+        # we are executing at least 1 iteration, otherwise we should leave the
+        # target unaffected. The target iteration variable is firstprivate to
+        # shut up compiler warnings caused by lastprivate, as the compiler
+        # erroneously believes that nsteps may be <= 0, leaving the private
+        # target index uninitialized
+        code.putln("if (%(nsteps)s > 0)" % fmt_dict)
+        code.begin_block()
+        code.putln("%(target)s = 0;" % fmt_dict)
+
         self.generate_loop(code, fmt_dict)
+
+        code.end_block()
 
         # And finally, release our privates and write back any closure
         # variables
@@ -6179,6 +6191,8 @@ class ParallelRangeNode(ParallelStatNode):
             if op and op in "+*-&^|" and entry != self.target.entry:
                 code.put(" reduction(%s:%s)" % (op, entry.cname))
             else:
+                if entry == self.target.entry:
+                    code.put(" firstprivate(%s)" % entry.cname)
                 code.put(" lastprivate(%s)" % entry.cname)
 
         if self.schedule:
