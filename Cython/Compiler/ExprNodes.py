@@ -2067,6 +2067,8 @@ class RawCNameExprNode(ExprNode):
 
 class ParallelThreadsAvailableNode(AtomicExprNode):
     """
+    Note: this is disabled and not a valid directive at this moment
+
     Implements cython.parallel.threadsavailable(). If we are called from the
     sequential part of the application, we need to call omp_get_max_threads(),
     and in the parallel part we can just call omp_get_num_threads()
