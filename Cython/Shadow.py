@@ -277,3 +277,28 @@ for t in int_types + float_types + complex_types + other_types:
 
 void = typedef(None)
 NULL = p_void(0)
+
+class CythonDotParallel(object):
+    """
+    The cython.parallel module.
+    """
+
+    __all__ = ['parallel', 'prange', 'threadid']
+
+    parallel = nogil
+
+    def prange(self, start=0, stop=None, step=1, schedule=None, nogil=False):
+        if stop is None:
+            stop = start
+            start = 0
+        return range(start, stop, step)
+
+    def threadid(self):
+        return 0
+
+    # def threadsavailable(self):
+        # return 1
+
+import sys
+sys.modules['cython.parallel'] = CythonDotParallel()
+del sys
