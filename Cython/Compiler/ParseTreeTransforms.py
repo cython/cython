@@ -665,16 +665,20 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 PyrexTypes.parse_basic_type(name))
 
     def is_parallel_directive(self, full_name, pos):
+        """
+        Checks to see if fullname (e.g. cython.parallel.prange) is a valid
+        parallel directive. If it is a star import it also updates the
+        parallel_directives.
+        """
         result = (full_name + ".").startswith("cython.parallel.")
 
         if result:
-            directive = full_name.rsplit('.', 1)
-            if len(directive) == 2 and directive[1] == '*':
-                # star import
+            directive = full_name.split('.')
+            if full_name == u"cython.parallel.*":
                 for name in self.valid_parallel_directives:
                     self.parallel_directives[name] = u"cython.parallel.%s" % name
-            elif (len(directive) != 2 or
-                  directive[1] not in self.valid_parallel_directives):
+            elif (len(directive) != 3 or
+                  directive[-1] not in self.valid_parallel_directives):
                 error(pos, "No such directive: %s" % full_name)
 
         return result
