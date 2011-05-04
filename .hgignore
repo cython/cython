@@ -11,6 +11,7 @@ Cython/Runtime/refnanny.c
 BUILD/
 build/
 dist/
+.git/
 .gitrev
 .coverage
 *.orig
