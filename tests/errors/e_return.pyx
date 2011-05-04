@@ -1,3 +1,4 @@
+# cython: remove_unreachable=False
 # mode: error
 
 cdef void g():
@@ -9,7 +10,7 @@ cdef int h():
 	return # error
 	return p # error
 _ERRORS = u"""
-5:17: Return with value in void function
-9:1: Return value required
-10:17: Cannot assign type 'int *' to 'int'
+6:17: Return with value in void function
+10:1: Return value required
+11:17: Cannot assign type 'int *' to 'int'
 """
