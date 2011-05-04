@@ -129,6 +129,7 @@ class Node(object):
 
     is_name = 0
     is_literal = 0
+    is_terminator = 0
     temps = None
 
     # All descandants should set child_attrs to a list of the attributes
@@ -4050,6 +4051,7 @@ class PassStatNode(StatNode):
 class BreakStatNode(StatNode):
 
     child_attrs = []
+    is_terminator = True
 
     def analyse_expressions(self, env):
         pass
@@ -4064,6 +4066,7 @@ class BreakStatNode(StatNode):
 class ContinueStatNode(StatNode):
 
     child_attrs = []
+    is_terminator = True
 
     def analyse_expressions(self, env):
         pass
@@ -4084,6 +4087,7 @@ class ReturnStatNode(StatNode):
     #  return_type   PyrexType
 
     child_attrs = ["value"]
+    is_terminator = True
 
     def analyse_expressions(self, env):
         return_type = env.return_type
@@ -4157,6 +4161,7 @@ class RaiseStatNode(StatNode):
     #  cause       ExprNode or None
 
     child_attrs = ["exc_type", "exc_value", "exc_tb", "cause"]
+    is_terminator = True
 
     def analyse_expressions(self, env):
         if self.exc_type:
@@ -4251,6 +4256,7 @@ class RaiseStatNode(StatNode):
 class ReraiseStatNode(StatNode):
 
     child_attrs = []
+    is_terminator = True
 
     def analyse_expressions(self, env):
         env.use_utility_code(restore_exception_utility_code)
