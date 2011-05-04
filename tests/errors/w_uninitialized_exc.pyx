@@ -92,6 +92,14 @@ def try_loop(args):
     finally:
         return x
 
+def try_finally(a):
+    try:
+        for i in a:
+            if i > 0:
+                x = 1
+    finally:
+        return x
+
 _ERRORS = """
 12:12: local variable 'e' might be referenced before assignment
 12:15: local variable 'i' might be referenced before assignment
@@ -100,4 +108,5 @@ _ERRORS = """
 69:16: local variable 'x' might be referenced before assignment
 77:14: local variable 'oops' might be referenced before assignment
 93:16: local variable 'x' might be referenced before assignment
+101:16: local variable 'x' might be referenced before assignment
 """
