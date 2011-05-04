@@ -959,7 +959,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     module node, set there by InterpretCompilerDirectives.
 
         x = cython.parallel.threadavailable()   -> ParallelThreadAvailableNode
-        with cython.parallel(nogil=True):       -> ParallelWithBlockNode
+        with nogil, cython.parallel.parallel:   -> ParallelWithBlockNode
             print cython.parallel.threadid()    -> ParallelThreadIdNode
             for i in cython.parallel.prange(...):  -> ParallelRangeNode
                 ...
