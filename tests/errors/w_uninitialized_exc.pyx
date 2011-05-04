@@ -68,10 +68,36 @@ def exc_assmt_finaly(a):
     except:
         return x
 
+def raise_stat(a):
+    try:
+        if a < 0:
+            raise IndexError
+    except IndexError:
+        oops = 1
+    print oops
+
+def try_loop(args):
+    try:
+        x = 0
+        for i in args:
+            if i is 0:
+                continue
+            elif i is None:
+                break
+            elif i is False:
+                return
+            i()
+    except ValueError:
+        x = 1
+    finally:
+        return x
+
 _ERRORS = """
 12:12: local variable 'e' might be referenced before assignment
 12:15: local variable 'i' might be referenced before assignment
 19:12: local variable 'a' might be referenced before assignment
 63:16: local variable 'x' might be referenced before assignment
 69:16: local variable 'x' might be referenced before assignment
+77:14: local variable 'oops' might be referenced before assignment
+93:16: local variable 'x' might be referenced before assignment
 """
