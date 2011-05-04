@@ -963,7 +963,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     module node, set there by InterpretCompilerDirectives.
 
         x = cython.parallel.threadavailable()   -> ParallelThreadAvailableNode
-        with nogil, cython.parallel.parallel:   -> ParallelWithBlockNode
+        with nogil, cython.parallel.parallel(): -> ParallelWithBlockNode
             print cython.parallel.threadid()    -> ParallelThreadIdNode
             for i in cython.parallel.prange(...):  -> ParallelRangeNode
                 ...
@@ -1064,36 +1064,40 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
         parallel_directive_class = self.get_directive_class_node(node)
         if parallel_directive_class:
+            # Note: in case of a parallel() the body is set by
+            # visit_WithStatNode
             node = parallel_directive_class(node.pos, args=args, kwargs=kwargs)
 
         return node
 
     def visit_WithStatNode(self, node):
-        "Rewrite with cython.parallel() blocks"
-        self.visit(node.manager)
+        "Rewrite with cython.parallel.parallel() blocks"
+        newnode = self.visit(node.manager)
 
-        if self.parallel_directive:
-            parallel_directive_class = self.get_directive_class_node(node)
-            if not parallel_directive_class:
-                # There was an error, stop here and now
-                return None
-
+        if isinstance(newnode, Nodes.ParallelWithBlockNode):
             if self.state == 'parallel with':
                 error(node.manager.pos,
                       "Closely nested 'with parallel:' blocks are disallowed")
 
             self.state = 'parallel with'
-            self.visit(node.body)
+            body = self.visit(node.body)
             self.state = None
 
-            newnode = Nodes.ParallelWithBlockNode(node.pos, body=node.body)
+            newnode.body = body
+            return newnode
+        elif self.parallel_directive:
+            parallel_directive_class = self.get_directive_class_node(node)
 
-        else:
-            newnode = node
+            if not parallel_directive_class:
+                # There was an error, stop here and now
+                return None
 
-        self.visit(node.body)
+            if parallel_directive_class is Nodes.ParallelWithBlockNode:
+                error(node.pos, "The parallel directive must be called")
+                return None
 
-        return newnode
+        node.body = self.visit(node.body)
+        return node
 
     def visit_ForInStatNode(self, node):
         "Rewrite 'for i in cython.parallel.prange(...):'"
@@ -1149,7 +1153,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     def visit(self, node):
         "Visit a node that may be None"
         if node is not None:
-            super(ParallelRangeTransform, self).visit(node)
+            return super(ParallelRangeTransform, self).visit(node)
 
 
 class WithTransform(CythonTransform, SkipDeclarations):
