@@ -2,7 +2,6 @@
 #
 #   Pyrex - Parse tree nodes
 #
-
 import cython
 from cython import set
 cython.declare(sys=object, os=object, time=object, copy=object,
@@ -4591,14 +4590,12 @@ class ForInStatNode(LoopNode, StatNode):
         old_loop_labels = code.new_loop_labels()
         self.iterator.allocate_counter_temp(code)
         self.iterator.generate_evaluation_code(code)
-        code.putln(
-            "for (;;) {")
+        code.putln("for (;;) {")
         self.item.generate_evaluation_code(code)
         self.target.generate_assignment_code(self.item, code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
-        code.putln(
-            "}")
+        code.putln("}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
 
@@ -5728,6 +5725,487 @@ class FromImportStatNode(StatNode):
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 
+
+class ParallelNode(Node):
+    """
+    Base class for cython.parallel constructs.
+    """
+
+    nogil_check = None
+
+
+class ParallelStatNode(StatNode, ParallelNode):
+    """
+    Base class for 'with cython.parallel.parallel:' and 'for i in prange():'.
+
+    assignments     { Entry(var) : (var.pos, inplace_operator_or_None) }
+                    assignments to variables in this parallel section
+
+    parent          parent ParallelStatNode or None
+    is_parallel     indicates whether this is a parallel node
+
+    is_parallel is true for:
+
+        #pragma omp parallel
+        #pragma omp parallel for
+
+    sections, but NOT for
+
+        #pragma omp for
+
+    We need this to determine the sharing attributes.
+
+    privatization_insertion_point   a code insertion point used to make temps
+                                    private (esp. the "nsteps" temp)
+    """
+
+    child_attrs = ['body']
+
+    body = None
+
+    is_prange = False
+
+    def __init__(self, pos, **kwargs):
+        super(ParallelStatNode, self).__init__(pos, **kwargs)
+
+        # All assignments in this scope
+        self.assignments = kwargs.get('assignments') or {}
+
+        # All seen closure cnames and their temporary cnames
+        self.seen_closure_vars = set()
+
+        # Dict of variables that should be declared (first|last|)private or
+        # reduction { Entry: op }. If op is not None, it's a reduction.
+        self.privates = {}
+
+    def analyse_declarations(self, env):
+        self.body.analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.body.analyse_expressions(env)
+
+    def analyse_sharing_attributes(self, env):
+        """
+        Analyse the privates for this block and set them in self.privates.
+        This should be called in a post-order fashion during the
+        analyse_expressions phase
+        """
+        for entry, (pos, op) in self.assignments.iteritems():
+            if self.is_private(entry):
+                self.propagate_var_privatization(entry, op)
+
+    def is_private(self, entry):
+        """
+        True if this scope should declare the variable private, lastprivate
+        or reduction.
+        """
+        return (self.is_parallel or
+                (self.parent and entry not in self.parent.privates))
+
+    def propagate_var_privatization(self, entry, op):
+        """
+        Propagate the sharing attributes of a variable. If the privatization is
+        determined by a parent scope, done propagate further.
+
+        If we are a prange, we propagate our sharing attributes outwards to
+        other pranges. If we are a prange in parallel block and the parallel
+        block does not determine the variable private, we propagate to the
+        parent of the parent. Recursion stops at parallel blocks, as they have
+        no concept of lastprivate or reduction.
+
+        So the following cases propagate:
+
+            sum is a reduction for all loops:
+
+                for i in prange(n):
+                    for j in prange(n):
+                        for k in prange(n):
+                            sum += i * j * k
+
+            sum is a reduction for both loops, local_var is private to the
+            parallel with block:
+
+                for i in prange(n):
+                    with parallel:
+                        local_var = ... # private to the parallel
+                        for j in prange(n):
+                            sum += i * j
+
+        Nested with parallel blocks are disallowed, because they wouldn't
+        allow you to propagate lastprivates or reductions:
+
+            #pragma omp parallel for lastprivate(i)
+            for i in prange(n):
+
+                sum = 0
+
+                #pragma omp parallel private(j, sum)
+                with parallel:
+
+                    #pragma omp parallel
+                    with parallel:
+
+                        #pragma omp for lastprivate(j) reduction(+:sum)
+                        for j in prange(n):
+                            sum += i
+
+                    # sum and j are well-defined here
+
+                # sum and j are undefined here
+
+            # sum and j are undefined here
+        """
+        self.privates[entry] = op
+        if self.is_prange:
+            if not self.is_parallel and entry not in self.parent.assignments:
+                # Parent is a parallel with block
+                parent = self.parent.parent
+            else:
+                parent = self.parent
+
+            if parent:
+                parent.propagate_var_privatization(entry, op)
+
+    def _allocate_closure_temp(self, code, entry):
+        """
+        Helper function that allocate a temporary for a closure variable that
+        is assigned to.
+        """
+        if self.parent:
+            return self.parent._allocate_closure_temp(code, entry)
+
+        if entry.cname in self.seen_closure_vars:
+            return entry.cname
+
+        cname = code.funcstate.allocate_temp(entry.type, False)
+
+        # Add both the actual cname and the temp cname, as the actual cname
+        # will be replaced with the temp cname on the entry
+        self.seen_closure_vars.add(entry.cname)
+        self.seen_closure_vars.add(cname)
+
+        self.modified_entries.append((entry, entry.cname))
+        code.putln("%s = %s;" % (cname, entry.cname))
+        entry.cname = cname
+
+    def declare_closure_privates(self, code):
+        """
+        Set self.privates to a dict mapping C variable names that are to be
+        declared (first|last)private or reduction, to the reduction operator.
+        If the private is not a reduction, the operator is None.
+        This is used by subclasses.
+
+        If a variable is in a scope object, we need to allocate a temp and
+        assign the value from the temp to the variable in the scope object
+        after the parallel section. This kind of copying should be done only
+        in the outermost parallel section.
+        """
+        self.modified_entries = []
+
+        for entry, (pos, op) in self.assignments.iteritems():
+            if entry.from_closure or entry.in_closure:
+                self._allocate_closure_temp(code, entry)
+
+    def release_closure_privates(self, code):
+        """
+        Release any temps used for variables in scope objects. As this is the
+        outermost parallel block, we don't need to delete the cnames from
+        self.seen_closure_vars
+        """
+        for entry, original_cname in self.modified_entries:
+            code.putln("%s = %s;" % (original_cname, entry.cname))
+            code.funcstate.release_temp(entry.cname)
+            entry.cname = original_cname
+
+
+class ParallelWithBlockNode(ParallelStatNode):
+    """
+    This node represents a 'with cython.parallel.parallel:' block
+    """
+
+    nogil_check = None
+
+    def analyse_expressions(self, env):
+        super(ParallelWithBlockNode, self).analyse_expressions(env)
+        self.analyse_sharing_attributes(env)
+
+    def generate_execution_code(self, code):
+        self.declare_closure_privates(code)
+
+        code.putln("#ifdef _OPENMP")
+        code.put("#pragma omp parallel ")
+
+        if self.privates:
+            code.put(
+                'private(%s)' % ', '.join([e.cname for e in self.privates]))
+
+        self.privatization_insertion_point = code.insertion_point()
+
+        code.putln("")
+        code.putln("#endif /* _OPENMP */")
+
+        code.begin_block()
+        self.body.generate_execution_code(code)
+        code.end_block()
+
+        self.release_closure_privates(code)
+
+
+class ParallelRangeNode(ParallelStatNode):
+    """
+    This node represents a 'for i in cython.parallel.prange():' construct.
+
+    target       NameNode       the target iteration variable
+    else_clause  Node or None   the else clause of this loop
+    args         tuple          the arguments passed to prange()
+    kwargs       DictNode       the keyword arguments passed to prange()
+                                (replaced by its compile time value)
+
+    is_nogil     bool           indicates whether this is a nogil prange() node
+    """
+
+    child_attrs = ['body', 'target', 'else_clause', 'args']
+
+    body = target = else_clause = args = None
+
+    start = stop = step = None
+
+    is_prange = True
+    is_nogil = False
+
+    def analyse_declarations(self, env):
+        super(ParallelRangeNode, self).analyse_declarations(env)
+        self.target.analyse_target_declaration(env)
+        if self.else_clause is not None:
+            self.else_clause.analyse_declarations(env)
+
+        if not self.args or len(self.args) > 3:
+            error(self.pos, "Invalid number of positional arguments to prange")
+            return
+
+        if len(self.args) == 1:
+            self.stop, = self.args
+        elif len(self.args) == 2:
+            self.start, self.stop = self.args
+        else:
+            self.start, self.stop, self.step = self.args
+
+        if self.kwargs:
+            self.kwargs = self.kwargs.compile_time_value(env)
+        else:
+            self.kwargs = {}
+
+        self.is_nogil = self.kwargs.pop('nogil', False)
+        self.schedule = self.kwargs.pop('schedule', None)
+
+        if hasattr(self.schedule, 'decode'):
+            self.schedule = self.schedule.decode('ascii')
+
+        if self.schedule not in (None, 'static', 'dynamic', 'guided',
+                                 'runtime'):
+            error(self.pos, "Invalid schedule argument to prange: %s" %
+                                                        (self.schedule,))
+
+        for kw in self.kwargs:
+            error(self.pos, "Invalid keyword argument to prange: %s" % kw)
+
+    def analyse_expressions(self, env):
+        if self.target is None:
+            error(self.pos, "prange() can only be used as part of a for loop")
+            return
+
+        self.target.analyse_target_types(env)
+
+        if not self.target.type.is_numeric:
+            # Not a valid type, assume one for now anyway
+
+            if not self.target.type.is_pyobject:
+                # nogil_check will catch the is_pyobject case
+                error(self.target.pos,
+                      "Must be of numeric type, not %s" % self.target.type)
+
+            self.index_type = PyrexTypes.c_py_ssize_t_type
+        else:
+            self.index_type = self.target.type
+
+        # Setup start, stop and step, allocating temps if needed
+        self.names = 'start', 'stop', 'step'
+        start_stop_step = self.start, self.stop, self.step
+
+        for node, name in zip(start_stop_step, self.names):
+            if node is not None:
+                node.analyse_types(env)
+                if not node.type.is_numeric:
+                    error(node.pos, "%s argument must be numeric or a pointer "
+                                    "(perhaps if a numeric literal is too "
+                                    "big, use 1000LL)" % name)
+
+                if not node.is_literal:
+                    node = node.coerce_to_temp(env)
+                    setattr(self, name, node)
+
+                # As we range from 0 to nsteps, computing the index along the
+                # way, we need a fitting type for 'i' and 'nsteps'
+                self.index_type = PyrexTypes.widest_numeric_type(
+                                        self.index_type, node.type)
+
+        super(ParallelRangeNode, self).analyse_expressions(env)
+        if self.else_clause is not None:
+            self.else_clause.analyse_expressions(env)
+
+        # Although not actually an assignment in this scope, it should be
+        # treated as such to ensure it is unpacked if a closure temp, and to
+        # ensure lastprivate behaviour and propagation. If the target index is
+        # not a NameNode, it won't have an entry, and an error was issued by
+        # ParallelRangeTransform
+        if hasattr(self.target, 'entry'):
+            self.assignments[self.target.entry] = self.target.pos, None
+
+        self.analyse_sharing_attributes(env)
+
+    def nogil_check(self, env):
+        names = 'start', 'stop', 'step', 'target'
+        nodes = self.start, self.stop, self.step, self.target
+        for name, node in zip(names, nodes):
+            if node is not None and node.type.is_pyobject:
+                error(node.pos, "%s may not be a Python object "
+                                "as we don't have the GIL" % name)
+
+    def generate_execution_code(self, code):
+        """
+        Generate code in the following steps
+
+            1)  copy any closure variables determined thread-private
+                into temporaries
+
+            2)  allocate temps for start, stop and step
+
+            3)  generate a loop that calculates the total number of steps,
+                which then computes the target iteration variable for every step:
+
+                    for i in prange(start, stop, step):
+                        ...
+
+                becomes
+
+                    nsteps = (stop - start) / step;
+                    i = start;
+
+                    #pragma omp parallel for lastprivate(i)
+                    for (temp = 0; temp < nsteps; temp++) {
+                        i = start + step * temp;
+                        ...
+                    }
+
+                Note that accumulation of 'i' would have a data dependency
+                between iterations.
+
+                Also, you can't do this
+
+                    for (i = start; i < stop; i += step)
+                        ...
+
+                as the '<' operator should become '>' for descending loops.
+                'for i from x < i < y:' does not suffer from this problem
+                as the relational operator is known at compile time!
+
+            4) release our temps and write back any private closure variables
+        """
+        self.declare_closure_privates(code)
+
+        # This can only be a NameNode
+        target_index_cname = self.target.entry.cname
+
+        # This will be used as the dict to format our code strings, holding
+        # the start, stop , step, temps and target cnames
+        fmt_dict = {
+            'target': target_index_cname,
+        }
+
+        # Setup start, stop and step, allocating temps if needed
+        start_stop_step = self.start, self.stop, self.step
+        defaults = '0', '0', '1'
+        for node, name, default in zip(start_stop_step, self.names, defaults):
+            if node is None:
+                result = default
+            elif node.is_literal:
+                result = node.get_constant_c_result_code()
+            else:
+                node.generate_evaluation_code(code)
+                result = node.result()
+
+            fmt_dict[name] = result
+
+        fmt_dict['i'] = code.funcstate.allocate_temp(self.index_type, False)
+        fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.index_type, False)
+
+        # TODO: check if the step is 0 and if so, raise an exception in a
+        # 'with gil' block. For now, just abort
+        code.putln("if (%(step)s == 0) abort();" % fmt_dict)
+
+        # Note: nsteps is private in an outer scope if present
+        code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
+
+        # The target iteration variable might not be initialized, do it only if
+        # we are executing at least 1 iteration, otherwise we should leave the
+        # target unaffected. The target iteration variable is firstprivate to
+        # shut up compiler warnings caused by lastprivate, as the compiler
+        # erroneously believes that nsteps may be <= 0, leaving the private
+        # target index uninitialized
+        code.putln("if (%(nsteps)s > 0)" % fmt_dict)
+        code.begin_block()
+        code.putln("%(target)s = 0;" % fmt_dict)
+
+        self.generate_loop(code, fmt_dict)
+
+        code.end_block()
+
+        # And finally, release our privates and write back any closure
+        # variables
+        for temp in start_stop_step:
+            if temp is not None:
+                temp.generate_disposal_code(code)
+                temp.free_temps(code)
+
+        code.funcstate.release_temp(fmt_dict['i'])
+        code.funcstate.release_temp(fmt_dict['nsteps'])
+
+        self.release_closure_privates(code)
+
+    def generate_loop(self, code, fmt_dict):
+        code.putln("#ifdef _OPENMP")
+
+        if not self.is_parallel:
+            code.put("#pragma omp for")
+        else:
+            code.put("#pragma omp parallel for")
+
+        for entry, op in self.privates.iteritems():
+            # Don't declare the index variable as a reduction
+            if op and op in "+*-&^|" and entry != self.target.entry:
+                code.put(" reduction(%s:%s)" % (op, entry.cname))
+            else:
+                if entry == self.target.entry:
+                    code.put(" firstprivate(%s)" % entry.cname)
+                code.put(" lastprivate(%s)" % entry.cname)
+
+        if self.schedule:
+            code.put(" schedule(%s)" % self.schedule)
+
+        if self.parent:
+            c = self.parent.privatization_insertion_point
+            c.put(" private(%(nsteps)s)" % fmt_dict)
+
+        self.privatization_insertion_point = code.insertion_point()
+
+        code.putln("")
+        code.putln("#endif /* _OPENMP */")
+
+        code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
+        code.begin_block()
+        code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+        self.body.generate_execution_code(code)
+        code.end_block()
 
 
 #------------------------------------------------------------------------------------
