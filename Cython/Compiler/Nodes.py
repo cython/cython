@@ -5742,7 +5742,7 @@ class ParallelNode(Node):
 
 class ParallelStatNode(StatNode, ParallelNode):
     """
-    Base class for 'with cython.parallel.parallel:' and 'for i in prange():'.
+    Base class for 'with cython.parallel.parallel():' and 'for i in prange():'.
 
     assignments     { Entry(var) : (var.pos, inplace_operator_or_None) }
                     assignments to variables in this parallel section
@@ -5926,7 +5926,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
 class ParallelWithBlockNode(ParallelStatNode):
     """
-    This node represents a 'with cython.parallel.parallel:' block
+    This node represents a 'with cython.parallel.parallel():' block
     """
 
     nogil_check = None
