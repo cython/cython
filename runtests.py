@@ -118,7 +118,7 @@ def get_openmp_compiler_flags(language):
         import subprocess
     except ImportError:
         try:
-            in_, out, err = os.popen(cc + " -v")
+            in_, out_err = os.popen4([cc, "-v"])
         except EnvironmentError:
             # Be compatible with Python 3
             _, e, _ = sys.exc_info()
@@ -126,7 +126,7 @@ def get_openmp_compiler_flags(language):
                                         (language, os.strerror(e.errno), cc))
             return None
 
-        output = out.read() or err.read()
+        output = out_err.read()
     else:
         try:
             p = subprocess.Popen([cc, "-v"], stdout=subprocess.PIPE,
