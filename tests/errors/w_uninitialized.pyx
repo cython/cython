@@ -54,12 +54,6 @@ def dict_comp(a):
 def generic_args_call(*args, **kwargs):
     return args, kwargs
 
-# Disable for now
-## def withctx(ctx):
-##     with ctx:
-##         pass
-##     with ctx as foo:
-##         print(foo)
 
 _ERRORS = """
 6:11: local variable 'a' referenced before assignment
