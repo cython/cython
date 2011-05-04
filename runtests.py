@@ -109,13 +109,18 @@ def get_openmp_compiler_flags(language):
     else:
         cc = sysconfig.get_config_var('CC')
 
+    # For some reason, cc can be e.g. 'gcc -pthread'
+    cc = cc.split()[0]
+
     matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
         import subprocess
     except ImportError:
         try:
             in_, out, err = os.popen(cc + " -v")
-        except EnvironmentError, e:
+        except EnvironmentError:
+            # Be compatible with Python 3
+            _, e, _ = sys.exc_info()
             warnings.warn("Unable to find the %s compiler: %s: %s" %
                                         (language, os.strerror(e.errno), cc))
             return None
@@ -126,6 +131,8 @@ def get_openmp_compiler_flags(language):
             p = subprocess.Popen([cc, "-v"], stdout=subprocess.PIPE,
                                              stderr=subprocess.STDOUT)
         except EnvironmentError, e:
+            # Be compatible with Python 3
+            _, e, _ = sys.exc_info()
             warnings.warn("Unable to find the %s compiler: %s: %s" %
                                         (language, os.strerror(e.errno), cc))
             return None

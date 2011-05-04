@@ -5760,6 +5760,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         #pragma omp for
 
     We need this to determine the sharing attributes.
+
+    privatization_insertion_point   a code insertion point used to make temps
+                                    private (esp. the "nsteps" temp)
     """
 
     child_attrs = ['body']
@@ -5941,6 +5944,8 @@ class ParallelWithBlockNode(ParallelStatNode):
         if self.privates:
             code.put(
                 'private(%s)' % ', '.join([e.cname for e in self.privates]))
+
+        self.privatization_insertion_point = code.insertion_point()
 
         code.putln("")
         code.putln("#endif /* _OPENMP */")
@@ -6144,13 +6149,7 @@ class ParallelRangeNode(ParallelStatNode):
         # 'with gil' block. For now, just abort
         code.putln("if (%(step)s == 0) abort();" % fmt_dict)
 
-        # Guard for never-ending loops: prange(0, 10, -1) or prange(10, 0, 1)
-        # range() returns [] in these cases
-        code.put("if ( (%(start)s < %(stop)s && %(step)s > 0) || "
-                      "(%(start)s > %(stop)s && %(step)s < 0) ) " % fmt_dict)
-        code.begin_block()
-
-        code.putln_openmp("#pragma omp critical")
+        # Note: nsteps is private in an outer scope if present
         code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
 
         self.generate_loop(code, fmt_dict)
@@ -6166,9 +6165,6 @@ class ParallelRangeNode(ParallelStatNode):
         code.funcstate.release_temp(fmt_dict['nsteps'])
 
         self.release_closure_privates(code)
-
-        # end the 'if' block that guards against infinite loops
-        code.end_block()
 
     def generate_loop(self, code, fmt_dict):
         code.putln("#ifdef _OPENMP")
@@ -6188,6 +6184,12 @@ class ParallelRangeNode(ParallelStatNode):
         if self.schedule:
             code.put(" schedule(%s)" % self.schedule)
 
+        if self.parent:
+            c = self.parent.privatization_insertion_point
+            c.put(" private(%(nsteps)s)" % fmt_dict)
+
+        self.privatization_insertion_point = code.insertion_point()
+
         code.putln("")
         code.putln("#endif /* _OPENMP */")
 
@@ -6196,8 +6198,6 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
         self.body.generate_execution_code(code)
         code.end_block()
-
-
 
 
 #------------------------------------------------------------------------------------
