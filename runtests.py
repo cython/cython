@@ -4,6 +4,7 @@ import os
 import sys
 import re
 import gc
+import locale
 import codecs
 import shutil
 import time
@@ -130,7 +131,7 @@ def get_openmp_compiler_flags(language):
         try:
             p = subprocess.Popen([cc, "-v"], stdout=subprocess.PIPE,
                                              stderr=subprocess.STDOUT)
-        except EnvironmentError, e:
+        except EnvironmentError:
             # Be compatible with Python 3
             _, e, _ = sys.exc_info()
             warnings.warn("Unable to find the %s compiler: %s: %s" %
@@ -139,10 +140,14 @@ def get_openmp_compiler_flags(language):
 
         output = p.stdout.read()
 
+    output = output.decode(locale.getpreferredencoding() or 'UTF-8')
+
     compiler_version = matcher(output).group(1)
     if compiler_version and compiler_version.split('.') >= ['4', '2']:
         return '-fopenmp', '-fopenmp'
 
+
+locale.setlocale(locale.LC_ALL, '')
 
 OPENMP_C_COMPILER_FLAGS = get_openmp_compiler_flags('c')
 OPENMP_CPP_COMPILER_FLAGS = get_openmp_compiler_flags('cpp')
