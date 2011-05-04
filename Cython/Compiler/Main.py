@@ -109,6 +109,7 @@ class Context(object):
         from ParseTreeTransforms import ExpandInplaceOperators
         from TypeInference import MarkAssignments, MarkOverflowingArithmetic
         from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
+        from ParseTreeTransforms import RemoveUnreachableCode
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
@@ -137,6 +138,7 @@ class Context(object):
             InterpretCompilerDirectives(self, self.compiler_directives),
             MarkClosureVisitor(self),
             _align_function_definitions,
+            RemoveUnreachableCode(self),
             ConstantFolding(),
             FlattenInListTransform(),
             WithTransform(self),
