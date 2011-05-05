@@ -2109,6 +2109,24 @@ class TransformBuiltinMethods(EnvTransform):
         return node
 
 
+class FindUninitializedParallelVars(CythonTransform, SkipDeclarations):
+    """
+    This transform isn't part of the pipeline, it simply finds all references
+    to variables in parallel blocks.
+    """
+
+    def __init__(self):
+        CythonTransform.__init__(self, None)
+        self.used_vars = []
+
+    def visit_ParallelStatNode(self, node):
+        return node
+
+    def visit_NameNode(self, node):
+        self.used_vars.append((node.entry, node.pos))
+        return node
+
+
 class DebugTransform(CythonTransform):
     """
     Write debug information for this Cython module.

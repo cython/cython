@@ -39,7 +39,24 @@ class MarkAssignments(CythonTransform):
 
             if self.parallel_block_stack:
                 parallel_node = self.parallel_block_stack[-1]
-                parallel_node.assignments[lhs.entry] = (lhs.pos, inplace_op)
+                previous_assignment = parallel_node.assignments.get(lhs.entry)
+
+                # If there was a previous assignment to the variable, keep the
+                # previous assignment position
+                if previous_assignment:
+                    pos, previous_inplace_op = previous_assignment
+
+                    if (inplace_op and previous_inplace_op and
+                            inplace_op != previous_inplace_op):
+                        # x += y; x *= y
+                        t = (inplace_op, previous_inplace_op)
+                        error(lhs.pos,
+                              "Reduction operator '%s' is inconsistent "
+                              "with previous reduction operator '%s'" % t)
+                else:
+                    pos = lhs.pos
+
+                parallel_node.assignments[lhs.entry] = (pos, inplace_op)
 
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for arg in lhs.args:
