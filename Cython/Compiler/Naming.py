@@ -116,7 +116,7 @@ h_guard_prefix   = "__PYX_HAVE__"
 api_guard_prefix = "__PYX_HAVE_API__"
 api_func_guard   = "__PYX_HAVE_API_FUNC_"
 
-NAN              = "__PYX_NAN"
+PYX_NAN          = "__PYX_NAN"
 HUGE_VAL         = "Py_HUGE_VAL"
 LONG_LONG_MAX    = "__PYX_LONG_LONG_MAX"
 ULONG_LONG_MAX   = "__PYX_ULONG_LONG_MAX"
