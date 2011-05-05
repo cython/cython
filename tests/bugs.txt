@@ -21,6 +21,7 @@ class_scope_T671
 
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals
+pyregr.test_signal
 pyregr.test_capi
 pyregr.test_socket
 pyregr.test_threading
@@ -30,6 +31,7 @@ pyregr.test_pep3131
 # CPython regression tests that don't make sense
 pyregr.test_gdb
 pyregr.test_support
+pyregr.test_peepholer
 
 # Inlined generators
 all
