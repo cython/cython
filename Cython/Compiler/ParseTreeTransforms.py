@@ -1666,6 +1666,43 @@ class AlignFunctionDefinitions(CythonTransform):
         return node
 
 
+class RemoveUnreachableCode(CythonTransform):
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+    def visit_StatListNode(self, node):
+        if not self.current_directives['remove_unreachable']:
+            return node
+        self.visitchildren(node)
+        for idx, stat in enumerate(node.stats):
+            idx += 1
+            if stat.is_terminator:
+                if idx < len(node.stats):
+                    if self.current_directives['warn.unreachable']:
+                        warning(node.stats[idx].pos, "Unreachable code", 2)
+                    node.stats = node.stats[:idx]
+                node.is_terminator = True
+                break
+        return node
+
+    def visit_IfClauseNode(self, node):
+        self.visitchildren(node)
+        if node.body.is_terminator:
+            node.is_terminator = True
+        return node
+
+    def visit_IfStatNode(self, node):
+        self.visitchildren(node)
+        if node.else_clause and node.else_clause.is_terminator:
+            for clause in node.if_clauses:
+                if not clause.is_terminator:
+                    break
+            else:
+                node.is_terminator = True
+        return node
+
+
 class YieldNodeCollector(TreeVisitor):
 
     def __init__(self):
