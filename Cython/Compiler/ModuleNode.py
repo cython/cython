@@ -498,19 +498,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define DL_EXPORT(t) t
 #endif
 
-#ifdef PY_LONG_LONG
-    #define %(LONG_LONG_MAX)s PY_LLONG_MAX
-    #define %(ULONG_LONG_MAX)s PY_ULLONG_MAX
-#else
-    #define PY_LONG_LONG LONG_LONG
-
-    #if defined(LLONG_MAX)
-        #define %(LONG_LONG_MAX)s LLONG_MAX
-        #define %(ULONG_LONG_MAX)s ULLONG_MAX
-    #else
-        #define %(LONG_LONG_MAX)s LONG_MAX
-        #define %(ULONG_LONG_MAX)s ULONG_MAX
-    #endif
+#ifndef PY_LONG_LONG
+  #define PY_LONG_LONG LONG_LONG
 #endif
 
 #if PY_VERSION_HEX < 0x02040000
@@ -647,7 +636,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define __Pyx_PyInt_AsHash_t   PyInt_AsSsize_t
 #endif
 
-""" % vars(Naming))
+""")
 
         code.put("""
 #if PY_MAJOR_VERSION >= 3
@@ -713,47 +702,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if defined(WIN32) || defined(MS_WINDOWS)")
         code.putln("#define _USE_MATH_DEFINES")
         code.putln("#endif")
-
-        code.putln("""
-/* Define NAN */
-#ifdef Py_NAN
-    #include <math.h>
-    #define %(pyx_nan)s Py_NAN
-#else
-    #if defined(__GNUC__)
-        #define _GNU_SOURCE
-    #endif
-
-    #include <math.h>
-
-    #ifdef NAN
-        #define %(pyx_nan)s NAN
-    #else
-        #if defined(HUGE_VALL)
-            #define %(pyx_nan)s HUGE_VALL
-        #elif defined(__STDC__) && __STDC_VERSION__ >= 199901L
-            /* C99 or greater */
-            #include <float.h>
-            #define %(pyx_nan)s LDBL_MAX
-        #else
-            static PY_LONG_LONG __pyx__nan = PY_LLONG_MAX;
-            #define %(pyx_nan)s (*(double*) &__pyx__nan)
-        #endif
-    #endif
-#endif
-
-#ifdef PY_LONG_LONG
-    #define __PYX_LONG_LONG_MAX PY_LLONG_MAX
-    #define __PYX_ULONG_LONG_MAX PY_ULLONG_MAX
-#elif defined(LLONG_MAX)
-    #define __PYX_LONG_LONG_MAX LLONG_MAX
-    #define __PYX_ULONG_LONG_MAX ULLONG_MAX
-#else
-    /* This should probably suffice, even if not strictly the largest value */
-    #define __PYX_LONG_LONG_MAX LONG_MAX
-    #define __PYX_ULONG_LONG_MAX ULONG_MAX
-#endif
-""" % {'pyx_nan': Naming.NAN})
+        code.putln("#include <math.h>")
 
         code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))

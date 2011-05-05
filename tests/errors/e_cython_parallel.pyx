@@ -73,7 +73,7 @@ e_cython_parallel.pyx:30:9: Can only iterate over an iteration variable
 e_cython_parallel.pyx:33:10: Must be of numeric type, not int *
 e_cython_parallel.pyx:36:33: Closely nested 'with parallel:' blocks are disallowed
 e_cython_parallel.pyx:39:12: The parallel directive must be called
-e_cython_parallel.pyx:45:10: Private variable referenced before assignment
-e_cython_parallel.pyx:55:9: Private variable referenced before assignment
+e_cython_parallel.pyx:45:10: Expression value depends on previous loop iteration, cannot execute in parallel
+e_cython_parallel.pyx:55:9: Expression depends on an uninitialized thread-private variable
 e_cython_parallel.pyx:60:6: Reduction operator '*' is inconsistent with previous reduction operator '+'
 """

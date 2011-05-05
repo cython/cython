@@ -5831,7 +5831,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
         self.analyse_sharing_attributes(env)
-        self.check_use_unitialized_privates()
+        self.check_independent_iterations()
 
     def analyse_sharing_attributes(self, env):
         """
@@ -5937,9 +5937,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
 
-    def check_use_unitialized_privates(self):
+    def check_independent_iterations(self):
         """
-        This checks for uninitialized private variables, it's far from
+        This checks for uninitialized thread-private variables, it's far from
         fool-proof as it does not take control flow into account, nor
         assignment to a variable as both the lhs and rhs. So it detects only
         cases like this:
@@ -5949,7 +5949,8 @@ class ParallelStatNode(StatNode, ParallelNode):
                 x = i
 
         Fortunately, it doesn't need to be perfect, as we still initialize
-        private variables to maximum values, NULL or NaN whenever possible.
+        private variables to "invalid" values, such as NULL or NaN whenever
+        possible.
         """
         from Cython.Compiler import ParseTreeTransforms
 
@@ -5963,18 +5964,25 @@ class ParallelStatNode(StatNode, ParallelNode):
                 # Reading reduction variables is valid (in fact necessary)
                 # before assignment
                 if not op and pos < assignment_pos:
-                    error(pos, "Private variable referenced before assignment")
+                    if self.is_prange:
+                        error(pos, "Expression value depends on previous loop "
+                                   "iteration, cannot execute in parallel")
+                    else:
+                        error(pos, "Expression depends on an uninitialized "
+                                   "thread-private variable")
 
     def initialize_privates_to_nan(self, code, exclude=None):
         code.putln("/* Initialize private variables to invalid values */")
 
         for entry, op in self.privates.iteritems():
             if not op and (not exclude or entry != exclude):
-                max_value = entry.type.max_value()
+                invalid_value = entry.type.invalid_value()
 
-                if max_value:
+                if invalid_value:
+                    code.globalstate.use_utility_code(
+                                invalid_values_utility_code)
                     code.putln("%s = %s;" % (entry.cname,
-                                             entry.type.cast_code(max_value)))
+                                             entry.type.cast_code(invalid_value)))
 
     def declare_closure_privates(self, code):
         """
@@ -7486,3 +7494,39 @@ bad:
     'EMPTY_BYTES' : Naming.empty_bytes,
     "MODULE": Naming.module_cname,
 })
+
+################ Utility code for cython.parallel stuff ################
+
+invalid_values_utility_code = UtilityCode(proto="""
+#ifdef HAVE_LONG_LONG
+    #define %(LONG_LONG_MAX)s PY_LLONG_MAX
+    #define %(ULONG_LONG_MAX)s PY_ULLONG_MAX
+#else
+    #define PY_LONG_LONG LONG_LONG
+
+    #if defined(LLONG_MAX)
+        #define %(LONG_LONG_MAX)s LLONG_MAX
+        #define %(ULONG_LONG_MAX)s ULLONG_MAX
+    #else
+        #define %(LONG_LONG_MAX)s LONG_MAX
+        #define %(ULONG_LONG_MAX)s ULONG_MAX
+    #endif
+#endif
+
+/* Define NAN */
+#ifdef Py_NAN
+    #define %(PYX_NAN)s Py_NAN
+#elif defined(NAN)
+    #define %(PYX_NAN)s NAN
+#elif defined(HUGE_VALL)
+    #define %(PYX_NAN)s HUGE_VALL
+#elif defined(__STDC__) && __STDC_VERSION__ >= 199901L
+    /* C99 or greater */
+    #include <float.h>
+    #define %(PYX_NAN)s LDBL_MAX
+#else
+    static PY_LONG_LONG __pyx__nan = %(LONG_LONG_MAX)s;
+    #define %(PYX_NAN)s (*(double*) &__pyx__nan)
+#endif
+"""  % vars(Naming))
+
