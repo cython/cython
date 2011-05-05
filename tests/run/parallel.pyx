@@ -16,7 +16,7 @@ def test_parallel():
     if buf == NULL:
         raise MemoryError
 
-    with nogil, cython.parallel.parallel:
+    with nogil, cython.parallel.parallel():
         buf[threadid()] = threadid()
 
     for i in range(maxthreads):
@@ -24,4 +24,4 @@ def test_parallel():
 
     free(buf)
 
-include "sequential_parallel.pyx"
+#include "sequential_parallel.pyx"
