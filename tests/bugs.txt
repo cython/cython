@@ -32,6 +32,7 @@ pyregr.test_pep3131
 pyregr.test_gdb
 pyregr.test_support
 pyregr.test_peepholer
+pyregr.test_subprocess
 
 # Inlined generators
 all
