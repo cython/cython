@@ -32,7 +32,11 @@ pyregr.test_pep3131
 pyregr.test_gdb
 pyregr.test_support
 pyregr.test_peepholer
+
+# CPython regression tests that take too long
 pyregr.test_subprocess
+pyregr.test_zipfile64
+pyregr.test_tuple
 
 # Inlined generators
 all
