@@ -14,9 +14,12 @@ class TempHandle(object):
     # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False
-    def __init__(self, type):
+    def __init__(self, type, needs_cleanup=None):
         self.type = type
-        self.needs_cleanup = type.is_pyobject
+        if needs_cleanup is None:
+            self.needs_cleanup = type.is_pyobject
+        else:
+            self.needs_cleanup = needs_cleanup
 
     def ref(self, pos):
         return TempRefNode(pos, handle=self, type=self.type)
