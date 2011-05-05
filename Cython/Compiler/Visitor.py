@@ -64,7 +64,7 @@ class TreeVisitor(object):
                                             u'gil_message', u'cpp_message',
                                             u'subexprs']
         values = []
-        pos = node.pos
+        pos = getattr(node, 'pos', None)
         if pos:
             source = pos[0]
             if source:
@@ -131,7 +131,7 @@ class TreeVisitor(object):
             trace.append(u"File '%s', line %d, in %s: %s" % (
                 pos[0], pos[1], method_name, self.dump_node(node)))
         raise Errors.CompilerCrash(
-            last_node.pos, self.__class__.__name__,
+            getattr(last_node, 'pos', None), self.__class__.__name__,
             u'\n'.join(trace), e, stacktrace)
 
     def find_handler(self, obj):
