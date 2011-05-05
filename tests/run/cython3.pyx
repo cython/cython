@@ -164,8 +164,7 @@ def dict_comp():
 # in Python 3, d.keys/values/items() are the iteration methods
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 @cython.test_fail_if_path_exists(
     "//ForInStatNode")
 def dict_iter(dict d):
@@ -178,6 +177,9 @@ def dict_iter(dict d):
     [1, 2, 3]
     >>> sorted(items)
     [('a', 1), ('b', 2), ('c', 3)]
+
+    >>> dict_iter({})
+    ([], [], [])
     """
     keys = [ key for key in d.keys() ]
     values = [ value for value in d.values() ]
