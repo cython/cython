@@ -106,7 +106,7 @@ cdef extern from "numpy/arrayobject.h":
         NPY_HEAPSORT
         NPY_MERGESORT
 
-    cdef enum requirements:
+    cdef enum:
         NPY_C_CONTIGUOUS
         NPY_F_CONTIGUOUS
         NPY_CONTIGUOUS
