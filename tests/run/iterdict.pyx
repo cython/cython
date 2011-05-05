@@ -19,12 +19,13 @@ def items(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iteritems(dict d):
     """
     >>> iteritems(d)
     [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> iteritems({})
+    []
     """
     l = []
     for k,v in d.iteritems():
@@ -34,12 +35,13 @@ def iteritems(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iteritems_int(dict d):
     """
     >>> iteritems_int(d)
     [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> iteritems_int({})
+    []
     """
     cdef int k,v
     l = []
@@ -50,12 +52,13 @@ def iteritems_int(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iteritems_tuple(dict d):
     """
     >>> iteritems_tuple(d)
     [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> iteritems_tuple({})
+    []
     """
     l = []
     for t in d.iteritems():
@@ -65,8 +68,7 @@ def iteritems_tuple(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iteritems_listcomp(dict d):
     cdef list l = [(k,v) for k,v in d.iteritems()]
     l.sort()
@@ -74,12 +76,13 @@ def iteritems_listcomp(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iterkeys(dict d):
     """
     >>> iterkeys(d)
     [10, 11, 12, 13]
+    >>> iterkeys({})
+    []
     """
     l = []
     for k in d.iterkeys():
@@ -89,12 +92,13 @@ def iterkeys(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iterkeys_int(dict d):
     """
     >>> iterkeys_int(d)
     [10, 11, 12, 13]
+    >>> iterkeys_int({})
+    []
     """
     cdef int k
     l = []
@@ -105,12 +109,13 @@ def iterkeys_int(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iterdict(dict d):
     """
     >>> iterdict(d)
     [10, 11, 12, 13]
+    >>> iterdict({})
+    []
     """
     l = []
     for k in d:
@@ -120,12 +125,13 @@ def iterdict(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iterdict_int(dict d):
     """
     >>> iterdict_int(d)
     [10, 11, 12, 13]
+    >>> iterdict_int({})
+    []
     """
     cdef int k
     l = []
@@ -136,12 +142,13 @@ def iterdict_int(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iterdict_reassign(dict d):
     """
     >>> iterdict_reassign(d)
     [10, 11, 12, 13]
+    >>> iterdict_reassign({})
+    []
     """
     cdef dict d_new = {}
     l = []
@@ -153,12 +160,13 @@ def iterdict_reassign(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def iterdict_listcomp(dict d):
     """
     >>> iterdict_listcomp(d)
     [10, 11, 12, 13]
+    >>> iterdict_listcomp({})
+    []
     """
     cdef list l = [k for k in d]
     l.sort()
@@ -166,12 +174,13 @@ def iterdict_listcomp(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def itervalues(dict d):
     """
     >>> itervalues(d)
     [0, 1, 2, 3]
+    >>> itervalues({})
+    []
     """
     l = []
     for v in d.itervalues():
@@ -181,12 +190,13 @@ def itervalues(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def itervalues_int(dict d):
     """
     >>> itervalues_int(d)
     [0, 1, 2, 3]
+    >>> itervalues_int({})
+    []
     """
     cdef int v
     l = []
@@ -197,12 +207,13 @@ def itervalues_int(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def itervalues_listcomp(dict d):
     """
     >>> itervalues_listcomp(d)
     [0, 1, 2, 3]
+    >>> itervalues_listcomp({})
+    []
     """
     cdef list l = [v for v in d.itervalues()]
     l.sort()
@@ -210,13 +221,44 @@ def itervalues_listcomp(dict d):
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",
-    "//WhileStatNode/SimpleCallNode",
-    "//WhileStatNode/SimpleCallNode/NameNode")
+    "//WhileStatNode//DictIterationNextNode")
 def itervalues_kwargs(**d):
     """
     >>> itervalues_kwargs(a=1, b=2, c=3, d=4)
     [1, 2, 3, 4]
+    >>> itervalues_kwargs()
+    []
     """
     cdef list l = [v for v in d.itervalues()]
     l.sort()
     return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iterdict_change_size(dict d):
+    """
+    >>> count, i = 0, -1
+    >>> d = {1:2, 10:20}
+    >>> for i in d:
+    ...     d[i+1] = 5
+    ...     count += 1
+    ...     if count > 5:
+    ...         break # safety
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+
+    >>> iterdict_change_size({1:2, 10:20})
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+    >>> print( iterdict_change_size({}) )
+    DONE
+    """
+    cdef int count = 0
+    i = -1
+    for i in d:
+        d[i+1] = 5
+        count += 1
+        if count > 5:
+            break # safety
+    return "DONE"
