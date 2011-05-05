@@ -5947,6 +5947,9 @@ class ParallelStatNode(StatNode, ParallelNode):
             for i in prange(10, nogil=True):
                 var = x # error, x is private and read before assigned
                 x = i
+
+        Fortunately, it doesn't need to be perfect, as we still initialize
+        private variables to maximum values, NULL or NaN whenever possible.
         """
         from Cython.Compiler import ParseTreeTransforms
 
@@ -5961,6 +5964,17 @@ class ParallelStatNode(StatNode, ParallelNode):
                 # before assignment
                 if not op and pos < assignment_pos:
                     error(pos, "Private variable referenced before assignment")
+
+    def initialize_privates_to_nan(self, code, exclude=None):
+        code.putln("/* Initialize private variables to invalid values */")
+
+        for entry, op in self.privates.iteritems():
+            if not op and (not exclude or entry != exclude):
+                max_value = entry.type.max_value()
+
+                if max_value:
+                    code.putln("%s = %s;" % (entry.cname,
+                                             entry.type.cast_code(max_value)))
 
     def declare_closure_privates(self, code):
         """
@@ -6015,6 +6029,7 @@ class ParallelWithBlockNode(ParallelStatNode):
         code.putln("#endif /* _OPENMP */")
 
         code.begin_block()
+        self.initialize_privates_to_nan(code)
         self.body.generate_execution_code(code)
         code.end_block()
 
@@ -6274,6 +6289,9 @@ class ParallelRangeNode(ParallelStatNode):
         code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
         code.begin_block()
         code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+
+        self.initialize_privates_to_nan(code, exclude=self.target.entry)
+
         self.body.generate_execution_code(code)
         code.end_block()
 
