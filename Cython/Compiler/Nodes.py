@@ -2989,6 +2989,9 @@ class GeneratorDefNode(DefNode):
         code.putln("return (PyObject *) %s;" % Naming.cur_scope_cname);
 
     def generate_function_definitions(self, env, code):
+        from ExprNodes import generator_utility_code
+        env.use_utility_code(generator_utility_code)
+
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)
         self.gbody.generate_function_definitions(env, code)
