@@ -4513,8 +4513,8 @@ class WhileStatNode(LoopNode, StatNode):
             self.else_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.condition = \
-            self.condition.analyse_temp_boolean_expression(env)
+        if self.condition:
+            self.condition = self.condition.analyse_temp_boolean_expression(env)
         self.body.analyse_expressions(env)
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
@@ -4523,12 +4523,13 @@ class WhileStatNode(LoopNode, StatNode):
         old_loop_labels = code.new_loop_labels()
         code.putln(
             "while (1) {")
-        self.condition.generate_evaluation_code(code)
-        self.condition.generate_disposal_code(code)
-        code.putln(
-            "if (!%s) break;" %
-                self.condition.result())
-        self.condition.free_temps(code)
+        if self.condition:
+            self.condition.generate_evaluation_code(code)
+            self.condition.generate_disposal_code(code)
+            code.putln(
+                "if (!%s) break;" %
+                    self.condition.result())
+            self.condition.free_temps(code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         code.putln("}")
@@ -4541,16 +4542,62 @@ class WhileStatNode(LoopNode, StatNode):
         code.put_label(break_label)
 
     def generate_function_definitions(self, env, code):
-        self.condition.generate_function_definitions(env, code)
+        if self.condition:
+            self.condition.generate_function_definitions(env, code)
         self.body.generate_function_definitions(env, code)
         if self.else_clause is not None:
             self.else_clause.generate_function_definitions(env, code)
 
     def annotate(self, code):
-        self.condition.annotate(code)
+        if self.condition:
+            self.condition.annotate(code)
         self.body.annotate(code)
         if self.else_clause:
             self.else_clause.annotate(code)
+
+
+class DictIterationNextNode(Node):
+    # Helper node for calling PyDict_Next() inside of a WhileStatNode
+    # and checking the dictionary size for changes.  Created in
+    # Optimize.py.
+    child_attrs = ['dict_obj', 'expected_size', 'pos_index_addr', 'key_addr', 'value_addr']
+
+    def __init__(self, dict_obj, expected_size, pos_index_addr, key_addr, value_addr):
+        Node.__init__(
+            self, dict_obj.pos,
+            dict_obj = dict_obj,
+            expected_size = expected_size,
+            pos_index_addr = pos_index_addr,
+            key_addr = key_addr,
+            value_addr = value_addr,
+            type = PyrexTypes.c_bint_type)
+
+    def analyse_expressions(self, env):
+        self.dict_obj.analyse_types(env)
+        self.expected_size.analyse_types(env)
+        self.pos_index_addr.analyse_types(env)
+        self.key_addr.analyse_types(env)
+        self.value_addr.analyse_types(env)
+
+    def generate_function_definitions(self, env, code):
+        self.dict_obj.generate_function_definitions(env, code)
+
+    def generate_execution_code(self, code):
+        self.dict_obj.generate_evaluation_code(code)
+        code.putln("if (unlikely(%s != PyDict_Size(%s))) {" % (
+            self.expected_size.result(),
+            self.dict_obj.py_result(),
+            ))
+        code.putln('PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration"); %s' % (
+            code.error_goto(self.pos)))
+        code.putln("}")
+        self.pos_index_addr.generate_evaluation_code(code)
+
+        code.putln("if (!PyDict_Next(%s, %s, %s, %s)) break;" % (
+            self.dict_obj.py_result(),
+            self.pos_index_addr.result(),
+            self.key_addr.result(),
+            self.value_addr.result()))
 
 
 def ForStatNode(pos, **kw):
