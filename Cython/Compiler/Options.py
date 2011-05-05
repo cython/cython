@@ -94,6 +94,10 @@ directive_defaults = {
 
     'warn': None,
     'warn.undeclared': False,
+    'warn.unreachable': True,
+
+# remove unreachable code
+    'remove_unreachable': True,
 
 # test support
     'test_assert_path_exists' : [],
