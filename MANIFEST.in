@@ -12,6 +12,7 @@ include Doc/*
 include Demos/*.pyx
 include Demos/*.py
 include Demos/callback/*
+include Demos/benchmarks/*
 include Demos/embed/*
 include Demos/freeze/*
 include Demos/libraries/*
