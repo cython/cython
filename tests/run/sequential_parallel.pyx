@@ -214,7 +214,7 @@ def test_nan_init():
             d1 == 10 or d2 == 10 or
             e1 == 10 or e2 == 10 or
             f == 10.0 or g == 10.0 or h == 10.0 or
-            p != NULL):
+            p == <void *> 10):
 
             errp[0] = 1
 

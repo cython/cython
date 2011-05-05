@@ -27,10 +27,10 @@ class BaseType(object):
         else:
             return base_code
 
-    def max_value(self):
+    def invalid_value(self):
         """
-        Returns the maximum or most invalid value an object of this type can
-        assume as a C expression string. Returns None if no such value exists.
+        Returns the most invalid value an object of this type can assume as a
+        C expression string. Returns None if no such value exists.
         """
 
 class PyrexType(BaseType):
@@ -384,8 +384,8 @@ class PyObjectType(PyrexType):
         else:
             return cname
 
-    def max_value(self):
-        return "NULL"
+    def invalid_value(self):
+        return "1"
 
 
 class BuiltinObjectType(PyObjectType):
@@ -912,7 +912,7 @@ class CIntType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
-    def max_value(self):
+    def invalid_value(self):
         return typename_to_maxval[rank_to_type_name[self.rank]][not self.signed]
 
 class CAnonEnumType(CIntType):
@@ -1121,8 +1121,8 @@ class CFloatType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
 
-    def max_value(self):
-        return Naming.NAN
+    def invalid_value(self):
+        return Naming.PYX_NAN
 
 class CComplexType(CNumericType):
 
@@ -1636,8 +1636,8 @@ class CPtrType(CType):
         else:
             return CPtrType(base_type)
 
-    def max_value(self):
-        return "NULL"
+    def invalid_value(self):
+        return "1"
 
 class CNullPtrType(CPtrType):
 
@@ -2375,7 +2375,7 @@ typename_to_maxval = {
     "int"  : ("INT_MAX", "UINT_MAX"),
     "long" : ("LONG_MAX", "ULONG_MAX"),
     "PY_LONG_LONG" : (Naming.LONG_LONG_MAX, Naming.ULONG_LONG_MAX),
-    # CFloatType overrides max_value
+    # CFloatType overrides invalid_value
 }
 
 RANK_INT  = list(rank_to_type_name).index('int')
