@@ -5890,6 +5890,8 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
+        self.analyse_sharing_attributes(env)
+        self.check_use_unitialized_privates()
 
     def analyse_sharing_attributes(self, env):
         """
@@ -5995,6 +5997,31 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
 
+    def check_use_unitialized_privates(self):
+        """
+        This checks for uninitialized private variables, it's far from
+        fool-proof as it does not take control flow into account, nor
+        assignment to a variable as both the lhs and rhs. So it detects only
+        cases like this:
+
+            for i in prange(10, nogil=True):
+                var = x # error, x is private and read before assigned
+                x = i
+        """
+        from Cython.Compiler import ParseTreeTransforms
+
+        transform = ParseTreeTransforms.FindUninitializedParallelVars()
+        transform(self.body)
+
+        for entry, pos in transform.used_vars:
+            if entry in self.privates:
+                assignment_pos, op = self.assignments[entry]
+
+                # Reading reduction variables is valid (in fact necessary)
+                # before assignment
+                if not op and pos < assignment_pos:
+                    error(pos, "Private variable referenced before assignment")
+
     def declare_closure_privates(self, code):
         """
         Set self.privates to a dict mapping C variable names that are to be
@@ -6031,10 +6058,6 @@ class ParallelWithBlockNode(ParallelStatNode):
     """
 
     nogil_check = None
-
-    def analyse_expressions(self, env):
-        super(ParallelWithBlockNode, self).analyse_expressions(env)
-        self.analyse_sharing_attributes(env)
 
     def generate_execution_code(self, code):
         self.declare_closure_privates(code)
@@ -6156,7 +6179,6 @@ class ParallelRangeNode(ParallelStatNode):
                 self.index_type = PyrexTypes.widest_numeric_type(
                                         self.index_type, node.type)
 
-        super(ParallelRangeNode, self).analyse_expressions(env)
         if self.else_clause is not None:
             self.else_clause.analyse_expressions(env)
 
@@ -6169,6 +6191,7 @@ class ParallelRangeNode(ParallelStatNode):
             self.assignments[self.target.entry] = self.target.pos, None
 
         self.analyse_sharing_attributes(env)
+        super(ParallelRangeNode, self).analyse_expressions(env)
 
     def nogil_check(self, env):
         names = 'start', 'stop', 'step', 'target'
