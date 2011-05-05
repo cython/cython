@@ -2094,8 +2094,8 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.is_nogil:
-            node.is_nogil = False
+        if node.nogil:
+            node.nogil = False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             return self.visit_GILStatNode(node)
 

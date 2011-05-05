@@ -5864,6 +5864,10 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     privatization_insertion_point   a code insertion point used to make temps
                                     private (esp. the "nsteps" temp)
+
+    args         tuple          the arguments passed to the parallel construct
+    kwargs       DictNode       the keyword arguments passed to the parallel
+                                construct (replaced by its compile time value)
     """
 
     child_attrs = ['body']
@@ -5887,6 +5891,17 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
+
+        if self.kwargs:
+            self.kwargs = self.kwargs.compile_time_value(env)
+        else:
+            self.kwargs = {}
+
+        for kw, val in self.kwargs.iteritems():
+            if kw not in self.valid_keyword_arguments:
+                error(self.pos, "Invalid keyword argument: %s" % kw)
+            else:
+                setattr(self, kw, val)
 
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
@@ -6044,6 +6059,17 @@ class ParallelStatNode(StatNode, ParallelNode):
                     code.putln("%s = %s;" % (entry.cname,
                                              entry.type.cast_code(invalid_value)))
 
+    def put_num_threads(self, code):
+        """
+        Write self.num_threads if set as the num_threads OpenMP directive
+        """
+        if self.num_threads is not None:
+            if isinstance(self.num_threads, (int, long)):
+                code.put(" num_threads(%d)" % (self.num_threads,))
+            else:
+                error(self.pos, "Invalid value for num_threads argument, "
+                                "expected an int")
+
     def declare_closure_privates(self, code):
         """
         Set self.privates to a dict mapping C variable names that are to be
@@ -6081,6 +6107,16 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     nogil_check = None
 
+    valid_keyword_arguments = ['num_threads']
+
+    num_threads = None
+
+    def analyse_declarations(self, env):
+        super(ParallelWithBlockNode, self).analyse_declarations(env)
+        if self.args:
+            error(self.pos, "cython.parallel.parallel() does not take "
+                            "positional arguments")
+
     def generate_execution_code(self, code):
         self.declare_closure_privates(code)
 
@@ -6092,8 +6128,9 @@ class ParallelWithBlockNode(ParallelStatNode):
                 'private(%s)' % ', '.join([e.cname for e in self.privates]))
 
         self.privatization_insertion_point = code.insertion_point()
-
+        self.put_num_threads(code)
         code.putln("")
+
         code.putln("#endif /* _OPENMP */")
 
         code.begin_block()
@@ -6110,11 +6147,6 @@ class ParallelRangeNode(ParallelStatNode):
 
     target       NameNode       the target iteration variable
     else_clause  Node or None   the else clause of this loop
-    args         tuple          the arguments passed to prange()
-    kwargs       DictNode       the keyword arguments passed to prange()
-                                (replaced by its compile time value)
-
-    is_nogil     bool           indicates whether this is a nogil prange() node
     """
 
     child_attrs = ['body', 'target', 'else_clause', 'args']
@@ -6124,7 +6156,12 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
-    is_nogil = False
+
+    nogil = False
+    schedule = None
+    num_threads = None
+
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads']
 
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
@@ -6143,14 +6180,6 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             self.start, self.stop, self.step = self.args
 
-        if self.kwargs:
-            self.kwargs = self.kwargs.compile_time_value(env)
-        else:
-            self.kwargs = {}
-
-        self.is_nogil = self.kwargs.pop('nogil', False)
-        self.schedule = self.kwargs.pop('schedule', None)
-
         if hasattr(self.schedule, 'decode'):
             self.schedule = self.schedule.decode('ascii')
 
@@ -6158,9 +6187,6 @@ class ParallelRangeNode(ParallelStatNode):
                                  'runtime'):
             error(self.pos, "Invalid schedule argument to prange: %s" %
                                                         (self.schedule,))
-
-        for kw in self.kwargs:
-            error(self.pos, "Invalid keyword argument to prange: %s" % kw)
 
     def analyse_expressions(self, env):
         if self.target is None:
@@ -6348,6 +6374,8 @@ class ParallelRangeNode(ParallelStatNode):
         if self.parent:
             c = self.parent.privatization_insertion_point
             c.put(" private(%(nsteps)s)" % fmt_dict)
+
+        self.put_num_threads(code)
 
         self.privatization_insertion_point = code.insertion_point()
 
