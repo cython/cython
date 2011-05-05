@@ -120,27 +120,21 @@ def get_openmp_compiler_flags(language):
         try:
             in_, out_err = os.popen4([cc, "-v"])
         except EnvironmentError:
-            # Be compatible with Python 3
-            _, e, _ = sys.exc_info()
             warnings.warn("Unable to find the %s compiler: %s: %s" %
-                                        (language, os.strerror(e.errno), cc))
+                          (language, os.strerror(sys.exc_info()[1].errno), cc))
             return None
-
         output = out_err.read()
     else:
         try:
-            p = subprocess.Popen([cc, "-v"], stdout=subprocess.PIPE,
-                                             stderr=subprocess.STDOUT)
+            p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE)
         except EnvironmentError:
             # Be compatible with Python 3
-            _, e, _ = sys.exc_info()
             warnings.warn("Unable to find the %s compiler: %s: %s" %
-                                        (language, os.strerror(e.errno), cc))
+                          (language, os.strerror(sys.exc_info()[1].errno), cc))
             return None
+        _, output = p.communicate()
 
-        output = p.stdout.read()
-
-    output = output.decode(locale.getpreferredencoding() or 'UTF-8')
+    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
 
     compiler_version = matcher(output).group(1)
     if compiler_version and compiler_version.split('.') >= ['4', '2']:
