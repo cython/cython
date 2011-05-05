@@ -23,7 +23,7 @@ def test_prange():
     """
     cdef Py_ssize_t i, j, sum1 = 0, sum2 = 0
 
-    with nogil, cython.parallel.parallel:
+    with nogil, cython.parallel.parallel():
         for i in prange(10, schedule='dynamic'):
             sum1 += i
 
@@ -57,9 +57,9 @@ def test_propagation():
         for j in prange(10):
             sum1 += i
 
-    with nogil, cython.parallel.parallel:
+    with nogil, cython.parallel.parallel():
         for x in prange(10):
-            with cython.parallel.parallel:
+            with cython.parallel.parallel():
                 for y in prange(10):
                     sum2 += y
 
