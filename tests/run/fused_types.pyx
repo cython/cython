@@ -13,7 +13,7 @@ ctypedef cython.fused_type(int, long) integral
 ctypedef cython.fused_type(int, long, float, double, string_t) fused_type1
 ctypedef cython.fused_type(string_t) fused_type2
 ctypedef fused_type1 *composed_t
-ctypedef cython.fused_type(int, long, float, double) other_t
+ctypedef cython.fused_type(int, double) other_t
 ctypedef double *p_double
 ctypedef int *p_int
 
@@ -164,8 +164,8 @@ def test_specializations():
     # print test_specialize[double](1.1, somedouble_p, otherdouble_p)
     # print
 
-#cdef opt_args(integral x, floating y = 4.0):
-#    print x, y
+cdef opt_args(integral x, floating y = 4.0):
+    print x, y
 
 def test_opt_args():
     """
@@ -176,8 +176,8 @@ def test_opt_args():
     3 4.0
     3 4.0
     """
-    #opt_args[int,  float](3)
-    #opt_args[int, double](3)
-    #opt_args[int,  float](3, 4.0)
-    #opt_args[int, double](3, 4.0)
+    opt_args[int,  float](3)
+    opt_args[int, double](3)
+    opt_args[int,  float](3, 4.0)
+    opt_args[int, double](3, 4.0)
 

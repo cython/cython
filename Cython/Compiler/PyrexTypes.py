@@ -1762,9 +1762,11 @@ class CFuncType(CType):
     #  nogil            boolean    Can be called without gil
     #  with_gil         boolean    Acquire gil around function body
     #  templates        [string] or None
+    #  cached_specialized_types [CFuncType]   cached specialized versions of the CFuncType if defined in a pxd
 
     is_cfunction = 1
     original_sig = None
+    cached_specialized_types = None
 
     subtypes = ['return_type', 'args']
 
@@ -1991,6 +1993,7 @@ class CFuncType(CType):
             new_templates = None
         else:
             new_templates = [v.specialize(values) for v in self.templates]
+
         return CFuncType(self.return_type.specialize(values),
                              [arg.specialize(values) for arg in self.args],
                              has_varargs = 0,
@@ -2032,10 +2035,19 @@ class CFuncType(CType):
         """
         assert self.is_fused
 
+        if self.entry.fused_cfunction:
+            return [n.type for n in self.entry.fused_cfunction.nodes]
+        elif self.cached_specialized_types is not None:
+            return self.cached_specialized_types
+
         result = []
         permutations = self.get_all_specific_permutations()
         for cname, fused_to_specific in permutations:
             new_func_type = self.entry.type.specialize(fused_to_specific)
+
+            if self.optional_arg_count:
+                # Remember, this method is set by CFuncDeclaratorNode
+                self.declare_opt_arg_struct(new_func_type, cname)
 
             new_entry = copy.deepcopy(self.entry)
             new_entry.cname = self.get_specific_cname(cname)
@@ -2045,6 +2057,8 @@ class CFuncType(CType):
 
             result.append(new_func_type)
 
+        self.cached_specialized_types = result
+
         return result
 
     def get_specific_cname(self, fused_cname):
@@ -2053,10 +2067,15 @@ class CFuncType(CType):
         for the corresponding function with specific types.
         """
         assert self.is_fused
-        return '%s%s%s' % (Naming.fused_func_prefix,
-                           fused_cname,
-                           self.entry.func_cname)
+        return get_fused_cname(fused_cname, self.entry.func_cname)
 
+
+
+def get_fused_cname(fused_cname, orig_cname):
+    """
+    Given the fused cname id and an original cname, return a specialized cname
+    """
+    return '%s%s%s' % (Naming.fused_func_prefix, fused_cname, orig_cname)
 
 def map_with_specific_entries(entry, func, *args, **kwargs):
     """
@@ -2089,7 +2108,7 @@ def get_all_specific_permutations(fused_types, id="", f2s=()):
         if id:
             cname = '%s_%s' % (id, newid)
         else:
-            cname = newid
+            cname = str(newid)
 
         if len(fused_types) > 1:
             result.extend(get_all_specific_permutations(

@@ -572,22 +572,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             elif self.optional_arg_count:
                 error(self.pos, "Non-default argument follows default argument")
 
-        if self.optional_arg_count:
-            scope = StructOrUnionScope()
-            arg_count_member = '%sn' % Naming.pyrex_prefix
-            scope.declare_var(arg_count_member, PyrexTypes.c_int_type, self.pos)
-            for arg in func_type_args[len(func_type_args)-self.optional_arg_count:]:
-                scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject = 1)
-            struct_cname = env.mangle(Naming.opt_arg_prefix, self.base.name)
-            self.op_args_struct = env.global_scope().declare_struct_or_union(name = struct_cname,
-                                        kind = 'struct',
-                                        scope = scope,
-                                        typedef_flag = 0,
-                                        pos = self.pos,
-                                        cname = struct_cname)
-            self.op_args_struct.defined_in_pxd = 1
-            self.op_args_struct.used = 1
-
         exc_val = None
         exc_check = 0
         if self.exception_check == '+':
@@ -629,8 +613,19 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             exception_value = exc_val, exception_check = exc_check,
             calling_convention = self.base.calling_convention,
             nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
+
         if self.optional_arg_count:
-            func_type.op_arg_struct = PyrexTypes.c_ptr_type(self.op_args_struct.type)
+            if func_type.is_fused:
+                # This is a bit of a hack... When we need to create specialized CFuncTypes
+                # on the fly because the cdef is defined in a pxd, we need to declare the specialized optional arg
+                # struct
+                def declare_opt_arg_struct(func_type, fused_cname):
+                    self.declare_optional_arg_struct(func_type, env, fused_cname)
+
+                func_type.declare_opt_arg_struct = declare_opt_arg_struct
+            else:
+                self.declare_optional_arg_struct(func_type, env)
+
         callspec = env.directives['callspec']
         if callspec:
             current = func_type.calling_convention
@@ -639,6 +634,38 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                       "calling conventions" % (current, callspec))
             func_type.calling_convention = callspec
         return self.base.analyse(func_type, env)
+
+    def declare_optional_arg_struct(self, func_type, env, fused_cname=None):
+        """
+        Declares the optional argument struct (the struct used to hold the
+        values for optional arguments). For fused cdef functions, this is
+        deferred as analyse_declarations is called only once (on the fused
+        cdef function).
+        """
+        scope = StructOrUnionScope()
+        arg_count_member = '%sn' % Naming.pyrex_prefix
+        scope.declare_var(arg_count_member, PyrexTypes.c_int_type, self.pos)
+
+        for arg in func_type.args[len(func_type.args)-self.optional_arg_count:]:
+            scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject = 1)
+
+        struct_cname = env.mangle(Naming.opt_arg_prefix, self.base.name)
+
+        if fused_cname is not None:
+            struct_cname = PyrexTypes.get_fused_cname(fused_cname, struct_cname)
+
+        op_args_struct = env.global_scope().declare_struct_or_union(
+                name = struct_cname,
+                kind = 'struct',
+                scope = scope,
+                typedef_flag = 0,
+                pos = self.pos,
+                cname = struct_cname)
+
+        op_args_struct.defined_in_pxd = 1
+        op_args_struct.used = 1
+
+        func_type.op_arg_struct = PyrexTypes.c_ptr_type(op_args_struct.type)
 
 
 class CArgDeclNode(Node):
@@ -2020,6 +2047,9 @@ class FusedCFuncDefNode(StatListNode):
             if node.return_type.is_fused:
                 assert not n.return_type.is_fused
 
+            if n.cfunc_declarator.optional_arg_count:
+                assert n.type.op_arg_struct
+
         assert node.type.is_fused
 
         node.entry.fused_cfunction = self
@@ -2043,6 +2073,9 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.type = newtype
             copied_node.entry.type = newtype
             newtype.entry = copied_node.entry
+
+            self.node.cfunc_declarator.declare_optional_arg_struct(
+                                   newtype, env, fused_cname=cname)
 
             copied_node.return_type = newtype.return_type
             copied_node.create_local_scope(env)

@@ -37,6 +37,7 @@ ctypedef cython.fused_type(str, unicode, bytes) builtin_t
 
 cdef object_t add_simple(object_t obj, simple_t simple)
 cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple)
+cdef public_optional_args(object_t obj, simple_t simple = *)
 
 ######## header.h ########
 
@@ -53,6 +54,9 @@ cdef object_t add_simple(object_t obj, simple_t simple):
 
 cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple):
     return obj.a + simple
+
+cdef public_optional_args(object_t obj, simple_t simple = 6):
+    return obj.a, simple
 
 ######## b.pyx ########
 
@@ -82,3 +86,9 @@ assert f(mystruct, 5).a == 10
 
 f = add_simple[mystruct_t, int]
 assert f(mystruct, 5).a == 10
+
+assert public_optional_args(mystruct, 5) == (5, 5)
+assert public_optional_args[mystruct_t, int](mystruct) == (5, 6)
+
+assert public_optional_args[mystruct_t, float](mystruct) == (5, 6.0)
+assert public_optional_args[mystruct_t, float](mystruct, 7.0) == (5, 7.0)
