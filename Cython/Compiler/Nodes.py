@@ -1343,17 +1343,20 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
         tempvardecl_code = code.insertion_point()
-        if not lenv.nogil:
-            code.put_declare_refcount_context()
         self.generate_keyword_list(code)
+
         if profile:
             code.put_trace_declarations()
+
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
 
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
-        acquire_gil_for_var_decls_only = (lenv.nogil and lenv.has_with_gil_block)
+
+        # See if we need to acquire the GIL for variable declarations and
+        acquire_gil_for_var_decls_only = (lenv.nogil and
+                                          lenv.has_with_gil_block)
 
         use_refnanny = not lenv.nogil or acquire_gil_for_var_decls_only
 
@@ -1362,6 +1365,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- set up refnanny
         if use_refnanny:
+            tempvardecl_code.put_declare_refcount_context()
             code.put_setup_refcount_context(self.entry.name)
 
         # ----- Automatic lead-ins for certain special functions
