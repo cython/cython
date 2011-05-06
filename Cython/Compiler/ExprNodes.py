@@ -5253,7 +5253,6 @@ class YieldExprNode(ExprNode):
             self.arg.analyse_types(env)
             if not self.arg.type.is_pyobject:
                 self.arg = self.arg.coerce_to_pyobject(env)
-        env.use_utility_code(generator_utility_code)
 
     def generate_evaluation_code(self, code):
         self.label_name = code.new_label('resume_from_yield')
