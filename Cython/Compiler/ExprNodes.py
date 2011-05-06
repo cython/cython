@@ -6298,7 +6298,12 @@ class DivNode(NumBinopNode):
                                 self.operand1.result(),
                                 self.operand2.result()))
                 code.putln(code.set_error_info(self.pos));
-                code.put("if (__Pyx_cdivision_warning()) ")
+                code.put("if (__Pyx_cdivision_warning(%(FILENAME)s, "
+                                                     "%(LINENO)s)) " % {
+                    'FILENAME': Naming.filename_cname,
+                    'LINENO':  Naming.lineno_cname,
+                    })
+
                 code.put_goto(code.error_label)
                 code.putln("}")
 
@@ -8633,21 +8638,18 @@ static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
 
 cdivision_warning_utility_code = UtilityCode(
 proto="""
-static int __Pyx_cdivision_warning(void); /* proto */
+static int __Pyx_cdivision_warning(const char *, int); /* proto */
 """,
 impl="""
-static int __Pyx_cdivision_warning(void) {
+static int __Pyx_cdivision_warning(const char *filename, int lineno) {
     return PyErr_WarnExplicit(PyExc_RuntimeWarning,
                               "division with oppositely signed operands, C and Python semantics differ",
-                              %(FILENAME)s,
-                              %(LINENO)s,
+                              filename,
+                              lineno,
                               __Pyx_MODULE_NAME,
                               NULL);
 }
-""" % {
-    'FILENAME': Naming.filename_cname,
-    'LINENO':  Naming.lineno_cname,
-})
+""")
 
 # from intobject.c
 division_overflow_test_code = UtilityCode(
