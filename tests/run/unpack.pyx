@@ -36,12 +36,12 @@ def unpack_tuple(tuple it):
     >>> unpack_tuple((1,2,3))
     (1, 2, 3)
 
-    >>> a,b,c = None
+    >>> a,b,c = None   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
-    >>> unpack_tuple(None)
+    TypeError: ...
+    >>> unpack_tuple(None)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
+    TypeError: ...
     """
     a,b,c = it
     return a,b,c
@@ -51,12 +51,12 @@ def unpack_list(list it):
     >>> unpack_list([1,2,3])
     (1, 2, 3)
 
-    >>> a,b,c = None
+    >>> a,b,c = None   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
-    >>> unpack_list(None)
+    TypeError: ...
+    >>> unpack_list(None)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
+    TypeError: ...
     """
     a,b,c = it
     return a,b,c
