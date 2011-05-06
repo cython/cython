@@ -85,12 +85,10 @@ def parse_command_line(args):
                 options.use_listing_file = 1
             elif option in ("-+", "--cplus"):
                 options.cplus = 1
-            elif option.startswith("--embed"):
-                ix = option.find('=')
-                if ix == -1:
-                    Options.embed = "main"
-                else:
-                    Options.embed = option[ix+1:]
+            elif option == "--embed":
+                Options.embed = "main"
+            elif option.startswith("--embed="):
+                Options.embed = options[8:]
             elif option.startswith("-I"):
                 options.include_path.append(get_param(option))
             elif option == "--include-dir":
