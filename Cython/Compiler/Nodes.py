@@ -3090,7 +3090,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
-            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.put_add_traceback(self.entry.qualified_name)
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
