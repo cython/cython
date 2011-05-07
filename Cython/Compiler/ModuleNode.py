@@ -992,7 +992,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
                     or entry.defined_in_pxd or entry.visibility == 'extern')):
                 if entry.visibility == 'public':
-                    storage_class = "%s " % Naming.extern_c_macro
+                    storage_class = ""
                     dll_linkage = "DL_EXPORT"
                 elif entry.visibility == 'extern':
                     storage_class = "%s " % Naming.extern_c_macro
