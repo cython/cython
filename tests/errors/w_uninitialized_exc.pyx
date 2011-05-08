@@ -100,6 +100,18 @@ def try_finally(a):
     finally:
         return x
 
+def try_finally_nested(m):
+    try:
+        try:
+            try:
+                f = m()
+            except:
+                pass
+        finally:
+            pass
+    except:
+        print f
+
 _ERRORS = """
 12:12: local variable 'e' might be referenced before assignment
 12:15: local variable 'i' might be referenced before assignment
@@ -109,4 +121,5 @@ _ERRORS = """
 77:14: local variable 'oops' might be referenced before assignment
 93:16: local variable 'x' might be referenced before assignment
 101:16: local variable 'x' might be referenced before assignment
+113:15: local variable 'f' might be referenced before assignment
 """

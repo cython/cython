@@ -824,6 +824,9 @@ class CreateControlFlowGraph(CythonTransform):
         self.flow.block = entry_point
         self.visit(node.finally_clause)
 
+        if self.flow.block and self.flow.exceptions:
+            self.flow.block.add_child(self.flow.exceptions[-1].entry_point)
+
         # Normal execution
         finally_enter = self.flow.newblock()
         self.flow.block = finally_enter
