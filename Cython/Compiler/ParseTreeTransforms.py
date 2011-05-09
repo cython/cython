@@ -2060,29 +2060,34 @@ class TransformBuiltinMethods(EnvTransform):
         return node
 
     def _inject_locals(self, node, func_name):
-        # locals()/dir() builtins
+        # locals()/dir()/vars() builtins
         lenv = self.current_env()
         entry = lenv.lookup_here(func_name)
         if entry:
             # not the builtin
             return node
         pos = node.pos
-        if func_name == 'locals':
-            if len(node.args) > 0:
+        if func_name in ('locals', 'vars'):
+            if func_name == 'locals' and len(node.args) > 0:
                 error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d"
                       % len(node.args))
                 return node
+            elif func_name == 'vars':
+                if len(node.args) > 1:
+                    error(self.pos, "Builtin 'vars()' called with wrong number of args, expected 0-1, got %d"
+                          % len(node.args))
+                if len(node.args) > 0:
+                    return node # nothing to do
             items = [ ExprNodes.DictItemNode(pos,
                                              key=ExprNodes.StringNode(pos, value=var),
                                              value=ExprNodes.NameNode(pos, name=var))
                       for var in lenv.entries ]
             return ExprNodes.DictNode(pos, key_value_pairs=items)
-        else:
+        else: # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
                       % len(node.args))
-                return node
-            elif len(node.args) == 1:
+            if len(node.args) > 0:
                 # optimised in Builtin.py
                 return node
             items = [ ExprNodes.StringNode(pos, value=var) for var in lenv.entries ]
@@ -2091,7 +2096,7 @@ class TransformBuiltinMethods(EnvTransform):
     def visit_SimpleCallNode(self, node):
         if isinstance(node.function, ExprNodes.NameNode):
             func_name = node.function.name
-            if func_name in ('dir', 'locals'):
+            if func_name in ('dir', 'locals', 'vars'):
                 return self._inject_locals(node, func_name)
 
         # cython.foo

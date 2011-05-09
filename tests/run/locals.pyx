@@ -3,12 +3,21 @@
 
 def get_locals(x, *args, **kwds):
     """
-    >>> sorted( get_locals(1,2,3, k=5) .items())
+    >>> sorted( get_locals(1,2,3, k=5).items() )
     [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
     """
     cdef int z = 5
     y = "hi"
     return locals()
+
+def get_vars(x, *args, **kwds):
+    """
+    >>> sorted( get_vars(1,2,3, k=5).items() )
+    [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
+    """
+    cdef int z = 5
+    y = "hi"
+    return vars()
 
 def get_dir(x, *args, **kwds):
     """
@@ -44,6 +53,19 @@ def in_dir(x, *args, **kwds):
     cdef int z = 5
     y = "hi"
     return x in dir()
+
+def in_vars(x, *args, **kwds):
+    """
+    >>> in_vars('z')
+    True
+    >>> in_vars('args')
+    True
+    >>> in_vars('X')
+    False
+    """
+    cdef int z = 5
+    y = "hi"
+    return x in vars()
 
 def sorted(it):
     l = list(it)
