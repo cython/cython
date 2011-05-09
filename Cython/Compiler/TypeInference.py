@@ -178,8 +178,51 @@ class MarkAssignments(CythonTransform):
             node.is_parallel = True
 
         self.parallel_block_stack.append(node)
-        self.visitchildren(node)
-        self.parallel_block_stack.pop()
+
+        if node.is_prange:
+            child_attrs = node.child_attrs
+            node.child_attrs = ['body', 'target', 'args']
+            self.visitchildren(node)
+            node.child_attrs = child_attrs
+
+            self.parallel_block_stack.pop()
+            if node.else_clause:
+                node.else_clause = self.visit(node.else_clause)
+        else:
+            self.visitchildren(node)
+            self.parallel_block_stack.pop()
+
+        return node
+
+    def visit_BreakStatNode(self, node):
+        parnode = self.parallel_block_stack[-1]
+        parnode.break_label_used = True
+
+        if not parnode.is_prange and parnode.parent:
+            parnode.parent.break_label_used = True
+
+        return node
+
+    def visit_ContinueStatNode(self, node):
+        parnode = self.parallel_block_stack[-1]
+        parnode.continue_label_used = True
+
+        if not parnode.is_prange and parnode.parent:
+            parnode.parent.continue_label_used = True
+
+        return node
+
+    def visit_ReturnStatNode(self, node):
+        for parnode in self.parallel_block_stack:
+            parnode.return_label_used = True
+
+        return node
+
+    def visit_GilStatNode(self, node):
+        if node.state == 'gil':
+            for parnode in self.parallel_block_stack:
+                parnode.error_label_used = True
+
         return node
 
 

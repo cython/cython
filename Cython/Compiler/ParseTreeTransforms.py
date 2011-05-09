@@ -1005,8 +1005,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         Node class.
 
         E.g. for a cython.parallel.prange() call we return ParallelRangeNode
-
-        Also disallow break, continue and return in a prange section
         """
         if self.namenode_is_cython_module:
             directive = '.'.join(self.parallel_directive)
@@ -1032,7 +1030,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         """
         if node.parallel_directives:
             self.parallel_directives = node.parallel_directives
-            self.assignment_stack = []
             return self.visit_Node(node)
 
         # No parallel directives were imported, so they can't be used :)
@@ -1135,23 +1132,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
         self.visit(node.else_clause)
         return node
-
-    def ensure_not_in_prange(name):
-        "Creates error checking functions for break, continue and return"
-        def visit_method(self, node):
-            if self.in_prange:
-                error(node.pos,
-                      name + " not allowed in a parallel range section")
-
-            # Do a visit for 'return'
-            self.visitchildren(node)
-            return node
-
-        return visit_method
-
-    visit_BreakStatNode = ensure_not_in_prange("break")
-    visit_ContinueStatNode = ensure_not_in_prange("continue")
-    visit_ReturnStatNode = ensure_not_in_prange("return")
 
     def visit(self, node):
         "Visit a node that may be None"
