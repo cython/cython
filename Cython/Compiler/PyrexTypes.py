@@ -39,20 +39,14 @@ class BaseType(object):
         """
         return self
 
-    def get_fused_types(self, result=None, seen=None):
-        if self.subtypes:
-
-            def add_fused_types(types):
-                for type in types or ():
-                    if type not in seen:
-                        seen.add(type)
-                        result.append(type)
-
+    def get_fused_types(self, result=None, seen=None, subtypes=None):
+        subtypes = subtypes or self.subtypes
+        if subtypes:
             if result is None:
                 result = []
                 seen = cython.set()
 
-            for attr in self.subtypes:
+            for attr in subtypes:
                 list_or_subtype = getattr(self, attr)
 
                 if isinstance(list_or_subtype, BaseType):
@@ -1763,10 +1757,13 @@ class CFuncType(CType):
     #  with_gil         boolean    Acquire gil around function body
     #  templates        [string] or None
     #  cached_specialized_types [CFuncType]   cached specialized versions of the CFuncType if defined in a pxd
+    #  from_fused       boolean    Indicates whether this is a specialized
+    #                              C function
 
     is_cfunction = 1
     original_sig = None
     cached_specialized_types = None
+    from_fused = False
 
     subtypes = ['return_type', 'args']
 
@@ -1994,17 +1991,20 @@ class CFuncType(CType):
         else:
             new_templates = [v.specialize(values) for v in self.templates]
 
-        return CFuncType(self.return_type.specialize(values),
-                             [arg.specialize(values) for arg in self.args],
-                             has_varargs = 0,
-                             exception_value = self.exception_value,
-                             exception_check = self.exception_check,
-                             calling_convention = self.calling_convention,
-                             nogil = self.nogil,
-                             with_gil = self.with_gil,
-                             is_overridable = self.is_overridable,
-                             optional_arg_count = self.optional_arg_count,
-                             templates = new_templates)
+        result = CFuncType(self.return_type.specialize(values),
+                           [arg.specialize(values) for arg in self.args],
+                           has_varargs = 0,
+                           exception_value = self.exception_value,
+                           exception_check = self.exception_check,
+                           calling_convention = self.calling_convention,
+                           nogil = self.nogil,
+                           with_gil = self.with_gil,
+                           is_overridable = self.is_overridable,
+                           optional_arg_count = self.optional_arg_count,
+                           templates = new_templates)
+
+        result.from_fused = self.is_fused
+        return result
 
     def opt_arg_cname(self, arg_name):
         return self.op_arg_struct.base_type.scope.lookup(arg_name).cname
@@ -2040,6 +2040,10 @@ class CFuncType(CType):
         elif self.cached_specialized_types is not None:
             return self.cached_specialized_types
 
+
+        cfunc_entries = self.entry.scope.cfunc_entries
+        cfunc_entries.remove(self.entry)
+
         result = []
         permutations = self.get_all_specific_permutations()
         for cname, fused_to_specific in permutations:
@@ -2050,54 +2054,45 @@ class CFuncType(CType):
                 self.declare_opt_arg_struct(new_func_type, cname)
 
             new_entry = copy.deepcopy(self.entry)
-            new_entry.cname = self.get_specific_cname(cname)
+            new_func_type.specialize_entry(new_entry, cname)
 
             new_entry.type = new_func_type
             new_func_type.entry = new_entry
-
             result.append(new_func_type)
+
+            cfunc_entries.append(new_entry)
 
         self.cached_specialized_types = result
 
         return result
 
-    def get_specific_cname(self, fused_cname):
-        """
-        Given the cname for a permutation of fused types, return the cname
-        for the corresponding function with specific types.
-        """
-        assert self.is_fused
-        return get_fused_cname(fused_cname, self.entry.func_cname)
+    def get_fused_types(self, result=None, seen=None, subtypes=None):
+        "Return fused types in the order they appear as parameter types"
+        return super(CFuncType, self).get_fused_types(result, seen,
+                                                      subtypes=['args'])
 
+    def specialize_entry(self, entry, cname):
+        assert not self.is_fused
+
+        entry.name = get_fused_cname(cname, entry.name)
+
+        if entry.is_cmethod:
+            entry.cname = entry.name
+            if entry.is_inherited:
+                entry.cname = "%s.%s" % (Naming.obj_base_cname, entry.cname)
+        else:
+            entry.cname = get_fused_cname(cname, entry.cname)
+
+        if entry.func_cname:
+            entry.func_cname = get_fused_cname(cname, entry.func_cname)
 
 
 def get_fused_cname(fused_cname, orig_cname):
     """
     Given the fused cname id and an original cname, return a specialized cname
     """
+    assert fused_cname and orig_cname
     return '%s%s%s' % (Naming.fused_func_prefix, fused_cname, orig_cname)
-
-def map_with_specific_entries(entry, func, *args, **kwargs):
-    """
-    Call func for every specific function instance. If this is not a
-    signature with fused types, call it with the entry for this cdef
-    function.
-    """
-    type = entry.type
-
-    if type.is_cfunction and (entry.fused_cfunction or type.is_fused):
-        if entry.fused_cfunction:
-            # cdef with fused types defined in this file
-            for cfunction in entry.fused_cfunction.nodes:
-                func(cfunction.entry, *args, **kwargs)
-        else:
-            # cdef with fused types defined in another file, create their
-            # signatures
-            for func_type in type.get_all_specific_function_types():
-                func(func_type.entry, *args, **kwargs)
-    else:
-        # a normal cdef or not a c function
-        func(entry, *args, **kwargs)
 
 def get_all_specific_permutations(fused_types, id="", f2s=()):
     fused_type = fused_types[0]

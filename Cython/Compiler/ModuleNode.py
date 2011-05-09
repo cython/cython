@@ -156,19 +156,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f.close()
 
     def generate_public_declaration(self, entry, h_code, i_code):
-        PyrexTypes.map_with_specific_entries(entry,
-                                             self._generate_public_declaration,
-                                             h_code,
-                                             i_code)
-
-    def _generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
             Naming.extern_c_macro,
             entry.type.declaration_code(
-                    entry.cname, dll_linkage = "DL_IMPORT")))
+                entry.cname, dll_linkage = "DL_IMPORT")))
         if i_code:
             i_code.putln("cdef extern %s" %
-                entry.type.declaration_code(cname, pyrex = 1))
+                entry.type.declaration_code(entry.cname, pyrex = 1))
 
     def api_name(self, env):
         return env.qualified_name.replace(".", "__")
@@ -992,39 +986,38 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             dll_linkage = "DL_EXPORT", definition = definition)
 
     def generate_cfunction_predeclarations(self, env, code, definition):
-        func = self._generate_cfunction_predeclaration
         for entry in env.cfunc_entries:
-            PyrexTypes.map_with_specific_entries(entry, func, code, definition)
+            should_declare = (not entry.in_cinclude and
+                              (definition or entry.defined_in_pxd or
+                               entry.visibility == 'extern'))
 
-    def _generate_cfunction_predeclaration(self, entry, code, definition):
-        if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
-                or entry.defined_in_pxd or entry.visibility == 'extern')):
-            if entry.visibility == 'public':
-                storage_class = "%s " % Naming.extern_c_macro
-                dll_linkage = "DL_EXPORT"
-            elif entry.visibility == 'extern':
-                storage_class = "%s " % Naming.extern_c_macro
-                dll_linkage = "DL_IMPORT"
-            elif entry.visibility == 'private':
-                storage_class = "static "
-                dll_linkage = None
-            else:
-                storage_class = "static "
-                dll_linkage = None
-            type = entry.type
+            if entry.used and (entry.inline_func_in_pxd or should_declare):
+                if entry.visibility == 'public':
+                    storage_class = "%s " % Naming.extern_c_macro
+                    dll_linkage = "DL_EXPORT"
+                elif entry.visibility == 'extern':
+                    storage_class = "%s " % Naming.extern_c_macro
+                    dll_linkage = "DL_IMPORT"
+                elif entry.visibility == 'private':
+                    storage_class = "static "
+                    dll_linkage = None
+                else:
+                    storage_class = "static "
+                    dll_linkage = None
+                type = entry.type
 
-            if not definition and entry.defined_in_pxd:
-                type = CPtrType(type)
-            header = type.declaration_code(entry.cname,
-                                           dll_linkage = dll_linkage)
-            if entry.func_modifiers:
-                modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
-            else:
-                modifiers = ''
-            code.putln("%s%s%s; /*proto*/" % (
-                storage_class,
-                modifiers,
-                header))
+                if not definition and entry.defined_in_pxd:
+                    type = CPtrType(type)
+                header = type.declaration_code(entry.cname,
+                                               dll_linkage = dll_linkage)
+                if entry.func_modifiers:
+                    modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
+                else:
+                    modifiers = ''
+                code.putln("%s%s%s; /*proto*/" % (
+                    storage_class,
+                    modifiers,
+                    header))
 
     def generate_typeobj_definitions(self, env, code):
         full_module_name = env.qualified_name
@@ -2048,28 +2041,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_c_function_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.
-        func = self._generate_c_function_export_code
         for entry in env.cfunc_entries:
-            from_fused = entry.type.is_fused
             if entry.api or entry.defined_in_pxd:
-                PyrexTypes.map_with_specific_entries(entry, func, env,
-                                                     code, from_fused)
-
-    def _generate_c_function_export_code(self, entry, env, code, from_fused):
-        env.use_utility_code(function_export_utility_code)
-        signature = entry.type.signature_string()
-        s = 'if (__Pyx_ExportFunction("%s", (void (*)(void))%s, "%s") < 0) %s'
-
-        if from_fused:
-            # Specific version of a fused function. Fused functions can never
-            # be declared public or api, but they may need to be exported when
-            # declared in a .pxd. We need to give them a unique name in that
-            # case
-            name = entry.cname
-        else:
-            name = entry.name
-
-        code.putln(s % (name, entry.cname, signature, code.error_goto(self.pos)))
+                env.use_utility_code(function_export_utility_code)
+                signature = entry.type.signature_string()
+                code.putln('if (__Pyx_ExportFunction("%s", (void (*)(void))%s, "%s") < 0) %s' % (
+                    entry.name,
+                    entry.cname,
+                    signature,
+                    code.error_goto(self.pos)))
 
     def generate_type_import_code_for_module(self, module, env, code):
         # Generate type import code for all exported extension types in
@@ -2095,29 +2075,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module.qualified_name,
                     temp,
                     code.error_goto(self.pos)))
-
             for entry in entries:
-                PyrexTypes.map_with_specific_entries(entry,
-                                                     self._import_cdef_func,
-                                                     code,
-                                                     temp,
-                                                     entry.type.is_fused)
-
+                code.putln(
+                    'if (__Pyx_ImportFunction(%s, "%s", (void (**)(void))&%s, "%s") < 0) %s' % (
+                        temp,
+                        entry.name,
+                        entry.cname,
+                        entry.type.signature_string(),
+                        code.error_goto(self.pos)))
             code.putln("Py_DECREF(%s); %s = 0;" % (temp, temp))
-
-    def _import_cdef_func(self, entry, code, temp, from_fused):
-        if from_fused:
-            name = entry.cname
-        else:
-            name = entry.name
-
-        code.putln(
-            'if (__Pyx_ImportFunction(%s, "%s", (void (**)(void))&%s, "%s") < 0) %s' % (
-                temp,
-                name,
-                entry.cname,
-                entry.type.signature_string(),
-                code.error_goto(self.pos)))
 
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types

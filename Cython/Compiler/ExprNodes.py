@@ -595,7 +595,10 @@ class ExprNode(Node):
 
                 for signature in src_type.get_all_specific_function_types():
                     if signature.same_as(dst_type):
-                        return CoerceFusedToSpecific(src, signature)
+                        src.type = signature
+                        src.entry = src.type.entry
+                        src.entry.used = True
+                        return self
 
             error(self.pos, "Type is not specific")
             self.type = error_type
@@ -2330,10 +2333,9 @@ class IndexNode(ExprNode):
         NameNode with specific entry just after analysis of expressions by
         AnalyseExpressionsTransform.
         """
-        base_type = self.base.type
-
         self.type = PyrexTypes.error_type
 
+        base_type = self.base.type
         specific_types = []
         positions = []
 
@@ -2378,6 +2380,15 @@ class IndexNode(ExprNode):
             for signature in self.base.type.get_all_specific_function_types():
                 if type.same_as(signature):
                     self.type = signature
+
+                    if self.base.is_attribute:
+                        # Pretend to be a normal attribute, for cdef extension
+                        # methods
+                        self.entry = signature.entry
+                        self.is_attribute = self.base.is_attribute
+                        self.obj = self.base.obj
+                        self.entry.used = True
+
                     break
             else:
                 assert False
@@ -3026,11 +3037,13 @@ class SimpleCallNode(CallNode):
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
+
         if function.is_attribute and function.entry and function.entry.is_cmethod:
             # Take ownership of the object from which the attribute
             # was obtained, because we need to pass it as 'self'.
             self.self = function.obj
             function.obj = CloneNode(self.self)
+
         func_type = self.function_type()
         if func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
@@ -3111,15 +3124,13 @@ class SimpleCallNode(CallNode):
         elif (isinstance(self.function, IndexNode) and
               self.function.base.type.is_fused):
             overloaded_entry = self.function.type.entry
-            self.function.entry = self.function.type.entry
         else:
             overloaded_entry = None
 
         if overloaded_entry:
             if self.function.type.is_fused:
-                alternatives = []
-                PyrexTypes.map_with_specific_entries(self.function.entry,
-                                                     alternatives.append)
+                functypes = self.function.type.get_all_specific_function_types()
+                alternatives = [f.entry for f in functypes]
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
@@ -3129,6 +3140,8 @@ class SimpleCallNode(CallNode):
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
+
+            entry.used = True
             self.function.entry = entry
             self.function.type = entry.type
             func_type = self.function_type()
@@ -3812,6 +3825,12 @@ class AttributeNode(ExprNode):
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if obj.type.is_extension_type:
+                # If the attribute was specialized through indexing, make sure
+                # to get the right fused name, as our entry was replaced by our
+                # parent index node (AnalyseExpressionsTransform)
+                if self.type.from_fused:
+                    self.member = self.entry.cname
+
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
                     obj.type.vtabslot_cname, self.member)
@@ -7379,18 +7398,6 @@ class CoercionNode(ExprNode):
             file, line, col = self.pos
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
-class CoerceFusedToSpecific(CoercionNode):
-
-    def __init__(self, arg, dst_type):
-        super(CoerceFusedToSpecific, self).__init__(arg)
-        self.type = dst_type
-        self.specialized_cname = dst_type.entry.cname
-
-    def calculate_result_code(self):
-        return self.specialized_cname
-
-    def generate_result_code(self, code):
-        pass
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.

@@ -1749,7 +1749,6 @@ class CFuncDefNode(FuncDefNode):
     inline_in_pxd = False
     decorators = None
     directive_locals = None
-    cname_postfix = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -2050,6 +2049,8 @@ class FusedCFuncDefNode(StatListNode):
             if n.cfunc_declarator.optional_arg_count:
                 assert n.type.op_arg_struct
 
+            assert n.type.entry
+
         assert node.type.is_fused
 
         node.entry.fused_cfunction = self
@@ -2065,19 +2066,29 @@ class FusedCFuncDefNode(StatListNode):
         # print 'Node %s has %d specializations:' % (self.node.entry.name,
         #                                            len(permutations))
         # import pprint; pprint.pprint([d for cname, d in permutations])
+
+        env.cfunc_entries.remove(self.node.entry)
+
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
 
             # Make the types in our CFuncType specific
-            newtype = copied_node.type.specialize(fused_to_specific)
-            copied_node.type = newtype
-            copied_node.entry.type = newtype
-            newtype.entry = copied_node.entry
+            type = copied_node.type.specialize(fused_to_specific)
+            entry = copied_node.entry
 
-            self.node.cfunc_declarator.declare_optional_arg_struct(
-                                   newtype, env, fused_cname=cname)
+            copied_node.type = type
+            entry.type, type.entry = type, entry
 
-            copied_node.return_type = newtype.return_type
+            entry.used = (entry.used or
+                          self.node.entry.defined_in_pxd or
+                          env.is_c_class_scope or
+                          entry.is_cmethod)
+
+            if self.node.cfunc_declarator.optional_arg_count:
+                self.node.cfunc_declarator.declare_optional_arg_struct(
+                                           type, env, fused_cname=cname)
+
+            copied_node.return_type = type.return_type
             copied_node.create_local_scope(env)
             copied_node.local_scope.fused_to_specific = fused_to_specific
 
@@ -2090,8 +2101,8 @@ class FusedCFuncDefNode(StatListNode):
             for arg in copied_node.cfunc_declarator.args:
                 arg.type = arg.type.specialize(fused_to_specific)
 
-            cname = self.node.type.get_specific_cname(cname)
-            copied_node.entry.func_cname = copied_node.entry.cname = cname
+            type.specialize_entry(entry, cname)
+            env.cfunc_entries.append(entry)
 
             num_errors = Errors.num_errors
             transform = ParseTreeTransforms.ReplaceFusedTypeChecks(
@@ -2100,6 +2111,23 @@ class FusedCFuncDefNode(StatListNode):
 
             if Errors.num_errors > num_errors:
                 break
+
+    def generate_function_definitions(self, env, code):
+        for stat in self.stats:
+            # print stat.entry, stat.entry.used
+            if stat.entry.used:
+                stat.generate_function_definitions(env, code)
+
+    def generate_execution_code(self, code):
+        for stat in self.stats:
+            if stat.entry.used:
+                code.mark_pos(stat.pos)
+                stat.generate_execution_code(code)
+
+    def annotate(self, code):
+        for stat in self.stats:
+            if stat.entry.used:
+                stat.annotate(code)
 
 
 class PyArgDeclNode(Node):

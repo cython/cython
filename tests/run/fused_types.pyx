@@ -169,8 +169,7 @@ cdef opt_args(integral x, floating y = 4.0):
 
 def test_opt_args():
     """
-    ToDO: enable and fix
-    test_opt_args()
+    >>> test_opt_args()
     3 4.0
     3 4.0
     3 4.0

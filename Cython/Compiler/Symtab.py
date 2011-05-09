@@ -734,6 +734,7 @@ class Scope(object):
         else:
             return outer.is_cpp()
 
+
 class PreImportScope(Scope):
 
     namespace_cname = Naming.preimport_cname
@@ -1696,6 +1697,7 @@ class CClassScope(ClassScope):
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
+        type.entry = entry
         return entry
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -1744,6 +1746,14 @@ class CClassScope(ClassScope):
                     base_entry.type, None, 'private')
                 entry.is_variable = 1
                 self.inherited_var_entries.append(entry)
+
+        # If the class defined in a pxd, specific entries have not been added.
+        # Ensure now that the parent (base) scope has specific entries
+        # Iterate over a copy as get_all_specific_function_types() will mutate
+        for base_entry in base_scope.cfunc_entries[:]:
+            if base_entry.type.is_fused:
+                base_entry.type.get_all_specific_function_types()
+
         for base_entry in base_scope.cfunc_entries:
             entry = self.add_cfunction(base_entry.name, base_entry.type,
                                        base_entry.pos, adapt(base_entry.cname),
@@ -1819,6 +1829,7 @@ class CppClassScope(Scope):
         if prev_entry:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
+        type.entry = entry
         return entry
 
     def declare_inherited_cpp_attributes(self, base_scope):

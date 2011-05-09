@@ -1344,20 +1344,17 @@ class AnalyseExpressionsTransform(CythonTransform):
     def visit_IndexNode(self, node):
         """
         Replace index nodes used to specialize cdef functions with fused
-        argument types with a NameNode referring to the function with
-        specialized entry and type.
+        argument types with the Attribute- or NameNode referring to the
+        function. We then need to copy over the specialization properties to
+        the attribute or name node.
         """
         self.visit_Node(node)
         type = node.type
 
         if type.is_cfunction and node.base.type.is_fused:
+            node.base.type = node.type
+            node.base.entry = node.type.entry
             node = node.base
-            if not node.is_name:
-                error(node.pos, "Can only index a fused function once")
-                node.type = PyrexTypes.error_type
-            else:
-                node.type = type
-                node.entry = type.entry
 
         return node
 

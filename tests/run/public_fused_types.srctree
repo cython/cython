@@ -39,6 +39,12 @@ cdef object_t add_simple(object_t obj, simple_t simple)
 cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple)
 cdef public_optional_args(object_t obj, simple_t simple = *)
 
+ctypedef cython.fused_type(float, double) floating
+ctypedef cython.fused_type(int, long) integral
+
+cdef class TestFusedExtMethods(object):
+    cdef floating method(self, integral x, floating y)
+
 ######## header.h ########
 
 typedef int extern_int;
@@ -57,6 +63,16 @@ cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple):
 
 cdef public_optional_args(object_t obj, simple_t simple = 6):
     return obj.a, simple
+
+cdef class TestFusedExtMethods(object):
+    cdef floating method(self, integral x, floating y):
+        if integral is int:
+            x += 1
+
+        if floating is double:
+            y += 2.0
+
+        return x + y
 
 ######## b.pyx ########
 
@@ -92,3 +108,42 @@ assert public_optional_args[mystruct_t, int](mystruct) == (5, 6)
 
 assert public_optional_args[mystruct_t, float](mystruct) == (5, 6.0)
 assert public_optional_args[mystruct_t, float](mystruct, 7.0) == (5, 7.0)
+
+
+cdef TestFusedExtMethods obj = TestFusedExtMethods()
+
+cdef int x = 4
+cdef float y = 5.0
+cdef long a = 6
+cdef double b = 7.0
+
+cdef double (*func)(TestFusedExtMethods, long, double)
+
+func = obj.method
+assert func(obj, a, b) == 15.0
+
+func = <double (*)(TestFusedExtMethods, long, double)> obj.method
+assert func(obj, x, y) == 11.0
+
+func = obj.method[long, double]
+assert func(obj, a, y) == 13.0
+
+assert obj.method(x, <double> a) == 13.0
+assert obj.method[int, double](x, b) == 14.0
+
+
+# Test inheritance
+cdef class Subclass(TestFusedExtMethods):
+    cdef floating method(self, integral x, floating y):
+        return -x -y
+
+cdef Subclass myobj = Subclass()
+assert myobj.method[int, float](5, 5.0) == -10
+
+cdef float (*meth)(Subclass, int, float)
+meth = myobj.method
+assert meth(myobj, 5, 5.0) == -10
+
+meth = myobj.method[int, float]
+assert meth(myobj, 5, 5.0) == -10
+
