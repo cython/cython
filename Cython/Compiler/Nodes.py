@@ -5839,6 +5839,13 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     is_prange = False
 
+
+    # Labels to break out of parallel constructs
+    break_label_used = False
+    continue_label_used = False
+    error_label_used = False
+    return_label_used = False
+
     def __init__(self, pos, **kwargs):
         super(ParallelStatNode, self).__init__(pos, **kwargs)
 
@@ -6062,6 +6069,103 @@ class ParallelStatNode(StatNode, ParallelNode):
             code.funcstate.release_temp(entry.cname)
             entry.cname = original_cname
 
+    def setup_control_flow_variables_block(self, code):
+        """
+        Sets up any needed variables outside the parallel block to determine
+        how the parallel block was left. Inside the any kind of return is
+        trapped (break, continue, return, exceptions). This is the idea:
+
+        {
+            int returning = 0;
+
+            #pragma omp parallel
+            {
+                return # -> goto new_return_label;
+                goto end_parallel;
+
+            new_return_label:
+                returning = 1;
+                #pragma omp flush(returning)
+                goto end_parallel;
+            end_parallel:;
+            }
+
+            if (returning)
+                goto old_return_label;
+        }
+        """
+        self.need_returning_guard = (self.break_label_used or
+                                     self.error_label_used or
+                                     self.return_label_used)
+
+        self.any_label_used =  (self.need_returning_guard or
+                                self.continue_label_used)
+
+        if not self.any_label_used:
+            return
+
+        self.old_loop_labels = code.new_loop_labels()
+        self.old_error_label = code.new_error_label()
+        self.old_return_label = code.return_label
+        code.return_label = code.new_label(name="return")
+
+        self.labels = (
+            (Naming.parallel_break,    'break_label',    self.break_label_used),
+            (Naming.parallel_continue, 'continue_label', self.continue_label_used),
+            (Naming.parallel_error,    'error_label',    self.error_label_used),
+            (Naming.parallel_return,   'return_label',   self.return_label_used),
+        )
+
+        code.begin_block() # control flow variables block
+
+        for var, label_name, label_used in self.labels:
+            if label_used:
+                code.putln("int %s = 0;" % var)
+
+    def trap_parallel_exit(self, code, should_flush=False):
+        """
+        Trap any kind of return inside a parallel construct. 'should_flush'
+        indicates whether the variable should be flushed, which is needed by
+        prange to skip the loop.
+        """
+        if not self.any_label_used:
+            return
+
+        dont_return_label = code.new_label()
+        code.put_goto(dont_return_label)
+
+        for var, label_name, label_used in self.labels:
+            if label_used:
+                label = getattr(code, label_name)
+                code.put_label(label)
+
+                code.putln("%s = 1;" % var)
+                if should_flush:
+                    code.putln_openmp("#pragma omp flush(%s)" % var)
+
+                code.put_goto(dont_return_label)
+
+        code.put_label(dont_return_label)
+
+    def restore_labels(self, code):
+        if self.any_label_used:
+            code.set_all_labels(self.old_loop_labels + (self.old_return_label,
+                                                        self.old_error_label))
+
+    def end_control_flow_variables_block(self, code):
+        if not self.any_label_used:
+            return
+
+        if self.return_label_used:
+            code.put("if (%s) " % Naming.parallel_return)
+            code.put_goto(code.return_label)
+
+        if self.error_label_used:
+            code.put("if (%s) " % Naming.parallel_error)
+            code.put_goto(code.error_label)
+
+        code.end_block() # end control flow variables block
+
 
 class ParallelWithBlockNode(ParallelStatNode):
     """
@@ -6082,13 +6186,14 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     def generate_execution_code(self, code):
         self.declare_closure_privates(code)
+        self.setup_control_flow_variables_block(code) # control vars block
 
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
 
         if self.privates:
-            code.put(
-                'private(%s)' % ', '.join([e.cname for e in self.privates]))
+            privates = [e.cname for e in self.privates]
+            code.put('private(%s)' % ', '.join(privates))
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)
@@ -6096,11 +6201,23 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         code.putln("#endif /* _OPENMP */")
 
-        code.begin_block()
+        code.begin_block() # parallel block
         self.initialize_privates_to_nan(code)
         self.body.generate_execution_code(code)
-        code.end_block()
+        self.trap_parallel_exit(code)
+        code.end_block() # end parallel block
 
+        self.restore_labels(code)
+
+        if self.break_label_used:
+            code.put("if (%s) " % Naming.parallel_break)
+            code.put_goto(code.break_label)
+
+        if self.continue_label_used:
+            code.put("if (%s) " % Naming.parallel_continue)
+            code.put_goto(code.continue_label)
+
+        self.end_control_flow_variables_block(code) # end control vars block
         self.release_closure_privates(code)
 
 
@@ -6285,6 +6402,13 @@ class ParallelRangeNode(ParallelStatNode):
         # 'with gil' block. For now, just abort
         code.putln("if (%(step)s == 0) abort();" % fmt_dict)
 
+        self.setup_control_flow_variables_block(code) # control flow vars block
+
+        if self.need_returning_guard:
+            self.used_control_flow_vars = "(%s)" % " || ".join([
+                    var for var, label_name, label_used in self.labels
+                            if label_used and label_name != 'continue_label'])
+
         # Note: nsteps is private in an outer scope if present
         code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
 
@@ -6295,12 +6419,24 @@ class ParallelRangeNode(ParallelStatNode):
         # erroneously believes that nsteps may be <= 0, leaving the private
         # target index uninitialized
         code.putln("if (%(nsteps)s > 0)" % fmt_dict)
-        code.begin_block()
+        code.begin_block() # if block
         code.putln("%(target)s = 0;" % fmt_dict)
-
         self.generate_loop(code, fmt_dict)
+        code.end_block() # end if block
 
-        code.end_block()
+        self.restore_labels(code)
+
+        if self.else_clause:
+            if self.need_returning_guard:
+                code.put("if (!%s)" % self.used_control_flow_vars)
+
+            code.begin_block() # else block
+            code.putln("/* else */")
+            self.else_clause.generate_execution_code(code)
+            code.end_block() # end else block
+
+        # ------ cleanup ------
+        self.end_control_flow_variables_block(code) # end control flow vars block
 
         # And finally, release our privates and write back any closure
         # variables
@@ -6338,7 +6474,10 @@ class ParallelRangeNode(ParallelStatNode):
             c = self.parent.privatization_insertion_point
             c.put(" private(%(nsteps)s)" % fmt_dict)
 
-        self.put_num_threads(code)
+        if self.is_parallel:
+            self.put_num_threads(code)
+        else:
+            self.put_num_threads(self.parent.privatization_insertion_point)
 
         self.privatization_insertion_point = code.insertion_point()
 
@@ -6346,13 +6485,22 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("#endif /* _OPENMP */")
 
         code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
-        code.begin_block()
+        code.begin_block() # for loop block
+
+        if self.need_returning_guard:
+            code.put("if (!%s) " % self.used_control_flow_vars)
+            code.begin_block() # return/break/error guard body block
+
         code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
-
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
-
         self.body.generate_execution_code(code)
-        code.end_block()
+
+        if self.need_returning_guard:
+            code.end_block() # return/break/error guard body block
+
+        self.trap_parallel_exit(code, should_flush=True)
+
+        code.end_block() # end for loop block
 
 
 #------------------------------------------------------------------------------------

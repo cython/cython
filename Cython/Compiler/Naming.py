@@ -97,6 +97,14 @@ binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 
 genexpr_id_ref = 'genexpr'
 
+# These labels are needed for break, return and exception paths through
+# parallel code sections. These are the variables that remember which path
+# should be taken after the parallel section
+parallel_error = pyrex_prefix + "parallel_error"
+parallel_return = pyrex_prefix + "parallel_return"
+parallel_break = pyrex_prefix + "parallel_break"
+parallel_continue = pyrex_prefix + "parallel_continue"
+
 line_c_macro = "__LINE__"
 
 file_c_macro = "__FILE__"
