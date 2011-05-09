@@ -130,6 +130,8 @@ class ControlFlow(object):
     def is_tracked(self, entry):
         if entry.is_anonymous:
             return False
+        if entry.type.is_array or entry.type.is_struct_or_union:
+            return False
         return entry.is_local or entry.is_pyclass_attr or entry.is_arg
 
     def mark_position(self, node):
@@ -394,9 +396,6 @@ def check_definitions(flow, compiler_directives):
                             pass
                         elif stat.entry.type.is_pyobject or stat.entry.type.is_unspecified:
                             messages.error(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
-                        elif not stat.entry.type.is_array and not stat.entry.type.is_struct_or_union:
-                            # TODO: not sure here
-                            messages.warning(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
                     else:
                         if compiler_directives['warn.maybe_uninitialized']:
                             messages.warning(stat.pos, "local variable '%s' might be referenced before assignment" % stat.entry.name)
