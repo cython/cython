@@ -82,6 +82,9 @@ class MarkAssignments(CythonTransform):
                                                  '+',
                                                  sequence.args[0],
                                                  sequence.args[2]))
+                elif function.name == 'reversed' and len(sequence.args) == 1:
+                    sequence = sequence.args[0]
+
         if not is_special:
             # A for-loop basically translates to subsequent calls to
             # __getitem__(), so using an IndexNode here allows us to
