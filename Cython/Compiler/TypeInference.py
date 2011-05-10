@@ -70,6 +70,10 @@ class MarkAssignments(CythonTransform):
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
+            if function.name == 'reversed' and len(sequence.args) == 1:
+                sequence = sequence.args[0]
+        if isinstance(sequence, ExprNodes.SimpleCallNode):
+            function = sequence.function
             if sequence.self is None and function.is_name:
                 if function.name in ('range', 'xrange'):
                     is_special = True
@@ -82,8 +86,6 @@ class MarkAssignments(CythonTransform):
                                                  '+',
                                                  sequence.args[0],
                                                  sequence.args[2]))
-                elif function.name == 'reversed' and len(sequence.args) == 1:
-                    sequence = sequence.args[0]
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
