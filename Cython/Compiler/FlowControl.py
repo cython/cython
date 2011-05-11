@@ -1,3 +1,4 @@
+
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, ModuleNode=object,
@@ -392,9 +393,7 @@ def check_definitions(flow, compiler_directives):
                     if stat.entry.from_closure or stat.node.allow_null:
                         pass # Can be uninitialized here
                     elif len(state[stat.entry]) == 1:
-                        if stat.entry.type.is_buffer:
-                            pass
-                        elif stat.entry.type.is_pyobject or stat.entry.type.is_unspecified:
+                        if stat.entry.type.is_pyobject or stat.entry.type.is_unspecified:
                             messages.error(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
                     else:
                         if compiler_directives['warn.maybe_uninitialized']:
@@ -420,10 +419,6 @@ def check_definitions(flow, compiler_directives):
 
     for entry in flow.entries:
         if not entry.cf_references and not entry.is_pyclass_attr and not entry.in_closure:
-            # TODO: handle unused buffers
-            if entry.type.is_buffer:
-                entry.cf_used = True
-                continue
             # TODO: starred args entries are not marked with is_arg flag
             for assmt in entry.cf_assignments:
                 if assmt.is_arg:
