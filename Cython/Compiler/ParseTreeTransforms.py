@@ -1318,20 +1318,21 @@ if VALUE is not None:
         # ---------------------------------------
         return property
 
-class AnalyseExpressionsTransform(CythonTransform):
-
-    nested_index_node = False
+class AnalyseExpressionsTransform(EnvTransform):
 
     def visit_ModuleNode(self, node):
+        self.env_stack = [node.scope]
         node.scope.infer_types()
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
+        self.env_stack.append(node.local_scope)
         node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
+        self.env_stack.pop()
         return node
 
     def visit_ScopedExprNode(self, node):
@@ -1347,14 +1348,23 @@ class AnalyseExpressionsTransform(CythonTransform):
         argument types with the Attribute- or NameNode referring to the
         function. We then need to copy over the specialization properties to
         the attribute or name node.
+
+        Because the indexing might be a Python indexing operation on a fused
+        function, or (usually) a Cython indexing operation, we need to
+        re-analyse the types.
         """
         self.visit_Node(node)
         type = node.type
 
-        if type.is_cfunction and node.base.type.is_fused:
-            node.base.type = node.type
-            node.base.entry = node.type.entry
-            node = node.base
+        if node.is_fused_index:
+            if node.type is PyrexTypes.error_type:
+                node.type = PyrexTypes.error_type
+            else:
+                node.base.type = node.type
+                node.base.entry = getattr(node, 'entry', None) or node.type.entry
+                node = node.base
+
+                node.analyse_types(self.env_stack[-1])
 
         return node
 

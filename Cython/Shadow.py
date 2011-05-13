@@ -135,6 +135,9 @@ class PointerType(CythonType):
         else:
             return not self._items and not value._items
 
+    def __repr__(self):
+        return "%s *" % (self._basetype,)
+
 class ArrayType(PointerType):
 
     def __init__(self):
@@ -218,12 +221,16 @@ def union(**members):
 
 class typedef(CythonType):
 
-    def __init__(self, type):
+    def __init__(self, type, name=None):
         self._basetype = type
+        self.name = name
 
     def __call__(self, *arg):
         value = cast(self._basetype, *arg)
         return value
+
+    def __repr__(self):
+        return self.name or str(self._basetype)
 
 class _FusedType(CythonType):
 
@@ -235,6 +242,7 @@ def fused_type(*args):
     if not args:
         raise TypeError("Expected at least one type as argument")
 
+    # Find the numeric type with biggest rank if all types are numeric
     rank = -1
     for type in args:
         if type not in (py_int, py_long, py_float, py_complex):
@@ -251,13 +259,18 @@ def fused_type(*args):
     return _FusedType()
 
 
-py_int = int
+def _specialized_from_args(signatures, args, kwargs):
+    "Perhaps this should be implemented in a TreeFragment in Cython code"
+    raise Exception("yet to be implemented")
+
+
+py_int = typedef(int, "int")
 try:
-    py_long = long
+    py_long = typedef(long, "long")
 except NameError: # Py3
-    py_long = int
-py_float = float
-py_complex = complex
+    py_long = typedef(int, "long")
+py_float = typedef(float, "float")
+py_complex = typedef(complex, "complex")
 
 
 try:
@@ -278,28 +291,39 @@ float_types = ['longdouble', 'double', 'float']
 complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
 other_types = ['bint', 'void']
 
+to_repr = {
+    'longlong': 'long long',
+    'longdouble': 'long double',
+    'longdoublecomplex': 'long double complex',
+    'doublecomplex': 'double complex',
+    'floatcomplex': 'float complex',
+}.get
+
 gs = globals()
 
 for name in int_types:
-    gs[name] = typedef(py_int)
+    reprname = to_repr(name, name)
+    gs[name] = typedef(py_int, reprname)
     if name != 'Py_UNICODE' and not name.endswith('size_t'):
-        gs['u'+name] = typedef(py_int)
-        gs['s'+name] = typedef(py_int)
+        gs['u'+name] = typedef(py_int, "unsigned " + reprname)
+        gs['s'+name] = typedef(py_int, "signed " + reprname)
 
 for name in float_types:
-    gs[name] = typedef(py_float)
+    gs[name] = typedef(py_float, to_repr(name, name))
 
 for name in complex_types:
-    gs[name] = typedef(py_complex)
+    gs[name] = typedef(py_complex, to_repr(name, name))
 
-bint = typedef(bool)
-void = typedef(int)
+bint = typedef(bool, "bint")
+void = typedef(int, "void")
 
 for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
         gs["%s_%s" % ('p'*i, t)] = globals()[t]._pointer(i)
 
-void = typedef(None)
+void = typedef(None, "void")
 NULL = p_void(0)
+
+integral = floating = numeric = _FusedType()
 
 type_ordering = [py_int, py_long, py_float, py_complex]

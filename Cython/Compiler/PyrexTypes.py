@@ -666,15 +666,15 @@ class FusedType(PyrexType):
 
     See http://wiki.cython.org/enhancements/fusedtypes
 
-    types           [CSimpleBaseTypeNode]   is the list of types to be fused
+    types           [PyrexType]             is the list of types to be fused
     name            str                     the name of the ctypedef
     """
 
     is_fused = 1
-    name = None
 
-    def __init__(self, types):
+    def __init__(self, types, name=None):
         self.types = types
+        self.name = name
 
     def declaration_code(self, entity_code, for_display = 0,
                          dll_linkage = None, pyrex = 0):
@@ -2079,7 +2079,8 @@ class CFuncType(CType):
         if entry.is_cmethod:
             entry.cname = entry.name
             if entry.is_inherited:
-                entry.cname = "%s.%s" % (Naming.obj_base_cname, entry.cname)
+                entry.cname = StringEncoding.EncodedString(
+                        "%s.%s" % (Naming.obj_base_cname, entry.cname))
         else:
             entry.cname = get_fused_cname(cname, entry.cname)
 
@@ -2092,7 +2093,8 @@ def get_fused_cname(fused_cname, orig_cname):
     Given the fused cname id and an original cname, return a specialized cname
     """
     assert fused_cname and orig_cname
-    return '%s%s%s' % (Naming.fused_func_prefix, fused_cname, orig_cname)
+    return StringEncoding.EncodedString('%s%s%s' % (Naming.fused_func_prefix,
+                                                    fused_cname, orig_cname))
 
 def get_all_specific_permutations(fused_types, id="", f2s=()):
     fused_type = fused_types[0]
@@ -2630,6 +2632,17 @@ c_size_t_ptr_type =  CPtrType(c_size_t_type)
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
+
+# Not sure whether the unsigned versions and 'long long' should be in there
+# long long requires C99 and might be slow, and would always get preferred
+# when specialization happens through calling and not indexing
+cy_integral_type = FusedType([c_int_type, c_long_type], name="integral")
+# Omitting long double as it might be slow
+cy_floating_type = FusedType([c_float_type, c_double_type], name="floating")
+cy_numeric_type = FusedType([c_long_type,
+                             c_double_type,
+                             c_double_complex_type], name="numeric")
+
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()

@@ -16,6 +16,13 @@ class CythonScope(ModuleScope):
                                                   defining = 1,
                                                   cname='<error>')
 
+        for fused_type in (cy_integral_type, cy_floating_type, cy_numeric_type):
+            entry = self.declare_typedef(fused_type.name,
+                                         fused_type,
+                                         None,
+                                         cname='<error>')
+            entry.in_cinclude = True
+
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
         type = parse_basic_type(name)

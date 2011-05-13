@@ -1823,8 +1823,12 @@ class CFuncDefNode(FuncDefNode):
                 # An error will be produced in the cdef function
                 self.overridable = False
 
+        self.declare_cpdef_wrapper(env)
+        self.create_local_scope(env)
+
+    def declare_cpdef_wrapper(self, env):
         if self.overridable:
-            import ExprNodes
+            name = self.entry.name
             py_func_body = self.call_self_node(is_module_scope = env.is_module_scope)
             self.py_func = DefNode(pos = self.pos,
                                    name = self.entry.name,
@@ -1842,7 +1846,6 @@ class CFuncDefNode(FuncDefNode):
             if not env.is_module_scope or Options.lookup_module_cpdef:
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
-        self.create_local_scope(env)
 
     def _validate_type_visibility(self, type, pos, env):
         """
@@ -2025,16 +2028,15 @@ class FusedCFuncDefNode(StatListNode):
     Then when a function lookup occurs (to e.g. call it), the call can be
     dispatched to the right function.
 
-    node   FuncDefNode    the original function
-    nodes  [FuncDefNode]  list of copies of node with different specific types
+    node    FuncDefNode    the original function
+    nodes   [FuncDefNode]  list of copies of node with different specific types
+    py_func DefNode       the original python function (in case of a cpdef)
     """
-
-    child_attrs = ['nodes']
 
     def __init__(self, node, env):
         super(FusedCFuncDefNode, self).__init__(node.pos)
 
-        self.nodes = self.stats = []
+        self.nodes = []
         self.node = node
 
         self.copy_cdefs(env)
@@ -2055,6 +2057,10 @@ class FusedCFuncDefNode(StatListNode):
 
         node.entry.fused_cfunction = self
 
+        self.stats = self.nodes[:]
+        if self.py_func:
+            self.stats.append(self.py_func)
+
     def copy_cdefs(self, env):
         """
         Gives a list of fused types and the parent environment, make copies
@@ -2067,7 +2073,16 @@ class FusedCFuncDefNode(StatListNode):
         #                                            len(permutations))
         # import pprint; pprint.pprint([d for cname, d in permutations])
 
-        env.cfunc_entries.remove(self.node.entry)
+        if self.node.entry in env.cfunc_entries:
+            env.cfunc_entries.remove(self.node.entry)
+
+        # Prevent copying of the python function
+        self.py_func = self.node.py_func
+        self.node.py_func = None
+        if self.py_func:
+            env.pyfunc_entries.remove(self.py_func.entry)
+
+        fused_types = self.node.type.get_fused_types()
 
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
@@ -2104,6 +2119,25 @@ class FusedCFuncDefNode(StatListNode):
             type.specialize_entry(entry, cname)
             env.cfunc_entries.append(entry)
 
+            # If a cpdef, declare all specialized cpdefs
+            copied_node.declare_cpdef_wrapper(env)
+            if copied_node.py_func:
+                env.pyfunc_entries.remove(copied_node.py_func.entry)
+
+                type_strings = [str(fused_to_specific[fused_type])
+                                    for fused_type in fused_types]
+                if len(type_strings) == 1:
+                    sigstring = type_strings[0]
+                else:
+                    sigstring = '(%s)' % ', '.join(type_strings)
+
+                copied_node.py_func.specialized_signature_string = sigstring
+                copied_node.py_func.fused_py_func = self.py_func
+
+                e = copied_node.py_func.entry
+                e.pymethdef_cname = PyrexTypes.get_fused_cname(
+                                       cname, e.pymethdef_cname)
+
             num_errors = Errors.num_errors
             transform = ParseTreeTransforms.ReplaceFusedTypeChecks(
                                            copied_node.local_scope)
@@ -2111,6 +2145,18 @@ class FusedCFuncDefNode(StatListNode):
 
             if Errors.num_errors > num_errors:
                 break
+
+        if self.py_func:
+            self.py_func.specialized_cpdefs = [n.py_func for n in self.nodes]
+            self.py_func.fused_args_positions = [
+                i for i, arg in enumerate(self.node.type.args)
+                      if arg.is_fused]
+
+            from Cython.Compiler import TreeFragment
+            fragment = TreeFragment.TreeFragment(u"""
+raise ValueError("Index the function to get a specialized version")
+            """, level='function')
+            self.py_func.body = fragment.substitute()
 
     def generate_function_definitions(self, env, code):
         for stat in self.stats:
@@ -2167,6 +2213,12 @@ class DefNode(FuncDefNode):
     #  when the def statement is inside a Python class definition.
     #
     #  assmt   AssignmentNode   Function construction/assignment
+    #
+    #  fused_py_func        DefNode     The original fused cpdef DefNode
+    #                                   (in case this is a specialization)
+    #  specialized_cpdefs   [DefNode]   list of specialized cpdef DefNodes
+    #  fused_args_positions [int]       list of the positions of the
+    #                                   arguments with fused types
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
@@ -2185,6 +2237,10 @@ class DefNode(FuncDefNode):
     star_arg = None
     starstar_arg = None
     doc = None
+
+    fused_py_func = False
+    specialized_cpdefs = None
+    fused_args_positions = None
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -2506,11 +2562,22 @@ class DefNode(FuncDefNode):
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
+
+        if self.specialized_cpdefs:
+            for arg in self.args + self.local_scope.arg_entries:
+                arg.needs_conversion = False
+                arg.type = py_object_type
+
+            self.local_scope.entries.clear()
+            del self.local_scope.var_entries[:]
+
         if self.needs_assignment_synthesis(env):
             # Shouldn't we be doing this at the module level too?
             self.synthesize_assignment_node(env)
 
     def needs_assignment_synthesis(self, env, code=None):
+        if self.specialized_cpdefs:
+            return True
         if self.no_assignment_synthesis:
             return False
         # Should enable for module level as well, that will require more testing...
@@ -2534,7 +2601,11 @@ class DefNode(FuncDefNode):
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
         else:
             rhs = ExprNodes.PyCFunctionNode(
-                self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = env.directives['binding'])
+                    self.pos,
+                    pymethdef_cname = self.entry.pymethdef_cname,
+                    binding = env.directives['binding'],
+                    specialized_cpdefs = self.specialized_cpdefs,
+                    fused_args_positions = self.fused_args_positions)
 
         if env.is_py_class_scope:
             if not self.is_staticmethod and not self.is_classmethod:
@@ -2573,8 +2644,15 @@ class DefNode(FuncDefNode):
         if mf: mf += " "
         header = "static %s%s(%s)" % (mf, dc, arg_code)
         code.putln("%s; /*proto*/" % header)
+
         if proto_only:
+            if self.fused_py_func:
+                # If we are the specialized version of the cpdef, we still
+                # want the prototype for the "fused cpdef", in case we're
+                # checking to see if our method was overridden in Python
+                self.fused_py_func.generate_function_header(code, with_pymethdef, proto_only=True)
             return
+
         if (Options.docstrings and self.entry.doc and
                 not self.entry.scope.is_property_scope and
                 (not self.entry.is_special or self.entry.wrapperbase_cname)):
@@ -2588,7 +2666,7 @@ class DefNode(FuncDefNode):
             if self.entry.is_special:
                 code.putln(
                     "struct wrapperbase %s;" % self.entry.wrapperbase_cname)
-        if with_pymethdef:
+        if with_pymethdef or self.fused_py_func:
             code.put(
                 "static PyMethodDef %s = " %
                     self.entry.pymethdef_cname)
