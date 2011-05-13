@@ -1,6 +1,9 @@
 
 cimport cython
 
+import sys
+IS_PY3 = sys.version_info[0] >= 3
+
 def _reversed(it):
     return list(it)[::-1]
 
@@ -19,15 +22,13 @@ def reversed_list(list l):
 @cython.test_assert_path_exists('//ForFromStatNode')
 def reversed_range(int N):
     """
-    >>> i = 99
-    >>> [ i for i in _reversed(range(5)) ], i
-    ([4, 3, 2, 1, 0], 0)
+    >>> [ i for i in _reversed(range(5)) ]
+    [4, 3, 2, 1, 0]
     >>> reversed_range(5)
     ([4, 3, 2, 1, 0], 0)
 
-    >>> i = 99
-    >>> ([ i for i in _reversed(range(0)) ], i)
-    ([], 99)
+    >>> [ i for i in _reversed(range(0)) ]
+    []
     >>> reversed_range(0)
     ([], 99)
     """
@@ -135,11 +136,13 @@ join_bytes = b''.join
 @cython.test_assert_path_exists('//ForFromStatNode')
 def reversed_bytes(bytes s):
     """
-    >>> print(join_bytes(_reversed(bytes_string)).decode('ASCII'))
-    FEDcba
-    >>> print(join_bytes(reversed_bytes(bytes_string)).decode('ASCII'))
-    FEDcba
+    >>> b = IS_PY3 and bytes_string or map(ord, bytes_string)
+    >>> list(_reversed(b))
+    [70, 69, 68, 99, 98, 97]
+    >>> reversed_bytes(bytes_string)
+    [70, 69, 68, 99, 98, 97]
     """
+    cdef char c
     result = []
     for c in reversed(s):
         result.append(c)
@@ -148,11 +151,13 @@ def reversed_bytes(bytes s):
 @cython.test_assert_path_exists('//ForFromStatNode')
 def reversed_bytes_slice(bytes s):
     """
-    >>> print(join_bytes(_reversed(bytes_string[1:-2])).decode('ASCII'))
-    Dcb
-    >>> print(join_bytes(reversed_bytes_slice(bytes_string)).decode('ASCII'))
-    Dcb
+    >>> b = IS_PY3 and bytes_string or map(ord, bytes_string)
+    >>> list(_reversed(b[1:-2]))
+    [68, 99, 98]
+    >>> reversed_bytes_slice(bytes_string)
+    [68, 99, 98]
     """
+    cdef char c
     result = []
     for c in reversed(s[1:-2]):
         result.append(c)
@@ -161,11 +166,13 @@ def reversed_bytes_slice(bytes s):
 @cython.test_assert_path_exists('//ForFromStatNode')
 def reversed_bytes_slice_step(bytes s):
     """
-    >>> print(join_bytes(_reversed(bytes_string[-2:1:-1])).decode('ASCII'))
-    cDE
-    >>> print(join_bytes(reversed_bytes_slice_step(bytes_string)).decode('ASCII'))
-    cDE
+    >>> b = IS_PY3 and bytes_string or map(ord, bytes_string)
+    >>> list(_reversed(b[-2:1:-1]))
+    [99, 68, 69]
+    >>> reversed_bytes_slice_step(bytes_string)
+    [99, 68, 69]
     """
+    cdef char c
     result = []
     for c in reversed(s[-2:1:-1]):
         result.append(c)
@@ -174,11 +181,13 @@ def reversed_bytes_slice_step(bytes s):
 @cython.test_assert_path_exists('//ForFromStatNode')
 def reversed_bytes_slice_step_only(bytes s):
     """
-    >>> print(join_bytes(_reversed(bytes_string[::-1])).decode('ASCII'))
-    abcDEF
-    >>> print(join_bytes(reversed_bytes_slice_step_only(bytes_string)).decode('ASCII'))
-    abcDEF
+    >>> b = IS_PY3 and bytes_string or map(ord, bytes_string)
+    >>> list(_reversed(b[::-1]))
+    [97, 98, 99, 68, 69, 70]
+    >>> reversed_bytes_slice_step_only(bytes_string)
+    [97, 98, 99, 68, 69, 70]
     """
+    cdef char c
     result = []
     for c in reversed(s[::-1]):
         result.append(c)
