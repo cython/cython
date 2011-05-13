@@ -248,6 +248,11 @@ class IterationTransform(Visitor.VisitorTransform):
             unpack_func_type = self.PyUnicode_AS_UNICODE_func_type
             len_func_type = self.PyUnicode_GET_SIZE_func_type
         elif slice_node.type is Builtin.bytes_type:
+            target_type = node.target.type
+            if not target_type.is_int:
+                # bytes iteration returns bytes objects in Py2, but
+                # integers in Py3
+                return node
             unpack_func = "PyBytes_AS_STRING"
             unpack_func_type = self.PyBytes_AS_STRING_func_type
             len_func = "PyBytes_GET_SIZE"
