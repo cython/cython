@@ -153,12 +153,6 @@ class IterationTransform(Visitor.VisitorTransform):
                 node, dict_obj=iterator, keys=True, values=False)
 
         # C array (slice) iteration?
-        if False:
-            plain_iterator = unwrap_coerced_node(iterator)
-            if isinstance(plain_iterator, ExprNodes.SliceIndexNode) and \
-                   (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
-                return self._transform_carray_iteration(node, plain_iterator, reversed=reversed)
-
         if iterator.type.is_ptr or iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator, reversed=reversed)
         if iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
@@ -248,8 +242,6 @@ class IterationTransform(Visitor.VisitorTransform):
             ])
 
     def _transform_string_iteration(self, node, slice_node, reversed=False):
-        if not node.target.type.is_int:
-            return self._transform_carray_iteration(node, slice_node)
         if slice_node.type is Builtin.unicode_type:
             unpack_func = "PyUnicode_AS_UNICODE"
             len_func = "PyUnicode_GET_SIZE"
@@ -303,6 +295,7 @@ class IterationTransform(Visitor.VisitorTransform):
                 if not slice_base.type.is_pyobject:
                     error(slice_node.pos, "C array iteration requires known end index")
                 return node
+
         elif isinstance(slice_node, ExprNodes.IndexNode):
             assert isinstance(slice_node.index, ExprNodes.SliceNode)
             slice_base = slice_node.base
@@ -329,6 +322,7 @@ class IterationTransform(Visitor.VisitorTransform):
                     step = ExprNodes.IntNode(step.pos, type=PyrexTypes.c_py_ssize_t_type,
                                              value=str(abs(step_value)),
                                              constant_result=abs(step_value))
+
         elif slice_node.type.is_array:
             if slice_node.type.size is None:
                 error(step.pos, "C array iteration requires known end index")
@@ -415,9 +409,6 @@ class IterationTransform(Visitor.VisitorTransform):
         elif node.target.type.is_ptr and not node.target.type.assignable_from(ptr_type.base_type):
             # Allow iteration with pointer target to avoid copy.
             target_value = counter_temp
-        elif ptr_type is Builtin.bytes_type:
-            # TODO: implement ...
-            return node
         else:
             target_value = ExprNodes.IndexNode(
                 node.target.pos,
