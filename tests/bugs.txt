@@ -18,6 +18,7 @@ for_from_pyvar_loop_T601
 decorators_T593
 temp_sideeffects_T654
 class_scope_T671
+slice2_T636
 
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals
