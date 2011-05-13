@@ -13,19 +13,23 @@ def slice_charptr_end():
     """
     return cstring[:1], cstring[:3], cstring[:9]
 
-@cython.test_assert_path_exists("//ForFromStatNode",
-                                "//ForFromStatNode//SliceIndexNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
-def slice_charptr_for_loop_py():
-    """
-    >>> slice_charptr_for_loop_py()
-    ['a', 'b', 'c']
-    ['b', 'c', 'A', 'B']
-    ['B', 'C', 'q', 't', 'p']
-    """
-    print str([ c for c in cstring[:3] ]).replace(" b'", " '").replace("[b'", "['")
-    print str([ c for c in cstring[1:5] ]).replace(" b'", " '").replace("[b'", "['")
-    print str([ c for c in cstring[4:9] ]).replace(" b'", " '").replace("[b'", "['")
+#### BROKEN: this test assumes that the result of a char* iteration
+#### becomes a bytes object, which is not the case when applying
+#### carray iteration.  Contradiction.
+##
+## @cython.test_assert_path_exists("//ForFromStatNode",
+##                                 "//ForFromStatNode//SliceIndexNode")
+## @cython.test_fail_if_path_exists("//ForInStatNode")
+## def slice_charptr_for_loop_py():
+##     """
+##     >>> slice_charptr_for_loop_py()
+##     ['a', 'b', 'c']
+##     ['b', 'c', 'A', 'B']
+##     ['B', 'C', 'q', 't', 'p']
+##     """
+##     print str([ c for c in cstring[:3] ]).replace(" b'", " '").replace("[b'", "['")
+##     print str([ c for c in cstring[1:5] ]).replace(" b'", " '").replace("[b'", "['")
+##     print str([ c for c in cstring[4:9] ]).replace(" b'", " '").replace("[b'", "['")
 
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//IndexNode")
@@ -89,19 +93,23 @@ cdef return4(): return 4
 cdef return5(): return 5
 cdef return9(): return 9
 
-@cython.test_assert_path_exists("//ForFromStatNode",
-                                "//ForFromStatNode//SliceIndexNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
-def slice_charptr_for_loop_py_enumerate():
-    """
-    >>> slice_charptr_for_loop_py_enumerate()
-    [(0, 'a'), (1, 'b'), (2, 'c')]
-    [(0, 'b'), (1, 'c'), (2, 'A'), (3, 'B')]
-    [(0, 'B'), (1, 'C'), (2, 'q'), (3, 't'), (4, 'p')]
-    """
-    print str([ (i,c) for i,c in enumerate(cstring[:3]) ]).replace(" b'", " '")
-    print str([ (i,c) for i,c in enumerate(cstring[1:5]) ]).replace(" b'", " '")
-    print str([ (i,c) for i,c in enumerate(cstring[4:9]) ]).replace(" b'", " '")
+#### BROKEN: this test assumes that the result of a char* iteration
+#### becomes a bytes object, which is not the case when applying
+#### carray iteration.  Contradiction.
+##
+## @cython.test_assert_path_exists("//ForFromStatNode",
+##                                 "//ForFromStatNode//SliceIndexNode")
+## @cython.test_fail_if_path_exists("//ForInStatNode")
+## def slice_charptr_for_loop_py_enumerate():
+##     """
+##     >>> slice_charptr_for_loop_py_enumerate()
+##     [(0, 'a'), (1, 'b'), (2, 'c')]
+##     [(0, 'b'), (1, 'c'), (2, 'A'), (3, 'B')]
+##     [(0, 'B'), (1, 'C'), (2, 'q'), (3, 't'), (4, 'p')]
+##     """
+##     print str([ (i,c) for i,c in enumerate(cstring[:3]) ]).replace(" b'", " '")
+##     print str([ (i,c) for i,c in enumerate(cstring[1:5]) ]).replace(" b'", " '")
+##     print str([ (i,c) for i,c in enumerate(cstring[4:9]) ]).replace(" b'", " '")
 
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//IndexNode")
