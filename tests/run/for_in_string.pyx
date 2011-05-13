@@ -49,9 +49,8 @@ def for_char_in_bytes(bytes s):
     else:
         return 'X'
 
-# TODO: implement (see Optimize.py:IterationTransform._transform_carray_iteration())
-#@cython.test_assert_path_exists("//ForFromStatNode")
-#@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
 def for_obj_in_bytes_slice(bytes s):
     """
     >>> for_obj_in_bytes_slice(bytes_abc)
