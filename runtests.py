@@ -159,7 +159,8 @@ VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
     (2,4) : (operator.lt, lambda x: x in ['run.extern_builtins_T258',
-                                          'run.builtin_sorted'
+                                          'run.builtin_sorted',
+                                          'run.reversed_iteration',
                                           ]),
     (2,5) : (operator.lt, lambda x: x in ['run.any',
                                           'run.all',
