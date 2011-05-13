@@ -157,7 +157,7 @@ class IterationTransform(Visitor.VisitorTransform):
             plain_iterator = unwrap_coerced_node(iterator)
             if isinstance(plain_iterator, ExprNodes.SliceIndexNode) and \
                    (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
-                return self._transform_carray_iteration(node, plain_iterator)
+                return self._transform_carray_iteration(node, plain_iterator, reversed=reversed)
 
         if iterator.type.is_ptr or iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator, reversed=reversed)
@@ -304,7 +304,7 @@ class IterationTransform(Visitor.VisitorTransform):
                     error(slice_node.pos, "C array iteration requires known end index")
                 return node
         elif isinstance(slice_node, ExprNodes.IndexNode):
-            # slice_node.index must be a SliceNode
+            assert isinstance(slice_node.index, ExprNodes.SliceNode)
             slice_base = slice_node.base
             index = slice_node.index
             start = index.start
@@ -415,6 +415,9 @@ class IterationTransform(Visitor.VisitorTransform):
         elif node.target.type.is_ptr and not node.target.type.assignable_from(ptr_type.base_type):
             # Allow iteration with pointer target to avoid copy.
             target_value = counter_temp
+        elif ptr_type is Builtin.bytes_type:
+            # TODO: implement ...
+            return node
         else:
             target_value = ExprNodes.IndexNode(
                 node.target.pos,
