@@ -135,9 +135,9 @@ def trace(a):
     global layout
     layout -= 1
     if layout <= 0:
-        print
+        print()
         layout = 50
-    print a,
+    print(a, end='')
 
 
 TASKTABSIZE = 10
@@ -302,10 +302,10 @@ class IdleTask(Task):
         if i.count == 0:
             return self.hold()
         elif i.control & 1 == 0:
-            i.control /= 2
+            i.control //= 2
             return self.release(I_DEVA)
         else:
-            i.control = i.control/2 ^ 0xd008
+            i.control = i.control//2 ^ 0xd008
             return self.release(I_DEVB)
             
 
@@ -333,7 +333,7 @@ class WorkTask(Task):
         pkt.ident = dest
         pkt.datum = 0
 
-        for i in BUFSIZE_RANGE: # xrange(BUFSIZE)
+        for i in BUFSIZE_RANGE: # range(BUFSIZE)
             w.count += 1
             if w.count > 26:
                 w.count = 1
@@ -351,7 +351,7 @@ def schedule():
         pkt = None
 
         if tracing:
-            print "tcb =",t.ident
+            print("tcb =", t.ident)
 
         if t.isTaskHoldingOrWaiting():
             t = t.link
@@ -362,7 +362,7 @@ def schedule():
 class Richards(object):
 
     def run(self, iterations):
-        for i in xrange(iterations):
+        for i in range(iterations):
             taskWorkArea.holdCount = 0
             taskWorkArea.qpktCount = 0
 
@@ -403,15 +403,15 @@ def entry_point(iterations):
     return result, startTime, endTime
 
 def main(entry_point = entry_point, iterations = 10):
-    print "Richards benchmark (Python) starting... [%r]" % entry_point
+    print("Richards benchmark (Python) starting... [%r]" % entry_point)
     result, startTime, endTime = entry_point(iterations)
     if not result:
-        print "Incorrect results!"
+        print("Incorrect results!")
         return -1
-    print "finished."
+    print("finished.")
     total_s = endTime - startTime
-    print "Total time for %d iterations: %.2f secs" %(iterations,total_s)
-    print "Average time per iteration: %.2f ms" %(total_s*1000/iterations)
+    print("Total time for %d iterations: %.2f secs" % (iterations, total_s))
+    print("Average time per iteration: %.2f ms" % (total_s*1000/iterations))
     return 42
 
 try:
