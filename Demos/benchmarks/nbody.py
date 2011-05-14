@@ -18,7 +18,7 @@ __contact__ = "collinwinter@google.com (Collin Winter)"
 # Python imports
 import optparse
 import sys
-import time
+from time import time
 
 # Local imports
 import util
@@ -26,7 +26,7 @@ import util
 def combinations(l):
     """Pure-Python implementation of itertools.combinations(l, 2)."""
     result = []
-    for x in xrange(len(l) - 1):
+    for x in range(len(l) - 1):
         ls = l[x+1:]
         for y in ls:
             result.append((l[x],y))
@@ -78,7 +78,7 @@ PAIRS = combinations(SYSTEM)
 
 
 def advance(dt, n, bodies=SYSTEM, pairs=PAIRS):
-    for i in xrange(n):
+    for i in range(n):
         for (([x1, y1, z1], v1, m1),
              ([x2, y2, z2], v2, m2)) in pairs:
             dx = x1 - x2
@@ -129,12 +129,12 @@ def test_nbody(iterations):
     report_energy()
 
     times = []
-    for _ in xrange(iterations):
-        t0 = time.time()
+    for _ in range(iterations):
+        t0 = time()
         report_energy()
         advance(0.01, 20000)
         report_energy()
-        t1 = time.time()
+        t1 = time()
         times.append(t1 - t0)
     return times
 
