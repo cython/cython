@@ -1781,15 +1781,13 @@ class ImportNode(ExprNode):
 class IteratorNode(ExprNode):
     #  Used as part of for statement implementation.
     #
-    #  allocate_counter_temp/release_counter_temp needs to be called
-    #  by parent (ForInStatNode)
-    #
     #  Implements result = iter(sequence)
     #
     #  sequence   ExprNode
 
     type = py_object_type
     iter_func_ptr = None
+    counter_cname = None
 
     subexprs = ['sequence']
 
@@ -1807,13 +1805,6 @@ class IteratorNode(ExprNode):
         self.is_temp = 1
 
     gil_message = "Iterating over Python object"
-
-    def allocate_counter_temp(self, code):
-        self.counter_cname = code.funcstate.allocate_temp(
-            PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-
-    def release_counter_temp(self, code):
-        code.funcstate.release_temp(self.counter_cname)
 
     _func_iternext_type = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
@@ -1833,6 +1824,8 @@ class IteratorNode(ExprNode):
                     self.sequence.py_result(),
                     self.sequence.py_result()))
         if is_builtin_sequence or self.may_be_a_sequence:
+            self.counter_cname = code.funcstate.allocate_temp(
+                PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln(
                 "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
                     self.counter_cname,
@@ -1844,8 +1837,8 @@ class IteratorNode(ExprNode):
             if self.may_be_a_sequence:
                 code.putln("%s = NULL;" % self.iter_func_ptr)
                 code.putln("} else {")
-            code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
-                    self.counter_cname,
+                code.put("%s = -1; " % self.counter_cname)
+            code.putln("%s = PyObject_GetIter(%s); %s" % (
                     self.result(),
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
@@ -1855,6 +1848,7 @@ class IteratorNode(ExprNode):
             code.putln("}")
 
     def generate_next_sequence_item(self, test_name, result_name, code):
+        assert self.counter_cname, "internal error: counter_cname temp not prepared"
         code.putln(
             "if (%s >= Py%s_GET_SIZE(%s)) break;" % (
                 self.counter_cname,
@@ -1901,6 +1895,8 @@ class IteratorNode(ExprNode):
         code.putln("}")
 
     def free_temps(self, code):
+        if self.counter_cname:
+            code.funcstate.release_temp(self.counter_cname)
         if self.iter_func_ptr:
             code.funcstate.release_temp(self.iter_func_ptr)
             self.iter_func_ptr = None
