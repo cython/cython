@@ -4644,7 +4644,6 @@ class ForInStatNode(LoopNode, StatNode):
 
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
-        self.iterator.allocate_counter_temp(code)
         self.iterator.generate_evaluation_code(code)
         code.putln("for (;;) {")
         self.item.generate_evaluation_code(code)
@@ -4676,7 +4675,6 @@ class ForInStatNode(LoopNode, StatNode):
 
         if code.label_used(break_label):
             code.put_label(break_label)
-        self.iterator.release_counter_temp(code)
         self.iterator.generate_disposal_code(code)
         self.iterator.free_temps(code)
 
