@@ -1788,6 +1788,7 @@ class IteratorNode(ExprNode):
     type = py_object_type
     iter_func_ptr = None
     counter_cname = None
+    reversed = False      # currently only used for list/tuple types (see Optimize.py)
 
     subexprs = ['sequence']
 
@@ -1817,6 +1818,9 @@ class IteratorNode(ExprNode):
             raise InternalError("for in carray slice not transformed")
         is_builtin_sequence = sequence_type is list_type or \
                               sequence_type is tuple_type
+        if not is_builtin_sequence:
+            # reversed() not currently optimised (see Optimize.py)
+            assert not self.reversed, "internal error: reversed() only implemented for list/tuple objects"
         self.may_be_a_sequence = not sequence_type.is_builtin_type
         if self.may_be_a_sequence:
             code.putln(
@@ -1826,12 +1830,21 @@ class IteratorNode(ExprNode):
         if is_builtin_sequence or self.may_be_a_sequence:
             self.counter_cname = code.funcstate.allocate_temp(
                 PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            if self.reversed:
+                if sequence_type is list_type:
+                    init_value = 'PyList_GET_SIZE(%s) - 1' % self.result()
+                else:
+                    init_value = 'PyTuple_GET_SIZE(%s) - 1' % self.result()
+            else:
+                init_value = '0'
             code.putln(
-                "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
-                    self.counter_cname,
+                "%s = %s; __Pyx_INCREF(%s); %s = %s;" % (
                     self.result(),
                     self.sequence.py_result(),
-                    self.result()))
+                    self.result(),
+                    self.counter_cname,
+                    init_value
+                    ))
         if not is_builtin_sequence:
             self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
             if self.may_be_a_sequence:
@@ -1854,17 +1867,24 @@ class IteratorNode(ExprNode):
                 self.counter_cname,
                 test_name,
                 self.py_result()))
+        if self.reversed:
+            inc_dec = '--'
+        else:
+            inc_dec = '++'
         code.putln(
-            "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s++;" % (
+            "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s;" % (
                 result_name,
                 test_name,
                 self.py_result(),
                 self.counter_cname,
                 result_name,
-                self.counter_cname))
+                self.counter_cname,
+                inc_dec))
 
     def generate_iter_next_result_code(self, result_name, code):
         sequence_type = self.sequence.type
+        if self.reversed:
+            code.putln("if (%s < 0) break;" % self.counter_cname)
         if sequence_type is list_type:
             self.generate_next_sequence_item('List', result_name, code)
             return
@@ -1913,7 +1933,7 @@ class NextNode(AtomicExprNode):
 
     type = py_object_type
 
-    def __init__(self, iterator, env):
+    def __init__(self, iterator):
         self.pos = iterator.pos
         self.iterator = iterator
         if iterator.type.is_ptr or iterator.type.is_array:

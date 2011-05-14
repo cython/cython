@@ -218,7 +218,15 @@ class IterationTransform(Visitor.VisitorTransform):
             error(reversed_function.pos,
                   "reversed() takes exactly 1 argument")
             return node
-        return self._optimise_for_loop(node, args[0], reversed=True)
+        arg = args[0]
+
+        # reversed(list/tuple) ?
+        if arg.type in (Builtin.tuple_type, Builtin.list_type):
+            node.iterator.sequence = arg.as_none_safe_node("'NoneType' object is not iterable")
+            node.iterator.reversed = True
+            return node
+
+        return self._optimise_for_loop(node, arg, reversed=True)
 
     PyUnicode_AS_UNICODE_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_unicode_ptr_type, [

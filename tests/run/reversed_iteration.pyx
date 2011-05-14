@@ -1,3 +1,5 @@
+# mode: run
+# tag: forin, builtins, reversed, enumerate
 
 cimport cython
 
@@ -7,16 +9,71 @@ IS_PY3 = sys.version_info[0] >= 3
 def _reversed(it):
     return list(it)[::-1]
 
+@cython.test_assert_path_exists('//ForInStatNode',
+                                '//ForInStatNode/IteratorNode',
+                                '//ForInStatNode/IteratorNode[@reversed = True]',
+                                )
+@cython.test_fail_if_path_exists('//ForInStatNode/IteratorNode//SimpleCallNode')
 def reversed_list(list l):
     """
     >>> [ i for i in _reversed([1,2,3,4]) ]
     [4, 3, 2, 1]
     >>> reversed_list([1,2,3,4])
     [4, 3, 2, 1]
+    >>> reversed_list([])
+    []
+    >>> reversed_list(None)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
     """
     result = []
     for item in reversed(l):
         result.append(item)
+    return result
+
+@cython.test_assert_path_exists('//ForInStatNode',
+                                '//ForInStatNode/IteratorNode',
+                                '//ForInStatNode/IteratorNode[@reversed = True]',
+                                )
+@cython.test_fail_if_path_exists('//ForInStatNode/IteratorNode//SimpleCallNode')
+def reversed_tuple(tuple t):
+    """
+    >>> [ i for i in _reversed((1,2,3,4)) ]
+    [4, 3, 2, 1]
+    >>> reversed_tuple((1,2,3,4))
+    [4, 3, 2, 1]
+    >>> reversed_tuple(())
+    []
+    >>> reversed_tuple(None)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
+    result = []
+    for item in reversed(t):
+        result.append(item)
+    return result
+
+@cython.test_assert_path_exists('//ForInStatNode',
+                                '//ForInStatNode/IteratorNode',
+                                '//ForInStatNode/IteratorNode[@reversed = True]',
+                                )
+@cython.test_fail_if_path_exists('//ForInStatNode/IteratorNode//SimpleCallNode')
+def enumerate_reversed_list(list l):
+    """
+    >>> list(enumerate(_reversed([1,2,3])))
+    [(0, 3), (1, 2), (2, 1)]
+    >>> enumerate_reversed_list([1,2,3])
+    [(0, 3), (1, 2), (2, 1)]
+    >>> enumerate_reversed_list([])
+    []
+    >>> enumerate_reversed_list(None)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
+    result = []
+    cdef Py_ssize_t i
+    for i, item in enumerate(reversed(l)):
+        result.append((i, item))
     return result
 
 @cython.test_assert_path_exists('//ForFromStatNode')
