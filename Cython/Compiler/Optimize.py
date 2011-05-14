@@ -147,7 +147,7 @@ class IterationTransform(Visitor.VisitorTransform):
         if iterator.type is Builtin.dict_type:
             # like iterating over dict.keys()
             if reversed:
-                # (reversed) dict iteration uses arbitrary order
+                # CPython raises an error here: not a sequence
                 return node
             return self._transform_dict_iteration(
                 node, dict_obj=iterator, keys=True, values=False)
@@ -167,7 +167,7 @@ class IterationTransform(Visitor.VisitorTransform):
         if isinstance(function, ExprNodes.AttributeNode) and \
                 function.obj.type == Builtin.dict_type:
             if reversed:
-                # (reversed) dict iteration uses arbitrary order
+                # CPython raises an error here: not a sequence
                 return node
             dict_obj = function.obj
             method = function.attribute
@@ -190,13 +190,12 @@ class IterationTransform(Visitor.VisitorTransform):
                function.entry and function.entry.is_builtin:
             if function.name == 'enumerate':
                 if reversed:
-                    # TODO: implement
+                    # CPython raises an error here: not a sequence
                     return node
                 return self._transform_enumerate_iteration(node, iterator)
             elif function.name == 'reversed':
                 if reversed:
-                    # it is not safe to short-cut here due to evaluation rules,
-                    # but this case is unlikely enough to just ignore it
+                    # CPython raises an error here: not a sequence
                     return node
                 return self._transform_reversed_iteration(node, iterator)
 
