@@ -985,7 +985,8 @@ class BytesNode(ConstNode):
     def coerce_to_boolean(self, env):
         # This is special because testing a C char* for truth directly
         # would yield the wrong result.
-        return BoolNode(self.pos, value=bool(self.value))
+        bool_value = bool(self.value)
+        return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
 
     def coerce_to(self, dst_type, env):
         if self.type == dst_type:
