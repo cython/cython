@@ -21,7 +21,7 @@ except ImportError:
     from __builtin__ import xrange as _xrange
 
 # Pure-Python implementation of itertools.permutations().
-@cython.locals(n=int, i=int)
+@cython.locals(n=int, i=int, j=int)
 def permutations(iterable):
     """permutations(range(3), 2) --> (0,1) (0,2) (1,0) (1,2) (2,0) (2,1)"""
     pool = tuple(iterable)
@@ -30,7 +30,7 @@ def permutations(iterable):
     cycles = list(range(1, n+1))[::-1]
     yield [ pool[i] for i in indices ]
     while n:
-        for i in range(n-1, -1, -1):
+        for i in reversed(range(n)):
             cycles[i] -= 1
             if cycles[i] == 0:
                 indices[i:] = indices[i+1:] + indices[i:i+1]
