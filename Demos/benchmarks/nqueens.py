@@ -31,12 +31,12 @@ def permutations(iterable):
     yield [ pool[i] for i in indices ]
     while n:
         for i in reversed(range(n)):
-            cycles[i] -= 1
-            if cycles[i] == 0:
+            j = cycles[i] - 1
+            if j == 0:
                 indices[i:] = indices[i+1:] + indices[i:i+1]
                 cycles[i] = n - i
             else:
-                j = cycles[i]
+                cycles[i] = j
                 indices[i], indices[-j] = indices[-j], indices[i]
                 yield [ pool[i] for i in indices ]
                 break
