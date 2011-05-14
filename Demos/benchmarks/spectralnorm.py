@@ -7,21 +7,18 @@
 # Dirtily sped up by Simon Descarpentries
 # Concurrency by Jason Stitt
 
-from math            import sqrt
-from itertools       import izip
 from time import time
 import util
-import itertools
 import optparse
 
 def eval_A (i, j):
     return 1.0 / ((i + j) * (i + j + 1) / 2 + i + 1)
 
 def eval_A_times_u (u):
-    return [ part_A_times_u(i,u) for i in xrange(len(u)) ]
+    return [ part_A_times_u(i,u) for i in range(len(u)) ]
 
 def eval_At_times_u (u):
-    return [ part_At_times_u(i,u) for i in xrange(len(u)) ]
+    return [ part_At_times_u(i,u) for i in range(len(u)) ]
 
 def eval_AtA_times_u (u):
     return eval_At_times_u (eval_A_times_u (u))
@@ -46,13 +43,13 @@ def main(n):
         t0 = time()
         u = [1] * DEFAULT_N
 
-        for dummy in xrange (10):
+        for dummy in range (10):
             v = eval_AtA_times_u (u)
             u = eval_AtA_times_u (v)
 
         vBv = vv = 0
 
-        for ue, ve in izip (u, v):
+        for ue, ve in zip (u, v):
             vBv += ue * ve
             vv  += ve * ve
         tk = time()
