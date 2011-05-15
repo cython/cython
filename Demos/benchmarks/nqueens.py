@@ -44,6 +44,7 @@ def permutations(iterable):
             return
 
 # From http://code.activestate.com/recipes/576647/
+@cython.locals(queen_count=int, i=int, vec=list)
 def n_queens(queen_count):
     """N-Queens solver.
 
@@ -56,7 +57,7 @@ def n_queens(queen_count):
         (3, 8, 2, 1, 4, ..., 6) where each number is the column position for the
         queen, and the index into the tuple indicates the row.
     """
-    cols = range(queen_count)
+    cols = list(range(queen_count))
     for vec in permutations(cols):
         if (queen_count == len({ vec[i]+i for i in cols })
                         == len({ vec[i]-i for i in cols })):
