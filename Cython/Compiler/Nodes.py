@@ -3836,8 +3836,7 @@ class InPlaceAssignmentNode(AssignmentNode):
     #
     #  lhs      ExprNode      Left hand side
     #  rhs      ExprNode      Right hand side
-    #  op       char          one of "+-*/%^&|"
-    #  dup     (ExprNode)     copy of lhs used for operation (auto-generated)
+    #  operator char          one of "+-*/%^&|"
     #
     #  This code is a bit tricky because in order to obey Python
     #  semantics the sub-expressions (e.g. indices) of the lhs must
