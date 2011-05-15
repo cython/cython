@@ -4642,11 +4642,6 @@ class InlinedGeneratorExpressionNode(ScopedExprNode):
     def analyse_scoped_declarations(self, env):
         self.loop.analyse_declarations(env)
 
-    def analyse_types(self, env):
-        if not self.has_local_scope:
-            self.loop.analyse_expressions(env)
-        self.is_temp = True
-
     def may_be_none(self):
         return False
 
