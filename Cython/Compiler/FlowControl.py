@@ -219,6 +219,8 @@ class NameAssignment(object):
     is_arg = False
 
     def __init__(self, lhs, rhs, entry):
+        if lhs.cf_state is None:
+            lhs.cf_state = set()
         self.lhs = lhs
         self.rhs = rhs
         self.entry = entry
@@ -236,6 +238,8 @@ class Uninitialized(object):
 
 class NameReference(object):
     def __init__(self, node, entry):
+        if node.cf_state is None:
+            node.cf_state = set()
         self.node = node
         self.entry = entry
         self.pos = node.pos
