@@ -1693,10 +1693,10 @@ class NameNode(AtomicExprNode):
         elif self.entry.type.is_pyobject:
             if not self.cf_is_null:
                 if self.cf_maybe_null:
-                    code.put_xdecref(self.result(), self.ctype())
-                else:
-                    code.put_decref(self.result(), self.ctype())
-            code.putln('%s = NULL;' % self.result())
+                    code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
+                               (self.entry.cname, self.entry.name, code.error_goto(self.pos)))
+                code.put_decref(self.result(), self.ctype())
+                code.putln('%s = NULL;' % self.result())
         else:
             error(self.pos, "Deletion of C names not supported")
 
