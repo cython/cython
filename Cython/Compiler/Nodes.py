@@ -948,15 +948,6 @@ class CVarDefNode(StatNode):
             dest_scope = env
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
-
-        # If the field is an external typedef, we cannot be sure about the type,
-        # so do conversion ourself rather than rely on the CPython mechanism (through
-        # a property; made in AnalyseDeclarationsTransform).
-        if (dest_scope.is_c_class_scope
-            and self.visibility in ('public', 'readonly')):
-            need_property = True
-        else:
-            need_property = False
         visibility = self.visibility
 
         for declarator in self.declarators:
@@ -990,7 +981,6 @@ class CVarDefNode(StatNode):
                         "Only 'extern' C variable declaration allowed in .pxd file")
                 entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname=cname, visibility=visibility, api=self.api, is_cdef=1)
-                entry.needs_property = need_property
 
 
 class CStructOrUnionDefNode(StatNode):
