@@ -731,8 +731,6 @@ class CreateControlFlowGraph(CythonTransform):
         self.flow.nextblock()
         self.mark_assignment(node.target)
 
-        # TODO: force target use, should ForFromStatNode should allocate temp var instead
-        self.visit(node.target)
         # Body block
         self.flow.nextblock()
         self.visit(node.body)
