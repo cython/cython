@@ -718,6 +718,7 @@ class CreateControlFlowGraph(CythonTransform):
         # Body block
         self.flow.nextblock()
         self.visit(node.body)
+        self.flow.loops.pop()
         # Loop it
         if self.flow.block:
             self.flow.block.add_child(condition_block)
@@ -730,7 +731,6 @@ class CreateControlFlowGraph(CythonTransform):
                 self.flow.block.add_child(next_block)
         else:
             condition_block.add_child(next_block)
-        self.flow.loops.pop()
         self.flow.block = next_block
         return node
 
@@ -746,6 +746,7 @@ class CreateControlFlowGraph(CythonTransform):
         # Body block
         self.flow.nextblock()
         self.visit(node.body)
+        self.flow.loops.pop()
         # Loop it
         if self.flow.block:
             self.flow.block.add_child(condition_block)
@@ -757,7 +758,6 @@ class CreateControlFlowGraph(CythonTransform):
                 self.flow.block.add_child(next_block)
         else:
             condition_block.add_child(next_block)
-        self.flow.loops.pop()
         self.flow.block = next_block
         return node
 
@@ -777,6 +777,7 @@ class CreateControlFlowGraph(CythonTransform):
         # Body block
         self.flow.nextblock()
         self.visit(node.body)
+        self.flow.loops.pop()
         # Loop it
         if self.flow.block:
             self.flow.block.add_child(condition_block)
@@ -788,7 +789,6 @@ class CreateControlFlowGraph(CythonTransform):
                 self.flow.block.add_child(next_block)
         else:
             condition_block.add_child(next_block)
-        self.flow.loops.pop()
         self.flow.block = next_block
         return node
 
