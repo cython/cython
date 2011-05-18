@@ -202,6 +202,7 @@ class LoopDescr(object):
         self.loop_block = loop_block
         self.exceptions = []
 
+
 class ExceptionDescr(object):
     """Exception handling helper.
 
@@ -378,14 +379,19 @@ def check_definitions(flow, compiler_directives):
             block.output = output
 
     # Track down state
-    messages = MessageCollection()
     assignments = set()
+    # Node to entry map
+    references = {}
+    assmt_nodes = set()
+
     for block in flow.blocks:
         state = {}
         for entry, items in block.input.iteritems():
-            state[entry] = items.copy()
+            state[entry] = set(items)
         for stat in block.stats:
             if isinstance(stat, NameAssignment):
+                stat.lhs.cf_state.update(state[stat.entry])
+                assmt_nodes.add(stat.lhs)
                 if stat.rhs:
                     state[stat.entry] = set([stat])
                 else:
@@ -393,25 +399,58 @@ def check_definitions(flow, compiler_directives):
                 assignments.add(stat)
                 stat.entry.cf_assignments.append(stat)
             elif isinstance(stat, NameReference):
+                references[stat.node] = stat.entry
                 stat.entry.cf_references.append(stat)
-                if Uninitialized in state[stat.entry]:
-                    if stat.entry.from_closure or stat.node.allow_null:
-                        pass # Can be uninitialized here
-                    elif len(state[stat.entry]) == 1:
-                        if stat.entry.type.is_pyobject or stat.entry.type.is_unspecified:
-                            messages.error(stat.pos, "local variable '%s' referenced before assignment" % stat.entry.name)
-                    else:
-                        if compiler_directives['warn.maybe_uninitialized']:
-                            messages.warning(stat.pos, "local variable '%s' might be referenced before assignment" % stat.entry.name)
-                    state[stat.entry] -= set([Uninitialized])
+                stat.node.cf_state.update(state[stat.entry])
+                state[stat.entry].discard(Uninitialized)
                 for assmt in state[stat.entry]:
                     assmt.refs.add(stat)
 
     # Check variable usage
+    warn_maybe_uninitialized = compiler_directives['warn.maybe_uninitialized']
     warn_unused_result = compiler_directives['warn.unused_result']
     warn_unused = compiler_directives['warn.unused']
     warn_unused_arg = compiler_directives['warn.unused_arg']
 
+    messages = MessageCollection()
+
+    # assignment hints
+    for node in assmt_nodes:
+        if Uninitialized in node.cf_state:
+            node.cf_maybe_null = True
+            if len(node.cf_state) == 1:
+                node.cf_is_null = True
+            else:
+                node.cf_is_null = False
+        else:
+            node.cf_is_null = False
+            node.cf_maybe_null = False
+
+    # Find uninitialized references and cf-hints
+    for node, entry in references.iteritems():
+        print entry, node.cf_state
+        if Uninitialized in node.cf_state:
+            node.cf_maybe_null = True
+            if entry.from_closure or node.allow_null:
+                pass # Can be uninitialized here
+            elif len(node.cf_state) == 1:
+                if entry.type.is_pyobject or entry.type.is_unspecified:
+                    messages.error(
+                        node.pos,
+                        "local variable '%s' referenced before assignment"
+                        % entry.name)
+                node.cf_is_null = True
+            else:
+                if warn_maybe_uninitialized:
+                    messages.warning(
+                        node.pos,
+                        "local variable '%s' might be referenced before assignment"
+                        % entry.name)
+        else:
+            node.cf_is_null = False
+            node.cf_maybe_null = False
+
+    # Unused result
     for assmt in assignments:
         if not assmt.refs and not assmt.entry.is_pyclass_attr \
                and not assmt.entry.in_closure:
@@ -422,6 +461,7 @@ def check_definitions(flow, compiler_directives):
                     messages.warning(assmt.pos, "Unused result in '%s'" % assmt.entry.name)
             assmt.lhs.cf_used = False
 
+    # Unused entries
     for entry in flow.entries:
         if not entry.cf_references and not entry.is_pyclass_attr and not entry.in_closure:
             # TODO: starred args entries are not marked with is_arg flag
