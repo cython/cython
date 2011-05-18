@@ -200,6 +200,7 @@ class LoopDescr(object):
     def __init__(self, next_block, loop_block):
         self.next_block = next_block
         self.loop_block = loop_block
+        self.exceptions = []
 
 class ExceptionDescr(object):
     """Exception handling helper.
@@ -827,12 +828,17 @@ class CreateControlFlowGraph(CythonTransform):
         self.visit(node.finally_clause)
         finally_exit = self.flow.block
 
-        self.flow.exceptions.append(ExceptionDescr(entry_point, finally_enter, finally_exit))
+        descr = ExceptionDescr(entry_point, finally_enter, finally_exit)
+        self.flow.exceptions.append(descr)
+        if self.flow.loops:
+            self.flow.loops[-1].exceptions.append(descr)
         self.flow.block = body_block
         ## XXX: Is it still required
         body_block.add_child(entry_point)
         self.visit(node.body)
         self.flow.exceptions.pop()
+        if self.flow.loops:
+            self.flow.loops[-1].exceptions.pop()
 
         if self.flow.block:
             self.flow.block.add_child(finally_enter)
@@ -878,7 +884,7 @@ class CreateControlFlowGraph(CythonTransform):
             return node
         loop = self.flow.loops[-1]
         self.mark_position(node)
-        for exception in self.flow.exceptions[::-1]:
+        for exception in loop.exceptions[::-1]:
             if exception.finally_enter:
                 self.flow.block.add_child(exception.finally_enter)
                 if exception.finally_exit:
@@ -895,7 +901,7 @@ class CreateControlFlowGraph(CythonTransform):
             return node
         loop = self.flow.loops[-1]
         self.mark_position(node)
-        for exception in self.flow.exceptions[::-1]:
+        for exception in loop.exceptions[::-1]:
             if exception.finally_enter:
                 self.flow.block.add_child(exception.finally_enter)
                 if exception.finally_exit:
