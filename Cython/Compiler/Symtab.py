@@ -1600,6 +1600,10 @@ class CClassScope(ClassScope):
                 error(pos,
                     "Attribute of extension type cannot be declared %s" % visibility)
             if visibility in ('public', 'readonly'):
+                # If the field is an external typedef, we cannot be sure about the type,
+                # so do conversion ourself rather than rely on the CPython mechanism (through
+                # a property; made in AnalyseDeclarationsTransform).
+                entry.needs_property = True
                 if name == "__weakref__":
                     error(pos, "Special attribute __weakref__ cannot be exposed to Python")
                 if not type.is_pyobject:
@@ -1608,6 +1612,8 @@ class CClassScope(ClassScope):
                          type.create_from_py_utility_code(self))):
                         error(pos,
                               "C attribute of type '%s' cannot be accessed from Python" % type)
+            else:
+                entry.needs_property = False
             return entry
         else:
             if type is unspecified_type:
