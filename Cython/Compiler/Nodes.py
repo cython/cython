@@ -136,6 +136,9 @@ class Node(object):
     # can either contain a single node or a list of nodes. See Visitor.py.
     child_attrs = None
 
+    cf_state = None
+
+
     def __init__(self, pos, **kw):
         self.pos = pos
         self.__dict__.update(kw)
