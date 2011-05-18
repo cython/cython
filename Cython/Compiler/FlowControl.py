@@ -169,7 +169,8 @@ class ControlFlow(object):
         if self.block and self.is_tracked(entry):
             self.block.stats.append(NameReference(node, entry))
             # Local variable is definitely bound after this reference
-            self.block.bounded.add(entry)
+            if not node.allow_null:
+                self.block.bounded.add(entry)
             self.entries.add(entry)
 
     def normalize(self):
@@ -402,9 +403,11 @@ def check_definitions(flow, compiler_directives):
                 references[stat.node] = stat.entry
                 stat.entry.cf_references.append(stat)
                 stat.node.cf_state.update(state[stat.entry])
-                state[stat.entry].discard(Uninitialized)
+                if not stat.node.allow_null:
+                    state[stat.entry].discard(Uninitialized)
                 for assmt in state[stat.entry]:
-                    assmt.refs.add(stat)
+                    if assmt is not Uninitialized:
+                        assmt.refs.add(stat)
 
     # Check variable usage
     warn_maybe_uninitialized = compiler_directives['warn.maybe_uninitialized']
