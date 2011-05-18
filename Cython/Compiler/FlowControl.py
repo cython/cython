@@ -428,7 +428,6 @@ def check_definitions(flow, compiler_directives):
 
     # Find uninitialized references and cf-hints
     for node, entry in references.iteritems():
-        print entry, node.cf_state
         if Uninitialized in node.cf_state:
             node.cf_maybe_null = True
             if entry.from_closure or node.allow_null:
