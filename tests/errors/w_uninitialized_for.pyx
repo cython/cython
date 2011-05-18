@@ -50,6 +50,35 @@ def for_break(l):
         x = i
     print x
 
+def for_finally_continue(f):
+    for i in f:
+        try:
+            x = i()
+        finally:
+            print x
+            continue
+
+def for_finally_break(f):
+    for i in f:
+        try:
+            x = i()
+        finally:
+            print x
+            break
+
+def for_finally_outer(p, f):
+    x = 1
+    try:
+        for i in f:
+            print x
+            x = i()
+            if x > 0:
+                continue
+            if x < 0:
+                break
+    finally:
+        del x
+
 
 _ERRORS = """
 8:12: local variable 'a' might be referenced before assignment
@@ -59,4 +88,6 @@ _ERRORS = """
 37:16: local variable 'x' might be referenced before assignment
 44:11: local variable 'x' might be referenced before assignment
 51:11: local variable 'x' might be referenced before assignment
+58:19: local variable 'x' might be referenced before assignment
+66:19: local variable 'x' might be referenced before assignment
 """
