@@ -1006,6 +1006,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type = entry.type
 
                 if not definition and entry.defined_in_pxd:
+                    storage_class = "static "
+                    dll_linkage = None
                     type = CPtrType(type)
                 header = type.declaration_code(entry.cname,
                                                dll_linkage = dll_linkage)
