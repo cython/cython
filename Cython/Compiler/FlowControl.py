@@ -680,10 +680,12 @@ class CreateControlFlowGraph(CythonTransform):
         return node
 
     def visit_StatListNode(self, node):
-        for stat in node.stats:
-            if not self.flow.block:
-                break
-            self.visit(stat)
+        if self.flow.block:
+            for stat in node.stats:
+                self.visit(stat)
+                if not self.flow.block:
+                    stat.is_terminator = True
+                    break
         return node
 
     def visit_Node(self, node):
