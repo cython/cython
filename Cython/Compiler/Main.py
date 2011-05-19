@@ -152,6 +152,7 @@ class Context(object):
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
             TransformBuiltinMethods(self),  ## Necessary?
             CreateControlFlowGraph(self),
+            RemoveUnreachableCode(self),
             MarkAssignments(self),
             MarkOverflowingArithmetic(self),
             IntroduceBufferAuxiliaryVars(self),
