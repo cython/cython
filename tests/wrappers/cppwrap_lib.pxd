@@ -1,4 +1,5 @@
-
+cdef extern from "cppwrap_lib.cpp":
+    pass
 cdef extern from "cppwrap_lib.h":
     void voidfunc()
     double doublefunc(double a, double b, double c)
