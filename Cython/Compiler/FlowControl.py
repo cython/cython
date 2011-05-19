@@ -441,6 +441,11 @@ def check_definitions(flow, compiler_directives):
                         node.pos,
                         "local variable '%s' referenced before assignment"
                         % entry.name)
+                else:
+                    messages.warning(
+                        node.pos,
+                        "local variable '%s' referenced before assignment"
+                        % entry.name)
                 node.cf_is_null = True
             else:
                 if warn_maybe_uninitialized:
