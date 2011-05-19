@@ -741,7 +741,11 @@ class CreateControlFlowGraph(CythonTransform):
                 self.flow.block.add_child(next_block)
         else:
             condition_block.add_child(next_block)
-        self.flow.block = next_block
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
         return node
 
     def visit_ForInStatNode(self, node):
@@ -768,7 +772,11 @@ class CreateControlFlowGraph(CythonTransform):
                 self.flow.block.add_child(next_block)
         else:
             condition_block.add_child(next_block)
-        self.flow.block = next_block
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
         return node
 
     def visit_ForFromStatNode(self, node):
@@ -799,7 +807,11 @@ class CreateControlFlowGraph(CythonTransform):
                 self.flow.block.add_child(next_block)
         else:
             condition_block.add_child(next_block)
-        self.flow.block = next_block
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
         return node
 
     def visit_LoopNode(self, node):
