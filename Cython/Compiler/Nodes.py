@@ -557,6 +557,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             if name_declarator.cname:
                 error(self.pos,
                     "Function argument cannot have C name specification")
+            if i==0 and env.is_c_class_scope and type.is_unspecified:
+                # fix the type of self
+                type = env.parent_type
             # Turn *[] argument into **
             if type.is_array:
                 type = PyrexTypes.c_ptr_type(type.base_type)
@@ -945,15 +948,6 @@ class CVarDefNode(StatNode):
             dest_scope = env
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
-
-        # If the field is an external typedef, we cannot be sure about the type,
-        # so do conversion ourself rather than rely on the CPython mechanism (through
-        # a property; made in AnalyseDeclarationsTransform).
-        if (dest_scope.is_c_class_scope
-            and self.visibility in ('public', 'readonly')):
-            need_property = True
-        else:
-            need_property = False
         visibility = self.visibility
 
         for declarator in self.declarators:
@@ -987,7 +981,6 @@ class CVarDefNode(StatNode):
                         "Only 'extern' C variable declaration allowed in .pxd file")
                 entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname=cname, visibility=visibility, api=self.api, is_cdef=1)
-                entry.needs_property = need_property
 
 
 class CStructOrUnionDefNode(StatNode):
@@ -1970,7 +1963,7 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -1990,7 +1983,7 @@ class DefNode(FuncDefNode):
                                               exception_check = False,
                                               nogil = False,
                                               with_gil = False,
-                                              is_overridable = True)
+                                              is_overridable = overridable)
             cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:
             if scope is None:
