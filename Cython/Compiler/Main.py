@@ -108,8 +108,8 @@ class Context(object):
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
         from TypeInference import MarkAssignments, MarkOverflowingArithmetic
-        from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
-        from ParseTreeTransforms import RemoveUnreachableCode
+        from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
+        from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
@@ -137,6 +137,8 @@ class Context(object):
             _specific_post_parse,
             InterpretCompilerDirectives(self, self.compiler_directives),
             ParallelRangeTransform(self),
+            AdjustDefByDirectives(self),
+            _align_function_definitions,
             MarkClosureVisitor(self),
             _align_function_definitions,
             RemoveUnreachableCode(self),
