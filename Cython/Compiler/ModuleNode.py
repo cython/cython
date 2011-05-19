@@ -1852,6 +1852,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Function import code ---*/")
         for module in imported_modules:
+            self.specialize_fused_types(module, env)
             self.generate_c_function_import_code_for_module(module, env, code)
 
         code.putln("/*--- Execution code ---*/")
@@ -2059,11 +2060,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.defined_in_pxd:
                 self.generate_type_import_code(env, entry.type, entry.pos, code)
 
+    def specialize_fused_types(self, pxd_env, impl_env):
+        """
+        If fused c(p)def functions are defined in an imported pxd, but not
+        used in this implementation file, we still have fused entries and
+        not specialized ones. This method replaces any fused entries with their
+        specialized ones.
+        """
+        for entry in pxd_env.cfunc_entries[:]:
+            if entry.type.is_fused:
+                # This call modifies the cfunc_entries in-place
+                entry.type.get_all_specific_function_types()
+
     def generate_c_function_import_code_for_module(self, module, env, code):
         # Generate import code for all exported C functions in a cimported module.
         entries = []
         for entry in module.cfunc_entries:
-            if entry.defined_in_pxd:
+            if entry.defined_in_pxd and entry.used:
                 entries.append(entry)
         if entries:
             env.use_utility_code(import_module_utility_code)

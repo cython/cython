@@ -32,18 +32,20 @@ cdef public class MyExt [ type MyExtType, object MyExtObject ]:
 ctypedef char *string_t
 ctypedef cython.fused_type(int, float) simple_t
 ctypedef cython.fused_type(int, float, string_t) less_simple_t
-ctypedef cython.fused_type(mystruct_t, myunion_t, MyExt) object_t
+ctypedef cython.fused_type(mystruct_t, myunion_t, MyExt) struct_t
 ctypedef cython.fused_type(str, unicode, bytes) builtin_t
 
-cdef object_t add_simple(object_t obj, simple_t simple)
-cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple)
-cdef public_optional_args(object_t obj, simple_t simple = *)
-
-ctypedef cython.fused_type(float, double) floating
-ctypedef cython.fused_type(int, long) integral
+cdef struct_t add_simple(struct_t obj, simple_t simple)
+cdef less_simple_t add_to_simple(struct_t obj, less_simple_t simple)
+cdef public_optional_args(struct_t obj, simple_t simple = *)
 
 cdef class TestFusedExtMethods(object):
-    cdef floating method(self, integral x, floating y)
+    cdef cython.floating method(self, cython.integral x, cython.floating y)
+    cpdef cpdef_method(self, cython.integral x, cython.floating y)
+
+ctypedef cython.fused_type(TestFusedExtMethods, object, list) object_t
+
+cpdef public_cpdef(cython.integral x, cython.floating y, object_t z)
 
 ######## header.h ########
 
@@ -54,28 +56,37 @@ typedef long extern_long;
 
 cimport cython
 
-cdef object_t add_simple(object_t obj, simple_t simple):
+cdef struct_t add_simple(struct_t obj, simple_t simple):
      obj.a = <int> (obj.a + simple)
      return obj
 
-cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple):
+cdef less_simple_t add_to_simple(struct_t obj, less_simple_t simple):
     return obj.a + simple
 
-cdef public_optional_args(object_t obj, simple_t simple = 6):
+cdef public_optional_args(struct_t obj, simple_t simple = 6):
     return obj.a, simple
 
 cdef class TestFusedExtMethods(object):
-    cdef floating method(self, integral x, floating y):
-        if integral is int:
+    cdef cython.floating method(self, cython.integral x, cython.floating y):
+        if cython.integral is int:
             x += 1
 
-        if floating is double:
+        if cython.floating is double:
             y += 2.0
 
         return x + y
 
+    cpdef cpdef_method(self, cython.integral x, cython.floating y):
+        return cython.typeof(x), cython.typeof(y)
+
+cpdef public_cpdef(cython.integral x, cython.floating y, object_t z):
+    return cython.typeof(x), cython.typeof(y), cython.typeof(z)
+
+
 ######## b.pyx ########
 
+cimport cython
+cimport a as a_cmod
 from a cimport *
 
 cdef mystruct_t mystruct
@@ -134,8 +145,11 @@ assert obj.method[int, double](x, b) == 14.0
 
 # Test inheritance
 cdef class Subclass(TestFusedExtMethods):
-    cdef floating method(self, integral x, floating y):
+    cdef cython.floating method(self, cython.integral x, cython.floating y):
         return -x -y
+
+    cpdef cpdef_method(self, cython.integral x, cython.floating y):
+        return x, y
 
 cdef Subclass myobj = Subclass()
 assert myobj.method[int, float](5, 5.0) == -10
@@ -146,4 +160,45 @@ assert meth(myobj, 5, 5.0) == -10
 
 meth = myobj.method[int, float]
 assert meth(myobj, 5, 5.0) == -10
+
+
+# Test cpdef functions and methods
+cy = __import__("cython")
+import a as a_mod
+
+def ae(result, expected):
+    "assert equals"
+    if result != expected:
+        print 'result  :', result
+        print 'expected:', expected
+
+    assert result == expected
+
+ae(a_mod.public_cpdef["int, float, list"](5, 6, [7]), ("int", "float", "list"))
+ae(a_mod.public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list"))
+
+idx = cy.typeof(0), cy.typeof(0.0), cy.typeof([])
+ae(a_mod.public_cpdef[idx](5, 6, [7]), ("int", "float", "list"))
+
+ae(a_mod.public_cpdef[cy.int, cy.double, cython.typeof(obj)](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
+ae(a_mod.public_cpdef[cy.int, cy.double, cython.typeof(obj)](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
+
+ae(public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list"))
+ae(public_cpdef[int, double, TestFusedExtMethods](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
+ae(public_cpdef[int, double, TestFusedExtMethods](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
+
+ae(obj.cpdef_method(10, 10.0), ("long", "double"))
+ae(myobj.cpdef_method(10, 10.0), (10, 10.0))
+ae(obj.cpdef_method[int, float](10, 10.0), ("int", "float"))
+ae(myobj.cpdef_method[int, float](10, 10.0), (10, 10.0))
+
+s = """\
+import cython as cy
+
+ae(obj.cpdef_method[cy.int, cy.float](10, 10.0), ("int", "float"))
+ae(myobj.cpdef_method[cy.int, cy.float](10, 10.0), (10, 10.0))
+"""
+
+d = {'obj': obj, 'myobj': myobj, 'ae': ae}
+exec s in d, d
 

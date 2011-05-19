@@ -1434,6 +1434,7 @@ class NameNode(AtomicExprNode):
 
         if (not self.is_lvalue() and self.entry.is_cfunction and
                 self.entry.fused_cfunction and self.entry.as_variable):
+            # We need this for the fused 'def' TreeFragment
             self.entry = self.entry.as_variable
             self.type = self.entry.type
 
@@ -2361,18 +2362,24 @@ class IndexNode(ExprNode):
                 specific_type = arg.analyse_as_type(env)
                 specific_types.append(specific_type)
         else:
-            return error(self.pos, "Can only index fused functions with types")
+            specific_types = [False]
 
         if not Utils.all(specific_types):
             self.index.analyse_types(env)
 
             if not self.base.entry.as_variable:
-                error(self.pos, "cdef function must be indexed with types")
+                error(self.pos, "Can only index fused functions with types")
             else:
                 # A cpdef function indexed with Python objects
-                self.entry = self.base.entry.as_variable
-                self.type = self.entry.type
+                self.base.entry = self.entry = self.base.entry.as_variable
+                self.base.type = self.type = self.entry.type
 
+                self.base.is_temp = True
+                self.is_temp = True
+
+                self.entry.used = True
+
+            self.is_fused_index = False
             return
 
         fused_types = base_type.get_fused_types()
@@ -2411,9 +2418,12 @@ class IndexNode(ExprNode):
                         # Pretend to be a normal attribute, for cdef extension
                         # methods
                         self.entry = signature.entry
-                        self.is_attribute = self.base.is_attribute
+                        self.is_attribute = True
                         self.obj = self.base.obj
-                        self.entry.used = True
+
+                    self.type.entry.used = True
+                    self.base.type = signature
+                    self.base.entry = signature.entry
 
                     break
             else:
@@ -3148,7 +3158,7 @@ class SimpleCallNode(CallNode):
         elif hasattr(self.function, 'entry'):
             overloaded_entry = self.function.entry
         elif (isinstance(self.function, IndexNode) and
-              self.function.base.type.is_fused):
+              self.function.is_fused_index):
             overloaded_entry = self.function.type.entry
         else:
             overloaded_entry = None
@@ -5172,7 +5182,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     is_temp = 1
 
     specialized_cpdefs = None
-    fused_args_positions = None
 
     def analyse_types(self, env):
         if self.specialized_cpdefs:
@@ -5245,21 +5254,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         fmt_dict['sigdict'] = \
             "((%(binding_cfunc)s_object *) %(result)s)->__signatures__" % fmt_dict
 
-        # Initialize __signatures__ and set __PYX_FUSED_ARGS_POSITIONS
+        # Initialize __signatures__
         goto_err("%(sigdict)s = PyDict_New()")
-
-        assert self.fused_args_positions
-        pos_str = ','.join(map(str, self.fused_args_positions))
-        string_const = code.globalstate.new_string_const(pos_str, pos_str)
-
-        fmt_dict["pos_const_cname"] = string_const.cname
-        goto_err("%(signature)s = PyUnicode_FromString(%(pos_const_cname)s)")
-        code.put_error_if_neg(self.pos,
-                'PyDict_SetItemString(%(sigdict)s, '
-                                    '"__PYX_FUSED_ARGS_POSITIONS", '
-                                    '%(signature)s)' % fmt_dict)
-
-        code.putln("Py_DECREF(%(signature)s); %(signature)s = NULL;" % fmt_dict)
 
         # Now put all specialized cpdefs in __signatures__
         for cpdef in self.specialized_cpdefs:
@@ -5938,8 +5934,8 @@ class TypeofNode(ExprNode):
 
     def analyse_types(self, env):
         self.operand.analyse_types(env)
-        self.literal = StringNode(
-            self.pos, value=StringEncoding.EncodedString(str(self.operand.type)))
+        value = StringEncoding.EncodedString(self.operand.type.typeof_name())
+        self.literal = StringNode(self.pos, value=value)
         self.literal.analyse_types(env)
         self.literal = self.literal.coerce_to_pyobject(env)
 
@@ -8762,57 +8758,59 @@ proto="""
 #define %(binding_cfunc)s_USED 1
 #include <structmember.h>
 
-#define __PYX_O %(binding_cfunc)s_object
-#define __PYX_T %(binding_cfunc)s_type
-#define __PYX_TP %(binding_cfunc)s
-#define __PYX_M(MEMB) %(binding_cfunc)s_##MEMB
-
 typedef struct {
     PyCFunctionObject func;
     PyObject *__signatures__;
     PyObject *type;
+    PyObject *self;
     PyObject *__dict__;
-} __PYX_O;
+} %(binding_cfunc)s_object;
 
 /* Binding PyCFunction Prototypes */
-static PyObject *__PYX_M(NewEx)(PyMethodDef *ml, PyObject *self, PyObject *module); /* proto */
+static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module); /* proto */
 #define %(binding_cfunc)s_New(ml, self) %(binding_cfunc)s_NewEx(ml, self, NULL)
 
-static int       __PYX_M(init)(void);
-static void      __PYX_M(dealloc)(__PYX_O *m);
-static int       __PYX_M(traverse)(__PYX_O *m, visitproc visit, void *arg);
-static PyObject *__PYX_M(descr_get)(PyObject *func, PyObject *obj, PyObject *type);
-static PyObject *__PYX_M(getitem)(__PYX_O *m, PyObject *idx);
-static PyObject *__PYX_M(call)(PyObject *func, PyObject *args, PyObject *kw);
+static int       %(binding_cfunc)s_init(void);
+static void      %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m);
+static int       %(binding_cfunc)s_traverse(%(binding_cfunc)s_object *m, visitproc visit, void *arg);
+static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyObject *type);
+static PyObject *%(binding_cfunc)s_getitem(%(binding_cfunc)s_object *m, PyObject *idx);
+static PyObject *%(binding_cfunc)s_call(PyObject *func, PyObject *args, PyObject *kw);
 
-static PyObject *__PYX_M(get__name__)(__PYX_O *func, void *closure);
-static int       __PYX_M(set__name__)(__PYX_O *func, PyObject *value, void *closure);
+static PyObject *%(binding_cfunc)s_get__name__(%(binding_cfunc)s_object *func, void *closure);
+static int %(binding_cfunc)s_set__name__(%(binding_cfunc)s_object *func, PyObject *value, void *closure);
 
-static PyGetSetDef __PYX_M(getsets)[] = {
-    {"__name__", (getter) __PYX_M(get__name__), (setter) __PYX_M(set__name__), NULL},
+static PyGetSetDef %(binding_cfunc)s_getsets[] = {
+    {(char *)"__name__",
+     (getter) %(binding_cfunc)s_get__name__,
+     (setter) %(binding_cfunc)s_set__name__,
+     NULL},
     {NULL},
 };
 
-static PyMemberDef __PYX_M(members)[] = {
-    {"__signatures__",
+static PyMemberDef %(binding_cfunc)s_members[] = {
+    {(char *) "__signatures__",
      T_OBJECT,
-     offsetof(__PYX_O, __signatures__),
-     PY_WRITE_RESTRICTED},
-    {"__dict__", T_OBJECT, offsetof(__PYX_O, __dict__), 0},
+     offsetof(%(binding_cfunc)s_object, __signatures__),
+     __Pyx_DOCSTR(0)},
+    {(char *) "__dict__",
+     T_OBJECT,
+     offsetof(%(binding_cfunc)s_object, __dict__),
+     __Pyx_DOCSTR(0)},
 };
 
-static PyMappingMethods __PYX_M(mapping_methods) = {
-    0,                                 /*mp_length*/
-    (binaryfunc) __PYX_M(getitem),     /*mp_subscript*/
-    0,                                 /*mp_ass_subscript*/
+static PyMappingMethods %(binding_cfunc)s_mapping_methods = {
+    0,
+    (binaryfunc) %(binding_cfunc)s_getitem,
+    0,
 };
 
-static PyTypeObject __PYX_T = {
+static PyTypeObject __pyx_binding_PyCFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     __Pyx_NAMESTR("cython_function_or_method"), /*tp_name*/
-    sizeof(__PYX_O),                    /*tp_basicsize*/
+    sizeof(%(binding_cfunc)s_object),   /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
-    (destructor) __PYX_M(dealloc),      /*tp_dealloc*/
+    (destructor) %(binding_cfunc)s_dealloc, /*tp_dealloc*/
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
@@ -8824,29 +8822,29 @@ static PyTypeObject __PYX_T = {
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
-    &__PYX_M(mapping_methods),          /*tp_as_mapping*/
+    &%(binding_cfunc)s_mapping_methods, /*tp_as_mapping*/
     0,                                  /*tp_hash*/
-    __PYX_M(call),                      /*tp_call*/
+    %(binding_cfunc)s_call,             /*tp_call*/
     0,                                  /*tp_str*/
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
     0,                                  /*tp_doc*/
-    (traverseproc) __PYX_M(traverse),   /*tp_traverse*/
+    (traverseproc) %(binding_cfunc)s_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
     0,                                  /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
     0,                                  /*tp_methods*/
-    __PYX_M(members),                   /*tp_members*/
-    __PYX_M(getsets),                   /*tp_getset*/
+    %(binding_cfunc)s_members,          /*tp_members*/
+    %(binding_cfunc)s_getsets,          /*tp_getset*/
     &PyCFunction_Type,                  /*tp_base*/
     0,                                  /*tp_dict*/
-    __PYX_M(descr_get),                 /*tp_descr_get*/
+    %(binding_cfunc)s_descr_get,        /*tp_descr_get*/
     0,                                  /*tp_descr_set*/
-    offsetof(__PYX_O, __dict__),        /*tp_dictoffset*/
+    offsetof(%(binding_cfunc)s_object, __dict__), /*tp_dictoffset*/
     0,                                  /*tp_init*/
     0,                                  /*tp_alloc*/
     0,                                  /*tp_new*/
@@ -8863,11 +8861,15 @@ static PyTypeObject __PYX_T = {
 #endif
 };
 
-static PyTypeObject *__PYX_TP = NULL;
+static PyTypeObject *%(binding_cfunc)s = NULL;
 """ % Naming.__dict__,
 impl="""
-static PyObject *__PYX_M(NewWithDict)(PyMethodDef *ml, PyObject *self, PyObject *module, PyObject *dict) {
-    __PYX_O *op = PyObject_GC_New(__PYX_O, __PYX_TP);
+static PyObject *
+%(binding_cfunc)s_NewWithDict(PyMethodDef *ml, PyObject *self,
+                              PyObject *module, PyObject *dict)
+{
+    %(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object,
+                                                   %(binding_cfunc)s);
     if (op == NULL)
         return NULL;
     op->func.m_ml = ml;
@@ -8881,44 +8883,55 @@ static PyObject *__PYX_M(NewWithDict)(PyMethodDef *ml, PyObject *self, PyObject 
     Py_XINCREF(dict);
     op->__dict__ = dict;
 
+    op->type = NULL;
+    op->self = NULL;
     op->__signatures__ = NULL;
 
-    op->type = NULL;
     PyObject_GC_Track(op);
     return (PyObject *)op;
 }
 
-static PyObject *__PYX_M(NewEx)(PyMethodDef *ml, PyObject *self, PyObject *module) {
+static PyObject *
+%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module)
+{
     PyObject *dict = PyDict_New();
     PyObject *result;
 
     if (!dict)
         return NULL;
 
-    result = __PYX_M(NewWithDict)(ml, self, module, dict);
+    result = %(binding_cfunc)s_NewWithDict(ml, self, module, dict);
     Py_DECREF(dict);
     return result;
 }
 
-static void __PYX_M(dealloc)(__PYX_O *m) {
+static void %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m) {
     PyObject_GC_UnTrack(m);
     Py_XDECREF(m->func.m_self);
     Py_XDECREF(m->func.m_module);
     Py_XDECREF(m->__signatures__);
     Py_XDECREF(m->__dict__);
+    Py_XDECREF(m->self);
     Py_XDECREF(m->type);
     PyObject_GC_Del(m);
 }
 
-static int __PYX_M(traverse)(__PYX_O *m, visitproc visit, void *arg) {
+static int
+%(binding_cfunc)s_traverse(%(binding_cfunc)s_object *m, visitproc visit,
+                           void *arg)
+{
     Py_VISIT(m->func.m_self);
     Py_VISIT(m->func.m_module);
+    Py_VISIT(m->self);
+    Py_VISIT(m->type);
     Py_VISIT(m->__signatures__);
     Py_VISIT(m->__dict__);
     return 0;
 }
 
-static PyObject *__PYX_M(get__name__)(__PYX_O *func, void *closure) {
+static PyObject *
+%(binding_cfunc)s_get__name__(%(binding_cfunc)s_object *func, void *closure)
+{
     PyObject *result = PyDict_GetItemString(func->__dict__, "__name__");
     if (result) {
         /* Borrowed reference! */
@@ -8929,20 +8942,19 @@ static PyObject *__PYX_M(get__name__)(__PYX_O *func, void *closure) {
     return PyUnicode_FromString(func->func.m_ml->ml_name);
 }
 
-static int __PYX_M(set__name__)(__PYX_O *func, PyObject *value, void *closure) {
+static int
+%(binding_cfunc)s_set__name__(%(binding_cfunc)s_object *func, PyObject *value,
+                              void *closure)
+{
     return PyDict_SetItemString(func->__dict__, "__name__", value);
 }
 
-/*
-    Note: PyMethod_New() will create a bound or unbound method that does not take
-    PyCFunctionObject into account, it will not accept an additional
-    'self' argument in the unbound case, or will take one less argument in the
-    bound method case.
-*/
-static PyObject *__PYX_M(descr_get)(PyObject *op, PyObject *obj, PyObject *type) {
-    __PYX_O *func = (__PYX_O *) op;
+static PyObject *
+%(binding_cfunc)s_descr_get(PyObject *op, PyObject *obj, PyObject *type)
+{
+    %(binding_cfunc)s_object *func = (%(binding_cfunc)s_object *) op;
 
-    if (func->func.m_self) {
+    if (func->self) {
         /* Do not allow rebinding */
         Py_INCREF(op);
         return op;
@@ -8951,56 +8963,80 @@ static PyObject *__PYX_M(descr_get)(PyObject *op, PyObject *obj, PyObject *type)
     if (obj == Py_None)
         obj = NULL;
 
-    if (1 || func->__signatures__) {
-        /* Fused bound or unbound method */
-        __PYX_O *meth = (__PYX_O *) __PYX_M(NewWithDict)(func->func.m_ml,
-                                                         obj,
-                                                         func->func.m_module,
-                                                         func->__dict__);
+    %(binding_cfunc)s_object *meth = (%(binding_cfunc)s_object *) \
+            %(binding_cfunc)s_NewWithDict(func->func.m_ml,
+                                          func->func.m_self,
+                                          func->func.m_module,
+                                          func->__dict__);
 
-        meth->__signatures__ = func->__signatures__;
-        Py_XINCREF(meth->__signatures__);
+    Py_XINCREF(func->__signatures__);
+    meth->__signatures__ = func->__signatures__;
 
-        meth->type = type;
-        Py_XINCREF(type);
+    Py_XINCREF(type);
+    meth->type = type;
 
-        return (PyObject *) meth;
-    } else {
-        PyObject *meth = PyDescr_NewMethod((PyTypeObject *) type, func->func.m_ml);
-        PyObject *self = obj;
+    Py_XINCREF(obj);
+    meth->self = obj;
 
-        if (self == NULL)
-            self = Py_None;
+    return (PyObject *) meth;
 
-        if (meth == NULL)
-            return NULL;
-
-        return PyObject_CallMethod(meth, "__get__", "OO", self, type);
-    }
 }
 
-static PyObject *__PYX_M(getitem)(__PYX_O *m, PyObject *idx) {
+static PyObject *
+%(binding_cfunc)s_getitem(%(binding_cfunc)s_object *m, PyObject *idx)
+{
     PyObject *signature = NULL;
     PyObject *unbound_result_func;
     PyObject *result_func = NULL;
-    PyObject *type = NULL;
 
     if (m->__signatures__ == NULL) {
         PyErr_SetString(PyExc_TypeError, "Function is not fused");
         return NULL;
     }
 
-    if (!(signature = PyObject_Str(idx)))
+    if (PyTuple_Check(idx)) {
+        PyObject *list = PyList_New(0);
+        Py_ssize_t n = PyTuple_GET_SIZE(idx);
+        PyObject *string = NULL;
+        PyObject *sep = NULL;
+        int i;
+
+        if (!list)
+            return NULL;
+
+        for (i = 0; i < n; i++) {
+            PyObject *item = PyTuple_GET_ITEM(idx, i);
+
+            if (PyType_Check(item))
+                string = PyObject_GetAttrString(item, "__name__");
+            else
+                string = PyObject_Str(item);
+
+            if (!string || PyList_Append(list, string) < 0)
+                goto __pyx_err;
+
+            Py_DECREF(string);
+        }
+
+        sep = PyUnicode_FromString(", ");
+        if (sep)
+            signature = PyUnicode_Join(sep, list);
+__pyx_err:
+;
+        Py_DECREF(list);
+        Py_XDECREF(sep);
+    } else {
+        signature = PyObject_Str(idx);
+    }
+
+    if (!signature)
         return NULL;
 
     unbound_result_func = PyObject_GetItem(m->__signatures__, signature);
 
-    if (unbound_result_func) {
-        if (m->func.m_self)
-            type = (PyObject *) m->func.m_self->ob_type;
-
-        result_func = __PYX_M(descr_get)(unbound_result_func, m->func.m_self, m->type);
-    }
+    if (unbound_result_func)
+        result_func = %(binding_cfunc)s_descr_get(unbound_result_func,
+                                                  m->self, m->type);
 
     Py_DECREF(signature);
     Py_XDECREF(unbound_result_func);
@@ -9008,71 +9044,86 @@ static PyObject *__PYX_M(getitem)(__PYX_O *m, PyObject *idx) {
     return result_func;
 }
 
-static PyObject *__PYX_M(call)(PyObject *func, PyObject *args, PyObject *kw) {
-    __PYX_O *binding_func = (__PYX_O *) func;
-    PyObject *dtype = binding_func->type;
-    Py_ssize_t argc;
+/* Note: the 'self' from method binding is passed in in the args tuple,
+         whereas PyCFunctionObject's m_self is passed in as the first
+         argument to the C function. For extension methods we also need
+         to pass 'self' as 'm_self' and not as the first element of the
+         args tuple.
+*/
+static PyObject *
+%(binding_cfunc)s_call(PyObject *func, PyObject *args, PyObject *kw)
+{
+    %(binding_cfunc)s_object *binding_func = (%(binding_cfunc)s_object *) func;
+    Py_ssize_t argc = PyTuple_GET_SIZE(args);
+    PyObject *new_args = NULL;
     PyObject *new_func = NULL;
-    PyObject *result;
+    PyObject *result = NULL;
+    PyObject *self = NULL;
 
-    if (binding_func->__signatures__) {
-        PyObject *module = PyImport_ImportModule("cython");
-        if (!module)
+    if (binding_func->self) {
+        /* Bound method call, put 'self' in the args tuple */
+        Py_ssize_t i;
+        new_args = PyTuple_New(argc + 1);
+        if (!new_args)
             return NULL;
 
-        new_func = PyObject_CallMethod(module, "_specialized_from_args", "OOO",
-                                       binding_func->__signatures__, args, kw);
-        Py_DECREF(module);
-        if (!new_func)
-            return NULL;
+        self = binding_func->self;
+        Py_INCREF(self);
+        PyTuple_SET_ITEM(new_args, 0, self);
 
-        func = new_func;
-    }
+        for (i = 0; i < argc; i++) {
+            PyObject *item = PyTuple_GET_ITEM(args, i);
+            Py_INCREF(item);
+            PyTuple_SET_ITEM(new_args, i + 1, item);
+        }
 
-    if (dtype && !binding_func->func.m_self) {
-        /* Unbound method call, make sure that the first argument is acceptable
-           as 'self' */
-        PyObject *self;
-
-        argc = PyTuple_GET_SIZE(args);
+        args = new_args;
+    } else if (binding_func->type) {
+        /* Unbound method call */
         if (argc < 1) {
             PyErr_Format(PyExc_TypeError, "Need at least one argument, 0 given.");
             return NULL;
         }
         self = PyTuple_GET_ITEM(args, 0);
-        if (!PyObject_IsInstance(self, dtype)) {
-            PyErr_Format(PyExc_TypeError,
-                         "First argument should be of type %%s, got %%s.",
-                         ((PyTypeObject *) dtype)->tp_name,
-                         self->ob_type->tp_name);
-            return NULL;
-        }
+    }
 
-        args = PyTuple_GetSlice(args, 1, argc);
-        if (args == NULL) {
-            return NULL;
-        }
+    if (self && !PyObject_IsInstance(self, binding_func->type)) {
+        PyErr_Format(PyExc_TypeError,
+                     "First argument should be of type %%s, got %%s.",
+                     ((PyTypeObject *) binding_func->type)->tp_name,
+                     self->ob_type->tp_name);
+        goto __pyx_err;
+    }
 
-        func = new_func = PyCFunction_NewEx(binding_func->func.m_ml, self, dtype);
+    if (binding_func->__signatures__) {
+        /*
+        binaryfunc meth = (binaryfunc) binding_func->func.m_ml->ml_meth;
+        func = new_func = meth(binding_func->__signatures__, args);
+        */
+        PyObject *tup = PyTuple_Pack(2, binding_func->__signatures__, args);
+        if (!tup)
+            goto __pyx_err;
+
+        func = new_func = PyCFunction_Call(func, tup, NULL);
+
+        if (!new_func)
+            goto __pyx_err;
     }
 
     result = PyCFunction_Call(func, args, kw);
+__pyx_err:
+    Py_XDECREF(new_args);
     Py_XDECREF(new_func);
     return result;
 }
 
-static int __PYX_M(init)(void) {
-    if (PyType_Ready(&__PYX_T) < 0) {
+static int %(binding_cfunc)s_init(void) {
+    if (PyType_Ready(&%(binding_cfunc)s_type) < 0) {
         return -1;
     }
-    __PYX_TP = &__PYX_T;
+    %(binding_cfunc)s = &%(binding_cfunc)s_type;
     return 0;
 }
-
-#undef __PYX_O
-#undef __PYX_T
-#undef __PYX_TP
-#undef __PYX_M
 """ % Naming.__dict__)
 
 

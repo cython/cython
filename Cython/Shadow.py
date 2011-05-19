@@ -64,7 +64,8 @@ def sizeof(arg):
     return 1
 
 def typeof(arg):
-    return type(arg)
+    return arg.__class__.__name__
+    # return type(arg)
 
 def address(arg):
     return pointer(type(arg))([arg])
@@ -233,9 +234,7 @@ class typedef(CythonType):
         return self.name or str(self._basetype)
 
 class _FusedType(CythonType):
-
-    def __call__(self, type, value):
-        return value
+    pass
 
 
 def fused_type(*args):

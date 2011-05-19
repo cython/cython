@@ -1144,6 +1144,8 @@ if VALUE is not None:
         if node.has_fused_arguments:
             node = Nodes.FusedCFuncDefNode(node, self.env_stack[-1])
             self.visitchildren(node)
+            if node.py_func:
+                node.stats.append(node.py_func)
         else:
             node.body.analyse_declarations(lenv)
             self.env_stack.append(lenv)
@@ -1354,17 +1356,9 @@ class AnalyseExpressionsTransform(EnvTransform):
         re-analyse the types.
         """
         self.visit_Node(node)
-        type = node.type
 
-        if node.is_fused_index:
-            if node.type is PyrexTypes.error_type:
-                node.type = PyrexTypes.error_type
-            else:
-                node.base.type = node.type
-                node.base.entry = getattr(node, 'entry', None) or node.type.entry
-                node = node.base
-
-                node.analyse_types(self.env_stack[-1])
+        if node.is_fused_index and node.type is not PyrexTypes.error_type:
+            node = node.base
 
         return node
 

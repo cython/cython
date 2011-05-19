@@ -613,6 +613,7 @@ def run_forked_test(result, run_func, test_name, fork=True):
         gc.collect()
         return
 
+    module_name = test_name.split()[-1]
     # fork to make sure we do not keep the tested module loaded
     result_handle, result_file = tempfile.mkstemp()
     os.close(result_handle)

@@ -62,6 +62,29 @@ class BaseType(object):
     is_fused = property(get_fused_types, doc="Whether this type or any of its "
                                              "subtypes is a fused type")
 
+    def __lt__(self, other):
+        """
+        For sorting. The sorting order should correspond to the preference of
+        conversion from Python types.
+        """
+        return NotImplemented
+
+    def py_type_name(self):
+        """
+        Return the name of the Python type that can coerce to this type.
+        """
+
+    def typeof_name(self):
+        """
+        Return the string with which fused python functions can be indexed.
+        """
+        if self.is_builtin_type or self.py_type_name() == 'object':
+            index_name = self.py_type_name()
+        else:
+            index_name = str(self)
+
+        return index_name
+
 class PyrexType(BaseType):
     #
     #  Base class for all Pyrex types.
@@ -334,6 +357,8 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
+    def py_type_name(self):
+        return self.typedef_base_type.py_type_name()
 
 class BufferType(BaseType):
     #
@@ -417,6 +442,17 @@ class PyObjectType(PyrexType):
             return "(PyObject *)" + cname
         else:
             return cname
+
+    def py_type_name(self):
+        return "object"
+
+    def __lt__(self, other):
+        """
+        Make sure we sort highest, as instance checking on py_type_name
+        ('object') is always true
+        """
+        return False
+
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
@@ -513,6 +549,10 @@ class BuiltinObjectType(PyObjectType):
         return "((%s*)%s)" % (
             to_object_struct and self.objstruct_cname or "PyObject", # self.objstruct_cname may be None
             expr_code)
+
+    def py_type_name(self):
+        return self.name
+
 
 
 class PyExtensionType(PyObjectType):
@@ -621,6 +661,12 @@ class PyExtensionType(PyObjectType):
         return "<PyExtensionType %s%s>" % (self.scope.class_name,
             ("", " typedef")[self.typedef_flag])
 
+    def py_type_name(self):
+        if not self.module_name:
+            return self.name
+
+        return "__import__(%r, None, None, ['']).%s" % (self.module_name,
+                                                        self.name)
 
 class CType(PyrexType):
     #
@@ -773,6 +819,17 @@ class CNumericType(CType):
                     cname=" ")
         return True
 
+    def __lt__(self, other):
+        "Sort based on rank, preferring signed over unsigned"
+        if other.is_numeric:
+            return self.rank > other.rank and self.signed >= other.signed
+
+        return NotImplemented
+
+    def py_type_name(self):
+        if self.rank <= 4:
+            return "(int, long)"
+        return "float"
 
 type_conversion_predeclarations = ""
 type_conversion_functions = ""
@@ -1009,6 +1066,9 @@ class CBIntType(CIntType):
 
     def __str__(self):
         return 'bint'
+
+    def py_type_name(self):
+        return "bool"
 
 
 class CPyUCS4IntType(CIntType):
@@ -1338,6 +1398,9 @@ class CComplexType(CNumericType):
 
     def binary_op(self, op):
         return self.lookup_op(2, op)
+
+    def py_type_name(self):
+        return "complex"
 
 complex_ops = {
     (1, '-'): 'neg',
@@ -2040,7 +2103,6 @@ class CFuncType(CType):
         elif self.cached_specialized_types is not None:
             return self.cached_specialized_types
 
-
         cfunc_entries = self.entry.scope.cfunc_entries
         cfunc_entries.remove(self.entry)
 
@@ -2482,6 +2544,10 @@ class CStringType(object):
         assert isinstance(value, str)
         return '"%s"' % StringEncoding.escape_byte_string(value)
 
+    def py_type_name(self):
+        if self.is_unicode:
+            return "unicode"
+        return "bytes"
 
 class CUTF8CharArrayType(CStringType, CArrayType):
     #  C 'char []' type.
@@ -2726,6 +2792,8 @@ def best_match(args, functions, pos=None, env=None):
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
     """
+    from Cython import Utils
+
     # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(args)
 
@@ -2764,8 +2832,9 @@ def best_match(args, functions, pos=None, env=None):
         return candidates[0][0]
     elif len(candidates) == 0:
         if pos is not None:
-            if len(errors) == 1:
-                error(pos, errors[0][1])
+            func, errmsg = errors[0]
+            if len(errors) == 1 or [1 for func, e in errors if e == errmsg]:
+                error(pos, errmsg)
             else:
                 error(pos, "no suitable method found")
         return None

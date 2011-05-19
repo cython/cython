@@ -991,6 +991,7 @@ class CVarDefNode(StatNode):
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
     #  api           boolean
+    #  overridable   boolean        whether it is a cpdef
 
     #  decorators    [cython.locals(...)] or None
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
@@ -1007,6 +1008,8 @@ class CVarDefNode(StatNode):
             dest_scope = env
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
+
+        self.entry = None
 
         # If the field is an external typedef, we cannot be sure about the type,
         # so do conversion ourself rather than rely on the CPython mechanism (through
@@ -1036,20 +1039,21 @@ class CVarDefNode(StatNode):
                 error(declarator.pos, "Missing name in declaration.")
                 return
             if type.is_cfunction:
-                entry = dest_scope.declare_cfunction(name, type, declarator.pos,
+                self.entry = dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
                     api = self.api)
-                if entry is not None:
-                    entry.directive_locals = copy.copy(self.directive_locals)
+                if self.entry is not None:
+                    self.entry.is_overridable = self.overridable
+                    self.entry.directive_locals = copy.copy(self.directive_locals)
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos,
                         "Only 'extern' C variable declaration allowed in .pxd file")
-                entry = dest_scope.declare_var(name, type, declarator.pos,
+                self.entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname=cname, visibility=visibility, api=self.api, is_cdef=1)
-                entry.needs_property = need_property
+                self.entry.needs_property = need_property
 
 
 class CStructOrUnionDefNode(StatNode):
@@ -1841,6 +1845,7 @@ class CFuncDefNode(FuncDefNode):
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
             self.entry.as_variable = self.py_func.entry
+            self.entry.used = self.entry.as_variable.used = True
             # Reset scope entry the above cfunction
             env.entries[name] = self.entry
             if not env.is_module_scope or Options.lookup_module_cpdef:
@@ -2057,9 +2062,16 @@ class FusedCFuncDefNode(StatListNode):
 
         node.entry.fused_cfunction = self
 
-        self.stats = self.nodes[:]
         if self.py_func:
-            self.stats.append(self.py_func)
+            self.py_func.entry.fused_cfunction = self
+            for node in self.nodes:
+                node.py_func.fused_py_func = self.py_func
+                node.entry.as_variable = self.py_func.entry
+
+        # Copy the nodes as AnalyseDeclarationsTransform will append
+        # self.py_func to self.stats, as we only want specialized
+        # CFuncDefNodes in self.nodes
+        self.stats = self.nodes[:]
 
     def copy_cdefs(self, env):
         """
@@ -2077,10 +2089,10 @@ class FusedCFuncDefNode(StatListNode):
             env.cfunc_entries.remove(self.node.entry)
 
         # Prevent copying of the python function
-        self.py_func = self.node.py_func
+        orig_py_func = self.node.py_func
         self.node.py_func = None
-        if self.py_func:
-            env.pyfunc_entries.remove(self.py_func.entry)
+        if orig_py_func:
+            env.pyfunc_entries.remove(orig_py_func.entry)
 
         fused_types = self.node.type.get_fused_types()
 
@@ -2108,7 +2120,7 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.local_scope.fused_to_specific = fused_to_specific
 
             # This is copied from the original function, set it to false to
-            # stop recursivon
+            # stop recursion
             copied_node.has_fused_arguments = False
             self.nodes.append(copied_node)
 
@@ -2123,16 +2135,18 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.declare_cpdef_wrapper(env)
             if copied_node.py_func:
                 env.pyfunc_entries.remove(copied_node.py_func.entry)
+                # copied_node.py_func.self_in_stararg = True
 
-                type_strings = [str(fused_to_specific[fused_type])
-                                    for fused_type in fused_types]
+                type_strings = [
+                    fused_to_specific[fused_type].typeof_name()
+                        for fused_type in fused_types]
+
                 if len(type_strings) == 1:
                     sigstring = type_strings[0]
                 else:
-                    sigstring = '(%s)' % ', '.join(type_strings)
+                    sigstring = ', '.join(type_strings)
 
                 copied_node.py_func.specialized_signature_string = sigstring
-                copied_node.py_func.fused_py_func = self.py_func
 
                 e = copied_node.py_func.entry
                 e.pymethdef_cname = PyrexTypes.get_fused_cname(
@@ -2146,22 +2160,129 @@ class FusedCFuncDefNode(StatListNode):
             if Errors.num_errors > num_errors:
                 break
 
-        if self.py_func:
-            self.py_func.specialized_cpdefs = [n.py_func for n in self.nodes]
-            self.py_func.fused_args_positions = [
-                i for i, arg in enumerate(self.node.type.args)
-                      if arg.is_fused]
+        if orig_py_func:
+            self.py_func = self.make_fused_cpdef(orig_py_func, env)
+        else:
+            self.py_func = orig_py_func
 
-            from Cython.Compiler import TreeFragment
-            fragment = TreeFragment.TreeFragment(u"""
-raise ValueError("Index the function to get a specialized version")
-            """, level='function')
-            self.py_func.body = fragment.substitute()
+
+    def make_fused_cpdef(self, orig_py_func, env):
+        """
+        This creates the function that is indexable from Python and does
+        runtime dispatch based on the argument types.
+        """
+        from Cython.Compiler import TreeFragment
+        from Cython.Compiler import ParseTreeTransforms
+
+        # { (arg_pos, FusedType) : specialized_type }
+        seen_fused_types = cython.set()
+
+        # list of statements that do the instance checks
+        body_stmts = []
+
+        for i, arg_type in enumerate(self.node.type.args):
+            arg_type = arg_type.type
+            if arg_type.is_fused and arg_type not in seen_fused_types:
+                seen_fused_types.add(arg_type)
+
+                specialized_types = PyrexTypes.get_specific_types(arg_type)
+                # Prefer long over int, etc
+                specialized_types.sort()
+
+                seen_py_type_names = cython.set()
+                first_check = True
+                for specialized_type in specialized_types:
+                    py_type_name = specialized_type.py_type_name()
+
+                    if not py_type_name or py_type_name in seen_py_type_names:
+                        continue
+
+                    seen_py_type_names.add(py_type_name)
+
+                    if first_check:
+                        if_ = 'if'
+                        first_check = False
+                    else:
+                        if_ = 'elif'
+
+                    tup =  (if_, i, py_type_name, len(seen_fused_types) - 1,
+                            specialized_type.typeof_name())
+                    body_stmts.append(
+                        "    %s isinstance(args[%d], %s): "
+                                          "dest_sig[%d] = '%s'" % tup)
+
+        fmt_dict = {
+            'body': '\n'.join(body_stmts),
+            'nargs': len(self.node.type.args),
+            'name': orig_py_func.entry.name,
+        }
+
+        fragment = TreeFragment.TreeFragment(u"""
+def __pyx_fused_cpdef(signatures, args):
+    if len(args) < %(nargs)d:
+        raise TypeError("Invalid number of arguments, expected %(nargs)d, "
+                        "got %%d" %% len(args))
+
+    import sys
+    if sys.version_info >= (3, 0):
+        long = int
+        unicode = str
+    else:
+        bytes = str
+
+    dest_sig = [None] * len(args)
+
+    # instance check body
+%(body)s
+
+    candidates = []
+    for sig in signatures:
+        match_found = True
+        for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
+            if dst_type is not None and match_found:
+                match_found = src_type == dst_type
+
+        if match_found:
+            candidates.append(sig)
+
+    if not candidates:
+        raise TypeError("No matching signature found")
+    elif len(candidates) > 1:
+        raise TypeError("Function call with ambiguous argument types")
+    else:
+        return signatures[candidates[0]]
+            """ % fmt_dict, level='module')
+
+
+        # analyse the declarations of our fragment ...
+        py_func, = fragment.substitute(pos=self.node.pos).stats
+        # Analyse the function object ...
+        py_func.analyse_declarations(env)
+        # ... and its body
+        py_func.scope = env
+        ParseTreeTransforms.AnalyseDeclarationsTransform(None)(py_func)
+
+        e, orig_e = py_func.entry, orig_py_func.entry
+
+        # Update the new entry ...
+        py_func.name = e.name = orig_e.name
+        e.cname, e.func_cname = orig_e.cname, orig_e.func_cname
+        e.pymethdef_cname = orig_e.pymethdef_cname
+        # e.signature = TypeSlots.binaryfunc
+
+        # ... and the symbol table
+        del env.entries['__pyx_fused_cpdef']
+        env.entries[e.name].as_variable = e
+        env.pyfunc_entries.append(e)
+
+        py_func.specialized_cpdefs = [n.py_func for n in self.nodes]
+        return py_func
 
     def generate_function_definitions(self, env, code):
         for stat in self.stats:
             # print stat.entry, stat.entry.used
             if stat.entry.used:
+                code.mark_pos(stat.pos)
                 stat.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
@@ -2217,8 +2338,6 @@ class DefNode(FuncDefNode):
     #  fused_py_func        DefNode     The original fused cpdef DefNode
     #                                   (in case this is a specialization)
     #  specialized_cpdefs   [DefNode]   list of specialized cpdef DefNodes
-    #  fused_args_positions [int]       list of the positions of the
-    #                                   arguments with fused types
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
@@ -2240,7 +2359,6 @@ class DefNode(FuncDefNode):
 
     fused_py_func = False
     specialized_cpdefs = None
-    fused_args_positions = None
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -2563,14 +2681,6 @@ class DefNode(FuncDefNode):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
 
-        if self.specialized_cpdefs:
-            for arg in self.args + self.local_scope.arg_entries:
-                arg.needs_conversion = False
-                arg.type = py_object_type
-
-            self.local_scope.entries.clear()
-            del self.local_scope.var_entries[:]
-
         if self.needs_assignment_synthesis(env):
             # Shouldn't we be doing this at the module level too?
             self.synthesize_assignment_node(env)
@@ -2604,8 +2714,7 @@ class DefNode(FuncDefNode):
                     self.pos,
                     pymethdef_cname = self.entry.pymethdef_cname,
                     binding = env.directives['binding'],
-                    specialized_cpdefs = self.specialized_cpdefs,
-                    fused_args_positions = self.fused_args_positions)
+                    specialized_cpdefs = self.specialized_cpdefs)
 
         if env.is_py_class_scope:
             if not self.is_staticmethod and not self.is_classmethod:

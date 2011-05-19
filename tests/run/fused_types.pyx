@@ -21,7 +21,7 @@ ctypedef int *p_int
 def test_pure():
     """
     >>> test_pure()
-    (10+0j)
+    10
     """
     mytype = pure_cython.typedef(pure_cython.fused_type(int, long, complex))
     print mytype(10)
