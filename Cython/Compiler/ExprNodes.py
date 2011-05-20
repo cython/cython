@@ -7506,6 +7506,8 @@ class NoneCheckNode(CoercionNode):
         return self.arg.result()
 
     def generate_result_code(self, code):
+        if not code.globalstate.directives['nonecheck']:
+            return
         code.putln(
             "if (unlikely(%s == Py_None)) {" % self.arg.result())
         code.putln('PyErr_SetString(%s, "%s"); %s ' % (
