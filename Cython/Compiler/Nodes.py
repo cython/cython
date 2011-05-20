@@ -5498,7 +5498,8 @@ class TryFinallyStatNode(StatNode):
             code.error_label = old_error_label
 
         if cases_used:
-            code.putln("switch (__pyx_why) {")
+            code.putln(
+                "switch (__pyx_why) {")
             for i in cases_used:
                 old_label = old_labels[i]
                 if old_label == old_error_label and self.preserve_exception:
@@ -5507,8 +5508,13 @@ class TryFinallyStatNode(StatNode):
                     code.use_label(old_label)
                     code.putln("case %s: goto %s;" % (i+1, old_label))
 
-            code.putln("}")
-        code.putln("}")
+            # End the switch
+            code.putln(
+                "}")
+
+        # End finally
+        code.putln(
+            "}")
 
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
@@ -5572,8 +5578,6 @@ class GILStatNode(NogilTryFinallyStatNode):
     #  'with gil' or 'with nogil' statement
     #
     #   state   string   'gil' or 'nogil'
-
-#    child_attrs = []
 
     def __init__(self, pos, state, body):
         self.state = state
