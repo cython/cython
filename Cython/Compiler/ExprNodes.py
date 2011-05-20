@@ -7505,7 +7505,7 @@ class NoneCheckNode(CoercionNode):
             # and nonecheck is disabled by default - WTF!
             return
         code.putln(
-            "if (unlikely(%s == Py_None)) {" % self.arg.result())
+            "if (unlikely(%s == Py_None)) {" % self.arg.py_result())
         code.putln('PyErr_SetString(%s, "%s"); %s ' % (
             self.exception_type_cname,
             StringEncoding.escape_byte_string(
