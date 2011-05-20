@@ -3744,6 +3744,13 @@ class AttributeNode(ExprNode):
                 # methods need the normal attribute lookup
                 # because they do not have struct entries
                 if entry.is_variable or entry.is_cmethod:
+                    # obj.type may be unavailable during type inference
+                    if self.needs_none_check and self.obj.type and not env.nogil:
+                        # FIXME: not sure if 'nogil' should be an
+                        # error or just skip the None check
+                        self.obj = self.obj.as_none_safe_node(
+                            "'NoneType' object has no attribute '%s'" % self.attribute,
+                            error = 'PyExc_AttributeError')
                     self.type = entry.type
                     self.member = entry.cname
                     return
@@ -3828,14 +3835,11 @@ class AttributeNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         else:
-            # result_code contains what is needed, but we may need to insert
-            # a check and raise an exception
-            if self.obj.type.is_extension_type:
-                if self.needs_none_check and code.globalstate.directives['nonecheck']:
-                    self.put_nonecheck(code)
-            elif self.entry and self.entry.is_cmethod and self.entry.utility_code:
-                # C method implemented as function call with utility code
-                code.globalstate.use_utility_code(self.entry.utility_code)
+            # result_code contains what is needed, unless we need utility code
+            if not self.obj.type.is_extension_type:
+                if self.entry and self.entry.utility_code and self.entry.is_cmethod:
+                    # C method implemented as function call with utility code
+                    code.globalstate.use_utility_code(self.entry.utility_code)
 
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
@@ -3853,11 +3857,6 @@ class AttributeNode(ExprNode):
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
         else:
-            if (self.obj.type.is_extension_type
-                  and self.needs_none_check
-                  and code.globalstate.directives['nonecheck']):
-                self.put_nonecheck(code)
-
             select_code = self.result()
             if self.type.is_pyobject and self.use_managed_ref:
                 rhs.make_owned_reference(code)
@@ -3892,13 +3891,6 @@ class AttributeNode(ExprNode):
             code.annotate(self.pos, AnnotationItem('py_attr', 'python attribute', size=len(self.attribute)))
         else:
             code.annotate(self.pos, AnnotationItem('c_attr', 'c attribute', size=len(self.attribute)))
-
-    def put_nonecheck(self, code):
-        code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
-        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
-        code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute)
-        code.putln(code.error_goto(self.pos))
-        code.putln("}")
 
 
 #-------------------------------------------------------------------
@@ -7483,6 +7475,8 @@ class NoneCheckNode(CoercionNode):
     # raises an appropriate exception (as specified by the creating
     # transform).
 
+    gil_message = "Exception raising on None check"
+
     def __init__(self, arg, exception_type_cname, exception_message):
         CoercionNode.__init__(self, arg)
         self.type = arg.type
@@ -7491,7 +7485,7 @@ class NoneCheckNode(CoercionNode):
         self.exception_message = exception_message
 
     def analyse_types(self, env):
-        pass
+        self.arg.analyse_types(env)
 
     def may_be_none(self):
         return False
@@ -8234,16 +8228,6 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
 )
 
 #------------------------------------------------------------------------------------
-
-raise_noneattr_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
-    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
-}
-''')
 
 raise_noneindex_error_utility_code = UtilityCode(
 proto = """
