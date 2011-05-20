@@ -969,18 +969,16 @@ class CVarDefNode(StatNode):
                 return
             if type.is_cfunction:
                 entry = dest_scope.declare_cfunction(name, type, declarator.pos,
-                    cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
-                    api = self.api)
+                    cname = cname, visibility = self.visibility,
+                    in_pxd = self.in_pxd, api = self.api)
                 if entry is not None:
                     entry.directive_locals = copy.copy(self.directive_locals)
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
-                if self.in_pxd and self.visibility != 'extern':
-                    error(self.pos,
-                        "Only 'extern' C variable declaration allowed in .pxd file")
                 entry = dest_scope.declare_var(name, type, declarator.pos,
-                            cname=cname, visibility=visibility, api=self.api, is_cdef=1)
+                    cname = cname, visibility = visibility,
+                    in_pxd = self.in_pxd, api = self.api, is_cdef = 1)
 
 
 class CStructOrUnionDefNode(StatNode):
@@ -1700,9 +1698,8 @@ class CFuncDefNode(FuncDefNode):
         cname = name_declarator.cname
         self.entry = env.declare_cfunction(
             name, type, self.pos,
-            cname = cname, visibility = self.visibility,
-            defining = self.body is not None,
-            api = self.api, modifiers = self.modifiers)
+            cname = cname, visibility = self.visibility, api = self.api,
+            defining = self.body is not None, modifiers = self.modifiers)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         if self.return_type.is_array and visibility != 'extern':
