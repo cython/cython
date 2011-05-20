@@ -1,3 +1,4 @@
+# mode: error
 import cython
 
 class Pyclass(object):
@@ -6,5 +7,5 @@ class Pyclass(object):
         pass
 
 _ERRORS = """
- 5:4: cfunc directive is not allowed here
+ 6:4: cfunc directive is not allowed here
 """
