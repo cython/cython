@@ -7500,7 +7500,9 @@ class NoneCheckNode(CoercionNode):
         return self.arg.result()
 
     def generate_result_code(self, code):
-        if not code.globalstate.directives['nonecheck']:
+        if False and not code.globalstate.directives['nonecheck']:
+            # disabled - None checks are often required for safety
+            # and nonecheck is disabled by default - WTF!
             return
         code.putln(
             "if (unlikely(%s == Py_None)) {" % self.arg.result())
