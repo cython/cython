@@ -2031,6 +2031,7 @@ class GilCheck(VisitorTransform):
             node.nogil_check(self.env_stack[-1])
 
         self.visitchildren(node)
+        return node
 
     def visit_TryFinallyStatNode(self, node):
         """

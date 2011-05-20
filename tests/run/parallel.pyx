@@ -24,4 +24,4 @@ def test_parallel():
 
     free(buf)
 
-#include "sequential_parallel.pyx"
+include "sequential_parallel.pyx"
