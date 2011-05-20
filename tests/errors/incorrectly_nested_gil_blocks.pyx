@@ -1,3 +1,5 @@
+# mode: error
+
 with gil:
     pass
 
@@ -21,8 +23,8 @@ def func():
         pass
 
 _ERRORS = u'''
-1:5: Trying to acquire the GIL while it is already held.
-5:9: Trying to release the GIL while it was previously released.
-16:9: Trying to acquire the GIL while it is already held.
-20:9: Trying to acquire the GIL while it is already held.
+3:5: Trying to acquire the GIL while it is already held.
+7:9: Trying to release the GIL while it was previously released.
+18:9: Trying to acquire the GIL while it is already held.
+22:9: Trying to acquire the GIL while it is already held.
 '''
