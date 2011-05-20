@@ -3830,10 +3830,12 @@ class AttributeNode(ExprNode):
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
-            if (self.obj.type.is_extension_type
-                  and self.needs_none_check
-                  and code.globalstate.directives['nonecheck']):
-                self.put_nonecheck(code)
+            if self.obj.type.is_extension_type:
+                if self.needs_none_check and code.globalstate.directives['nonecheck']:
+                    self.put_nonecheck(code)
+            elif self.entry and self.entry.is_cmethod and self.entry.utility_code:
+                # C method implemented as function call with utility code
+                code.globalstate.use_utility_code(self.entry.utility_code)
 
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
