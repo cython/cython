@@ -3819,13 +3819,12 @@ class AttributeNode(ExprNode):
             return "%s%s%s" % (obj_code, self.op, self.member)
 
     def generate_result_code(self, code):
-        interned_attr_cname = code.intern_identifier(self.attribute)
         if self.is_py_attr:
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (
                     self.result(),
                     self.obj.py_result(),
-                    interned_attr_cname,
+                    code.intern_identifier(self.attribute),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         else:
@@ -3837,13 +3836,12 @@ class AttributeNode(ExprNode):
                 self.put_nonecheck(code)
 
     def generate_assignment_code(self, rhs, code):
-        interned_attr_cname = code.intern_identifier(self.attribute)
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
             code.put_error_if_neg(self.pos,
                 'PyObject_SetAttr(%s, %s, %s)' % (
                     self.obj.py_result(),
-                    interned_attr_cname,
+                    code.intern_identifier(self.attribute),
                     rhs.py_result()))
             rhs.generate_disposal_code(code)
             rhs.free_temps(code)
@@ -3875,14 +3873,13 @@ class AttributeNode(ExprNode):
         self.obj.free_temps(code)
 
     def generate_deletion_code(self, code):
-        interned_attr_cname = code.intern_identifier(self.attribute)
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr or (isinstance(self.entry.scope, Symtab.PropertyScope)
                                and u'__del__' in self.entry.scope.entries):
             code.put_error_if_neg(self.pos,
                 'PyObject_DelAttr(%s, %s)' % (
                     self.obj.py_result(),
-                    interned_attr_cname))
+                    code.intern_identifier(self.attribute)))
         else:
             error(self.pos, "Cannot delete C attribute of extension type")
         self.obj.generate_disposal_code(code)
