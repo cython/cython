@@ -2,7 +2,9 @@
 #cython: autotestdict=True
 
 cdef class Foo:
-    pass
+    cdef int i
+    def __cinit__(self):
+        self.i = 1
 
 cdef class SubFoo(Foo):
     pass
@@ -54,6 +56,25 @@ def foo3(arg):
     TypeError: Cannot convert typetest_T417.Bar to typetest_T417.Foo
     """
     cdef val = <Foo?>arg
+
+def attribute_access(arg):
+    """
+    >>> attribute_access(Foo())
+    >>> attribute_access(SubFoo())
+    >>> attribute_access(None)
+    Traceback (most recent call last):
+       ...
+    TypeError: Cannot convert NoneType to typetest_T417.Foo
+    >>> attribute_access(123)
+    Traceback (most recent call last):
+       ...
+    TypeError: Cannot convert int to typetest_T417.Foo
+    >>> attribute_access(Bar())
+    Traceback (most recent call last):
+       ...
+    TypeError: Cannot convert typetest_T417.Bar to typetest_T417.Foo
+    """
+    cdef val = (<Foo?>arg).i
 
 
 cdef int count = 0
