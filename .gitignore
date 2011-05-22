@@ -8,6 +8,7 @@ Cython/Runtime/refnanny.c
 
 BUILD/
 build/
+!tests/build/
 dist/
 .gitrev
 .coverage

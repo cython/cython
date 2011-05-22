@@ -1166,39 +1166,19 @@ class CCodeWriter(object):
         self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
 
-    def put_var_declarations(self, entries, static = 0, dll_linkage = None,
-            definition = True):
-        for entry in entries:
-            if not entry.in_cinclude:
-                self.put_var_declaration(entry, static, dll_linkage, definition)
-
-    def put_var_declaration(self, entry, static = 0, dll_linkage = None,
-            definition = True):
+    def put_var_declaration(self, entry, storage_class="",
+                            dll_linkage = None, definition = True):
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
-        if entry.in_closure:
+        if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
+            #print "...private and not definition, skipping", entry.cname ###
             return
-        visibility = entry.visibility
-        if visibility == 'private' and not definition:
-            #print "...private and not definition, skipping" ###
+        if entry.visibility == "private" and not entry.used:
+            #print "...private and not used, skipping", entry.cname ###
             return
-        if not entry.used and visibility == "private":
-            #print "not used and private, skipping", entry.cname ###
-            return
-        storage_class = ""
-        if visibility == 'extern':
-            storage_class = Naming.extern_c_macro
-        elif visibility == 'public':
-            if not definition:
-                storage_class = Naming.extern_c_macro
-        elif visibility == 'private':
-            if static:
-                storage_class = "static"
         if storage_class:
             self.put("%s " % storage_class)
-        if visibility != 'public':
-            dll_linkage = None
-        self.put(entry.type.declaration_code(entry.cname,
-            dll_linkage = dll_linkage))
+        self.put(entry.type.declaration_code(
+                entry.cname, dll_linkage = dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         self.putln(";")

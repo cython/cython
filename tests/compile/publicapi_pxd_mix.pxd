@@ -66,8 +66,9 @@ cdef public api void* spam3(object o) except NULL with gil
 
 # --
 
-#cdef public     int i1
-#cdef        api int i2
-#cdef public api int i3
+cdef            int i0 = 0 # XXX implement initialization!!!
+cdef public     int i1
+cdef        api int i2
+cdef public api int i3
 
 # --
