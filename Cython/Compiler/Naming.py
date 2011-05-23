@@ -117,9 +117,6 @@ api_guard_prefix = "__PYX_HAVE_API__"
 api_func_guard   = "__PYX_HAVE_API_FUNC_"
 
 PYX_NAN          = "__PYX_NAN"
-HUGE_VAL         = "Py_HUGE_VAL"
-LONG_LONG_MAX    = "__PYX_LONG_LONG_MAX"
-ULONG_LONG_MAX   = "__PYX_ULONG_LONG_MAX"
 
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)

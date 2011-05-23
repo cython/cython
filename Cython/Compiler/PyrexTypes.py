@@ -2370,11 +2370,11 @@ rank_to_type_name = (
 )
 
 typename_to_maxval = {
-    "char" : ("CHAR_MAX", "UCHAR_MAX"),
-    "short": ("SHRT_MAX", "USHRT_MAX"),
-    "int"  : ("INT_MAX", "UINT_MAX"),
-    "long" : ("LONG_MAX", "ULONG_MAX"),
-    "PY_LONG_LONG" : (Naming.LONG_LONG_MAX, Naming.ULONG_LONG_MAX),
+    "char" : ("'?'", "'?'"),
+    "short": ("0xbad", "0xbad0"),
+    "int"  : ("0xbad", "0xbad0"),
+    "long" : ("0xbad0bad", "0xbad0bad0"),
+    "PY_LONG_LONG" : ("0xbad0bad0bad0bad", "0xbad0bad0bad0bad0"),
     # CFloatType overrides invalid_value
 }
 
