@@ -7592,36 +7592,19 @@ bad:
 
 ################ Utility code for cython.parallel stuff ################
 
-invalid_values_utility_code = UtilityCode(proto="""
-#ifdef HAVE_LONG_LONG
-    #define %(LONG_LONG_MAX)s PY_LLONG_MAX
-    #define %(ULONG_LONG_MAX)s PY_ULLONG_MAX
-#else
-    #define PY_LONG_LONG LONG_LONG
+invalid_values_utility_code = UtilityCode(
+proto="""\
+#include <string.h>
 
-    #if defined(LLONG_MAX)
-        #define %(LONG_LONG_MAX)s LLONG_MAX
-        #define %(ULONG_LONG_MAX)s ULLONG_MAX
-    #else
-        #define %(LONG_LONG_MAX)s LONG_MAX
-        #define %(ULONG_LONG_MAX)s ULONG_MAX
-    #endif
-#endif
+void __pyx_init_nan(void);
 
-/* Define NAN */
-#ifdef Py_NAN
-    #define %(PYX_NAN)s Py_NAN
-#elif defined(NAN)
-    #define %(PYX_NAN)s NAN
-#elif defined(HUGE_VALL)
-    #define %(PYX_NAN)s HUGE_VALL
-#elif defined(__STDC__) && __STDC_VERSION__ >= 199901L
-    /* C99 or greater */
-    #include <float.h>
-    #define %(PYX_NAN)s LDBL_MAX
-#else
-    static PY_LONG_LONG __pyx__nan = %(LONG_LONG_MAX)s;
-    #define %(PYX_NAN)s (*(double*) &__pyx__nan)
-#endif
-"""  % vars(Naming))
+static float %(PYX_NAN)s;
+"""  % vars(Naming),
+
+init="""
+/* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
+   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
+   a signalling NaN. */
+    memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
+""" % vars(Naming))
 
