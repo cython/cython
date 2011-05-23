@@ -699,10 +699,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         self.generate_extern_c_macro_definition(code)
         code.putln("")
+
         code.putln("#if defined(WIN32) || defined(MS_WINDOWS)")
         code.putln("#define _USE_MATH_DEFINES")
         code.putln("#endif")
         code.putln("#include <math.h>")
+
         code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
@@ -711,6 +713,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#define CYTHON_WITHOUT_ASSERTIONS")
         code.putln("#endif")
         code.putln("")
+
         if env.directives['ccomplex']:
             code.putln("")
             code.putln("#if !defined(CYTHON_CCOMPLEX)")

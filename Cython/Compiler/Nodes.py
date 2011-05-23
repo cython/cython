@@ -5800,6 +5800,10 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     privatization_insertion_point   a code insertion point used to make temps
                                     private (esp. the "nsteps" temp)
+
+    args         tuple          the arguments passed to the parallel construct
+    kwargs       DictNode       the keyword arguments passed to the parallel
+                                construct (replaced by its compile time value)
     """
 
     child_attrs = ['body']
@@ -5824,8 +5828,21 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 
+        if self.kwargs:
+            self.kwargs = self.kwargs.compile_time_value(env)
+        else:
+            self.kwargs = {}
+
+        for kw, val in self.kwargs.iteritems():
+            if kw not in self.valid_keyword_arguments:
+                error(self.pos, "Invalid keyword argument: %s" % kw)
+            else:
+                setattr(self, kw, val)
+
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
+        self.analyse_sharing_attributes(env)
+        self.check_independent_iterations()
 
     def analyse_sharing_attributes(self, env):
         """
@@ -5931,6 +5948,64 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
 
+    def check_independent_iterations(self):
+        """
+        This checks for uninitialized thread-private variables, it's far from
+        fool-proof as it does not take control flow into account, nor
+        assignment to a variable as both the lhs and rhs. So it detects only
+        cases like this:
+
+            for i in prange(10, nogil=True):
+                var = x # error, x is private and read before assigned
+                x = i
+
+        Fortunately, it doesn't need to be perfect, as we still initialize
+        private variables to "invalid" values, such as NULL or NaN whenever
+        possible.
+        """
+        from Cython.Compiler import ParseTreeTransforms
+
+        transform = ParseTreeTransforms.FindUninitializedParallelVars()
+        transform(self.body)
+
+        for entry, pos in transform.used_vars:
+            if entry in self.privates:
+                assignment_pos, op = self.assignments[entry]
+
+                # Reading reduction variables is valid (in fact necessary)
+                # before assignment
+                if not op and pos < assignment_pos:
+                    if self.is_prange:
+                        error(pos, "Expression value depends on previous loop "
+                                   "iteration, cannot execute in parallel")
+                    else:
+                        error(pos, "Expression depends on an uninitialized "
+                                   "thread-private variable")
+
+    def initialize_privates_to_nan(self, code, exclude=None):
+        code.putln("/* Initialize private variables to invalid values */")
+
+        for entry, op in self.privates.iteritems():
+            if not op and (not exclude or entry != exclude):
+                invalid_value = entry.type.invalid_value()
+
+                if invalid_value:
+                    code.globalstate.use_utility_code(
+                                invalid_values_utility_code)
+                    code.putln("%s = %s;" % (entry.cname,
+                                             entry.type.cast_code(invalid_value)))
+
+    def put_num_threads(self, code):
+        """
+        Write self.num_threads if set as the num_threads OpenMP directive
+        """
+        if self.num_threads is not None:
+            if isinstance(self.num_threads, (int, long)):
+                code.put(" num_threads(%d)" % (self.num_threads,))
+            else:
+                error(self.pos, "Invalid value for num_threads argument, "
+                                "expected an int")
+
     def declare_closure_privates(self, code):
         """
         Set self.privates to a dict mapping C variable names that are to be
@@ -5968,9 +6043,15 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     nogil_check = None
 
-    def analyse_expressions(self, env):
-        super(ParallelWithBlockNode, self).analyse_expressions(env)
-        self.analyse_sharing_attributes(env)
+    valid_keyword_arguments = ['num_threads']
+
+    num_threads = None
+
+    def analyse_declarations(self, env):
+        super(ParallelWithBlockNode, self).analyse_declarations(env)
+        if self.args:
+            error(self.pos, "cython.parallel.parallel() does not take "
+                            "positional arguments")
 
     def generate_execution_code(self, code):
         self.declare_closure_privates(code)
@@ -5983,11 +6064,13 @@ class ParallelWithBlockNode(ParallelStatNode):
                 'private(%s)' % ', '.join([e.cname for e in self.privates]))
 
         self.privatization_insertion_point = code.insertion_point()
-
+        self.put_num_threads(code)
         code.putln("")
+
         code.putln("#endif /* _OPENMP */")
 
         code.begin_block()
+        self.initialize_privates_to_nan(code)
         self.body.generate_execution_code(code)
         code.end_block()
 
@@ -6000,11 +6083,6 @@ class ParallelRangeNode(ParallelStatNode):
 
     target       NameNode       the target iteration variable
     else_clause  Node or None   the else clause of this loop
-    args         tuple          the arguments passed to prange()
-    kwargs       DictNode       the keyword arguments passed to prange()
-                                (replaced by its compile time value)
-
-    is_nogil     bool           indicates whether this is a nogil prange() node
     """
 
     child_attrs = ['body', 'target', 'else_clause', 'args']
@@ -6014,7 +6092,12 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
-    is_nogil = False
+
+    nogil = False
+    schedule = None
+    num_threads = None
+
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads']
 
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
@@ -6033,14 +6116,6 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             self.start, self.stop, self.step = self.args
 
-        if self.kwargs:
-            self.kwargs = self.kwargs.compile_time_value(env)
-        else:
-            self.kwargs = {}
-
-        self.is_nogil = self.kwargs.pop('nogil', False)
-        self.schedule = self.kwargs.pop('schedule', None)
-
         if hasattr(self.schedule, 'decode'):
             self.schedule = self.schedule.decode('ascii')
 
@@ -6048,9 +6123,6 @@ class ParallelRangeNode(ParallelStatNode):
                                  'runtime'):
             error(self.pos, "Invalid schedule argument to prange: %s" %
                                                         (self.schedule,))
-
-        for kw in self.kwargs:
-            error(self.pos, "Invalid keyword argument to prange: %s" % kw)
 
     def analyse_expressions(self, env):
         if self.target is None:
@@ -6092,7 +6164,6 @@ class ParallelRangeNode(ParallelStatNode):
                 self.index_type = PyrexTypes.widest_numeric_type(
                                         self.index_type, node.type)
 
-        super(ParallelRangeNode, self).analyse_expressions(env)
         if self.else_clause is not None:
             self.else_clause.analyse_expressions(env)
 
@@ -6105,6 +6176,7 @@ class ParallelRangeNode(ParallelStatNode):
             self.assignments[self.target.entry] = self.target.pos, None
 
         self.analyse_sharing_attributes(env)
+        super(ParallelRangeNode, self).analyse_expressions(env)
 
     def nogil_check(self, env):
         names = 'start', 'stop', 'step', 'target'
@@ -6239,6 +6311,8 @@ class ParallelRangeNode(ParallelStatNode):
             c = self.parent.privatization_insertion_point
             c.put(" private(%(nsteps)s)" % fmt_dict)
 
+        self.put_num_threads(code)
+
         self.privatization_insertion_point = code.insertion_point()
 
         code.putln("")
@@ -6247,6 +6321,9 @@ class ParallelRangeNode(ParallelStatNode):
         code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
         code.begin_block()
         code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+
+        self.initialize_privates_to_nan(code, exclude=self.target.entry)
+
         self.body.generate_execution_code(code)
         code.end_block()
 
@@ -7441,3 +7518,22 @@ bad:
     'EMPTY_BYTES' : Naming.empty_bytes,
     "MODULE": Naming.module_cname,
 })
+
+################ Utility code for cython.parallel stuff ################
+
+invalid_values_utility_code = UtilityCode(
+proto="""\
+#include <string.h>
+
+void __pyx_init_nan(void);
+
+static float %(PYX_NAN)s;
+"""  % vars(Naming),
+
+init="""
+/* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
+   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
+   a signalling NaN. */
+    memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
+""" % vars(Naming))
+

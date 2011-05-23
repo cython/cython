@@ -2046,8 +2046,8 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.is_nogil:
-            node.is_nogil = False
+        if node.nogil:
+            node.nogil = False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             return self.visit_GILStatNode(node)
 
@@ -2200,6 +2200,24 @@ class TransformBuiltinMethods(EnvTransform):
                 error(node.function.pos, u"'%s' not a valid cython language construct" % function)
 
         self.visitchildren(node)
+        return node
+
+
+class FindUninitializedParallelVars(CythonTransform, SkipDeclarations):
+    """
+    This transform isn't part of the pipeline, it simply finds all references
+    to variables in parallel blocks.
+    """
+
+    def __init__(self):
+        CythonTransform.__init__(self, None)
+        self.used_vars = []
+
+    def visit_ParallelStatNode(self, node):
+        return node
+
+    def visit_NameNode(self, node):
+        self.used_vars.append((node.entry, node.pos))
         return node
 
 

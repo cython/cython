@@ -24,4 +24,22 @@ def test_parallel():
 
     free(buf)
 
-#include "sequential_parallel.pyx"
+def test_num_threads():
+    """
+    >>> test_num_threads()
+    1
+    """
+    cdef int dyn = openmp.omp_get_dynamic()
+    cdef int num_threads
+    cdef int *p = &num_threads
+
+    openmp.omp_set_dynamic(0)
+
+    with nogil, cython.parallel.parallel(num_threads=1):
+        p[0] = openmp.omp_get_num_threads()
+
+    openmp.omp_set_dynamic(dyn)
+
+    return num_threads
+
+include "sequential_parallel.pyx"

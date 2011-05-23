@@ -27,6 +27,12 @@ class BaseType(object):
         else:
             return base_code
 
+    def invalid_value(self):
+        """
+        Returns the most invalid value an object of this type can assume as a
+        C expression string. Returns None if no such value exists.
+        """
+
 class PyrexType(BaseType):
     #
     #  Base class for all Pyrex types.
@@ -377,6 +383,10 @@ class PyObjectType(PyrexType):
             return "(PyObject *)" + cname
         else:
             return cname
+
+    def invalid_value(self):
+        return "1"
+
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
@@ -902,6 +912,8 @@ class CIntType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
+    def invalid_value(self):
+        return typename_to_maxval[rank_to_type_name[self.rank]][not self.signed]
 
 class CAnonEnumType(CIntType):
 
@@ -1109,6 +1121,8 @@ class CFloatType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
 
+    def invalid_value(self):
+        return Naming.PYX_NAN
 
 class CComplexType(CNumericType):
 
@@ -1622,6 +1636,8 @@ class CPtrType(CType):
         else:
             return CPtrType(base_type)
 
+    def invalid_value(self):
+        return "1"
 
 class CNullPtrType(CPtrType):
 
@@ -2352,6 +2368,15 @@ rank_to_type_name = (
     "double",       # 6
     "long double",  # 7
 )
+
+typename_to_maxval = {
+    "char" : ("'?'", "'?'"),
+    "short": ("0xbad", "0xbad0"),
+    "int"  : ("0xbad", "0xbad0"),
+    "long" : ("0xbad0bad", "0xbad0bad0"),
+    "PY_LONG_LONG" : ("0xbad0bad0bad0bad", "0xbad0bad0bad0bad0"),
+    # CFloatType overrides invalid_value
+}
 
 RANK_INT  = list(rank_to_type_name).index('int')
 RANK_LONG = list(rank_to_type_name).index('long')

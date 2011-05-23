@@ -171,6 +171,53 @@ def test_pure_mode():
     for i in pure_parallel.prange(4, -1, -1, schedule='dynamic', nogil=True):
         print i
 
-    with pure_parallel.parallel:
+    with pure_parallel.parallel():
         print pure_parallel.threadid()
 
+def test_nan_init():
+    """
+    >>> test_nan_init()
+    """
+    cdef int mybool = 0
+    cdef int err = 0
+    cdef int *errp = &err
+
+    cdef signed char a1 = 10
+    cdef unsigned char a2 = 10
+    cdef short b1 = 10
+    cdef unsigned short b2 = 10
+    cdef int c1 = 10
+    cdef unsigned int c2 = 10
+    cdef long d1 = 10
+    cdef unsigned long d2 = 10
+    cdef long long e1 = 10
+    cdef unsigned long long e2 = 10
+
+    cdef float f = 10.0
+    cdef double g = 10.0
+    cdef long double h = 10.0
+
+    cdef void *p = <void *> 10
+
+    with nogil, cython.parallel.parallel():
+        # First, trick the error checking to make it believe these variables
+        # are initialized after this if
+
+        if mybool: # mybool is always false!
+            a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
+            f = g = h = 0.0
+            p = NULL
+
+        if (a1 == 10 or a2 == 10 or
+            b1 == 10 or b2 == 10 or
+            c1 == 10 or c2 == 10 or
+            d1 == 10 or d2 == 10 or
+            e1 == 10 or e2 == 10 or
+            f == 10.0 or g == 10.0 or h == 10.0 or
+            p == <void *> 10):
+
+            errp[0] = 1
+
+    if err:
+        raise Exception("One of the values was not initiazed to a maximum "
+                        "or NaN value")
