@@ -138,7 +138,6 @@ class Context(object):
             InterpretCompilerDirectives(self, self.compiler_directives),
             ParallelRangeTransform(self),
             AdjustDefByDirectives(self),
-            _align_function_definitions,
             MarkClosureVisitor(self),
             _align_function_definitions,
             RemoveUnreachableCode(self),
