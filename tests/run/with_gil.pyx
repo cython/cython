@@ -387,3 +387,48 @@ def test_nogil_try_finally_propagate_exception():
                 puts("Execute finally clause")
     except Exception, e:
         print e
+
+def test_nogil_try_finally_return_in_with_gil(x):
+    """
+    >>> test_nogil_try_finally_return_in_with_gil(10)
+    (None, None, None)
+    10
+    """
+    # For some reason, this exception is set, clear it first
+    # (<type 'exceptions.ImportError'>,
+    #  ImportError('cannot import name _TextTestResult',),
+    #  <traceback object at 0x10073c4d0>)
+    sys.exc_clear()
+
+    with nogil:
+        try:
+            with gil:
+                raise Exception("Swallow me!")
+        finally:
+            with gil:
+                print sys.exc_info()
+                return x
+
+    print "I am not executed", sys.exc_info()
+
+cdef void nogil_try_finally_return() nogil:
+    try:
+        with gil:
+            raise Exception("I am swallowed in nogil code... right?")
+    finally:
+        with gil:
+            print sys.exc_info()
+
+        return
+
+    with gil:
+        print "I am not executed", sys.exc_info()
+
+def test_nogil_try_finally_return():
+    """
+    >>> test_nogil_try_finally_return()
+    (None, None, None)
+    """
+    sys.exc_clear()
+    with nogil:
+        nogil_try_finally_return()

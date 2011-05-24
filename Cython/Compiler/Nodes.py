@@ -5488,10 +5488,16 @@ class TryFinallyStatNode(StatNode):
                 over_label = code.new_label()
                 code.put_goto(over_label)
                 code.put_label(finally_error_label)
+
                 code.putln("if (__pyx_why == %d) {" % (error_label_case + 1))
+                if self.is_try_finally_in_nogil:
+                    code.put_ensure_gil(declare_gilstate=False)
                 for var in Naming.exc_vars:
                     code.putln("Py_XDECREF(%s);" % var)
+                if self.is_try_finally_in_nogil:
+                    code.put_release_ensured_gil()
                 code.putln("}")
+
                 code.put_goto(old_error_label)
                 code.put_label(over_label)
 
@@ -5543,7 +5549,8 @@ class TryFinallyStatNode(StatNode):
 
     def put_error_uncatcher(self, code, i, error_label):
         code.globalstate.use_utility_code(restore_exception_utility_code)
-        code.putln("case %s: {" % i)
+        code.putln(
+            "case %s: {" % i)
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
@@ -5555,10 +5562,12 @@ class TryFinallyStatNode(StatNode):
             code.put_release_ensured_gil()
 
         for var in Naming.exc_vars:
-            code.putln("%s = 0;" % var)
+            code.putln(
+                   "%s = 0;" % var)
 
         code.put_goto(error_label)
-        code.putln("}")
+        code.putln(
+            "}")
 
     def annotate(self, code):
         self.body.annotate(code)
