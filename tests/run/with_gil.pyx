@@ -5,7 +5,7 @@ Test the 'with gil:' statement.
 cimport cython
 
 #from libc.stdio cimport printf, puts
-from cpython.ref cimport PyObject, Py_INCREF
+from cpython cimport PyObject, Py_INCREF
 
 import sys
 
@@ -22,7 +22,7 @@ cdef void puts(char *string) with gil:
     """
     We need this for doctest, used from nogil sections.
     """
-    print string
+    print string.decode('ascii')
 
 
 # Start with some normal Python functions
@@ -391,25 +391,19 @@ def test_nogil_try_finally_propagate_exception():
 def test_nogil_try_finally_return_in_with_gil(x):
     """
     >>> test_nogil_try_finally_return_in_with_gil(10)
-    (None, None, None)
+    print me
     10
     """
-    # For some reason, this exception is set, clear it first
-    # (<type 'exceptions.ImportError'>,
-    #  ImportError('cannot import name _TextTestResult',),
-    #  <traceback object at 0x10073c4d0>)
-    sys.exc_clear()
-
     with nogil:
         try:
             with gil:
                 raise Exception("Swallow me!")
         finally:
             with gil:
-                print sys.exc_info()
+                print "print me"
                 return x
 
-    print "I am not executed", sys.exc_info()
+    print "I am not executed"
 
 cdef void nogil_try_finally_return() nogil:
     try:
@@ -417,18 +411,17 @@ cdef void nogil_try_finally_return() nogil:
             raise Exception("I am swallowed in nogil code... right?")
     finally:
         with gil:
-            print sys.exc_info()
+            print "print me first"
 
         return
 
     with gil:
-        print "I am not executed", sys.exc_info()
+        print "I am not executed"
 
 def test_nogil_try_finally_return():
     """
     >>> test_nogil_try_finally_return()
-    (None, None, None)
+    print me first
     """
-    sys.exc_clear()
     with nogil:
         nogil_try_finally_return()
