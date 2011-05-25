@@ -158,6 +158,6 @@ _ERRORS = u"""
 60:17: Truth-testing Python object not allowed without gil
 62:8: For-loop using object bounds or target not allowed without gil
 64:8: Try-except statement not allowed without gil
-68:8: Try-finally statement not allowed without gil
+68:8: Cannot use try/finally in nogil sections unless it contains a 'with gil' statement.
 85:8: For-loop using object bounds or target not allowed without gil
 """

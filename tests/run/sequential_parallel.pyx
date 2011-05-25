@@ -50,7 +50,7 @@ def test_propagation():
     >>> test_propagation()
     (9, 9, 9, 9, 450, 450)
     """
-    cdef int i, j, x, y
+    cdef int i = 0, j = 0, x = 0, y = 0
     cdef int sum1 = 0, sum2 = 0
 
     for i in prange(10, nogil=True):

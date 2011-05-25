@@ -1580,7 +1580,7 @@ def p_with_statement(s):
 
 def p_with_items(s):
     pos = s.position()
-    if not s.in_python_file and s.sy == 'IDENT' and s.systring == 'nogil':
+    if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
         state = s.systring
         s.next()
         if s.sy == ',':
