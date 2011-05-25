@@ -174,6 +174,12 @@ def test_pure_mode():
     with pure_parallel.parallel():
         print pure_parallel.threadid()
 
+cdef extern from "types.h":
+    ctypedef short actually_long_t
+    ctypedef long actually_short_t
+
+ctypedef int myint_t
+
 def test_nan_init():
     """
     >>> test_nan_init()
@@ -192,6 +198,10 @@ def test_nan_init():
     cdef unsigned long d2 = 10
     cdef long long e1 = 10
     cdef unsigned long long e2 = 10
+    
+    cdef actually_long_t miss1 = 10
+    cdef actually_short_t miss2 = 10
+    cdef myint_t typedef1 = 10
 
     cdef float f = 10.0
     cdef double g = 10.0
@@ -207,6 +217,7 @@ def test_nan_init():
             a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
             f = g = h = 0.0
             p = NULL
+            miss1 = miss2 = typedef1 = 0
 
         if (a1 == 10 or a2 == 10 or
             b1 == 10 or b2 == 10 or
@@ -214,10 +225,10 @@ def test_nan_init():
             d1 == 10 or d2 == 10 or
             e1 == 10 or e2 == 10 or
             f == 10.0 or g == 10.0 or h == 10.0 or
-            p == <void *> 10):
-
+            p == <void *> 10 or miss1 == 10 or miss2 == 10
+            or typedef1 == 10):
             errp[0] = 1
 
     if err:
-        raise Exception("One of the values was not initiazed to a maximum "
+        raise Exception("One of the values was not initialized to a maximum "
                         "or NaN value")

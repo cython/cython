@@ -210,6 +210,9 @@ class CTypedefType(BaseType):
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
 
+    def invalid_value(self):
+        return self.typedef_base_type.invalid_value()
+
     def resolve(self):
         return self.typedef_base_type.resolve()
 
@@ -913,7 +916,13 @@ class CIntType(CNumericType):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
     def invalid_value(self):
-        return typename_to_maxval[rank_to_type_name[self.rank]][not self.signed]
+        if rank_to_type_name[self.rank] == 'char':
+            return "'?'"
+        else:
+            # We do not really know the size of the type, so return
+            # a 32-bit literal and rely on casting to final type. It will
+            # be negative for signed ints, which is good.
+            return "0xbad0bad0";
 
 class CAnonEnumType(CIntType):
 
@@ -2368,15 +2377,6 @@ rank_to_type_name = (
     "double",       # 6
     "long double",  # 7
 )
-
-typename_to_maxval = {
-    "char" : ("'?'", "'?'"),
-    "short": ("0xbad", "0xbad0"),
-    "int"  : ("0xbad", "0xbad0"),
-    "long" : ("0xbad0bad", "0xbad0bad0"),
-    "PY_LONG_LONG" : ("0xbad0bad0bad0bad", "0xbad0bad0bad0bad0"),
-    # CFloatType overrides invalid_value
-}
 
 RANK_INT  = list(rank_to_type_name).index('int')
 RANK_LONG = list(rank_to_type_name).index('long')
