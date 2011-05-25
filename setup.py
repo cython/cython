@@ -100,6 +100,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         "Cython.Compiler.Parsing",
                         "Cython.Compiler.Visitor",
                         "Cython.Compiler.Code",
+                        "Cython.Compiler.FlowControl",
                         "Cython.Runtime.refnanny",]
     if compile_more:
         compiled_modules.extend([
