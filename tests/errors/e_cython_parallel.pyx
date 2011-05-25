@@ -39,6 +39,32 @@ with nogil, cython.parallel.parallel():
 with nogil, cython.parallel.parallel:
     pass
 
+cdef int y
+# this is not valid
+for i in prange(10, nogil=True):
+    i = y * 4
+    y = i
+
+# this is valid
+for i in prange(10, nogil=True):
+    y = i
+    i = y * 4
+    y = i
+
+with nogil, cython.parallel.parallel():
+    i = y
+    y = i
+
+for i in prange(10, nogil=True):
+    y += i
+    y *= i
+
+with nogil, cython.parallel.parallel("invalid"):
+    pass
+
+with nogil, cython.parallel.parallel(invalid=True):
+    pass
+
 _ERRORS = u"""
 e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
 e_cython_parallel.pyx:4:0: No such directive: cython.parallel.something
@@ -53,4 +79,9 @@ e_cython_parallel.pyx:30:9: Can only iterate over an iteration variable
 e_cython_parallel.pyx:33:10: Must be of numeric type, not int *
 e_cython_parallel.pyx:36:33: Closely nested 'with parallel:' blocks are disallowed
 e_cython_parallel.pyx:39:12: The parallel directive must be called
+e_cython_parallel.pyx:45:10: Expression value depends on previous loop iteration, cannot execute in parallel
+e_cython_parallel.pyx:55:9: Expression depends on an uninitialized thread-private variable
+e_cython_parallel.pyx:60:6: Reduction operator '*' is inconsistent with previous reduction operator '+'
+e_cython_parallel.pyx:62:36: cython.parallel.parallel() does not take positional arguments
+e_cython_parallel.pyx:65:36: Invalid keyword argument: invalid
 """
