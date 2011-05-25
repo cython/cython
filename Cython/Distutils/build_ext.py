@@ -19,6 +19,10 @@ from distutils.dir_util import mkpath
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 
+if sys.version_info < (3, 0):
+    from Cython.Utils import any
+
+
 extension_name_re = _build_ext.extension_name_re
 
 show_compilers = _build_ext.show_compilers
@@ -54,16 +58,6 @@ class Optimization(object):
 
 
 optimization = Optimization()
-
-try:
-    any
-except NameError:
-    def any(it):
-        for x in it:
-            if x:
-                return True
-
-        return False
 
 
 class build_ext(_build_ext.build_ext):

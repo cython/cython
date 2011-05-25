@@ -132,9 +132,10 @@ cdef p_c_complex_base_type(PyrexScanner s)
 cpdef p_c_simple_base_type(PyrexScanner s, bint self_flag, bint nonempty, templates = *)
 cdef p_buffer_or_template(PyrexScanner s, base_type_node, templates)
 cdef bint looking_at_name(PyrexScanner s) except -2
-cdef bint looking_at_expr(PyrexScanner s) except -2
+cdef object looking_at_expr(PyrexScanner s)# except -2
 cdef bint looking_at_base_type(PyrexScanner s) except -2
 cdef bint looking_at_dotted_name(PyrexScanner s) except -2
+cdef bint looking_at_call(PyrexScanner s) except -2
 cdef p_sign_and_longness(PyrexScanner s)
 cdef p_opt_cname(PyrexScanner s)
 cpdef p_c_declarator(PyrexScanner s, ctx = *, bint empty = *, bint is_type = *, bint cmethod_flag = *,
@@ -163,6 +164,7 @@ cdef p_visibility(PyrexScanner s, prev_visibility)
 cdef p_c_modifiers(PyrexScanner s)
 cdef p_c_func_or_var_declaration(PyrexScanner s, pos, ctx)
 cdef p_ctypedef_statement(PyrexScanner s, ctx)
+cdef p_typelist(PyrexScanner s)
 cdef p_decorators(PyrexScanner s)
 cdef p_def_statement(PyrexScanner s, list decorators = *)
 cpdef p_varargslist(PyrexScanner s, terminator=*, bint annotated = *)

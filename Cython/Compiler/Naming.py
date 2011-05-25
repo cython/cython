@@ -94,6 +94,7 @@ enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
+fused_func_prefix = pyrex_prefix + 'fuse_'
 
 genexpr_id_ref = 'genexpr'
 

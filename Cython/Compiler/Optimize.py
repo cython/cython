@@ -3068,8 +3068,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
       literal nodes at each step.  Non-literal nodes are never merged
       into a single node.
     """
+
+    check_constant_value_not_set = True
+
     def _calculate_const(self, node):
-        if node.constant_result is not ExprNodes.constant_value_not_set:
+        if (self.check_constant_value_not_set and
+                node.constant_result is not ExprNodes.constant_value_not_set):
             return
 
         # make sure we always set the value

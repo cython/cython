@@ -221,3 +221,21 @@ def none_or_sub(s, data):
     else:
         return s % data
 
+# all() and any() are new in 2.5
+try:
+    # Make sure to bind them on the module, as they will be accessed as
+    # attributes
+    all = all
+    any = any
+except NameError:
+    def all(items):
+        for item in items:
+            if not item:
+                return False
+        return True
+
+    def any(items):
+        for item in items:
+            if item:
+                return True
+        return False

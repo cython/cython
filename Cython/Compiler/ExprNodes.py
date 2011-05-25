@@ -42,6 +42,8 @@ except ImportError:
     basestring = str # Python 3
 
 class NotConstant(object):
+    def __deepcopy__(self, memo):
+        return self
     def __repr__(self):
         return "<NOT CONSTANT>"
 
@@ -582,6 +584,25 @@ class ExprNode(Node):
 
         if dst_type.is_reference:
             dst_type = dst_type.ref_base_type
+
+        if src_type.is_fused or dst_type.is_fused:
+            # See if we are coercing a fused function to a pointer to a
+            # specialized function
+            if (src_type.is_cfunction and not dst_type.is_fused and
+                    dst_type.is_ptr and dst_type.base_type.is_cfunction):
+
+                dst_type = dst_type.base_type
+
+                for signature in src_type.get_all_specific_function_types():
+                    if signature.same_as(dst_type):
+                        src.type = signature
+                        src.entry = src.type.entry
+                        src.entry.used = True
+                        return self
+
+            error(self.pos, "Type is not specific")
+            self.type = error_type
+            return self
 
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
@@ -2323,11 +2344,15 @@ class IndexNode(ExprNode):
                     self.base.entry.buffer_aux.writable_needed = True
         else:
             base_type = self.base.type
-            if isinstance(self.index, TupleNode):
-                self.index.analyse_types(env, skip_children=skip_child_analysis)
-            elif not skip_child_analysis:
-                self.index.analyse_types(env)
-            self.original_index_type = self.index.type
+
+            fused_index_operation = base_type.is_cfunction and base_type.is_fused
+            if not fused_index_operation:
+                if isinstance(self.index, TupleNode):
+                    self.index.analyse_types(env, skip_children=skip_child_analysis)
+                elif not skip_child_analysis:
+                    self.index.analyse_types(env)
+                self.original_index_type = self.index.type
+
             if base_type.is_unicode_char:
                 # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
                 # cases, but indexing must still work for them
@@ -2384,11 +2409,82 @@ class IndexNode(ExprNode):
                     self.type = func_type.return_type
                     if setting and not func_type.return_type.is_reference:
                         error(self.pos, "Can't set non-reference result '%s'" % self.type)
+                elif fused_index_operation:
+                    self.parse_indexed_fused_cdef(env)
                 else:
                     error(self.pos,
                         "Attempting to index non-array type '%s'" %
                             base_type)
                     self.type = PyrexTypes.error_type
+
+    def parse_indexed_fused_cdef(self, env):
+        """
+        Interpret fused_cdef_func[specific_type1, ...]
+
+        Note that if this method is called, we are an indexed cdef function
+        with fused argument types, and this IndexNode will be replaced by the
+        NameNode with specific entry just after analysis of expressions by
+        AnalyseExpressionsTransform.
+        """
+        self.type = PyrexTypes.error_type
+
+        base_type = self.base.type
+        specific_types = []
+        positions = []
+
+        if self.index.is_name:
+            positions.append(self.index.pos)
+            specific_types.append(self.index.analyse_as_type(env))
+        elif isinstance(self.index, TupleNode):
+            for arg in self.index.args:
+                positions.append(arg.pos)
+                specific_types.append(arg.analyse_as_type(env))
+        else:
+            return error(self.pos, "Can only index fused functions with types")
+
+        fused_types = base_type.get_fused_types()
+        if len(specific_types) > len(fused_types):
+            return error(self.pos, "Too many types specified")
+        elif len(specific_types) < len(fused_types):
+            t = fused_types[len(specific_types)]
+            return error(self.pos, "Not enough types specified to specialize "
+                                   "the function, %s is still fused" % t)
+
+        # See if our index types form valid specializations
+        for pos, specific_type, fused_type in zip(positions,
+                                                  specific_types,
+                                                  fused_types):
+            if not Utils.any([specific_type.same_as(t)
+                                  for t in fused_type.types]):
+                return error(pos, "Type not in fused type")
+
+            if specific_type is None or specific_type.is_error:
+                return
+
+        fused_to_specific = dict(zip(fused_types, specific_types))
+        type = base_type.specialize(fused_to_specific)
+
+        if type.is_fused:
+            # Only partially specific, this is invalid
+            error(self.pos,
+                  "Index operation makes function only partially specific")
+        else:
+            # Fully specific, find the signature with the specialized entry
+            for signature in self.base.type.get_all_specific_function_types():
+                if type.same_as(signature):
+                    self.type = signature
+
+                    if self.base.is_attribute:
+                        # Pretend to be a normal attribute, for cdef extension
+                        # methods
+                        self.entry = signature.entry
+                        self.is_attribute = self.base.is_attribute
+                        self.obj = self.base.obj
+                        self.entry.used = True
+
+                    break
+            else:
+                assert False
 
     gil_message = "Indexing Python object"
 
@@ -3034,11 +3130,13 @@ class SimpleCallNode(CallNode):
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
+
         if function.is_attribute and function.entry and function.entry.is_cmethod:
             # Take ownership of the object from which the attribute
             # was obtained, because we need to pass it as 'self'.
             self.self = function.obj
             function.obj = CloneNode(self.self)
+
         func_type = self.function_type()
         if func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
@@ -3070,6 +3168,7 @@ class SimpleCallNode(CallNode):
         else:
             for arg in self.args:
                 arg.analyse_types(env)
+
             if self.self and func_type.args:
                 # Coerce 'self' to the type expected by the method.
                 self_arg = func_type.args[0]
@@ -3086,10 +3185,13 @@ class SimpleCallNode(CallNode):
 
     def function_type(self):
         # Return the type of the function being called, coercing a function
-        # pointer to a function if necessary.
+        # pointer to a function if necessary. If the function has fused
+        # arguments, return the specific type.
         func_type = self.function.type
+
         if func_type.is_ptr:
             func_type = func_type.base_type
+
         return func_type
 
     def is_simple(self):
@@ -3103,6 +3205,7 @@ class SimpleCallNode(CallNode):
         if self.function.type is error_type:
             self.type = error_type
             return
+
         if self.function.type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
             if overloaded_entry is None:
@@ -3111,14 +3214,27 @@ class SimpleCallNode(CallNode):
                 return
         elif hasattr(self.function, 'entry'):
             overloaded_entry = self.function.entry
+        elif (isinstance(self.function, IndexNode) and
+              self.function.base.type.is_fused):
+            overloaded_entry = self.function.type.entry
         else:
             overloaded_entry = None
+
         if overloaded_entry:
-            entry = PyrexTypes.best_match(self.args, overloaded_entry.all_alternatives(), self.pos)
+            if self.function.type.is_fused:
+                functypes = self.function.type.get_all_specific_function_types()
+                alternatives = [f.entry for f in functypes]
+            else:
+                alternatives = overloaded_entry.all_alternatives()
+
+            entry = PyrexTypes.best_match(self.args, alternatives, self.pos, env)
+
             if not entry:
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
+
+            entry.used = True
             self.function.entry = entry
             self.function.type = entry.type
             func_type = self.function_type()
@@ -3251,8 +3367,8 @@ class SimpleCallNode(CallNode):
 
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.result())
-        result = "%s(%s)" % (self.function.result(),
-            ', '.join(arg_list_code))
+
+        result = "%s(%s)" % (self.function.result(), ', '.join(arg_list_code))
         return result
 
     def generate_result_code(self, code):
@@ -3805,6 +3921,12 @@ class AttributeNode(ExprNode):
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if obj.type.is_extension_type:
+                # If the attribute was specialized through indexing, make sure
+                # to get the right fused name, as our entry was replaced by our
+                # parent index node (AnalyseExpressionsTransform)
+                if self.type.from_fused:
+                    self.member = self.entry.cname
+
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
                     obj.type.vtabslot_cname, self.member)
@@ -5683,6 +5805,9 @@ class TypecastNode(ExprNode):
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
+        elif self.operand.type.is_fused:
+            self.operand = self.operand.coerce_to(self.type, env)
+            self.type = self.operand.type
 
     def is_simple(self):
         # either temp or a C cast => no side effects

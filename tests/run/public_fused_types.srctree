@@ -1,0 +1,149 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import b"
+
+######## setup.py ########
+
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## a.pxd ########
+
+cimport cython
+
+cdef extern from "header.h":
+    ctypedef int extern_int
+    ctypedef long extern_long
+
+
+cdef struct mystruct_t:
+    extern_int a
+
+ctypedef union myunion_t:
+    extern_long a
+
+cdef public class MyExt [ type MyExtType, object MyExtObject ]:
+    cdef unsigned char a
+
+ctypedef char *string_t
+ctypedef cython.fused_type(int, float) simple_t
+ctypedef cython.fused_type(int, float, string_t) less_simple_t
+ctypedef cython.fused_type(mystruct_t, myunion_t, MyExt) object_t
+ctypedef cython.fused_type(str, unicode, bytes) builtin_t
+
+cdef object_t add_simple(object_t obj, simple_t simple)
+cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple)
+cdef public_optional_args(object_t obj, simple_t simple = *)
+
+ctypedef cython.fused_type(float, double) floating
+ctypedef cython.fused_type(int, long) integral
+
+cdef class TestFusedExtMethods(object):
+    cdef floating method(self, integral x, floating y)
+
+######## header.h ########
+
+typedef int extern_int;
+typedef long extern_long;
+
+######## a.pyx ########
+
+cimport cython
+
+cdef object_t add_simple(object_t obj, simple_t simple):
+     obj.a = <int> (obj.a + simple)
+     return obj
+
+cdef less_simple_t add_to_simple(object_t obj, less_simple_t simple):
+    return obj.a + simple
+
+cdef public_optional_args(object_t obj, simple_t simple = 6):
+    return obj.a, simple
+
+cdef class TestFusedExtMethods(object):
+    cdef floating method(self, integral x, floating y):
+        if integral is int:
+            x += 1
+
+        if floating is double:
+            y += 2.0
+
+        return x + y
+
+######## b.pyx ########
+
+from a cimport *
+
+cdef mystruct_t mystruct
+cdef myunion_t myunion
+cdef MyExt myext = MyExt()
+
+mystruct.a = 5
+myunion.a = 5
+myext.a = 5
+
+assert add_simple(mystruct, 5).a == 10
+assert add_simple(myunion, 5.0).a == 10.0
+
+assert add_to_simple(mystruct, 5.0) == 10.0
+assert add_to_simple(myunion, b"spamhameggs") == b"ameggs"
+assert add_to_simple(myext, 5) == 10
+
+cdef mystruct_t (*f)(mystruct_t, int)
+f = add_simple
+assert f(mystruct, 5).a == 10
+
+f = <mystruct_t (*)(mystruct_t, int)> add_simple
+assert f(mystruct, 5).a == 10
+
+f = add_simple[mystruct_t, int]
+assert f(mystruct, 5).a == 10
+
+assert public_optional_args(mystruct, 5) == (5, 5)
+assert public_optional_args[mystruct_t, int](mystruct) == (5, 6)
+
+assert public_optional_args[mystruct_t, float](mystruct) == (5, 6.0)
+assert public_optional_args[mystruct_t, float](mystruct, 7.0) == (5, 7.0)
+
+
+cdef TestFusedExtMethods obj = TestFusedExtMethods()
+
+cdef int x = 4
+cdef float y = 5.0
+cdef long a = 6
+cdef double b = 7.0
+
+cdef double (*func)(TestFusedExtMethods, long, double)
+
+func = obj.method
+assert func(obj, a, b) == 15.0
+
+func = <double (*)(TestFusedExtMethods, long, double)> obj.method
+assert func(obj, x, y) == 11.0
+
+func = obj.method[long, double]
+assert func(obj, a, y) == 13.0
+
+assert obj.method(x, <double> a) == 13.0
+assert obj.method[int, double](x, b) == 14.0
+
+
+# Test inheritance
+cdef class Subclass(TestFusedExtMethods):
+    cdef floating method(self, integral x, floating y):
+        return -x -y
+
+cdef Subclass myobj = Subclass()
+assert myobj.method[int, float](5, 5.0) == -10
+
+cdef float (*meth)(Subclass, int, float)
+meth = myobj.method
+assert meth(myobj, 5, 5.0) == -10
+
+meth = myobj.method[int, float]
+assert meth(myobj, 5, 5.0) == -10
+

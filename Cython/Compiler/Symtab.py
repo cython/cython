@@ -176,6 +176,7 @@ class Entry(object):
     buffer_aux = None
     prev_entry = None
     might_overflow = 0
+    fused_cfunction = None
     in_with_gil_block = 0
 
     def __init__(self, name, cname, type, pos = None, init = None):
@@ -242,6 +243,7 @@ class Scope(object):
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
+    fused_to_specific = None
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -279,6 +281,9 @@ class Scope(object):
         self.control_flow = ControlFlow.LinearControlFlow()
         self.return_type = None
         self.id_counters = {}
+
+    def __deepcopy__(self, memo):
+        return self
 
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
@@ -386,6 +391,9 @@ class Scope(object):
         entry.api = api
         if defining:
             self.type_entries.append(entry)
+
+        type.entry = entry
+
         # here we would set as_variable to an object representing this type
         return entry
 
@@ -633,6 +641,7 @@ class Scope(object):
         if modifiers:
             entry.func_modifiers = modifiers
         entry.utility_code = utility_code
+        type.entry = entry
         return entry
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -689,6 +698,8 @@ class Scope(object):
     def lookup_type(self, name):
         entry = self.lookup(name)
         if entry and entry.is_type:
+            if entry.type.is_fused and self.fused_to_specific:
+                return entry.type.specialize(self.fused_to_specific)
             return entry.type
 
     def lookup_operator(self, operator, operands):
@@ -732,6 +743,7 @@ class Scope(object):
 
     def add_include_file(self, filename):
         self.outer_scope.add_include_file(filename)
+
 
 class PreImportScope(Scope):
 
@@ -1770,6 +1782,7 @@ class CClassScope(ClassScope):
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
+        type.entry = entry
         return entry
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -1818,6 +1831,14 @@ class CClassScope(ClassScope):
                     base_entry.type, None, 'private')
                 entry.is_variable = 1
                 self.inherited_var_entries.append(entry)
+
+        # If the class defined in a pxd, specific entries have not been added.
+        # Ensure now that the parent (base) scope has specific entries
+        # Iterate over a copy as get_all_specific_function_types() will mutate
+        for base_entry in base_scope.cfunc_entries[:]:
+            if base_entry.type.is_fused:
+                base_entry.type.get_all_specific_function_types()
+
         for base_entry in base_scope.cfunc_entries:
             entry = self.add_cfunction(base_entry.name, base_entry.type,
                                        base_entry.pos, adapt(base_entry.cname),
@@ -1894,6 +1915,7 @@ class CppClassScope(Scope):
         if prev_entry:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
+        type.entry = entry
         return entry
 
     def declare_inherited_cpp_attributes(self, base_scope):

@@ -1033,9 +1033,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
-            if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
-                    or entry.defined_in_pxd or entry.visibility == 'extern')):
-                if entry.visibility == 'extern':
+            should_declare = (not entry.in_cinclude and
+                              (definition or entry.defined_in_pxd or
+                               entry.visibility == 'extern'))
+
+            if entry.used and (entry.inline_func_in_pxd or should_declare):
+                if entry.visibility == 'public':
+                    storage_class = "%s " % Naming.extern_c_macro
+                    dll_linkage = "DL_EXPORT"
+                elif entry.visibility == 'extern':
                     storage_class = "%s " % Naming.extern_c_macro
                     dll_linkage = "DL_IMPORT"
                 elif entry.visibility == 'public':

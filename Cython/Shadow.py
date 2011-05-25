@@ -228,6 +228,30 @@ class typedef(CythonType):
         value = cast(self._basetype, *arg)
         return value
 
+class _FusedType(CythonType):
+
+    def __call__(self, type, value):
+        return value
+
+
+def fused_type(*args):
+    if not args:
+        raise TypeError("Expected at least one type as argument")
+
+    rank = -1
+    for type in args:
+        if type not in (py_int, py_long, py_float, py_complex):
+            break
+
+        if type_ordering.index(type) > rank:
+            result_type = type
+    else:
+        return result_type
+
+    # Not a simple numeric type, return a fused type instance. The result
+    # isn't really meant to be used, as we can't keep track of the context in
+    # pure-mode. Casting won't do anything in this case.
+    return _FusedType()
 
 
 py_int = int
@@ -280,6 +304,8 @@ for t in int_types + float_types + complex_types + other_types:
 
 void = typedef(None)
 NULL = p_void(0)
+
+type_ordering = [py_int, py_long, py_float, py_complex]
 
 class CythonDotParallel(object):
     """
