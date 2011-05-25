@@ -305,7 +305,9 @@ class NameAssignment(object):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
 
 class Argument(NameAssignment):
-    is_arg = True
+    def __init__(self, lhs, rhs, entry):
+        NameAssignment.__init__(self, lhs, rhs, entry)
+        self.is_arg = True
 
 class Uninitialized(object):
     pass
