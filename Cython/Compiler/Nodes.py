@@ -1321,9 +1321,11 @@ class FuncDefNode(StatNode, BlockNode):
             code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
+
         for entry in lenv.var_entries:
             if not entry.in_closure:
                 code.put_var_declaration(entry)
+
         init = ""
         if not self.return_type.is_void:
             if self.return_type.is_pyobject:
@@ -1333,23 +1335,31 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
         tempvardecl_code = code.insertion_point()
-        if not lenv.nogil:
-            code.put_declare_refcount_context()
         self.generate_keyword_list(code)
+
         if profile:
             code.put_trace_declarations()
+
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
+
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
-        if acquire_gil:
-            env.use_utility_code(force_init_threads_utility_code)
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
-            code.putln("#endif")
+
+        # See if we need to acquire the GIL for variable declarations and
+        acquire_gil_for_var_decls_only = (lenv.nogil and
+                                          lenv.has_with_gil_block)
+
+        use_refnanny = not lenv.nogil or acquire_gil_for_var_decls_only
+
+        if acquire_gil or acquire_gil_for_var_decls_only:
+            code.put_ensure_gil()
+
         # ----- set up refnanny
-        if not lenv.nogil:
+        if use_refnanny:
+            tempvardecl_code.put_declare_refcount_context()
             code.put_setup_refcount_context(self.entry.name)
+
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
             self.getbuffer_init(code)
@@ -1364,8 +1374,12 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
             if is_getbuffer_slot:
                 self.getbuffer_error_cleanup(code)
-            if not lenv.nogil:
+
+            if use_refnanny:
                 code.put_finish_refcount_context()
+                if acquire_gil_for_var_decls_only:
+                    code.put_release_ensured_gil()
+
             # FIXME: what if the error return value is a Python value?
             code.putln("return %s;" % self.error_value())
             code.putln("}")
@@ -1411,6 +1425,9 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_buffer:
                 Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
+        if acquire_gil_for_var_decls_only:
+            code.put_release_ensured_gil()
+
         # -------------------------
         # ----- Function body -----
         # -------------------------
@@ -1453,7 +1470,7 @@ class FuncDefNode(StatNode, BlockNode):
                 # TODO: Fix exception tracing (though currently unused by cProfile).
                 # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
                 # code.put_trace_exception()
-                code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+                code.put_add_traceback(self.entry.qualified_name)
             else:
                 warning(self.entry.pos, "Unraisable exception in function '%s'." \
                             % self.entry.qualified_name, 0)
@@ -1476,7 +1493,6 @@ class FuncDefNode(StatNode, BlockNode):
             # whether this section is used.
             if buffers_present or is_getbuffer_slot:
                 code.put_goto(code.return_from_error_cleanup_label)
-
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -1525,13 +1541,13 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_trace_return(Naming.retval_cname)
             else:
                 code.put_trace_return("Py_None")
+
         if not lenv.nogil:
+            # GIL holding funcion
             code.put_finish_refcount_context()
 
-        if acquire_gil:
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_Release(_save);")
-            code.putln("#endif")
+        if acquire_gil or acquire_gil_for_var_decls_only:
+            code.put_release_ensured_gil()
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -1543,6 +1559,14 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
+        if code.funcstate.should_declare_error_indicator:
+            # Initialize these variables to shut up compiler warnings
+            tempvardecl_code.putln("int %s = 0;" % Naming.lineno_cname)
+            tempvardecl_code.putln("const char *%s = NULL;" %
+                                                    Naming.filename_cname)
+            if code.c_line_in_traceback:
+                tempvardecl_code.putln("int %s = 0;" % Naming.clineno_cname)
+
         # ----- Python version
         code.exit_cfunc_scope()
         if self.py_func:
@@ -1764,7 +1788,7 @@ class CFuncDefNode(FuncDefNode):
                 error(self.pos,
                       "Function with Python return type cannot be declared nogil")
             for entry in self.local_scope.var_entries:
-                if entry.type.is_pyobject:
+                if entry.type.is_pyobject and not entry.in_with_gil_block:
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
 
     def analyse_expressions(self, env):
@@ -2436,7 +2460,7 @@ class DefNode(FuncDefNode):
                         code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
                         code.put_var_decref_clear(self.starstar_arg.entry)
-            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.put_add_traceback(self.entry.qualified_name)
             # The arguments are put into the closure one after the
             # other, so when type errors are found, all references in
             # the closure instance must be properly ref-counted to
@@ -3060,7 +3084,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
-            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.put_add_traceback(self.entry.qualified_name)
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -5256,7 +5280,7 @@ class ExceptClauseNode(Node):
         exc_vars = [code.funcstate.allocate_temp(py_object_type,
                                                  manage_ref=True)
                     for i in xrange(3)]
-        code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
+        code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
         # exception and stores it in the thread state.
@@ -5357,6 +5381,8 @@ class TryFinallyStatNode(StatNode):
     # continue in the try block, since we have no problem
     # handling it.
 
+    is_try_finally_in_nogil = False
+
     def create_analysed(pos, env, body, finally_clause):
         node = TryFinallyStatNode(pos, body=body, finally_clause=finally_clause)
         return node
@@ -5388,20 +5414,24 @@ class TryFinallyStatNode(StatNode):
         if not self.handle_error_case:
             code.error_label = old_error_label
         catch_label = code.new_label()
-        code.putln(
-            "/*try:*/ {")
+
+        code.putln("/*try:*/ {")
+
         if self.disallow_continue_in_try_finally:
             was_in_try_finally = code.funcstate.in_try_finally
             code.funcstate.in_try_finally = 1
+
         self.body.generate_execution_code(code)
+
         if self.disallow_continue_in_try_finally:
             code.funcstate.in_try_finally = was_in_try_finally
-        code.putln(
-            "}")
+
+        code.putln("}")
+
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
         code.mark_pos(self.finally_clause.pos)
-        code.putln(
-            "/*finally:*/ {")
+        code.putln("/*finally:*/ {")
+
         cases_used = []
         error_label_used = 0
         for i, new_label in enumerate(new_labels):
@@ -5410,22 +5440,25 @@ class TryFinallyStatNode(StatNode):
                 if new_label == new_error_label:
                     error_label_used = 1
                     error_label_case = i
+
         if cases_used:
-            code.putln(
-                    "int __pyx_why;")
+            code.putln("int __pyx_why;")
+
             if error_label_used and self.preserve_exception:
-                code.putln(
-                    "PyObject *%s, *%s, *%s;" % Naming.exc_vars)
-                code.putln(
-                    "int %s;" % Naming.exc_lineno_name)
-                exc_var_init_zero = ''.join(["%s = 0; " % var for var in Naming.exc_vars])
+                code.putln("PyObject *%s, *%s, *%s;" % Naming.exc_vars)
+                code.putln("int %s;" % Naming.exc_lineno_name)
+                exc_var_init_zero = ''.join(
+                                ["%s = 0; " % var for var in Naming.exc_vars])
                 exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
                 code.putln(exc_var_init_zero)
+
+                if self.is_try_finally_in_nogil:
+                    code.declare_gilstate()
             else:
                 exc_var_init_zero = None
+
             code.use_label(catch_label)
-            code.putln(
-                    "__pyx_why = 0; goto %s;" % catch_label)
+            code.putln("__pyx_why = 0; goto %s;" % catch_label)
             for i in cases_used:
                 new_label = new_labels[i]
                 #if new_label and new_label != "<try>":
@@ -5436,27 +5469,36 @@ class TryFinallyStatNode(StatNode):
                     code.put('%s: ' % new_label)
                     if exc_var_init_zero:
                         code.putln(exc_var_init_zero)
-                    code.putln("__pyx_why = %s; goto %s;" % (
-                            i+1,
-                            catch_label))
+                    code.putln("__pyx_why = %s; goto %s;" % (i+1, catch_label))
             code.put_label(catch_label)
+
         code.set_all_labels(old_labels)
         if error_label_used:
             code.new_error_label()
             finally_error_label = code.error_label
+
         self.finally_clause.generate_execution_code(code)
+
         if error_label_used:
             if finally_error_label in code.labels_used and self.preserve_exception:
                 over_label = code.new_label()
-                code.put_goto(over_label);
+                code.put_goto(over_label)
                 code.put_label(finally_error_label)
+
                 code.putln("if (__pyx_why == %d) {" % (error_label_case + 1))
+                if self.is_try_finally_in_nogil:
+                    code.put_ensure_gil(declare_gilstate=False)
                 for var in Naming.exc_vars:
                     code.putln("Py_XDECREF(%s);" % var)
+                if self.is_try_finally_in_nogil:
+                    code.put_release_ensured_gil()
                 code.putln("}")
+
                 code.put_goto(old_error_label)
                 code.put_label(over_label)
+
             code.error_label = old_error_label
+
         if cases_used:
             code.putln(
                 "switch (__pyx_why) {")
@@ -5466,12 +5508,13 @@ class TryFinallyStatNode(StatNode):
                     self.put_error_uncatcher(code, i+1, old_error_label)
                 else:
                     code.use_label(old_label)
-                    code.putln(
-                        "case %s: goto %s;" % (
-                            i+1,
-                            old_label))
+                    code.putln("case %s: goto %s;" % (i+1, old_label))
+
+            # End the switch
             code.putln(
                 "}")
+
+        # End finally
         code.putln(
             "}")
 
@@ -5479,40 +5522,45 @@ class TryFinallyStatNode(StatNode):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
 
-    def put_error_catcher(self, code, error_label, i, catch_label, temps_to_clean_up):
+    def put_error_catcher(self, code, error_label, i, catch_label,
+                          temps_to_clean_up):
         code.globalstate.use_utility_code(restore_exception_utility_code)
-        code.putln(
-            "%s: {" %
-                error_label)
-        code.putln(
-                "__pyx_why = %s;" %
-                    i)
+        code.putln("%s: {" % error_label)
+        code.putln("__pyx_why = %s;" % i)
+
+        if self.is_try_finally_in_nogil:
+            code.put_ensure_gil(declare_gilstate=False)
+
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
-        code.putln(
-                "__Pyx_ErrFetch(&%s, &%s, &%s);" %
-                    Naming.exc_vars)
-        code.putln(
-                "%s = %s;" % (
-                    Naming.exc_lineno_name, Naming.lineno_cname))
+
+        code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % Naming.exc_vars)
+        code.putln("%s = %s;" % (Naming.exc_lineno_name, Naming.lineno_cname))
+
+        if self.is_try_finally_in_nogil:
+            code.put_release_ensured_gil()
+
         code.put_goto(catch_label)
         code.putln("}")
 
     def put_error_uncatcher(self, code, i, error_label):
         code.globalstate.use_utility_code(restore_exception_utility_code)
         code.putln(
-            "case %s: {" %
-                i)
-        code.putln(
-                "__Pyx_ErrRestore(%s, %s, %s);" %
-                    Naming.exc_vars)
-        code.putln(
-                "%s = %s;" % (
-                    Naming.lineno_cname, Naming.exc_lineno_name))
+            "case %s: {" % i)
+
+        if self.is_try_finally_in_nogil:
+            code.put_ensure_gil(declare_gilstate=False)
+
+        code.putln("__Pyx_ErrRestore(%s, %s, %s);" % Naming.exc_vars)
+        code.putln("%s = %s;" % (Naming.lineno_cname, Naming.exc_lineno_name))
+
+        if self.is_try_finally_in_nogil:
+            code.put_release_ensured_gil()
+
         for var in Naming.exc_vars:
             code.putln(
-                "%s = 0;" %
-                    var)
+                   "%s = 0;" % var)
+
         code.put_goto(error_label)
         code.putln(
             "}")
@@ -5522,14 +5570,19 @@ class TryFinallyStatNode(StatNode):
         self.finally_clause.annotate(code)
 
 
-class GILStatNode(TryFinallyStatNode):
+class NogilTryFinallyStatNode(TryFinallyStatNode):
+    """
+    A try/finally statement that may be used in nogil code sections.
+    """
+
+    preserve_exception = False
+    nogil_check = None
+
+
+class GILStatNode(NogilTryFinallyStatNode):
     #  'with gil' or 'with nogil' statement
     #
     #   state   string   'gil' or 'nogil'
-
-#    child_attrs = []
-
-    preserve_exception = 0
 
     def __init__(self, pos, state, body):
         self.state = state
@@ -5537,35 +5590,39 @@ class GILStatNode(TryFinallyStatNode):
             body = body,
             finally_clause = GILExitNode(pos, state = state))
 
+    def analyse_declarations(self, env):
+        env._in_with_gil_block = (self.state == 'gil')
+        if self.state == 'gil':
+            env.has_with_gil_block = True
+
+        return super(GILStatNode, self).analyse_declarations(env)
+
     def analyse_expressions(self, env):
         env.use_utility_code(force_init_threads_utility_code)
         was_nogil = env.nogil
-        env.nogil = 1
+        env.nogil = self.state == 'nogil'
         TryFinallyStatNode.analyse_expressions(self, env)
         env.nogil = was_nogil
 
-    nogil_check = None
-
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
-        code.putln("{")
+        code.begin_block()
+
         if self.state == 'gil':
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
-            code.putln("#endif")
+            code.put_ensure_gil()
         else:
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyThreadState *_save = NULL;")
-            code.putln("#endif")
-            code.putln("Py_UNBLOCK_THREADS")
+            code.put_release_gil()
+
         TryFinallyStatNode.generate_execution_code(self, code)
-        code.putln("}")
+        code.end_block()
 
 
 class GILExitNode(StatNode):
-    #  Used as the 'finally' block in a GILStatNode
-    #
-    #  state   string   'gil' or 'nogil'
+    """
+    Used as the 'finally' block in a GILStatNode
+
+    state   string   'gil' or 'nogil'
+    """
 
     child_attrs = []
 
@@ -5574,11 +5631,18 @@ class GILExitNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.state == 'gil':
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_Release(_save);")
-            code.putln("#endif")
+            code.put_release_ensured_gil()
         else:
-            code.putln("Py_BLOCK_THREADS")
+            code.put_acquire_gil()
+
+
+class EnsureGILNode(GILExitNode):
+    """
+    Ensure the GIL in nogil functions for cleanup before returning.
+    """
+
+    def generate_execution_code(self, code):
+        code.put_ensure_gil(declare_gilstate=False)
 
 
 class CImportStatNode(StatNode):
@@ -7082,15 +7146,22 @@ requires=[raise_double_keywords_utility_code])
 #------------------------------------------------------------------------------------
 
 traceback_utility_code = UtilityCode(
-proto = """
-static void __Pyx_AddTraceback(const char *funcname); /*proto*/
-""",
-impl = """
+    proto = """
+static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
+                               int %(LINENO)s, const char *%(FILENAME)s); /*proto*/
+""" % {
+    'FILENAME': Naming.filename_cname,
+    'LINENO':  Naming.lineno_cname,
+    'CLINENO':  Naming.clineno_cname,
+},
+
+    impl = """
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 
-static void __Pyx_AddTraceback(const char *funcname) {
+static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
+                               int %(LINENO)s, const char *%(FILENAME)s) {
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
     PyObject *py_globals = 0;

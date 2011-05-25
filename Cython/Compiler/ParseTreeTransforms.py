@@ -638,6 +638,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                         'is not allowed in %s scope' % (directive, scope)))
             return False
         else:
+            if directive not in Options.directive_defaults:
+                error(pos, "Invalid directive: '%s'." % (directive,))
             return True
 
     # Set up processing and handle the cython: comments.
@@ -946,9 +948,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                         PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
                 else:
                     name, value = directive
-                    if name == 'nogil':
+                    if name in ('nogil', 'gil'):
                         # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        node = Nodes.GILStatNode(node.pos, state = "nogil", body = node.body)
+                        node = Nodes.GILStatNode(node.pos, state = name, body = node.body)
                         return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
@@ -1361,6 +1363,18 @@ if VALUE is not None:
                 else:
                     error(type_node.pos, "Not a type")
         node.body.analyse_declarations(lenv)
+
+        if lenv.nogil and lenv.has_with_gil_block:
+            # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
+            # the entire function body in try/finally.
+            # The corresponding release will be taken care of by
+            # Nodes.FuncDefNode.generate_function_definitions()
+            node.body = Nodes.NogilTryFinallyStatNode(
+                node.body.pos,
+                body = node.body,
+                finally_clause = Nodes.EnsureGILNode(node.body.pos),
+            )
+
         self.env_stack.append(lenv)
         self.visitchildren(node)
         self.env_stack.pop()
@@ -1532,6 +1546,7 @@ if VALUE is not None:
         # ---------------------------------------
         return property
 
+
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
@@ -1552,6 +1567,7 @@ class AnalyseExpressionsTransform(CythonTransform):
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
+
 
 class ExpandInplaceOperators(EnvTransform):
 
@@ -2016,10 +2032,18 @@ class GilCheck(VisitorTransform):
     Call `node.gil_check(env)` on each node to make sure we hold the
     GIL when we need it.  Raise an error when on Python operations
     inside a `nogil` environment.
+
+    Additionally, raise exceptions for closely nested with gil or with nogil
+    statements. The latter would abort Python.
     """
+
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
+
+        # True for 'cdef func() nogil:' functions, as the GIL may be held while
+        # calling this function (thus contained 'nogil' blocks may be valid).
+        self.nogil_declarator_only = False
         return super(GilCheck, self).__call__(root)
 
     def visit_FuncDefNode(self, node):
@@ -2027,10 +2051,17 @@ class GilCheck(VisitorTransform):
         was_nogil = self.nogil
         self.nogil = node.local_scope.nogil
 
+        if self.nogil:
+            self.nogil_declarator_only = True
+
         if self.nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
 
         self.visitchildren(node)
+
+        # This cannot be nested, so it doesn't need backup/restore
+        self.nogil_declarator_only = False
+
         self.env_stack.pop()
         self.nogil = was_nogil
         return node
@@ -2041,6 +2072,23 @@ class GilCheck(VisitorTransform):
 
         was_nogil = self.nogil
         self.nogil = (node.state == 'nogil')
+
+        if was_nogil == self.nogil and not self.nogil_declarator_only:
+            if not was_nogil:
+                error(node.pos, "Trying to acquire the GIL while it is "
+                                "already held.")
+            else:
+                error(node.pos, "Trying to release the GIL while it was "
+                                "previously released.")
+
+        if isinstance(node.finally_clause, Nodes.StatListNode):
+            # The finally clause of the GILStatNode is a GILExitNode,
+            # which is wrapped in a StatListNode. Just unpack that.
+            node.finally_clause, = node.finally_clause.stats
+
+        if node.state == 'gil':
+            self.seen_with_gil_statement = True
+
         self.visitchildren(node)
         self.nogil = was_nogil
         return node
@@ -2072,6 +2120,28 @@ class GilCheck(VisitorTransform):
             node.nogil_check(self.env_stack[-1])
 
         self.visitchildren(node)
+        return node
+
+    def visit_TryFinallyStatNode(self, node):
+        """
+        Take care of try/finally statements in nogil code sections. The
+        'try' must contain a 'with gil:' statement somewhere.
+        """
+        if not self.nogil or isinstance(node, Nodes.GILStatNode):
+            return self.visit_Node(node)
+
+        node.nogil_check = None
+        node.is_try_finally_in_nogil = True
+
+        # First, visit the body and check for errors
+        self.seen_with_gil_statement = False
+        self.visitchildren(node.body)
+
+        if not self.seen_with_gil_statement:
+            error(node.pos, "Cannot use try/finally in nogil sections unless "
+                            "it contains a 'with gil' statement.")
+
+        self.visitchildren(node.finally_clause)
         return node
 
     def visit_Node(self, node):
