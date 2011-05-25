@@ -288,7 +288,8 @@ class CythonDotParallel(object):
 
     __all__ = ['parallel', 'prange', 'threadid']
 
-    parallel = nogil
+    def parallel(self, num_threads=None):
+        return nogil
 
     def prange(self, start=0, stop=None, step=1, schedule=None, nogil=False):
         if stop is None:
