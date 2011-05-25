@@ -987,9 +987,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     # Keep track of whether we are the context manager of a 'with' statement
     in_context_manager_section = False
 
-    # Keep track of whether we are in a parallel range section
-    in_prange = False
-
     # One of 'prange' or 'with parallel'. This is used to disallow closely
     # nested 'with parallel:' blocks
     state = None
@@ -1082,7 +1079,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         if isinstance(newnode, Nodes.ParallelWithBlockNode):
             if self.state == 'parallel with':
                 error(node.manager.pos,
-                      "Closely nested 'with parallel:' blocks are disallowed")
+                      "Closely nested parallel with blocks are disallowed")
 
             self.state = 'parallel with'
             body = self.visit(node.body)
@@ -1109,12 +1106,11 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         self.visit(node.iterator)
         self.visit(node.target)
 
-        was_in_prange = self.in_prange
-        self.in_prange = isinstance(node.iterator.sequence,
-                                    Nodes.ParallelRangeNode)
+        in_prange = isinstance(node.iterator.sequence,
+                               Nodes.ParallelRangeNode)
         previous_state = self.state
 
-        if self.in_prange:
+        if in_prange:
             # This will replace the entire ForInStatNode, so copy the
             # attributes
             parallel_range_node = node.iterator.sequence
@@ -1133,8 +1129,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
         self.visit(node.body)
         self.state = previous_state
-        self.in_prange = was_in_prange
-
         self.visit(node.else_clause)
         return node
 

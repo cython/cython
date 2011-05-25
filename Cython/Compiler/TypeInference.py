@@ -202,36 +202,9 @@ class MarkAssignments(CythonTransform):
 
         return node
 
-    def visit_BreakStatNode(self, node):
+    def visit_YieldExprNode(self, node):
         if self.parallel_block_stack:
-            parnode = self.parallel_block_stack[-1]
-            parnode.break_label_used = True
-
-            if not parnode.is_prange and parnode.parent:
-                parnode.parent.break_label_used = True
-
-        return node
-
-    def visit_ContinueStatNode(self, node):
-        if self.parallel_block_stack:
-            parnode = self.parallel_block_stack[-1]
-            parnode.continue_label_used = True
-
-            if not parnode.is_prange and parnode.parent:
-                parnode.parent.continue_label_used = True
-
-        return node
-
-    def visit_ReturnStatNode(self, node):
-        for parnode in self.parallel_block_stack:
-            parnode.return_label_used = True
-
-        return node
-
-    def visit_GilStatNode(self, node):
-        if node.state == 'gil':
-            for parnode in self.parallel_block_stack:
-                parnode.error_label_used = True
+            error(node.pos, "Yield not allowed in parallel sections")
 
         return node
 
