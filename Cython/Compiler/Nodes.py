@@ -4111,6 +4111,9 @@ class ReturnStatNode(StatNode):
     child_attrs = ["value"]
     is_terminator = True
 
+    # Whether we are in a parallel section
+    in_parallel = False
+
     def analyse_expressions(self, env):
         return_type = env.return_type
         self.return_type = return_type
@@ -4147,23 +4150,24 @@ class ReturnStatNode(StatNode):
         if self.value:
             self.value.generate_evaluation_code(code)
             self.value.make_owned_reference(code)
-            code.putln(
-                "%s = %s;" % (
-                    Naming.retval_cname,
-                    self.value.result_as(self.return_type)))
+            self.put_return(code, self.value.result_as(self.return_type))
             self.value.generate_post_assignment_code(code)
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
-                code.putln(
-                    "%s = %s;" % (
-                        Naming.retval_cname,
-                        self.return_type.default_value))
+                self.put_return(code, self.return_type.default_value)
+
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
+
         code.put_goto(code.return_label)
+
+    def put_return(self, code, value):
+        if self.in_parallel:
+            code.putln_openmp("#pragma omp critical(__pyx_returning)")
+        code.putln("%s = %s;" % (Naming.retval_cname, value))
 
     def generate_function_definitions(self, env, code):
         if self.value is not None:
@@ -5812,7 +5816,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                     assignments to variables in this parallel section
 
     parent          parent ParallelStatNode or None
-    is_parallel     indicates whether this is a parallel node
+    is_parallel     indicates whether this node is OpenMP parallel
+                    (true for #pragma omp parallel for and
+                              #pragma omp parallel)
 
     is_parallel is true for:
 
@@ -6062,12 +6068,29 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         Release any temps used for variables in scope objects. As this is the
         outermost parallel block, we don't need to delete the cnames from
-        self.seen_closure_vars
+        self.seen_closure_vars.
         """
         for entry, original_cname in self.modified_entries:
             code.putln("%s = %s;" % (original_cname, entry.cname))
             code.funcstate.release_temp(entry.cname)
             entry.cname = original_cname
+
+    def privatize_temps(self, code, exclude_temps=()):
+        """
+        Make any used temporaries private. Before the relevant code block
+        code.start_collecting_temps() should have been called.
+        """
+        if self.is_parallel:
+            private_cnames = cython.set([e.cname for e in self.privates])
+
+            temps = []
+            for cname, type in code.funcstate.stop_collecting_temps():
+                if not type.is_pyobject:
+                    temps.append(cname)
+
+            if temps:
+                c = self.privatization_insertion_point
+                c.put(" private(%s)" % ", ".join(temps))
 
     def setup_parallel_control_flow_block(self, code):
         """
@@ -6236,12 +6259,12 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         code.begin_block() # parallel block
         self.initialize_privates_to_nan(code)
+        code.funcstate.start_collecting_temps()
         self.body.generate_execution_code(code)
         self.trap_parallel_exit(code)
         code.end_block() # end parallel block
 
-        # After the parallel block all privates are undefined
-        self.initialize_privates_to_nan(code)
+        self.privatize_temps(code)
 
         continue_ = code.label_used(code.continue_label)
         break_ = code.label_used(code.break_label)
@@ -6500,10 +6523,6 @@ class ParallelRangeNode(ParallelStatNode):
         if self.schedule:
             code.put(" schedule(%s)" % self.schedule)
 
-        if self.parent:
-            c = self.parent.privatization_insertion_point
-            c.put(" private(%(nsteps)s)" % fmt_dict)
-
         if self.is_parallel:
             self.put_num_threads(code)
         else:
@@ -6521,7 +6540,14 @@ class ParallelRangeNode(ParallelStatNode):
 
         code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
+
+        if self.is_parallel:
+            code.funcstate.start_collecting_temps()
+
         self.body.generate_execution_code(code)
+
+        if self.is_parallel:
+            self.privatize_temps(code)
 
         self.trap_parallel_exit(code, should_flush=True)
         if self.breaking_label_used:
@@ -7747,7 +7773,7 @@ static float %(PYX_NAN)s;
 init="""
 /* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
    a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
-   a signalling NaN. */
+   a quiet NaN. */
     memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
 """ % vars(Naming))
 
