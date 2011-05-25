@@ -237,7 +237,7 @@ def test_nan_init():
     with nogil, cython.parallel.parallel():
         c1 = 16
 
-    assert c1 not in (16, 20), c1
+    assert c1 == 20, c1
 
 cdef void nogil_print(char *s) with gil:
     print s.decode('ascii')

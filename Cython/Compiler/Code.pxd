@@ -33,6 +33,7 @@ cdef class FunctionState:
     cdef public dict temps_free
     cdef public dict temps_used_type
     cdef public size_t temp_counter
+    cdef public list collect_temps_stack
 
     cdef public object closure_temps
     cdef public bint should_declare_error_indicator
