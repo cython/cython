@@ -55,6 +55,12 @@ class ControlBlock(object):
         self.gen = {}
         self.bounded = set()
 
+        self.i_input = 0
+        self.i_output = 0
+        self.i_gen = 0
+        self.i_kill = 0
+        self.i_state = 0
+
     def empty(self):
         return (not self.stats and not self.positions)
 
@@ -77,6 +83,11 @@ class ExitBlock(ControlBlock):
 
     def empty(self):
         return False
+
+
+class AssignmentList:
+    def __init__(self):
+        self.stats = []
 
 
 class ControlFlow(object):
@@ -196,6 +207,68 @@ class ControlFlow(object):
                 unreachable.add(block)
         self.blocks -= unreachable
 
+    def initialize(self):
+        """Set initial state, map assignments to bits."""
+        self.assmts = {}
+
+        offset = 0
+        for entry in self.entries:
+            assmts = AssignmentList()
+            assmts.bit = 1 << offset
+            assmts.mask = assmts.bit
+            self.assmts[entry] = assmts
+            offset += 1
+
+        for block in self.blocks:
+            for stat in block.stats:
+                if isinstance(stat, NameAssignment):
+                    stat.bit = 1 << offset
+                    assmts = self.assmts[stat.entry]
+                    assmts.stats.append(stat)
+                    assmts.mask |= stat.bit
+                    offset += 1
+
+        for block in self.blocks:
+            for entry, stat in block.gen.items():
+                assmts = self.assmts[entry]
+                if stat is Uninitialized:
+                    block.i_gen |= assmts.bit
+                else:
+                    block.i_gen |= stat.bit
+                block.i_kill |= assmts.mask
+            block.i_output = block.i_gen
+            for entry in block.bounded:
+                block.i_kill |= self.assmts[entry].bit
+
+        for assmts in self.assmts.itervalues():
+            self.entry_point.i_gen |= assmts.bit
+        self.entry_point.i_output = self.entry_point.i_gen
+
+    def map_one(self, istate, entry):
+        ret = set()
+        assmts = self.assmts[entry]
+        if istate & assmts.bit:
+            ret.add(Uninitialized)
+        for assmt in assmts.stats:
+            if istate & assmt.bit:
+                ret.add(assmt)
+        return ret
+
+    def reaching_definitions(self):
+        """Per-block reaching definitions analysis."""
+        dirty = True
+        while dirty:
+            dirty = False
+            for block in self.blocks:
+                i_input = 0
+                for parent in block.parents:
+                    i_input |= parent.i_output
+                i_output = (i_input & ~block.i_kill) | block.i_gen
+                if i_output != block.i_output:
+                    dirty = True
+                block.i_input = i_input
+                block.i_output = i_output
+
 
 class LoopDescr(object):
     def __init__(self, next_block, loop_block):
@@ -218,8 +291,6 @@ class ExceptionDescr(object):
         self.finally_exit = finally_exit
 
 class NameAssignment(object):
-    is_arg = False
-
     def __init__(self, lhs, rhs, entry):
         if lhs.cf_state is None:
             lhs.cf_state = set()
@@ -228,6 +299,7 @@ class NameAssignment(object):
         self.entry = entry
         self.pos = lhs.pos
         self.refs = set()
+        self.is_arg = False
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
@@ -337,47 +409,8 @@ class MessageCollection(list):
 
 
 def check_definitions(flow, compiler_directives):
-    """Based on algo 9.11 from Dragon Book."""
-    # Initialize
-    for block in flow.blocks:
-        block.input = {}
-        block.output = {}
-        for entry, item in block.gen.items():
-            block.output[entry] = set([item])
-
-    entry_point = flow.entry_point
-    entry_point.input = {}
-    entry_point.output = {}
-    for entry in flow.entries:
-        entry_point.gen[entry] = Uninitialized
-        entry_point.output[entry] = set([Uninitialized])
-
-    # Per-block reaching definitons
-    dirty = True
-    while dirty:
-        dirty = False
-        for block in flow.blocks:
-            input = {}
-            for parent in block.parents:
-                for entry, items in parent.output.iteritems():
-                    if entry in input:
-                        input[entry].update(items)
-                    else:
-                        input[entry] = set(items)
-            output = {}
-            for entry, items in input.iteritems():
-                if entry in block.gen:
-                    continue
-                output[entry] = set(items)
-                if entry in block.bounded:
-                    output[entry].discard(Uninitialized)
-            for entry, item in block.gen.iteritems():
-                output[entry] = set([item])
-            if not dirty:
-                if output != block.output:
-                    dirty = True
-            block.input = input
-            block.output = output
+    flow.initialize()
+    flow.reaching_definitions()
 
     # Track down state
     assignments = set()
@@ -386,28 +419,29 @@ def check_definitions(flow, compiler_directives):
     assmt_nodes = set()
 
     for block in flow.blocks:
-        state = {}
-        for entry, items in block.input.iteritems():
-            state[entry] = set(items)
+        i_state = block.i_input
         for stat in block.stats:
+            i_assmts = flow.assmts[stat.entry]
+            state = flow.map_one(i_state, stat.entry)
             if isinstance(stat, NameAssignment):
-                stat.lhs.cf_state.update(state[stat.entry])
+                stat.lhs.cf_state.update(state)
                 assmt_nodes.add(stat.lhs)
+                i_state = i_state & ~i_assmts.mask
                 if stat.rhs:
-                    state[stat.entry] = set([stat])
+                    i_state |= stat.bit
                 else:
-                    state[stat.entry] = set([Uninitialized])
+                    i_state |= i_assmts.bit
                 assignments.add(stat)
                 stat.entry.cf_assignments.append(stat)
             elif isinstance(stat, NameReference):
                 references[stat.node] = stat.entry
                 stat.entry.cf_references.append(stat)
-                stat.node.cf_state.update(state[stat.entry])
+                stat.node.cf_state.update(state)
                 if not stat.node.allow_null:
-                    state[stat.entry].discard(Uninitialized)
-                for assmt in state[stat.entry]:
-                    if assmt is not Uninitialized:
-                        assmt.refs.add(stat)
+                    i_state &= ~i_assmts.bit
+                state.discard(Uninitialized)
+                for assmt in state:
+                    assmt.refs.add(stat)
 
     # Check variable usage
     warn_maybe_uninitialized = compiler_directives['warn.maybe_uninitialized']
