@@ -650,6 +650,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 self.wrong_scope_error(node.pos, key, 'module')
                 del node.directive_comments[key]
 
+        self.module_scope = node.scope
+
         directives = copy.deepcopy(Options.directive_defaults)
         directives.update(copy.deepcopy(self.compilation_directive_defaults))
         directives.update(node.directive_comments)
@@ -684,6 +686,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                   directive[-1] not in self.valid_parallel_directives):
                 error(pos, "No such directive: %s" % full_name)
 
+            self.module_scope.use_utility_code(Nodes.init_threads)
+
         return result
 
     def visit_CImportStatNode(self, node):
@@ -699,6 +703,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     self.cython_module_names.add(u"cython")
                     self.parallel_directives[
                                     u"cython.parallel"] = node.module_name
+                self.module_scope.use_utility_code(Nodes.init_threads)
             elif node.as_name:
                 self.directive_names[node.as_name] = node.module_name[7:]
             else:
