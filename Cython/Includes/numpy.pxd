@@ -81,17 +81,17 @@ cdef extern from "numpy/arrayobject.h":
         NPY_COMPLEX256
         NPY_COMPLEX512
 
-    enum NPY_ORDER:
+    ctypedef enum NPY_ORDER:
         NPY_ANYORDER
         NPY_CORDER
         NPY_FORTRANORDER
 
-    enum NPY_CLIPMODE:
+    ctypedef enum NPY_CLIPMODE:
         NPY_CLIP
         NPY_WRAP
         NPY_RAISE
 
-    enum NPY_SCALARKIND:
+    ctypedef enum NPY_SCALARKIND:
         NPY_NOSCALAR,
         NPY_BOOL_SCALAR,
         NPY_INTPOS_SCALAR,
@@ -101,12 +101,12 @@ cdef extern from "numpy/arrayobject.h":
         NPY_OBJECT_SCALAR
 
 
-    enum NPY_SORTKIND:
+    ctypedef enum NPY_SORTKIND:
         NPY_QUICKSORT
         NPY_HEAPSORT
         NPY_MERGESORT
 
-    cdef enum requirements:
+    enum:
         NPY_C_CONTIGUOUS
         NPY_F_CONTIGUOUS
         NPY_CONTIGUOUS

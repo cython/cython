@@ -94,6 +94,10 @@ directive_defaults = {
 
     'warn': None,
     'warn.undeclared': False,
+    'warn.unreachable': True,
+
+# remove unreachable code
+    'remove_unreachable': True,
 
 # test support
     'test_assert_path_exists' : [],
@@ -108,6 +112,9 @@ directive_types = {
     'final' : bool,  # final cdef classes and methods
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool, # values can be True/None/False
+    'cfunc' : None, # decorators do not take directive value
+    'ccall' : None,
+    'cclass' : None,
     }
 
 for key, val in directive_defaults.items():

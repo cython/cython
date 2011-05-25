@@ -146,6 +146,7 @@ from cpython.method cimport *
 from cpython.weakref cimport *
 from cpython.getargs cimport *
 from cpython.pythread cimport *
+from cpython.pystate cimport *
 
 # Python <= 2.x
 from cpython.cobject cimport *

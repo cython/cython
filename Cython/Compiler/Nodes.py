@@ -2,7 +2,6 @@
 #
 #   Pyrex - Parse tree nodes
 #
-
 import cython
 from cython import set
 cython.declare(sys=object, os=object, time=object, copy=object,
@@ -131,6 +130,7 @@ class Node(object):
 
     is_name = 0
     is_literal = 0
+    is_terminator = 0
     temps = None
 
     # All descandants should set child_attrs to a list of the attributes
@@ -559,6 +559,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             if name_declarator.cname:
                 error(self.pos,
                     "Function argument cannot have C name specification")
+            if i==0 and env.is_c_class_scope and type.is_unspecified:
+                # fix the type of self
+                type = env.parent_type
             # Turn *[] argument into **
             if type.is_array:
                 type = PyrexTypes.c_ptr_type(type.base_type)
@@ -1007,15 +1010,6 @@ class CVarDefNode(StatNode):
             dest_scope = env
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
-
-        # If the field is an external typedef, we cannot be sure about the type,
-        # so do conversion ourself rather than rely on the CPython mechanism (through
-        # a property; made in AnalyseDeclarationsTransform).
-        if (dest_scope.is_c_class_scope
-            and self.visibility in ('public', 'readonly')):
-            need_property = True
-        else:
-            need_property = False
         visibility = self.visibility
 
         for declarator in self.declarators:
@@ -1037,19 +1031,16 @@ class CVarDefNode(StatNode):
                 return
             if type.is_cfunction:
                 entry = dest_scope.declare_cfunction(name, type, declarator.pos,
-                    cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
-                    api = self.api)
+                    cname = cname, visibility = self.visibility,
+                    in_pxd = self.in_pxd, api = self.api)
                 if entry is not None:
                     entry.directive_locals = copy.copy(self.directive_locals)
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
-                if self.in_pxd and self.visibility != 'extern':
-                    error(self.pos,
-                        "Only 'extern' C variable declaration allowed in .pxd file")
                 entry = dest_scope.declare_var(name, type, declarator.pos,
-                            cname=cname, visibility=visibility, api=self.api, is_cdef=1)
-                entry.needs_property = need_property
+                    cname = cname, visibility = visibility,
+                    in_pxd = self.in_pxd, api = self.api, is_cdef = 1)
 
 
 class CStructOrUnionDefNode(StatNode):
@@ -1409,9 +1400,11 @@ class FuncDefNode(StatNode, BlockNode):
             code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
+
         for entry in lenv.var_entries:
             if not entry.in_closure:
                 code.put_var_declaration(entry)
+
         init = ""
         if not self.return_type.is_void:
             if self.return_type.is_pyobject:
@@ -1421,23 +1414,31 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
         tempvardecl_code = code.insertion_point()
-        if not lenv.nogil:
-            code.put_declare_refcount_context()
         self.generate_keyword_list(code)
+
         if profile:
             code.put_trace_declarations()
+
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
+
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
-        if acquire_gil:
-            env.use_utility_code(force_init_threads_utility_code)
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
-            code.putln("#endif")
+
+        # See if we need to acquire the GIL for variable declarations and
+        acquire_gil_for_var_decls_only = (lenv.nogil and
+                                          lenv.has_with_gil_block)
+
+        use_refnanny = not lenv.nogil or acquire_gil_for_var_decls_only
+
+        if acquire_gil or acquire_gil_for_var_decls_only:
+            code.put_ensure_gil()
+
         # ----- set up refnanny
-        if not lenv.nogil:
+        if use_refnanny:
+            tempvardecl_code.put_declare_refcount_context()
             code.put_setup_refcount_context(self.entry.name)
+
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
             self.getbuffer_init(code)
@@ -1452,8 +1453,12 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
             if is_getbuffer_slot:
                 self.getbuffer_error_cleanup(code)
-            if not lenv.nogil:
+
+            if use_refnanny:
                 code.put_finish_refcount_context()
+                if acquire_gil_for_var_decls_only:
+                    code.put_release_ensured_gil()
+
             # FIXME: what if the error return value is a Python value?
             code.putln("return %s;" % self.error_value())
             code.putln("}")
@@ -1499,6 +1504,9 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_buffer:
                 Buffer.put_acquire_arg_buffer(entry, code, self.pos)
 
+        if acquire_gil_for_var_decls_only:
+            code.put_release_ensured_gil()
+
         # -------------------------
         # ----- Function body -----
         # -------------------------
@@ -1541,7 +1549,7 @@ class FuncDefNode(StatNode, BlockNode):
                 # TODO: Fix exception tracing (though currently unused by cProfile).
                 # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
                 # code.put_trace_exception()
-                code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+                code.put_add_traceback(self.entry.qualified_name)
             else:
                 warning(self.entry.pos, "Unraisable exception in function '%s'." \
                             % self.entry.qualified_name, 0)
@@ -1564,7 +1572,6 @@ class FuncDefNode(StatNode, BlockNode):
             # whether this section is used.
             if buffers_present or is_getbuffer_slot:
                 code.put_goto(code.return_from_error_cleanup_label)
-
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -1613,13 +1620,13 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_trace_return(Naming.retval_cname)
             else:
                 code.put_trace_return("Py_None")
+
         if not lenv.nogil:
+            # GIL holding funcion
             code.put_finish_refcount_context()
 
-        if acquire_gil:
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_Release(_save);")
-            code.putln("#endif")
+        if acquire_gil or acquire_gil_for_var_decls_only:
+            code.put_release_ensured_gil()
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -1631,6 +1638,14 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
+        if code.funcstate.should_declare_error_indicator:
+            # Initialize these variables to shut up compiler warnings
+            tempvardecl_code.putln("int %s = 0;" % Naming.lineno_cname)
+            tempvardecl_code.putln("const char *%s = NULL;" %
+                                                    Naming.filename_cname)
+            if code.c_line_in_traceback:
+                tempvardecl_code.putln("int %s = 0;" % Naming.clineno_cname)
+
         # ----- Python version
         code.exit_cfunc_scope()
         if self.py_func:
@@ -1808,10 +1823,8 @@ class CFuncDefNode(FuncDefNode):
 
         self.entry = env.declare_cfunction(
             name, type, self.pos,
-            cname = cname, visibility = self.visibility,
-            defining = self.body is not None,
-            api = self.api, modifiers = self.modifiers)
-
+            cname = cname, visibility = self.visibility, api = self.api,
+            defining = self.body is not None, modifiers = self.modifiers)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         if self.return_type.is_array and self.visibility != 'extern':
@@ -1889,7 +1902,7 @@ class CFuncDefNode(FuncDefNode):
                 error(self.pos,
                       "Function with Python return type cannot be declared nogil")
             for entry in self.local_scope.var_entries:
-                if entry.type.is_pyobject:
+                if entry.type.is_pyobject and not entry.in_with_gil_block:
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
 
     def analyse_expressions(self, env):
@@ -2200,7 +2213,7 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -2220,7 +2233,7 @@ class DefNode(FuncDefNode):
                                               exception_check = False,
                                               nogil = False,
                                               with_gil = False,
-                                              is_overridable = True)
+                                              is_overridable = overridable)
             cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:
             if scope is None:
@@ -2676,7 +2689,7 @@ class DefNode(FuncDefNode):
                         code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
                         code.put_var_decref_clear(self.starstar_arg.entry)
-            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.put_add_traceback(self.entry.qualified_name)
             # The arguments are put into the closure one after the
             # other, so when type errors are found, all references in
             # the closure instance must be properly ref-counted to
@@ -3219,6 +3232,9 @@ class GeneratorDefNode(DefNode):
         code.putln("return (PyObject *) %s;" % Naming.cur_scope_cname);
 
     def generate_function_definitions(self, env, code):
+        from ExprNodes import generator_utility_code
+        env.use_utility_code(generator_utility_code)
+
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)
         self.gbody.generate_function_definitions(env, code)
@@ -3297,7 +3313,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
-            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.put_add_traceback(self.entry.qualified_name)
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -4078,8 +4094,7 @@ class InPlaceAssignmentNode(AssignmentNode):
     #
     #  lhs      ExprNode      Left hand side
     #  rhs      ExprNode      Right hand side
-    #  op       char          one of "+-*/%^&|"
-    #  dup     (ExprNode)     copy of lhs used for operation (auto-generated)
+    #  operator char          one of "+-*/%^&|"
     #
     #  This code is a bit tricky because in order to obey Python
     #  semantics the sub-expressions (e.g. indices) of the lhs must
@@ -4295,6 +4310,7 @@ class PassStatNode(StatNode):
 class BreakStatNode(StatNode):
 
     child_attrs = []
+    is_terminator = True
 
     def analyse_expressions(self, env):
         pass
@@ -4309,6 +4325,7 @@ class BreakStatNode(StatNode):
 class ContinueStatNode(StatNode):
 
     child_attrs = []
+    is_terminator = True
 
     def analyse_expressions(self, env):
         pass
@@ -4329,6 +4346,7 @@ class ReturnStatNode(StatNode):
     #  return_type   PyrexType
 
     child_attrs = ["value"]
+    is_terminator = True
 
     def analyse_expressions(self, env):
         return_type = env.return_type
@@ -4402,6 +4420,7 @@ class RaiseStatNode(StatNode):
     #  cause       ExprNode or None
 
     child_attrs = ["exc_type", "exc_value", "exc_tb", "cause"]
+    is_terminator = True
 
     def analyse_expressions(self, env):
         if self.exc_type:
@@ -4496,6 +4515,7 @@ class RaiseStatNode(StatNode):
 class ReraiseStatNode(StatNode):
 
     child_attrs = []
+    is_terminator = True
 
     def analyse_expressions(self, env):
         env.use_utility_code(restore_exception_utility_code)
@@ -4753,8 +4773,8 @@ class WhileStatNode(LoopNode, StatNode):
             self.else_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.condition = \
-            self.condition.analyse_temp_boolean_expression(env)
+        if self.condition:
+            self.condition = self.condition.analyse_temp_boolean_expression(env)
         self.body.analyse_expressions(env)
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
@@ -4763,12 +4783,13 @@ class WhileStatNode(LoopNode, StatNode):
         old_loop_labels = code.new_loop_labels()
         code.putln(
             "while (1) {")
-        self.condition.generate_evaluation_code(code)
-        self.condition.generate_disposal_code(code)
-        code.putln(
-            "if (!%s) break;" %
-                self.condition.result())
-        self.condition.free_temps(code)
+        if self.condition:
+            self.condition.generate_evaluation_code(code)
+            self.condition.generate_disposal_code(code)
+            code.putln(
+                "if (!%s) break;" %
+                    self.condition.result())
+            self.condition.free_temps(code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         code.putln("}")
@@ -4781,16 +4802,62 @@ class WhileStatNode(LoopNode, StatNode):
         code.put_label(break_label)
 
     def generate_function_definitions(self, env, code):
-        self.condition.generate_function_definitions(env, code)
+        if self.condition:
+            self.condition.generate_function_definitions(env, code)
         self.body.generate_function_definitions(env, code)
         if self.else_clause is not None:
             self.else_clause.generate_function_definitions(env, code)
 
     def annotate(self, code):
-        self.condition.annotate(code)
+        if self.condition:
+            self.condition.annotate(code)
         self.body.annotate(code)
         if self.else_clause:
             self.else_clause.annotate(code)
+
+
+class DictIterationNextNode(Node):
+    # Helper node for calling PyDict_Next() inside of a WhileStatNode
+    # and checking the dictionary size for changes.  Created in
+    # Optimize.py.
+    child_attrs = ['dict_obj', 'expected_size', 'pos_index_addr', 'key_addr', 'value_addr']
+
+    def __init__(self, dict_obj, expected_size, pos_index_addr, key_addr, value_addr):
+        Node.__init__(
+            self, dict_obj.pos,
+            dict_obj = dict_obj,
+            expected_size = expected_size,
+            pos_index_addr = pos_index_addr,
+            key_addr = key_addr,
+            value_addr = value_addr,
+            type = PyrexTypes.c_bint_type)
+
+    def analyse_expressions(self, env):
+        self.dict_obj.analyse_types(env)
+        self.expected_size.analyse_types(env)
+        self.pos_index_addr.analyse_types(env)
+        self.key_addr.analyse_types(env)
+        self.value_addr.analyse_types(env)
+
+    def generate_function_definitions(self, env, code):
+        self.dict_obj.generate_function_definitions(env, code)
+
+    def generate_execution_code(self, code):
+        self.dict_obj.generate_evaluation_code(code)
+        code.putln("if (unlikely(%s != PyDict_Size(%s))) {" % (
+            self.expected_size.result(),
+            self.dict_obj.py_result(),
+            ))
+        code.putln('PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration"); %s' % (
+            code.error_goto(self.pos)))
+        code.putln("}")
+        self.pos_index_addr.generate_evaluation_code(code)
+
+        code.putln("if (!PyDict_Next(%s, %s, %s, %s)) break;" % (
+            self.dict_obj.py_result(),
+            self.pos_index_addr.result(),
+            self.key_addr.result(),
+            self.value_addr.result()))
 
 
 def ForStatNode(pos, **kw):
@@ -4821,7 +4888,7 @@ class ForInStatNode(LoopNode, StatNode):
         import ExprNodes
         self.target.analyse_target_types(env)
         self.iterator.analyse_expressions(env)
-        self.item = ExprNodes.NextNode(self.iterator, env)
+        self.item = ExprNodes.NextNode(self.iterator)
         if (self.iterator.type.is_ptr or self.iterator.type.is_array) and \
             self.target.type.assignable_from(self.iterator.type):
             # C array slice optimization.
@@ -4834,16 +4901,13 @@ class ForInStatNode(LoopNode, StatNode):
 
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
-        self.iterator.allocate_counter_temp(code)
         self.iterator.generate_evaluation_code(code)
-        code.putln(
-            "for (;;) {")
+        code.putln("for (;;) {")
         self.item.generate_evaluation_code(code)
         self.target.generate_assignment_code(self.item, code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
-        code.putln(
-            "}")
+        code.putln("}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
 
@@ -4868,7 +4932,6 @@ class ForInStatNode(LoopNode, StatNode):
 
         if code.label_used(break_label):
             code.put_label(break_label)
-        self.iterator.release_counter_temp(code)
         self.iterator.generate_disposal_code(code)
         self.iterator.free_temps(code)
 
@@ -5461,7 +5524,7 @@ class ExceptClauseNode(Node):
         exc_vars = [code.funcstate.allocate_temp(py_object_type,
                                                  manage_ref=True)
                     for i in xrange(3)]
-        code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
+        code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
         # exception and stores it in the thread state.
@@ -5562,6 +5625,8 @@ class TryFinallyStatNode(StatNode):
     # continue in the try block, since we have no problem
     # handling it.
 
+    is_try_finally_in_nogil = False
+
     def create_analysed(pos, env, body, finally_clause):
         node = TryFinallyStatNode(pos, body=body, finally_clause=finally_clause)
         return node
@@ -5593,20 +5658,24 @@ class TryFinallyStatNode(StatNode):
         if not self.handle_error_case:
             code.error_label = old_error_label
         catch_label = code.new_label()
-        code.putln(
-            "/*try:*/ {")
+
+        code.putln("/*try:*/ {")
+
         if self.disallow_continue_in_try_finally:
             was_in_try_finally = code.funcstate.in_try_finally
             code.funcstate.in_try_finally = 1
+
         self.body.generate_execution_code(code)
+
         if self.disallow_continue_in_try_finally:
             code.funcstate.in_try_finally = was_in_try_finally
-        code.putln(
-            "}")
+
+        code.putln("}")
+
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
         code.mark_pos(self.finally_clause.pos)
-        code.putln(
-            "/*finally:*/ {")
+        code.putln("/*finally:*/ {")
+
         cases_used = []
         error_label_used = 0
         for i, new_label in enumerate(new_labels):
@@ -5615,22 +5684,25 @@ class TryFinallyStatNode(StatNode):
                 if new_label == new_error_label:
                     error_label_used = 1
                     error_label_case = i
+
         if cases_used:
-            code.putln(
-                    "int __pyx_why;")
+            code.putln("int __pyx_why;")
+
             if error_label_used and self.preserve_exception:
-                code.putln(
-                    "PyObject *%s, *%s, *%s;" % Naming.exc_vars)
-                code.putln(
-                    "int %s;" % Naming.exc_lineno_name)
-                exc_var_init_zero = ''.join(["%s = 0; " % var for var in Naming.exc_vars])
+                code.putln("PyObject *%s, *%s, *%s;" % Naming.exc_vars)
+                code.putln("int %s;" % Naming.exc_lineno_name)
+                exc_var_init_zero = ''.join(
+                                ["%s = 0; " % var for var in Naming.exc_vars])
                 exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
                 code.putln(exc_var_init_zero)
+
+                if self.is_try_finally_in_nogil:
+                    code.declare_gilstate()
             else:
                 exc_var_init_zero = None
+
             code.use_label(catch_label)
-            code.putln(
-                    "__pyx_why = 0; goto %s;" % catch_label)
+            code.putln("__pyx_why = 0; goto %s;" % catch_label)
             for i in cases_used:
                 new_label = new_labels[i]
                 #if new_label and new_label != "<try>":
@@ -5641,27 +5713,36 @@ class TryFinallyStatNode(StatNode):
                     code.put('%s: ' % new_label)
                     if exc_var_init_zero:
                         code.putln(exc_var_init_zero)
-                    code.putln("__pyx_why = %s; goto %s;" % (
-                            i+1,
-                            catch_label))
+                    code.putln("__pyx_why = %s; goto %s;" % (i+1, catch_label))
             code.put_label(catch_label)
+
         code.set_all_labels(old_labels)
         if error_label_used:
             code.new_error_label()
             finally_error_label = code.error_label
+
         self.finally_clause.generate_execution_code(code)
+
         if error_label_used:
             if finally_error_label in code.labels_used and self.preserve_exception:
                 over_label = code.new_label()
-                code.put_goto(over_label);
+                code.put_goto(over_label)
                 code.put_label(finally_error_label)
+
                 code.putln("if (__pyx_why == %d) {" % (error_label_case + 1))
+                if self.is_try_finally_in_nogil:
+                    code.put_ensure_gil(declare_gilstate=False)
                 for var in Naming.exc_vars:
                     code.putln("Py_XDECREF(%s);" % var)
+                if self.is_try_finally_in_nogil:
+                    code.put_release_ensured_gil()
                 code.putln("}")
+
                 code.put_goto(old_error_label)
                 code.put_label(over_label)
+
             code.error_label = old_error_label
+
         if cases_used:
             code.putln(
                 "switch (__pyx_why) {")
@@ -5671,12 +5752,13 @@ class TryFinallyStatNode(StatNode):
                     self.put_error_uncatcher(code, i+1, old_error_label)
                 else:
                     code.use_label(old_label)
-                    code.putln(
-                        "case %s: goto %s;" % (
-                            i+1,
-                            old_label))
+                    code.putln("case %s: goto %s;" % (i+1, old_label))
+
+            # End the switch
             code.putln(
                 "}")
+
+        # End finally
         code.putln(
             "}")
 
@@ -5684,40 +5766,45 @@ class TryFinallyStatNode(StatNode):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
 
-    def put_error_catcher(self, code, error_label, i, catch_label, temps_to_clean_up):
+    def put_error_catcher(self, code, error_label, i, catch_label,
+                          temps_to_clean_up):
         code.globalstate.use_utility_code(restore_exception_utility_code)
-        code.putln(
-            "%s: {" %
-                error_label)
-        code.putln(
-                "__pyx_why = %s;" %
-                    i)
+        code.putln("%s: {" % error_label)
+        code.putln("__pyx_why = %s;" % i)
+
+        if self.is_try_finally_in_nogil:
+            code.put_ensure_gil(declare_gilstate=False)
+
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
-        code.putln(
-                "__Pyx_ErrFetch(&%s, &%s, &%s);" %
-                    Naming.exc_vars)
-        code.putln(
-                "%s = %s;" % (
-                    Naming.exc_lineno_name, Naming.lineno_cname))
+
+        code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % Naming.exc_vars)
+        code.putln("%s = %s;" % (Naming.exc_lineno_name, Naming.lineno_cname))
+
+        if self.is_try_finally_in_nogil:
+            code.put_release_ensured_gil()
+
         code.put_goto(catch_label)
         code.putln("}")
 
     def put_error_uncatcher(self, code, i, error_label):
         code.globalstate.use_utility_code(restore_exception_utility_code)
         code.putln(
-            "case %s: {" %
-                i)
-        code.putln(
-                "__Pyx_ErrRestore(%s, %s, %s);" %
-                    Naming.exc_vars)
-        code.putln(
-                "%s = %s;" % (
-                    Naming.lineno_cname, Naming.exc_lineno_name))
+            "case %s: {" % i)
+
+        if self.is_try_finally_in_nogil:
+            code.put_ensure_gil(declare_gilstate=False)
+
+        code.putln("__Pyx_ErrRestore(%s, %s, %s);" % Naming.exc_vars)
+        code.putln("%s = %s;" % (Naming.lineno_cname, Naming.exc_lineno_name))
+
+        if self.is_try_finally_in_nogil:
+            code.put_release_ensured_gil()
+
         for var in Naming.exc_vars:
             code.putln(
-                "%s = 0;" %
-                    var)
+                   "%s = 0;" % var)
+
         code.put_goto(error_label)
         code.putln(
             "}")
@@ -5727,14 +5814,19 @@ class TryFinallyStatNode(StatNode):
         self.finally_clause.annotate(code)
 
 
-class GILStatNode(TryFinallyStatNode):
+class NogilTryFinallyStatNode(TryFinallyStatNode):
+    """
+    A try/finally statement that may be used in nogil code sections.
+    """
+
+    preserve_exception = False
+    nogil_check = None
+
+
+class GILStatNode(NogilTryFinallyStatNode):
     #  'with gil' or 'with nogil' statement
     #
     #   state   string   'gil' or 'nogil'
-
-#    child_attrs = []
-
-    preserve_exception = 0
 
     def __init__(self, pos, state, body):
         self.state = state
@@ -5742,35 +5834,39 @@ class GILStatNode(TryFinallyStatNode):
             body = body,
             finally_clause = GILExitNode(pos, state = state))
 
+    def analyse_declarations(self, env):
+        env._in_with_gil_block = (self.state == 'gil')
+        if self.state == 'gil':
+            env.has_with_gil_block = True
+
+        return super(GILStatNode, self).analyse_declarations(env)
+
     def analyse_expressions(self, env):
         env.use_utility_code(force_init_threads_utility_code)
         was_nogil = env.nogil
-        env.nogil = 1
+        env.nogil = self.state == 'nogil'
         TryFinallyStatNode.analyse_expressions(self, env)
         env.nogil = was_nogil
 
-    nogil_check = None
-
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
-        code.putln("{")
+        code.begin_block()
+
         if self.state == 'gil':
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
-            code.putln("#endif")
+            code.put_ensure_gil()
         else:
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyThreadState *_save = NULL;")
-            code.putln("#endif")
-            code.putln("Py_UNBLOCK_THREADS")
+            code.put_release_gil()
+
         TryFinallyStatNode.generate_execution_code(self, code)
-        code.putln("}")
+        code.end_block()
 
 
 class GILExitNode(StatNode):
-    #  Used as the 'finally' block in a GILStatNode
-    #
-    #  state   string   'gil' or 'nogil'
+    """
+    Used as the 'finally' block in a GILStatNode
+
+    state   string   'gil' or 'nogil'
+    """
 
     child_attrs = []
 
@@ -5779,11 +5875,18 @@ class GILExitNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.state == 'gil':
-            code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_Release(_save);")
-            code.putln("#endif")
+            code.put_release_ensured_gil()
         else:
-            code.putln("Py_BLOCK_THREADS")
+            code.put_acquire_gil()
+
+
+class EnsureGILNode(GILExitNode):
+    """
+    Ensure the GIL in nogil functions for cleanup before returning.
+    """
+
+    def generate_execution_code(self, code):
+        code.put_ensure_gil(declare_gilstate=False)
 
 
 class CImportStatNode(StatNode):
@@ -5973,6 +6076,487 @@ class FromImportStatNode(StatNode):
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 
+
+class ParallelNode(Node):
+    """
+    Base class for cython.parallel constructs.
+    """
+
+    nogil_check = None
+
+
+class ParallelStatNode(StatNode, ParallelNode):
+    """
+    Base class for 'with cython.parallel.parallel():' and 'for i in prange():'.
+
+    assignments     { Entry(var) : (var.pos, inplace_operator_or_None) }
+                    assignments to variables in this parallel section
+
+    parent          parent ParallelStatNode or None
+    is_parallel     indicates whether this is a parallel node
+
+    is_parallel is true for:
+
+        #pragma omp parallel
+        #pragma omp parallel for
+
+    sections, but NOT for
+
+        #pragma omp for
+
+    We need this to determine the sharing attributes.
+
+    privatization_insertion_point   a code insertion point used to make temps
+                                    private (esp. the "nsteps" temp)
+    """
+
+    child_attrs = ['body']
+
+    body = None
+
+    is_prange = False
+
+    def __init__(self, pos, **kwargs):
+        super(ParallelStatNode, self).__init__(pos, **kwargs)
+
+        # All assignments in this scope
+        self.assignments = kwargs.get('assignments') or {}
+
+        # All seen closure cnames and their temporary cnames
+        self.seen_closure_vars = set()
+
+        # Dict of variables that should be declared (first|last|)private or
+        # reduction { Entry: op }. If op is not None, it's a reduction.
+        self.privates = {}
+
+    def analyse_declarations(self, env):
+        self.body.analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.body.analyse_expressions(env)
+
+    def analyse_sharing_attributes(self, env):
+        """
+        Analyse the privates for this block and set them in self.privates.
+        This should be called in a post-order fashion during the
+        analyse_expressions phase
+        """
+        for entry, (pos, op) in self.assignments.iteritems():
+            if self.is_private(entry):
+                self.propagate_var_privatization(entry, op)
+
+    def is_private(self, entry):
+        """
+        True if this scope should declare the variable private, lastprivate
+        or reduction.
+        """
+        return (self.is_parallel or
+                (self.parent and entry not in self.parent.privates))
+
+    def propagate_var_privatization(self, entry, op):
+        """
+        Propagate the sharing attributes of a variable. If the privatization is
+        determined by a parent scope, done propagate further.
+
+        If we are a prange, we propagate our sharing attributes outwards to
+        other pranges. If we are a prange in parallel block and the parallel
+        block does not determine the variable private, we propagate to the
+        parent of the parent. Recursion stops at parallel blocks, as they have
+        no concept of lastprivate or reduction.
+
+        So the following cases propagate:
+
+            sum is a reduction for all loops:
+
+                for i in prange(n):
+                    for j in prange(n):
+                        for k in prange(n):
+                            sum += i * j * k
+
+            sum is a reduction for both loops, local_var is private to the
+            parallel with block:
+
+                for i in prange(n):
+                    with parallel:
+                        local_var = ... # private to the parallel
+                        for j in prange(n):
+                            sum += i * j
+
+        Nested with parallel blocks are disallowed, because they wouldn't
+        allow you to propagate lastprivates or reductions:
+
+            #pragma omp parallel for lastprivate(i)
+            for i in prange(n):
+
+                sum = 0
+
+                #pragma omp parallel private(j, sum)
+                with parallel:
+
+                    #pragma omp parallel
+                    with parallel:
+
+                        #pragma omp for lastprivate(j) reduction(+:sum)
+                        for j in prange(n):
+                            sum += i
+
+                    # sum and j are well-defined here
+
+                # sum and j are undefined here
+
+            # sum and j are undefined here
+        """
+        self.privates[entry] = op
+        if self.is_prange:
+            if not self.is_parallel and entry not in self.parent.assignments:
+                # Parent is a parallel with block
+                parent = self.parent.parent
+            else:
+                parent = self.parent
+
+            if parent:
+                parent.propagate_var_privatization(entry, op)
+
+    def _allocate_closure_temp(self, code, entry):
+        """
+        Helper function that allocate a temporary for a closure variable that
+        is assigned to.
+        """
+        if self.parent:
+            return self.parent._allocate_closure_temp(code, entry)
+
+        if entry.cname in self.seen_closure_vars:
+            return entry.cname
+
+        cname = code.funcstate.allocate_temp(entry.type, False)
+
+        # Add both the actual cname and the temp cname, as the actual cname
+        # will be replaced with the temp cname on the entry
+        self.seen_closure_vars.add(entry.cname)
+        self.seen_closure_vars.add(cname)
+
+        self.modified_entries.append((entry, entry.cname))
+        code.putln("%s = %s;" % (cname, entry.cname))
+        entry.cname = cname
+
+    def declare_closure_privates(self, code):
+        """
+        Set self.privates to a dict mapping C variable names that are to be
+        declared (first|last)private or reduction, to the reduction operator.
+        If the private is not a reduction, the operator is None.
+        This is used by subclasses.
+
+        If a variable is in a scope object, we need to allocate a temp and
+        assign the value from the temp to the variable in the scope object
+        after the parallel section. This kind of copying should be done only
+        in the outermost parallel section.
+        """
+        self.modified_entries = []
+
+        for entry, (pos, op) in self.assignments.iteritems():
+            if entry.from_closure or entry.in_closure:
+                self._allocate_closure_temp(code, entry)
+
+    def release_closure_privates(self, code):
+        """
+        Release any temps used for variables in scope objects. As this is the
+        outermost parallel block, we don't need to delete the cnames from
+        self.seen_closure_vars
+        """
+        for entry, original_cname in self.modified_entries:
+            code.putln("%s = %s;" % (original_cname, entry.cname))
+            code.funcstate.release_temp(entry.cname)
+            entry.cname = original_cname
+
+
+class ParallelWithBlockNode(ParallelStatNode):
+    """
+    This node represents a 'with cython.parallel.parallel():' block
+    """
+
+    nogil_check = None
+
+    def analyse_expressions(self, env):
+        super(ParallelWithBlockNode, self).analyse_expressions(env)
+        self.analyse_sharing_attributes(env)
+
+    def generate_execution_code(self, code):
+        self.declare_closure_privates(code)
+
+        code.putln("#ifdef _OPENMP")
+        code.put("#pragma omp parallel ")
+
+        if self.privates:
+            code.put(
+                'private(%s)' % ', '.join([e.cname for e in self.privates]))
+
+        self.privatization_insertion_point = code.insertion_point()
+
+        code.putln("")
+        code.putln("#endif /* _OPENMP */")
+
+        code.begin_block()
+        self.body.generate_execution_code(code)
+        code.end_block()
+
+        self.release_closure_privates(code)
+
+
+class ParallelRangeNode(ParallelStatNode):
+    """
+    This node represents a 'for i in cython.parallel.prange():' construct.
+
+    target       NameNode       the target iteration variable
+    else_clause  Node or None   the else clause of this loop
+    args         tuple          the arguments passed to prange()
+    kwargs       DictNode       the keyword arguments passed to prange()
+                                (replaced by its compile time value)
+
+    is_nogil     bool           indicates whether this is a nogil prange() node
+    """
+
+    child_attrs = ['body', 'target', 'else_clause', 'args']
+
+    body = target = else_clause = args = None
+
+    start = stop = step = None
+
+    is_prange = True
+    is_nogil = False
+
+    def analyse_declarations(self, env):
+        super(ParallelRangeNode, self).analyse_declarations(env)
+        self.target.analyse_target_declaration(env)
+        if self.else_clause is not None:
+            self.else_clause.analyse_declarations(env)
+
+        if not self.args or len(self.args) > 3:
+            error(self.pos, "Invalid number of positional arguments to prange")
+            return
+
+        if len(self.args) == 1:
+            self.stop, = self.args
+        elif len(self.args) == 2:
+            self.start, self.stop = self.args
+        else:
+            self.start, self.stop, self.step = self.args
+
+        if self.kwargs:
+            self.kwargs = self.kwargs.compile_time_value(env)
+        else:
+            self.kwargs = {}
+
+        self.is_nogil = self.kwargs.pop('nogil', False)
+        self.schedule = self.kwargs.pop('schedule', None)
+
+        if hasattr(self.schedule, 'decode'):
+            self.schedule = self.schedule.decode('ascii')
+
+        if self.schedule not in (None, 'static', 'dynamic', 'guided',
+                                 'runtime'):
+            error(self.pos, "Invalid schedule argument to prange: %s" %
+                                                        (self.schedule,))
+
+        for kw in self.kwargs:
+            error(self.pos, "Invalid keyword argument to prange: %s" % kw)
+
+    def analyse_expressions(self, env):
+        if self.target is None:
+            error(self.pos, "prange() can only be used as part of a for loop")
+            return
+
+        self.target.analyse_target_types(env)
+
+        if not self.target.type.is_numeric:
+            # Not a valid type, assume one for now anyway
+
+            if not self.target.type.is_pyobject:
+                # nogil_check will catch the is_pyobject case
+                error(self.target.pos,
+                      "Must be of numeric type, not %s" % self.target.type)
+
+            self.index_type = PyrexTypes.c_py_ssize_t_type
+        else:
+            self.index_type = self.target.type
+
+        # Setup start, stop and step, allocating temps if needed
+        self.names = 'start', 'stop', 'step'
+        start_stop_step = self.start, self.stop, self.step
+
+        for node, name in zip(start_stop_step, self.names):
+            if node is not None:
+                node.analyse_types(env)
+                if not node.type.is_numeric:
+                    error(node.pos, "%s argument must be numeric or a pointer "
+                                    "(perhaps if a numeric literal is too "
+                                    "big, use 1000LL)" % name)
+
+                if not node.is_literal:
+                    node = node.coerce_to_temp(env)
+                    setattr(self, name, node)
+
+                # As we range from 0 to nsteps, computing the index along the
+                # way, we need a fitting type for 'i' and 'nsteps'
+                self.index_type = PyrexTypes.widest_numeric_type(
+                                        self.index_type, node.type)
+
+        super(ParallelRangeNode, self).analyse_expressions(env)
+        if self.else_clause is not None:
+            self.else_clause.analyse_expressions(env)
+
+        # Although not actually an assignment in this scope, it should be
+        # treated as such to ensure it is unpacked if a closure temp, and to
+        # ensure lastprivate behaviour and propagation. If the target index is
+        # not a NameNode, it won't have an entry, and an error was issued by
+        # ParallelRangeTransform
+        if hasattr(self.target, 'entry'):
+            self.assignments[self.target.entry] = self.target.pos, None
+
+        self.analyse_sharing_attributes(env)
+
+    def nogil_check(self, env):
+        names = 'start', 'stop', 'step', 'target'
+        nodes = self.start, self.stop, self.step, self.target
+        for name, node in zip(names, nodes):
+            if node is not None and node.type.is_pyobject:
+                error(node.pos, "%s may not be a Python object "
+                                "as we don't have the GIL" % name)
+
+    def generate_execution_code(self, code):
+        """
+        Generate code in the following steps
+
+            1)  copy any closure variables determined thread-private
+                into temporaries
+
+            2)  allocate temps for start, stop and step
+
+            3)  generate a loop that calculates the total number of steps,
+                which then computes the target iteration variable for every step:
+
+                    for i in prange(start, stop, step):
+                        ...
+
+                becomes
+
+                    nsteps = (stop - start) / step;
+                    i = start;
+
+                    #pragma omp parallel for lastprivate(i)
+                    for (temp = 0; temp < nsteps; temp++) {
+                        i = start + step * temp;
+                        ...
+                    }
+
+                Note that accumulation of 'i' would have a data dependency
+                between iterations.
+
+                Also, you can't do this
+
+                    for (i = start; i < stop; i += step)
+                        ...
+
+                as the '<' operator should become '>' for descending loops.
+                'for i from x < i < y:' does not suffer from this problem
+                as the relational operator is known at compile time!
+
+            4) release our temps and write back any private closure variables
+        """
+        self.declare_closure_privates(code)
+
+        # This can only be a NameNode
+        target_index_cname = self.target.entry.cname
+
+        # This will be used as the dict to format our code strings, holding
+        # the start, stop , step, temps and target cnames
+        fmt_dict = {
+            'target': target_index_cname,
+        }
+
+        # Setup start, stop and step, allocating temps if needed
+        start_stop_step = self.start, self.stop, self.step
+        defaults = '0', '0', '1'
+        for node, name, default in zip(start_stop_step, self.names, defaults):
+            if node is None:
+                result = default
+            elif node.is_literal:
+                result = node.get_constant_c_result_code()
+            else:
+                node.generate_evaluation_code(code)
+                result = node.result()
+
+            fmt_dict[name] = result
+
+        fmt_dict['i'] = code.funcstate.allocate_temp(self.index_type, False)
+        fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.index_type, False)
+
+        # TODO: check if the step is 0 and if so, raise an exception in a
+        # 'with gil' block. For now, just abort
+        code.putln("if (%(step)s == 0) abort();" % fmt_dict)
+
+        # Note: nsteps is private in an outer scope if present
+        code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
+
+        # The target iteration variable might not be initialized, do it only if
+        # we are executing at least 1 iteration, otherwise we should leave the
+        # target unaffected. The target iteration variable is firstprivate to
+        # shut up compiler warnings caused by lastprivate, as the compiler
+        # erroneously believes that nsteps may be <= 0, leaving the private
+        # target index uninitialized
+        code.putln("if (%(nsteps)s > 0)" % fmt_dict)
+        code.begin_block()
+        code.putln("%(target)s = 0;" % fmt_dict)
+
+        self.generate_loop(code, fmt_dict)
+
+        code.end_block()
+
+        # And finally, release our privates and write back any closure
+        # variables
+        for temp in start_stop_step:
+            if temp is not None:
+                temp.generate_disposal_code(code)
+                temp.free_temps(code)
+
+        code.funcstate.release_temp(fmt_dict['i'])
+        code.funcstate.release_temp(fmt_dict['nsteps'])
+
+        self.release_closure_privates(code)
+
+    def generate_loop(self, code, fmt_dict):
+        code.putln("#ifdef _OPENMP")
+
+        if not self.is_parallel:
+            code.put("#pragma omp for")
+        else:
+            code.put("#pragma omp parallel for")
+
+        for entry, op in self.privates.iteritems():
+            # Don't declare the index variable as a reduction
+            if op and op in "+*-&^|" and entry != self.target.entry:
+                code.put(" reduction(%s:%s)" % (op, entry.cname))
+            else:
+                if entry == self.target.entry:
+                    code.put(" firstprivate(%s)" % entry.cname)
+                code.put(" lastprivate(%s)" % entry.cname)
+
+        if self.schedule:
+            code.put(" schedule(%s)" % self.schedule)
+
+        if self.parent:
+            c = self.parent.privatization_insertion_point
+            c.put(" private(%(nsteps)s)" % fmt_dict)
+
+        self.privatization_insertion_point = code.insertion_point()
+
+        code.putln("")
+        code.putln("#endif /* _OPENMP */")
+
+        code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
+        code.begin_block()
+        code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+        self.body.generate_execution_code(code)
+        code.end_block()
 
 
 #------------------------------------------------------------------------------------
@@ -6806,15 +7390,22 @@ requires=[raise_double_keywords_utility_code])
 #------------------------------------------------------------------------------------
 
 traceback_utility_code = UtilityCode(
-proto = """
-static void __Pyx_AddTraceback(const char *funcname); /*proto*/
-""",
-impl = """
+    proto = """
+static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
+                               int %(LINENO)s, const char *%(FILENAME)s); /*proto*/
+""" % {
+    'FILENAME': Naming.filename_cname,
+    'LINENO':  Naming.lineno_cname,
+    'CLINENO':  Naming.clineno_cname,
+},
+
+    impl = """
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 
-static void __Pyx_AddTraceback(const char *funcname) {
+static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
+                               int %(LINENO)s, const char *%(FILENAME)s) {
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
     PyObject *py_globals = 0;

@@ -1,6 +1,8 @@
 cimport cython
 cimport check_fused_types_pxd
 
+import math
+
 ctypedef char *string_t
 
 ctypedef cython.fused_type(int, long, float, string_t) fused_t
@@ -136,7 +138,7 @@ def test_if_then_else_float_int():
 cdef composed_t composed(composed_t x, composed_t y):
     if composed_t in base_t_p_p or composed_t is string_t:
         if string_t == composed_t:
-            print x, y
+            print x.decode('ascii'), y.decode('ascii')
         else:
             print x[0][0], y[0][0]
 
@@ -160,7 +162,7 @@ def test_composed_types():
     >>> test_composed_types()
     it is a complex number
     0.5 0.6
-    (0.9+0.4j)
+    9 4
     <BLANKLINE>
     not a complex number
     7 8
@@ -177,7 +179,7 @@ def test_composed_types():
     cdef string_t e = "spam", f = "eggs"
 
     result = composed(a, b)
-    print result
+    print int(math.ceil(result.real * 10)), int(math.ceil(result.imag * 10))
     print
 
     print composed(c, d)
@@ -186,5 +188,5 @@ def test_composed_types():
     composed(&cp, &dp)
     print
 
-    print composed(e, f)
+    print composed(e, f).decode('ascii')
 

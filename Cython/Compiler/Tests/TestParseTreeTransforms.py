@@ -4,6 +4,7 @@ from Cython.Compiler import CmdLine
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
 from Cython.Compiler.Nodes import *
+from Cython.Compiler import Main
 
 
 class TestNormalizeTree(TransformTest):
@@ -142,6 +143,62 @@ class TestWithTransform(object): # (TransformTest): # Disabled!
                 $0_2(None, None, None)
 
         """, t)
+
+
+class TestInterpretCompilerDirectives(TransformTest):
+    """
+    This class tests the parallel directives AST-rewriting and importing.
+    """
+
+    # Test the parallel directives (c)importing
+
+    import_code = u"""
+        cimport cython.parallel
+        cimport cython.parallel as par
+        from cython cimport parallel as par2
+        from cython cimport parallel
+
+        from cython.parallel cimport threadid as tid
+        from cython.parallel cimport threadavailable as tavail
+        from cython.parallel cimport prange
+    """
+
+    expected_directives_dict = {
+        u'cython.parallel': u'cython.parallel',
+        u'par': u'cython.parallel',
+        u'par2': u'cython.parallel',
+        u'parallel': u'cython.parallel',
+
+        u"tid": u"cython.parallel.threadid",
+        u"tavail": u"cython.parallel.threadavailable",
+        u"prange": u"cython.parallel.prange",
+    }
+
+
+    def setUp(self):
+        super(TestInterpretCompilerDirectives, self).setUp()
+
+        compilation_options = Main.CompilationOptions(Main.default_options)
+        ctx = compilation_options.create_context()
+        self.pipeline = [
+            InterpretCompilerDirectives(ctx, ctx.compiler_directives),
+        ]
+
+        self.debug_exception_on_error = DebugFlags.debug_exception_on_error
+
+    def tearDown(self):
+        DebugFlags.debug_exception_on_error = self.debug_exception_on_error
+
+    def test_parallel_directives_cimports(self):
+        self.run_pipeline(self.pipeline, self.import_code)
+        parallel_directives = self.pipeline[0].parallel_directives
+        self.assertEqual(parallel_directives, self.expected_directives_dict)
+
+    def test_parallel_directives_imports(self):
+        self.run_pipeline(self.pipeline,
+                          self.import_code.replace(u'cimport', u'import'))
+        parallel_directives = self.pipeline[0].parallel_directives
+        self.assertEqual(parallel_directives, self.expected_directives_dict)
 
 
 # TODO: Re-enable once they're more robust.
