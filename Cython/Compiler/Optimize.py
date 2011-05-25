@@ -3069,10 +3069,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
       into a single node.
     """
 
-    check_constant_value_not_set = True
+    def __init__(self, reevaluate=False):
+        """
+        The reevaluate argument specifies whether constant values that were
+        previously computed should be recomputed.
+        """
+        super(ConstantFolding, self).__init__()
+        self.reevaluate = reevaluate
 
     def _calculate_const(self, node):
-        if (self.check_constant_value_not_set and
+        if (not self.reevaluate and
                 node.constant_result is not ExprNodes.constant_value_not_set):
             return
 

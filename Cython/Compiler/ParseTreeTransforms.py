@@ -2350,9 +2350,7 @@ class ReplaceFusedTypeChecks(VisitorTransform):
 
     # Defer the import until now to avoid circularity...
     from Cython.Compiler import Optimize
-
-    transform = Optimize.ConstantFolding()
-    transform.check_constant_value_not_set = False
+    transform = Optimize.ConstantFolding(reevaluate=True)
 
     def __init__(self, local_scope):
         super(ReplaceFusedTypeChecks, self).__init__()
@@ -2371,8 +2369,8 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         type2 = node.operand2.analyse_as_type(self.local_scope)
 
         if type1 and type2:
-            false = ExprNodes.BoolNode(node.pos, value=False)
-            true = ExprNodes.BoolNode(node.pos, value=True)
+            false_node = ExprNodes.BoolNode(node.pos, value=False)
+            true_node = ExprNodes.BoolNode(node.pos, value=True)
 
             type1 = self.specialize_type(type1, node.operand1.pos)
             op = node.operator
@@ -2384,7 +2382,7 @@ class ReplaceFusedTypeChecks(VisitorTransform):
                 eq = op in ('is', '==')
 
                 if (is_same and eq) or (not is_same and not eq):
-                    return true
+                    return true_node
 
             elif op in ('in', 'not_in'):
                 # We have to do an instance check directly, as operand2
@@ -2404,14 +2402,14 @@ class ReplaceFusedTypeChecks(VisitorTransform):
                     for specific_type in types:
                         if type1.same_as(specific_type):
                             if op == 'in':
-                                return true
+                                return true_node
                             else:
-                                return false
+                                return false_node
 
                     if op == 'not_in':
-                        return true
+                        return true_node
 
-            return false
+            return false_node
 
         return node
 
