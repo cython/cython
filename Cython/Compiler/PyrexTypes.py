@@ -387,9 +387,6 @@ class PyObjectType(PyrexType):
         else:
             return cname
 
-    def invalid_value(self):
-        return "1"
-
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct

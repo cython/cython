@@ -233,8 +233,14 @@ def test_nan_init():
         raise Exception("One of the values was not initialized to a maximum "
                         "or NaN value")
 
+    c1 = 20
+    with nogil, cython.parallel.parallel():
+        c1 = 16
+
+    assert c1 not in (16, 20), c1
+
 cdef void nogil_print(char *s) with gil:
-    print s
+    print s.decode('ascii')
 
 def test_else_clause():
     """
@@ -343,3 +349,64 @@ def test_return():
     """
     print parallel_return()
 
+def test_parallel_exceptions():
+    """
+    >>> test_parallel_exceptions()
+    ('I am executed first', 0)
+    ('propagate me',) 0
+    """
+    cdef int i, j, sum = 0
+
+    mylist = []
+
+    try:
+        for i in prange(10, nogil=True):
+            try:
+                for j in prange(10):
+                    with gil:
+                        raise Exception("propagate me")
+
+                    sum += i * j
+                sum += i
+            finally:
+                with gil:
+                    mylist.append(("I am executed first", sum))
+    except Exception, e:
+        print mylist[0]
+        print e.args, sum
+
+def test_parallel_with_gil_return():
+    """
+    >>> test_parallel_with_gil_return()
+    True
+    45
+    """
+    cdef int i, sum = 0
+
+    for i in prange(10, nogil=True):
+        with gil:
+            obj = i
+            sum += obj
+
+    print obj in range(10)
+
+    with nogil, cython.parallel.parallel():
+        with gil:
+            return sum
+
+def test_parallel_with_gil_continue():
+    """
+    >>> test_parallel_with_gil_continue()
+    20
+    """
+    cdef int i, sum = 0
+
+    for i in prange(10, nogil=True):
+        with cython.parallel.parallel():
+            with gil:
+                if i % 2:
+                    continue
+
+        sum += i
+
+    print sum
