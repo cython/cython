@@ -88,7 +88,7 @@ currently supports OpenMP, but later on more backends might be supported.
     buffers used by a prange. A contained prange will be a worksharing loop
     that is not parallel, so any variable assigned to in the parallel section
     is also private to the prange. Variables that are private in the parallel
-    construct are undefined after the parallel block.
+    block are unaltered after the parallel block.
 
     Example with thread-local buffers::
 
