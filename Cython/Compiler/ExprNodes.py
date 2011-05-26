@@ -1559,7 +1559,7 @@ class NameNode(AtomicExprNode):
         elif entry.is_local:
             if entry.type.is_pyobject:
                 if (self.cf_maybe_null or self.cf_is_null) and not self.allow_null:
-                    code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
+                    code.putln('if (unlikely(!%s)) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
                                (entry.cname, entry.name, code.error_goto(self.pos)))
 
     def generate_assignment_code(self, rhs, code):
@@ -1693,7 +1693,7 @@ class NameNode(AtomicExprNode):
         elif self.entry.type.is_pyobject:
             if not self.cf_is_null:
                 if self.cf_maybe_null:
-                    code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
+                    code.putln('if (unlikely(!%s)) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
                                (self.entry.cname, self.entry.name, code.error_goto(self.pos)))
                 code.put_decref(self.result(), self.ctype())
                 code.putln('%s = NULL;' % self.result())
