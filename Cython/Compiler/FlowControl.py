@@ -394,20 +394,24 @@ class GV(object):
         fp.write(' }\n')
 
 
-class MessageCollection(list):
+class MessageCollection:
     """Collect error/warnings messages first then sort"""
+    def __init__(self):
+        self.messages = []
 
     def error(self, pos, message):
-        self.append((pos, True, message))
+        self.messages.append((pos, True, message))
 
     def warning(self, pos, message):
-        self.append((pos, False, message))
+        self.messages.append((pos, False, message))
 
-    def _key(self, item):
-        return item[0]
-
-    def sort(self):
-        list.sort(self, key=self._key)
+    def report(self):
+        self.messages.sort()
+        for pos, is_error, message in self.messages:
+            if is_error:
+                error(pos, message)
+            else:
+                warning(pos, message, 2)
 
 
 def check_definitions(flow, compiler_directives):
@@ -524,13 +528,7 @@ def check_definitions(flow, compiler_directives):
                     messages.warning(entry.pos, "Unused entry '%s'" % entry.name)
                 entry.cf_used = False
 
-    # Sort warnings by position
-    messages.sort()
-    for pos, is_error, message in messages:
-        if is_error:
-            error(pos, message)
-        else:
-            warning(pos, message, 2)
+    messages.report()
 
 
 class AssignmentCollector(TreeVisitor):
