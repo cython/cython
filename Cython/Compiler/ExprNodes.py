@@ -3753,8 +3753,6 @@ class AttributeNode(ExprNode):
                 if entry.is_variable or entry.is_cmethod:
                     self.type = entry.type
                     self.member = entry.cname
-                    if entry.utility_code:
-                        env.use_utility_code(entry.utility_code)
                     return
                 else:
                     # If it's not a variable or C method, it must be a Python
