@@ -58,3 +58,17 @@ def try_finally(cond):
         raise ValueError
     finally:
         return a
+
+def deleted(cond):
+    """
+    >>> deleted(False)
+    {}
+    >>> deleted(True)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: a
+    """
+    a = {}
+    if cond:
+        del a
+    return a
