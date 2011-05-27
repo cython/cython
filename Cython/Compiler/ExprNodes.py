@@ -1556,7 +1556,7 @@ class NameNode(AtomicExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
-        elif entry.is_local:
+        elif entry.is_local or entry.in_closure or entry.from_closure:
             if entry.type.is_pyobject:
                 if (self.cf_maybe_null or self.cf_is_null) and not self.allow_null:
                     code.putln('if (unlikely(!%s)) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
@@ -1635,14 +1635,14 @@ class NameNode(AtomicExprNode):
                                 code.put_xgotref(self.py_result())
                             else:
                                 code.put_gotref(self.py_result())
-                    if entry.is_local:
+                    if entry.is_cglobal:
+                        code.put_decref(self.result(), self.ctype())
+                    else:
                         if not self.cf_is_null:
                             if self.cf_maybe_null:
                                 code.put_xdecref(self.result(), self.ctype())
                             else:
                                 code.put_decref(self.result(), self.ctype())
-                    else:
-                        code.put_decref(self.result(), self.ctype())
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
 
