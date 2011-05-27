@@ -144,7 +144,8 @@ class ControlFlow(object):
             return False
         if entry.type.is_array or entry.type.is_struct_or_union:
             return False
-        return entry.is_local or entry.is_pyclass_attr or entry.is_arg
+        return (entry.is_local or entry.is_pyclass_attr or entry.is_arg or
+                entry.from_closure or entry.in_closure)
 
     def mark_position(self, node):
         """Mark position, will be used to draw graph nodes."""
