@@ -1540,8 +1540,6 @@ if VALUE is not None:
                 type_name = entry.type.module_name + '.' + type_name
             if entry.init is not None:
                 default_value = ' = ' + entry.init
-            elif entry.init_to_none:
-                default_value = ' = ' + repr(None)
             docstring = attr_name + ': ' + type_name + default_value
             property.doc = EncodedString(docstring)
         # ---------------------------------------
