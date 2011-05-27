@@ -2129,14 +2129,31 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return test_node
 
     def _handle_simple_function_ord(self, node, pos_args):
-        """Unpack ord(Py_UNICODE).
+        """Unpack ord(Py_UNICODE) and ord('X').
         """
         if len(pos_args) != 1:
             return node
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.arg.type.is_unicode_char:
-                return arg.arg.coerce_to(node.type, self.current_env())
+                return ExprNodes.TypecastNode(
+                    arg.pos, operand=arg.arg, type=PyrexTypes.c_int_type
+                    ).coerce_to(node.type, self.current_env())
+        elif isinstance(arg, ExprNodes.UnicodeNode):
+            if len(arg.value) == 1:
+                return ExprNodes.IntNode(
+                    ord(arg.value), type=PyrexTypes.c_int_type,
+                    value=str(ord(arg.value)),
+                    constant_result=ord(arg.value)
+                    ).coerce_to(node.type, self.current_env())
+        elif isinstance(arg, ExprNodes.StringNode):
+            if arg.unicode_value and len(arg.unicode_value) == 1 \
+                   and ord(arg.unicode_value) <= 255: # Py2/3 portability
+                return ExprNodes.IntNode(
+                    ord(arg.unicode_value), type=PyrexTypes.c_int_type,
+                    value=str(ord(arg.unicode_value)),
+                    constant_result=ord(arg.unicode_value)
+                    ).coerce_to(node.type, self.current_env())
         return node
 
     ### special methods
