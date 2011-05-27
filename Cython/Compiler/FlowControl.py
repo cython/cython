@@ -473,9 +473,11 @@ def check_definitions(flow, compiler_directives):
     for node, entry in references.iteritems():
         if Uninitialized in node.cf_state:
             node.cf_maybe_null = True
-            if entry.from_closure or node.allow_null:
+            if not entry.from_closure and len(node.cf_state) == 1:
+                node.cf_is_null = True
+            if node.allow_null or entry.from_closure:
                 pass # Can be uninitialized here
-            elif len(node.cf_state) == 1:
+            elif node.cf_is_null:
                 if entry.type.is_pyobject or entry.type.is_unspecified:
                     messages.error(
                         node.pos,
@@ -486,13 +488,11 @@ def check_definitions(flow, compiler_directives):
                         node.pos,
                         "local variable '%s' referenced before assignment"
                         % entry.name)
-                node.cf_is_null = True
-            else:
-                if warn_maybe_uninitialized:
-                    messages.warning(
-                        node.pos,
-                        "local variable '%s' might be referenced before assignment"
-                        % entry.name)
+            elif warn_maybe_uninitialized:
+                messages.warning(
+                    node.pos,
+                    "local variable '%s' might be referenced before assignment"
+                    % entry.name)
         else:
             node.cf_is_null = False
             node.cf_maybe_null = False
