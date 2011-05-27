@@ -4493,8 +4493,6 @@ class ScopedExprNode(ExprNode):
             generate_inner_evaluation_code(code)
             code.putln('} /* exit inner scope */')
             return
-        for entry in py_entries:
-            code.put_init_var_to_py_none(entry)
 
         # must free all local Python references at each exit point
         old_loop_labels = tuple(code.new_loop_labels())
