@@ -189,7 +189,7 @@ def test_loops_and_boxing():
 
     with nogil:
         with gil:
-            print string
+            print string.decode('ASCII')
             for c in string[4:]:
                 print "%c" % c
             else:
