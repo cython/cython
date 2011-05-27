@@ -1419,6 +1419,13 @@ class CCodeWriter(object):
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
+    def put_error_if_unbound(self, pos, entry):
+        self.put('if (unlikely(!%s)) { '
+                 'PyErr_SetString(PyExc_UnboundLocalError, "'
+                 "local variable '%s' referenced before assignment"
+                 '"); %s }' %
+                 (entry.cname, entry.name, self.error_goto(pos)))
+
     def set_error_info(self, pos):
         self.funcstate.should_declare_error_indicator = True
         if self.c_line_in_traceback:

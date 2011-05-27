@@ -8,7 +8,7 @@ def conditional(cond):
     >>> conditional(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: a
+    UnboundLocalError: local variable 'a' referenced before assignment
     """
     if cond:
         a = []
@@ -21,7 +21,7 @@ def inside_loop(iter):
     >>> inside_loop([])
     Traceback (most recent call last):
     ...
-    UnboundLocalError: i
+    UnboundLocalError: local variable 'i' referenced before assignment
     """
     for i in iter:
         pass
@@ -34,7 +34,7 @@ def try_except(cond):
     >>> try_except(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: a
+    UnboundLocalError: local variable 'a' referenced before assignment
     """
     try:
         if cond:
@@ -50,7 +50,7 @@ def try_finally(cond):
     >>> try_finally(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: a
+    UnboundLocalError: local variable 'a' referenced before assignment
     """
     try:
         if cond:
@@ -66,7 +66,7 @@ def deleted(cond):
     >>> deleted(True)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: a
+    UnboundLocalError: local variable 'a' referenced before assignment
     """
     a = {}
     if cond:
@@ -80,7 +80,7 @@ def test_nested(cond):
     >>> test_nested(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: a
+    UnboundLocalError: local variable 'a' referenced before assignment
     """
     if cond:
         def a():
@@ -94,7 +94,7 @@ def test_outer(cond):
     >>> test_outer(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: a
+    UnboundLocalError: local variable 'a' referenced before assignment
     """
     if cond:
         a = {}
@@ -109,7 +109,7 @@ def test_inner(cond):
     >>> test_inner(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: a
+    UnboundLocalError: local variable 'a' referenced before assignment
     """
     if cond:
         a = {}
@@ -124,7 +124,7 @@ def test_class(cond):
     >>> test_class(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: A
+    UnboundLocalError: local variable 'A' referenced before assignment
     """
     if cond:
         class A:
