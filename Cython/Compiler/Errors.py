@@ -20,7 +20,7 @@ def context(position):
     assert not (isinstance(source, unicode) or isinstance(source, str)), (
         "Please replace filename strings with Scanning.FileSourceDescriptor instances %r" % source)
     try:
-        F = list(source.get_lines())
+        F = source.get_lines()
     except UnicodeDecodeError:
         # file has an encoding problem
         s = u"[unprintable code]\n"
