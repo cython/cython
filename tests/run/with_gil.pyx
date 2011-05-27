@@ -139,42 +139,46 @@ def test_restore_exception():
             finally:
                 raise Exception("Override the raised exception")
 
-def test_declared_variables():
-    """
-    >>> test_declared_variables()
-    None
-    None
-    ['s', 'p', 'a', 'm']
-    ['s', 'p', 'a', 'm']
-    """
-    cdef object somevar
+### DISABLED: this cannot work with flow control analysis
+##
+## def test_declared_variables():
+##     """
+##     >>> test_declared_variables()
+##     None
+##     None
+##     ['s', 'p', 'a', 'm']
+##     ['s', 'p', 'a', 'm']
+##     """
+##     cdef object somevar
+##
+##     print somevar
+##
+##     with nogil:
+##         with gil:
+##             print somevar
+##             somevar = list("spam")
+##             print somevar
+##
+##     print somevar
 
-    print somevar
-
-    with nogil:
-        with gil:
-            print somevar
-            somevar = list("spam")
-            print somevar
-
-    print somevar
-
-def test_undeclared_variables():
-    """
-    >>> test_undeclared_variables()
-    None
-    None
-    ['s', 'p', 'a', 'm']
-    ['s', 'p', 'a', 'm']
-    """
-    print somevar
-    with nogil:
-        with gil:
-            print somevar
-            somevar = list("spam")
-            print somevar
-
-    print somevar
+### DISABLED: this cannot work with flow control analysis
+##
+## def test_undeclared_variables():
+##     """
+##     >>> test_undeclared_variables()
+##     None
+##     None
+##     ['s', 'p', 'a', 'm']
+##     ['s', 'p', 'a', 'm']
+##     """
+##     print somevar
+##     with nogil:
+##         with gil:
+##             print somevar
+##             somevar = list("spam")
+##             print somevar
+##
+##     print somevar
 
 def test_loops_and_boxing():
     """
