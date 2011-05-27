@@ -72,3 +72,61 @@ def deleted(cond):
     if cond:
         del a
     return a
+
+def test_nested(cond):
+    """
+    >>> test_nested(True)
+    <built-in function a>
+    >>> test_nested(False)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: a
+    """
+    if cond:
+        def a():
+            pass
+    return a
+
+def test_outer(cond):
+    """
+    >>> test_outer(True)
+    {}
+    >>> test_outer(False)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: a
+    """
+    if cond:
+        a = {}
+    def inner():
+        return a
+    return a
+
+def test_inner(cond):
+    """
+    >>> test_inner(True)
+    {}
+    >>> test_inner(False)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: a
+    """
+    if cond:
+        a = {}
+    def inner():
+        return a
+    return inner()
+
+def test_class(cond):
+    """
+    >>> test_class(True) #doctest: +ELLIPSIS
+    <class uninitialized.A at 0x...>
+    >>> test_class(False)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: A
+    """
+    if cond:
+        class A:
+            pass
+    return A
