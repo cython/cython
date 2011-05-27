@@ -638,7 +638,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                         'is not allowed in %s scope' % (directive, scope)))
             return False
         else:
-            if directive not in Options.directive_defaults:
+            if (directive not in Options.directive_defaults
+                    and directive not in Options.directive_types):
                 error(pos, "Invalid directive: '%s'." % (directive,))
             return True
 
