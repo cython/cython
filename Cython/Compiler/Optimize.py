@@ -2926,7 +2926,15 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
     Py_ssize_t self_len = PyBytes_GET_SIZE(self);
     const char* sub_ptr;
     Py_ssize_t sub_len;
+    int retval;
+    
+#if PY_VERSION_HEX >= 0x02060000
+    PyBufferProcs *pb = NULL;
+    Py_buffer view;
   
+    view.obj = NULL;
+#endif
+    
     if ( PyBytes_Check(arg) ) {
         sub_ptr = PyBytes_AS_STRING(arg);
         sub_len = PyBytes_GET_SIZE(arg);
@@ -2938,8 +2946,23 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
     }
 #endif
     else {
+#if PY_VERSION_HEX < 0x02060000
         if (PyObject_AsCharBuffer(arg, &sub_ptr, &sub_len))
             return -1;
+#else
+        pb = Py_TYPE(self)->tp_as_buffer;
+        if (pb == NULL || pb->bf_getbuffer == NULL) {
+            PyErr_SetString(PyExc_TypeError,
+                            "expected an object with the buffer interface");
+            return -1;
+        }
+        if ((*pb->bf_getbuffer)(self, &view, PyBUF_SIMPLE)) {
+            return -1;
+        }
+        
+        sub_ptr = (const char*) view.buf;
+        sub_len = view.len;
+#endif
     }
   
     if (end > self_len)
@@ -2953,24 +2976,24 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
     if (start < 0)
         start = 0;
 
-    if (direction < 0) {
-        /* startswith */
-        if (start+sub_len > self_len)
-            return 0;
-    }
-    else {
+    if (direction > 0) {
         /* endswith */
-        if (end-start < sub_len || start > self_len)
-            return 0;
-
         if (end-sub_len > start)
             start = end - sub_len;
     }
         
-    if (end-start >= sub_len)
-        return !memcmp(self_ptr+start, sub_ptr, sub_len);
+    if (start + sub_len <= end)
+        retval = !memcmp(self_ptr+start, sub_ptr, sub_len);
+    else
+        retval = 0;
 
-    return 0;
+#if PY_VERSION_HEX >= 0x02060000
+    if (pb != NULL && pb->bf_releasebuffer != NULL)
+        (*pb->bf_releasebuffer)(self, &view);
+    Py_XDECREF(view.obj);
+#endif
+
+    return retval;
 }
   
 static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t start,
