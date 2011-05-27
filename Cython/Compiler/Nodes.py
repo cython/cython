@@ -1416,10 +1416,6 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
-        # ----- Initialise local variables
-        for entry in lenv.var_entries:
-            if entry.type.is_pyobject and entry.init_to_none and entry.used:
-                code.put_init_var_to_py_none(entry)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
@@ -2264,7 +2260,6 @@ class DefNode(FuncDefNode):
                 arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
                 if arg.type.is_pyobject:
                     arg.entry.init = "0"
-                arg.entry.init_to_none = 0
             else:
                 arg.entry = self.declare_argument(env, arg)
             arg.entry.used = 1
@@ -2285,7 +2280,6 @@ class DefNode(FuncDefNode):
             entry = env.declare_var(arg.name, type, arg.pos)
             entry.used = 1
             entry.init = "0"
-            entry.init_to_none = 0
             entry.xdecref_cleanup = 1
             arg.entry = entry
             env.control_flow.set_state((), (arg.name, 'initialized'), True)

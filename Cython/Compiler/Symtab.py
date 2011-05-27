@@ -96,7 +96,6 @@ class Entry(object):
     #                               holding its home namespace
     # pymethdef_cname  string     PyMethodDef structure
     # signature        Signature  Arg & return types for Python func
-    # init_to_none     boolean    True if initial value should be None
     # as_variable      Entry      Alternative interpretation of extension
     #                               type name or builtin C function as a variable
     # xdecref_cleanup  boolean    Use Py_XDECREF for error cleanup
@@ -157,7 +156,6 @@ class Entry(object):
     func_cname = None
     func_modifiers = []
     doc = None
-    init_to_none = 0
     as_variable = None
     xdecref_cleanup = 0
     in_cinclude = 0
@@ -1390,7 +1388,6 @@ class LocalScope(Scope):
                                   api=api, in_pxd=in_pxd, is_cdef=is_cdef)
         if type.is_pyobject and not Options.init_local_none:
             entry.init = "0"
-        entry.init_to_none = False
         entry.is_local = 1
 
         entry.in_with_gil_block = self._in_with_gil_block
