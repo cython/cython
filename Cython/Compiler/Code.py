@@ -1187,6 +1187,8 @@ class CCodeWriter(object):
                 entry.cname, dll_linkage = dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
+        elif entry.type.is_pyobject:
+            self.put(" = NULL");
         self.putln(";")
 
     def put_temp_declarations(self, func_context):
