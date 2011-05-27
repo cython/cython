@@ -1,13 +1,14 @@
 
 cimport cython
 
+uspace = u' '
 ustring_with_a = u'abcdefg'
 ustring_without_a = u'bcdefg'
 
 @cython.test_fail_if_path_exists('//SimpleCallNode')
 def ord_Py_UNICODE(unicode s):
     """
-    >>> ord_Py_UNICODE(u' ')
+    >>> ord_Py_UNICODE(uspace)
     32
     """
     cdef Py_UNICODE u
