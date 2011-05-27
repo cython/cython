@@ -76,7 +76,6 @@ def deleted(cond):
 def test_nested(cond):
     """
     >>> test_nested(True)
-    <built-in function a>
     >>> test_nested(False)
     Traceback (most recent call last):
     ...
@@ -85,7 +84,7 @@ def test_nested(cond):
     if cond:
         def a():
             pass
-    return a
+    return a()
 
 def test_outer(cond):
     """
@@ -109,7 +108,7 @@ def test_inner(cond):
     >>> test_inner(False)
     Traceback (most recent call last):
     ...
-    UnboundLocalError: local variable 'a' referenced before assignment
+    NameError: free variable 'a' referenced before assignment in enclosing scope
     """
     if cond:
         a = {}
@@ -120,7 +119,7 @@ def test_inner(cond):
 def test_class(cond):
     """
     >>> test_class(True) #doctest: +ELLIPSIS
-    <class uninitialized.A at 0x...>
+    <class ...A at 0x...>
     >>> test_class(False)
     Traceback (most recent call last):
     ...
