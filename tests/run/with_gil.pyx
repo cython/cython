@@ -24,6 +24,15 @@ cdef void puts(char *string) with gil:
     """
     print string.decode('ascii')
 
+class ExceptionWithMsg(Exception):
+    """
+    In python2.4 Exception is formatted as <exceptions.Exception
+    instance at 0x1b8f948> when swallowed.
+    """
+
+    def __repr__(self):
+        return "ExceptionWithMsg(%r)" % self.args
+
 
 # Start with some normal Python functions
 
@@ -251,7 +260,7 @@ cpdef test_cpdef():
 
 cdef void void_nogil_ignore_exception() nogil:
     with gil:
-        raise Exception("This is swallowed")
+        raise ExceptionWithMsg("This is swallowed")
 
     puts("unreachable")
     with gil:
@@ -263,16 +272,16 @@ cdef void void_nogil_nested_gil() nogil:
             with gil:
                 print 'Inner gil section'
             puts("nogil section")
-        raise Exception("Swallow this")
+        raise ExceptionWithMsg("Swallow this")
     puts("Don't print this")
 
 def test_nogil_void_funcs_with_gil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_gil)
-    Exception Exception: Exception('This is swallowed',) in 'with_gil.void_nogil_ignore_exception' ignored
+    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('This is swallowed') in 'with_gil.void_nogil_ignore_exception' ignored
     Inner gil section
     nogil section
-    Exception Exception: Exception('Swallow this',) in 'with_gil.void_nogil_nested_gil' ignored
+    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('Swallow this') in 'with_gil.void_nogil_nested_gil' ignored
     """
     void_nogil_ignore_exception()
     void_nogil_nested_gil()
@@ -280,10 +289,10 @@ def test_nogil_void_funcs_with_gil():
 def test_nogil_void_funcs_with_nogil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_nogil)
-    Exception Exception: Exception('This is swallowed',) in 'with_gil.void_nogil_ignore_exception' ignored
+    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('This is swallowed') in 'with_gil.void_nogil_ignore_exception' ignored
     Inner gil section
     nogil section
-    Exception Exception: Exception('Swallow this',) in 'with_gil.void_nogil_nested_gil' ignored
+    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('Swallow this') in 'with_gil.void_nogil_nested_gil' ignored
     """
     with nogil:
         void_nogil_ignore_exception()

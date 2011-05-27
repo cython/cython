@@ -140,8 +140,10 @@ def get_openmp_compiler_flags(language):
     if compiler_version and compiler_version.split('.') >= ['4', '2']:
         return '-fopenmp', '-fopenmp'
 
-
-locale.setlocale(locale.LC_ALL, '')
+try:
+    locale.setlocale(locale.LC_ALL, '')
+except locale.Error:
+    pass
 
 OPENMP_C_COMPILER_FLAGS = get_openmp_compiler_flags('c')
 OPENMP_CPP_COMPILER_FLAGS = get_openmp_compiler_flags('cpp')
