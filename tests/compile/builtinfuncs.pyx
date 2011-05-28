@@ -1,7 +1,7 @@
 # mode: compile
 
 cdef int f() except -1:
-    cdef object x, y, z, w
+    cdef object x, y = 0, z = 0, w = 0
     cdef int i
     x = abs(y)
     delattr(x, 'spam')
