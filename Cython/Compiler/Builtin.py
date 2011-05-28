@@ -544,10 +544,14 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
-                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
-                                    BuiltinMethod("add",     "TO", "r", "PySet_Add"),
-                                    BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
+    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
+                                                  utility_code = py23_set_utility_code),
+                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",
+                                                  utility_code = py23_set_utility_code),
+                                    BuiltinMethod("add",     "TO", "r", "PySet_Add",
+                                                  utility_code = py23_set_utility_code),
+                                    BuiltinMethod("pop",     "T",  "O", "PySet_Pop",
+                                                  utility_code = py23_set_utility_code)]),
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 
