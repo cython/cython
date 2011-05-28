@@ -47,15 +47,6 @@ def nousage():
     """
     cdef object[int, ndim=2] buf
 
-def printbuf():
-    """
-    Just compilation.
-    """
-    cdef object[int, ndim=2] buf
-    print buf
-    return
-    buf[0,0] = 0
-
 @testcase
 def acquire_release(o1, o2):
     """
@@ -681,20 +672,20 @@ def mixed_get(object[int] buf, int unsafe_idx, int safe_idx):
 #
 # Coercions
 #
-@testcase
-def coercions(object[unsigned char] uc):
-    """
-TODO
-    """
-    print type(uc[0])
-    uc[0] = -1
-    print uc[0]
-    uc[0] = <int>3.14
-    print uc[0]
+## @testcase
+## def coercions(object[unsigned char] uc):
+##     """
+## TODO
+##     """
+##     print type(uc[0])
+##     uc[0] = -1
+##     print uc[0]
+##     uc[0] = <int>3.14
+##     print uc[0]
 
-    cdef char* ch = b"asfd"
-    cdef object[object] objbuf
-    objbuf[3] = ch
+##     cdef char* ch = b"asfd"
+##     cdef object[object] objbuf
+##     objbuf[3] = ch
 
 
 #
