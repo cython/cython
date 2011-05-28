@@ -681,11 +681,11 @@ class ExprNode(Node):
     def as_cython_attribute(self):
         return None
 
-    def as_none_safe_node(self, message, error="PyExc_TypeError"):
+    def as_none_safe_node(self, message, error="PyExc_TypeError", format_args=()):
         # Wraps the node in a NoneCheckNode if it is not known to be
         # not-None (e.g. because it is a Python literal).
         if self.may_be_none():
-            return NoneCheckNode(self, error, message)
+            return NoneCheckNode(self, error, message, format_args)
         else:
             return self
 
@@ -3075,8 +3075,9 @@ class SimpleCallNode(CallNode):
                 self_arg = func_type.args[0]
                 if self_arg.not_none: # C methods must do the None test for self at *call* time
                     self.self = self.self.as_none_safe_node(
-                        "'NoneType' object has no attribute '%s'" % self.function.entry.name,
-                        'PyExc_AttributeError')
+                        "'NoneType' object has no attribute '%s'",
+                        error = 'PyExc_AttributeError',
+                        format_args = [self.function.entry.name])
                 expected_type = self_arg.type
                 self.coerced_self = CloneNode(self.self).coerce_to(
                     expected_type, env)
@@ -7488,12 +7489,14 @@ class NoneCheckNode(CoercionNode):
     # raises an appropriate exception (as specified by the creating
     # transform).
 
-    def __init__(self, arg, exception_type_cname, exception_message):
+    def __init__(self, arg, exception_type_cname, exception_message,
+                 exception_format_args):
         CoercionNode.__init__(self, arg)
         self.type = arg.type
         self.result_ctype = arg.ctype()
         self.exception_type_cname = exception_type_cname
         self.exception_message = exception_message
+        self.exception_format_args = tuple(exception_format_args or ())
 
     def analyse_types(self, env):
         pass
@@ -7513,11 +7516,20 @@ class NoneCheckNode(CoercionNode):
     def generate_result_code(self, code):
         code.putln(
             "if (unlikely(%s == Py_None)) {" % self.arg.py_result())
-        code.putln('PyErr_SetString(%s, "%s"); %s ' % (
-            self.exception_type_cname,
-            StringEncoding.escape_byte_string(
-                self.exception_message.encode('UTF-8')),
-            code.error_goto(self.pos)))
+        escape = StringEncoding.escape_byte_string
+        if self.exception_format_args:
+            code.putln('PyErr_Format(%s, "%s", %s); %s ' % (
+                self.exception_type_cname,
+                StringEncoding.escape_byte_string(
+                    self.exception_message.encode('UTF-8')),
+                ', '.join([ '"%s"' % escape(str(arg).encode('UTF-8'))
+                            for arg in self.exception_format_args ]),
+                code.error_goto(self.pos)))
+        else:
+            code.putln('PyErr_SetString(%s, "%s"); %s ' % (
+                self.exception_type_cname,
+                escape(self.exception_message.encode('UTF-8')),
+                code.error_goto(self.pos)))
         code.putln("}")
 
     def generate_post_assignment_code(self, code):
