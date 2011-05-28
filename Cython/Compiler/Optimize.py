@@ -2789,12 +2789,13 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             self_arg = args[0]
             if is_unbound_method:
                 self_arg = self_arg.as_none_safe_node(
-                    "descriptor '%s' requires a '%s' object but received a 'NoneType'" % (
-                        attr_name, node.function.obj.name))
+                    "descriptor '%s' requires a '%s' object but received a 'NoneType'",
+                    format_args = [attr_name, node.function.obj.name])
             else:
                 self_arg = self_arg.as_none_safe_node(
-                    "'NoneType' object has no attribute '%s'" % attr_name,
-                    error = "PyExc_AttributeError")
+                    "'NoneType' object has no attribute '%s'",
+                    error = "PyExc_AttributeError",
+                    format_args = [attr_name])
             args[0] = self_arg
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,
