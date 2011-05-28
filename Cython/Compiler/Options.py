@@ -95,9 +95,18 @@ directive_defaults = {
     'warn': None,
     'warn.undeclared': False,
     'warn.unreachable': True,
+    'warn.maybe_uninitialized': False,
+    'warn.unreachable': True,
+    'warn.unused': False,
+    'warn.unused_arg': False,
+    'warn.unused_result': False,
 
 # remove unreachable code
     'remove_unreachable': True,
+
+# control flow debug directives
+    'control_flow.dot_output': "", # Graphviz output filename
+    'control_flow.dot_annotate_defs': False, # Annotate definitions
 
 # test support
     'test_assert_path_exists' : [],
@@ -105,6 +114,13 @@ directive_defaults = {
 
 # experimental, subject to change
     'binding': False,
+}
+
+# Extra warning directives
+extra_warnings = {
+    'warn.maybe_uninitialized': True,
+    'warn.unreachable': True,
+    'warn.unused': True,
 }
 
 # Override types possibilities above, if needed

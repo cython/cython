@@ -8,7 +8,7 @@ __doc__ = u"""
 [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
 
 >>> sorted(get_locals_items_listcomp(1,2,3, k=5))
-[('args', (2, 3)), ('item', None), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
+[('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
 """
 
 def get_locals(x, *args, **kwds):

@@ -1267,14 +1267,20 @@ class NameNode(AtomicExprNode):
     #  name            string    Python name of the variable
     #  entry           Entry     Symbol table entry
     #  type_entry      Entry     For extension type names, the original type entry
+    #  cf_is_null      boolean   Is uninitialized before this node
+    #  cf_maybe_null   boolean   Maybe uninitialized before this node
+    #  allow_null      boolean   Don't raise UnboundLocalError
 
     is_name = True
     is_cython_module = False
     cython_attribute = None
-    lhs_of_first_assignment = False
+    lhs_of_first_assignment = False # TODO: remove me
     is_used_as_rvalue = 0
     entry = None
     type_entry = None
+    cf_maybe_null = True
+    cf_is_null = False
+    allow_null = False
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1550,15 +1556,11 @@ class NameNode(AtomicExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
-        elif entry.is_local and False:
-            # control flow not good enough yet
-            assigned = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
-            if assigned is False:
-                error(self.pos, "local variable '%s' referenced before assignment" % entry.name)
-            elif not Options.init_local_none and assigned is None:
-                code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
-                           (entry.cname, entry.name, code.error_goto(self.pos)))
-                entry.scope.control_flow.set_state(self.pos, (entry.name, 'initialized'), True)
+        elif entry.is_local or entry.in_closure or entry.from_closure:
+            if entry.type.is_pyobject:
+                if (self.cf_maybe_null or self.cf_is_null) \
+                       and not self.allow_null:
+                    code.put_error_if_unbound(self.pos, entry)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -1627,17 +1629,20 @@ class NameNode(AtomicExprNode):
                 if self.use_managed_ref:
                     rhs.make_owned_reference(code)
                     is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
-                    if not self.lhs_of_first_assignment:
-                        if is_external_ref:
-                            code.put_gotref(self.py_result())
-                        if entry.is_local and not Options.init_local_none:
-                            initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
-                            if initialized is True:
-                                code.put_decref(self.result(), self.ctype())
-                            elif initialized is None:
+                    if is_external_ref:
+                        if not self.cf_is_null:
+                            if self.cf_maybe_null:
+                                code.put_xgotref(self.py_result())
+                            else:
+                                code.put_gotref(self.py_result())
+                    if entry.is_cglobal:
+                        code.put_decref(self.result(), self.ctype())
+                    else:
+                        if not self.cf_is_null:
+                            if self.cf_maybe_null:
                                 code.put_xdecref(self.result(), self.ctype())
-                        else:
-                            code.put_decref(self.result(), self.ctype())
+                            else:
+                                code.put_decref(self.result(), self.ctype())
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
 
@@ -1686,8 +1691,11 @@ class NameNode(AtomicExprNode):
                     Naming.module_cname,
                     self.entry.name))
         elif self.entry.type.is_pyobject:
-            # Fake it until we can do it for real...
-            self.generate_assignment_code(NoneNode(self.pos), code)
+            if not self.cf_is_null:
+                if self.cf_maybe_null:
+                    code.put_error_if_unbound(self.pos, self.entry)
+                code.put_decref(self.result(), self.ctype())
+                code.putln('%s = NULL;' % self.result())
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -4485,8 +4493,6 @@ class ScopedExprNode(ExprNode):
             generate_inner_evaluation_code(code)
             code.putln('} /* exit inner scope */')
             return
-        for entry in py_entries:
-            code.put_init_var_to_py_none(entry)
 
         # must free all local Python references at each exit point
         old_loop_labels = tuple(code.new_loop_labels())
@@ -4731,12 +4737,14 @@ class SetNode(ExprNode):
 class DictNode(ExprNode):
     #  Dictionary constructor.
     #
-    #  key_value_pairs  [DictItemNode]
+    #  key_value_pairs     [DictItemNode]
+    #  exclude_null_values [boolean]          Do not add NULL values to dict
     #
     # obj_conversion_errors    [PyrexError]   used internally
 
     subexprs = ['key_value_pairs']
     is_temp = 1
+    exclude_null_values = False
     type = dict_type
 
     obj_conversion_errors = []
@@ -4824,11 +4832,15 @@ class DictNode(ExprNode):
         for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
             if self.type.is_pyobject:
+                if self.exclude_null_values:
+                    code.putln('if (%s) {' % item.value.py_result())
                 code.put_error_if_neg(self.pos,
                     "PyDict_SetItem(%s, %s, %s)" % (
                         self.result(),
                         item.key.py_result(),
                         item.value.py_result()))
+                if self.exclude_null_values:
+                    code.putln('}')
             else:
                 code.putln("%s.%s = %s;" % (
                         self.result(),
@@ -8279,6 +8291,26 @@ static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
 }
 ''')
+
+raise_unbound_local_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);
+""",
+impl = """
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
+    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
+}
+""")
+
+raise_closure_name_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);
+""",
+impl = """
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
+}
+""")
 
 #------------------------------------------------------------------------------------
 
