@@ -118,8 +118,8 @@ def test_inner(cond):
 
 def test_class(cond):
     """
-    >>> test_class(True) #doctest: +ELLIPSIS
-    <class ...A at 0x...>
+    >>> test_class(True)
+    1
     >>> test_class(False)
     Traceback (most recent call last):
     ...
@@ -127,5 +127,5 @@ def test_class(cond):
     """
     if cond:
         class A:
-            pass
-    return A
+            x = 1
+    return A.x
