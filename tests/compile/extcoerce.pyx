@@ -10,8 +10,8 @@ cdef class Swallow:
 
 def f(Grail g):
     cdef int i = 0
-    cdef Swallow s
-    cdef object x
+    cdef Swallow s = Swallow()
+    cdef object x = Grail()
     g = x
     x = g
     g = i

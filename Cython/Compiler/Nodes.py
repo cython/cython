@@ -136,6 +136,9 @@ class Node(object):
     # can either contain a single node or a list of nodes. See Visitor.py.
     child_attrs = None
 
+    cf_state = None
+
+
     def __init__(self, pos, **kw):
         self.pos = pos
         self.__dict__.update(kw)
@@ -1177,6 +1180,8 @@ class FuncDefNode(StatNode, BlockNode):
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
+    # star_arg      PyArgDeclNode or None  * argument
+    # starstar_arg  PyArgDeclNode or None  ** argument
 
     py_func = None
     assmt = None
@@ -1185,6 +1190,8 @@ class FuncDefNode(StatNode, BlockNode):
     is_generator = False
     is_generator_body = False
     modifiers = []
+    star_arg = None
+    starstar_arg = None
 
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1409,10 +1416,6 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
-        # ----- Initialise local variables
-        for entry in lenv.var_entries:
-            if entry.type.is_pyobject and entry.init_to_none and entry.used:
-                code.put_init_var_to_py_none(entry)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
@@ -1940,8 +1943,6 @@ class DefNode(FuncDefNode):
     # lambda_name   string                 the internal name of a lambda 'function'
     # decorators    [DecoratorNode]        list of decorators
     # args          [CArgDeclNode]         formal arguments
-    # star_arg      PyArgDeclNode or None  * argument
-    # starstar_arg  PyArgDeclNode or None  ** argument
     # doc           EncodedString or None
     # body          StatListNode
     # return_type_annotation
@@ -1966,8 +1967,6 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
-    star_arg = None
-    starstar_arg = None
     doc = None
 
     def __init__(self, pos, **kwds):
@@ -2261,7 +2260,6 @@ class DefNode(FuncDefNode):
                 arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
                 if arg.type.is_pyobject:
                     arg.entry.init = "0"
-                arg.entry.init_to_none = 0
             else:
                 arg.entry = self.declare_argument(env, arg)
             arg.entry.used = 1
@@ -2282,7 +2280,6 @@ class DefNode(FuncDefNode):
             entry = env.declare_var(arg.name, type, arg.pos)
             entry.used = 1
             entry.init = "0"
-            entry.init_to_none = 0
             entry.xdecref_cleanup = 1
             arg.entry = entry
             env.control_flow.set_state((), (arg.name, 'initialized'), True)

@@ -1187,6 +1187,8 @@ class CCodeWriter(object):
                 entry.cname, dll_linkage = dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
+        elif entry.type.is_pyobject:
+            self.put(" = NULL");
         self.putln(";")
 
     def put_temp_declarations(self, func_context):
@@ -1290,10 +1292,7 @@ class CCodeWriter(object):
 
     def put_var_decref(self, entry):
         if entry.type.is_pyobject:
-            if entry.init_to_none is False:  # FIXME: 0 and False are treated differently???
-                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
-            else:
-                self.putln("__Pyx_DECREF(%s);" % self.entry_as_pyobject(entry))
+            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_var_decref_clear(self, entry):
         if entry.type.is_pyobject:
@@ -1419,6 +1418,19 @@ class CCodeWriter(object):
     def put_error_if_neg(self, pos, value):
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
+
+    def put_error_if_unbound(self, pos, entry):
+        import ExprNodes
+        if entry.from_closure:
+            func = '__Pyx_RaiseClosureNameError'
+            self.globalstate.use_utility_code(
+                ExprNodes.raise_closure_name_error_utility_code)
+        else:
+            func = '__Pyx_RaiseUnboundLocalError'
+            self.globalstate.use_utility_code(
+                ExprNodes.raise_unbound_local_error_utility_code)
+        self.put('if (unlikely(!%s)) { %s("%s"); %s }' % (
+            entry.cname, func, entry.name, self.error_goto(pos)))
 
     def set_error_info(self, pos):
         self.funcstate.should_declare_error_indicator = True

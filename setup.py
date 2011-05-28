@@ -101,6 +101,9 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         "Cython.Compiler.Visitor",
                         "Cython.Compiler.Code",
                         "Cython.Runtime.refnanny",]
+    if sys.version_info[:2] > (2,4):
+        compiled_modules += [
+            "Cython.Compiler.FlowControl",]
     if compile_more:
         compiled_modules.extend([
             "Cython.Compiler.ParseTreeTransforms",
