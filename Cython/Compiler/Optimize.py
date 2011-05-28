@@ -3295,10 +3295,6 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         if node.first:
             lhs = node.lhs
             lhs.lhs_of_first_assignment = True
-            if isinstance(lhs, ExprNodes.NameNode) and lhs.entry.type.is_pyobject:
-                # Have variable initialized to 0 rather than None
-                lhs.entry.init_to_none = False
-                lhs.entry.init = 0
         return node
 
     def visit_SimpleCallNode(self, node):
