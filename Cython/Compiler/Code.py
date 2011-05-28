@@ -1420,16 +1420,17 @@ class CCodeWriter(object):
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry):
-        self.put('if (unlikely(!%s)) { PyErr_SetString(' % entry.cname)
+        import ExprNodes
         if entry.from_closure:
-            self.put('PyExc_NameError, "')
-            self.put("free variable '%s' referenced before assignment in enclosing scope" %
-                     entry.name)
+            func = '__Pyx_RaiseClosureNameError'
+            self.globalstate.use_utility_code(
+                ExprNodes.raise_closure_name_error_utility_code)
         else:
-            self.put('PyExc_UnboundLocalError, "')
-            self.put("local variable '%s' referenced before assignment" %
-                     entry.name)
-        self.putln('"); %s }' % self.error_goto(pos))
+            func = '__Pyx_RaiseUnboundLocalError'
+            self.globalstate.use_utility_code(
+                ExprNodes.raise_unbound_local_error_utility_code)
+        self.put('if (unlikely(!%s)) { %s("%s"); %s }' % (
+            entry.cname, func, entry.name, self.error_goto(pos)))
 
     def set_error_info(self, pos):
         self.funcstate.should_declare_error_indicator = True
