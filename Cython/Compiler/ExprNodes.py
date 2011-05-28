@@ -8280,6 +8280,26 @@ static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
 }
 ''')
 
+raise_unbound_local_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);
+""",
+impl = """
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
+    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
+}
+""")
+
+raise_closure_name_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);
+""",
+impl = """
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
+}
+""")
+
 #------------------------------------------------------------------------------------
 
 getitem_dict_utility_code = UtilityCode(
