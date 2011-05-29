@@ -49,12 +49,6 @@ convert_range = True
 # If this is 0 it simply creates a wrapper.
 lookup_module_cpdef = False
 
-# This will set local variables to None rather than NULL which may cause
-# surpress what would be an UnboundLocalError in pure Python but eliminates
-# checking for NULL on every use, and can decref rather than xdecref at the end.
-# WARNING: This is a work in progress, may currently segfault.
-init_local_none = True
-
 # Whether or not to embed the Python interpreter, for use in making a
 # standalone executable or calling from external libraries.
 # This will provide a method which initalizes the interpreter and

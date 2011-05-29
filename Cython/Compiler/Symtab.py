@@ -1386,7 +1386,7 @@ class LocalScope(Scope):
         entry = Scope.declare_var(self, name, type, pos,
                                   cname=cname, visibility=visibility,
                                   api=api, in_pxd=in_pxd, is_cdef=is_cdef)
-        if type.is_pyobject and not Options.init_local_none:
+        if type.is_pyobject:
             entry.init = "0"
         entry.is_local = 1
 
