@@ -31,6 +31,10 @@ def used(x, y):
     y[0] = 1
     lambda x: x
 
+def unused_and_unassigned():
+    cdef object foo
+    cdef int i
+
 _ERRORS = """
 6:6: Unused entry 'a'
 9:9: Unused entry 'b'
@@ -38,4 +42,6 @@ _ERRORS = """
 16:6: Unused result in 'r'
 21:4: Unused entry 'unused_one'
 25:4: Unused entry 'Unused'
+35:16: Unused entry 'foo'
+36:13: Unused entry 'i'
 """
