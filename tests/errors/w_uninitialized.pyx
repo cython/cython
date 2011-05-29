@@ -62,6 +62,18 @@ def from_import():
     print bar
     from foo import bar
 
+def regular_import():
+    print foo
+    import foo
+
+def raise_stat():
+    try:
+        raise exc, msg
+    except:
+        pass
+    exc = ValueError
+    msg = 'dummy'
+
 _ERRORS = """
 6:11: local variable 'a' referenced before assignment
 12:12: local variable 'a' might be referenced before assignment
@@ -70,4 +82,7 @@ _ERRORS = """
 58:11: local variable 'a' referenced before assignment
 58:14: local variable 'b' referenced before assignment
 62:13: local variable 'bar' referenced before assignment
+66:13: local variable 'foo' referenced before assignment
+71:17: local variable 'exc' referenced before assignment
+71:22: local variable 'msg' referenced before assignment
 """
