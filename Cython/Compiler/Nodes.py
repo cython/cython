@@ -173,19 +173,15 @@ class Node(object):
 
 
     #
-    #  There are 4 phases of parse tree processing, applied in order to
+    #  There are 3 phases of parse tree processing, applied in order to
     #  all the statements in a given scope-block:
     #
-    #  (0) analyse_control_flow
-    #        Create the control flow tree into which state can be asserted and
-    #        queried.
-    #
-    #  (1) analyse_declarations
+    #  (0) analyse_declarations
     #        Make symbol table entries for all declarations at the current
     #        level, both explicit (def, cdef, etc.) and implicit (assignment
     #        to an otherwise undeclared name).
     #
-    #  (2) analyse_expressions
+    #  (1) analyse_expressions
     #         Determine the result types of expressions and fill in the
     #         'type' attribute of each ExprNode. Insert coercion nodes into the
     #         tree where needed to convert to and from Python objects.
@@ -193,14 +189,11 @@ class Node(object):
     #         in the 'result_code' attribute of each ExprNode with a C code
     #         fragment.
     #
-    #  (3) generate_code
+    #  (2) generate_code
     #         Emit C code for all declarations, statements and expressions.
     #         Recursively applies the 3 processing phases to the bodies of
     #         functions.
     #
-
-    def analyse_control_flow(self, env):
-        pass
 
     def analyse_declarations(self, env):
         pass
@@ -277,12 +270,6 @@ class CompilerDirectivesNode(Node):
     #  body           Node
     child_attrs = ["body"]
 
-    def analyse_control_flow(self, env):
-        old = env.directives
-        env.directives = self.directives
-        self.body.analyse_control_flow(env)
-        env.directives = old
-
     def analyse_declarations(self, env):
         old = env.directives
         env.directives = self.directives
@@ -337,10 +324,6 @@ class StatListNode(Node):
         node = StatListNode(pos, *args, **kw)
         return node # No node-specific analysis necesarry
     create_analysed = staticmethod(create_analysed)
-
-    def analyse_control_flow(self, env):
-        for stat in self.stats:
-            stat.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
         #print "StatListNode.analyse_declarations" ###
@@ -4341,12 +4324,6 @@ class IfStatNode(StatNode):
 
     child_attrs = ["if_clauses", "else_clause"]
 
-    def analyse_control_flow(self, env):
-        for if_clause in self.if_clauses:
-            if_clause.analyse_control_flow(env)
-        if self.else_clause:
-            self.else_clause.analyse_control_flow(env)
-
     def analyse_declarations(self, env):
         for if_clause in self.if_clauses:
             if_clause.analyse_declarations(env)
@@ -4390,9 +4367,6 @@ class IfClauseNode(Node):
     #  body        StatNode
 
     child_attrs = ["condition", "body"]
-
-    def analyse_control_flow(self, env):
-        self.body.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -4489,11 +4463,7 @@ class SwitchStatNode(StatNode):
             self.else_clause.annotate(code)
 
 class LoopNode(object):
-
-    def analyse_control_flow(self, env):
-        self.body.analyse_control_flow(env)
-        if self.else_clause:
-            self.else_clause.analyse_control_flow(env)
+    pass
 
 
 class WhileStatNode(LoopNode, StatNode):
@@ -5032,16 +5002,6 @@ class TryExceptStatNode(StatNode):
 
     child_attrs = ["body", "except_clauses", "else_clause"]
 
-    def analyse_control_flow(self, env):
-        self.body.analyse_control_flow(env)
-
-        for except_clause in self.except_clauses:
-            except_clause.analyse_control_flow(env)
-
-        # the else cause it executed only when the try clause finishes
-        if self.else_clause:
-            self.else_clause.analyse_control_flow(env)
-
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
         for except_clause in self.except_clauses:
@@ -5361,10 +5321,6 @@ class TryFinallyStatNode(StatNode):
         node = TryFinallyStatNode(pos, body=body, finally_clause=finally_clause)
         return node
     create_analysed = staticmethod(create_analysed)
-
-    def analyse_control_flow(self, env):
-        self.body.analyse_control_flow(env)
-        self.finally_clause.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)

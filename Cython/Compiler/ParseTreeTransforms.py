@@ -1354,7 +1354,6 @@ if VALUE is not None:
     def visit_FuncDefNode(self, node):
         self.seen_vars_stack.append(cython.set())
         lenv = node.local_scope
-        node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
         for var, type_node in node.directive_locals.items():
             if not lenv.lookup_here(var):   # don't redeclare args
