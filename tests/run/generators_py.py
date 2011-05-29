@@ -305,19 +305,6 @@ def test_nested_yield():
     """
     yield (yield (yield 1))
 
-def test_inside_lambda():
-    """
-    >>> obj = test_inside_lambda()()
-    >>> next(obj)
-    1
-    >>> next(obj)
-    2
-    >>> next(obj)
-    Traceback (most recent call last):
-    StopIteration
-    """
-    return lambda:((yield 1), (yield 2))
-
 def test_nested_gen(n):
     """
     >>> [list(a) for a in test_nested_gen(5)]
