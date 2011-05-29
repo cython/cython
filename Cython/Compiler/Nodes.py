@@ -1506,10 +1506,6 @@ class FuncDefNode(StatNode, BlockNode):
             self.getbuffer_normal_cleanup(code)
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
-        if not Options.init_local_none:
-            for entry in lenv.var_entries:
-                if lenv.control_flow.get_state((entry.name, 'initialized')) is not True:
-                    entry.xdecref_cleanup = 1
 
         for entry in lenv.var_entries:
             if entry.type.is_pyobject:
