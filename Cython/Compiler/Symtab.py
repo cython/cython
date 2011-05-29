@@ -13,7 +13,6 @@ import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
-import ControlFlow
 import Code
 import __builtin__ as builtins
 try:
@@ -224,7 +223,6 @@ class Scope(object):
     # qualified_name    string             "modname" or "modname.classname"
     # pystring_entries  [Entry]            String const entries newly used as
     #                                        Python strings in this scope
-    # control_flow     ControlFlow  Used for keeping track of environment state
     # nogil             boolean            In a nogil section
     # directives       dict                Helper variable for the recursive
     #                                      analysis, contains directive values.
@@ -276,18 +274,8 @@ class Scope(object):
         self.pystring_entries = []
         self.buffer_entries = []
         self.lambda_defs = []
-        self.control_flow = ControlFlow.LinearControlFlow()
         self.return_type = None
         self.id_counters = {}
-
-    def start_branching(self, pos):
-        self.control_flow = self.control_flow.start_branch(pos)
-
-    def next_branch(self, pos):
-        self.control_flow = self.control_flow.next_branch(pos)
-
-    def finish_branching(self, pos):
-        self.control_flow = self.control_flow.finish_branch(pos)
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
@@ -528,7 +516,6 @@ class Scope(object):
         if api:
             entry.api = 1
             entry.used = 1
-        self.control_flow.set_state((), (name, 'initialized'), False)
         return entry
 
     def declare_builtin(self, name, pos):
@@ -1374,7 +1361,6 @@ class LocalScope(Scope):
         entry.is_arg = 1
         #entry.borrowed = 1 # Not using borrowed arg refs for now
         self.arg_entries.append(entry)
-        self.control_flow.set_state((), (name, 'source'), 'arg')
         return entry
 
     def declare_var(self, name, type, pos,
