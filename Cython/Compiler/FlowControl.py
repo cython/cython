@@ -576,6 +576,11 @@ class CreateControlFlowGraph(CythonTransform):
         self.stack.append(self.flow)
         self.flow = ControlFlow()
 
+        # Collect all entries
+        for entry in node.local_scope.entries.values():
+            if self.flow.is_tracked(entry):
+                self.flow.entries.add(entry)
+
         self.mark_position(node)
         # Function body block
         self.flow.nextblock()
@@ -948,6 +953,7 @@ class CreateControlFlowGraph(CythonTransform):
 
     def visit_RaiseStatNode(self, node):
         self.mark_position(node)
+        self.visitchildren(node)
         if self.flow.exceptions:
             self.flow.block.add_child(self.flow.exceptions[-1].entry_point)
         self.flow.block = None
