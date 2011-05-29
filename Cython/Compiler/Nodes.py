@@ -25,7 +25,6 @@ from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode, ClosureTempAllocator
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
-import ControlFlow
 import DebugFlags
 
 absolute_path_length = 0
@@ -2249,9 +2248,6 @@ class DefNode(FuncDefNode):
         for arg in self.args:
             if not arg.name:
                 error(arg.pos, "Missing argument name")
-            else:
-                env.control_flow.set_state((), (arg.name, 'source'), 'arg')
-                env.control_flow.set_state((), (arg.name, 'initialized'), True)
             if arg.needs_conversion:
                 arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
                 if arg.type.is_pyobject:
@@ -2278,7 +2274,6 @@ class DefNode(FuncDefNode):
             entry.init = "0"
             entry.xdecref_cleanup = 1
             arg.entry = entry
-            env.control_flow.set_state((), (arg.name, 'initialized'), True)
 
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
@@ -4347,13 +4342,10 @@ class IfStatNode(StatNode):
     child_attrs = ["if_clauses", "else_clause"]
 
     def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
         for if_clause in self.if_clauses:
             if_clause.analyse_control_flow(env)
-            env.next_branch(if_clause.end_pos())
         if self.else_clause:
             self.else_clause.analyse_control_flow(env)
-        env.finish_branching(self.end_pos())
 
     def analyse_declarations(self, env):
         for if_clause in self.if_clauses:
@@ -4499,12 +4491,9 @@ class SwitchStatNode(StatNode):
 class LoopNode(object):
 
     def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
         self.body.analyse_control_flow(env)
-        env.next_branch(self.body.end_pos())
         if self.else_clause:
             self.else_clause.analyse_control_flow(env)
-        env.finish_branching(self.end_pos())
 
 
 class WhileStatNode(LoopNode, StatNode):
@@ -5044,22 +5033,14 @@ class TryExceptStatNode(StatNode):
     child_attrs = ["body", "except_clauses", "else_clause"]
 
     def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
         self.body.analyse_control_flow(env)
-        successful_try = env.control_flow # grab this for later
-        env.next_branch(self.body.end_pos())
-        env.finish_branching(self.body.end_pos())
 
-        env.start_branching(self.except_clauses[0].pos)
         for except_clause in self.except_clauses:
             except_clause.analyse_control_flow(env)
-            env.next_branch(except_clause.end_pos())
 
         # the else cause it executed only when the try clause finishes
-        env.control_flow.incoming = successful_try
         if self.else_clause:
             self.else_clause.analyse_control_flow(env)
-        env.finish_branching(self.end_pos())
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -5382,10 +5363,7 @@ class TryFinallyStatNode(StatNode):
     create_analysed = staticmethod(create_analysed)
 
     def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
         self.body.analyse_control_flow(env)
-        env.next_branch(self.body.end_pos())
-        env.finish_branching(self.body.end_pos())
         self.finally_clause.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
