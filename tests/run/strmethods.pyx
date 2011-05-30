@@ -6,7 +6,11 @@ def str_startswith(str s, sub, start=None, stop=None):
     """
     >>> str_startswith('a', 'a')
     True
+    >>> str_startswith('ab', 'a')
+    True
     >>> str_startswith('a', 'b')
+    False
+    >>> str_startswith('ab', 'b')
     False
     >>> str_startswith('a', ('a', 'b'))
     True
@@ -29,7 +33,11 @@ def str_endswith(str s, sub, start=None, stop=None):
     """
     >>> str_endswith('a', 'a')
     True
+    >>> str_endswith('ba', 'a')
+    True
     >>> str_endswith('a', 'b')
+    False
+    >>> str_endswith('ba', 'b')
     False
     >>> str_endswith('a', ('a', 'b'))
     True
