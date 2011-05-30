@@ -1,18 +1,25 @@
 cimport cython
 
+b_a = b'a'
+b_b = b'b'
+
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
 def bytes_startswith(bytes s, sub, start=None, stop=None):
     """
-    >>> bytes_startswith(b'a', b'a')
+    >>> bytes_startswith(b_a, b_a)
     True
-    >>> bytes_startswith(b'a', b'b')
-    False
-    >>> bytes_startswith(b'a', (b'a', b'b'))
+    >>> bytes_startswith(b_a+b_b, b_a)
     True
-    >>> bytes_startswith(b'a', b'a', 1)
+    >>> bytes_startswith(b_a, b_b)
     False
-    >>> bytes_startswith(b'a', b'a', 0, 0)
+    >>> bytes_startswith(b_a+b_b, b_b)
+    False
+    >>> bytes_startswith(b_a, (b_a, b_b))
+    True
+    >>> bytes_startswith(b_a, b_a, 1)
+    False
+    >>> bytes_startswith(b_a, b_a, 0, 0)
     False
     """
 
@@ -27,15 +34,19 @@ def bytes_startswith(bytes s, sub, start=None, stop=None):
     "//PythonCapiCallNode")
 def bytes_endswith(bytes s, sub, start=None, stop=None):
     """
-    >>> bytes_endswith(b'a', b'a')
+    >>> bytes_endswith(b_a, b_a)
     True
-    >>> bytes_endswith(b'a', b'b')
-    False
-    >>> bytes_endswith(b'a', (b'a', b'b'))
+    >>> bytes_endswith(b_b+b_a, b_a)
     True
-    >>> bytes_endswith(b'a', b'a', 1)
+    >>> bytes_endswith(b_a, b_b)
     False
-    >>> bytes_endswith(b'a', b'a', 0, 0)
+    >>> bytes_endswith(b_b+b_a, b_b)
+    False
+    >>> bytes_endswith(b_a, (b_a, b_b))
+    True
+    >>> bytes_endswith(b_a, b_a, 1)
+    False
+    >>> bytes_endswith(b_a, b_a, 0, 0)
     False
     """
 
