@@ -2424,20 +2424,22 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = '-1')
 
     def _handle_simple_method_unicode_endswith(self, node, args, is_unbound_method):
-        return self._inject_unicode_tailmatch(
-            node, args, is_unbound_method, 'endswith', +1)
+        return self._inject_tailmatch(
+            node, args, is_unbound_method, 'unicode', 'endswith', 
+            self.PyUnicode_Tailmatch_func_type, unicode_tailmatch_utility_code, +1)
 
     def _handle_simple_method_unicode_startswith(self, node, args, is_unbound_method):
-        return self._inject_unicode_tailmatch(
-            node, args, is_unbound_method, 'startswith', -1)
+        return self._inject_tailmatch(
+            node, args, is_unbound_method, 'unicode', 'startswith', 
+            self.PyUnicode_Tailmatch_func_type, unicode_tailmatch_utility_code, -1)
 
-    def _inject_unicode_tailmatch(self, node, args, is_unbound_method,
-                                  method_name, direction):
+    def _inject_tailmatch(self, node, args, is_unbound_method, type_name, 
+                          method_name, func_type, utility_code, direction):
         """Replace unicode.startswith(...) and unicode.endswith(...)
         by a direct call to the corresponding C-API function.
         """
         if len(args) not in (2,3,4):
-            self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
+            self._error_wrong_arg_count('%s.%s' % (type_name, method_name), node, args, "2-4")
             return node
         self._inject_int_default_argument(
             node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
@@ -2447,9 +2449,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             node.pos, value=str(direction), type=PyrexTypes.c_int_type))
 
         method_call = self._substitute_method_call(
-            node, "__Pyx_PyUnicode_Tailmatch", self.PyUnicode_Tailmatch_func_type,
+            node, "__Pyx_Py%s_Tailmatch" % type_name.capitalize(), func_type,
             method_name, is_unbound_method, args,
-            utility_code = unicode_tailmatch_utility_code)
+            utility_code = utility_code)
         return method_call.coerce_to(Builtin.bool_type, self.current_env())
 
     PyUnicode_Find_func_type = PyrexTypes.CFuncType(
@@ -2777,7 +2779,47 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
         return (encoding, encoding_node, error_handling, error_handling_node)
 
+    PyStr_Tailmatch_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.str_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
+            ],
+        exception_value = '-1')
 
+    def _handle_simple_method_str_endswith(self, node, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, args, is_unbound_method, 'str', 'endswith', 
+            self.PyStr_Tailmatch_func_type, str_tailmatch_utility_code, +1)
+
+    def _handle_simple_method_str_startswith(self, node, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, args, is_unbound_method, 'str', 'startswith',
+            self.PyStr_Tailmatch_func_type, str_tailmatch_utility_code,-1)
+
+    PyBytes_Tailmatch_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.bytes_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
+            ],
+        exception_value = '-1')
+
+    def _handle_simple_method_bytes_endswith(self, node, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, args, is_unbound_method, 'bytes', 'endswith', 
+            self.PyBytes_Tailmatch_func_type, bytes_tailmatch_utility_code, +1)
+
+    def _handle_simple_method_bytes_startswith(self, node, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, args, is_unbound_method, 'bytes', 'startswith',
+            self.PyBytes_Tailmatch_func_type, bytes_tailmatch_utility_code,-1)
+    
+    
     ### helpers
 
     def _substitute_method_call(self, node, name, func_type,
@@ -2869,6 +2911,129 @@ static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
     return PyUnicode_Tailmatch(s, substr, start, end, direction);
 }
 ''',
+)
+
+bytes_tailmatch_utility_code = UtilityCode(
+proto="""
+static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
+                                   Py_ssize_t end, int direction);
+""",
+impl = """
+static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
+                                         Py_ssize_t end, int direction)
+{
+    const char* self_ptr = PyBytes_AS_STRING(self);
+    Py_ssize_t self_len = PyBytes_GET_SIZE(self);
+    const char* sub_ptr;
+    Py_ssize_t sub_len;
+    int retval;
+    
+#if PY_VERSION_HEX >= 0x02060000
+    PyBufferProcs *pb = NULL;
+    Py_buffer view;
+  
+    view.obj = NULL;
+#endif
+    
+    if ( PyBytes_Check(arg) ) {
+        sub_ptr = PyBytes_AS_STRING(arg);
+        sub_len = PyBytes_GET_SIZE(arg);
+    }
+#if PY_MAJOR_VERSION < 3
+    // Python 2.x allows mixing unicode and str
+    else if ( PyUnicode_Check(arg) ) {
+        return PyUnicode_Tailmatch(self, arg, start, end, direction);
+    }
+#endif
+    else {
+#if PY_VERSION_HEX < 0x02060000
+        if (PyObject_AsCharBuffer(arg, &sub_ptr, &sub_len))
+            return -1;
+#else
+        pb = Py_TYPE(self)->tp_as_buffer;
+        if (pb == NULL || pb->bf_getbuffer == NULL) {
+            PyErr_SetString(PyExc_TypeError,
+                            "expected an object with the buffer interface");
+            return -1;
+        }
+        if ((*pb->bf_getbuffer)(self, &view, PyBUF_SIMPLE)) {
+            return -1;
+        }
+        
+        sub_ptr = (const char*) view.buf;
+        sub_len = view.len;
+#endif
+    }
+  
+    if (end > self_len)
+        end = self_len;
+    else if (end < 0)
+        end += self_len;
+    if (end < 0)
+        end = 0;
+    if (start < 0)
+        start += self_len;
+    if (start < 0)
+        start = 0;
+
+    if (direction > 0) {
+        /* endswith */
+        if (end-sub_len > start)
+            start = end - sub_len;
+    }
+        
+    if (start + sub_len <= end)
+        retval = !memcmp(self_ptr+start, sub_ptr, sub_len);
+    else
+        retval = 0;
+
+#if PY_VERSION_HEX >= 0x02060000
+    if (pb != NULL && pb->bf_releasebuffer != NULL)
+        (*pb->bf_releasebuffer)(self, &view);
+    Py_XDECREF(view.obj);
+#endif
+
+    return retval;
+}
+  
+static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t start,
+                                   Py_ssize_t end, int direction)
+{
+    if (unlikely(PyTuple_Check(substr))) {
+        int result;
+        Py_ssize_t i;
+        for (i = 0; i < PyTuple_GET_SIZE(substr); i++) {
+            result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
+                                                   start, end, direction);
+            if (result) {
+                return result;
+            }
+        }
+        return 0;
+    }
+  
+    return __Pyx_PyBytes_SingleTailmatch(self, substr, start, end, direction);
+}
+
+""")
+
+str_tailmatch_utility_code = UtilityCode(
+proto = '''
+static int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
+                                 Py_ssize_t end, int direction);
+''',
+impl = '''
+static int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
+                                 Py_ssize_t end, int direction)
+{
+#if PY_MAJOR_VERSION < 3
+    return __Pyx_PyBytes_Tailmatch(self, arg, start, end, direction);
+#else
+    return __Pyx_PyUnicode_Tailmatch(self, arg, start, end, direction);
+#endif
+}
+''',
+requires=[unicode_tailmatch_utility_code, bytes_tailmatch_utility_code]
 )
 
 dict_getitem_default_utility_code = UtilityCode(
