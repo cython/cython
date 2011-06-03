@@ -442,6 +442,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [ (name, getattr(Options, name))
                                 for name in ('warning_errors', 'error_on_unknown_names') ]
+        self._saved_default_directives = Options.directive_defaults.items()
         Options.warning_errors = self.warning_errors
 
         if self.workdir not in sys.path:
@@ -451,6 +452,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
+        Options.directive_defaults = dict(self._saved_default_directives)
 
         try:
             sys.path.remove(self.workdir)
@@ -858,6 +860,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         CythonRunTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
+        Options.directive_defaults['binding'] = True
 
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
