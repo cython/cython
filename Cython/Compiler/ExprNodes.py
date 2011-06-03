@@ -5184,7 +5184,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     def generate_result_code(self, code):
         if self.binding:
-            constructor = "%s_NewEx" % Naming.binding_cfunc
+            constructor = "__Pyx_CyFunction_NewEx"
         else:
             constructor = "PyCFunction_NewEx"
         py_mod_name = self.get_py_mod_name(code)
@@ -8723,24 +8723,108 @@ proto="""
 
 binding_cfunc_utility_code = UtilityCode(
 proto="""
-#define %(binding_cfunc)s_USED 1
+#define __Pyx_CyFunction_USED 1
+#include <structmember.h>
 
 typedef struct {
     PyCFunctionObject func;
-} %(binding_cfunc)s_object;
+    PyObject *func_dict;
+} __pyx_CyFunctionObject;
 
-static PyTypeObject %(binding_cfunc)s_type;
-static PyTypeObject *%(binding_cfunc)s = NULL;
+static PyTypeObject *__pyx_CyFunctionType = 0;
 
-static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module); /* proto */
-#define %(binding_cfunc)s_New(ml, self) %(binding_cfunc)s_NewEx(ml, self, NULL)
+static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module);
+#define __Pyx_CyFunction_New(ml, self) __Pyx_CyFunction_NewEx(ml, self, NULL)
 
-static int %(binding_cfunc)s_init(void); /* proto */
+static int __Pyx_CyFunction_init(void);
 """ % Naming.__dict__,
 impl="""
+//static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m);
+//static PyObject *__Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg);
+//static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObject *type);
 
-static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
-    %(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object, %(binding_cfunc)s);
+static PyObject *
+__Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *m, void *closure)
+{
+    const char *doc = m->func.m_ml->ml_doc;
+
+    if (doc != NULL)
+#if PY_MAJOR_VERSION >= 3
+        return PyUnicode_FromString(doc);
+#else
+        return PyString_FromString(doc);
+#endif
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_name(__pyx_CyFunctionObject *m, void *closure)
+{
+#if PY_MAJOR_VERSION >= 3
+    return PyUnicode_FromString(m->func.m_ml->ml_name);
+#else
+    return PyString_FromString(m->func.m_ml->ml_name);
+#endif
+}
+
+static PyObject *
+__Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, void *closure)
+{
+    PyObject *self;
+
+    self = m->func.m_self;
+    if (self == NULL)
+        self = Py_None;
+    Py_INCREF(self);
+    return self;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op)
+{
+    if (op->func_dict == NULL) {
+        op->func_dict = PyDict_New();
+        if (op->func_dict == NULL)
+            return NULL;
+    }
+    Py_INCREF(op->func_dict);
+    return op->func_dict;
+}
+
+static int
+__Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
+{
+    PyObject *tmp;
+
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError,
+               "function's dictionary may not be deleted");
+        return -1;
+    }
+    if (!PyDict_Check(value)) {
+        PyErr_SetString(PyExc_TypeError,
+               "setting function's dictionary to a non-dict");
+        return -1;
+    }
+    tmp = op->func_dict;
+    Py_INCREF(value);
+    op->func_dict = value;
+    Py_XDECREF(tmp);
+    return 0;
+}
+
+static PyGetSetDef __pyx_CyFunction_getsets[] = {
+    {"__doc__",  (getter)__Pyx_CyFunction_get_doc,  0, 0, 0},
+    {"__name__", (getter)__Pyx_CyFunction_get_name, 0, 0, 0},
+    {"__self__", (getter)__Pyx_CyFunction_get_self, 0, 0, 0},
+    {"__dict__", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
+    {0, 0, 0, 0, 0}
+};
+
+
+static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
+    __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType);
     if (op == NULL)
         return NULL;
     op->func.m_ml = ml;
@@ -8748,36 +8832,100 @@ static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObje
     op->func.m_self = self;
     Py_XINCREF(module);
     op->func.m_module = module;
+    op->func_dict = NULL;
     PyObject_GC_Track(op);
     return (PyObject *)op;
 }
 
-static void %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m) {
+static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
+{
     PyObject_GC_UnTrack(m);
     Py_XDECREF(m->func.m_self);
     Py_XDECREF(m->func.m_module);
+    Py_XDECREF(m->func_dict);
     PyObject_GC_Del(m);
 }
 
-static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyObject *type) {
+static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg)
+{
+    Py_VISIT(m->func.m_self);
+    Py_VISIT(m->func.m_module);
+    Py_VISIT(m->func_dict);
+    return 0;
+}
+
+static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObject *type)
+{
     if (obj == Py_None)
-            obj = NULL;
+        obj = NULL;
     return PyMethod_New(func, obj, type);
 }
 
-static int %(binding_cfunc)s_init(void) {
-    %(binding_cfunc)s_type = PyCFunction_Type;
-    %(binding_cfunc)s_type.tp_name = __Pyx_NAMESTR("cython_binding_builtin_function_or_method");
-    %(binding_cfunc)s_type.tp_dealloc = (destructor)%(binding_cfunc)s_dealloc;
-    %(binding_cfunc)s_type.tp_descr_get = %(binding_cfunc)s_descr_get;
-    if (PyType_Ready(&%(binding_cfunc)s_type) < 0) {
-        return -1;
-    }
-    %(binding_cfunc)s = &%(binding_cfunc)s_type;
-    return 0;
+static PyTypeObject __pyx_CyFunctionType_type = {
+    PyVarObject_HEAD_INIT(0, 0)
+    __Pyx_NAMESTR("cython_function_or_method"), /*tp_name*/
+    sizeof(__pyx_CyFunctionObject),   /*tp_basicsize*/
+    0,                                  /*tp_itemsize*/
+    (destructor) __Pyx_CyFunction_dealloc, /*tp_dealloc*/
+    0,                                  /*tp_print*/
+    0,                                  /*tp_getattr*/
+    0,                                  /*tp_setattr*/
+#if PY_MAJOR_VERSION < 3
+    0,                                  /*tp_compare*/
+#else
+    0,                                  /*reserved*/
+#endif
+    0,                                  /*tp_repr*/
+    0,                                  /*tp_as_number*/
+    0,                                  /*tp_as_sequence*/
+    0,                                  /*tp_as_mapping*/
+    0,                                  /*tp_hash*/
+    PyCFunction_Call,                   /*tp_call*/
+    0,                                  /*tp_str*/
+    0,                                  /*tp_getattro*/
+    0,                                  /*tp_setattro*/
+    0,                                  /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
+    0,                                  /*tp_doc*/
+    (traverseproc) __Pyx_CyFunction_traverse,   /*tp_traverse*/
+    0,                                  /*tp_clear*/
+    0,                                  /*tp_richcompare*/
+    0,                                  /*tp_weaklistoffset*/
+    0,                                  /*tp_iter*/
+    0,                                  /*tp_iternext*/
+    0,                                  /*tp_methods*/
+    0,                                  /*tp_members*/
+    __pyx_CyFunction_getsets,           /*tp_getset*/
+    &PyCFunction_Type,                  /*tp_base*/
+    0,                                  /*tp_dict*/
+    __Pyx_CyFunction_descr_get,         /*tp_descr_get*/
+    0,                                  /*tp_descr_set*/
+    offsetof(__pyx_CyFunctionObject, func_dict),/*tp_dictoffset*/
+    0,                                  /*tp_init*/
+    0,                                  /*tp_alloc*/
+    0,                                  /*tp_new*/
+    0,                                  /*tp_free*/
+    0,                                  /*tp_is_gc*/
+    0,                                  /*tp_bases*/
+    0,                                  /*tp_mro*/
+    0,                                  /*tp_cache*/
+    0,                                  /*tp_subclasses*/
+    0,                                  /*tp_weaklist*/
+    0,                                  /*tp_del*/
+#if PY_VERSION_HEX >= 0x02060000
+    0,                                  /*tp_version_tag*/
+#endif
+};
 
+
+static int __Pyx_CyFunction_init(void)
+{
+    if (PyType_Ready(&__pyx_CyFunctionType_type) < 0)
+        return -1;
+    __pyx_CyFunctionType = &__pyx_CyFunctionType_type;
+    return 0;
 }
-""" % Naming.__dict__)
+""")
 
 generator_utility_code = UtilityCode(
 proto="""

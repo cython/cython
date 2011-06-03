@@ -1988,8 +1988,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     else if (PyCFunction_Check(method)) {
         return PyClassMethod_New(method);
     }
-#ifdef __pyx_binding_PyCFunctionType_USED
-    else if (PyObject_TypeCheck(method, __pyx_binding_PyCFunctionType)) { /* binded CFunction */
+#ifdef __Pyx_CyFunction_USED
+    else if (PyObject_TypeCheck(method, __pyx_CyFunctionType)) {
         return PyClassMethod_New(method);
     }
 #endif
