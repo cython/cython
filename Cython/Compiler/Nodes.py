@@ -2294,6 +2294,8 @@ class DefNode(FuncDefNode):
         if env.is_py_class_scope:
             if not self.is_staticmethod and not self.is_classmethod:
                 rhs.binding = True
+            else:
+                rhs.binding = False
 
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
