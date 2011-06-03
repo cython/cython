@@ -25,3 +25,21 @@ class class4:
     @staticmethod
     def plus1(a):
         return a + 1
+
+def nested_class():
+    """
+    >>> cls = nested_class()
+    >>> cls.plus1(1)
+    2
+    >>> obj = cls()
+    >>> obj.plus1(1)
+    2
+    """
+    class class5(object):
+        def __new__(cls): # implicit staticmethod
+            return object.__new__(cls)
+
+        @staticmethod
+        def plus1(a):
+            return a + 1
+    return class5
