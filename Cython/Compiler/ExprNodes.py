@@ -8822,6 +8822,26 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
+static PyMemberDef __pyx_CyFunction_members[] = {
+    {"__module__", T_OBJECT, offsetof(__pyx_CyFunctionObject, func.m_module), PY_WRITE_RESTRICTED, 0},
+    {NULL, 0, 0,  0, 0}
+};
+
+static PyObject *
+__Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, CYTHON_UNUSED PyObject *args)
+{
+#if PY_MAJOR_VERSION >= 3
+    return PyUnicode_FromString(m->func.m_ml->ml_name);
+#else
+    return PyString_FromString(m->func.m_ml->ml_name);
+#endif
+}
+
+static PyMethodDef __pyx_CyFunction_methods[] = {
+    {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_VARARGS, 0},
+    {0, 0, 0, 0}
+};
+
 
 static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
     __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType);
@@ -8893,10 +8913,10 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
-    0,                                  /*tp_methods*/
-    0,                                  /*tp_members*/
+    __pyx_CyFunction_methods,           /*tp_methods*/
+    __pyx_CyFunction_members,           /*tp_members*/
     __pyx_CyFunction_getsets,           /*tp_getset*/
-    &PyCFunction_Type,                  /*tp_base*/
+    0,                                  /*tp_base*/
     0,                                  /*tp_dict*/
     __Pyx_CyFunction_descr_get,         /*tp_descr_get*/
     0,                                  /*tp_descr_set*/
