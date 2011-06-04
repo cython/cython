@@ -8822,6 +8822,10 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
+#ifndef PY_WRITE_RESTRICTED /* < Py2.5 */
+#define PY_WRITE_RESTRICTED WRITE_RESTRICTED
+#endif
+
 static PyMemberDef __pyx_CyFunction_members[] = {
     {"__module__", T_OBJECT, offsetof(__pyx_CyFunctionObject, func.m_module), PY_WRITE_RESTRICTED, 0},
     {NULL, 0, 0,  0, 0}
