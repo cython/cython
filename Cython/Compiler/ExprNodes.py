@@ -6927,7 +6927,9 @@ class CmpNode(object):
 
 contains_utility_code = UtilityCode(
 proto="""
-static CYTHON_INLINE long __Pyx_NegateNonNeg(long b) { return unlikely(b < 0) ? b : !b; }
+static CYTHON_INLINE int __Pyx_NegateNonNeg(int b) { 
+    return unlikely(b < 0) ? b : !b; 
+}
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
 }
@@ -7052,7 +7054,7 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
             else
                 return (PyBytes_AS_STRING(s1)[0] != PyBytes_AS_STRING(s2)[0]);
         } else {
-            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), PyBytes_GET_SIZE(s1));
+            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), (size_t)PyBytes_GET_SIZE(s1));
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
     } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
