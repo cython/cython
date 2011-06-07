@@ -761,9 +761,9 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
                                 "can't convert negative value to %(type)s");
                 return (%(type)s)-1;
             }
-            return PyLong_AsUnsigned%(TypeName)s(x);
+            return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
         } else {
-            return PyLong_As%(TypeName)s(x);
+            return (%(type)s)PyLong_As%(TypeName)s(x);
         }
     } else {
         %(type)s val;
