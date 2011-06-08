@@ -7,6 +7,7 @@ from Code import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
 import Naming
+import Options
 
 
 # C-level implementations of builtin types, functions and methods
@@ -413,8 +414,6 @@ builtin_function_table = [
                     utility_code = getattr3_utility_code),
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
                     utility_code = getattr3_utility_code), # Pyrex compatibility
-    BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
-                    utility_code = globals_utility_code),
     BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
@@ -461,6 +460,11 @@ builtin_function_table = [
     # Put in namespace append optimization.
     BuiltinFunction('__Pyx_PyObject_Append', "OO",  "O",     "__Pyx_PyObject_Append"),
 ]
+
+if not Options.old_style_globals:
+    builtin_function_table.append(
+        BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
+                        utility_code = globals_utility_code))
 
 # Builtin types
 #  bool

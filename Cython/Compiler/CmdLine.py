@@ -137,6 +137,8 @@ def parse_command_line(args):
                 options.compiler_directives.update(Options.extra_warnings)
             elif option == "--disable-function-redefinition":
                 Options.disable_function_redefinition = True
+            elif option == "--old-style-globals":
+                Options.old_style_globals = True
             elif option == "--directive" or option.startswith('-X'):
                 if option.startswith('-X') and option[2:].strip():
                     x_args = option[2:]

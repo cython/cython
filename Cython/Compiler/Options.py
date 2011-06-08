@@ -59,6 +59,10 @@ embed = None
 # module creation time. For legacy code only, needed for some circular imports.
 disable_function_redefinition = False
 
+# In previous iterations of Cython, globals() gave the first non-Cython module
+# globals in the call stack.  Sage relies on this behavior for variable injection.
+old_style_globals = False
+
 
 # Declare compiler directives
 directive_defaults = {
