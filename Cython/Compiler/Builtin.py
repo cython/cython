@@ -76,25 +76,6 @@ bad:
 }
 """)
 
-hasattr_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
-""",
-impl = """
-static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
-    PyObject *v = PyObject_GetAttr(o, n);
-    if (v) {
-        Py_DECREF(v);
-        return 1;
-    }
-    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-        PyErr_Clear();
-        return 0;
-    }
-    return -1;
-}
-""")
-
 globals_utility_code = UtilityCode(
 # This is a stub implementation until we have something more complete.
 # Currently, we only handle the most common case of a read-only dict
@@ -434,8 +415,7 @@ builtin_function_table = [
                     utility_code = getattr3_utility_code), # Pyrex compatibility
     BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
                     utility_code = globals_utility_code),
-    BuiltinFunction('hasattr',    "OO",   "b",     "__Pyx_HasAttr",
-                    utility_code = hasattr_utility_code),
+    BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
