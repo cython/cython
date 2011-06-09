@@ -1,4 +1,4 @@
-cdef double f(double x): except? -2:
+cdef double f(double x) except? -2:
     return x**2-x
 
 def integrate_f(double a, double b, int N):
