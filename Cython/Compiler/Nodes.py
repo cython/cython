@@ -6365,17 +6365,17 @@ if Options.gcc_branch_hints:
     branch_prediction_macros = \
     """
 #ifdef __GNUC__
-/* Test for GCC > 2.95 */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#else /* __GNUC__ > 2 ... */
-#define likely(x)   (x)
-#define unlikely(x) (x)
-#endif /* __GNUC__ > 2 ... */
+  /* Test for GCC > 2.95 */
+  #if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
+    #define likely(x)   __builtin_expect(!!(x), 1)
+    #define unlikely(x) __builtin_expect(!!(x), 0)
+  #else /* __GNUC__ > 2 ... */
+    #define likely(x)   (x)
+    #define unlikely(x) (x)
+  #endif /* __GNUC__ > 2 ... */
 #else /* __GNUC__ */
-#define likely(x)   (x)
-#define unlikely(x) (x)
+  #define likely(x)   (x)
+  #define unlikely(x) (x)
 #endif /* __GNUC__ */
     """
 else:
