@@ -2754,7 +2754,11 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
             "from-import-* object has no __dict__ and no __all__");
             return -1;
         }
+#if PY_MAJOR_VERSION < 3
+        all = PyObject_CallMethod(dict, (char *)"keys", NULL);
+#else
         all = PyMapping_Keys(dict);
+#endif
         Py_DECREF(dict);
         if (all == NULL)
             return -1;
