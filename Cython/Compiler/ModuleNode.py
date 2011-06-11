@@ -296,7 +296,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.generate_cached_builtins_decls(env, code)
         self.generate_lambda_definitions(env, code)
-        # generate normal function definitions
+        # generate normal variable and function definitions
+        self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
@@ -993,7 +994,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if (entry.in_cinclude or entry.in_closure or
                 (entry.visibility == 'private' and
                  not (entry.defined_in_pxd or entry.used))):
-                    continue
+                continue
 
             storage_class = None
             dll_linkage = None
@@ -1004,25 +1005,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 storage_class = Naming.extern_c_macro
                 dll_linkage = "DL_IMPORT"
             elif entry.visibility == 'public':
+                storage_class = Naming.extern_c_macro
                 if definition:
                     dll_linkage = "DL_EXPORT"
                 else:
-                    storage_class = Naming.extern_c_macro
                     dll_linkage = "DL_IMPORT"
             elif entry.visibility == 'private':
                 storage_class = "static"
+                dll_linkage = None
+                if entry.init is not None:
+                    init =  entry.type.literal_code(entry.init)
+            type = entry.type
+            cname = entry.cname
 
             if entry.defined_in_pxd and not definition:
-                type = CPtrType(entry.type)
                 storage_class = "static"
                 dll_linkage = None
+                type = CPtrType(type)
                 cname = env.mangle(Naming.varptr_prefix, entry.name)
                 init = 0
-            else:
-                type = entry.type
-                cname = entry.cname
-                if entry.init is not None:
-                    init =  type.literal_code(entry.init)
 
             if storage_class:
                 code.put("%s " % storage_class)
@@ -1042,7 +1043,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     storage_class = "%s " % Naming.extern_c_macro
                     dll_linkage = "DL_IMPORT"
                 elif entry.visibility == 'public':
-                    storage_class = ""
+                    storage_class = "%s " % Naming.extern_c_macro
                     dll_linkage = "DL_EXPORT"
                 elif entry.visibility == 'private':
                     storage_class = "static "
@@ -1052,7 +1053,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     dll_linkage = None
                 type = entry.type
 
-                if not definition and entry.defined_in_pxd:
+                if entry.defined_in_pxd and not definition:
                     storage_class = "static "
                     dll_linkage = None
                     type = CPtrType(type)
@@ -1067,6 +1068,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     storage_class,
                     modifiers,
                     header))
+
+    def generate_variable_definitions(self, env, code):
+        for entry in env.var_entries:
+            if (not entry.in_cinclude and 
+                entry.visibility == "public"):
+                code.put(entry.type.declaration_code(entry.cname))
+                if entry.init is not None:
+                    init =  entry.type.literal_code(entry.init)
+                    code.put_safe(" = %s" % init)
+                code.putln(";")
 
     def generate_typeobj_definitions(self, env, code):
         full_module_name = env.qualified_name
