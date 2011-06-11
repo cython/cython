@@ -81,6 +81,8 @@ cdef extern from "numpy/arrayobject.h":
         NPY_COMPLEX256
         NPY_COMPLEX512
 
+        NPY_INTP
+
     ctypedef enum NPY_ORDER:
         NPY_ANYORDER
         NPY_CORDER
