@@ -2419,13 +2419,13 @@ bad:
 
 type_import_utility_code = UtilityCode(
 proto = """
-static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, long size, int strict);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
 """,
 impl = """
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
 static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
-    long size, int strict)
+    size_t size, int strict)
 {
     PyObject *py_module = 0;
     PyObject *result = 0;
@@ -2455,17 +2455,17 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
             module_name, class_name);
         goto bad;
     }
-    if (!strict && ((PyTypeObject *)result)->tp_basicsize > size) {
+    if (!strict && ((PyTypeObject *)result)->tp_basicsize > (Py_ssize_t)size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
         #if PY_VERSION_HEX < 0x02050000
-        PyErr_Warn(NULL, warning);
+        if (PyErr_Warn(NULL, warning) < 0) goto bad;
         #else
-        PyErr_WarnEx(NULL, warning, 0);
+        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
         #endif
     }
-    else if (((PyTypeObject *)result)->tp_basicsize != size) {
+    else if (((PyTypeObject *)result)->tp_basicsize != (Py_ssize_t)size) {
         PyErr_Format(PyExc_ValueError,
             "%s.%s has the wrong size, try recompiling",
             module_name, class_name);
@@ -2475,7 +2475,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
 bad:
     Py_XDECREF(py_module);
     Py_XDECREF(result);
-    return 0;
+    return NULL;
 }
 #endif
 """)
