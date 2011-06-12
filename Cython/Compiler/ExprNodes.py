@@ -1679,10 +1679,11 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
         elif self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
+            interned_cname = code.intern_identifier(self.entry.name)
             code.put_error_if_neg(self.pos,
-                'PyMapping_DelItemString(%s, "%s")' % (
+                'PyMapping_DelItem(%s, %s)' % (
                     namespace,
-                    self.entry.name))
+                    interned_cname))
         elif self.entry.is_pyglobal:
             code.put_error_if_neg(self.pos,
                 '__Pyx_DelAttrString(%s, "%s")' % (
