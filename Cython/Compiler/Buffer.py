@@ -968,8 +968,8 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     offset = ctx->head->parent_offset + field->offset;
     if (ctx->fmt_offset != offset) {
       PyErr_Format(PyExc_ValueError,
-                   "Buffer dtype mismatch; next field is at offset %"PY_FORMAT_SIZE_T"d "
-                   "but %"PY_FORMAT_SIZE_T"d expected", (Py_ssize_t)ctx->fmt_offset, (Py_ssize_t)offset);
+                   "Buffer dtype mismatch; next field is at offset %"PY_FORMAT_SIZE_T"d but %"PY_FORMAT_SIZE_T"d expected",
+                   (Py_ssize_t)ctx->fmt_offset, (Py_ssize_t)offset);
       return -1;
     }
 
@@ -1161,8 +1161,7 @@ static CYTHON_INLINE int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* ob
     PyErr_Format(PyExc_ValueError,
       "Item size of buffer (%"PY_FORMAT_SIZE_T"d byte%s) does not match size of '%s' (%"PY_FORMAT_SIZE_T"d byte%s)",
       buf->itemsize, (buf->itemsize > 1) ? "s" : "",
-      dtype->name,
-      (Py_ssize_t)dtype->size, (dtype->size > 1) ? "s" : "");
+      dtype->name, (Py_ssize_t)dtype->size, (dtype->size > 1) ? "s" : "");
     goto fail;
   }
   if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
