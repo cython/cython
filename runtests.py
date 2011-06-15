@@ -109,6 +109,7 @@ def get_openmp_compiler_flags(language):
         cc = sysconfig.get_config_var('CXX')
     else:
         cc = sysconfig.get_config_var('CC')
+    if not cc: return None # Windows?
 
     # For some reason, cc can be e.g. 'gcc -pthread'
     cc = cc.split()[0]
