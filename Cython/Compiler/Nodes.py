@@ -6936,7 +6936,7 @@ static void __Pyx_RaiseArgtupleInvalid(
     Py_ssize_t num_found)
 {
     Py_ssize_t num_expected;
-    const char *number, *more_or_less;
+    const char *more_or_less;
 
     if (num_found < num_min) {
         num_expected = num_min;
@@ -6948,14 +6948,10 @@ static void __Pyx_RaiseArgtupleInvalid(
     if (exact) {
         more_or_less = "exactly";
     }
-    number = (num_expected == 1) ? "" : "s";
     PyErr_Format(PyExc_TypeError,
-        #if PY_VERSION_HEX < 0x02050000
-            "%s() takes %s %d positional argument%s (%d given)",
-        #else
-            "%s() takes %s %zd positional argument%s (%zd given)",
-        #endif
-        func_name, more_or_less, num_expected, number, num_found);
+                 "%s() takes %s %"PY_FORMAT_SIZE_T"d positional argument%s (%"PY_FORMAT_SIZE_T"d given)",
+                 func_name, more_or_less, num_expected,
+                 (num_expected == 1) ? "" : "s", num_found);
 }
 """)
 
