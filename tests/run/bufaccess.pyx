@@ -1055,7 +1055,8 @@ cdef class MockBuffer:
             stdlib.free(self.buffer)
 
     cdef void* create_buffer(self, data):
-        cdef char* buf = <char*>stdlib.malloc(len(data) * self.itemsize)
+        cdef size_t n = <size_t>(len(data) * self.itemsize)
+        cdef char* buf = <char*>stdlib.malloc(n)
         cdef char* it = buf
         for value in data:
             self.write(it, value)
@@ -1063,19 +1064,22 @@ cdef class MockBuffer:
         return buf
 
     cdef void* create_indirect_buffer(self, data, shape):
+        cdef size_t n = 0
         cdef void** buf
         assert shape[0] == len(data)
         if len(shape) == 1:
             return self.create_buffer(data)
         else:
             shape = shape[1:]
-            buf = <void**>stdlib.malloc(len(data) * sizeof(void*))
+            n = <size_t>len(data) * sizeof(void*)
+            buf = <void**>stdlib.malloc(n)
             for idx, subdata in enumerate(data):
                 buf[idx] = self.create_indirect_buffer(subdata, shape)
             return buf
 
     cdef Py_ssize_t* list_to_sizebuf(self, l):
-        cdef Py_ssize_t* buf = <Py_ssize_t*>stdlib.malloc(len(l) * sizeof(Py_ssize_t))
+        cdef size_t n = <size_t>len(l) * sizeof(Py_ssize_t)
+        cdef Py_ssize_t* buf = <Py_ssize_t*>stdlib.malloc(n)
         for i, x in enumerate(l):
             buf[i] = x
         return buf
@@ -1128,7 +1132,7 @@ cdef class MockBuffer:
 
 cdef class CharMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
-        (<char*>buf)[0] = <int>value
+        (<char*>buf)[0] = <char>value
         return 0
     cdef get_itemsize(self): return sizeof(char)
     cdef get_default_format(self): return b"@b"
@@ -1163,7 +1167,7 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
 
 cdef class FloatMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
-        (<float*>buf)[0] = <float>value
+        (<float*>buf)[0] = <float>(<double>value)
         return 0
     cdef get_itemsize(self): return sizeof(float)
     cdef get_default_format(self): return b"f"

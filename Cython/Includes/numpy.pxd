@@ -217,9 +217,9 @@ cdef extern from "numpy/arrayobject.h":
             info.buf = PyArray_DATA(self)
             info.ndim = ndim
             if copy_shape:
-                # Allocate new buffer for strides and shape info. This is allocated
-                # as one block, strides first.
-                info.strides = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * ndim * 2)
+                # Allocate new buffer for strides and shape info.
+                # This is allocated as one block, strides first.
+                info.strides = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * <size_t>ndim * 2)
                 info.shape = info.strides + ndim
                 for i in range(ndim):
                     info.strides[i] = PyArray_STRIDES(self)[i]
