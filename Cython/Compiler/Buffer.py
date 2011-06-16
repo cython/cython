@@ -744,7 +744,7 @@ typedef struct {
   __Pyx_StructField root;
   __Pyx_BufFmt_StackElem* head;
   size_t fmt_offset;
-  int new_count, enc_count;
+  size_t new_count, enc_count;
   int is_complex;
   char enc_type;
   char new_packmode;
@@ -794,8 +794,8 @@ static int __Pyx_BufFmt_ParseNumber(const char** ts) {
 }
 
 static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
-  char msg[] = {ch, 0};
-  PyErr_Format(PyExc_ValueError, "Unexpected format string character: '%s'", msg);
+  PyErr_Format(PyExc_ValueError,
+               "Unexpected format string character: '%c'", ch);
 }
 
 static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
@@ -868,7 +868,7 @@ typedef struct { char c; double x; } __Pyx_st_double;
 typedef struct { char c; long double x; } __Pyx_st_longdouble;
 typedef struct { char c; void *x; } __Pyx_st_void_p;
 #ifdef HAVE_LONG_LONG
-typedef struct { char c; PY_LONG_LONG x; } __Pyx_s_long_long;
+typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
 #endif
 
 static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
@@ -878,7 +878,7 @@ static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
     case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
 #ifdef HAVE_LONG_LONG
-    case 'q': case 'Q': return sizeof(__Pyx_s_long_long) - sizeof(PY_LONG_LONG);
+    case 'q': case 'Q': return sizeof(__Pyx_st_longlong) - sizeof(PY_LONG_LONG);
 #endif
     case 'f': return sizeof(__Pyx_st_float) - sizeof(float);
     case 'd': return sizeof(__Pyx_st_double) - sizeof(double);
@@ -890,7 +890,7 @@ static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
     }
 }
 
-static size_t __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
+static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
   switch (ch) {
     case 'c': case 'b': case 'h': case 'i': case 'l': case 'q': return 'I';
     case 'B': case 'H': case 'I': case 'L': case 'Q': return 'U';
@@ -944,8 +944,8 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
       size = __Pyx_BufFmt_TypeCharToStandardSize(ctx->enc_type, ctx->is_complex);
     }
     if (ctx->enc_packmode == '@') {
-      int align_at = __Pyx_BufFmt_TypeCharToAlignment(ctx->enc_type, ctx->is_complex);
-      int align_mod_offset;
+      size_t align_at = __Pyx_BufFmt_TypeCharToAlignment(ctx->enc_type, ctx->is_complex);
+      size_t align_mod_offset;
       if (align_at == 0) return -1;
       align_mod_offset = ctx->fmt_offset % align_at;
       if (align_mod_offset > 0) ctx->fmt_offset += align_at - align_mod_offset;
@@ -1054,9 +1054,8 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         break;
       case 'T': /* substruct */
         {
-          int i;
           const char* ts_after_sub;
-          int struct_count = ctx->new_count;
+          size_t i, struct_count = ctx->new_count;
           ctx->new_count = 1;
           ++ts;
           if (*ts != '{') {
@@ -1118,15 +1117,14 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         break;
       default:
         {
-          ctx->new_count = __Pyx_BufFmt_ParseNumber(&ts);
-          if (ctx->new_count == -1) { /* First char was not a digit */
-            char msg[2] = { *ts, 0 };
+          int number = __Pyx_BufFmt_ParseNumber(&ts);
+          if (number == -1) { /* First char was not a digit */
             PyErr_Format(PyExc_ValueError,
-                         "Does not understand character buffer dtype format string ('%s')", msg);
+                         "Does not understand character buffer dtype format string ('%c')", *ts);
             return NULL;
           }
+          ctx->new_count = (size_t)number; 
         }
-
     }
   }
 }
