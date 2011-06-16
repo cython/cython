@@ -5697,8 +5697,8 @@ class TypecastNode(ExprNode):
             self.operand = self.operand.coerce_to_simple(env)
 
     def is_simple(self):
-        # either temp or a C cast => no side effects
-        return True
+        # either temp or a C cast => no side effects other than the operand's
+        return self.operand.is_simple()
 
     def nonlocally_immutable(self):
         return self.operand.nonlocally_immutable()
