@@ -1,3 +1,4 @@
+# mode: run
 # ticket: 466
 # extension to T409
 
@@ -20,3 +21,49 @@ def simple_parallel_int_mix():
     cdef object ao, bo
     ai, bi = al, bl = ao, bo = c = d = [1,2]
     return ao, bo, ai, bi, al, bl, c, d
+
+cdef int called = 0
+
+cdef char* get_string():
+    global called
+    called += 1
+    return "abcdefg"
+
+def non_simple_rhs():
+    """
+    >>> non_simple_rhs()
+    1
+    """
+    cdef char *a, *b
+    cdef int orig_called = called
+    a = b = <char*>get_string()
+    assert a is b
+    return called - orig_called
+
+from libc.stdlib cimport malloc, free
+
+def non_simple_rhs_malloc():
+    """
+    >>> non_simple_rhs_malloc()
+    """
+    cdef char *a, *b, **c
+
+    c = &b
+    c[0] = a = <char*>malloc(2)
+    a[0] = c'X'
+    b[1] = c'\0'
+
+    # copy from different pointers to make sure they all point to the
+    # same memory
+    cdef char[2] x
+    x[0] = b[0]
+    x[1] = a[1]
+
+    # clean up
+    free(a)
+    if b is not a: # shouldn't happen
+        free(b)
+
+    # check copied values
+    assert x[0] == c'X'
+    assert x[1] == c'\0'
