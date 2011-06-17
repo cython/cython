@@ -1459,9 +1459,14 @@ class FuncDefNode(StatNode, BlockNode):
             else:
                 warning(self.entry.pos, "Unraisable exception in function '%s'." \
                             % self.entry.qualified_name, 0)
+                format_tuple = (
+                    self.entry.qualified_name,
+                    Naming.clineno_cname,
+                    Naming.lineno_cname,
+                    Naming.filename_cname,
+                    )
                 code.putln(
-                    '__Pyx_WriteUnraisable("%s");' %
-                        self.entry.qualified_name)
+                    '__Pyx_WriteUnraisable("%s", %s, %s, %s);' % format_tuple)
                 env.use_utility_code(unraisable_exception_utility_code)
                 env.use_utility_code(restore_exception_utility_code)
             default_retval = self.return_type.default_value
@@ -7242,10 +7247,12 @@ bad:
 
 unraisable_exception_utility_code = UtilityCode(
 proto = """
-static void __Pyx_WriteUnraisable(const char *name); /*proto*/
+static void __Pyx_WriteUnraisable(const char *name, int clineno,
+                                  int lineno, const char *filename); /*proto*/
 """,
 impl = """
-static void __Pyx_WriteUnraisable(const char *name) {
+static void __Pyx_WriteUnraisable(const char *name, int clineno,
+                                  int lineno, const char *filename) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
