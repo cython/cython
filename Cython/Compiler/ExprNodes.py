@@ -8739,10 +8739,6 @@ static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObjec
 static int __Pyx_CyFunction_init(void);
 """ % Naming.__dict__,
 impl="""
-//static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m);
-//static PyObject *__Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg);
-//static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObject *type);
-
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *m, void *closure)
 {
