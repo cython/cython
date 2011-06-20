@@ -8729,6 +8729,7 @@ proto="""
 typedef struct {
     PyCFunctionObject func;
     PyObject *func_dict;
+    PyObject *func_weakreflist;
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -8847,6 +8848,7 @@ static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObjec
     __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType);
     if (op == NULL)
         return NULL;
+    op->func_weakreflist = NULL;
     op->func.m_ml = ml;
     Py_XINCREF(self);
     op->func.m_self = self;
@@ -8860,6 +8862,8 @@ static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObjec
 static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
 {
     PyObject_GC_UnTrack(m);
+    if (m->func_weakreflist != NULL)
+        PyObject_ClearWeakRefs((PyObject *) m);
     Py_XDECREF(m->func.m_self);
     Py_XDECREF(m->func.m_module);
     Py_XDECREF(m->func_dict);
@@ -8910,7 +8914,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     (traverseproc) __Pyx_CyFunction_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
-    0,                                  /*tp_weaklistoffset*/
+    offsetof(__pyx_CyFunctionObject, func_weakreflist), /* tp_weaklistoffse */
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
     __pyx_CyFunction_methods,           /*tp_methods*/
