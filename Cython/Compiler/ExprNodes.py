@@ -8731,6 +8731,7 @@ typedef struct {
     PyObject *func_dict;
     PyObject *func_weakreflist;
     PyObject *func_name;
+    PyObject *func_doc;
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -8742,18 +8743,37 @@ static int __Pyx_CyFunction_init(void);
 """ % Naming.__dict__,
 impl="""
 static PyObject *
-__Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *m, void *closure)
+__Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
 {
-    const char *doc = m->func.m_ml->ml_doc;
-
-    if (doc != NULL)
+    if (op->func_doc == NULL && op->func.m_ml->ml_doc) {
 #if PY_MAJOR_VERSION >= 3
-        return PyUnicode_FromString(doc);
+        op->func_doc = PyUnicode_FromString(op->func.m_ml->ml_doc);
 #else
-        return PyString_FromString(doc);
+        op->func_doc = PyString_FromString(op->func.m_ml->ml_doc);
 #endif
-    Py_INCREF(Py_None);
-    return Py_None;
+    }
+    if (op->func_doc == 0) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    Py_INCREF(op->func_doc);
+    return op->func_doc;
+}
+
+static int
+__Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value)
+{
+    if (value == NULL) {
+        Py_XDECREF(op->func_doc);
+        Py_INCREF(Py_None);
+        op->func_doc = Py_None; /* Mark as deleted */
+    } else {
+        PyObject *tmp = op->func_doc;
+        op->func_doc = value;
+        Py_INCREF(value);
+        Py_XDECREF(tmp);
+    }
+    return 0;
 }
 
 static PyObject *
@@ -8838,8 +8858,8 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
 }
 
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
-    {"func_doc", (getter)__Pyx_CyFunction_get_doc,  0, 0, 0},
-    {"__doc__",  (getter)__Pyx_CyFunction_get_doc,  0, 0, 0},
+    {"func_doc", (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
+    {"__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
     {"func_name", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
     {"__name__", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
     {"__self__", (getter)__Pyx_CyFunction_get_self, 0, 0, 0},
@@ -8885,6 +8905,7 @@ static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObjec
     op->func.m_module = module;
     op->func_dict = NULL;
     op->func_name = NULL;
+    op->func_doc = NULL;
     PyObject_GC_Track(op);
     return (PyObject *)op;
 }
@@ -8898,6 +8919,7 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
     Py_XDECREF(m->func.m_module);
     Py_XDECREF(m->func_dict);
     Py_XDECREF(m->func_name);
+    Py_XDECREF(m->func_doc);
     PyObject_GC_Del(m);
 }
 
