@@ -8730,6 +8730,7 @@ typedef struct {
     PyCFunctionObject func;
     PyObject *func_dict;
     PyObject *func_weakreflist;
+    PyObject *func_name;
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -8756,13 +8757,38 @@ __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *m, void *closure)
 }
 
 static PyObject *
-__Pyx_CyFunction_get_name(__pyx_CyFunctionObject *m, void *closure)
+__Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op)
 {
+    if (op->func_name == NULL) {
 #if PY_MAJOR_VERSION >= 3
-    return PyUnicode_FromString(m->func.m_ml->ml_name);
+        op->func_name = PyUnicode_InternFromString(op->func.m_ml->ml_name);
 #else
-    return PyString_FromString(m->func.m_ml->ml_name);
+        op->func_name = PyString_InternFromString(op->func.m_ml->ml_name);
 #endif
+    }
+    Py_INCREF(op->func_name);
+    return op->func_name;
+}
+
+static int
+__Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
+{
+    PyObject *tmp;
+
+#if PY_MAJOR_VERSION >= 3
+    if (value == NULL || !PyUnicode_Check(value)) {
+#else
+    if (value == NULL || !PyString_Check(value)) {
+#endif
+        PyErr_SetString(PyExc_TypeError,
+                        "__name__ must be set to a string object");
+        return -1;
+    }
+    tmp = op->func_name;
+    Py_INCREF(value);
+    op->func_name = value;
+    Py_XDECREF(tmp);
+    return 0;
 }
 
 static PyObject *
@@ -8814,8 +8840,8 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"func_doc", (getter)__Pyx_CyFunction_get_doc,  0, 0, 0},
     {"__doc__",  (getter)__Pyx_CyFunction_get_doc,  0, 0, 0},
-    {"func_name", (getter)__Pyx_CyFunction_get_name, 0, 0, 0},
-    {"__name__", (getter)__Pyx_CyFunction_get_name, 0, 0, 0},
+    {"func_name", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
+    {"__name__", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
     {"__self__", (getter)__Pyx_CyFunction_get_self, 0, 0, 0},
     {"func_dict", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
     {"__dict__", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
@@ -8858,6 +8884,7 @@ static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObjec
     Py_XINCREF(module);
     op->func.m_module = module;
     op->func_dict = NULL;
+    op->func_name = NULL;
     PyObject_GC_Track(op);
     return (PyObject *)op;
 }
@@ -8870,6 +8897,7 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
     Py_XDECREF(m->func.m_self);
     Py_XDECREF(m->func.m_module);
     Py_XDECREF(m->func_dict);
+    Py_XDECREF(m->func_name);
     PyObject_GC_Del(m);
 }
 
@@ -8891,12 +8919,14 @@ static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObj
 static PyObject*
 __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 {
+    PyObject *func_name = __Pyx_CyFunction_get_name(op);
+
 #if PY_MAJOR_VERSION >= 3
-    return PyUnicode_FromFormat("<cyfunction %s at %p>",
-                               op->func.m_ml->ml_name, op);
+    return PyUnicode_FromFormat("<cyfunction %U at %p>",
+                               func_name, op);
 #else
     return PyString_FromFormat("<cyfunction %s at %p>",
-                               op->func.m_ml->ml_name, op);
+                               PyString_AsString(func_name), op);
 #endif
 }
 
