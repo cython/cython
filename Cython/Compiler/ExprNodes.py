@@ -8812,9 +8812,12 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
 }
 
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
+    {"func_doc", (getter)__Pyx_CyFunction_get_doc,  0, 0, 0},
     {"__doc__",  (getter)__Pyx_CyFunction_get_doc,  0, 0, 0},
+    {"func_name", (getter)__Pyx_CyFunction_get_name, 0, 0, 0},
     {"__name__", (getter)__Pyx_CyFunction_get_name, 0, 0, 0},
     {"__self__", (getter)__Pyx_CyFunction_get_self, 0, 0, 0},
+    {"func_dict", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
     {"__dict__", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
     {0, 0, 0, 0, 0}
 };
