@@ -8885,6 +8885,18 @@ static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObj
     return PyMethod_New(func, obj, type);
 }
 
+static PyObject*
+__Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
+{
+#if PY_MAJOR_VERSION >= 3
+    return PyUnicode_FromFormat("<cyfunction %s at %p>",
+                               op->func.m_ml->ml_name, op);
+#else
+    return PyString_FromFormat("<cyfunction %s at %p>",
+                               op->func.m_ml->ml_name, op);
+#endif
+}
+
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     __Pyx_NAMESTR("cython_function_or_method"), /*tp_name*/
@@ -8899,7 +8911,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #else
     0,                                  /*reserved*/
 #endif
-    0,                                  /*tp_repr*/
+    (reprfunc) __Pyx_CyFunction_repr,   /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
     0,                                  /*tp_as_mapping*/
