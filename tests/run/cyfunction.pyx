@@ -7,12 +7,36 @@ def test_dict():
     >>> test_dict.foo = 123
     >>> test_dict.__dict__
     {'foo': 123}
+    >>> test_dict.__dict__ = {'bar': 321}
+    >>> test_dict.__dict__
+    {'bar': 321}
+    >>> test_dict.func_dict
+    {'bar': 321}
     """
 
 def test_name():
     """
     >>> test_name.__name__
     'test_name'
+    >>> test_name.func_name
+    'test_name'
+    >>> test_name.__name__ = 123 #doctest:+ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: __name__ must be set to a ... object
+    >>> test_name.__name__ = 'foo'
+    >>> test_name.__name__
+    'foo'
+    """
+
+def test_doc():
+    """
+    >>> del test_doc.__doc__
+    >>> test_doc.__doc__
+    >>> test_doc.__doc__ = 'docstring'
+    >>> test_doc.__doc__
+    'docstring'
+    >>> test_doc.func_doc
+    'docstring'
     """
 
 def test_reduce():
