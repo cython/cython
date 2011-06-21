@@ -709,7 +709,8 @@ class CreateControlFlowGraph(CythonTransform):
 
     def visit_CArgDeclNode(self, node):
         entry = self.env.lookup(node.name)
-        self.flow.mark_argument(node, TypedExprNode(entry.type), entry)
+        if entry:
+            self.flow.mark_argument(node, TypedExprNode(entry.type), entry)
         return node
 
     def visit_NameNode(self, node):
