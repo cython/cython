@@ -426,8 +426,6 @@ class Scope(object):
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
-        if not scope and not entry.type.scope:
-            self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
 
     def declare_cpp_class(self, name, scope,
@@ -453,15 +451,26 @@ class Scope(object):
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
-        if templates is not None:
+            if base_classes:
+                if entry.type.base_classes and not entry.type.base_classes == base_classes:
+                    error(pos, "Base type does not match previous declaration")
+                else:
+                    entry.type.base_classes = base_classes
+            if templates or entry.type.templates:
+                if templates != entry.type.templates:
+                    error(pos, "Template parameters do not match previous declaration")
+        if templates is not None and entry.type.scope is not None:
             for T in templates:
                 template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
                 template_entry.is_type = 1
 
         def declare_inherited_attributes(entry, base_classes):
             for base_class in base_classes:
-                declare_inherited_attributes(entry, base_class.base_classes)
-                entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
+                if base_class.scope is None:
+                    error(pos, "Cannot inherit from incomplete type")
+                else:
+                    declare_inherited_attributes(entry, base_class.base_classes)
+                    entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
         if entry.type.scope:
             declare_inherited_attributes(entry, base_classes)
         if self.is_cpp_class_scope:
@@ -1171,8 +1180,6 @@ class ModuleScope(Scope):
                     scope.declare_inherited_c_attributes(base_type.scope)
                 type.set_scope(scope)
                 self.type_entries.append(entry)
-            else:
-                self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         else:
             if defining and type.scope.defined:
                 error(pos, "C class '%s' already defined" % name)
@@ -1202,10 +1209,6 @@ class ModuleScope(Scope):
         # Return new or existing entry
         #
         return entry
-
-    def check_for_illegal_incomplete_ctypedef(self, typedef_flag, pos):
-        if typedef_flag and not self.in_cinclude:
-            error(pos, "Forward-referenced type must use 'cdef', not 'ctypedef'")
 
     def allocate_vtable_names(self, entry):
         #  If extension type has a vtable, allocate vtable struct and

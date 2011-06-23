@@ -1263,6 +1263,44 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
             rhs = decorator_result)
         return [node, reassignment]
 
+ 
+class ForwardDeclareTypes(CythonTransform):
+
+    def visit_CompilerDirectivesNode(self, node):
+        env = self.module_scope
+        old = env.directives
+        env.directives = node.directives
+        self.visitchildren(node)
+        env.directives = old
+        return node
+
+    def visit_ModuleNode(self, node):
+        self.module_scope = node.scope
+        self.module_scope.directives = node.directives
+        self.visitchildren(node)
+        return node
+
+    def visit_CDefExternNode(self, node):
+        old_cinclude_flag = self.module_scope.in_cinclude
+        self.module_scope.in_cinclude = 1
+        self.visitchildren(node)
+        self.module_scope.in_cinclude = old_cinclude_flag
+        return node
+
+    def visit_CEnumDefNode(self, node):
+        node.declare(self.module_scope)
+        return node
+
+    def visit_CStructOrUnionDefNode(self, node):
+        if node.name not in self.module_scope.entries:
+            node.declare(self.module_scope)
+        return node
+
+    def visit_CClassDefNode(self, node):
+        if node.class_name not in self.module_scope.entries:
+            node.declare(self.module_scope)
+        return node
+
 
 class AnalyseDeclarationsTransform(CythonTransform):
 

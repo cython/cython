@@ -103,7 +103,8 @@ class Context(object):
     def create_pipeline(self, pxd, py=False):
         from Visitor import PrintTree
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
-        from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+        from ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
+        from ParseTreeTransforms import AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
@@ -146,6 +147,7 @@ class Context(object):
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
+            ForwardDeclareTypes(self),
             AnalyseDeclarationsTransform(self),
             AutoTestDictTransform(self),
             EmbedSignature(self),

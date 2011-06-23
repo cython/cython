@@ -979,45 +979,32 @@ class CStructOrUnionDefNode(StatNode):
     #  packed        boolean
 
     child_attrs = ["attributes"]
-
-    def analyse_declarations(self, env):
-        scope = None
-        if self.visibility == 'extern' and self.packed:
+    
+    def declare(self, env, scope=None):
+        if self.visibility == 'extern' and self.packed and not scope:
             error(self.pos, "Cannot declare extern struct as 'packed'")
-        if self.attributes is not None:
-            scope = StructOrUnionScope(self.name)
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
             self.cname, visibility = self.visibility, api = self.api,
             packed = self.packed)
+
+    def analyse_declarations(self, env):
+        scope = None
+        if self.attributes is not None:
+            scope = StructOrUnionScope(self.name)
+        self.declare(env, scope)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
                 attr.analyse_declarations(env, scope)
             if self.visibility != 'extern':
-                need_typedef_indirection = False
                 for attr in scope.var_entries:
                     type = attr.type
                     while type.is_array:
                         type = type.base_type
                     if type == self.entry.type:
                         error(attr.pos, "Struct cannot contain itself as a member.")
-                    if self.typedef_flag:
-                        while type.is_ptr:
-                            type = type.base_type
-                        if type == self.entry.type:
-                            need_typedef_indirection = True
-                if need_typedef_indirection:
-                    # C can't handle typedef structs that refer to themselves.
-                    struct_entry = self.entry
-                    self.entry = env.declare_typedef(
-                        self.name, struct_entry.type, self.pos,
-                        cname = self.cname, visibility='ignore')
-                    struct_entry.type.typedef_flag = False
-                    # FIXME: this might be considered a hack ;-)
-                    struct_entry.cname = struct_entry.type.cname = \
-                                         '_' + self.entry.type.typedef_cname
 
     def analyse_expressions(self, env):
         pass
@@ -1036,6 +1023,15 @@ class CppClassNode(CStructOrUnionDefNode):
     #  entry         Entry
     #  base_classes  [string]
     #  templates     [string] or None
+
+    def declare(self, env):
+        if self.templates is None:
+            template_types = None
+        else:
+            template_types = [PyrexTypes.TemplatePlaceholderType(template_name) for template_name in self.templates]
+        self.entry = env.declare_cpp_class(
+            self.name, None, self.pos,
+            self.cname, base_classes = [], visibility = self.visibility, templates = template_types)
 
     def analyse_declarations(self, env):
         scope = None
@@ -1078,10 +1074,12 @@ class CEnumDefNode(StatNode):
 
     child_attrs = ["items"]
 
+    def declare(self, env):
+         self.entry = env.declare_enum(self.name, self.pos,
+             cname = self.cname, typedef_flag = self.typedef_flag,
+             visibility = self.visibility, api = self.api)
+
     def analyse_declarations(self, env):
-        self.entry = env.declare_enum(self.name, self.pos,
-            cname = self.cname, typedef_flag = self.typedef_flag,
-            visibility = self.visibility, api = self.api)
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -3352,18 +3350,42 @@ class CClassDefNode(ClassDefNode):
     decorators = None
     shadow = False
 
+    def declare(self, env):
+        if self.module_name and self.visibility != 'extern':
+            module_path = self.module_name.split(".")
+            home_scope = env.find_imported_module(module_path, self.pos)
+            if not home_scope:
+                return None
+        else:
+            home_scope = env
+
+        import Buffer
+        if self.buffer_defaults_node:
+            self.buffer_defaults = Buffer.analyse_buffer_options(self.buffer_defaults_pos,
+                                                            env, [], self.buffer_defaults_node,
+                                                            need_complete=False)
+        else:
+            self.buffer_defaults = None
+
+        self.entry = home_scope.declare_c_class(
+            name = self.class_name,
+            pos = self.pos,
+            defining = 0,
+            implementing = 0,
+            module_name = self.module_name,
+            base_type = None,
+            objstruct_cname = self.objstruct_name,
+            typeobj_cname = self.typeobj_name,
+            visibility = self.visibility,
+            typedef_flag = self.typedef_flag,
+            api = self.api,
+            buffer_defaults = self.buffer_defaults,
+            shadow = self.shadow)
+
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
         #print "...visibility =", self.visibility
         #print "...module_name =", self.module_name
-
-        import Buffer
-        if self.buffer_defaults_node:
-            buffer_defaults = Buffer.analyse_buffer_options(self.buffer_defaults_pos,
-                                                            env, [], self.buffer_defaults_node,
-                                                            need_complete=False)
-        else:
-            buffer_defaults = None
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for "
@@ -3441,7 +3463,7 @@ class CClassDefNode(ClassDefNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
             api = self.api,
-            buffer_defaults = buffer_defaults,
+            buffer_defaults = self.buffer_defaults,
             shadow = self.shadow)
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry

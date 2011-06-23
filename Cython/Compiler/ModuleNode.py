@@ -427,20 +427,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 for entry in module.type_entries:
                     if entry.defined_in_pxd:
                         type_entries.append(entry)
-            for entry in type_entries:
-                if not entry.in_cinclude:
-                    #print "generate_type_header_code:", entry.name, repr(entry.type) ###
-                    type = entry.type
-                    if type.is_typedef: # Must test this first!
-                        self.generate_typedef(entry, code)
-                    elif type.is_struct_or_union:
-                        self.generate_struct_union_definition(entry, code)
-                    elif type.is_enum:
-                        self.generate_enum_definition(entry, code)
-                    elif type.is_extension_type and entry not in vtabslot_entries:
-                        self.generate_objstruct_definition(type, code)
+            self.generate_type_header_code(type_entries, code)
         for entry in vtabslot_list:
-            self.generate_objstruct_definition(entry.type, code)
+#            self.generate_objstruct_definition(entry.type, code)
             self.generate_typeobj_predeclaration(entry, code)
         for entry in vtab_list:
             self.generate_typeobj_predeclaration(entry, code)
@@ -782,17 +771,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_type_header_code(self, type_entries, code):
         # Generate definitions of structs/unions/enums/typedefs/objstructs.
         #self.generate_gcc33_hack(env, code) # Is this still needed?
-        #for entry in env.type_entries:
+        # Forward declarations
+        for entry in type_entries:
+            if not entry.in_cinclude:
+                #print "generate_type_header_code:", entry.name, repr(entry.type) ###
+                type = entry.type
+                if type.is_typedef: # Must test this first!
+                    pass
+                elif type.is_struct_or_union:
+                    self.generate_struct_union_predeclaration(entry, code)
+                elif type.is_extension_type:
+                    self.generate_objstruct_predeclaration(type, code)
+        # Actual declarations
         for entry in type_entries:
             if not entry.in_cinclude:
                 #print "generate_type_header_code:", entry.name, repr(entry.type) ###
                 type = entry.type
                 if type.is_typedef: # Must test this first!
                     self.generate_typedef(entry, code)
-                elif type.is_struct_or_union:
-                    self.generate_struct_union_definition(entry, code)
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
+                elif type.is_struct_or_union:
+                    self.generate_struct_union_definition(entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_definition(type, code)
 
@@ -822,13 +822,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         writer.mark_pos(entry.pos)
         writer.putln("typedef %s;" % base_type.declaration_code(entry.cname))
 
-    def sue_header_footer(self, type, kind, name):
+    def sue_predeclaration(self, type, kind, name):
         if type.typedef_flag:
-            header = "typedef %s {" % kind
-            footer = "} %s;" % name
+            return "%s %s;\ntypedef %s %s %s;" % (
+                kind, name,
+                kind, name, name)
         else:
-            header = "%s %s {" % (kind, name)
-            footer = "};"
+            return "%s %s;" % (kind, name)
+
+    def generate_struct_union_predeclaration(self, entry, code):
+        type = entry.type
+        code.putln(self.sue_predeclaration(type, type.kind, type.cname))
+
+    def sue_header_footer(self, type, kind, name):
+        header = "%s %s {" % (kind, name)
+        footer = "};"
         return header, footer
 
     def generate_struct_union_definition(self, entry, code):
@@ -897,6 +905,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     value_code += ","
                 code.putln(value_code)
         code.putln(footer)
+        if entry.type.typedef_flag:
+            # Not pre-declared.
+            code.putln("typedef enum %s %s;" % (name, name))
 
     def generate_typeobj_predeclaration(self, entry, code):
         code.putln("")
@@ -946,6 +957,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabstruct_cname,
                 type.vtabptr_cname))
 
+    def generate_objstruct_predeclaration(self, type, code):
+        if not type.scope:
+            return
+        code.putln(self.sue_predeclaration(type, "struct", type.objstruct_cname))
+    
     def generate_objstruct_definition(self, type, code):
         code.mark_pos(type.pos)
         # Generate object struct definition for an
