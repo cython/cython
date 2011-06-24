@@ -417,6 +417,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return (vtab_list, vtabslot_list)
 
     def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
+        # TODO: Why are these separated out?
+        for entry in vtabslot_list:
+            self.generate_objstruct_predeclaration(entry.type, code)
         vtabslot_entries = set(vtabslot_list)
         for module in modules:
             definition = module is env
@@ -427,8 +430,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 for entry in module.type_entries:
                     if entry.defined_in_pxd:
                         type_entries.append(entry)
+            type_entries = [t for t in type_entries if t not in vtabslot_entries]
             self.generate_type_header_code(type_entries, code)
         for entry in vtabslot_list:
+            self.generate_objstruct_definition(entry.type, code)
             self.generate_typeobj_predeclaration(entry, code)
         for entry in vtab_list:
             self.generate_typeobj_predeclaration(entry, code)
