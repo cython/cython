@@ -3350,6 +3350,18 @@ class CClassDefNode(ClassDefNode):
     decorators = None
     shadow = False
 
+    def buffer_defaults(self, env):
+        if not hasattr(self, '_buffer_defaults'):
+            import Buffer
+            if self.buffer_defaults_node:
+                self._buffer_defaults = Buffer.analyse_buffer_options(
+                    self.buffer_defaults_pos,
+                    env, [], self.buffer_defaults_node,
+                    need_complete=False)
+            else:
+                self._buffer_defaults = None
+        return self._buffer_defaults
+
     def declare(self, env):
         if self.module_name and self.visibility != 'extern':
             module_path = self.module_name.split(".")
@@ -3358,14 +3370,6 @@ class CClassDefNode(ClassDefNode):
                 return None
         else:
             home_scope = env
-
-        import Buffer
-        if self.buffer_defaults_node:
-            self.buffer_defaults = Buffer.analyse_buffer_options(self.buffer_defaults_pos,
-                                                            env, [], self.buffer_defaults_node,
-                                                            need_complete=False)
-        else:
-            self.buffer_defaults = None
 
         self.entry = home_scope.declare_c_class(
             name = self.class_name,
@@ -3379,7 +3383,7 @@ class CClassDefNode(ClassDefNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
             api = self.api,
-            buffer_defaults = self.buffer_defaults,
+            buffer_defaults = self.buffer_defaults(env),
             shadow = self.shadow)
 
     def analyse_declarations(self, env):
@@ -3463,7 +3467,7 @@ class CClassDefNode(ClassDefNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
             api = self.api,
-            buffer_defaults = self.buffer_defaults,
+            buffer_defaults = self.buffer_defaults(env),
             shadow = self.shadow)
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry

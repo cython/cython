@@ -16,10 +16,12 @@ cdef struct StructB:
     StructB *b
 
 cdef class ClassA:
+    cdef ClassA a
     cdef ClassB b
 
 ctypedef public class ClassB [ object ClassB, type TypeB ]:
     cdef ClassA a
+    cdef ClassB b
 
 
 cdef StructA struct_a
