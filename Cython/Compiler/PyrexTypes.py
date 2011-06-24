@@ -2231,6 +2231,12 @@ class TemplatePlaceholderType(CType):
         else:
             return cmp(type(self), type(other))
 
+    def __eq__(self, other):
+        if isinstance(other, TemplatePlaceholderType):
+            return self.name == other.name
+        else:
+            return False
+
 class CEnumType(CType):
     #  name           string
     #  cname          string or None
