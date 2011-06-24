@@ -429,7 +429,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         type_entries.append(entry)
             self.generate_type_header_code(type_entries, code)
         for entry in vtabslot_list:
-#            self.generate_objstruct_definition(entry.type, code)
             self.generate_typeobj_predeclaration(entry, code)
         for entry in vtab_list:
             self.generate_typeobj_predeclaration(entry, code)
