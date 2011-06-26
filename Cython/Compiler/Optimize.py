@@ -63,18 +63,15 @@ class IterationTransform(Visitor.VisitorTransform):
     - for-in-enumerate is replaced by an external counter variable
     - for-in-range loop becomes a plain C for loop
     """
-    PyDict_Next_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_bint_type, [
+    PyDict_Size_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("dict",  PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("pos",   PyrexTypes.c_py_ssize_t_ptr_type, None),
-            PyrexTypes.CFuncTypeArg("key",   PyrexTypes.CPtrType(PyrexTypes.py_object_type), None),
-            PyrexTypes.CFuncTypeArg("value", PyrexTypes.CPtrType(PyrexTypes.py_object_type), None)
             ])
 
-    PyDict_Next_name = EncodedString("PyDict_Next")
+    PyDict_Size_name = EncodedString("PyDict_Size")
 
-    PyDict_Next_entry = Symtab.Entry(
-        PyDict_Next_name, PyDict_Next_name, PyDict_Next_func_type)
+    PyDict_Size_entry = Symtab.Entry(
+        PyDict_Size_name, PyDict_Size_name, PyDict_Size_func_type)
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
@@ -144,26 +141,22 @@ class IterationTransform(Visitor.VisitorTransform):
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
-        return self._optimise_for_loop(node)
+        return self._optimise_for_loop(node, node.iterator.sequence)
 
-    def _optimise_for_loop(self, node):
-        iterator = node.iterator.sequence
+    def _optimise_for_loop(self, node, iterator, reversed=False):
         if iterator.type is Builtin.dict_type:
             # like iterating over dict.keys()
+            if reversed:
+                # CPython raises an error here: not a sequence
+                return node
             return self._transform_dict_iteration(
                 node, dict_obj=iterator, keys=True, values=False)
 
         # C array (slice) iteration?
-        if False:
-            plain_iterator = unwrap_coerced_node(iterator)
-            if isinstance(plain_iterator, ExprNodes.SliceIndexNode) and \
-                   (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
-                return self._transform_carray_iteration(node, plain_iterator)
-
         if iterator.type.is_ptr or iterator.type.is_array:
-            return self._transform_carray_iteration(node, iterator)
+            return self._transform_carray_iteration(node, iterator, reversed=reversed)
         if iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
-            return self._transform_string_iteration(node, iterator)
+            return self._transform_string_iteration(node, iterator, reversed=reversed)
 
         # the rest is based on function calls
         if not isinstance(iterator, ExprNodes.SimpleCallNode):
@@ -173,6 +166,9 @@ class IterationTransform(Visitor.VisitorTransform):
         # dict iteration?
         if isinstance(function, ExprNodes.AttributeNode) and \
                 function.obj.type == Builtin.dict_type:
+            if reversed:
+                # CPython raises an error here: not a sequence
+                return node
             dict_obj = function.obj
             method = function.attribute
 
@@ -189,20 +185,48 @@ class IterationTransform(Visitor.VisitorTransform):
             return self._transform_dict_iteration(
                 node, dict_obj, keys, values)
 
-        # enumerate() ?
+        # enumerate/reversed ?
         if iterator.self is None and function.is_name and \
-               function.entry and function.entry.is_builtin and \
-               function.name == 'enumerate':
-            return self._transform_enumerate_iteration(node, iterator)
+               function.entry and function.entry.is_builtin:
+            if function.name == 'enumerate':
+                if reversed:
+                    # CPython raises an error here: not a sequence
+                    return node
+                return self._transform_enumerate_iteration(node, iterator)
+            elif function.name == 'reversed':
+                if reversed:
+                    # CPython raises an error here: not a sequence
+                    return node
+                return self._transform_reversed_iteration(node, iterator)
 
         # range() iteration?
         if Options.convert_range and node.target.type.is_int:
             if iterator.self is None and function.is_name and \
                    function.entry and function.entry.is_builtin and \
                    function.name in ('range', 'xrange'):
-                return self._transform_range_iteration(node, iterator)
+                return self._transform_range_iteration(node, iterator, reversed=reversed)
 
         return node
+
+    def _transform_reversed_iteration(self, node, reversed_function):
+        args = reversed_function.arg_tuple.args
+        if len(args) == 0:
+            error(reversed_function.pos,
+                  "reversed() requires an iterable argument")
+            return node
+        elif len(args) > 1:
+            error(reversed_function.pos,
+                  "reversed() takes exactly 1 argument")
+            return node
+        arg = args[0]
+
+        # reversed(list/tuple) ?
+        if arg.type in (Builtin.tuple_type, Builtin.list_type):
+            node.iterator.sequence = arg.as_none_safe_node("'NoneType' object is not iterable")
+            node.iterator.reversed = True
+            return node
+
+        return self._optimise_for_loop(node, arg, reversed=True)
 
     PyUnicode_AS_UNICODE_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_unicode_ptr_type, [
@@ -224,15 +248,18 @@ class IterationTransform(Visitor.VisitorTransform):
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
             ])
 
-    def _transform_string_iteration(self, node, slice_node):
-        if not node.target.type.is_int:
-            return self._transform_carray_iteration(node, slice_node)
+    def _transform_string_iteration(self, node, slice_node, reversed=False):
         if slice_node.type is Builtin.unicode_type:
             unpack_func = "PyUnicode_AS_UNICODE"
             len_func = "PyUnicode_GET_SIZE"
             unpack_func_type = self.PyUnicode_AS_UNICODE_func_type
             len_func_type = self.PyUnicode_GET_SIZE_func_type
         elif slice_node.type is Builtin.bytes_type:
+            target_type = node.target.type
+            if not target_type.is_int:
+                # bytes iteration returns bytes objects in Py2, but
+                # integers in Py3
+                return node
             unpack_func = "PyBytes_AS_STRING"
             unpack_func_type = self.PyBytes_AS_STRING_func_type
             len_func = "PyBytes_GET_SIZE"
@@ -266,9 +293,10 @@ class IterationTransform(Visitor.VisitorTransform):
                     stop = len_node,
                     type = slice_base_node.type,
                     is_temp = 1,
-                    )))
+                    ),
+                reversed = reversed))
 
-    def _transform_carray_iteration(self, node, slice_node):
+    def _transform_carray_iteration(self, node, slice_node, reversed=False):
         neg_step = False
         if isinstance(slice_node, ExprNodes.SliceIndexNode):
             slice_base = slice_node.base
@@ -279,8 +307,9 @@ class IterationTransform(Visitor.VisitorTransform):
                 if not slice_base.type.is_pyobject:
                     error(slice_node.pos, "C array iteration requires known end index")
                 return node
+
         elif isinstance(slice_node, ExprNodes.IndexNode):
-            # slice_node.index must be a SliceNode
+            assert isinstance(slice_node.index, ExprNodes.SliceNode)
             slice_base = slice_node.base
             index = slice_node.index
             start = index.start
@@ -298,10 +327,14 @@ class IterationTransform(Visitor.VisitorTransform):
                     return node
                 else:
                     # step sign is handled internally by ForFromStatNode
-                    neg_step = step.constant_result < 0
+                    step_value = step.constant_result
+                    if reversed:
+                        step_value = -step_value
+                    neg_step = step_value < 0
                     step = ExprNodes.IntNode(step.pos, type=PyrexTypes.c_py_ssize_t_type,
-                                             value=abs(step.constant_result),
-                                             constant_result=abs(step.constant_result))
+                                             value=str(abs(step_value)),
+                                             constant_result=abs(step_value))
+
         elif slice_node.type.is_array:
             if slice_node.type.size is None:
                 error(step.pos, "C array iteration requires known end index")
@@ -336,6 +369,13 @@ class IterationTransform(Visitor.VisitorTransform):
                 error(slice_node.pos, "C array iteration requires known step size and end index")
                 return node
 
+        if reversed:
+            if not start:
+                start = ExprNodes.IntNode(slice_node.pos, value="0",  constant_result=0,
+                                          type=PyrexTypes.c_py_ssize_t_type)
+            # if step was provided, it was already negated above
+            start, stop = stop, start
+
         ptr_type = slice_base.type
         if ptr_type.is_array:
             ptr_type = ptr_type.element_ptr_type()
@@ -351,13 +391,16 @@ class IterationTransform(Visitor.VisitorTransform):
         else:
             start_ptr_node = carray_ptr
 
-        stop_ptr_node = ExprNodes.AddNode(
-            stop.pos,
-            operand1=ExprNodes.CloneNode(carray_ptr),
-            operator='+',
-            operand2=stop,
-            type=ptr_type
-            ).coerce_to_simple(self.current_scope)
+        if stop and stop.constant_result != 0:
+            stop_ptr_node = ExprNodes.AddNode(
+                stop.pos,
+                operand1=ExprNodes.CloneNode(carray_ptr),
+                operator='+',
+                operand2=stop,
+                type=ptr_type
+                ).coerce_to_simple(self.current_scope)
+        else:
+            stop_ptr_node = ExprNodes.CloneNode(carray_ptr)
 
         counter = UtilNodes.TempHandle(ptr_type)
         counter_temp = counter.ref(node.target.pos)
@@ -401,11 +444,13 @@ class IterationTransform(Visitor.VisitorTransform):
             node.pos,
             stats = [target_assign, node.body])
 
+        relation1, relation2 = self._find_for_from_node_relations(neg_step, reversed)
+
         for_node = Nodes.ForFromStatNode(
             node.pos,
-            bound1=start_ptr_node, relation1=neg_step and '>=' or '<=',
+            bound1=start_ptr_node, relation1=relation1,
             target=counter_temp,
-            relation2=neg_step and '>' or '<', bound2=stop_ptr_node,
+            relation2=relation2, bound2=stop_ptr_node,
             step=step, body=body,
             else_clause=node.else_clause,
             from_range=True)
@@ -482,9 +527,21 @@ class IterationTransform(Visitor.VisitorTransform):
         node.iterator.sequence = enumerate_function.arg_tuple.args[0]
 
         # recurse into loop to check for further optimisations
-        return UtilNodes.LetNode(temp, self._optimise_for_loop(node))
+        return UtilNodes.LetNode(temp, self._optimise_for_loop(node, node.iterator.sequence))
 
-    def _transform_range_iteration(self, node, range_function):
+    def _find_for_from_node_relations(self, neg_step_value, reversed):
+        if reversed:
+            if neg_step_value:
+                return '<', '<='
+            else:
+                return '>', '>='
+        else:
+            if neg_step_value:
+                return '>=', '>'
+            else:
+                return '<=', '<'
+
+    def _transform_range_iteration(self, node, range_function, reversed=False):
         args = range_function.arg_tuple.args
         if len(args) < 3:
             step_pos = range_function.pos
@@ -505,14 +562,6 @@ class IterationTransform(Visitor.VisitorTransform):
                 step = ExprNodes.IntNode(step_pos, value=str(step_value),
                                          constant_result=step_value)
 
-        if step_value < 0:
-            step.value = str(-step_value)
-            relation1 = '>='
-            relation2 = '>'
-        else:
-            relation1 = '<='
-            relation2 = '<'
-
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
                                        constant_result=0)
@@ -520,6 +569,19 @@ class IterationTransform(Visitor.VisitorTransform):
         else:
             bound1 = args[0].coerce_to_integer(self.current_scope)
             bound2 = args[1].coerce_to_integer(self.current_scope)
+
+        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
+
+        if reversed:
+            bound1, bound2 = bound2, bound1
+            if step_value < 0:
+                step_value = -step_value
+        else:
+            if step_value < 0:
+                step_value = -step_value
+
+        step.value = str(step_value)
+        step.constant_result = step_value
         step = step.coerce_to_integer(self.current_scope)
 
         if not bound2.is_literal:
@@ -544,7 +606,7 @@ class IterationTransform(Visitor.VisitorTransform):
         return for_node
 
     def _transform_dict_iteration(self, node, dict_obj, keys, values):
-        py_object_ptr = PyrexTypes.c_void_ptr_type
+        py_object_ptr = PyrexTypes.py_object_type
 
         temps = []
         temp = UtilNodes.TempHandle(PyrexTypes.py_object_type)
@@ -556,9 +618,12 @@ class IterationTransform(Visitor.VisitorTransform):
         pos_temp_addr = ExprNodes.AmpersandNode(
             node.pos, operand=pos_temp,
             type=PyrexTypes.c_ptr_type(PyrexTypes.c_py_ssize_t_type))
+
+        target_temps = []
         if keys:
-            temp = UtilNodes.TempHandle(py_object_ptr)
-            temps.append(temp)
+            temp = UtilNodes.TempHandle(
+                py_object_ptr, needs_cleanup=False) # ref will be stolen
+            target_temps.append(temp)
             key_temp = temp.ref(node.target.pos)
             key_temp_addr = ExprNodes.AmpersandNode(
                 node.target.pos, operand=key_temp,
@@ -567,8 +632,9 @@ class IterationTransform(Visitor.VisitorTransform):
             key_temp_addr = key_temp = ExprNodes.NullNode(
                 pos=node.target.pos)
         if values:
-            temp = UtilNodes.TempHandle(py_object_ptr)
-            temps.append(temp)
+            temp = UtilNodes.TempHandle(
+                py_object_ptr, needs_cleanup=False) # ref will be stolen
+            target_temps.append(temp)
             value_temp = temp.ref(node.target.pos)
             value_temp_addr = ExprNodes.AmpersandNode(
                 node.target.pos, operand=value_temp,
@@ -602,7 +668,7 @@ class IterationTransform(Visitor.VisitorTransform):
                 return (result, None)
             else:
                 temp = UtilNodes.TempHandle(dest_type)
-                temps.append(temp)
+                target_temps.append(temp)
                 temp_result = temp.ref(obj_node.pos)
                 class CoercedTempNode(ExprNodes.CoerceFromPyTypeNode):
                     def result(self):
@@ -611,12 +677,6 @@ class IterationTransform(Visitor.VisitorTransform):
                         self.generate_result_code(code)
                 return (temp_result, CoercedTempNode(dest_type, obj_node, self.current_scope))
 
-        if isinstance(node.body, Nodes.StatListNode):
-            body = node.body
-        else:
-            body = Nodes.StatListNode(pos = node.body.pos,
-                                      stats = [node.body])
-
         if tuple_target:
             tuple_result = ExprNodes.TupleNode(
                 pos = tuple_target.pos,
@@ -624,11 +684,12 @@ class IterationTransform(Visitor.VisitorTransform):
                 is_temp = 1,
                 type = Builtin.tuple_type,
                 )
-            body.stats.insert(
-                0, Nodes.SingleAssignmentNode(
+            body_init_stats = [
+                Nodes.SingleAssignmentNode(
                     pos = tuple_target.pos,
                     lhs = tuple_target,
-                    rhs = tuple_result))
+                    rhs = tuple_result)
+                ]
         else:
             # execute all coercions before the assignments
             coercion_stats = []
@@ -653,7 +714,29 @@ class IterationTransform(Visitor.VisitorTransform):
                         pos = value_temp.pos,
                         lhs = value_target,
                         rhs = temp_result))
-            body.stats[0:0] = coercion_stats + assign_stats
+            body_init_stats = coercion_stats + assign_stats
+
+        if isinstance(node.body, Nodes.StatListNode):
+            body = node.body
+        else:
+            body = Nodes.StatListNode(pos = node.body.pos,
+                                      stats = [node.body])
+
+        # keep original length to guard against dict modification
+        dict_len_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        temps.append(dict_len_temp)
+
+        body_init_stats.insert(0, Nodes.DictIterationNextNode(
+            dict_temp,
+            dict_len_temp.ref(dict_obj.pos),
+            pos_temp_addr, key_temp_addr, value_temp_addr
+            ))
+        body.stats[0:0] = [UtilNodes.TempsBlockNode(
+            node.pos,
+            temps = target_temps,
+            body = Nodes.StatListNode(pos = node.pos,
+                                      stats = body_init_stats)
+            )]
 
         result_code = [
             Nodes.SingleAssignmentNode(
@@ -665,19 +748,22 @@ class IterationTransform(Visitor.VisitorTransform):
                 lhs = pos_temp,
                 rhs = ExprNodes.IntNode(node.pos, value='0',
                                         constant_result=0)),
-            Nodes.WhileStatNode(
-                pos = node.pos,
-                condition = ExprNodes.SimpleCallNode(
+            Nodes.SingleAssignmentNode(
+                pos = dict_obj.pos,
+                lhs = dict_len_temp.ref(dict_obj.pos),
+                rhs = ExprNodes.SimpleCallNode(
                     pos = dict_obj.pos,
-                    type = PyrexTypes.c_bint_type,
+                    type = PyrexTypes.c_py_ssize_t_type,
                     function = ExprNodes.NameNode(
                         pos = dict_obj.pos,
-                        name = self.PyDict_Next_name,
-                        type = self.PyDict_Next_func_type,
-                        entry = self.PyDict_Next_entry),
-                    args = [dict_temp, pos_temp_addr,
-                            key_temp_addr, value_temp_addr]
-                    ),
+                        name = self.PyDict_Size_name,
+                        type = self.PyDict_Size_func_type,
+                        entry = self.PyDict_Size_entry),
+                    args = [dict_temp],
+                )),
+            Nodes.WhileStatNode(
+                pos = node.pos,
+                condition = None,
                 body = body,
                 else_clause = node.else_clause
                 )
@@ -2983,10 +3069,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
       into a single node.
     """
 
-    check_constant_value_not_set = True
+    def __init__(self, reevaluate=False):
+        """
+        The reevaluate argument specifies whether constant values that were
+        previously computed should be recomputed.
+        """
+        super(ConstantFolding, self).__init__()
+        self.reevaluate = reevaluate
 
     def _calculate_const(self, node):
-        if (self.check_constant_value_not_set and
+        if (not self.reevaluate and
                 node.constant_result is not ExprNodes.constant_value_not_set):
             return
 

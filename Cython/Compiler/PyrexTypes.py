@@ -2163,7 +2163,10 @@ def get_all_specific_permutations(fused_types, id="", f2s=()):
     result = []
 
     for newid, specific_type in enumerate(fused_type.types):
-        f2s = dict(f2s, **{ fused_type: specific_type })
+        # f2s = dict(f2s, **{ fused_type: specific_type })
+        f2s = dict(f2s)
+        f2s.update({ fused_type: specific_type })
+
         if id:
             cname = '%s_%s' % (id, newid)
         else:

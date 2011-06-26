@@ -19,10 +19,6 @@ from distutils.dir_util import mkpath
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 
-if sys.version_info < (3, 0):
-    from Cython.Utils import any
-
-
 extension_name_re = _build_ext.extension_name_re
 
 show_compilers = _build_ext.show_compilers
@@ -122,8 +118,8 @@ class build_ext(_build_ext.build_ext):
         # If --pyrex-gdb is in effect as a command line option or as option
         # of any Extension module, disable optimization for the C or C++
         # compiler.
-        if (self.pyrex_gdb or any([getattr(ext, 'pyrex_gdb', False)
-                                       for ext in self.extensions])):
+        if self.pyrex_gdb or [1 for ext in self.extensions
+                                     if getattr(ext, 'pyrex_gdb', False)]:
             optimization.disable_optimization()
 
         _build_ext.build_ext.run(self)

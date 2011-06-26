@@ -200,5 +200,5 @@ ae(myobj.cpdef_method[cy.int, cy.float](10, 10.0), (10, 10.0))
 """
 
 d = {'obj': obj, 'myobj': myobj, 'ae': ae}
-exec s in d, d
+#exec s in d
 

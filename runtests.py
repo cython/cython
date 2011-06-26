@@ -4,6 +4,7 @@ import os
 import sys
 import re
 import gc
+import locale
 import codecs
 import shutil
 import time
@@ -11,6 +12,7 @@ import unittest
 import doctest
 import operator
 import tempfile
+import warnings
 import traceback
 try:
     from StringIO import StringIO
@@ -54,6 +56,7 @@ CY3_DIR = None
 from distutils.dist import Distribution
 from distutils.core import Extension
 from distutils.command.build_ext import build_ext as _build_ext
+from distutils import sysconfig
 distutils_distro = Distribution()
 
 if sys.platform == 'win32':
@@ -78,8 +81,77 @@ def update_numpy_extension(ext):
     import numpy
     ext.include_dirs.append(numpy.get_include())
 
+def update_openmp_extension(ext):
+    language = ext.language
+
+    if language == 'cpp':
+        flags = OPENMP_CPP_COMPILER_FLAGS
+    else:
+        flags = OPENMP_C_COMPILER_FLAGS
+
+    if flags:
+        compile_flags, link_flags = flags
+
+        ext.extra_compile_args.extend(compile_flags.split())
+        ext.extra_link_args.extend(link_flags.split())
+        return ext
+
+    return EXCLUDE_EXT
+
+def get_openmp_compiler_flags(language):
+    """
+    As of gcc 4.2, it supports OpenMP 2.5. Gcc 4.4 implements 3.0. We don't
+    (currently) check for other compilers.
+
+    returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
+    """
+    if language == 'cpp':
+        cc = sysconfig.get_config_var('CXX')
+    else:
+        cc = sysconfig.get_config_var('CC')
+
+    # For some reason, cc can be e.g. 'gcc -pthread'
+    cc = cc.split()[0]
+
+    matcher = re.compile(r"gcc version (\d+\.\d+)").search
+    try:
+        import subprocess
+    except ImportError:
+        try:
+            in_, out_err = os.popen4([cc, "-v"])
+        except EnvironmentError:
+            warnings.warn("Unable to find the %s compiler: %s: %s" %
+                          (language, os.strerror(sys.exc_info()[1].errno), cc))
+            return None
+        output = out_err.read()
+    else:
+        try:
+            p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE)
+        except EnvironmentError:
+            # Be compatible with Python 3
+            warnings.warn("Unable to find the %s compiler: %s: %s" %
+                          (language, os.strerror(sys.exc_info()[1].errno), cc))
+            return None
+        _, output = p.communicate()
+
+    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
+
+    compiler_version = matcher(output).group(1)
+    if compiler_version and compiler_version.split('.') >= ['4', '2']:
+        return '-fopenmp', '-fopenmp'
+
+
+locale.setlocale(locale.LC_ALL, '')
+
+OPENMP_C_COMPILER_FLAGS = get_openmp_compiler_flags('c')
+OPENMP_CPP_COMPILER_FLAGS = get_openmp_compiler_flags('cpp')
+
+# Return this from the EXT_EXTRAS matcher callback to exclude the extension
+EXCLUDE_EXT = object()
+
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
+    'tag:openmp': update_openmp_extension,
 }
 
 # TODO: use tags
@@ -87,7 +159,8 @@ VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
     (2,4) : (operator.lt, lambda x: x in ['run.extern_builtins_T258',
-                                          'run.builtin_sorted'
+                                          'run.builtin_sorted',
+                                          'run.reversed_iteration',
                                           ]),
     (2,5) : (operator.lt, lambda x: x in ['run.any',
                                           'run.all',
@@ -98,6 +171,7 @@ VER_DEP_MODULES = {
                                           'run.cython3',
                                           'run.generators_py', # generators, with statement
                                           'run.pure_py', # decorators, with statement
+                                          'run.purecdef',
                                           ]),
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
                                           ]),
@@ -519,13 +593,21 @@ class CythonCompileTestCase(unittest.TestCase):
                 extra_compile_args = ext_compile_flags,
                 **extra_extension_args
                 )
+
+            if self.language == 'cpp':
+                # Set the language now as the fixer might need it
+                extension.language = 'c++'
+
             for matcher, fixer in EXT_EXTRAS.items():
                 if isinstance(matcher, str):
                     del EXT_EXTRAS[matcher]
                     matcher = string_selector(matcher)
                     EXT_EXTRAS[matcher] = fixer
                 if matcher(module, tags):
-                    extension = fixer(extension) or extension
+                    newext = fixer(extension)
+                    if newext is EXCLUDE_EXT:
+                        return
+                    extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
             build_extension.extensions = [extension]
@@ -647,6 +729,7 @@ def run_forked_test(result, run_func, test_name, fork=True):
 
     try:
         cid, result_code = os.waitpid(child_id, 0)
+        module_name = test_name.split()[-1]
         # os.waitpid returns the child's result code in the
         # upper byte of result_code, and the signal it was
         # killed by in the lower byte

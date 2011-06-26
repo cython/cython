@@ -30,7 +30,7 @@ class TestInline(CythonTest):
         self.assertEquals(inline("""
             cimport cython
             return cython.typeof(a), cython.typeof(b)
-        """, a=1.0, b=[], **self.test_kwds), ('double', 'list object'))
+        """, a=1.0, b=[], **self.test_kwds), ('double', 'list'))
 
     def test_locals(self):
         a = 1

@@ -49,20 +49,26 @@ cdef public api class Bar3 [type PyBar3_Type, object PyBar3_Object]: pass
 
 # --
 
-cdef inline     void bar0(): pass
+cdef extern from *:
+    void foo()
+
+cdef inline     void bar (): pass
+cdef            void bar0()
 cdef public     void bar1()
 cdef        api void bar2()
 cdef public api void bar3()
 
-cdef inline     void* spam0(object o) except NULL: return NULL
+cdef inline     void* spam (object o) except NULL: return NULL
+cdef            void* spam0(object o) except NULL
 cdef public     void* spam1(object o) except NULL
 cdef        api void* spam2(object o) nogil except NULL
 cdef public api void* spam3(object o) except NULL with gil
 
 # --
 
-#cdef public     int i1
-#cdef        api int i2
-#cdef public api int i3
+cdef            int i0 = 0 # XXX implement initialization!!!
+cdef public     int i1
+cdef        api int i2
+cdef public api int i3
 
 # --
