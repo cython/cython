@@ -1042,9 +1042,6 @@ class CVarDefNode(StatNode):
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
-                if self.in_pxd and self.visibility != 'extern':
-                    error(self.pos,
-                        "Only 'extern' C variable declaration allowed in .pxd file")
                 self.entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname=cname, visibility=visibility, api=self.api, is_cdef=1)
 

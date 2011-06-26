@@ -6061,7 +6061,7 @@ class TypeofNode(ExprNode):
 
     def analyse_types(self, env):
         self.operand.analyse_types(env)
-        value = StringEncoding.EncodedString(self.operand.type.typeof_name())
+        value = StringEncoding.EncodedString(str(self.operand.type)) #self.operand.type.typeof_name())
         self.literal = StringNode(self.pos, value=value)
         self.literal.analyse_types(env)
         self.literal = self.literal.coerce_to_pyobject(env)

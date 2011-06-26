@@ -174,16 +174,16 @@ def ae(result, expected):
 
     assert result == expected
 
-ae(a_mod.public_cpdef["int, float, list"](5, 6, [7]), ("int", "float", "list"))
-ae(a_mod.public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list"))
+ae(a_mod.public_cpdef["int, float, list"](5, 6, [7]), ("int", "float", "list object"))
+ae(a_mod.public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list object"))
 
 idx = cy.typeof(0), cy.typeof(0.0), cy.typeof([])
-ae(a_mod.public_cpdef[idx](5, 6, [7]), ("int", "float", "list"))
+ae(a_mod.public_cpdef[idx](5, 6, [7]), ("int", "float", "list object"))
 
 ae(a_mod.public_cpdef[cy.int, cy.double, cython.typeof(obj)](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
 ae(a_mod.public_cpdef[cy.int, cy.double, cython.typeof(obj)](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
 
-ae(public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list"))
+ae(public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list object"))
 ae(public_cpdef[int, double, TestFusedExtMethods](5, 6, obj), ("int", "double", "TestFusedExtMethods"))
 ae(public_cpdef[int, double, TestFusedExtMethods](5, 6, myobj), ("int", "double", "TestFusedExtMethods"))
 
