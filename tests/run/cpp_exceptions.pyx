@@ -12,11 +12,44 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef int raise_index_value "raise_index"(bint fire) except +ValueError
     cdef int raise_index_custom "raise_index"(bint fire) except +raise_py_error
 
+    cdef void raise_arithmetic "raise_arithmetic"() except +
+    cdef void raise_memory "raise_memory"() except +
+    cdef void raise_overflow "raise_overflow"() except +
+
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +
         int bar_value "bar"(bint fire) except +ValueError
         int bar_custom "bar"(bint fire) except +raise_py_error
 
+
+def test_arithmetic():
+    """
+    >>> test_arithmetic()
+    Traceback (most recent call last):
+    ...
+    ArithmeticError: range_error
+    """
+    raise_arithmetic()
+
+# XXX The following error message is actually implementation-defined.
+# This is the one from GCC/libstdc++ 4.4.5 on Linux.
+def test_memory():
+    """
+    >>> test_memory()
+    Traceback (most recent call last):
+    ...
+    MemoryError: std::bad_alloc
+    """
+    raise_memory()
+
+def test_overflow():
+    """
+    >>> test_overflow()
+    Traceback (most recent call last):
+    ...
+    OverflowError: overflow_error
+    """
+    raise_overflow()
 
 def test_int_raw(bint fire):
     """

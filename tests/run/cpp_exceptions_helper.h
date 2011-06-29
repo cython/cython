@@ -23,3 +23,17 @@ class Foo {
     return 0;
   }
 };
+
+void raise_arithmetic() {
+    throw std::range_error("range_error");
+}
+
+void raise_memory() {
+    // std::bad_alloc can only be default constructed,
+    // so we have no control over the error message
+    throw std::bad_alloc();
+}
+
+void raise_overflow() {
+    throw std::overflow_error("overflow_error");
+}
