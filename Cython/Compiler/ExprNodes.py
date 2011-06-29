@@ -8231,6 +8231,12 @@ static void __Pyx_CppExn2PyErr() {
   } catch (const std::out_of_range& exn) {
     // Change out_of_range to IndexError
     PyErr_SetString(PyExc_IndexError, exn.what());
+  } catch (const std::overflow_error& exn) {
+    PyErr_SetString(PyExc_OverflowError, exn.what());
+  } catch (const std::range_error& exn) {
+    PyErr_SetString(PyExc_ArithmeticError, exn.what());
+  } catch (const std::underflow_error& exn) {
+    PyErr_SetString(PyExc_ArithmeticError, exn.what());
   } catch (const std::exception& exn) {
     PyErr_SetString(PyExc_RuntimeError, exn.what());
   }
