@@ -8226,6 +8226,8 @@ static void __Pyx_CppExn2PyErr() {
     // equivalent Python errors.
     // Change invalid_argument to ValueError
     PyErr_SetString(PyExc_ValueError, exn.what());
+  } catch (const std::bad_alloc& exn) {
+    PyErr_SetString(PyExc_MemoryError, exn.what());
   } catch (const std::out_of_range& exn) {
     // Change out_of_range to IndexError
     PyErr_SetString(PyExc_IndexError, exn.what());
