@@ -12,11 +12,92 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef int raise_index_value "raise_index"(bint fire) except +ValueError
     cdef int raise_index_custom "raise_index"(bint fire) except +raise_py_error
 
+    cdef void raise_domain_error() except +
+    cdef void raise_ios_failure() except +
+    cdef void raise_memory() except +
+    cdef void raise_overflow() except +
+    cdef void raise_range_error() except +
+    cdef void raise_typeerror() except +
+    cdef void raise_underflow() except +
+
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +
         int bar_value "bar"(bint fire) except +ValueError
         int bar_custom "bar"(bint fire) except +raise_py_error
 
+
+def test_domain_error():
+    """
+    >>> test_domain_error()
+    Traceback (most recent call last):
+    ...
+    ValueError: domain_error
+    """
+    raise_domain_error()
+
+def test_ios_failure():
+    """
+    >>> test_ios_failure()
+    Traceback (most recent call last):
+    ...
+    IOError: iostream failure
+    """
+    raise_ios_failure()
+
+def test_memory():
+    """
+    >>> test_memory()
+    Traceback (most recent call last):
+    ...
+    MemoryError
+    """
+    # Re-raise the exception without a description string because we can't
+    # rely on the implementation-defined value of what() in the doctest.
+    try:
+        raise_memory()
+    except MemoryError:
+        raise MemoryError
+
+def test_overflow():
+    """
+    >>> test_overflow()
+    Traceback (most recent call last):
+    ...
+    OverflowError: overflow_error
+    """
+    raise_overflow()
+
+def test_range_error():
+    """
+    >>> test_range_error()
+    Traceback (most recent call last):
+    ...
+    ArithmeticError: range_error
+    """
+    raise_range_error()
+
+def test_typeerror():
+    """
+    >>> test_typeerror()
+    Traceback (most recent call last):
+    ...
+    TypeError
+    """
+    # Re-raise the exception without a description string because we can't
+    # rely on the implementation-defined value of what() in the doctest.
+    try:
+        raise_typeerror()
+    except TypeError:
+        raise TypeError
+
+def test_underflow():
+    """
+    >>> test_underflow()
+    Traceback (most recent call last):
+    ...
+    ArithmeticError: underflow_error
+    """
+    raise_underflow()
 
 def test_int_raw(bint fire):
     """
