@@ -8228,6 +8228,8 @@ static void __Pyx_CppExn2PyErr() {
     PyErr_SetString(PyExc_ValueError, exn.what());
   } catch (const std::bad_alloc& exn) {
     PyErr_SetString(PyExc_MemoryError, exn.what());
+  } catch (const std::bad_cast& exn) {
+    PyErr_SetString(PyExc_TypeError, exn.what());
   } catch (const std::ios_base::failure& exn) {
     // Unfortunately, in standard C++ we have no way of distinguishing EOF
     // from other errors here; be careful with the exception mask

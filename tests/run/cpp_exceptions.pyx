@@ -16,6 +16,7 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef void raise_memory "raise_memory"() except +
     cdef void raise_overflow "raise_overflow"() except +
     cdef void raise_range_error "raise_range_error"() except +
+    cdef void raise_typeerror "raise_typeerror"() except +
     cdef void raise_underflow "raise_underflow"() except +
 
     cdef cppclass Foo:
@@ -64,6 +65,20 @@ def test_range_error():
     ArithmeticError: range_error
     """
     raise_range_error()
+
+def test_typeerror():
+    """
+    >>> test_typeerror()
+    Traceback (most recent call last):
+    ...
+    TypeError
+    """
+    # Re-raise the exception without a description string because we can't
+    # rely on the implementation-defined value of what() in the doctest.
+    try:
+        raise_typeerror()
+    except TypeError:
+        raise TypeError
 
 def test_underflow():
     """

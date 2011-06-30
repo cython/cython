@@ -44,6 +44,16 @@ void raise_range_error() {
     throw std::range_error("range_error");
 }
 
+struct Base { virtual ~Base() {} };
+struct Derived : Base { void use() const { abort(); } };
+
+void raise_typeerror() {
+    Base foo;
+    Base &bar = foo;    // prevents "dynamic_cast can never succeed" warning
+    Derived &baz = dynamic_cast<Derived &>(bar);
+    baz.use();          // not reached; prevents "unused variable" warning
+}
+
 void raise_underflow() {
     throw std::underflow_error("underflow_error");
 }

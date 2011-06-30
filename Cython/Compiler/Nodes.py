@@ -580,6 +580,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             env.add_include_file('ios')         # for std::ios_base::failure
             env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
+            env.add_include_file('typeinfo')    # for std::bad_cast
         if return_type.is_pyobject \
             and (self.exception_value or self.exception_check) \
             and self.exception_check != '+':
