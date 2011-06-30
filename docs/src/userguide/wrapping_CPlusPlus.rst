@@ -359,9 +359,37 @@ exception and converting it into a Python exception. For example, ::
     cdef extern from "some_file.h":
         cdef int foo() except +
 
-This will translate try and the C++ error into an appropriate Python exception
-(currently an IndexError on std::out_of_range and a RuntimeError otherwise
-(preserving the what() message). ::
+This will translate try and the C++ error into an appropriate Python exception.
+The translation is performed according to the following table
+(the ``std::`` prefix is omitted from the C++ identifiers):
+
++-----------------------+---------------------+
+| C++                   | Python              |
++=======================+=====================+
+| ``bad_alloc``         | ``MemoryError``     |
++-----------------------+---------------------+
+| ``bad_cast``          | ``TypeError``       |
++-----------------------+---------------------+
+| ``domain_error``      | ``ValueError``      |
++-----------------------+---------------------+
+| ``invalid_argument``  | ``ValueError``      |
++-----------------------+---------------------+
+| ``ios_base::failure`` | ``IOError``         |
++-----------------------+---------------------+
+| ``out_of_range``      | ``IndexError``      |
++-----------------------+---------------------+
+| ``overflow_error``    | ``OverflowError``   |
++-----------------------+---------------------+
+| ``range_error``       | ``ArithmeticError`` |
++-----------------------+---------------------+
+| ``underflow_error``   | ``ArithmeticError`` |
++-----------------------+---------------------+
+| (all others)          | ``RuntimeError``    |
++-----------------------+---------------------+
+
+The ``what()`` message, if any, is preserved. Note that a C++
+``ios_base_failure`` can denote EOF, but does not carry enough information
+for Cython to discern that, so watch out with exception masks on IO streams. ::
 
     cdef int bar() except +MemoryError
 
