@@ -12,9 +12,11 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef int raise_index_value "raise_index"(bint fire) except +ValueError
     cdef int raise_index_custom "raise_index"(bint fire) except +raise_py_error
 
-    cdef void raise_arithmetic "raise_arithmetic"() except +
+    cdef void raise_ios_failure "raise_ios_failure"() except +
     cdef void raise_memory "raise_memory"() except +
     cdef void raise_overflow "raise_overflow"() except +
+    cdef void raise_range_error "raise_range_error"() except +
+    cdef void raise_underflow "raise_underflow"() except +
 
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +
@@ -22,25 +24,28 @@ cdef extern from "cpp_exceptions_helper.h":
         int bar_custom "bar"(bint fire) except +raise_py_error
 
 
-def test_arithmetic():
+def test_ios_failure():
     """
-    >>> test_arithmetic()
+    >>> test_ios_failure()
     Traceback (most recent call last):
     ...
-    ArithmeticError: range_error
+    IOError: iostream failure
     """
-    raise_arithmetic()
+    raise_ios_failure()
 
-# XXX The following error message is actually implementation-defined.
-# This is the one from GCC/libstdc++ 4.4.5 on Linux.
 def test_memory():
     """
     >>> test_memory()
     Traceback (most recent call last):
     ...
-    MemoryError: std::bad_alloc
+    MemoryError
     """
-    raise_memory()
+    # Re-raise the exception without a description string because we can't
+    # rely on the implementation-defined value of what() in the doctest.
+    try:
+        raise_memory()
+    except MemoryError:
+        raise MemoryError
 
 def test_overflow():
     """
@@ -50,6 +55,24 @@ def test_overflow():
     OverflowError: overflow_error
     """
     raise_overflow()
+
+def test_range_error():
+    """
+    >>> test_range_error()
+    Traceback (most recent call last):
+    ...
+    ArithmeticError: range_error
+    """
+    raise_range_error()
+
+def test_underflow():
+    """
+    >>> test_underflow()
+    Traceback (most recent call last):
+    ...
+    ArithmeticError: underflow_error
+    """
+    raise_underflow()
 
 def test_int_raw(bint fire):
     """

@@ -1,3 +1,5 @@
+#include <ios>
+#include <new>
 #include <stdexcept>
 
 int raise_int(int fire) {
@@ -24,8 +26,8 @@ class Foo {
   }
 };
 
-void raise_arithmetic() {
-    throw std::range_error("range_error");
+void raise_ios_failure() {
+    throw std::ios_base::failure("iostream failure");
 }
 
 void raise_memory() {
@@ -36,4 +38,12 @@ void raise_memory() {
 
 void raise_overflow() {
     throw std::overflow_error("overflow_error");
+}
+
+void raise_range_error() {
+    throw std::range_error("range_error");
+}
+
+void raise_underflow() {
+    throw std::underflow_error("underflow_error");
 }
