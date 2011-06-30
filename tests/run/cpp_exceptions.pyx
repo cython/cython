@@ -12,18 +12,28 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef int raise_index_value "raise_index"(bint fire) except +ValueError
     cdef int raise_index_custom "raise_index"(bint fire) except +raise_py_error
 
-    cdef void raise_ios_failure "raise_ios_failure"() except +
-    cdef void raise_memory "raise_memory"() except +
-    cdef void raise_overflow "raise_overflow"() except +
-    cdef void raise_range_error "raise_range_error"() except +
-    cdef void raise_typeerror "raise_typeerror"() except +
-    cdef void raise_underflow "raise_underflow"() except +
+    cdef void raise_domain_error() except +
+    cdef void raise_ios_failure() except +
+    cdef void raise_memory() except +
+    cdef void raise_overflow() except +
+    cdef void raise_range_error() except +
+    cdef void raise_typeerror() except +
+    cdef void raise_underflow() except +
 
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +
         int bar_value "bar"(bint fire) except +ValueError
         int bar_custom "bar"(bint fire) except +raise_py_error
 
+
+def test_domain_error():
+    """
+    >>> test_domain_error()
+    Traceback (most recent call last):
+    ...
+    ValueError: domain_error
+    """
+    raise_domain_error()
 
 def test_ios_failure():
     """

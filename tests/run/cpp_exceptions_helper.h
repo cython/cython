@@ -26,6 +26,10 @@ class Foo {
   }
 };
 
+void raise_domain_error() {
+    throw std::domain_error("domain_error");
+}
+
 void raise_ios_failure() {
     throw std::ios_base::failure("iostream failure");
 }
