@@ -1078,6 +1078,8 @@ class ModuleScope(Scope):
             self.var_entries.append(entry)
         else:
             entry.is_pyglobal = 1
+        if Options.cimport_from_pyx:
+            entry.used = 1
         return entry
 
     def declare_cfunction(self, name, type, pos,
