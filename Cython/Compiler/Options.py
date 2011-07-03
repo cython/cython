@@ -64,7 +64,7 @@ disable_function_redefinition = False
 old_style_globals = False
 
 # Allows cimporting from a pyx file without a pxd file.
-cimport_from_pyx = True
+cimport_from_pyx = False
 
 
 

@@ -1,0 +1,52 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+import Cython.Compiler.Options
+Cython.Compiler.Options.cimport_from_pyx = True
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## a.pyx ########
+
+from b cimport Bclass, Bfunc, Bstruct, Benum, Benum_value, Btypedef
+cdef Bclass b = Bclass(5)
+assert Bfunc(&b.value) == b.value
+assert b.asStruct().value == b.value
+cdef Btypedef b_type = &b.value
+cdef Benum b_enum = Benum_value
+
+#from c cimport ClassC
+#cdef ClassC c = ClassC()
+#print c.value
+
+######## b.pyx ########
+
+cdef enum Benum:
+    Benum_value
+
+cdef struct Bstruct:
+    int value
+
+ctypedef long *Btypedef
+
+cdef class Bclass:
+    cdef long value
+    def __init__(self, value):
+        self.value = value
+    cdef Bstruct asStruct(self):
+        return Bstruct(value=self.value)
+
+cdef long Bfunc(Btypedef x):
+    return x[0]
+
+######## c.pxd ########
+
+cdef class ClassC:
+    cdef int value

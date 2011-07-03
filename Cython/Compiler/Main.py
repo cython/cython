@@ -249,9 +249,11 @@ class Context(object):
                     FlattenInListTransform,
                     WithTransform,
                     ]:
+                # Skip these unnecessary stages.
                 continue
             pipeline.append(stage)
             if isinstance(stage, AnalyseDeclarationsTransform):
+                # This is the last stage we need.
                 break
         def fake_pxd(root):
             for entry in root.scope.entries.values():
