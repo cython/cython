@@ -44,6 +44,8 @@ cdef class FunctionState:
     cpdef set_loop_labels(self, labels)
     cpdef tuple get_all_labels(self)
     cpdef set_all_labels(self, labels)
+    cpdef start_collecting_temps(self)
+    cpdef stop_collecting_temps(self)
 
     cpdef list temps_in_use(self)
 
