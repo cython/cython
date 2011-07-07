@@ -80,7 +80,7 @@ argument in order to pass it.
 Therefore Cython provides a syntax for declaring a C-style function,
 the cdef keyword::
 
-  cdef double f(double) except? -2:
+  cdef double f(double x) except? -2:
       return x**2-x
 
 Some form of except-modifier should usually be added, otherwise Cython

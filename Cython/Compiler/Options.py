@@ -49,12 +49,6 @@ convert_range = True
 # If this is 0 it simply creates a wrapper.
 lookup_module_cpdef = False
 
-# This will set local variables to None rather than NULL which may cause
-# surpress what would be an UnboundLocalError in pure Python but eliminates
-# checking for NULL on every use, and can decref rather than xdecref at the end.
-# WARNING: This is a work in progress, may currently segfault.
-init_local_none = True
-
 # Whether or not to embed the Python interpreter, for use in making a
 # standalone executable or calling from external libraries.
 # This will provide a method which initalizes the interpreter and
@@ -64,6 +58,14 @@ embed = None
 # Disables function redefinition, allowing all functions to be declared at
 # module creation time. For legacy code only, needed for some circular imports.
 disable_function_redefinition = False
+
+# In previous iterations of Cython, globals() gave the first non-Cython module
+# globals in the call stack.  Sage relies on this behavior for variable injection.
+old_style_globals = False
+
+# Allows cimporting from a pyx file without a pxd file.
+cimport_from_pyx = False
+
 
 
 # Declare compiler directives
@@ -95,9 +97,18 @@ directive_defaults = {
     'warn': None,
     'warn.undeclared': False,
     'warn.unreachable': True,
+    'warn.maybe_uninitialized': False,
+    'warn.unreachable': True,
+    'warn.unused': False,
+    'warn.unused_arg': False,
+    'warn.unused_result': False,
 
 # remove unreachable code
     'remove_unreachable': True,
+
+# control flow debug directives
+    'control_flow.dot_output': "", # Graphviz output filename
+    'control_flow.dot_annotate_defs': False, # Annotate definitions
 
 # test support
     'test_assert_path_exists' : [],
@@ -105,6 +116,13 @@ directive_defaults = {
 
 # experimental, subject to change
     'binding': False,
+}
+
+# Extra warning directives
+extra_warnings = {
+    'warn.maybe_uninitialized': True,
+    'warn.unreachable': True,
+    'warn.unused': True,
 }
 
 # Override types possibilities above, if needed

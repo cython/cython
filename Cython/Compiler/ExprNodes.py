@@ -702,11 +702,11 @@ class ExprNode(Node):
     def as_cython_attribute(self):
         return None
 
-    def as_none_safe_node(self, message, error="PyExc_TypeError"):
+    def as_none_safe_node(self, message, error="PyExc_TypeError", format_args=()):
         # Wraps the node in a NoneCheckNode if it is not known to be
         # not-None (e.g. because it is a Python literal).
         if self.may_be_none():
-            return NoneCheckNode(self, error, message)
+            return NoneCheckNode(self, error, message, format_args)
         else:
             return self
 
@@ -1288,14 +1288,20 @@ class NameNode(AtomicExprNode):
     #  name            string    Python name of the variable
     #  entry           Entry     Symbol table entry
     #  type_entry      Entry     For extension type names, the original type entry
+    #  cf_is_null      boolean   Is uninitialized before this node
+    #  cf_maybe_null   boolean   Maybe uninitialized before this node
+    #  allow_null      boolean   Don't raise UnboundLocalError
 
     is_name = True
     is_cython_module = False
     cython_attribute = None
-    lhs_of_first_assignment = False
+    lhs_of_first_assignment = False # TODO: remove me
     is_used_as_rvalue = 0
     entry = None
     type_entry = None
+    cf_maybe_null = True
+    cf_is_null = False
+    allow_null = False
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1407,8 +1413,6 @@ class NameNode(AtomicExprNode):
             else:
                 type = py_object_type
             self.entry = env.declare_var(self.name, type, self.pos)
-        env.control_flow.set_state(self.pos, (self.name, 'initialized'), True)
-        env.control_flow.set_state(self.pos, (self.name, 'source'), 'assignment')
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
 
@@ -1578,15 +1582,11 @@ class NameNode(AtomicExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
-        elif entry.is_local and False:
-            # control flow not good enough yet
-            assigned = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
-            if assigned is False:
-                error(self.pos, "local variable '%s' referenced before assignment" % entry.name)
-            elif not Options.init_local_none and assigned is None:
-                code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
-                           (entry.cname, entry.name, code.error_goto(self.pos)))
-                entry.scope.control_flow.set_state(self.pos, (entry.name, 'initialized'), True)
+        elif entry.is_local or entry.in_closure or entry.from_closure:
+            if entry.type.is_pyobject:
+                if (self.cf_maybe_null or self.cf_is_null) \
+                       and not self.allow_null:
+                    code.put_error_if_unbound(self.pos, entry)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -1655,17 +1655,20 @@ class NameNode(AtomicExprNode):
                 if self.use_managed_ref:
                     rhs.make_owned_reference(code)
                     is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
-                    if not self.lhs_of_first_assignment:
-                        if is_external_ref:
-                            code.put_gotref(self.py_result())
-                        if entry.is_local and not Options.init_local_none:
-                            initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
-                            if initialized is True:
-                                code.put_decref(self.result(), self.ctype())
-                            elif initialized is None:
+                    if is_external_ref:
+                        if not self.cf_is_null:
+                            if self.cf_maybe_null:
+                                code.put_xgotref(self.py_result())
+                            else:
+                                code.put_gotref(self.py_result())
+                    if entry.is_cglobal:
+                        code.put_decref(self.result(), self.ctype())
+                    else:
+                        if not self.cf_is_null:
+                            if self.cf_maybe_null:
                                 code.put_xdecref(self.result(), self.ctype())
-                        else:
-                            code.put_decref(self.result(), self.ctype())
+                            else:
+                                code.put_decref(self.result(), self.ctype())
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
 
@@ -1704,18 +1707,22 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
         elif self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
+            interned_cname = code.intern_identifier(self.entry.name)
             code.put_error_if_neg(self.pos,
-                'PyMapping_DelItemString(%s, "%s")' % (
+                'PyMapping_DelItem(%s, %s)' % (
                     namespace,
-                    self.entry.name))
+                    interned_cname))
         elif self.entry.is_pyglobal:
             code.put_error_if_neg(self.pos,
                 '__Pyx_DelAttrString(%s, "%s")' % (
                     Naming.module_cname,
                     self.entry.name))
         elif self.entry.type.is_pyobject:
-            # Fake it until we can do it for real...
-            self.generate_assignment_code(NoneNode(self.pos), code)
+            if not self.cf_is_null:
+                if self.cf_maybe_null:
+                    code.put_error_if_unbound(self.pos, self.entry)
+                code.put_decref(self.result(), self.ctype())
+                code.putln('%s = NULL;' % self.result())
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -3210,8 +3217,9 @@ class SimpleCallNode(CallNode):
                 self_arg = func_type.args[0]
                 if self_arg.not_none: # C methods must do the None test for self at *call* time
                     self.self = self.self.as_none_safe_node(
-                        "'NoneType' object has no attribute '%s'" % self.function.entry.name,
-                        'PyExc_AttributeError')
+                        "'NoneType' object has no attribute '%s'",
+                        error = 'PyExc_AttributeError',
+                        format_args = [self.function.entry.name])
                 expected_type = self_arg.type
                 self.coerced_self = CloneNode(self.self).coerce_to(
                     expected_type, env)
@@ -4642,8 +4650,6 @@ class ScopedExprNode(ExprNode):
             generate_inner_evaluation_code(code)
             code.putln('} /* exit inner scope */')
             return
-        for entry in py_entries:
-            code.put_init_var_to_py_none(entry)
 
         # must free all local Python references at each exit point
         old_loop_labels = tuple(code.new_loop_labels())
@@ -4888,12 +4894,14 @@ class SetNode(ExprNode):
 class DictNode(ExprNode):
     #  Dictionary constructor.
     #
-    #  key_value_pairs  [DictItemNode]
+    #  key_value_pairs     [DictItemNode]
+    #  exclude_null_values [boolean]          Do not add NULL values to dict
     #
     # obj_conversion_errors    [PyrexError]   used internally
 
     subexprs = ['key_value_pairs']
     is_temp = 1
+    exclude_null_values = False
     type = dict_type
 
     obj_conversion_errors = []
@@ -4981,11 +4989,15 @@ class DictNode(ExprNode):
         for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
             if self.type.is_pyobject:
+                if self.exclude_null_values:
+                    code.putln('if (%s) {' % item.value.py_result())
                 code.put_error_if_neg(self.pos,
                     "PyDict_SetItem(%s, %s, %s)" % (
                         self.result(),
                         item.key.py_result(),
                         item.value.py_result()))
+                if self.exclude_null_values:
+                    code.putln('}')
             else:
                 code.putln("%s.%s = %s;" % (
                         self.result(),
@@ -5908,8 +5920,8 @@ class TypecastNode(ExprNode):
             self.type = self.operand.type
 
     def is_simple(self):
-        # either temp or a C cast => no side effects
-        return True
+        # either temp or a C cast => no side effects other than the operand's
+        return self.operand.is_simple()
 
     def nonlocally_immutable(self):
         return self.operand.nonlocally_immutable()
@@ -7139,7 +7151,9 @@ class CmpNode(object):
 
 contains_utility_code = UtilityCode(
 proto="""
-static CYTHON_INLINE long __Pyx_NegateNonNeg(long b) { return unlikely(b < 0) ? b : !b; }
+static CYTHON_INLINE int __Pyx_NegateNonNeg(int b) { 
+    return unlikely(b < 0) ? b : !b; 
+}
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
 }
@@ -7264,7 +7278,7 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
             else
                 return (PyBytes_AS_STRING(s1)[0] != PyBytes_AS_STRING(s2)[0]);
         } else {
-            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), PyBytes_GET_SIZE(s1));
+            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), (size_t)PyBytes_GET_SIZE(s1));
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
     } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
@@ -7711,12 +7725,14 @@ class NoneCheckNode(CoercionNode):
     # raises an appropriate exception (as specified by the creating
     # transform).
 
-    def __init__(self, arg, exception_type_cname, exception_message):
+    def __init__(self, arg, exception_type_cname, exception_message,
+                 exception_format_args):
         CoercionNode.__init__(self, arg)
         self.type = arg.type
         self.result_ctype = arg.ctype()
         self.exception_type_cname = exception_type_cname
         self.exception_message = exception_message
+        self.exception_format_args = tuple(exception_format_args or ())
 
     def analyse_types(self, env):
         pass
@@ -7736,11 +7752,20 @@ class NoneCheckNode(CoercionNode):
     def generate_result_code(self, code):
         code.putln(
             "if (unlikely(%s == Py_None)) {" % self.arg.py_result())
-        code.putln('PyErr_SetString(%s, "%s"); %s ' % (
-            self.exception_type_cname,
-            StringEncoding.escape_byte_string(
-                self.exception_message.encode('UTF-8')),
-            code.error_goto(self.pos)))
+        escape = StringEncoding.escape_byte_string
+        if self.exception_format_args:
+            code.putln('PyErr_Format(%s, "%s", %s); %s ' % (
+                self.exception_type_cname,
+                StringEncoding.escape_byte_string(
+                    self.exception_message.encode('UTF-8')),
+                ', '.join([ '"%s"' % escape(str(arg).encode('UTF-8'))
+                            for arg in self.exception_format_args ]),
+                code.error_goto(self.pos)))
+        else:
+            code.putln('PyErr_SetString(%s, "%s"); %s ' % (
+                self.exception_type_cname,
+                escape(self.exception_message.encode('UTF-8')),
+                code.error_goto(self.pos)))
         code.putln("}")
 
     def generate_post_assignment_code(self, code):
@@ -8414,19 +8439,34 @@ cpp_exception_utility_code = UtilityCode(
 proto = """
 #ifndef __Pyx_CppExn2PyErr
 static void __Pyx_CppExn2PyErr() {
+  // Catch a handful of different errors here and turn them into the
+  // equivalent Python errors.
   try {
     if (PyErr_Occurred())
       ; // let the latest Python exn pass through and ignore the current one
     else
       throw;
-  } catch (const std::invalid_argument& exn) {
-    // Catch a handful of different errors here and turn them into the
-    // equivalent Python errors.
-    // Change invalid_argument to ValueError
+  } catch (const std::bad_alloc& exn) {
+    PyErr_SetString(PyExc_MemoryError, exn.what());
+  } catch (const std::bad_cast& exn) {
+    PyErr_SetString(PyExc_TypeError, exn.what());
+  } catch (const std::domain_error& exn) {
     PyErr_SetString(PyExc_ValueError, exn.what());
+  } catch (const std::invalid_argument& exn) {
+    PyErr_SetString(PyExc_ValueError, exn.what());
+  } catch (const std::ios_base::failure& exn) {
+    // Unfortunately, in standard C++ we have no way of distinguishing EOF
+    // from other errors here; be careful with the exception mask
+    PyErr_SetString(PyExc_IOError, exn.what());
   } catch (const std::out_of_range& exn) {
     // Change out_of_range to IndexError
     PyErr_SetString(PyExc_IndexError, exn.what());
+  } catch (const std::overflow_error& exn) {
+    PyErr_SetString(PyExc_OverflowError, exn.what());
+  } catch (const std::range_error& exn) {
+    PyErr_SetString(PyExc_ArithmeticError, exn.what());
+  } catch (const std::underflow_error& exn) {
+    PyErr_SetString(PyExc_ArithmeticError, exn.what());
   } catch (const std::exception& exn) {
     PyErr_SetString(PyExc_RuntimeError, exn.what());
   }
@@ -8490,6 +8530,26 @@ static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
 }
 ''')
+
+raise_unbound_local_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);
+""",
+impl = """
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
+    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
+}
+""")
+
+raise_closure_name_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);
+""",
+impl = """
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
+}
+""")
 
 #------------------------------------------------------------------------------------
 
@@ -8684,11 +8744,7 @@ static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected);
 impl = '''
 static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected) {
     PyErr_Format(PyExc_ValueError,
-        #if PY_VERSION_HEX < 0x02050000
-            "too many values to unpack (expected %d)", (int)expected);
-        #else
-            "too many values to unpack (expected %zd)", expected);
-        #endif
+                 "too many values to unpack (expected %"PY_FORMAT_SIZE_T"d)", expected);
 }
 ''')
 
@@ -8699,12 +8755,8 @@ static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
 impl = '''
 static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
     PyErr_Format(PyExc_ValueError,
-        #if PY_VERSION_HEX < 0x02050000
-                 "need more than %d value%s to unpack", (int)index,
-        #else
-                 "need more than %zd value%s to unpack", index,
-        #endif
-                 (index == 1) ? "" : "s");
+                 "need more than %"PY_FORMAT_SIZE_T"d value%s to unpack",
+                 index, (index == 1) ? "" : "s");
 }
 ''')
 

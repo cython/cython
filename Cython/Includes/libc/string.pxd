@@ -31,6 +31,7 @@ cdef extern from "string.h" nogil:
     int    strcoll (const_char *S1, const_char *S2)
     size_t strxfrm (char *TO, const_char *FROM, size_t SIZE)
 
+    char *strerror (int ERRNUM)
 
     char *strchr  (const_char *STRING, int C)
     char *strrchr (const_char *STRING, int C)

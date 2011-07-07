@@ -18,7 +18,7 @@ cdef void r() nogil:
     q()
 
 cdef object m():
-    cdef object x, y, obj
+    cdef object x, y = 0, obj
     cdef int i, j, k
     global fred
     q()

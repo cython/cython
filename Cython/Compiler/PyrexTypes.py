@@ -85,6 +85,13 @@ class BaseType(object):
 
         return index_name
 
+    def invalid_value(self):
+        """
+        Returns the most invalid value an object of this type can assume as a
+        C expression string. Returns None if no such value exists.
+        """
+
+
 class PyrexType(BaseType):
     #
     #  Base class for all Pyrex types.
@@ -263,6 +270,9 @@ class CTypedefType(BaseType):
         self.typedef_cname = cname
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
+
+    def invalid_value(self):
+        return self.typedef_base_type.invalid_value()
 
     def resolve(self):
         return self.typedef_base_type.resolve()
@@ -452,6 +462,9 @@ class PyObjectType(PyrexType):
         ('object') is always true
         """
         return False
+
+    def invalid_value(self):
+        return "1"
 
 
 class BuiltinObjectType(PyObjectType):
@@ -885,9 +898,9 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
                                 "can't convert negative value to %(type)s");
                 return (%(type)s)-1;
             }
-            return PyLong_AsUnsigned%(TypeName)s(x);
+            return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
         } else {
-            return PyLong_As%(TypeName)s(x);
+            return (%(type)s)PyLong_As%(TypeName)s(x);
         }
     } else {
         %(type)s val;
@@ -1039,6 +1052,14 @@ class CIntType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
+    def invalid_value(self):
+        if rank_to_type_name[self.rank] == 'char':
+            return "'?'"
+        else:
+            # We do not really know the size of the type, so return
+            # a 32-bit literal and rely on casting to final type. It will
+            # be negative for signed ints, which is good.
+            return "0xbad0bad0";
 
 class CAnonEnumType(CIntType):
 
@@ -1116,13 +1137,8 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
        }
        #endif
        PyErr_Format(PyExc_ValueError,
-           "only single character unicode strings can be converted to Py_UCS4, got length "
-           #if PY_VERSION_HEX < 0x02050000
-           "%d",
-           #else
-           "%zd",
-           #endif
-           PyUnicode_GET_SIZE(x));
+                    "only single character unicode strings can be converted to Py_UCS4, "
+                    "got length %"PY_FORMAT_SIZE_T"d", PyUnicode_GET_SIZE(x));
        return (Py_UCS4)-1;
    }
    ival = __Pyx_PyInt_AsLong(x);
@@ -1172,13 +1188,8 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
    if (PyUnicode_Check(x)) {
        if (unlikely(PyUnicode_GET_SIZE(x) != 1)) {
            PyErr_Format(PyExc_ValueError,
-               "only single character unicode strings can be converted to Py_UNICODE, got length "
-               #if PY_VERSION_HEX < 0x02050000
-               "%d",
-               #else
-               "%zd",
-               #endif
-               PyUnicode_GET_SIZE(x));
+                        "only single character unicode strings can be converted to Py_UNICODE, "
+                        "got length %"PY_FORMAT_SIZE_T"d", PyUnicode_GET_SIZE(x));
            return (Py_UNICODE)-1;
        }
        return PyUnicode_AS_UNICODE(x)[0];
@@ -1249,6 +1260,8 @@ class CFloatType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
 
+    def invalid_value(self):
+        return Naming.PYX_NAN
 
 class CComplexType(CNumericType):
 
@@ -1769,6 +1782,8 @@ class CPtrType(CType):
         else:
             return CPtrType(base_type)
 
+    def invalid_value(self):
+        return "1"
 
 class CNullPtrType(CPtrType):
 
@@ -2495,6 +2510,12 @@ class TemplatePlaceholderType(CType):
             return cmp(self.name, other.name)
         else:
             return cmp(type(self), type(other))
+
+    def __eq__(self, other):
+        if isinstance(other, TemplatePlaceholderType):
+            return self.name == other.name
+        else:
+            return False
 
 class CEnumType(CType):
     #  name           string

@@ -7,6 +7,7 @@ from Code import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
 import Naming
+import Options
 
 
 # C-level implementations of builtin types, functions and methods
@@ -73,25 +74,6 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
     return r;
 bad:
     return NULL;
-}
-""")
-
-hasattr_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
-""",
-impl = """
-static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
-    PyObject *v = PyObject_GetAttr(o, n);
-    if (v) {
-        Py_DECREF(v);
-        return 1;
-    }
-    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-        PyErr_Clear();
-        return 0;
-    }
-    return -1;
 }
 """)
 
@@ -432,10 +414,7 @@ builtin_function_table = [
                     utility_code = getattr3_utility_code),
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
                     utility_code = getattr3_utility_code), # Pyrex compatibility
-    BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
-                    utility_code = globals_utility_code),
-    BuiltinFunction('hasattr',    "OO",   "b",     "__Pyx_HasAttr",
-                    utility_code = hasattr_utility_code),
+    BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
@@ -481,6 +460,11 @@ builtin_function_table = [
     # Put in namespace append optimization.
     BuiltinFunction('__Pyx_PyObject_Append', "OO",  "O",     "__Pyx_PyObject_Append"),
 ]
+
+if not Options.old_style_globals:
+    builtin_function_table.append(
+        BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
+                        utility_code = globals_utility_code))
 
 # Builtin types
 #  bool
@@ -544,10 +528,14 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
-                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
-                                    BuiltinMethod("add",     "TO", "r", "PySet_Add"),
-                                    BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
+    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
+                                                  utility_code = py23_set_utility_code),
+                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",
+                                                  utility_code = py23_set_utility_code),
+                                    BuiltinMethod("add",     "TO", "r", "PySet_Add",
+                                                  utility_code = py23_set_utility_code),
+                                    BuiltinMethod("pop",     "T",  "O", "PySet_Pop",
+                                                  utility_code = py23_set_utility_code)]),
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 

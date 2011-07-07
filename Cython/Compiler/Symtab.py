@@ -13,7 +13,6 @@ import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
-import ControlFlow
 import Code
 import __builtin__ as builtins
 try:
@@ -96,7 +95,6 @@ class Entry(object):
     #                               holding its home namespace
     # pymethdef_cname  string     PyMethodDef structure
     # signature        Signature  Arg & return types for Python func
-    # init_to_none     boolean    True if initial value should be None
     # as_variable      Entry      Alternative interpretation of extension
     #                               type name or builtin C function as a variable
     # xdecref_cleanup  boolean    Use Py_XDECREF for error cleanup
@@ -157,7 +155,6 @@ class Entry(object):
     func_cname = None
     func_modifiers = []
     doc = None
-    init_to_none = 0
     as_variable = None
     xdecref_cleanup = 0
     in_cinclude = 0
@@ -187,6 +184,8 @@ class Entry(object):
         self.init = init
         self.overloaded_alternatives = []
         self.assignments = []
+        self.cf_assignments = []
+        self.cf_references = []
 
     def __repr__(self):
         return "Entry(name=%s, type=%s)" % (self.name, self.type)
@@ -225,7 +224,6 @@ class Scope(object):
     # qualified_name    string             "modname" or "modname.classname"
     # pystring_entries  [Entry]            String const entries newly used as
     #                                        Python strings in this scope
-    # control_flow     ControlFlow  Used for keeping track of environment state
     # nogil             boolean            In a nogil section
     # directives       dict                Helper variable for the recursive
     #                                      analysis, contains directive values.
@@ -278,21 +276,11 @@ class Scope(object):
         self.pystring_entries = []
         self.buffer_entries = []
         self.lambda_defs = []
-        self.control_flow = ControlFlow.LinearControlFlow()
         self.return_type = None
         self.id_counters = {}
 
     def __deepcopy__(self, memo):
         return self
-
-    def start_branching(self, pos):
-        self.control_flow = self.control_flow.start_branch(pos)
-
-    def next_branch(self, pos):
-        self.control_flow = self.control_flow.next_branch(pos)
-
-    def finish_branching(self, pos):
-        self.control_flow = self.control_flow.finish_branch(pos)
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
@@ -446,8 +434,6 @@ class Scope(object):
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
-        if not scope and not entry.type.scope:
-            self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
 
     def declare_cpp_class(self, name, scope,
@@ -473,15 +459,26 @@ class Scope(object):
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
-        if templates is not None:
+            if base_classes:
+                if entry.type.base_classes and not entry.type.base_classes == base_classes:
+                    error(pos, "Base type does not match previous declaration")
+                else:
+                    entry.type.base_classes = base_classes
+            if templates or entry.type.templates:
+                if templates != entry.type.templates:
+                    error(pos, "Template parameters do not match previous declaration")
+        if templates is not None and entry.type.scope is not None:
             for T in templates:
                 template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
                 template_entry.is_type = 1
 
         def declare_inherited_attributes(entry, base_classes):
             for base_class in base_classes:
-                declare_inherited_attributes(entry, base_class.base_classes)
-                entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
+                if base_class.scope is None:
+                    error(pos, "Cannot inherit from incomplete type")
+                else:
+                    declare_inherited_attributes(entry, base_class.base_classes)
+                    entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
         if entry.type.scope:
             declare_inherited_attributes(entry, base_classes)
         if self.is_cpp_class_scope:
@@ -536,7 +533,6 @@ class Scope(object):
         if api:
             entry.api = 1
             entry.used = 1
-        self.control_flow.set_state((), (name, 'initialized'), False)
         return entry
 
     def declare_builtin(self, name, pos):
@@ -1094,6 +1090,8 @@ class ModuleScope(Scope):
             self.var_entries.append(entry)
         else:
             entry.is_pyglobal = 1
+        if Options.cimport_from_pyx:
+            entry.used = 1
         return entry
 
     def declare_cfunction(self, name, type, pos,
@@ -1196,8 +1194,6 @@ class ModuleScope(Scope):
                     scope.declare_inherited_c_attributes(base_type.scope)
                 type.set_scope(scope)
                 self.type_entries.append(entry)
-            else:
-                self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         else:
             if defining and type.scope.defined:
                 error(pos, "C class '%s' already defined" % name)
@@ -1227,10 +1223,6 @@ class ModuleScope(Scope):
         # Return new or existing entry
         #
         return entry
-
-    def check_for_illegal_incomplete_ctypedef(self, typedef_flag, pos):
-        if typedef_flag and not self.in_cinclude:
-            error(pos, "Forward-referenced type must use 'cdef', not 'ctypedef'")
 
     def allocate_vtable_names(self, entry):
         #  If extension type has a vtable, allocate vtable struct and
@@ -1386,7 +1378,6 @@ class LocalScope(Scope):
         entry.is_arg = 1
         #entry.borrowed = 1 # Not using borrowed arg refs for now
         self.arg_entries.append(entry)
-        self.control_flow.set_state((), (name, 'source'), 'arg')
         return entry
 
     def declare_var(self, name, type, pos,
@@ -1398,9 +1389,8 @@ class LocalScope(Scope):
         entry = Scope.declare_var(self, name, type, pos,
                                   cname=cname, visibility=visibility,
                                   api=api, in_pxd=in_pxd, is_cdef=is_cdef)
-        if type.is_pyobject and not Options.init_local_none:
+        if type.is_pyobject:
             entry.init = "0"
-        entry.init_to_none = (type.is_pyobject or type.is_unspecified) and Options.init_local_none
         entry.is_local = 1
 
         entry.in_with_gil_block = self._in_with_gil_block

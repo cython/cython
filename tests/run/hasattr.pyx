@@ -21,9 +21,11 @@ def wrap_hasattr(obj, name):
     False
     >>> wrap_hasattr(Foo(), "bar")
     False
-    >>> wrap_hasattr(Foo(), "baz") #doctest: +ELLIPSIS
+    >>> Foo().baz   #doctest: +ELLIPSIS
     Traceback (most recent call last):
        ...
     ZeroDivisionError: ...
+    >>> wrap_hasattr(Foo(), "baz")
+    False
     """
     return hasattr(obj, name)

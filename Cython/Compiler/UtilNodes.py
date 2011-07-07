@@ -100,9 +100,6 @@ class TempsBlockNode(Node):
                     code.put_decref_clear(handle.temp, handle.type)
             code.funcstate.release_temp(handle.temp)
 
-    def analyse_control_flow(self, env):
-        self.body.analyse_control_flow(env)
-
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 
@@ -289,9 +286,6 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
         self.set_temp_expr(lazy_temp)
         self.pos = body.pos
         self.body = body
-
-    def analyse_control_flow(self, env):
-        self.body.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
         self.temp_expression.analyse_declarations(env)

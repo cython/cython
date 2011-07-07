@@ -31,6 +31,7 @@ from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
 import CythonScope
 import DebugFlags
+import Options
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
@@ -73,7 +74,7 @@ class Context(object):
     #  future_directives     [object]
     #  language_level        int     currently 2 or 3 for Python 2/3
 
-    def __init__(self, include_directories, compiler_directives, cpp=False, language_level=2):
+    def __init__(self, include_directories, compiler_directives, cpp=False, language_level=2, options=None):
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.modules["cython"] = CythonScope.create_cython_scope(self)
@@ -81,6 +82,7 @@ class Context(object):
         self.future_directives = set()
         self.compiler_directives = compiler_directives
         self.cpp = cpp
+        self.options = options
 
         self.pxds = {} # full name -> node tree
 
@@ -103,13 +105,15 @@ class Context(object):
     def create_pipeline(self, pxd, py=False):
         from Visitor import PrintTree
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
-        from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+        from ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
+        from ParseTreeTransforms import AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
         from TypeInference import MarkAssignments, MarkOverflowingArithmetic
         from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
         from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+        from FlowControl import CreateControlFlowGraph
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
@@ -145,15 +149,16 @@ class Context(object):
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
-#            PrintTree(),
+            ForwardDeclareTypes(self),
             AnalyseDeclarationsTransform(self),
-#            PrintTree(),
             AutoTestDictTransform(self),
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
+            TransformBuiltinMethods(self),  ## Necessary?
+            CreateControlFlowGraph(self),
+            RemoveUnreachableCode(self),
             MarkAssignments(self),
             MarkOverflowingArithmetic(self),
-            TransformBuiltinMethods(self),  ## Necessary?
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
@@ -165,7 +170,6 @@ class Context(object):
             DropRefcountingTransform(),
             FinalOptimizePhase(self),
             GilCheck(),
-#            PrintTree(),
             ]
 
     def create_pyx_pipeline(self, options, result, py=False):
@@ -229,10 +233,43 @@ class Context(object):
     def create_py_pipeline(self, options, result):
         return self.create_pyx_pipeline(options, result, py=True)
 
+    def create_pyx_as_pxd_pipeline(self, source):
+        from ParseTreeTransforms import (AlignFunctionDefinitions,
+            MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform)
+        from Optimize import ConstantFolding, FlattenInListTransform
+        from Nodes import StatListNode
+        pipeline = []
+        result = create_default_resultobj(source, self.options)
+        pyx_pipeline = self.create_pyx_pipeline(self.options, result)
+        for stage in pyx_pipeline:
+            if stage.__class__ in [
+                    AlignFunctionDefinitions,
+                    MarkClosureVisitor,
+                    ConstantFolding,
+                    FlattenInListTransform,
+                    WithTransform,
+                    ]:
+                # Skip these unnecessary stages.
+                continue
+            pipeline.append(stage)
+            if isinstance(stage, AnalyseDeclarationsTransform):
+                # This is the last stage we need.
+                break
+        def fake_pxd(root):
+            for entry in root.scope.entries.values():
+                entry.defined_in_pxd = 1
+            return StatListNode(root.pos, stats=[]), root.scope
+        pipeline.append(fake_pxd)
+        return pipeline
 
     def process_pxd(self, source_desc, scope, module_name):
-        pipeline = self.create_pxd_pipeline(scope, module_name)
-        result = self.run_pipeline(pipeline, source_desc)
+        if isinstance(source_desc, FileSourceDescriptor) and source_desc._file_type == 'pyx':
+            source = CompilationSource(source_desc, module_name, os.getcwd())
+            pipeline = self.create_pyx_as_pxd_pipeline(source)
+            result = self.run_pipeline(pipeline, source)
+        else:
+            pipeline = self.create_pxd_pipeline(scope, module_name)
+            result = self.run_pipeline(pipeline, source_desc)
         return result
 
     def nonfatal_error(self, exc):
@@ -363,6 +400,8 @@ class Context(object):
                         warning(pos, "'%s' is deprecated, use 'libc.%s'" % (name, name), 1)
                     elif name in ('stl'):
                         warning(pos, "'%s' is deprecated, use 'libcpp.*.*'" % name, 1)
+        if pxd is None and Options.cimport_from_pyx:
+            return self.find_pyx_file(qualified_name, pos)
         return pxd
 
     def find_pyx_file(self, qualified_name, pos):
@@ -570,7 +609,9 @@ def create_parse(context):
         source_desc = compsrc.source_desc
         full_module_name = compsrc.full_module_name
         initial_pos = (source_desc, 1, 0)
+        saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, False
         scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+        Options.cimport_from_pyx = saved_cimport_from_pyx
         tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
         tree.compilation_source = compsrc
         tree.scope = scope
@@ -684,7 +725,7 @@ class CompilationOptions(object):
 
     def create_context(self):
         return Context(self.include_path, self.compiler_directives,
-                      self.cplus, self.language_level)
+                      self.cplus, self.language_level, options=self)
 
 
 class CompilationResult(object):

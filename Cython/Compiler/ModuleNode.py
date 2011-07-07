@@ -296,7 +296,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.generate_cached_builtins_decls(env, code)
         self.generate_lambda_definitions(env, code)
-        # generate normal function definitions
+        # generate normal variable and function definitions
+        self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
@@ -416,6 +417,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return (vtab_list, vtabslot_list)
 
     def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
+        # TODO: Why are these separated out?
+        for entry in vtabslot_list:
+            self.generate_objstruct_predeclaration(entry.type, code)
         vtabslot_entries = set(vtabslot_list)
         for module in modules:
             definition = module is env
@@ -426,18 +430,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 for entry in module.type_entries:
                     if entry.defined_in_pxd:
                         type_entries.append(entry)
-            for entry in type_entries:
-                if not entry.in_cinclude:
-                    #print "generate_type_header_code:", entry.name, repr(entry.type) ###
-                    type = entry.type
-                    if type.is_typedef: # Must test this first!
-                        self.generate_typedef(entry, code)
-                    elif type.is_struct_or_union:
-                        self.generate_struct_union_definition(entry, code)
-                    elif type.is_enum:
-                        self.generate_enum_definition(entry, code)
-                    elif type.is_extension_type and entry not in vtabslot_entries:
-                        self.generate_objstruct_definition(type, code)
+            type_entries = [t for t in type_entries if t not in vtabslot_entries]
+            self.generate_type_header_code(type_entries, code)
         for entry in vtabslot_list:
             self.generate_objstruct_definition(entry.type, code)
             self.generate_typeobj_predeclaration(entry, code)
@@ -699,10 +693,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         self.generate_extern_c_macro_definition(code)
         code.putln("")
+
         code.putln("#if defined(WIN32) || defined(MS_WINDOWS)")
         code.putln("#define _USE_MATH_DEFINES")
         code.putln("#endif")
         code.putln("#include <math.h>")
+
         code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
@@ -711,6 +707,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#define CYTHON_WITHOUT_ASSERTIONS")
         code.putln("#endif")
         code.putln("")
+
         if env.directives['ccomplex']:
             code.putln("")
             code.putln("#if !defined(CYTHON_CCOMPLEX)")
@@ -778,17 +775,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_type_header_code(self, type_entries, code):
         # Generate definitions of structs/unions/enums/typedefs/objstructs.
         #self.generate_gcc33_hack(env, code) # Is this still needed?
-        #for entry in env.type_entries:
+        # Forward declarations
+        for entry in type_entries:
+            if not entry.in_cinclude:
+                #print "generate_type_header_code:", entry.name, repr(entry.type) ###
+                type = entry.type
+                if type.is_typedef: # Must test this first!
+                    pass
+                elif type.is_struct_or_union:
+                    self.generate_struct_union_predeclaration(entry, code)
+                elif type.is_extension_type:
+                    self.generate_objstruct_predeclaration(type, code)
+        # Actual declarations
         for entry in type_entries:
             if not entry.in_cinclude:
                 #print "generate_type_header_code:", entry.name, repr(entry.type) ###
                 type = entry.type
                 if type.is_typedef: # Must test this first!
                     self.generate_typedef(entry, code)
-                elif type.is_struct_or_union:
-                    self.generate_struct_union_definition(entry, code)
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
+                elif type.is_struct_or_union:
+                    self.generate_struct_union_definition(entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_definition(type, code)
 
@@ -818,13 +826,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         writer.mark_pos(entry.pos)
         writer.putln("typedef %s;" % base_type.declaration_code(entry.cname))
 
-    def sue_header_footer(self, type, kind, name):
+    def sue_predeclaration(self, type, kind, name):
         if type.typedef_flag:
-            header = "typedef %s {" % kind
-            footer = "} %s;" % name
+            return "%s %s;\ntypedef %s %s %s;" % (
+                kind, name,
+                kind, name, name)
         else:
-            header = "%s %s {" % (kind, name)
-            footer = "};"
+            return "%s %s;" % (kind, name)
+
+    def generate_struct_union_predeclaration(self, entry, code):
+        type = entry.type
+        code.putln(self.sue_predeclaration(type, type.kind, type.cname))
+
+    def sue_header_footer(self, type, kind, name):
+        header = "%s %s {" % (kind, name)
+        footer = "};"
         return header, footer
 
     def generate_struct_union_definition(self, entry, code):
@@ -893,6 +909,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     value_code += ","
                 code.putln(value_code)
         code.putln(footer)
+        if entry.type.typedef_flag:
+            # Not pre-declared.
+            code.putln("typedef enum %s %s;" % (name, name))
 
     def generate_typeobj_predeclaration(self, entry, code):
         code.putln("")
@@ -942,6 +961,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabstruct_cname,
                 type.vtabptr_cname))
 
+    def generate_objstruct_predeclaration(self, type, code):
+        if not type.scope:
+            return
+        code.putln(self.sue_predeclaration(type, "struct", type.objstruct_cname))
+    
     def generate_objstruct_definition(self, type, code):
         code.mark_pos(type.pos)
         # Generate object struct definition for an
@@ -990,7 +1014,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if (entry.in_cinclude or entry.in_closure or
                 (entry.visibility == 'private' and
                  not (entry.defined_in_pxd or entry.used))):
-                    continue
+                continue
 
             storage_class = None
             dll_linkage = None
@@ -1001,25 +1025,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 storage_class = Naming.extern_c_macro
                 dll_linkage = "DL_IMPORT"
             elif entry.visibility == 'public':
+                storage_class = Naming.extern_c_macro
                 if definition:
                     dll_linkage = "DL_EXPORT"
                 else:
-                    storage_class = Naming.extern_c_macro
                     dll_linkage = "DL_IMPORT"
             elif entry.visibility == 'private':
                 storage_class = "static"
+                dll_linkage = None
+                if entry.init is not None:
+                    init =  entry.type.literal_code(entry.init)
+            type = entry.type
+            cname = entry.cname
 
             if entry.defined_in_pxd and not definition:
-                type = CPtrType(entry.type)
                 storage_class = "static"
                 dll_linkage = None
+                type = CPtrType(type)
                 cname = env.mangle(Naming.varptr_prefix, entry.name)
                 init = 0
-            else:
-                type = entry.type
-                cname = entry.cname
-                if entry.init is not None:
-                    init =  type.literal_code(entry.init)
 
             if storage_class:
                 code.put("%s " % storage_class)
@@ -1045,7 +1069,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     storage_class = "%s " % Naming.extern_c_macro
                     dll_linkage = "DL_IMPORT"
                 elif entry.visibility == 'public':
-                    storage_class = ""
+                    storage_class = "%s " % Naming.extern_c_macro
                     dll_linkage = "DL_EXPORT"
                 elif entry.visibility == 'private':
                     storage_class = "static "
@@ -1055,7 +1079,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     dll_linkage = None
                 type = entry.type
 
-                if not definition and entry.defined_in_pxd:
+                if entry.defined_in_pxd and not definition:
                     storage_class = "static "
                     dll_linkage = None
                     type = CPtrType(type)
@@ -1070,6 +1094,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     storage_class,
                     modifiers,
                     header))
+
+    def generate_variable_definitions(self, env, code):
+        for entry in env.var_entries:
+            if (not entry.in_cinclude and 
+                entry.visibility == "public"):
+                code.put(entry.type.declaration_code(entry.cname))
+                if entry.init is not None:
+                    init =  entry.type.literal_code(entry.init)
+                    code.put_safe(" = %s" % init)
+                code.putln(";")
 
     def generate_typeobj_definitions(self, env, code):
         full_module_name = env.qualified_name
@@ -2088,7 +2122,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate code to create PyCFunction wrappers for exported C functions.
         entries = []
         for entry in env.var_entries:
-            if entry.api or entry.defined_in_pxd:
+            if (entry.api
+                or entry.defined_in_pxd
+                or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
                 entries.append(entry)
         if entries:
             env.use_utility_code(voidptr_export_utility_code)
@@ -2102,7 +2138,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate code to create PyCFunction wrappers for exported C functions.
         entries = []
         for entry in env.cfunc_entries:
-            if entry.api or entry.defined_in_pxd:
+            if (entry.api
+                or entry.defined_in_pxd
+                or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
                 entries.append(entry)
         if entries:
             env.use_utility_code(function_export_utility_code)
@@ -2424,13 +2462,13 @@ bad:
 
 type_import_utility_code = UtilityCode(
 proto = """
-static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, long size, int strict);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
 """,
 impl = """
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
 static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
-    long size, int strict)
+    size_t size, int strict)
 {
     PyObject *py_module = 0;
     PyObject *result = 0;
@@ -2460,17 +2498,17 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
             module_name, class_name);
         goto bad;
     }
-    if (!strict && ((PyTypeObject *)result)->tp_basicsize > size) {
+    if (!strict && ((PyTypeObject *)result)->tp_basicsize > (Py_ssize_t)size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
         #if PY_VERSION_HEX < 0x02050000
-        PyErr_Warn(NULL, warning);
+        if (PyErr_Warn(NULL, warning) < 0) goto bad;
         #else
-        PyErr_WarnEx(NULL, warning, 0);
+        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
         #endif
     }
-    else if (((PyTypeObject *)result)->tp_basicsize != size) {
+    else if (((PyTypeObject *)result)->tp_basicsize != (Py_ssize_t)size) {
         PyErr_Format(PyExc_ValueError,
             "%s.%s has the wrong size, try recompiling",
             module_name, class_name);
@@ -2480,7 +2518,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
 bad:
     Py_XDECREF(py_module);
     Py_XDECREF(result);
-    return 0;
+    return NULL;
 }
 #endif
 """)
@@ -2759,7 +2797,11 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
             "from-import-* object has no __dict__ and no __all__");
             return -1;
         }
+#if PY_MAJOR_VERSION < 3
+        all = PyObject_CallMethod(dict, (char *)"keys", NULL);
+#else
         all = PyMapping_Keys(dict);
+#endif
         Py_DECREF(dict);
         if (all == NULL)
             return -1;

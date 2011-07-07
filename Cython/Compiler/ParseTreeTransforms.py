@@ -639,7 +639,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                         'is not allowed in %s scope' % (directive, scope)))
             return False
         else:
-            if directive not in Options.directive_defaults:
+            if (directive not in Options.directive_defaults
+                    and directive not in Options.directive_types):
                 error(pos, "Invalid directive: '%s'." % (directive,))
             return True
 
@@ -1263,6 +1264,44 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
             rhs = decorator_result)
         return [node, reassignment]
 
+ 
+class ForwardDeclareTypes(CythonTransform):
+
+    def visit_CompilerDirectivesNode(self, node):
+        env = self.module_scope
+        old = env.directives
+        env.directives = node.directives
+        self.visitchildren(node)
+        env.directives = old
+        return node
+
+    def visit_ModuleNode(self, node):
+        self.module_scope = node.scope
+        self.module_scope.directives = node.directives
+        self.visitchildren(node)
+        return node
+
+    def visit_CDefExternNode(self, node):
+        old_cinclude_flag = self.module_scope.in_cinclude
+        self.module_scope.in_cinclude = 1
+        self.visitchildren(node)
+        self.module_scope.in_cinclude = old_cinclude_flag
+        return node
+
+    def visit_CEnumDefNode(self, node):
+        node.declare(self.module_scope)
+        return node
+
+    def visit_CStructOrUnionDefNode(self, node):
+        if node.name not in self.module_scope.entries:
+            node.declare(self.module_scope)
+        return node
+
+    def visit_CClassDefNode(self, node):
+        if node.class_name not in self.module_scope.entries:
+            node.declare(self.module_scope)
+        return node
+
 
 class AnalyseDeclarationsTransform(CythonTransform):
 
@@ -1362,7 +1401,6 @@ if VALUE is not None:
         """
         self.seen_vars_stack.append(cython.set())
         lenv = node.local_scope
-        node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
         for var, type_node in node.directive_locals.items():
             if not lenv.lookup_here(var):   # don't redeclare args
@@ -1556,8 +1594,6 @@ if VALUE is not None:
                 type_name = entry.type.module_name + '.' + type_name
             if entry.init is not None:
                 default_value = ' = ' + entry.init
-            elif entry.init_to_none:
-                default_value = ' = ' + repr(None)
             docstring = attr_name + ': ' + type_name + default_value
             property.doc = EncodedString(docstring)
         # ---------------------------------------
@@ -2132,8 +2168,8 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.is_nogil:
-            node.is_nogil = False
+        if node.nogil:
+            node.nogil = False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             return self.visit_GILStatNode(node)
 
@@ -2240,9 +2276,9 @@ class TransformBuiltinMethods(EnvTransform):
                     return node # nothing to do
             items = [ ExprNodes.DictItemNode(pos,
                                              key=ExprNodes.StringNode(pos, value=var),
-                                             value=ExprNodes.NameNode(pos, name=var))
+                                             value=ExprNodes.NameNode(pos, name=var, allow_null=True))
                       for var in lenv.entries ]
-            return ExprNodes.DictNode(pos, key_value_pairs=items)
+            return ExprNodes.DictNode(pos, key_value_pairs=items, exclude_null_values=True)
         else: # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
@@ -2397,6 +2433,24 @@ class ReplaceFusedTypeChecks(VisitorTransform):
 
     def visit_Node(self, node):
         self.visitchildren(node)
+        return node
+
+
+class FindUninitializedParallelVars(CythonTransform, SkipDeclarations):
+    """
+    This transform isn't part of the pipeline, it simply finds all references
+    to variables in parallel blocks.
+    """
+
+    def __init__(self):
+        CythonTransform.__init__(self, None)
+        self.used_vars = []
+
+    def visit_ParallelStatNode(self, node):
+        return node
+
+    def visit_NameNode(self, node):
+        self.used_vars.append((node.entry, node.pos))
         return node
 
 

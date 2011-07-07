@@ -109,6 +109,7 @@ def get_openmp_compiler_flags(language):
         cc = sysconfig.get_config_var('CXX')
     else:
         cc = sysconfig.get_config_var('CC')
+    if not cc: return None # Windows?
 
     # For some reason, cc can be e.g. 'gcc -pthread'
     cc = cc.split()[0]
@@ -140,8 +141,10 @@ def get_openmp_compiler_flags(language):
     if compiler_version and compiler_version.split('.') >= ['4', '2']:
         return '-fopenmp', '-fopenmp'
 
-
-locale.setlocale(locale.LC_ALL, '')
+try:
+    locale.setlocale(locale.LC_ALL, '')
+except locale.Error:
+    pass
 
 OPENMP_C_COMPILER_FLAGS = get_openmp_compiler_flags('c')
 OPENMP_CPP_COMPILER_FLAGS = get_openmp_compiler_flags('cpp')
@@ -174,6 +177,7 @@ VER_DEP_MODULES = {
                                           'run.purecdef',
                                           ]),
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
+                                          'run.yield_inside_lambda',
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
@@ -199,6 +203,9 @@ KEEP_2X_FILES = [
 COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
+CCACHE = os.getenv('CYTHON_RUNTESTS_CCACHE', '').split()
+
+BACKENDS = ['c', 'cpp']
 
 def memoize(f):
     uncomputed = object()
@@ -236,15 +243,17 @@ list_unchanging_dir = memoize(lambda x: os.listdir(x))
 
 class build_ext(_build_ext):
     def build_extension(self, ext):
-        if ext.language == 'c++':
-            try:
-                try: # Py2.7+ & Py3.2+
-                    compiler_obj = self.compiler_obj
-                except AttributeError:
-                    compiler_obj = self.compiler
+        try:
+            try: # Py2.7+ & Py3.2+
+                compiler_obj = self.compiler_obj
+            except AttributeError:
+                compiler_obj = self.compiler
+            if ext.language == 'c++':
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
-            except Exception:
-                pass
+            if CCACHE:
+                compiler_obj.compiler_so = CCACHE + compiler_obj.compiler_so
+        except Exception:
+            pass
         _build_ext.build_extension(self, ext)
 
 class ErrorWriter(object):
@@ -1245,12 +1254,15 @@ def main():
                       help="do not run the Cython compiler, only the C compiler")
     parser.add_option("--compiler", dest="compiler", default=None,
                       help="C compiler type")
+    backend_list = ','.join(BACKENDS)
+    parser.add_option("--backends", dest="backends", default=backend_list,
+                      help="select backends to test (default: %s)" % backend_list)
     parser.add_option("--no-c", dest="use_c",
                       action="store_false", default=True,
-                      help="do not test C compilation")
+                      help="do not test C compilation backend")
     parser.add_option("--no-cpp", dest="use_cpp",
                       action="store_false", default=True,
-                      help="do not test C++ compilation")
+                      help="do not test C++ compilation backend")
     parser.add_option("--no-unit", dest="unittests",
                       action="store_false", default=True,
                       help="do not run the unit tests")
@@ -1399,8 +1411,6 @@ def main():
     if WITH_CYTHON and options.language_level == 3:
         sys.stderr.write("Using Cython language level 3.\n")
 
-    sys.stderr.write("\n")
-
     test_bugs = False
     if options.tickets:
         for ticket_number in options.tickets:
@@ -1435,11 +1445,23 @@ def main():
     global COMPILER
     if options.compiler:
         COMPILER = options.compiler
-    languages = []
-    if options.use_c:
-        languages.append('c')
-    if options.use_cpp:
-        languages.append('cpp')
+
+    selected_backends = [ name.strip() for name in options.backends.split(',') if name.strip() ]
+    backends = []
+    for backend in selected_backends:
+        if backend == 'c' and not options.use_c:
+            continue
+        elif backend == 'cpp' and not options.use_cpp:
+            continue
+        elif backend not in BACKENDS:
+            sys.stderr.write("Unknown backend requested: '%s' not one of [%s]\n" % (
+                backend, ','.join(BACKENDS)))
+            sys.exit(1)
+        backends.append(backend)
+    sys.stderr.write("Backends: %s\n" % ','.join(backends))
+    languages = backends
+
+    sys.stderr.write("\n")
 
     test_suite = unittest.TestSuite()
 

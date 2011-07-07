@@ -26,7 +26,6 @@ from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode, ClosureTempAllocator
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
-import ControlFlow
 import DebugFlags
 from Cython.Compiler import Errors
 
@@ -138,6 +137,9 @@ class Node(object):
     # can either contain a single node or a list of nodes. See Visitor.py.
     child_attrs = None
 
+    cf_state = None
+
+
     def __init__(self, pos, **kw):
         self.pos = pos
         self.__dict__.update(kw)
@@ -173,19 +175,15 @@ class Node(object):
 
 
     #
-    #  There are 4 phases of parse tree processing, applied in order to
+    #  There are 3 phases of parse tree processing, applied in order to
     #  all the statements in a given scope-block:
     #
-    #  (0) analyse_control_flow
-    #        Create the control flow tree into which state can be asserted and
-    #        queried.
-    #
-    #  (1) analyse_declarations
+    #  (0) analyse_declarations
     #        Make symbol table entries for all declarations at the current
     #        level, both explicit (def, cdef, etc.) and implicit (assignment
     #        to an otherwise undeclared name).
     #
-    #  (2) analyse_expressions
+    #  (1) analyse_expressions
     #         Determine the result types of expressions and fill in the
     #         'type' attribute of each ExprNode. Insert coercion nodes into the
     #         tree where needed to convert to and from Python objects.
@@ -193,14 +191,11 @@ class Node(object):
     #         in the 'result_code' attribute of each ExprNode with a C code
     #         fragment.
     #
-    #  (3) generate_code
+    #  (2) generate_code
     #         Emit C code for all declarations, statements and expressions.
     #         Recursively applies the 3 processing phases to the bodies of
     #         functions.
     #
-
-    def analyse_control_flow(self, env):
-        pass
 
     def analyse_declarations(self, env):
         pass
@@ -277,12 +272,6 @@ class CompilerDirectivesNode(Node):
     #  body           Node
     child_attrs = ["body"]
 
-    def analyse_control_flow(self, env):
-        old = env.directives
-        env.directives = self.directives
-        self.body.analyse_control_flow(env)
-        env.directives = old
-
     def analyse_declarations(self, env):
         old = env.directives
         env.directives = self.directives
@@ -337,10 +326,6 @@ class StatListNode(Node):
         node = StatListNode(pos, *args, **kw)
         return node # No node-specific analysis necesarry
     create_analysed = staticmethod(create_analysed)
-
-    def analyse_control_flow(self, env):
-        for stat in self.stats:
-            stat.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
         #print "StatListNode.analyse_declarations" ###
@@ -578,7 +563,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         exc_val = None
         exc_check = 0
         if self.exception_check == '+':
+            env.add_include_file('ios')         # for std::ios_base::failure
+            env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
+            env.add_include_file('typeinfo')    # for std::bad_cast
         if return_type.is_pyobject \
             and (self.exception_value or self.exception_check) \
             and self.exception_check != '+':
@@ -1069,45 +1057,32 @@ class CStructOrUnionDefNode(StatNode):
     #  packed        boolean
 
     child_attrs = ["attributes"]
-
-    def analyse_declarations(self, env):
-        scope = None
-        if self.visibility == 'extern' and self.packed:
+    
+    def declare(self, env, scope=None):
+        if self.visibility == 'extern' and self.packed and not scope:
             error(self.pos, "Cannot declare extern struct as 'packed'")
-        if self.attributes is not None:
-            scope = StructOrUnionScope(self.name)
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
             self.cname, visibility = self.visibility, api = self.api,
             packed = self.packed)
+
+    def analyse_declarations(self, env):
+        scope = None
+        if self.attributes is not None:
+            scope = StructOrUnionScope(self.name)
+        self.declare(env, scope)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
                 attr.analyse_declarations(env, scope)
             if self.visibility != 'extern':
-                need_typedef_indirection = False
                 for attr in scope.var_entries:
                     type = attr.type
                     while type.is_array:
                         type = type.base_type
                     if type == self.entry.type:
                         error(attr.pos, "Struct cannot contain itself as a member.")
-                    if self.typedef_flag:
-                        while type.is_ptr:
-                            type = type.base_type
-                        if type == self.entry.type:
-                            need_typedef_indirection = True
-                if need_typedef_indirection:
-                    # C can't handle typedef structs that refer to themselves.
-                    struct_entry = self.entry
-                    self.entry = env.declare_typedef(
-                        self.name, struct_entry.type, self.pos,
-                        cname = self.cname, visibility='ignore')
-                    struct_entry.type.typedef_flag = False
-                    # FIXME: this might be considered a hack ;-)
-                    struct_entry.cname = struct_entry.type.cname = \
-                                         '_' + self.entry.type.typedef_cname
 
     def analyse_expressions(self, env):
         pass
@@ -1126,6 +1101,15 @@ class CppClassNode(CStructOrUnionDefNode):
     #  entry         Entry
     #  base_classes  [string]
     #  templates     [string] or None
+
+    def declare(self, env):
+        if self.templates is None:
+            template_types = None
+        else:
+            template_types = [PyrexTypes.TemplatePlaceholderType(template_name) for template_name in self.templates]
+        self.entry = env.declare_cpp_class(
+            self.name, None, self.pos,
+            self.cname, base_classes = [], visibility = self.visibility, templates = template_types)
 
     def analyse_declarations(self, env):
         scope = None
@@ -1168,10 +1152,12 @@ class CEnumDefNode(StatNode):
 
     child_attrs = ["items"]
 
+    def declare(self, env):
+         self.entry = env.declare_enum(self.name, self.pos,
+             cname = self.cname, typedef_flag = self.typedef_flag,
+             visibility = self.visibility, api = self.api)
+
     def analyse_declarations(self, env):
-        self.entry = env.declare_enum(self.name, self.pos,
-            cname = self.cname, typedef_flag = self.typedef_flag,
-            visibility = self.visibility, api = self.api)
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -1257,6 +1243,8 @@ class FuncDefNode(StatNode, BlockNode):
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
+    # star_arg      PyArgDeclNode or None  * argument
+    # starstar_arg  PyArgDeclNode or None  ** argument
 
     #  has_fused_arguments  boolean
     #       Whether this cdef function has fused parameters. This is needed
@@ -1271,6 +1259,8 @@ class FuncDefNode(StatNode, BlockNode):
     is_generator_body = False
     modifiers = []
     has_fused_arguments = False
+    star_arg = None
+    starstar_arg = None
 
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1495,10 +1485,6 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
-        # ----- Initialise local variables
-        for entry in lenv.var_entries:
-            if entry.type.is_pyobject and entry.init_to_none and entry.used:
-                code.put_init_var_to_py_none(entry)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
@@ -1560,9 +1546,14 @@ class FuncDefNode(StatNode, BlockNode):
             else:
                 warning(self.entry.pos, "Unraisable exception in function '%s'." \
                             % self.entry.qualified_name, 0)
+                format_tuple = (
+                    self.entry.qualified_name,
+                    Naming.clineno_cname,
+                    Naming.lineno_cname,
+                    Naming.filename_cname,
+                    )
                 code.putln(
-                    '__Pyx_WriteUnraisable("%s");' %
-                        self.entry.qualified_name)
+                    '__Pyx_WriteUnraisable("%s", %s, %s, %s);' % format_tuple)
                 env.use_utility_code(unraisable_exception_utility_code)
                 env.use_utility_code(restore_exception_utility_code)
             default_retval = self.return_type.default_value
@@ -1589,10 +1580,6 @@ class FuncDefNode(StatNode, BlockNode):
             self.getbuffer_normal_cleanup(code)
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
-        if not Options.init_local_none:
-            for entry in lenv.var_entries:
-                if lenv.control_flow.get_state((entry.name, 'initialized')) is not True:
-                    entry.xdecref_cleanup = 1
 
         for entry in lenv.var_entries:
             if entry.type.is_pyobject:
@@ -2339,8 +2326,6 @@ class DefNode(FuncDefNode):
     # lambda_name   string                 the internal name of a lambda 'function'
     # decorators    [DecoratorNode]        list of decorators
     # args          [CArgDeclNode]         formal arguments
-    # star_arg      PyArgDeclNode or None  * argument
-    # starstar_arg  PyArgDeclNode or None  ** argument
     # doc           EncodedString or None
     # body          StatListNode
     # return_type_annotation
@@ -2369,8 +2354,6 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
-    star_arg = None
-    starstar_arg = None
     doc = None
 
     fused_py_func = False
@@ -2660,14 +2643,10 @@ class DefNode(FuncDefNode):
         for arg in self.args:
             if not arg.name:
                 error(arg.pos, "Missing argument name")
-            else:
-                env.control_flow.set_state((), (arg.name, 'source'), 'arg')
-                env.control_flow.set_state((), (arg.name, 'initialized'), True)
             if arg.needs_conversion:
                 arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
                 if arg.type.is_pyobject:
                     arg.entry.init = "0"
-                arg.entry.init_to_none = 0
             else:
                 arg.entry = self.declare_argument(env, arg)
             arg.entry.used = 1
@@ -2688,10 +2667,8 @@ class DefNode(FuncDefNode):
             entry = env.declare_var(arg.name, type, arg.pos)
             entry.used = 1
             entry.init = "0"
-            entry.init_to_none = 0
             entry.xdecref_cleanup = 1
             arg.entry = entry
-            env.control_flow.set_state((), (arg.name, 'initialized'), True)
 
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
@@ -2735,6 +2712,8 @@ class DefNode(FuncDefNode):
         if env.is_py_class_scope:
             if not self.is_staticmethod and not self.is_classmethod:
                 rhs.binding = True
+            else:
+                rhs.binding = False
 
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
@@ -3793,18 +3772,46 @@ class CClassDefNode(ClassDefNode):
     decorators = None
     shadow = False
 
+    def buffer_defaults(self, env):
+        if not hasattr(self, '_buffer_defaults'):
+            import Buffer
+            if self.buffer_defaults_node:
+                self._buffer_defaults = Buffer.analyse_buffer_options(
+                    self.buffer_defaults_pos,
+                    env, [], self.buffer_defaults_node,
+                    need_complete=False)
+            else:
+                self._buffer_defaults = None
+        return self._buffer_defaults
+
+    def declare(self, env):
+        if self.module_name and self.visibility != 'extern':
+            module_path = self.module_name.split(".")
+            home_scope = env.find_imported_module(module_path, self.pos)
+            if not home_scope:
+                return None
+        else:
+            home_scope = env
+
+        self.entry = home_scope.declare_c_class(
+            name = self.class_name,
+            pos = self.pos,
+            defining = 0,
+            implementing = 0,
+            module_name = self.module_name,
+            base_type = None,
+            objstruct_cname = self.objstruct_name,
+            typeobj_cname = self.typeobj_name,
+            visibility = self.visibility,
+            typedef_flag = self.typedef_flag,
+            api = self.api,
+            buffer_defaults = self.buffer_defaults(env),
+            shadow = self.shadow)
+
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
         #print "...visibility =", self.visibility
         #print "...module_name =", self.module_name
-
-        import Buffer
-        if self.buffer_defaults_node:
-            buffer_defaults = Buffer.analyse_buffer_options(self.buffer_defaults_pos,
-                                                            env, [], self.buffer_defaults_node,
-                                                            need_complete=False)
-        else:
-            buffer_defaults = None
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for "
@@ -3882,7 +3889,7 @@ class CClassDefNode(ClassDefNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
             api = self.api,
-            buffer_defaults = buffer_defaults,
+            buffer_defaults = self.buffer_defaults(env),
             shadow = self.shadow)
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry
@@ -4784,15 +4791,6 @@ class IfStatNode(StatNode):
 
     child_attrs = ["if_clauses", "else_clause"]
 
-    def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
-        for if_clause in self.if_clauses:
-            if_clause.analyse_control_flow(env)
-            env.next_branch(if_clause.end_pos())
-        if self.else_clause:
-            self.else_clause.analyse_control_flow(env)
-        env.finish_branching(self.end_pos())
-
     def analyse_declarations(self, env):
         for if_clause in self.if_clauses:
             if_clause.analyse_declarations(env)
@@ -4836,9 +4834,6 @@ class IfClauseNode(Node):
     #  body        StatNode
 
     child_attrs = ["condition", "body"]
-
-    def analyse_control_flow(self, env):
-        self.body.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -4935,14 +4930,7 @@ class SwitchStatNode(StatNode):
             self.else_clause.annotate(code)
 
 class LoopNode(object):
-
-    def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
-        self.body.analyse_control_flow(env)
-        env.next_branch(self.body.end_pos())
-        if self.else_clause:
-            self.else_clause.analyse_control_flow(env)
-        env.finish_branching(self.end_pos())
+    pass
 
 
 class WhileStatNode(LoopNode, StatNode):
@@ -5481,24 +5469,6 @@ class TryExceptStatNode(StatNode):
 
     child_attrs = ["body", "except_clauses", "else_clause"]
 
-    def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
-        self.body.analyse_control_flow(env)
-        successful_try = env.control_flow # grab this for later
-        env.next_branch(self.body.end_pos())
-        env.finish_branching(self.body.end_pos())
-
-        env.start_branching(self.except_clauses[0].pos)
-        for except_clause in self.except_clauses:
-            except_clause.analyse_control_flow(env)
-            env.next_branch(except_clause.end_pos())
-
-        # the else cause it executed only when the try clause finishes
-        env.control_flow.incoming = successful_try
-        if self.else_clause:
-            self.else_clause.analyse_control_flow(env)
-        env.finish_branching(self.end_pos())
-
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
         for except_clause in self.except_clauses:
@@ -5818,13 +5788,6 @@ class TryFinallyStatNode(StatNode):
         node = TryFinallyStatNode(pos, body=body, finally_clause=finally_clause)
         return node
     create_analysed = staticmethod(create_analysed)
-
-    def analyse_control_flow(self, env):
-        env.start_branching(self.pos)
-        self.body.analyse_control_flow(env)
-        env.next_branch(self.body.end_pos())
-        env.finish_branching(self.body.end_pos())
-        self.finally_clause.analyse_control_flow(env)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -6295,6 +6258,10 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     privatization_insertion_point   a code insertion point used to make temps
                                     private (esp. the "nsteps" temp)
+
+    args         tuple          the arguments passed to the parallel construct
+    kwargs       DictNode       the keyword arguments passed to the parallel
+                                construct (replaced by its compile time value)
     """
 
     child_attrs = ['body']
@@ -6319,8 +6286,21 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 
+        if self.kwargs:
+            self.kwargs = self.kwargs.compile_time_value(env)
+        else:
+            self.kwargs = {}
+
+        for kw, val in self.kwargs.iteritems():
+            if kw not in self.valid_keyword_arguments:
+                error(self.pos, "Invalid keyword argument: %s" % kw)
+            else:
+                setattr(self, kw, val)
+
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
+        self.analyse_sharing_attributes(env)
+        self.check_independent_iterations()
 
     def analyse_sharing_attributes(self, env):
         """
@@ -6426,6 +6406,64 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
 
+    def check_independent_iterations(self):
+        """
+        This checks for uninitialized thread-private variables, it's far from
+        fool-proof as it does not take control flow into account, nor
+        assignment to a variable as both the lhs and rhs. So it detects only
+        cases like this:
+
+            for i in prange(10, nogil=True):
+                var = x # error, x is private and read before assigned
+                x = i
+
+        Fortunately, it doesn't need to be perfect, as we still initialize
+        private variables to "invalid" values, such as NULL or NaN whenever
+        possible.
+        """
+        from Cython.Compiler import ParseTreeTransforms
+
+        transform = ParseTreeTransforms.FindUninitializedParallelVars()
+        transform(self.body)
+
+        for entry, pos in transform.used_vars:
+            if entry in self.privates:
+                assignment_pos, op = self.assignments[entry]
+
+                # Reading reduction variables is valid (in fact necessary)
+                # before assignment
+                if not op and pos < assignment_pos:
+                    if self.is_prange:
+                        error(pos, "Expression value depends on previous loop "
+                                   "iteration, cannot execute in parallel")
+                    else:
+                        error(pos, "Expression depends on an uninitialized "
+                                   "thread-private variable")
+
+    def initialize_privates_to_nan(self, code, exclude=None):
+        code.putln("/* Initialize private variables to invalid values */")
+
+        for entry, op in self.privates.iteritems():
+            if not op and (not exclude or entry != exclude):
+                invalid_value = entry.type.invalid_value()
+
+                if invalid_value:
+                    code.globalstate.use_utility_code(
+                                invalid_values_utility_code)
+                    code.putln("%s = %s;" % (entry.cname,
+                                             entry.type.cast_code(invalid_value)))
+
+    def put_num_threads(self, code):
+        """
+        Write self.num_threads if set as the num_threads OpenMP directive
+        """
+        if self.num_threads is not None:
+            if isinstance(self.num_threads, (int, long)):
+                code.put(" num_threads(%d)" % (self.num_threads,))
+            else:
+                error(self.pos, "Invalid value for num_threads argument, "
+                                "expected an int")
+
     def declare_closure_privates(self, code):
         """
         Set self.privates to a dict mapping C variable names that are to be
@@ -6463,9 +6501,15 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     nogil_check = None
 
-    def analyse_expressions(self, env):
-        super(ParallelWithBlockNode, self).analyse_expressions(env)
-        self.analyse_sharing_attributes(env)
+    valid_keyword_arguments = ['num_threads']
+
+    num_threads = None
+
+    def analyse_declarations(self, env):
+        super(ParallelWithBlockNode, self).analyse_declarations(env)
+        if self.args:
+            error(self.pos, "cython.parallel.parallel() does not take "
+                            "positional arguments")
 
     def generate_execution_code(self, code):
         self.declare_closure_privates(code)
@@ -6478,11 +6522,13 @@ class ParallelWithBlockNode(ParallelStatNode):
                 'private(%s)' % ', '.join([e.cname for e in self.privates]))
 
         self.privatization_insertion_point = code.insertion_point()
-
+        self.put_num_threads(code)
         code.putln("")
+
         code.putln("#endif /* _OPENMP */")
 
         code.begin_block()
+        self.initialize_privates_to_nan(code)
         self.body.generate_execution_code(code)
         code.end_block()
 
@@ -6495,11 +6541,6 @@ class ParallelRangeNode(ParallelStatNode):
 
     target       NameNode       the target iteration variable
     else_clause  Node or None   the else clause of this loop
-    args         tuple          the arguments passed to prange()
-    kwargs       DictNode       the keyword arguments passed to prange()
-                                (replaced by its compile time value)
-
-    is_nogil     bool           indicates whether this is a nogil prange() node
     """
 
     child_attrs = ['body', 'target', 'else_clause', 'args']
@@ -6509,7 +6550,12 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
-    is_nogil = False
+
+    nogil = False
+    schedule = None
+    num_threads = None
+
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads']
 
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
@@ -6528,14 +6574,6 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             self.start, self.stop, self.step = self.args
 
-        if self.kwargs:
-            self.kwargs = self.kwargs.compile_time_value(env)
-        else:
-            self.kwargs = {}
-
-        self.is_nogil = self.kwargs.pop('nogil', False)
-        self.schedule = self.kwargs.pop('schedule', None)
-
         if hasattr(self.schedule, 'decode'):
             self.schedule = self.schedule.decode('ascii')
 
@@ -6543,9 +6581,6 @@ class ParallelRangeNode(ParallelStatNode):
                                  'runtime'):
             error(self.pos, "Invalid schedule argument to prange: %s" %
                                                         (self.schedule,))
-
-        for kw in self.kwargs:
-            error(self.pos, "Invalid keyword argument to prange: %s" % kw)
 
     def analyse_expressions(self, env):
         if self.target is None:
@@ -6587,7 +6622,6 @@ class ParallelRangeNode(ParallelStatNode):
                 self.index_type = PyrexTypes.widest_numeric_type(
                                         self.index_type, node.type)
 
-        super(ParallelRangeNode, self).analyse_expressions(env)
         if self.else_clause is not None:
             self.else_clause.analyse_expressions(env)
 
@@ -6600,6 +6634,7 @@ class ParallelRangeNode(ParallelStatNode):
             self.assignments[self.target.entry] = self.target.pos, None
 
         self.analyse_sharing_attributes(env)
+        super(ParallelRangeNode, self).analyse_expressions(env)
 
     def nogil_check(self, env):
         names = 'start', 'stop', 'step', 'target'
@@ -6734,6 +6769,8 @@ class ParallelRangeNode(ParallelStatNode):
             c = self.parent.privatization_insertion_point
             c.put(" private(%(nsteps)s)" % fmt_dict)
 
+        self.put_num_threads(code)
+
         self.privatization_insertion_point = code.insertion_point()
 
         code.putln("")
@@ -6742,6 +6779,9 @@ class ParallelRangeNode(ParallelStatNode):
         code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
         code.begin_block()
         code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+
+        self.initialize_privates_to_nan(code, exclude=self.target.entry)
+
         self.body.generate_execution_code(code)
         code.end_block()
 
@@ -6790,17 +6830,17 @@ if Options.gcc_branch_hints:
     branch_prediction_macros = \
     """
 #ifdef __GNUC__
-/* Test for GCC > 2.95 */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#else /* __GNUC__ > 2 ... */
-#define likely(x)   (x)
-#define unlikely(x) (x)
-#endif /* __GNUC__ > 2 ... */
+  /* Test for GCC > 2.95 */
+  #if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
+    #define likely(x)   __builtin_expect(!!(x), 1)
+    #define unlikely(x) __builtin_expect(!!(x), 0)
+  #else /* __GNUC__ > 2 ... */
+    #define likely(x)   (x)
+    #define unlikely(x) (x)
+  #endif /* __GNUC__ > 2 ... */
 #else /* __GNUC__ */
-#define likely(x)   (x)
-#define unlikely(x) (x)
+  #define likely(x)   (x)
+  #define unlikely(x) (x)
 #endif /* __GNUC__ */
     """
 else:
@@ -7361,7 +7401,7 @@ static void __Pyx_RaiseArgtupleInvalid(
     Py_ssize_t num_found)
 {
     Py_ssize_t num_expected;
-    const char *number, *more_or_less;
+    const char *more_or_less;
 
     if (num_found < num_min) {
         num_expected = num_min;
@@ -7373,14 +7413,10 @@ static void __Pyx_RaiseArgtupleInvalid(
     if (exact) {
         more_or_less = "exactly";
     }
-    number = (num_expected == 1) ? "" : "s";
     PyErr_Format(PyExc_TypeError,
-        #if PY_VERSION_HEX < 0x02050000
-            "%s() takes %s %d positional argument%s (%d given)",
-        #else
-            "%s() takes %s %zd positional argument%s (%zd given)",
-        #endif
-        func_name, more_or_less, num_expected, number, num_found);
+                 "%s() takes %s %"PY_FORMAT_SIZE_T"d positional argument%s (%"PY_FORMAT_SIZE_T"d given)",
+                 func_name, more_or_less, num_expected,
+                 (num_expected == 1) ? "" : "s", num_found);
 }
 """)
 
@@ -7671,10 +7707,12 @@ bad:
 
 unraisable_exception_utility_code = UtilityCode(
 proto = """
-static void __Pyx_WriteUnraisable(const char *name); /*proto*/
+static void __Pyx_WriteUnraisable(const char *name, int clineno,
+                                  int lineno, const char *filename); /*proto*/
 """,
 impl = """
-static void __Pyx_WriteUnraisable(const char *name) {
+static void __Pyx_WriteUnraisable(const char *name, int clineno,
+                                  int lineno, const char *filename) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
@@ -7943,3 +7981,22 @@ bad:
     'EMPTY_BYTES' : Naming.empty_bytes,
     "MODULE": Naming.module_cname,
 })
+
+################ Utility code for cython.parallel stuff ################
+
+invalid_values_utility_code = UtilityCode(
+proto="""\
+#include <string.h>
+
+void __pyx_init_nan(void);
+
+static float %(PYX_NAN)s;
+"""  % vars(Naming),
+
+init="""
+/* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
+   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
+   a signalling NaN. */
+    memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
+""" % vars(Naming))
+
