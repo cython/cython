@@ -42,4 +42,5 @@ def test_num_threads():
 
     return num_threads
 
+OPENMP_PARALLEL = True
 include "sequential_parallel.pyx"
