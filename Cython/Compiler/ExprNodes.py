@@ -8928,6 +8928,8 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func.m_self);
     Py_VISIT(m->func.m_module);
     Py_VISIT(m->func_dict);
+    Py_VISIT(m->func_name);
+    Py_VISIT(m->func_doc);
     return 0;
 }
 
