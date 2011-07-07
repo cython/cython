@@ -2874,11 +2874,10 @@ def best_match(args, functions, pos=None, env=None):
             if assignable:
                 if src_type == dst_type or dst_type.same_as(src_type):
                     pass # score 0
-                elif is_promotion(src_type, dst_type):
-                    score[3] += 1
                 elif ((src_type.is_int and dst_type.is_int) or
                       (src_type.is_float and dst_type.is_float)):
-                    score[2] += 1
+                    score[2] += abs(dst_type.rank + (not dst_type.signed) -
+                                    (src_type.rank + (not src_type.signed)))
                 elif not src_type.is_pyobject:
                     score[1] += 1
                 else:

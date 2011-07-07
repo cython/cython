@@ -30,10 +30,10 @@ cdef public class MyExt [ type MyExtType, object MyExtObject ]:
     cdef unsigned char a
 
 ctypedef char *string_t
-ctypedef cython.fused_type(int, float) simple_t
-ctypedef cython.fused_type(int, float, string_t) less_simple_t
-ctypedef cython.fused_type(mystruct_t, myunion_t, MyExt) struct_t
-ctypedef cython.fused_type(str, unicode, bytes) builtin_t
+simple_t = cython.fused_type(int, float)
+less_simple_t = cython.fused_type(int, float, string_t)
+struct_t = cython.fused_type(mystruct_t, myunion_t, MyExt)
+builtin_t = cython.fused_type(str, unicode, bytes)
 
 cdef struct_t add_simple(struct_t obj, simple_t simple)
 cdef less_simple_t add_to_simple(struct_t obj, less_simple_t simple)
@@ -43,7 +43,7 @@ cdef class TestFusedExtMethods(object):
     cdef cython.floating method(self, cython.integral x, cython.floating y)
     cpdef cpdef_method(self, cython.integral x, cython.floating y)
 
-ctypedef cython.fused_type(TestFusedExtMethods, object, list) object_t
+object_t = cython.fused_type(TestFusedExtMethods, object, list)
 
 cpdef public_cpdef(cython.integral x, cython.floating y, object_t z)
 

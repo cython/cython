@@ -5,17 +5,28 @@ import math
 
 ctypedef char *string_t
 
-ctypedef cython.fused_type(int, long, float, string_t) fused_t
-ctypedef cython.fused_type(int, long) other_t
-ctypedef cython.fused_type(short int, int) base_t
-ctypedef cython.fused_type(float complex, double complex,
-                           int complex, long complex) complex_t
+fused_t = cython.fused_type(int, long, float, string_t)
+other_t = cython.fused_type(int, long)
+base_t = cython.fused_type(short, int)
+
+# complex_t = cython.fused_type(cython.floatcomplex, cython.doublecomplex)
+cdef fused complex_t:
+    float complex
+    double complex
 
 ctypedef base_t **base_t_p_p
+
 # ctypedef cython.fused_type(char, base_t_p_p, fused_t, complex_t) composed_t
-ctypedef cython.fused_type(char, int, float, string_t, float complex,
-                           double complex, int complex, long complex,
-                           cython.p_p_int) composed_t
+cdef fused composed_t:
+    char
+    int
+    float
+    string_t
+    cython.pp_int
+    float complex
+    double complex
+    int complex
+    long complex
 
 
 cdef func(fused_t a, other_t b):

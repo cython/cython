@@ -4,19 +4,19 @@ cimport cython
 from cython import fused_type
 
 # This is all invalid
-ctypedef foo(int) dtype1
-ctypedef foo.bar(float) dtype2
-ctypedef fused_type(foo) dtype3
-dtype4 = cython.typedef(cython.fused_type(int, long, kw=None))
+# ctypedef foo(int) dtype1
+# ctypedef foo.bar(float) dtype2
+# ctypedef fused_type(foo) dtype3
+dtype4 = cython.fused_type(int, long, kw=None)
 
-ctypedef public cython.fused_type(int, long) dtype7
-ctypedef api cython.fused_type(int, long) dtype8
+# ctypedef public cython.fused_type(int, long) dtype7
+# ctypedef api cython.fused_type(int, long) dtype8
 
-ctypedef cython.fused_type(short, short int, int) int_t
-ctypedef cython.fused_type(int, long) int2_t
-ctypedef cython.fused_type(int2_t, int) dtype9
+int_t = cython.fused_type(short, short, int)
+int2_t = cython.fused_type(int, long)
+dtype9 = cython.fused_type(int2_t, int)
 
-ctypedef cython.fused_type(float, double) floating
+floating = cython.fused_type(float, double)
 
 cdef func(floating x, int2_t y):
     print x, y
@@ -29,21 +29,26 @@ func[float, int](x)
 func[float, int](x, y, y)
 func(x, y=y)
 
+
 # This is all valid
-ctypedef fused_type(int, long, float) dtype5
-ctypedef cython.fused_type(int, long) dtype6
+dtype5 = fused_type(int, long, float)
+dtype6 = cython.fused_type(int, long)
 func[float, int](x, y)
+
+cdef fused fused1:
+    int
+    long long
+
+ctypedef fused fused2:
+    int
+    long long
+
 func(x, y)
 
 _ERRORS = u"""
-fused_types.pyx:7:13: Can only fuse types with cython.fused_type()
-fused_types.pyx:8:17: Can only fuse types with cython.fused_type()
-fused_types.pyx:9:20: 'foo' is not a type identifier
-fused_types.pyx:10:23: fused_type does not take keyword arguments
-fused_types.pyx:12:0: Fused types cannot be public or api
-fused_types.pyx:13:0: Fused types cannot be public or api
-fused_types.pyx:15:34: Type specified multiple times
-fused_types.pyx:17:27: Cannot fuse a fused type
+fused_types.pyx:10:15: fused_type does not take keyword arguments
+fused_types.pyx:15:38: Type specified multiple times
+fused_types.pyx:17:33: Cannot fuse a fused type
 fused_types.pyx:26:4: Not enough types specified to specialize the function, int2_t is still fused
 fused_types.pyx:27:4: Not enough types specified to specialize the function, int2_t is still fused
 fused_types.pyx:28:16: Call with wrong number of arguments (expected 2, got 1)

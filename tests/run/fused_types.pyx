@@ -1,19 +1,20 @@
 # mode: run
 
 cimport cython
-#from cython cimport p_double, p_int
+from cython cimport integral
 from cpython cimport Py_INCREF
 
 from Cython import Shadow as pure_cython
 
 ctypedef char * string_t
 
-ctypedef cython.fused_type(float, double) floating
-ctypedef cython.fused_type(int, long) integral
-ctypedef cython.fused_type(int, long, float, double, string_t) fused_type1
-ctypedef cython.fused_type(string_t) fused_type2
+# floating = cython.fused_type(float, double) floating
+# integral = cython.fused_type(int, long) integral
+ctypedef cython.floating floating
+fused_type1 = cython.fused_type(int, long, float, double, string_t)
+fused_type2 = cython.fused_type(string_t)
 ctypedef fused_type1 *composed_t
-ctypedef cython.fused_type(int, double) other_t
+other_t = cython.fused_type(int, double)
 ctypedef double *p_double
 ctypedef int *p_int
 

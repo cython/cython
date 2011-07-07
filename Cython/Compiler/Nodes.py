@@ -961,29 +961,39 @@ class FusedTypeNode(CBaseTypeNode):
 
         ctypedef cython.fused_type(int, long, long long) integral
 
+    name            str                     name of this fused type
     types           [CSimpleBaseTypeNode]   is the list of types to be fused
     """
 
     child_attrs = []
 
+    def analyse_declarations(self, env):
+        type = self.analyse(env)
+        entry = env.declare_typedef(self.name, type, self.pos)
+
+        # Omit the typedef declaration that self.declarator would produce
+        entry.in_cinclude = True
+
     def analyse(self, env):
-        # Note: this list may still contain multiple of the same entries
-        types = [type.analyse_as_type(env) for type in self.types]
+        types = []
+        for type_node in self.types:
+            type = type_node.analyse_as_type(env)
+
+            if not type:
+                error(type_node.pos, "Not a type")
+                continue
+
+            if type in types:
+                error(type_node.pos, "Type specified multiple times")
+            elif type.is_fused:
+                error(type_node.pos, "Cannot fuse a fused type")
+            else:
+                types.append(type)
 
         if len(self.types) == 1:
             return types[0]
 
-        seen = cython.set()
-        for type_node, type in zip(self.types, types):
-            if type in seen:
-                error(type_node.pos, "Type specified multiple times")
-            else:
-                seen.add(type)
-                if type.is_fused:
-                    error(type_node.pos, "Cannot fuse a fused type")
-
-        self.types = types
-        return PyrexTypes.FusedType(types)
+        return PyrexTypes.FusedType(types, name=self.name)
 
 
 class CVarDefNode(StatNode):
@@ -1226,17 +1236,11 @@ class CTypeDefNode(StatNode):
         entry = env.declare_typedef(name, type, self.pos,
             cname = cname, visibility = self.visibility, api = self.api)
 
-        if self.in_pxd and not env.in_cinclude:
-            entry.defined_in_pxd = 1
-
-        if base.is_fused:
-            # Omit the typedef declaration that self.declarator would produce
+        if type.is_fused:
             entry.in_cinclude = True
 
-            if self.visibility == 'public' or self.api:
-                error(self.pos, "Fused types cannot be public or api")
-
-            base.name = name
+        if self.in_pxd and not env.in_cinclude:
+            entry.defined_in_pxd = 1
 
     def analyse_expressions(self, env):
         pass
@@ -4079,20 +4083,6 @@ class SingleAssignmentNode(AssignmentNode):
                         error(self.rhs.pos, "Can only declare one type at a time.")
                         return
 
-                    # See if we're dealing with this:
-                    #     dtype = cython.typedef(cython.fused_type(...))
-                    if isinstance(args[0], ExprNodes.CallNode):
-                        nested_func_name = args[0].function.as_cython_attribute()
-                        if nested_func_name == u'fused_type':
-                            nested_args, nested_kwds = args[0].explicit_args_kwds()
-                            if nested_kwds is not None:
-                                error(self.rhs.pos,
-                                      "fused_type does not take keyword arguments")
-
-                            args[0] = FusedTypeNode(self.rhs.pos,
-                                                    types=nested_args)
-                            args[0].name = self.lhs.name
-
                     type = args[0].analyse_as_type(env)
                     if type is None:
                         error(args[0].pos, "Unknown type")
@@ -4140,6 +4130,17 @@ class SingleAssignmentNode(AssignmentNode):
                     env.declare_struct_or_union(name, func_name, scope, False, self.rhs.pos)
                     for member, type, pos in members:
                         scope.declare_var(member, type, pos)
+
+                elif func_name == 'fused_type':
+                    # dtype = cython.fused_type(...)
+                    self.declaration_only = True
+                    if kwds:
+                        error(self.rhs.function.pos,
+                              "fused_type does not take keyword arguments")
+
+                    fusednode = FusedTypeNode(self.rhs.pos,
+                                              name = self.lhs.name, types=args)
+                    fusednode.analyse_declarations(env)
 
         if self.declaration_only:
             return

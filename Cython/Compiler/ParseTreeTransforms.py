@@ -959,35 +959,6 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             return self.visit_with_directives(node.body, directive_dict)
         return self.visit_Node(node)
 
-    def visit_CTypeDefNode(self, node):
-        "Don't skip ctypedefs"
-        self.visitchildren(node)
-        return node
-
-    def visit_FusedTypeNode(self, node):
-        """
-        See if a function call expression in a ctypedef is actually
-        cython.fused_type()
-        """
-        def err():
-            error(node.pos, "Can only fuse types with cython.fused_type()")
-
-        if len(node.funcname) == 1:
-            fused_type, = node.funcname
-        else:
-            cython_module, fused_type = node.funcname
-
-            wrong_module = cython_module not in self.cython_module_names
-            if wrong_module or fused_type != u'fused_type':
-                err()
-
-            return node
-
-        if not self.directive_names.get(fused_type):
-            err()
-
-        return node
-
 
 class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     """
