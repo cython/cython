@@ -203,6 +203,7 @@ KEEP_2X_FILES = [
 COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
+CCACHE = os.getenv('CYTHON_RUNTESTS_CCACHE', '').split()
 
 BACKENDS = ['c', 'cpp']
 
@@ -242,15 +243,17 @@ list_unchanging_dir = memoize(lambda x: os.listdir(x))
 
 class build_ext(_build_ext):
     def build_extension(self, ext):
-        if ext.language == 'c++':
-            try:
-                try: # Py2.7+ & Py3.2+
-                    compiler_obj = self.compiler_obj
-                except AttributeError:
-                    compiler_obj = self.compiler
+        try:
+            try: # Py2.7+ & Py3.2+
+                compiler_obj = self.compiler_obj
+            except AttributeError:
+                compiler_obj = self.compiler
+            if ext.language == 'c++':
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
-            except Exception:
-                pass
+            if CCACHE:
+                compiler_obj.compiler_so = CCACHE + compiler_obj.compiler_so
+        except Exception:
+            pass
         _build_ext.build_extension(self, ext)
 
 class ErrorWriter(object):
