@@ -1041,7 +1041,8 @@ class CVarDefNode(StatNode):
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 self.entry = dest_scope.declare_var(name, type, declarator.pos,
-                            cname=cname, visibility=visibility, api=self.api, is_cdef=1)
+                            cname=cname, visibility=visibility, in_pxd=self.in_pxd,
+                            api=self.api, is_cdef=1)
 
 
 class CStructOrUnionDefNode(StatNode):
@@ -2208,7 +2209,15 @@ class FusedCFuncDefNode(StatListNode):
                     else:
                         if_ = 'elif'
 
-                    tup =  (if_, i, py_type_name, len(seen_fused_types) - 1,
+                    # in the case of long, unicode or bytes we need to instance
+                    # check for long_, unicode_, bytes_ (long = long is no longer
+                    # valid code with control flow analysis)
+                    instance_check_py_type_name = py_type_name
+                    if py_type_name in ('long', 'unicode', 'bytes'):
+                        instance_check_py_type_name += '_'
+
+                    tup =  (if_, i, instance_check_py_type_name,
+                            len(seen_fused_types) - 1,
                             specialized_type.typeof_name())
                     body_stmts.append(
                         "    %s isinstance(args[%d], %s): "
@@ -2228,10 +2237,13 @@ def __pyx_fused_cpdef(signatures, args):
 
     import sys
     if sys.version_info >= (3, 0):
-        long = int
-        unicode = str
+        long_ = int
+        unicode_ = str
+        bytes_ = bytes
     else:
-        bytes = str
+        long_ = long
+        unicode_ = unicode
+        bytes_ = str
 
     dest_sig = [None] * len(args)
 

@@ -2650,24 +2650,6 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             overridable = ctx.overridable)
     return result
 
-#def p_typelist(s):
-#    """
-#    parse a list of basic c types as part of a function call, like
-#    cython.fused_type(int, long, double)
-#    """
-#    types = []
-#    pos = s.position()
-#
-#    while s.sy == 'IDENT':
-#        types.append(p_c_base_type(s))
-#        if s.sy != ',':
-#            if s.sy != ')':
-#                s.expect(',')
-#            break
-#        s.next()
-#
-#    return Nodes.FusedTypeNode(pos, types=types)
-
 def p_ctypedef_statement(s, ctx):
     # s.sy == 'ctypedef'
     pos = s.position()
