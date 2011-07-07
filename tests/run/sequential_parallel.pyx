@@ -237,7 +237,9 @@ def test_nan_init():
     with nogil, cython.parallel.parallel():
         c1 = 16
 
-    assert c1 == 20, c1
+    if globals().get('OPENMP_PARALLEL'):
+        # We only reach here when we are included by parallel.pyx
+        assert c1 == 20, c1
 
 cdef void nogil_print(char *s) with gil:
     print s.decode('ascii')
