@@ -147,6 +147,31 @@ def test_closure_parallel_privates():
     g = test_generator()
     print next(g), x, next(g), x
 
+def test_closure_parallel_with_gil():
+    """
+    >>> test_closure_parallel_with_gil()
+    45
+    45
+    """
+    cdef int sum = 0
+    temp1 = 5
+    temp2 = -5
+
+    def test_reduction():
+        nonlocal sum, temp1, temp2
+
+        cdef int i
+
+        for i in prange(10, nogil=True):
+            with gil:
+                sum += temp1 + temp2 + i
+                assert abs(sum - sum) == 0
+
+        return sum
+
+    print test_reduction()
+    print sum
+
 def test_pure_mode():
     """
     >>> test_pure_mode()
