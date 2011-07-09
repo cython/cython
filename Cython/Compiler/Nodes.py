@@ -5977,7 +5977,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if entry.cname in self.seen_closure_vars:
             return entry.cname
 
-        cname = code.funcstate.allocate_temp(entry.type, False)
+        cname = code.funcstate.allocate_temp(entry.type, True)
 
         # Add both the actual cname and the temp cname, as the actual cname
         # will be replaced with the temp cname on the entry
@@ -6297,6 +6297,11 @@ class ParallelRangeNode(ParallelStatNode):
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads']
 
+    def __init__(self, pos, **kwds):
+        super(ParallelRangeNode, self).__init__(pos, **kwds)
+        # Pretend to be a ForInStatNode for control flow analysis
+        self.iterator = PassStatNode(pos)
+
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
         self.target.analyse_target_declaration(env)
@@ -6512,7 +6517,10 @@ class ParallelRangeNode(ParallelStatNode):
         for entry, op in self.privates.iteritems():
             # Don't declare the index variable as a reduction
             if op and op in "+*-&^|" and entry != self.target.entry:
-                code.put(" reduction(%s:%s)" % (op, entry.cname))
+                if entry.type.is_pyobject:
+                    error(self.pos, "Python objects cannot be reductions")
+                else:
+                    code.put(" reduction(%s:%s)" % (op, entry.cname))
             else:
                 if entry == self.target.entry:
                     code.put(" firstprivate(%s)" % entry.cname)
