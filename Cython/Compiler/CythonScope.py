@@ -128,11 +128,11 @@ class CythonScope(ModuleScope):
 
         # declare the __getbuffer__ & __releasebuffer__ functions
 
-        for name in ('__getbuffer__', '__releasebuffer__'):
+        for idx, name in enumerate(('__getbuffer__', '__releasebuffer__')):
             entry = arr_scope.declare_pyfunction(name, None)
             # XXX: absolutely horrendous hack right here!!!
             # To be fixed!!!
-            entry.func_cname = '__pyx_pf_9__pyxutil_5array_' + name
+            entry.func_cname = '__pyx_pf_9__pyxutil_5array_%d' % (idx + 1) + name
             entry.utility_code_definition = cython_array_utility_code
 
         #
