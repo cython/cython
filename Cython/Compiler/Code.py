@@ -57,6 +57,9 @@ class UtilityCode(object):
         self.specialize_list = []
         self.proto_block = proto_block
 
+    def get_tree(self):
+        pass
+    
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:
