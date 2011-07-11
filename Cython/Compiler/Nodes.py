@@ -2273,14 +2273,11 @@ class DefNode(FuncDefNode):
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
         prefix = env.next_id(env.scope_prefix)
-        entry.func_cname = \
-            env.mangle(Naming.pyfunc_prefix, prefix + name)
-        entry.pymethdef_cname = \
-            env.mangle(Naming.pymethdef_prefix, prefix + name)
+        entry.func_cname = Naming.pyfunc_prefix + prefix + name
+        entry.pymethdef_cname = Naming.pymethdef_prefix + prefix + name
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
-            entry.doc_cname = \
-                env.mangle(Naming.funcdoc_prefix, prefix + name)
+            entry.doc_cname = Naming.funcdoc_prefix + prefix + name
             if entry.is_special:
                 if entry.name in TypeSlots.invisible or not entry.doc or (entry.name in '__getattr__' and env.directives['fast_getattr']):
                     entry.wrapperbase_cname = None
