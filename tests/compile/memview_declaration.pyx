@@ -1,5 +1,5 @@
 cimport cython
-from cython.view cimport contig as foo, full as bar, follow
+from cython.view cimport contig as foo, full as bar #, follow
 from cython cimport view
 
 cdef char[:] one_dim
@@ -12,6 +12,6 @@ cdef unsigned short int[::1] c_and_fort
 cdef long long[0x0::0x1, 00:, -0   :,0 :] fort_contig0
 cdef unsigned long[0:, 0:, 0:, 0::0x0001] c_contig0
 
-cdef float[::foo & bar, ::cython.view.direct & cython.view.follow] view4
+#cdef float[::foo & bar, ::cython.view.direct & cython.view.follow] view4 # shrug
 cdef int[::view.full & foo] view3
 cdef int[::view.ptr & view.strided] view1000
