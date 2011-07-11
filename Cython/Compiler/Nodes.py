@@ -6023,15 +6023,21 @@ class ParallelStatNode(StatNode, ParallelNode):
                                    "thread-private variable")
 
     def initialize_privates_to_nan(self, code, exclude=None):
-        code.putln("/* Initialize private variables to invalid values */")
+        first = True
 
         for entry, op in self.privates.iteritems():
             if not op and (not exclude or entry != exclude):
                 invalid_value = entry.type.invalid_value()
 
                 if invalid_value:
-                    code.globalstate.use_utility_code(
+                    if first:
+                        code.putln("/* Initialize private variables to "
+                                   "invalid values */")
+                        code.globalstate.use_utility_code(
                                 invalid_values_utility_code)
+                        first = False
+
+                    have_invalid_values = True
                     code.putln("%s = %s;" % (entry.cname,
                                              entry.type.cast_code(invalid_value)))
 
@@ -6091,6 +6097,8 @@ class ParallelStatNode(StatNode, ParallelNode):
             if temps:
                 c = self.privatization_insertion_point
                 c.put(" private(%s)" % ", ".join(temps))
+                if self.breaking_label_used:
+                    c.put(" shared(__pyx_parallel_why)")
 
     def setup_parallel_control_flow_block(self, code):
         """
@@ -6553,11 +6561,9 @@ class ParallelRangeNode(ParallelStatNode):
             code.funcstate.start_collecting_temps()
 
         self.body.generate_execution_code(code)
-
-        if self.is_parallel:
-            self.privatize_temps(code)
-
         self.trap_parallel_exit(code, should_flush=True)
+        self.privatize_temps(code)
+
         if self.breaking_label_used:
             # Put a guard around the loop body in case return, break or
             # exceptions might be used
