@@ -122,6 +122,9 @@ class Entry(object):
     # assignments      [ExprNode] List of expressions that get assigned to this entry.
     # might_overflow   boolean    In an arithmetic expression that could cause
     #                             overflow (used for type inference).
+    # utility_code_definition     For some Cython builtins, the utility code
+    #                             which contains the definition of the entry.
+    #                             Currently only supported for CythonScope entries.
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -173,6 +176,7 @@ class Entry(object):
     buffer_aux = None
     prev_entry = None
     might_overflow = 0
+    utility_code_definition = None
     in_with_gil_block = 0
 
     def __init__(self, name, cname, type, pos = None, init = None):
@@ -273,6 +277,20 @@ class Scope(object):
         self.lambda_defs = []
         self.return_type = None
         self.id_counters = {}
+
+    def merge_in(self, other):
+        # Use with care...
+        self.entries.update(other.entries)
+        for x in ('const_entries',
+                  'type_entries',
+                  'sue_entries',
+                  'arg_entries',
+                  'var_entries',
+                  'pyfunc_entries',
+                  'cfunc_entries',
+                  'c_class_entries'):
+            getattr(self, x).extend(getattr(other, x))
+
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
@@ -879,8 +897,9 @@ class ModuleScope(Scope):
     has_import_star = 0
 
     def __init__(self, name, parent_module, context):
+        import Builtin
         self.parent_module = parent_module
-        outer_scope = context.find_submodule("__builtin__")
+        outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
         if name != "__init__":
             self.module_name = name
@@ -921,7 +940,8 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
-        return self.outer_scope.lookup(name, language_level = self.context.language_level)
+        language_level = self.context.language_level if self.context is not None else 3
+        return self.outer_scope.lookup(name, language_level=language_level)
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) \

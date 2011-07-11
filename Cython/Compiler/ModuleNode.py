@@ -69,16 +69,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         selfscope = self.scope
         selfscope.utility_code_list.extend(scope.utility_code_list)
         if merge_scope:
-            selfscope.entries.update(scope.entries)
-            for x in ('const_entries',
-                      'type_entries',
-                      'sue_entries',
-                      'arg_entries',
-                      'var_entries',
-                      'pyfunc_entries',
-                      'cfunc_entries',
-                      'c_class_entries'):
-                getattr(selfscope, x).extend(getattr(scope, x))
+            selfscope.merge_in(scope)
 
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
