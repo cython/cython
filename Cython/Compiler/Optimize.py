@@ -3443,10 +3443,10 @@ class FinalOptimizePhase(Visitor.CythonTransform):
             if node.function.name == 'isinstance':
                 type_arg = node.args[1]
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
-                    from CythonScope import utility_scope
-                    node.function.entry = utility_scope.lookup('PyObject_TypeCheck')
+                    cython_scope = self.context.cython_scope
+                    node.function.entry = cython_scope.lookup('PyObject_TypeCheck')
                     node.function.type = node.function.entry.type
-                    PyTypeObjectPtr = PyrexTypes.CPtrType(utility_scope.lookup('PyTypeObject').type)
+                    PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         return node
 

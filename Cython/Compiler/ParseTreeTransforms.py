@@ -1,4 +1,3 @@
-
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, ModuleNode=object,
@@ -2213,7 +2212,11 @@ class TransformBuiltinMethods(EnvTransform):
             elif attribute in (u'set', u'frozenset'):
                 node = ExprNodes.NameNode(node.pos, name=EncodedString(attribute),
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
-            elif not PyrexTypes.parse_basic_type(attribute):
+            elif PyrexTypes.parse_basic_type(attribute):
+                pass
+            elif self.context.cython_scope.lookup(attribute):
+                pass
+            else:
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
@@ -2303,7 +2306,12 @@ class TransformBuiltinMethods(EnvTransform):
             elif function == u'set':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
             else:
-                error(node.function.pos, u"'%s' not a valid cython language construct" % function)
+                entry = self.context.cython_scope.lookup(function)
+                if entry and entry.utility_code_definition:
+                    self.env_stack[0].use_utility_code(entry.utility_code_definition)
+                if not entry:
+                    error(node.function.pos,
+                          u"'%s' not a valid cython language construct" % function)
 
         self.visitchildren(node)
         return node
