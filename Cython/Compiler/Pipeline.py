@@ -60,11 +60,22 @@ def inject_pxd_code_stage_factory(context):
         return module_node
     return inject_pxd_code_stage
 
+def inject_utility_code_stage(module_node):
+    added = []
+    # need to copy list as the list will be altered!
+    for utilcode in module_node.scope.utility_code_list[:]:
+        if utilcode in added: continue
+        added.append(utilcode)
+        tree = utilcode.get_tree()
+        if tree:
+            module_node.merge_in(tree.body, tree.scope, merge_scope=True)
+    return module_node
+
 #
 # Pipeline factories
 #
 
-def create_pipeline(context, mode):
+def create_pipeline(context, mode, exclude_classes=()):
     assert mode in ('pyx', 'py', 'pxd')
     from Visitor import PrintTree
     from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
@@ -98,7 +109,7 @@ def create_pipeline(context, mode):
     else:
         _align_function_definitions = None
 
-    return [
+    stages = [
         NormalizeTree(context),
         PostParse(context),
         _specific_post_parse,
@@ -134,9 +145,13 @@ def create_pipeline(context, mode):
         FinalOptimizePhase(context),
         GilCheck(),
         ]
+    filtered_stages = []
+    for s in stages:
+        if s.__class__ not in exclude_classes:
+            filtered_stages.append(s)
+    return filtered_stages
 
-
-def create_pyx_pipeline(context, options, result, py=False):
+def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
     if py:
         mode = 'py'
     else:
@@ -157,9 +172,10 @@ def create_pyx_pipeline(context, options, result, py=False):
 
     return list(itertools.chain(
         [parse_stage_factory(context)],
-        create_pipeline(context, mode),
+        create_pipeline(context, mode, exclude_classes=exclude_classes),
         test_support,
         [inject_pxd_code_stage_factory(context),
+         inject_utility_code_stage,
          abort_on_errors],
         debug_transform,
         [generate_pyx_code_stage_factory(options, result)]))
@@ -184,17 +200,15 @@ def create_pyx_as_pxd_pipeline(context, result):
     from Optimize import ConstantFolding, FlattenInListTransform
     from Nodes import StatListNode
     pipeline = []
-    pyx_pipeline = create_pyx_pipeline(context, context.options, result)
+    pyx_pipeline = create_pyx_pipeline(context, context.options, result,
+                                       exclude_classes=[
+                                           AlignFunctionDefinitions,
+                                           MarkClosureVisitor,
+                                           ConstantFolding,
+                                           FlattenInListTransform,
+                                           WithTransform
+                                           ])
     for stage in pyx_pipeline:
-        if stage.__class__ in [
-                AlignFunctionDefinitions,
-                MarkClosureVisitor,
-                ConstantFolding,
-                FlattenInListTransform,
-                WithTransform,
-                ]:
-            # Skip these unnecessary stages.
-            continue
         pipeline.append(stage)
         if isinstance(stage, AnalyseDeclarationsTransform):
             # This is the last stage we need.
