@@ -1938,7 +1938,7 @@ def p_c_complex_base_type(s):
     # s.sy == '('
     pos = s.position()
     s.next()
-    base_type = p_c_base_type(s, empty = 1)
+    base_type = p_c_base_type(s)
     declarator = p_c_declarator(s, empty = 1)
     s.expect(')')
     return Nodes.CComplexBaseTypeNode(pos,
