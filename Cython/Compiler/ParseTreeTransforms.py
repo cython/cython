@@ -1348,10 +1348,13 @@ if VALUE is not None:
     count += 1
     """)
 
+    fused_function = None
+
     def __call__(self, root):
         self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
         self.seen_vars_stack = []
+        self.fused_error_funcs = cython.set()
         return super(AnalyseDeclarationsTransform, self).__call__(root)
 
     def visit_NameNode(self, node):
@@ -1399,9 +1402,12 @@ if VALUE is not None:
         analyse its children (which are in turn normal functions). If we're a
         normal function, just analyse the body of the function.
         """
+        env = self.env_stack[-1]
+
         self.seen_vars_stack.append(cython.set())
         lenv = node.local_scope
         node.declare_arguments(lenv)
+
         for var, type_node in node.directive_locals.items():
             if not lenv.lookup_here(var):   # don't redeclare args
                 type = type_node.analyse_as_type(lenv)
@@ -1411,10 +1417,27 @@ if VALUE is not None:
                     error(type_node.pos, "Not a type")
 
         if node.has_fused_arguments:
-            node = Nodes.FusedCFuncDefNode(node, self.env_stack[-1])
+            if self.fused_function:
+                if self.fused_function not in self.fused_error_funcs:
+                    error(node.pos, "Cannot nest fused functions")
+
+                self.fused_error_funcs.add(self.fused_function)
+                # env.declare_var(node.name, PyrexTypes.py_object_type, node.pos)
+                node = Nodes.SingleAssignmentNode(
+                    node.pos,
+                    lhs=ExprNodes.NameNode(node.pos, name=node.name),
+                    rhs=ExprNodes.NoneNode(node.pos))
+                node.analyse_declarations(env)
+                return node
+
+            node = Nodes.FusedCFuncDefNode(node, env)
+
+            self.fused_function = node
             self.visitchildren(node)
+            self.fused_function = None
+
             if node.py_func:
-                node.stats.append(node.py_func)
+                node.stats.insert(0, node.py_func)
         else:
             node.body.analyse_declarations(lenv)
 
@@ -2082,6 +2105,10 @@ class CreateClosureClasses(CythonTransform):
         target_module_scope.check_c_class(func_scope.scope_class)
 
     def visit_LambdaNode(self, node):
+        if not isinstance(node.def_node, Nodes.DefNode):
+            # fused function, an error has been previously issued
+            return node
+
         was_in_lambda = self.in_lambda
         self.in_lambda = True
         self.create_class_from_scope(node.def_node, self.module_scope, node)
@@ -2408,7 +2435,7 @@ class ReplaceFusedTypeChecks(VisitorTransform):
                     error(node.operand2.pos,
                           "Can only use 'in' or 'not in' on a fused type")
                 else:
-                    types = PyrexTypes.get_specific_types(type2)
+                    types = PyrexTypes.get_specialized_types(type2)
 
                     for specific_type in types:
                         if type1.same_as(specific_type):

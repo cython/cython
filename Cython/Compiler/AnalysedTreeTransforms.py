@@ -63,7 +63,7 @@ class AutoTestDictTransform(ScopeTrackingTransform):
         return node
 
     def visit_FuncDefNode(self, node):
-        if not node.doc:
+        if not node.doc or node.fused_py_func:
             return node
         if not self.cdef_docstrings:
             if isinstance(node, CFuncDefNode) and not node.py_func:

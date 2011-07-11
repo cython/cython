@@ -936,6 +936,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate struct declaration for an extension type's vtable.
         type = entry.type
         scope = type.scope
+
+        self.specialize_fused_types(scope)
+
         if type.vtabstruct_cname:
             code.putln("")
             code.putln(
@@ -1942,7 +1945,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Function import code ---*/")
         for module in imported_modules:
-            self.specialize_fused_types(module, env)
+            self.specialize_fused_types(module)
             self.generate_c_function_import_code_for_module(module, env, code)
 
         code.putln("/*--- Execution code ---*/")
@@ -2160,7 +2163,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.defined_in_pxd:
                 self.generate_type_import_code(env, entry.type, entry.pos, code)
 
-    def specialize_fused_types(self, pxd_env, impl_env):
+    def specialize_fused_types(self, pxd_env):
         """
         If fused c(p)def functions are defined in an imported pxd, but not
         used in this implementation file, we still have fused entries and

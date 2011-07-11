@@ -8969,11 +8969,16 @@ static PyObject *%(binding_cfunc)s_call(PyObject *func, PyObject *args, PyObject
 
 static PyObject *%(binding_cfunc)s_get__name__(%(binding_cfunc)s_object *func, void *closure);
 static int %(binding_cfunc)s_set__name__(%(binding_cfunc)s_object *func, PyObject *value, void *closure);
+static PyObject *%(binding_cfunc)s_get__doc__(%(binding_cfunc)s_object *func, void *closure);
 
 static PyGetSetDef %(binding_cfunc)s_getsets[] = {
     {(char *)"__name__",
      (getter) %(binding_cfunc)s_get__name__,
      (setter) %(binding_cfunc)s_set__name__,
+     NULL},
+    {(char *)"__doc__",
+     (getter) %(binding_cfunc)s_get__doc__,
+     NULL,
      NULL},
     {NULL},
 };
@@ -9140,6 +9145,12 @@ static int
 }
 
 static PyObject *
+%(binding_cfunc)s_get__doc__(%(binding_cfunc)s_object *func, void *closure)
+{
+    return PyUnicode_FromString(func->func.m_ml->ml_doc);
+}
+
+static PyObject *
 %(binding_cfunc)s_descr_get(PyObject *op, PyObject *obj, PyObject *type)
 {
     %(binding_cfunc)s_object *func = (%(binding_cfunc)s_object *) op;
@@ -9290,11 +9301,13 @@ static PyObject *
         binaryfunc meth = (binaryfunc) binding_func->func.m_ml->ml_meth;
         func = new_func = meth(binding_func->__signatures__, args);
         */
-        PyObject *tup = PyTuple_Pack(2, binding_func->__signatures__, args);
+        PyObject *tup = PyTuple_Pack(3, binding_func->__signatures__, args,
+                                     kw == NULL ? Py_None : kw);
         if (!tup)
             goto __pyx_err;
 
         func = new_func = PyCFunction_Call(func, tup, NULL);
+        Py_DECREF(tup);
 
         if (!new_func)
             goto __pyx_err;

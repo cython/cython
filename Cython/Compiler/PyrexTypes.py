@@ -235,9 +235,16 @@ def public_decl(base_code, dll_linkage):
         return base_code
 
 def create_typedef_type(name, base_type, cname, is_external=0):
-    if base_type.is_complex:
+    is_fused = base_type.is_fused
+    if base_type.is_complex or is_fused:
         if is_external:
-            raise ValueError("Complex external typedefs not supported")
+            if is_fused:
+                msg = "Fused"
+            else:
+                msg = "Complex"
+
+            raise ValueError("%s external typedefs not supported" % msg)
+
         return base_type
     else:
         return CTypedefType(name, base_type, cname, is_external)
@@ -2123,6 +2130,7 @@ class CFuncType(CType):
 
         result = []
         permutations = self.get_all_specific_permutations()
+
         for cname, fused_to_specific in permutations:
             new_func_type = self.entry.type.specialize(fused_to_specific)
 
@@ -2150,20 +2158,25 @@ class CFuncType(CType):
 
     def specialize_entry(self, entry, cname):
         assert not self.is_fused
+        specialize_entry(entry, cname)
 
-        entry.name = get_fused_cname(cname, entry.name)
 
-        if entry.is_cmethod:
-            entry.cname = entry.name
-            if entry.is_inherited:
-                entry.cname = StringEncoding.EncodedString(
-                        "%s.%s" % (Naming.obj_base_cname, entry.cname))
-        else:
-            entry.cname = get_fused_cname(cname, entry.cname)
+def specialize_entry(entry, cname):
+    """
+    Specialize an entry of a copied fused function or method
+    """
+    entry.name = get_fused_cname(cname, entry.name)
 
-        if entry.func_cname:
-            entry.func_cname = get_fused_cname(cname, entry.func_cname)
+    if entry.is_cmethod:
+        entry.cname = entry.name
+        if entry.is_inherited:
+            entry.cname = StringEncoding.EncodedString(
+                    "%s.%s" % (Naming.obj_base_cname, entry.cname))
+    else:
+        entry.cname = get_fused_cname(cname, entry.cname)
 
+    if entry.func_cname:
+        entry.func_cname = get_fused_cname(cname, entry.func_cname)
 
 def get_fused_cname(fused_cname, orig_cname):
     """
@@ -2177,7 +2190,7 @@ def get_all_specific_permutations(fused_types, id="", f2s=()):
     fused_type = fused_types[0]
     result = []
 
-    for newid, specific_type in enumerate(fused_type.types):
+    for newid, specific_type in enumerate(sorted(fused_type.types)):
         # f2s = dict(f2s, **{ fused_type: specific_type })
         f2s = dict(f2s)
         f2s.update({ fused_type: specific_type })
@@ -2195,17 +2208,21 @@ def get_all_specific_permutations(fused_types, id="", f2s=()):
 
     return result
 
-def get_specific_types(type):
+def get_specialized_types(type):
+    """
+    Return a list of specialized types sorted in reverse order in accordance
+    with their preference in runtime fused-type dispatch
+    """
     assert type.is_fused
 
     if isinstance(type, FusedType):
-       return type.types
+        result = type.types
+    else:
+        result = []
+        for cname, f2s in get_all_specific_permutations(type.get_fused_types()):
+            result.append(type.specialize(f2s))
 
-    result = []
-    for cname, f2s in get_all_specific_permutations(type.get_fused_types()):
-        result.append(type.specialize(f2s))
-
-    return result
+    return sorted(result)
 
 
 class CFuncTypeArg(BaseType):

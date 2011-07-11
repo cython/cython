@@ -35,6 +35,21 @@ less_simple_t = cython.fused_type(int, float, string_t)
 struct_t = cython.fused_type(mystruct_t, myunion_t, MyExt)
 builtin_t = cython.fused_type(str, unicode, bytes)
 
+ctypedef fused fusedbunch:
+    int
+    long
+    complex
+    string_t
+
+ctypedef fused fused1:
+    short
+    string_t
+
+cdef fused fused2:
+    float
+    double
+    string_t
+
 cdef struct_t add_simple(struct_t obj, simple_t simple)
 cdef less_simple_t add_to_simple(struct_t obj, less_simple_t simple)
 cdef public_optional_args(struct_t obj, simple_t simple = *)
@@ -79,7 +94,17 @@ cdef class TestFusedExtMethods(object):
     cpdef cpdef_method(self, cython.integral x, cython.floating y):
         return cython.typeof(x), cython.typeof(y)
 
+    def def_method(self, fused1 x, fused2 y):
+        if (fused1 is string_t and fused2 is not string_t or
+            not fused1 is string_t and fused2 is string_t):
+            return x, y
+        else:
+            return <fused1> x + y
+
 cpdef public_cpdef(cython.integral x, cython.floating y, object_t z):
+    if cython.integral is int:
+        pass
+
     return cython.typeof(x), cython.typeof(y), cython.typeof(z)
 
 
@@ -131,7 +156,9 @@ cdef double b = 7.0
 cdef double (*func)(TestFusedExtMethods, long, double)
 
 func = obj.method
-assert func(obj, a, b) == 15.0
+
+result = func(obj, a, b)
+assert result == 15.0, result
 
 func = <double (*)(TestFusedExtMethods, long, double)> obj.method
 assert func(obj, x, y) == 11.0
@@ -200,5 +227,11 @@ ae(myobj.cpdef_method[cy.int, cy.float](10, 10.0), (10, 10.0))
 """
 
 d = {'obj': obj, 'myobj': myobj, 'ae': ae}
+
+# FIXME: uncomment after subclassing CyFunction
 #exec s in d
 
+# Test def methods
+# ae(obj.def_method(12, 14.9), 26)
+# ae(obj.def_method(13, "spam"), (13, "spam"))
+# ae(obj.def_method[cy.short, cy.float](13, 16.3), 29)

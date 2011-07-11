@@ -1509,6 +1509,7 @@ class ClosureScope(LocalScope):
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
+
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
 

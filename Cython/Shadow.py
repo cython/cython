@@ -272,7 +272,7 @@ try:
 except NameError: # Py3
     py_long = typedef(int, "long")
 py_float = typedef(float, "float")
-py_complex = typedef(complex, "complex")
+py_complex = typedef(complex, "double complex")
 
 
 try:
