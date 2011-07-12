@@ -43,6 +43,9 @@ class CythonUtilityCode:
 
     def get_tree(self):
         from AnalysedTreeTransforms import AutoTestDictTransform
+        # The AutoTestDictTransform creates the statement "__test__ = {}",
+        # which when copied into the main ModuleNode overwrites
+        # any __test__ in user code; not desired
         excludes = [AutoTestDictTransform]
         
         import Pipeline
