@@ -2005,7 +2005,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
     #    declarations here.
     if s.sy == '[':
         if is_memoryviewslice_access(s):
-            type_node = p_memoryview_access(s, type_node)
+            type_node = p_memoryviewslice_access(s, type_node)
         else:
             type_node = p_buffer_or_template(s, type_node, templates)
 
