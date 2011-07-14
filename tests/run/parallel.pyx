@@ -6,6 +6,8 @@ from cython.parallel import prange, threadid
 cimport openmp
 from libc.stdlib cimport malloc, free
 
+openmp.omp_set_nested(1)
+
 def test_parallel():
     """
     >>> test_parallel()

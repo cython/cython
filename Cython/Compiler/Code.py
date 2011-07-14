@@ -1400,7 +1400,7 @@ class CCodeWriter(object):
         self.putln("#ifdef WITH_THREAD")
         if declare_gilstate:
             self.put("PyGILState_STATE ")
-        self.putln("_save = PyGILState_Ensure();")
+        self.putln("__pyx_gilstate_save = PyGILState_Ensure();")
         self.putln("#endif")
 
     def put_release_ensured_gil(self):
@@ -1408,7 +1408,7 @@ class CCodeWriter(object):
         Releases the GIL, corresponds to `put_ensure_gil`.
         """
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_Release(_save);")
+        self.putln("PyGILState_Release(__pyx_gilstate_save);")
         self.putln("#endif")
 
     def put_acquire_gil(self):
@@ -1427,7 +1427,7 @@ class CCodeWriter(object):
 
     def declare_gilstate(self):
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_STATE _save;")
+        self.putln("PyGILState_STATE __pyx_gilstate_save;")
         self.putln("#endif")
 
     # error handling
