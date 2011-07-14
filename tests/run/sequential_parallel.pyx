@@ -402,6 +402,25 @@ def test_parallel_exceptions():
         print mylist[0]
         print e.args, sum
 
+def test_parallel_exceptions2():
+    """
+    >>> test_parallel_exceptions2()
+    Traceback (most recent call last):
+        ...
+    Exception: propagate me
+    """
+    cdef int i, j, k
+
+    for i in prange(10, nogil=True):
+        for j in prange(10):
+            for k in prange(10):
+                if i + j + k > 20:
+                    with gil:
+                        raise Exception("propagate me")
+                    break
+                    continue
+                    return
+
 def test_parallel_with_gil_return():
     """
     >>> test_parallel_with_gil_return()
