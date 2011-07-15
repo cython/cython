@@ -23,6 +23,9 @@ object_expr = TypedExprNode(py_object_type)
 
 class MarkAssignments(CythonTransform):
 
+    # tells us whether we're in a normal loop
+    in_loop = False
+
     def __init__(self, context):
         super(CythonTransform, self).__init__()
         self.context = context
@@ -115,6 +118,7 @@ class MarkAssignments(CythonTransform):
                 node.pos,
                 base = sequence,
                 index = ExprNodes.IntNode(node.pos, value = '0')))
+
         self.visitchildren(node)
         return node
 
@@ -126,6 +130,10 @@ class MarkAssignments(CythonTransform):
                                          '+',
                                          node.bound1,
                                          node.step))
+        self.visitchildren(node)
+        return node
+
+    def visit_WhileStatNode(self, node):
         self.visitchildren(node)
         return node
 
@@ -178,8 +186,30 @@ class MarkAssignments(CythonTransform):
             node.is_parallel = True
 
         self.parallel_block_stack.append(node)
-        self.visitchildren(node)
-        self.parallel_block_stack.pop()
+
+        if node.is_prange:
+            child_attrs = node.child_attrs
+            node.child_attrs = ['body', 'target', 'args']
+            self.visitchildren(node)
+            node.child_attrs = child_attrs
+
+            self.parallel_block_stack.pop()
+            if node.else_clause:
+                node.else_clause = self.visit(node.else_clause)
+        else:
+            self.visitchildren(node)
+            self.parallel_block_stack.pop()
+
+        return node
+
+    def visit_YieldExprNode(self, node):
+        if self.parallel_block_stack:
+            error(node.pos, "Yield not allowed in parallel sections")
+
+        return node
+
+    def visit_ReturnStatNode(self, node):
+        node.in_parallel = bool(self.parallel_block_stack)
         return node
 
 

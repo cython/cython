@@ -820,6 +820,13 @@ class CreateControlFlowGraph(CythonTransform):
             self.flow.block = None
         return node
 
+    def visit_ParallelRangeNode(self, node):
+        # if node.target is None an error will have been previously issued
+        if node.target is not None:
+            node = self.visit_ForInStatNode(node)
+
+        return node
+
     def visit_ForFromStatNode(self, node):
         condition_block = self.flow.nextblock()
         next_block = self.flow.newblock()

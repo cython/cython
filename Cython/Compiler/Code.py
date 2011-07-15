@@ -134,6 +134,10 @@ class FunctionState(object):
         self.temp_counter = 0
         self.closure_temps = None
 
+        # This is used to collect temporaries, useful to find out which temps
+        # need to be privatized in parallel sections
+        self.collect_temps_stack = []
+
         # This is used for the error indicator, which needs to be local to the
         # function. It used to be global, which relies on the GIL being held.
         # However, exceptions may need to be propagated through 'nogil'
@@ -236,6 +240,10 @@ class FunctionState(object):
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s allocated */" % result)
+
+        if self.collect_temps_stack:
+            self.collect_temps_stack[-1].add((result, type))
+
         return result
 
     def release_temp(self, name):
@@ -291,6 +299,15 @@ class FunctionState(object):
                 for (type, manage_ref), freelist in self.temps_free.items()
                 if manage_ref
                 for cname in freelist]
+
+    def start_collecting_temps(self):
+        """
+        Useful to find out which temps were used in a code block
+        """
+        self.collect_temps_stack.append(cython.set())
+
+    def stop_collecting_temps(self):
+        return self.collect_temps_stack.pop()
 
     def init_closure_temps(self, scope):
         self.closure_temps = ClosureTempAllocator(scope)
@@ -1383,7 +1400,7 @@ class CCodeWriter(object):
         self.putln("#ifdef WITH_THREAD")
         if declare_gilstate:
             self.put("PyGILState_STATE ")
-        self.putln("_save = PyGILState_Ensure();")
+        self.putln("__pyx_gilstate_save = PyGILState_Ensure();")
         self.putln("#endif")
 
     def put_release_ensured_gil(self):
@@ -1391,7 +1408,7 @@ class CCodeWriter(object):
         Releases the GIL, corresponds to `put_ensure_gil`.
         """
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_Release(_save);")
+        self.putln("PyGILState_Release(__pyx_gilstate_save);")
         self.putln("#endif")
 
     def put_acquire_gil(self):
@@ -1410,7 +1427,7 @@ class CCodeWriter(object):
 
     def declare_gilstate(self):
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_STATE _save;")
+        self.putln("PyGILState_STATE __pyx_gilstate_save;")
         self.putln("#endif")
 
     # error handling
