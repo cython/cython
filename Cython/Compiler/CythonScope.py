@@ -63,6 +63,9 @@ class CythonScope(ModuleScope):
             defining = 1,
             cname = 'PyObject_TypeCheck')
 
+        self.test_cythonscope()
+
+    def test_cythonscope(self):
         # A special function just to make it easy to test the scope and
         # utility code functionality in isolation. It is available to
         # "end-users" but nobody will know it is there anyway...
@@ -71,7 +74,7 @@ class CythonScope(ModuleScope):
             CFuncType(py_object_type, [CFuncTypeArg("value", c_int_type, None)]),
             pos=None,
             defining=1,
-            cname='__pyx_cython__testscope'
+            cname='__pyx_testscope'
         )
         entry.utility_code_definition = cython_testscope_utility_code
 
@@ -87,7 +90,7 @@ class CythonScope(ModuleScope):
             CFuncType(py_object_type, [CFuncTypeArg("value", c_int_type, None)]),
             pos=None,
             defining=1,
-            cname='__pyx_cython_view__testscope'
+            cname='__pyx_view_testscope'
         )
         entry.utility_code_definition = cythonview_testscope_utility_code
 
@@ -98,11 +101,13 @@ def create_cython_scope(context):
     return CythonScope()
 
 cython_testscope_utility_code = CythonUtilityCode(u"""
+@cname('__pyx_testscope')
 cdef object _testscope(int value):
     return "hello from cython scope, value=%d" % value
-""", name="cython utility code", prefix="__pyx_cython_")
+""")# #, name="cython utility code", prefix="__pyx_cython_")
 
 cythonview_testscope_utility_code = CythonUtilityCode(u"""
+@cname('__pyx_view_testscope')
 cdef object _testscope(int value):
     return "hello from cython.view scope, value=%d" % value
-""", name="cython utility code", prefix="__pyx_cython_view_")
+""") #, name="cython utility code", prefix="__pyx_cython_view_")

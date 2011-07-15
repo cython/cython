@@ -6355,6 +6355,26 @@ class ParallelRangeNode(ParallelStatNode):
         code.end_block()
 
 
+class CnameDecoratorNode(StatNode):
+    """
+    This node is for the cname decorator in CythonUtilityCode:
+
+        @cname('the_cname')
+        cdef func(...):
+            ...
+
+    node        the node to which the cname decorator is applied
+    cname       the cname the node should get
+    """
+
+    child_attrs = ['node']
+
+    def analyse_declarations(self, env):
+        self.node.analyse_declarations(env)
+        self.node.entry.cname = self.cname
+        self.node.entry.func_cname = self.cname
+
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
