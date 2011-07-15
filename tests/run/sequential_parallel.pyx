@@ -403,6 +403,84 @@ def test_parallel_exceptions():
         print mylist[0]
         print e.args, sum
 
+
+cdef int parallel_exc_cdef() except -3:
+    cdef int i, j
+    for i in prange(10, nogil=True):
+        for j in prange(10, num_threads=6):
+            with gil:
+                raise Exception("propagate me")
+
+    return 0
+
+def test_parallel_exc_cdef():
+    """
+    >>> test_parallel_exc_cdef()
+    Traceback (most recent call last):
+        ...
+    Exception: propagate me
+    """
+    parallel_exc_cdef()
+
+cpdef int parallel_exc_cpdef() except -3:
+    cdef int i, j
+    for i in prange(10, nogil=True):
+        for j in prange(10, num_threads=6):
+            with gil:
+                raise Exception("propagate me")
+
+    return 0
+
+def test_parallel_exc_cpdef():
+    """
+    >>> test_parallel_exc_cpdef()
+    Traceback (most recent call last):
+        ...
+    Exception: propagate me
+    """
+    parallel_exc_cpdef()
+
+cdef int parallel_exc_nogil_swallow() except -1:
+    cdef int i, j
+    for i in prange(10, nogil=True):
+        try:
+            for j in prange(10):
+                with gil:
+                    raise Exception("propagate me")
+        finally:
+            return i
+
+    return 0
+
+def test_parallel_exc_nogil_swallow():
+    """
+    >>> test_parallel_exc_nogil_swallow()
+    execute me
+    """
+    parallel_exc_nogil_swallow()
+    print 'execute me'
+
+def parallel_exc_replace():
+    """
+    >>> parallel_exc_replace()
+    Traceback (most recent call last):
+        ...
+    Exception: propagate me instead
+    """
+    cdef int i, j
+    for i in prange(10, nogil=True):
+        with gil:
+            try:
+                for j in prange(10, nogil=True):
+                    with gil:
+                        raise Exception("propagate me")
+            except Exception, e:
+                raise Exception("propagate me instead")
+
+    return 0
+
+
+
 def _parallel_exceptions2():
     cdef int i, j, k
 
@@ -423,6 +501,7 @@ def test_parallel_exceptions2():
     test_parallel_exceptions2()
     read: start
     propagate me
+    exiting...
     Exit status: 0
     """
     if not hasattr(os, 'fork'):
@@ -454,6 +533,7 @@ def test_parallel_exceptions2():
             import traceback
             print >>fw, traceback.format_exc()
         finally:
+            print >>fw, 'exiting...'
             os._exit(0)
     else:
         fw.close()
