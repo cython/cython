@@ -88,7 +88,7 @@ currently supports OpenMP, but later on more backends might be supported.
     buffers used by a prange. A contained prange will be a worksharing loop
     that is not parallel, so any variable assigned to in the parallel section
     is also private to the prange. Variables that are private in the parallel
-    construct are undefined after the parallel block.
+    block are unaltered after the parallel block.
 
     Example with thread-local buffers::
 
@@ -143,6 +143,35 @@ enable OpenMP. For gcc this can be done as follows in a setup.py::
         cmdclass = {'build_ext': build_ext},
         ext_modules = [ext_module],
     )
+
+Breaking
+========
+The parallel with and prange blocks support break, continue and return in
+nogil mode. Additionally, it is valid to use a with gil block inside these
+blocks, and have exceptions propagate from them.
+However, because the blocks use OpenMP, they can not just be left, so the
+exiting procedure is best-effort. For prange() this means that the loop
+body is skipped after the first break, return or exception for any subsequent
+iteration in any thread. It is undefined which value shall be returned if
+multiple different values may be returned, as the iterations are in no
+particular order::
+
+    from cython.parallel import prange
+
+    def func(Py_ssize_t n):
+        cdef Py_ssize_t i
+
+        for i in prange(n, nogil=True):
+            if i == 8:
+                with gil:
+                    raise Exception()
+            elif i == 4:
+                break
+            elif i == 2:
+                return i
+
+In the example above it is undefined whether an exception shall be raised,
+whether it will simply break or whether it will return 2.
 
 .. rubric:: References
 

@@ -108,6 +108,14 @@ exc_value_name  = pyrex_prefix + "exc_value"
 exc_tb_name     = pyrex_prefix + "exc_tb"
 exc_lineno_name = pyrex_prefix + "exc_lineno"
 
+parallel_exc_type = pyrex_prefix + "parallel_exc_type"
+parallel_exc_value = pyrex_prefix + "parallel_exc_value"
+parallel_exc_tb = pyrex_prefix + "parallel_exc_tb"
+parallel_filename = pyrex_prefix + "parallel_filename"
+parallel_lineno = pyrex_prefix + "parallel_lineno"
+parallel_clineno = pyrex_prefix + "parallel_clineno"
+parallel_why = pyrex_prefix + "parallel_why"
+
 exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
 
 api_name        = pyrex_prefix + "capi__"

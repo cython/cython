@@ -26,6 +26,7 @@ from Code import UtilityCode, ClosureTempAllocator
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
 import DebugFlags
+from itertools import chain
 
 absolute_path_length = 0
 
@@ -4111,6 +4112,9 @@ class ReturnStatNode(StatNode):
     child_attrs = ["value"]
     is_terminator = True
 
+    # Whether we are in a parallel section
+    in_parallel = False
+
     def analyse_expressions(self, env):
         return_type = env.return_type
         self.return_type = return_type
@@ -4147,23 +4151,24 @@ class ReturnStatNode(StatNode):
         if self.value:
             self.value.generate_evaluation_code(code)
             self.value.make_owned_reference(code)
-            code.putln(
-                "%s = %s;" % (
-                    Naming.retval_cname,
-                    self.value.result_as(self.return_type)))
+            self.put_return(code, self.value.result_as(self.return_type))
             self.value.generate_post_assignment_code(code)
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
-                code.putln(
-                    "%s = %s;" % (
-                        Naming.retval_cname,
-                        self.return_type.default_value))
+                self.put_return(code, self.return_type.default_value)
+
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
+
         code.put_goto(code.return_label)
+
+    def put_return(self, code, value):
+        if self.in_parallel:
+            code.putln_openmp("#pragma omp critical(__pyx_returning)")
+        code.putln("%s = %s;" % (Naming.retval_cname, value))
 
     def generate_function_definitions(self, env, code):
         if self.value is not None:
@@ -5812,7 +5817,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                     assignments to variables in this parallel section
 
     parent          parent ParallelStatNode or None
-    is_parallel     indicates whether this is a parallel node
+    is_parallel     indicates whether this node is OpenMP parallel
+                    (true for #pragma omp parallel for and
+                              #pragma omp parallel)
 
     is_parallel is true for:
 
@@ -5838,6 +5845,26 @@ class ParallelStatNode(StatNode, ParallelNode):
     body = None
 
     is_prange = False
+
+    error_label_used = False
+
+    parallel_exc = (
+        Naming.parallel_exc_type,
+        Naming.parallel_exc_value,
+        Naming.parallel_exc_tb,
+    )
+
+    parallel_pos_info = (
+        Naming.parallel_filename,
+        Naming.parallel_lineno,
+        Naming.parallel_clineno,
+    )
+
+    pos_info = (
+        Naming.filename_cname,
+        Naming.lineno_cname,
+        Naming.clineno_cname,
+    )
 
     def __init__(self, pos, **kwargs):
         super(ParallelStatNode, self).__init__(pos, **kwargs)
@@ -5964,7 +5991,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if entry.cname in self.seen_closure_vars:
             return entry.cname
 
-        cname = code.funcstate.allocate_temp(entry.type, False)
+        cname = code.funcstate.allocate_temp(entry.type, True)
 
         # Add both the actual cname and the temp cname, as the actual cname
         # will be replaced with the temp cname on the entry
@@ -6010,15 +6037,21 @@ class ParallelStatNode(StatNode, ParallelNode):
                                    "thread-private variable")
 
     def initialize_privates_to_nan(self, code, exclude=None):
-        code.putln("/* Initialize private variables to invalid values */")
+        first = True
 
         for entry, op in self.privates.iteritems():
             if not op and (not exclude or entry != exclude):
                 invalid_value = entry.type.invalid_value()
 
                 if invalid_value:
-                    code.globalstate.use_utility_code(
+                    if first:
+                        code.putln("/* Initialize private variables to "
+                                   "invalid values */")
+                        code.globalstate.use_utility_code(
                                 invalid_values_utility_code)
+                        first = False
+
+                    have_invalid_values = True
                     code.putln("%s = %s;" % (entry.cname,
                                              entry.type.cast_code(invalid_value)))
 
@@ -6055,12 +6088,270 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         Release any temps used for variables in scope objects. As this is the
         outermost parallel block, we don't need to delete the cnames from
-        self.seen_closure_vars
+        self.seen_closure_vars.
         """
         for entry, original_cname in self.modified_entries:
             code.putln("%s = %s;" % (original_cname, entry.cname))
             code.funcstate.release_temp(entry.cname)
             entry.cname = original_cname
+
+    def privatize_temps(self, code, exclude_temps=()):
+        """
+        Make any used temporaries private. Before the relevant code block
+        code.start_collecting_temps() should have been called.
+        """
+        if self.is_parallel:
+            private_cnames = cython.set([e.cname for e in self.privates])
+
+            temps = []
+            for cname, type in code.funcstate.stop_collecting_temps():
+                if not type.is_pyobject:
+                    temps.append(cname)
+
+            c = self.privatization_insertion_point
+            if temps:
+                c.put(" private(%s)" % ", ".join(temps))
+
+            if self.breaking_label_used:
+                shared_vars = [Naming.parallel_why]
+                if self.error_label_used:
+                    shared_vars.extend(self.parallel_exc)
+                    c.put(" private(%s, %s, %s)" % self.pos_info)
+
+                c.put(" shared(%s)" % ', '.join(shared_vars))
+
+    def setup_parallel_control_flow_block(self, code):
+        """
+        Sets up a block that surrounds the parallel block to determine
+        how the parallel section was exited. Any kind of return is
+        trapped (break, continue, return, exceptions). This is the idea:
+
+        {
+            int why = 0;
+
+            #pragma omp parallel
+            {
+                return # -> goto new_return_label;
+                goto end_parallel;
+
+            new_return_label:
+                why = 3;
+                goto end_parallel;
+
+            end_parallel:;
+                #pragma omp flush(why) # we need to flush for every iteration
+            }
+
+            if (why == 3)
+                goto old_return_label;
+        }
+        """
+        self.old_loop_labels = code.new_loop_labels()
+        self.old_error_label = code.new_error_label()
+        self.old_return_label = code.return_label
+        code.return_label = code.new_label(name="return")
+
+        code.begin_block() # parallel control flow block
+        self.begin_of_parallel_control_block_point = code.insertion_point()
+
+    def begin_parallel_block(self, code):
+        """
+        Each OpenMP thread in a parallel section that contains a with gil block
+        must have the thread-state initialized. The call to
+        PyGILState_Release() then deallocates our threadstate. If we wouldn't
+        do this, each with gil block would allocate and deallocate one, thereby
+        losing exception information before it can be saved before leaving the
+        parallel section.
+        """
+        self.begin_of_parallel_block = code.insertion_point()
+
+    def end_parallel_block(self, code):
+        "Acquire the GIL, deallocate threadstate, release"
+        if self.error_label_used:
+            begin_code = self.begin_of_parallel_block
+            end_code = code
+
+            begin_code.put_ensure_gil(declare_gilstate=True)
+            begin_code.putln("Py_BEGIN_ALLOW_THREADS")
+
+            end_code.putln("Py_END_ALLOW_THREADS")
+            end_code.put_release_ensured_gil()
+
+    def trap_parallel_exit(self, code, should_flush=False):
+        """
+        Trap any kind of return inside a parallel construct. 'should_flush'
+        indicates whether the variable should be flushed, which is needed by
+        prange to skip the loop. It also indicates whether we need to register
+        a continue (we need this for parallel blocks, but not for prange
+        loops, as it is a direct jump there).
+
+        It uses the same mechanism as try/finally:
+            1 continue
+            2 break
+            3 return
+            4 error
+        """
+        dont_return_label = code.new_label()
+        insertion_point = code.insertion_point()
+
+        self.any_label_used = False
+        self.breaking_label_used = False
+        self.error_label_used = False
+
+        for i, label in enumerate(code.get_all_labels()):
+            if code.label_used(label):
+                self.any_label_used = True
+                is_continue_label = label == code.continue_label
+                self.breaking_label_used = (self.breaking_label_used or
+                                            not is_continue_label)
+
+                code.put_label(label)
+
+                if not (should_flush and is_continue_label):
+                    if label == code.error_label:
+                        self.error_label_used = True
+                        self.fetch_parallel_exception(code)
+
+                    code.putln("%s = %d;" % (Naming.parallel_why, i + 1))
+
+                code.put_goto(dont_return_label)
+
+        if self.any_label_used:
+            insertion_point.funcstate = code.funcstate
+            insertion_point.put_goto(dont_return_label)
+            code.put_label(dont_return_label)
+
+            if should_flush and self.breaking_label_used:
+                code.putln_openmp("#pragma omp flush(%s)" % Naming.parallel_why)
+
+    def fetch_parallel_exception(self, code):
+        """
+        As each OpenMP thread may raise an exception, we need to fetch that
+        exception from the threadstate and save it for after the parallel
+        section where it can be re-raised in the master thread.
+
+        Although it would seem that __pyx_filename, __pyx_lineno and
+        __pyx_clineno are only assigned to under exception conditions (i.e.,
+        when we have the GIL), and thus should be allowed to be shared without
+        any race condition, they are in fact subject to the same race
+        conditions that they were previously when they were global variables
+        and functions were allowed to release the GIL:
+
+            thread A                thread B
+                acquire
+                set lineno
+                release
+                                        acquire
+                                        set lineno
+                                        release
+                acquire
+                fetch exception
+                release
+                                        skip the fetch
+
+                deallocate threadstate  deallocate threadstate
+        """
+        code.begin_block()
+        code.put_ensure_gil(declare_gilstate=True)
+
+        code.putln_openmp("#pragma omp flush(%s)" % Naming.parallel_exc_type)
+        code.putln(
+            "if (!%s) {" % Naming.parallel_exc_type)
+
+        code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % self.parallel_exc)
+        pos_info = chain(*zip(self.parallel_pos_info, self.pos_info))
+        code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
+        code.putln('__Pyx_GOTREF(%s);' % Naming.parallel_exc_type)
+
+        code.putln(
+            "}")
+
+        code.put_release_ensured_gil()
+        code.end_block()
+
+    def restore_parallel_exception(self, code):
+        "Re-raise a parallel exception"
+        code.begin_block()
+        code.put_ensure_gil(declare_gilstate=True)
+
+        code.putln("__Pyx_ErrRestore(%s, %s, %s);" % self.parallel_exc)
+        pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
+        code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
+        code.putln("__Pyx_GIVEREF(%s);" % Naming.parallel_exc_type)
+
+        code.put_release_ensured_gil()
+        code.end_block()
+
+    def restore_labels(self, code):
+        """
+        Restore all old labels. Call this before the 'else' clause to for
+        loops and always before ending the parallel control flow block.
+        """
+        code.set_all_labels(self.old_loop_labels + (self.old_return_label,
+                                                    self.old_error_label))
+
+    def end_parallel_control_flow_block(self, code,
+                                        break_=False, continue_=False):
+        """
+        This ends the parallel control flow block and based on how the parallel
+        section was exited, takes the corresponding action. The break_ and
+        continue_ parameters indicate whether these should be propagated
+        outwards:
+
+            for i in prange(...):
+                with cython.parallel.parallel():
+                    continue
+
+        Here break should be trapped in the parallel block, and propagated to
+        the for loop.
+        """
+        c = self.begin_of_parallel_control_block_point
+
+        # Firstly, always prefer errors over returning, continue or break
+        if self.error_label_used:
+            c.putln("PyObject *%s = NULL, *%s = NULL, *%s = NULL;" %
+                                                self.parallel_exc)
+
+            code.putln(
+                "if (%s) {" % Naming.parallel_exc_type)
+            code.putln("/* This may have been overridden by a continue, "
+                       "break or return in another thread. Prefer the error. */")
+            code.putln("%s = 4;" % Naming.parallel_why)
+            code.putln(
+                "}")
+
+        if continue_:
+            any_label_used = self.any_label_used
+        else:
+            any_label_used = self.breaking_label_used
+
+        if any_label_used:
+            # __pyx_parallel_why is used, declare and initialize
+            c.putln("const char *%s; int %s, %s;" % self.parallel_pos_info)
+            c.putln("int %s;" % Naming.parallel_why)
+            c.putln("%s = NULL; %s = %s = 0;" % self.parallel_pos_info)
+            c.putln("%s = 0;" % Naming.parallel_why)
+
+            code.putln("switch (%s) {" % Naming.parallel_why)
+            if continue_:
+                code.put("    case 1: ")
+                code.put_goto(code.continue_label)
+
+            if break_:
+                code.put("    case 2: ")
+                code.put_goto(code.break_label)
+
+            code.put("    case 3: ")
+            code.put_goto(code.return_label)
+
+            if self.error_label_used:
+                code.putln("    case 4:")
+                self.restore_parallel_exception(code)
+                code.put_goto(code.error_label)
+
+            code.putln("}")
+
+        code.end_block() # end parallel control flow block
 
 
 class ParallelWithBlockNode(ParallelStatNode):
@@ -6082,13 +6373,15 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     def generate_execution_code(self, code):
         self.declare_closure_privates(code)
+        self.setup_parallel_control_flow_block(code)
 
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp parallel ")
 
         if self.privates:
-            code.put(
-                'private(%s)' % ', '.join([e.cname for e in self.privates]))
+            privates = [e.cname for e in self.privates
+                                    if not e.type.is_pyobject]
+            code.put('private(%s)' % ', '.join(privates))
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)
@@ -6096,11 +6389,22 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         code.putln("#endif /* _OPENMP */")
 
-        code.begin_block()
+        code.begin_block() # parallel block
+        self.begin_parallel_block(code)
         self.initialize_privates_to_nan(code)
+        code.funcstate.start_collecting_temps()
         self.body.generate_execution_code(code)
-        code.end_block()
+        self.trap_parallel_exit(code)
+        self.privatize_temps(code)
+        self.end_parallel_block(code)
+        code.end_block() # end parallel block
 
+        continue_ = code.label_used(code.continue_label)
+        break_ = code.label_used(code.break_label)
+
+        self.restore_labels(code)
+        self.end_parallel_control_flow_block(code, break_=break_,
+                                             continue_=continue_)
         self.release_closure_privates(code)
 
 
@@ -6125,6 +6429,11 @@ class ParallelRangeNode(ParallelStatNode):
     num_threads = None
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads']
+
+    def __init__(self, pos, **kwds):
+        super(ParallelRangeNode, self).__init__(pos, **kwds)
+        # Pretend to be a ForInStatNode for control flow analysis
+        self.iterator = PassStatNode(pos)
 
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
@@ -6285,6 +6594,10 @@ class ParallelRangeNode(ParallelStatNode):
         # 'with gil' block. For now, just abort
         code.putln("if (%(step)s == 0) abort();" % fmt_dict)
 
+        self.setup_parallel_control_flow_block(code) # parallel control flow block
+
+        self.control_flow_var_code_point = code.insertion_point()
+
         # Note: nsteps is private in an outer scope if present
         code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
 
@@ -6295,12 +6608,24 @@ class ParallelRangeNode(ParallelStatNode):
         # erroneously believes that nsteps may be <= 0, leaving the private
         # target index uninitialized
         code.putln("if (%(nsteps)s > 0)" % fmt_dict)
-        code.begin_block()
+        code.begin_block() # if block
         code.putln("%(target)s = 0;" % fmt_dict)
-
         self.generate_loop(code, fmt_dict)
+        code.end_block() # end if block
 
-        code.end_block()
+        self.restore_labels(code)
+
+        if self.else_clause:
+            if self.breaking_label_used:
+                code.put("if (%s < 2)" % Naming.parallel_why)
+
+            code.begin_block() # else block
+            code.putln("/* else */")
+            self.else_clause.generate_execution_code(code)
+            code.end_block() # end else block
+
+        # ------ cleanup ------
+        self.end_parallel_control_flow_block(code) # end parallel control flow block
 
         # And finally, release our privates and write back any closure
         # variables
@@ -6320,39 +6645,75 @@ class ParallelRangeNode(ParallelStatNode):
         if not self.is_parallel:
             code.put("#pragma omp for")
         else:
-            code.put("#pragma omp parallel for")
+            code.put("#pragma omp parallel")
+            self.put_num_threads(code)
+            self.privatization_insertion_point = code.insertion_point()
+            code.putln("")
+            code.putln("#endif /* _OPENMP */")
+
+            code.begin_block() # pragma omp parallel begin block
+
+            # Initialize the GIL if needed for this thread
+            self.begin_parallel_block(code)
+
+            code.putln("#ifdef _OPENMP")
+            code.put("#pragma omp for")
 
         for entry, op in self.privates.iteritems():
             # Don't declare the index variable as a reduction
             if op and op in "+*-&^|" and entry != self.target.entry:
-                code.put(" reduction(%s:%s)" % (op, entry.cname))
+                if entry.type.is_pyobject:
+                    error(self.pos, "Python objects cannot be reductions")
+                else:
+                    code.put(" reduction(%s:%s)" % (op, entry.cname))
             else:
                 if entry == self.target.entry:
                     code.put(" firstprivate(%s)" % entry.cname)
-                code.put(" lastprivate(%s)" % entry.cname)
+
+                if not entry.type.is_pyobject:
+                    code.put(" lastprivate(%s)" % entry.cname)
 
         if self.schedule:
             code.put(" schedule(%s)" % self.schedule)
 
-        if self.parent:
-            c = self.parent.privatization_insertion_point
-            c.put(" private(%(nsteps)s)" % fmt_dict)
-
-        self.put_num_threads(code)
-
-        self.privatization_insertion_point = code.insertion_point()
+        if not self.is_parallel:
+            self.put_num_threads(self.parent.privatization_insertion_point)
+            self.privatization_insertion_point = code.insertion_point()
 
         code.putln("")
         code.putln("#endif /* _OPENMP */")
 
         code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
-        code.begin_block()
-        code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+        code.begin_block() # for loop block
 
+        guard_around_body_codepoint = code.insertion_point()
+
+        # Start if guard block around the body. This may be unnecessary, but
+        # at least it doesn't spoil indentation
+        code.begin_block()
+
+        code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
+        if self.is_parallel:
+            code.funcstate.start_collecting_temps()
+
         self.body.generate_execution_code(code)
-        code.end_block()
+        self.trap_parallel_exit(code, should_flush=True)
+        self.privatize_temps(code)
+
+        if self.breaking_label_used:
+            # Put a guard around the loop body in case return, break or
+            # exceptions might be used
+            guard_around_body_codepoint.put("if (%s < 2)" % Naming.parallel_why)
+
+        code.end_block() # end guard around loop body
+        code.end_block() # end for loop block
+
+        if self.is_parallel:
+            # Release the GIL and deallocate the thread state
+            self.end_parallel_block(code)
+            code.end_block() # pragma omp parallel end block
 
 
 #------------------------------------------------------------------------------------
@@ -7404,6 +7765,10 @@ proto="""
 #endif
 """)
 
+init_threads = UtilityCode(
+    init="PyEval_InitThreads();\n",
+)
+
 #------------------------------------------------------------------------------------
 
 # Note that cPython ignores PyTrace_EXCEPTION,
@@ -7565,7 +7930,7 @@ static float %(PYX_NAN)s;
 init="""
 /* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
    a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
-   a signalling NaN. */
+   a quiet NaN. */
     memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
 """ % vars(Naming))
 

@@ -650,6 +650,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 self.wrong_scope_error(node.pos, key, 'module')
                 del node.directive_comments[key]
 
+        self.module_scope = node.scope
+
         directives = copy.deepcopy(Options.directive_defaults)
         directives.update(copy.deepcopy(self.compilation_directive_defaults))
         directives.update(node.directive_comments)
@@ -684,6 +686,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                   directive[-1] not in self.valid_parallel_directives):
                 error(pos, "No such directive: %s" % full_name)
 
+            self.module_scope.use_utility_code(Nodes.init_threads)
+
         return result
 
     def visit_CImportStatNode(self, node):
@@ -699,6 +703,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     self.cython_module_names.add(u"cython")
                     self.parallel_directives[
                                     u"cython.parallel"] = node.module_name
+                self.module_scope.use_utility_code(Nodes.init_threads)
             elif node.as_name:
                 self.directive_names[node.as_name] = node.module_name[7:]
             else:
@@ -982,9 +987,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     # Keep track of whether we are the context manager of a 'with' statement
     in_context_manager_section = False
 
-    # Keep track of whether we are in a parallel range section
-    in_prange = False
-
     # One of 'prange' or 'with parallel'. This is used to disallow closely
     # nested 'with parallel:' blocks
     state = None
@@ -1005,8 +1007,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         Node class.
 
         E.g. for a cython.parallel.prange() call we return ParallelRangeNode
-
-        Also disallow break, continue and return in a prange section
         """
         if self.namenode_is_cython_module:
             directive = '.'.join(self.parallel_directive)
@@ -1032,7 +1032,6 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         """
         if node.parallel_directives:
             self.parallel_directives = node.parallel_directives
-            self.assignment_stack = []
             return self.visit_Node(node)
 
         # No parallel directives were imported, so they can't be used :)
@@ -1080,7 +1079,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         if isinstance(newnode, Nodes.ParallelWithBlockNode):
             if self.state == 'parallel with':
                 error(node.manager.pos,
-                      "Closely nested 'with parallel:' blocks are disallowed")
+                      "Closely nested parallel with blocks are disallowed")
 
             self.state = 'parallel with'
             body = self.visit(node.body)
@@ -1107,12 +1106,11 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         self.visit(node.iterator)
         self.visit(node.target)
 
-        was_in_prange = self.in_prange
-        self.in_prange = isinstance(node.iterator.sequence,
-                                    Nodes.ParallelRangeNode)
+        in_prange = isinstance(node.iterator.sequence,
+                               Nodes.ParallelRangeNode)
         previous_state = self.state
 
-        if self.in_prange:
+        if in_prange:
             # This will replace the entire ForInStatNode, so copy the
             # attributes
             parallel_range_node = node.iterator.sequence
@@ -1131,27 +1129,8 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
         self.visit(node.body)
         self.state = previous_state
-        self.in_prange = was_in_prange
-
         self.visit(node.else_clause)
         return node
-
-    def ensure_not_in_prange(name):
-        "Creates error checking functions for break, continue and return"
-        def visit_method(self, node):
-            if self.in_prange:
-                error(node.pos,
-                      name + " not allowed in a parallel range section")
-
-            # Do a visit for 'return'
-            self.visitchildren(node)
-            return node
-
-        return visit_method
-
-    visit_BreakStatNode = ensure_not_in_prange("break")
-    visit_ContinueStatNode = ensure_not_in_prange("continue")
-    visit_ReturnStatNode = ensure_not_in_prange("return")
 
     def visit(self, node):
         "Visit a node that may be None"
