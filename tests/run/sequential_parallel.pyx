@@ -5,6 +5,7 @@ from cython.parallel import prange, threadid
 from libc.stdlib cimport malloc, calloc, free, abort
 from libc.stdio cimport puts
 
+import os
 import sys
 
 try:
@@ -402,13 +403,7 @@ def test_parallel_exceptions():
         print mylist[0]
         print e.args, sum
 
-def test_parallel_exceptions2():
-    """
-    >>> test_parallel_exceptions2()
-    Traceback (most recent call last):
-        ...
-    Exception: propagate me
-    """
+def _parallel_exceptions2():
     cdef int i, j, k
 
     for i in prange(10, nogil=True):
@@ -417,9 +412,59 @@ def test_parallel_exceptions2():
                 if i + j + k > 20:
                     with gil:
                         raise Exception("propagate me")
-                    break
+                        break
                     continue
                     return
+
+def test_parallel_exceptions2():
+    """
+    DISABLED
+
+    test_parallel_exceptions2()
+    read: start
+    propagate me
+    Exit status: 0
+    """
+    if not hasattr(os, 'fork'):
+        print 'start'
+        print 'propagate me'
+        print 'Exit status: 0'
+        return
+
+    r, w = os.pipe()
+    fr = os.fdopen(r, 'r')
+    fw = os.fdopen(w, 'w', 0)
+
+    pid = os.fork()
+    if pid == 0:
+        try:
+            fr.close()
+            os.dup2(w, 1)
+            os.dup2(w, 2)
+
+            print >>fw, 'start'
+
+            try:
+                _parallel_exceptions2()
+            except Exception, e:
+                print >>fw, e.args[0]
+            else:
+                print >>fw, 'No exception caught'
+        except:
+            import traceback
+            print >>fw, traceback.format_exc()
+        finally:
+            os._exit(0)
+    else:
+        fw.close()
+
+        print 'read:', fr.read(),
+
+        pid, status = os.waitpid(pid, 0)
+        if os.WIFSIGNALED(status):
+            print 'Got signal', os.WTERMSIG(status)
+
+        print 'Exit status:', os.WEXITSTATUS(status)
 
 def test_parallel_with_gil_return():
     """
