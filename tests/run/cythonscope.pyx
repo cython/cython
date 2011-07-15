@@ -4,9 +4,9 @@ from cython cimport _testscope as tester
 from cython.view cimport _testscope as viewtester
 
 
-def f():
+def test_cdef_cython_utility():
     """
-    >>> f()
+    >>> test_cdef_cython_utility()
     hello from cython scope, value=4
     hello from cython.view scope, value=4
     hello from cython scope, value=3

@@ -2,30 +2,10 @@ from TreeFragment import parse_from_strings, StringParseContext
 from Scanning import StringSourceDescriptor
 import Symtab
 import Naming
+from Cython.Compiler import Visitor
 
-class NonManglingModuleScope(Symtab.ModuleScope):
-    def mangle(self, prefix, name=None):
-        if name:
-            if prefix in (Naming.typeobj_prefix, Naming.func_prefix):
-                # Functions, classes etc. gets a manually defined prefix easily
-                # manually callable instead (the one passed to CythonUtilityCode)
-                prefix = self.prefix
-            return "%s%s" % (prefix, name)
-        else:
-            return self.base.name
 
-class CythonUtilityCodeContext(StringParseContext):
-    scope = None
-    
-    def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):
-        if module_name != self.module_name:
-            raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
-        if self.scope is None:
-            self.scope = NonManglingModuleScope(module_name, parent_module = None, context = self)
-            self.scope.prefix = self.prefix
-        return self.scope
-
-class CythonUtilityCode:
+class CythonUtilityCode(object):
     """
     Utility code written in the Cython language itself.
     """
@@ -48,17 +28,23 @@ class CythonUtilityCode:
         # any __test__ in user code; not desired
         excludes = [AutoTestDictTransform]
         
-        import Pipeline
-        context = CythonUtilityCodeContext(self.name)
-        context.prefix = self.prefix
+        import Pipeline, ParseTreeTransforms
+        #context = CythonUtilityCodeContext(self.name)
+        #context.prefix = self.prefix
+        context = StringParseContext(self.name)
         tree = parse_from_strings(self.name, self.pyx, context=context)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
+
+        transform = ParseTreeTransforms.CnameDirectivesTransform(context)
+        # InterpretCompilerDirectives already does a cdef declarator check
+        #before = ParseTreeTransforms.DecoratorTransform
+        before = ParseTreeTransforms.InterpretCompilerDirectives
+        pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
+                                                 before=before)
+
         (err, tree) = Pipeline.run_pipeline(pipeline, tree)
         assert not err
         return tree
 
     def put_code(self, output):
         pass
-
-
-        

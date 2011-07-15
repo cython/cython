@@ -1241,7 +1241,50 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
             rhs = decorator_result)
         return [node, reassignment]
 
- 
+class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
+    """
+    Only part of the CythonUtilityCode pipeline. Must be run before
+    DecoratorTransform in case this is a decorator for a cdef class.
+    It filters out @cname('my_cname') decorators and rewrites them to
+    CnameDecoratorNodes.
+    """
+
+    def handle_function(self, node):
+        for i, decorator in enumerate(node.decorators):
+            decorator = decorator.decorator
+
+            if (isinstance(decorator, ExprNodes.CallNode) and
+                    decorator.function.is_name and
+                    decorator.function.name == 'cname'):
+                args, kwargs = decorator.explicit_args_kwds()
+
+                if kwargs:
+                    raise AssertionError(
+                            "cname decorator does not take keyword arguments")
+
+                if len(args) != 1:
+                    raise AssertionError(
+                            "cname decorator takes exactly one argument")
+
+                if not (args[0].is_literal and
+                        args[0].type == Builtin.str_type):
+                    raise AssertionError(
+                            "argument to cname decorator must be a string literal")
+
+                cname = args[0].compile_time_value(None)
+                del node.decorators[i]
+                node = Nodes.CnameDecoratorNode(pos=node.pos, node=node,
+                                                cname=cname)
+                break
+
+        self.visitchildren(node)
+        return node
+
+    visit_CFuncDefNode = handle_function
+    # visit_FuncDefNode = handle_function
+    # visit_ClassDefNode = handle_function
+
+
 class ForwardDeclareTypes(CythonTransform):
 
     def visit_CompilerDirectivesNode(self, node):
@@ -1526,6 +1569,10 @@ if VALUE is not None:
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
         return None
+
+    def visit_CnameDecoratorNode(self, node):
+        self.visitchildren(node)
+        return node.node
 
     def create_Property(self, entry):
         if entry.visibility == 'public':
