@@ -6101,16 +6101,20 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.start_collecting_temps() should have been called.
         """
         if self.is_parallel:
-            private_cnames = cython.set([e.cname for e in self.privates])
-
-            temps = []
-            for cname, type in code.funcstate.stop_collecting_temps():
-                if not type.is_pyobject:
-                    temps.append(cname)
-
             c = self.privatization_insertion_point
-            if temps:
-                c.put(" private(%s)" % ", ".join(temps))
+
+            temps = code.funcstate.stop_collecting_temps()
+            privates, firstprivates = [], []
+            for temp, type in temps:
+                if type.is_pyobject:
+                    firstprivates.append(temp)
+                else:
+                    privates.append(temp)
+
+            if privates:
+                c.put(" private(%s)" % ", ".join(privates))
+            if firstprivates:
+                c.put(" firstprivate(%s)" % ", ".join(firstprivates))
 
             if self.breaking_label_used:
                 shared_vars = [Naming.parallel_why]
