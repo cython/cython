@@ -55,6 +55,8 @@ class CythonUtilityCode(object):
     tests/run/cythonscope.pyx for examples.
     """
 
+    is_cython_utility = True
+
     def __init__(self, impl, name="CythonUtilityCode", prefix="", requires=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
@@ -114,3 +116,7 @@ class CythonUtilityCode(object):
 
         dest_scope.merge_in(self.tree.scope, merge_unused=True)
         self.tree.scope = dest_scope
+
+        for dep in self.requires:
+            if dep.is_cython_utility:
+                dep.declare_in_scope(dest_scope)
