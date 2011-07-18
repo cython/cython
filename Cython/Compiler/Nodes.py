@@ -1093,7 +1093,7 @@ class CEnumDefNode(StatNode):
         pass
 
     def generate_execution_code(self, code):
-        if self.visibility == 'public' or self.api:
+        if self.visibility == 'public' or self.api or self.is_overridable:
             temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
             for item in self.entry.enum_values:
                 code.putln("%s = PyInt_FromLong(%s); %s" % (
