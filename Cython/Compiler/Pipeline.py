@@ -64,6 +64,8 @@ def use_utility_code_definitions(scope, target):
     for entry in scope.entries.itervalues():
         if entry.used and entry.utility_code_definition:
             target.use_utility_code(entry.utility_code_definition)
+            for required_utility in entry.utility_code_definition.requires:
+                target.use_utility_code(required_utility)
         elif entry.as_module:
             use_utility_code_definitions(entry.as_module, target)
 
