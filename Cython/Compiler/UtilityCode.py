@@ -97,7 +97,7 @@ class CythonUtilityCode(object):
     def put_code(self, output):
         pass
 
-    def declare_in_scope(self, dest_scope):
+    def declare_in_scope(self, dest_scope, used=False):
         """
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries.
@@ -112,7 +112,7 @@ class CythonUtilityCode(object):
 
         for name, entry in entries.iteritems():
             entry.utility_code_definition = self
-            entry.used = False
+            entry.used = used
 
         dest_scope.merge_in(self.tree.scope, merge_unused=True)
         self.tree.scope = dest_scope
