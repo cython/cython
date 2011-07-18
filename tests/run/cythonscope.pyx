@@ -2,6 +2,7 @@ cimport cython
 
 from cython cimport _testscope as tester
 from cython cimport TestClass, _testclass_new as TestClass_New
+from cython cimport test_call, test_dep
 from cython.view cimport _testscope as viewtester
 
 cdef extern from *:
@@ -23,6 +24,9 @@ cdef extern from *:
     cdef __pyx_TestClass_cdef_cname(TestClass self, int value)
     cdef __pyx_TestClass_cpdef_cname(TestClass self, int value, int skip_dispatch)
     cdef __pyx_TestClass_def_cname(object self, object value)
+
+    cdef __pyx_test_dep(object)
+    cdef __pyx_test_call_other_cy_util(object)
 
 
 def test_cdef_cython_utility():
@@ -127,3 +131,17 @@ def test_extclass_cython_methods():
     obj2.cpdef_cname_method(5)
     obj2.def_cname_method(6)
 
+def test_cython_utility_dep():
+    """
+    >>> test_cython_utility_dep()
+    test_dep first
+    test_call
+    test_dep second
+    test_dep third
+    test_call
+    test_dep fourth
+    """
+    test_dep('first')
+    test_call('second')
+    __pyx_test_dep('third')
+    __pyx_test_call_other_cy_util('fourth')
