@@ -45,6 +45,8 @@ class UtilityCode(object):
     #
     # hashes/equals by instance
 
+    is_cython_utility = False
+
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
                  proto_block='utility_code_proto'):
         # proto_block: Which code block to dump prototype in. See GlobalState.

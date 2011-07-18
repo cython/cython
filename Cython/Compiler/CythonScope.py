@@ -111,11 +111,20 @@ undecorated_methods_protos = UtilityCode(proto=u"""
             PyObject *self, PyObject *value);
 """)
 
+test_cython_utility_dep = CythonUtilityCode(u"""
+@cname('__pyx_test_dep')
+cdef test_dep(obj):
+    print 'test_dep', obj
+""")
+
 cython_test_extclass_utility_code = CythonUtilityCode(
         name="TestClassUtilityCode",
         prefix="__pyx_prefix_TestClass_",
-        requires=[undecorated_methods_protos],
+        requires=[undecorated_methods_protos, test_cython_utility_dep],
         impl=u"""
+cdef extern from *:
+    cdef object __pyx_test_dep(object)
+
 @cname('__pyx_TestClass')
 cdef class TestClass(object):
     cdef public int value
@@ -147,6 +156,10 @@ cdef class TestClass(object):
     def def_cname_method(self, int value):
         print "Hello from def_cname_method", value
 
+@cname('__pyx_test_call_other_cy_util')
+cdef test_call(obj):
+    print 'test_call'
+    __pyx_test_dep(obj)
 
 @cname('__pyx_TestClass_New')
 cdef _testclass_new(int value):
