@@ -1271,6 +1271,9 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     """
 
     def handle_function(self, node):
+        if not node.decorators:
+            return self.visit_Node(node)
+
         for i, decorator in enumerate(node.decorators):
             decorator = decorator.decorator
 
@@ -1292,18 +1295,16 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
                     raise AssertionError(
                             "argument to cname decorator must be a string literal")
 
-                cname = args[0].compile_time_value(None)
+                cname = args[0].compile_time_value(None).decode('UTF-8')
                 del node.decorators[i]
                 node = Nodes.CnameDecoratorNode(pos=node.pos, node=node,
                                                 cname=cname)
                 break
 
-        self.visitchildren(node)
-        return node
+        return self.visit_Node(node)
 
-    visit_CFuncDefNode = handle_function
-    # visit_FuncDefNode = handle_function
-    # visit_ClassDefNode = handle_function
+    visit_FuncDefNode = handle_function
+    visit_CClassDefNode = handle_function
 
 
 class ForwardDeclareTypes(CythonTransform):
@@ -1590,10 +1591,6 @@ if VALUE is not None:
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
         return None
-
-    def visit_CnameDecoratorNode(self, node):
-        self.visitchildren(node)
-        return node.node
 
     def create_Property(self, entry):
         if entry.visibility == 'public':
@@ -2588,4 +2585,3 @@ class DebugTransform(CythonTransform):
 
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
-

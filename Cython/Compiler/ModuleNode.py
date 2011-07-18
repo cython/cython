@@ -951,6 +951,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             #    code.putln("static PyTypeObject %s;" % name)
 
     def generate_exttype_vtable_struct(self, entry, code):
+        if not entry.used:
+            return
+
         code.mark_pos(entry.pos)
         # Generate struct declaration for an extension type's vtable.
         type = entry.type
@@ -967,11 +970,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for method_entry in scope.cfunc_entries:
                 if not method_entry.is_inherited:
                     code.putln(
-                        "%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.name))
+                        "%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.cname))
             code.putln(
                 "};")
 
     def generate_exttype_vtabptr_declaration(self, entry, code):
+        if not entry.used:
+            return
+
         code.mark_pos(entry.pos)
         # Generate declaration of pointer to an extension type's vtable.
         type = entry.type
@@ -1078,37 +1084,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
-            if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
-                    or entry.defined_in_pxd or entry.visibility == 'extern')):
-                if entry.visibility == 'extern':
-                    storage_class = "%s " % Naming.extern_c_macro
-                    dll_linkage = "DL_IMPORT"
-                elif entry.visibility == 'public':
-                    storage_class = "%s " % Naming.extern_c_macro
-                    dll_linkage = "DL_EXPORT"
-                elif entry.visibility == 'private':
-                    storage_class = "static "
-                    dll_linkage = None
-                else:
-                    storage_class = "static "
-                    dll_linkage = None
-                type = entry.type
-
-                if entry.defined_in_pxd and not definition:
-                    storage_class = "static "
-                    dll_linkage = None
-                    type = CPtrType(type)
-
-                header = type.declaration_code(entry.cname,
-                                               dll_linkage = dll_linkage)
-                if entry.func_modifiers:
-                    modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
-                else:
-                    modifiers = ''
-                code.putln("%s%s%s; /*proto*/" % (
-                    storage_class,
-                    modifiers,
-                    header))
+            generate_cfunction_declaration(entry, env, code, definition)
 
     def generate_variable_definitions(self, env, code):
         for entry in env.var_entries:
@@ -2412,6 +2388,39 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
+
+def generate_cfunction_declaration(entry, env, code, definition):
+    if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
+            or entry.defined_in_pxd or entry.visibility == 'extern')):
+        if entry.visibility == 'extern':
+            storage_class = "%s " % Naming.extern_c_macro
+            dll_linkage = "DL_IMPORT"
+        elif entry.visibility == 'public':
+            storage_class = "%s " % Naming.extern_c_macro
+            dll_linkage = "DL_EXPORT"
+        elif entry.visibility == 'private':
+            storage_class = "static "
+            dll_linkage = None
+        else:
+            storage_class = "static "
+            dll_linkage = None
+        type = entry.type
+
+        if entry.defined_in_pxd and not definition:
+            storage_class = "static "
+            dll_linkage = None
+            type = CPtrType(type)
+
+        header = type.declaration_code(entry.cname,
+                                       dll_linkage = dll_linkage)
+        if entry.func_modifiers:
+            modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
+        else:
+            modifiers = ''
+        code.putln("%s%s%s; /*proto*/" % (
+            storage_class,
+            modifiers,
+            header))
 
 #------------------------------------------------------------------------------------
 #

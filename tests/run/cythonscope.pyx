@@ -1,7 +1,28 @@
 cimport cython
 
 from cython cimport _testscope as tester
+from cython cimport TestClass, _testclass_new as TestClass_New
 from cython.view cimport _testscope as viewtester
+
+cdef extern from *:
+    # TestClass stuff
+    cdef struct __pyx_TestClass:
+        int value
+
+    # Type pointer
+    cdef __pyx_TestClass *TestClassType "__pyx_ptype___pyx_TestClass"
+
+    # This is a cdef function
+    cdef __pyx_TestClass_New(int)
+
+    # These are methods and therefore have no prototypes
+    cdef __pyx_TestClass_cdef_method(TestClass self, int value)
+    cdef __pyx_TestClass_cpdef_method(TestClass self, int value, int skip_dispatch)
+    cdef __pyx_TestClass_def_method(object self, object value)
+
+    cdef __pyx_TestClass_cdef_cname(TestClass self, int value)
+    cdef __pyx_TestClass_cpdef_cname(TestClass self, int value, int skip_dispatch)
+    cdef __pyx_TestClass_def_cname(object self, object value)
 
 
 def test_cdef_cython_utility():
@@ -16,3 +37,93 @@ def test_cdef_cython_utility():
     print cython.view._testscope(4)
     print tester(3)
     print viewtester(3)
+
+def test_cdef_class_cython_utility():
+    """
+    >>> test_cdef_class_cython_utility()
+    7
+    14
+    TestClass(20)
+    TestClass(50)
+    """
+    cdef __pyx_TestClass *objstruct
+
+    obj =  TestClass_New(7)
+    objstruct = <__pyx_TestClass *> obj
+    print objstruct.value
+
+    obj =  __pyx_TestClass_New(14)
+    objstruct = <__pyx_TestClass *> obj
+    print objstruct.value
+
+    print (<object> TestClassType)(20)
+    print TestClass(50)
+
+def test_extclass_c_methods():
+    """
+    >>> test_extclass_c_methods()
+    Hello from cdef_method 1
+    Hello from cpdef_method 2
+    Hello from def_method 3
+    Hello from cdef_cname_method 4
+    Hello from cpdef_cname_method 5
+    Hello from def_cname_method 6
+    Hello from cdef_method 1
+    Hello from cpdef_method 2
+    Hello from def_method 3
+    Hello from cdef_cname_method 4
+    Hello from cpdef_cname_method 5
+    Hello from def_cname_method 6
+    """
+    cdef TestClass obj1 = TestClass(11)
+    cdef TestClass obj2 = TestClass_New(22)
+
+    __pyx_TestClass_cdef_method(obj1, 1)
+    __pyx_TestClass_cpdef_method(obj1, 2, True)
+    __pyx_TestClass_def_method(obj1, 3)
+
+    __pyx_TestClass_cdef_cname(obj1, 4)
+    __pyx_TestClass_cpdef_cname(obj1, 5, True)
+    __pyx_TestClass_def_cname(obj1, 6)
+
+    __pyx_TestClass_cdef_method(obj2, 1)
+    __pyx_TestClass_cpdef_method(obj2, 2, True)
+    __pyx_TestClass_def_method(obj2, 3)
+
+    __pyx_TestClass_cdef_cname(obj2, 4)
+    __pyx_TestClass_cpdef_cname(obj2, 5, True)
+    __pyx_TestClass_def_cname(obj2, 6)
+
+def test_extclass_cython_methods():
+    """
+    >>> test_extclass_cython_methods()
+    Hello from cdef_method 1
+    Hello from cpdef_method 2
+    Hello from def_method 3
+    Hello from cdef_cname_method 4
+    Hello from cpdef_cname_method 5
+    Hello from def_cname_method 6
+    Hello from cdef_method 1
+    Hello from cpdef_method 2
+    Hello from def_method 3
+    Hello from cdef_cname_method 4
+    Hello from cpdef_cname_method 5
+    Hello from def_cname_method 6
+    """
+    cdef TestClass obj1 = TestClass(11)
+    cdef TestClass obj2 = TestClass_New(22)
+
+    obj1.cdef_method(1)
+    obj1.cpdef_method(2)
+    obj1.def_method(3)
+    obj1.cdef_cname_method(4)
+    obj1.cpdef_cname_method(5)
+    obj1.def_cname_method(6)
+
+    obj2.cdef_method(1)
+    obj2.cpdef_method(2)
+    obj2.def_method(3)
+    obj2.cdef_cname_method(4)
+    obj2.cpdef_cname_method(5)
+    obj2.def_cname_method(6)
+
