@@ -63,20 +63,14 @@ class CythonScope(ModuleScope):
             defining = 1,
             cname = 'PyObject_TypeCheck')
 
-        self.test_cythonscope()
+#        self.test_cythonscope()
 
     def test_cythonscope(self):
         # A special function just to make it easy to test the scope and
         # utility code functionality in isolation. It is available to
         # "end-users" but nobody will know it is there anyway...
-        entry = self.declare_cfunction(
-            '_testscope',
-            CFuncType(py_object_type, [CFuncTypeArg("value", c_int_type, None)]),
-            pos=None,
-            defining=1,
-            cname='__pyx_testscope'
-        )
-        entry.utility_code_definition = cython_testscope_utility_code
+        cython_testscope_utility_code.declare_in_scope(self)
+        cython_test_extclass_utility_code.declare_in_scope(self)
 
         #
         # The view sub-scope
@@ -85,29 +79,83 @@ class CythonScope(ModuleScope):
         self.declare_module('view', viewscope, None)
         viewscope.is_cython_builtin = True
         viewscope.pxd_file_loaded = True
-        entry = viewscope.declare_cfunction(
-            '_testscope',
-            CFuncType(py_object_type, [CFuncTypeArg("value", c_int_type, None)]),
-            pos=None,
-            defining=1,
-            cname='__pyx_view_testscope'
-        )
-        entry.utility_code_definition = cythonview_testscope_utility_code
 
-def create_cython_scope(context):
+        cythonview_testscope_utility_code.declare_in_scope(viewscope)
+
+
+def create_cython_scope(context, create_testscope):
     # One could in fact probably make it a singleton,
     # but not sure yet whether any code mutates it (which would kill reusing
     # it across different contexts)
-    return CythonScope()
+    scope = CythonScope()
+
+    if create_testscope:
+        scope.test_cythonscope()
+
+    return scope
+
 
 cython_testscope_utility_code = CythonUtilityCode(u"""
 @cname('__pyx_testscope')
 cdef object _testscope(int value):
     return "hello from cython scope, value=%d" % value
-""")# #, name="cython utility code", prefix="__pyx_cython_")
+""")
+
+undecorated_methods_protos = UtilityCode(proto=u"""
+    /* These methods are undecorated and have therefore no prototype */
+    static PyObject *__pyx_TestClass_cdef_method(
+            struct __pyx_TestClass *self, int value);
+    static PyObject *__pyx_TestClass_cpdef_method(
+            struct __pyx_TestClass *self, int value, int skip_dispatch);
+    static PyObject *__pyx_TestClass_def_method(
+            PyObject *self, PyObject *value);
+""")
+
+cython_test_extclass_utility_code = CythonUtilityCode(
+        name="TestClassUtilityCode",
+        prefix="__pyx_prefix_TestClass_",
+        requires=[undecorated_methods_protos],
+        impl=u"""
+@cname('__pyx_TestClass')
+cdef class TestClass(object):
+    cdef public int value
+
+    def __init__(self, int value):
+        self.value = value
+
+    def __str__(self):
+        return 'TestClass(%d)' % self.value
+
+    cdef cdef_method(self, int value):
+        print 'Hello from cdef_method', value
+
+    cpdef cpdef_method(self, int value):
+        print 'Hello from cpdef_method', value
+
+    def def_method(self, int value):
+        print 'Hello from def_method', value
+
+    @cname('cdef_cname')
+    cdef cdef_cname_method(self, int value):
+        print "Hello from cdef_cname_method", value
+
+    @cname('cpdef_cname')
+    cpdef cpdef_cname_method(self, int value):
+        print "Hello from cpdef_cname_method", value
+
+    @cname('def_cname')
+    def def_cname_method(self, int value):
+        print "Hello from def_cname_method", value
+
+
+@cname('__pyx_TestClass_New')
+cdef _testclass_new(int value):
+    return TestClass(value)
+""")
+
 
 cythonview_testscope_utility_code = CythonUtilityCode(u"""
 @cname('__pyx_view_testscope')
 cdef object _testscope(int value):
     return "hello from cython.view scope, value=%d" % value
-""") #, name="cython utility code", prefix="__pyx_cython_view_")
+""")

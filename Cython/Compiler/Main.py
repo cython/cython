@@ -63,14 +63,17 @@ class Context(object):
 
     cython_scope = None
 
-    def __init__(self, include_directories, compiler_directives, cpp=False, language_level=2, options=None):
+    def __init__(self, include_directories, compiler_directives, cpp=False,
+                 language_level=2, options=None, create_testscope=True):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
         
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
-        self.modules["cython"] = self.cython_scope = CythonScope.create_cython_scope(self)
+        cyscope = CythonScope.create_cython_scope(
+                self, create_testscope=create_testscope)
+        self.modules["cython"] = self.cython_scope = cyscope
         self.include_directories = include_directories
         self.future_directives = set()
         self.compiler_directives = compiler_directives

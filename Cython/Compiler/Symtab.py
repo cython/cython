@@ -178,6 +178,7 @@ class Entry(object):
     might_overflow = 0
     utility_code_definition = None
     in_with_gil_block = 0
+    from_cython_utility_code = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -199,6 +200,7 @@ class Entry(object):
 
     def all_alternatives(self):
         return [self] + self.overloaded_alternatives
+
 
 class Scope(object):
     # name              string             Unqualified name
@@ -278,10 +280,14 @@ class Scope(object):
         self.return_type = None
         self.id_counters = {}
 
-    def merge_in(self, other):
+    def merge_in(self, other, merge_unused=True):
         # Use with care...
-        self.entries.update(other.entries)
-        for x in ('const_entries',
+        entries = [(name, entry)
+                       for name, entry in other.entries.iteritems()
+                           if entry.used or merge_unused]
+        self.entries.update(entries)
+
+        for attr in ('const_entries',
                   'type_entries',
                   'sue_entries',
                   'arg_entries',
@@ -289,8 +295,10 @@ class Scope(object):
                   'pyfunc_entries',
                   'cfunc_entries',
                   'c_class_entries'):
-            getattr(self, x).extend(getattr(other, x))
-
+            self_entries = getattr(self, attr)
+            for entry in getattr(other, attr):
+                if entry.used or merge_unused:
+                    self_entries.append(entry)
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
@@ -1226,6 +1234,11 @@ class ModuleScope(Scope):
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
                     error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
+
+        # cdef classes are always exported, but we need to set it to
+        # distinguish between unused Cython utility code extension classes
+        entry.used = True
+
         #
         # Return new or existing entry
         #

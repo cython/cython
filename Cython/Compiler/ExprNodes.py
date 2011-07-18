@@ -3615,10 +3615,13 @@ class AttributeNode(ExprNode):
 
     def analyse_types(self, env, target = 0):
         if self.analyse_as_cimported_attribute(env, target):
-            return
-        if not target and self.analyse_as_unbound_cmethod(env):
-            return
-        self.analyse_as_ordinary_attribute(env, target)
+            self.entry.used = True
+        elif not target and self.analyse_as_unbound_cmethod(env):
+            self.entry.used = True
+        else:
+            self.analyse_as_ordinary_attribute(env, target)
+            if self.entry:
+                self.entry.used = True
 
     def analyse_as_cimported_attribute(self, env, target):
         # Try to interpret this as a reference to an imported
