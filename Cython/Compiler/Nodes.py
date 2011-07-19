@@ -390,7 +390,7 @@ class CDefExternNode(StatNode):
         pass
 
     def generate_execution_code(self, code):
-        pass
+        self.body.generate_execution_code(code)
 
     def annotate(self, code):
         self.body.annotate(code)
