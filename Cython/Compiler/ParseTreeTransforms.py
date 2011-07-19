@@ -1,4 +1,3 @@
-
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, ModuleNode=object,
@@ -1242,7 +1241,51 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
             rhs = decorator_result)
         return [node, reassignment]
 
- 
+class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
+    """
+    Only part of the CythonUtilityCode pipeline. Must be run before
+    DecoratorTransform in case this is a decorator for a cdef class.
+    It filters out @cname('my_cname') decorators and rewrites them to
+    CnameDecoratorNodes.
+    """
+
+    def handle_function(self, node):
+        if not node.decorators:
+            return self.visit_Node(node)
+
+        for i, decorator in enumerate(node.decorators):
+            decorator = decorator.decorator
+
+            if (isinstance(decorator, ExprNodes.CallNode) and
+                    decorator.function.is_name and
+                    decorator.function.name == 'cname'):
+                args, kwargs = decorator.explicit_args_kwds()
+
+                if kwargs:
+                    raise AssertionError(
+                            "cname decorator does not take keyword arguments")
+
+                if len(args) != 1:
+                    raise AssertionError(
+                            "cname decorator takes exactly one argument")
+
+                if not (args[0].is_literal and
+                        args[0].type == Builtin.str_type):
+                    raise AssertionError(
+                            "argument to cname decorator must be a string literal")
+
+                cname = args[0].compile_time_value(None).decode('UTF-8')
+                del node.decorators[i]
+                node = Nodes.CnameDecoratorNode(pos=node.pos, node=node,
+                                                cname=cname)
+                break
+
+        return self.visit_Node(node)
+
+    visit_FuncDefNode = handle_function
+    visit_CClassDefNode = handle_function
+
+
 class ForwardDeclareTypes(CythonTransform):
 
     def visit_CompilerDirectivesNode(self, node):
@@ -2192,7 +2235,11 @@ class TransformBuiltinMethods(EnvTransform):
             elif attribute in (u'set', u'frozenset'):
                 node = ExprNodes.NameNode(node.pos, name=EncodedString(attribute),
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
-            elif not PyrexTypes.parse_basic_type(attribute):
+            elif PyrexTypes.parse_basic_type(attribute):
+                pass
+            elif self.context.cython_scope.lookup_qualified_name(attribute):
+                pass
+            else:
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
@@ -2281,8 +2328,11 @@ class TransformBuiltinMethods(EnvTransform):
                     node.cdivision = True
             elif function == u'set':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
+            elif self.context.cython_scope.lookup_qualified_name(function):
+                pass
             else:
-                error(node.function.pos, u"'%s' not a valid cython language construct" % function)
+                error(node.function.pos,
+                      u"'%s' not a valid cython language construct" % function)
 
         self.visitchildren(node)
         return node
@@ -2514,4 +2564,3 @@ class DebugTransform(CythonTransform):
 
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
-

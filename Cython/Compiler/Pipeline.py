@@ -60,11 +60,38 @@ def inject_pxd_code_stage_factory(context):
         return module_node
     return inject_pxd_code_stage
 
+def use_utility_code_definitions(scope, target):
+    for entry in scope.entries.itervalues():
+        if entry.used and entry.utility_code_definition:
+            target.use_utility_code(entry.utility_code_definition)
+            for required_utility in entry.utility_code_definition.requires:
+                target.use_utility_code(required_utility)
+        elif entry.as_module:
+            use_utility_code_definitions(entry.as_module, target)
+
+def inject_utility_code_stage_factory(context):
+    def inject_utility_code_stage(module_node):
+        # First, make sure any utility code pulled in by using symbols in the cython
+        # scope is included
+        use_utility_code_definitions(context.cython_scope, module_node.scope)
+        
+        added = []
+        # Note: the list might be extended inside the loop (if some utility code
+        # pulls in other utility code)
+        for utilcode in module_node.scope.utility_code_list:
+            if utilcode in added: continue
+            added.append(utilcode)
+            tree = utilcode.get_tree()
+            if tree:
+                module_node.merge_in(tree.body, tree.scope, merge_scope=True)
+        return module_node
+    return inject_utility_code_stage
+
 #
 # Pipeline factories
 #
 
-def create_pipeline(context, mode):
+def create_pipeline(context, mode, exclude_classes=()):
     assert mode in ('pyx', 'py', 'pxd')
     from Visitor import PrintTree
     from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
@@ -98,7 +125,10 @@ def create_pipeline(context, mode):
     else:
         _align_function_definitions = None
 
-    return [
+    # NOTE: This is the "common" parts of the pipeline, which is also
+    # code in pxd files. So it will be run multiple times in a
+    # compilation stage.
+    stages = [
         NormalizeTree(context),
         PostParse(context),
         _specific_post_parse,
@@ -134,9 +164,13 @@ def create_pipeline(context, mode):
         FinalOptimizePhase(context),
         GilCheck(),
         ]
+    filtered_stages = []
+    for s in stages:
+        if s.__class__ not in exclude_classes:
+            filtered_stages.append(s)
+    return filtered_stages
 
-
-def create_pyx_pipeline(context, options, result, py=False):
+def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
     if py:
         mode = 'py'
     else:
@@ -157,9 +191,10 @@ def create_pyx_pipeline(context, options, result, py=False):
 
     return list(itertools.chain(
         [parse_stage_factory(context)],
-        create_pipeline(context, mode),
+        create_pipeline(context, mode, exclude_classes=exclude_classes),
         test_support,
         [inject_pxd_code_stage_factory(context),
+         inject_utility_code_stage_factory(context),
          abort_on_errors],
         debug_transform,
         [generate_pyx_code_stage_factory(options, result)]))
@@ -184,17 +219,15 @@ def create_pyx_as_pxd_pipeline(context, result):
     from Optimize import ConstantFolding, FlattenInListTransform
     from Nodes import StatListNode
     pipeline = []
-    pyx_pipeline = create_pyx_pipeline(context, context.options, result)
+    pyx_pipeline = create_pyx_pipeline(context, context.options, result,
+                                       exclude_classes=[
+                                           AlignFunctionDefinitions,
+                                           MarkClosureVisitor,
+                                           ConstantFolding,
+                                           FlattenInListTransform,
+                                           WithTransform
+                                           ])
     for stage in pyx_pipeline:
-        if stage.__class__ in [
-                AlignFunctionDefinitions,
-                MarkClosureVisitor,
-                ConstantFolding,
-                FlattenInListTransform,
-                WithTransform,
-                ]:
-            # Skip these unnecessary stages.
-            continue
         pipeline.append(stage)
         if isinstance(stage, AnalyseDeclarationsTransform):
             # This is the last stage we need.
@@ -205,6 +238,26 @@ def create_pyx_as_pxd_pipeline(context, result):
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline
+
+def insert_into_pipeline(pipeline, transform, before=None, after=None):
+    """
+    Insert a new transform into the pipeline after or before an instance of
+    the given class. e.g.
+
+        pipeline = insert_into_pipeline(pipeline, transform,
+                                        after=AnalyseDeclarationsTransform)
+    """
+    assert before or after
+
+    cls = before or after
+    for i, t in enumerate(pipeline):
+        if isinstance(t, cls):
+            break
+
+    if after:
+        i += 1
+
+    return pipeline[:i] + [transform] + pipeline[i:]
 
 #
 # Running a pipeline

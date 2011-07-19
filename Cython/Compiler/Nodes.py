@@ -3473,6 +3473,7 @@ class CClassDefNode(ClassDefNode):
             api = self.api,
             buffer_defaults = self.buffer_defaults(env),
             shadow = self.shadow)
+
         if self.shadow:
             home_scope.lookup(self.class_name).as_variable = self.entry
         if home_scope is not env and self.visibility == 'extern':
@@ -6718,6 +6719,78 @@ class ParallelRangeNode(ParallelStatNode):
             # Release the GIL and deallocate the thread state
             self.end_parallel_block(code)
             code.end_block() # pragma omp parallel end block
+
+
+class CnameDecoratorNode(StatNode):
+    """
+    This node is for the cname decorator in CythonUtilityCode:
+
+        @cname('the_cname')
+        cdef func(...):
+            ...
+
+    In case of a cdef class the cname specifies the objstruct_cname.
+
+    node        the node to which the cname decorator is applied
+    cname       the cname the node should get
+    """
+
+    child_attrs = ['node']
+
+    def analyse_declarations(self, env):
+        self.node.analyse_declarations(env)
+
+        self.is_function = isinstance(self.node, FuncDefNode)
+        e = self.node.entry
+
+        if self.is_function:
+            e.cname = self.cname
+            e.func_cname = self.cname
+        else:
+            scope = self.node.scope
+
+            e.cname = self.cname
+            e.type.objstruct_cname = self.cname
+            e.type.typeobj_cname = Naming.typeobj_prefix + self.cname
+            e.type.typeptr_cname = Naming.typeptr_prefix + self.cname
+
+            e.as_variable.cname = py_object_type.cast_code(e.type.typeptr_cname)
+
+            scope.scope_prefix = self.cname + "_"
+
+            for name, entry in scope.entries.iteritems():
+                if entry.func_cname:
+                    entry.func_cname = '%s_%s' % (self.cname, entry.cname)
+
+    def analyse_expressions(self, env):
+        self.node.analyse_expressions(env)
+
+    def generate_function_definitions(self, env, code):
+        if self.is_function and env.is_c_class_scope:
+            # method in cdef class, generate a prototype in the header
+            h_code = code.globalstate['utility_code_proto']
+
+            if isinstance(self.node, DefNode):
+                self.node.generate_function_header(
+                            h_code, with_pymethdef=False, proto_only=True)
+            else:
+                import ModuleNode
+                entry = self.node.entry
+                cname = entry.cname
+                entry.cname = entry.func_cname
+
+                ModuleNode.generate_cfunction_declaration(
+                        entry,
+                        env.global_scope(),
+                        h_code,
+                        definition=True)
+
+                entry.cname = cname
+
+        self.node.generate_function_definitions(env, code)
+
+    def generate_execution_code(self, code):
+        self.node.generate_execution_code(code)
 
 
 #------------------------------------------------------------------------------------

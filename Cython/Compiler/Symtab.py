@@ -122,6 +122,9 @@ class Entry(object):
     # assignments      [ExprNode] List of expressions that get assigned to this entry.
     # might_overflow   boolean    In an arithmetic expression that could cause
     #                             overflow (used for type inference).
+    # utility_code_definition     For some Cython builtins, the utility code
+    #                             which contains the definition of the entry.
+    #                             Currently only supported for CythonScope entries.
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -173,7 +176,9 @@ class Entry(object):
     buffer_aux = None
     prev_entry = None
     might_overflow = 0
+    utility_code_definition = None
     in_with_gil_block = 0
+    from_cython_utility_code = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -195,6 +200,7 @@ class Entry(object):
 
     def all_alternatives(self):
         return [self] + self.overloaded_alternatives
+
 
 class Scope(object):
     # name              string             Unqualified name
@@ -273,6 +279,26 @@ class Scope(object):
         self.lambda_defs = []
         self.return_type = None
         self.id_counters = {}
+
+    def merge_in(self, other, merge_unused=True):
+        # Use with care...
+        entries = [(name, entry)
+                       for name, entry in other.entries.iteritems()
+                           if entry.used or merge_unused]
+        self.entries.update(entries)
+
+        for attr in ('const_entries',
+                  'type_entries',
+                  'sue_entries',
+                  'arg_entries',
+                  'var_entries',
+                  'pyfunc_entries',
+                  'cfunc_entries',
+                  'c_class_entries'):
+            self_entries = getattr(self, attr)
+            for entry in getattr(other, attr):
+                if entry.used or merge_unused:
+                    self_entries.append(entry)
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
@@ -874,13 +900,16 @@ class ModuleScope(Scope):
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     # has_import_star      boolean            Module contains import *
     # cpp                  boolean            Compiling a C++ file
+    # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
 
     is_module_scope = 1
     has_import_star = 0
+    is_cython_builtin = 0
 
     def __init__(self, name, parent_module, context):
+        import Builtin
         self.parent_module = parent_module
-        outer_scope = context.find_submodule("__builtin__")
+        outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
         if name != "__init__":
             self.module_name = name
@@ -921,7 +950,8 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
-        return self.outer_scope.lookup(name, language_level = self.context.language_level)
+        language_level = self.context.language_level if self.context is not None else 3
+        return self.outer_scope.lookup(name, language_level=language_level)
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) \
@@ -1204,6 +1234,11 @@ class ModuleScope(Scope):
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
                     error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
+
+        # cdef classes are always exported, but we need to set it to
+        # distinguish between unused Cython utility code extension classes
+        entry.used = True
+
         #
         # Return new or existing entry
         #

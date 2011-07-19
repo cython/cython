@@ -243,7 +243,10 @@ class StringSourceDescriptor(SourceDescriptor):
         return "stringsource"
 
     def __hash__(self):
-        return hash(self.name)
+        return id(self)
+        # Do not hash on the name, an identical string source should be the
+        # same object (name is often defaulted in other places)
+        # return hash(self.name)
 
     def __eq__(self, other):
         return isinstance(other, StringSourceDescriptor) and self.name == other.name

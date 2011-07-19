@@ -1968,6 +1968,9 @@ class StructUtilityCode(object):
     def __hash__(self):
         return hash(self.header)
 
+    def get_tree(self):
+        pass
+    
     def put_code(self, output):
         code = output['utility_code_def']
         proto = output['utility_code_proto']
@@ -1995,6 +1998,9 @@ class StructUtilityCode(object):
             proto.putln(self.type.declaration_code('') + ';')
         proto.putln(self.header + ";")
 
+    def inject_tree_and_scope_into(self, module_node):
+        pass
+        
 
 class CStructOrUnionType(CType):
     #  name          string

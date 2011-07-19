@@ -45,6 +45,8 @@ class UtilityCode(object):
     #
     # hashes/equals by instance
 
+    is_cython_utility = False
+
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
                  proto_block='utility_code_proto'):
         # proto_block: Which code block to dump prototype in. See GlobalState.
@@ -57,6 +59,9 @@ class UtilityCode(object):
         self.specialize_list = []
         self.proto_block = proto_block
 
+    def get_tree(self):
+        pass
+    
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:
