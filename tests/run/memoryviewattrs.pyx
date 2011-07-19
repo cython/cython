@@ -1,3 +1,6 @@
+# mode: run
+# tag: numpy
+
 __test__ = {}
 
 def testcase(func):

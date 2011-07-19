@@ -74,7 +74,7 @@ class CythonUtilityCode(object):
         self.prefix = prefix
         self.requires = requires or []
 
-    def get_tree(self):
+    def get_tree(self, entries_only=False):
         from AnalysedTreeTransforms import AutoTestDictTransform
         # The AutoTestDictTransform creates the statement "__test__ = {}",
         # which when copied into the main ModuleNode overwrites
@@ -87,6 +87,15 @@ class CythonUtilityCode(object):
         #context = StringParseContext(self.name)
         tree = parse_from_strings(self.name, self.pyx, context=context)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
+
+        if entries_only:
+            p = []
+            for t in pipeline:
+                p.append(t)
+                if isinstance(p, ParseTreeTransforms.AnalyseDeclarationsTransform):
+                    break
+
+            pipeline = p
 
         transform = ParseTreeTransforms.CnameDirectivesTransform(context)
         # InterpretCompilerDirectives already does a cdef declarator check
@@ -107,9 +116,9 @@ class CythonUtilityCode(object):
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries.
         """
-        self.tree = self.get_tree()
+        tree = self.get_tree(entries_only=True)
 
-        entries = self.tree.scope.entries
+        entries = tree.scope.entries
         entries.pop('__name__')
         entries.pop('__file__')
         entries.pop('__builtins__')
@@ -119,8 +128,8 @@ class CythonUtilityCode(object):
             entry.utility_code_definition = self
             entry.used = used
 
-        dest_scope.merge_in(self.tree.scope, merge_unused=True)
-        self.tree.scope = dest_scope
+        dest_scope.merge_in(tree.scope, merge_unused=True)
+        tree.scope = dest_scope
 
         for dep in self.requires:
             if dep.is_cython_utility:

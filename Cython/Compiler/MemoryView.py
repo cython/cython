@@ -684,6 +684,7 @@ class MemoryViewSliceTransform(CythonTransform):
 copy_template = '''
 static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
 
+    __Pyx_RefNannyDeclarations
     int i;
     __Pyx_memviewslice new_mvs = {0, 0};
     struct __pyx_obj_memoryview *from_memview = from_mvs.memview;
@@ -694,7 +695,7 @@ static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
     struct __pyx_obj_memoryview *memview_obj = 0;
     char mode[] = "%(mode)s";
 
-    __Pyx_SetupRefcountContext("%(copy_name)s");
+    __Pyx_RefNannySetupContext("%(copy_name)s");
 
     shape_tuple = PyTuple_New((Py_ssize_t)(buf->ndim));
     if(unlikely(!shape_tuple)) {
@@ -746,7 +747,7 @@ no_fail:
     __Pyx_GOTREF(temp_int);
     __Pyx_XDECREF(temp_int); temp_int = 0;
     __Pyx_XDECREF(array_obj); array_obj = 0;
-    __Pyx_FinishRefcountContext();
+    __Pyx_RefNannyFinishContext();
     return new_mvs;
 
 }
@@ -763,7 +764,9 @@ spec_constants_code = UtilityCode(proto="""
 )
 
 memviewslice_cname = u'__Pyx_memviewslice'
-memviewslice_declare_code = UtilityCode(proto="""
+memviewslice_declare_code = UtilityCode(
+        proto_block='utility_code_proto_before_types',
+        proto="""
 
 /* memoryview slice struct */
 
@@ -813,7 +816,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 __Pyx_BufFmt_StackElem stack[],
                 __Pyx_memviewslice *memviewslice) {
 
-    __Pyx_SetupRefcountContext("ValidateAndInit_memviewslice");
+    __Pyx_RefNannyDeclarations
+    __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice");
     Py_buffer *buf = &memview->view;
     int stride, i, spec = 0, retval = -1;
 
@@ -929,7 +933,7 @@ fail:
     retval = -1;
 
 no_fail:
-    __Pyx_FinishRefcountContext();
+    __Pyx_RefNannyFinishContext();
     return retval;
 }
 
@@ -937,8 +941,9 @@ static int __Pyx_init_memviewslice(
                 struct __pyx_obj_memoryview *memview,
                 int ndim,
                 __Pyx_memviewslice *memviewslice) {
-    
-    __Pyx_SetupRefcountContext("init_memviewslice");
+
+    __Pyx_RefNannyDeclarations
+    __Pyx_RefNannySetupContext("init_memviewslice");
     int i, retval=-1;
     Py_buffer *buf = &memview->view;
 
@@ -975,7 +980,7 @@ fail:
     memviewslice->data = 0;
     retval = -1;
 no_fail:
-    __Pyx_FinishRefcountContext();
+    __Pyx_RefNannyFinishContext();
     return retval;
 }
 """)
