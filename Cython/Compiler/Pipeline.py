@@ -214,8 +214,8 @@ def create_py_pipeline(context, options, result):
     return create_pyx_pipeline(context, options, result, py=True)
 
 def create_pyx_as_pxd_pipeline(context, result):
-    from ParseTreeTransforms import (AlignFunctionDefinitions,
-        MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform)
+    from ParseTreeTransforms import AlignFunctionDefinitions, \
+        MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform
     from Optimize import ConstantFolding, FlattenInListTransform
     from Nodes import StatListNode
     pipeline = []

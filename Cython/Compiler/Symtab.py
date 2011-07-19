@@ -285,6 +285,9 @@ class Scope(object):
         entries = [(name, entry)
                        for name, entry in other.entries.iteritems()
                            if entry.used or merge_unused]
+        # !@#$ py23
+        entries = dict(entries)
+
         self.entries.update(entries)
 
         for attr in ('const_entries',
@@ -950,7 +953,12 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
-        language_level = self.context.language_level if self.context is not None else 3
+
+        if self.context is not None:
+            language_level = self.context.language_level
+        else:
+            language_level = 3
+
         return self.outer_scope.lookup(name, language_level=language_level)
 
     def declare_builtin(self, name, pos):
