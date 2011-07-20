@@ -336,7 +336,7 @@ cdef class array:
         assert idx == self.ndim
 
         if mode == "fortran":
-            idx = 0; stride = 1
+            idx = 0; stride = itemsize
             for dim in shape:
                 self.strides[idx] = stride
                 int_dim = <Py_ssize_t>dim
@@ -345,7 +345,7 @@ cdef class array:
             assert idx == self.ndim
             self.len = stride * self.itemsize
         elif mode == "c":
-            idx = self.ndim-1; stride = 1
+            idx = self.ndim-1; stride = itemsize
             for dim in reversed(shape):
                 self.strides[idx] = stride
                 int_dim = <Py_ssize_t>dim
