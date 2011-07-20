@@ -261,44 +261,39 @@ cdef class array:
 
         self.format = format
 
-        self.shape = <Py_ssize_t *>malloc(sizeof(Py_ssize_t)*self.ndim)
-        self.strides = <Py_ssize_t *>malloc(sizeof(Py_ssize_t)*self.ndim)
+        self.shape = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
+        self.strides = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
 
         if not self.shape or not self.strides:
             raise MemoryError("unable to allocate shape or strides.")
 
         cdef int idx
-        cdef Py_ssize_t int_dim, stride
+        # cdef Py_ssize_t dim, stride
         idx = 0
         for dim in shape:
-            int_dim = <Py_ssize_t>dim
-            if int_dim <= 0:
+            if dim <= 0:
                 raise ValueError("Invalid shape.")
-            self.shape[idx] = int_dim
-            idx += 1
-        assert idx == self.ndim
 
+            self.shape[idx] = dim
+            idx += 1
+
+        stride = itemsize
         if mode == "fortran":
-            idx = 0; stride = itemsize
+            idx = 0
             for dim in shape:
                 self.strides[idx] = stride
-                int_dim = <Py_ssize_t>dim
-                stride = stride * int_dim
+                stride = stride * dim
                 idx += 1
-            assert idx == self.ndim
-            self.len = stride * self.itemsize
         elif mode == "c":
-            idx = self.ndim-1; stride = itemsize
+            idx = self.ndim-1
             for dim in shape[::-1]:
                 self.strides[idx] = stride
-                int_dim = <Py_ssize_t>dim
-                stride = stride * int_dim
+                stride = stride * dim
                 idx -= 1
-            assert idx == -1
-            self.len = stride * self.itemsize
         else:
             raise ValueError("Invalid mode, expected 'c' or 'fortran', got %s" % mode)
 
+        self.len = stride
         self.mode = mode
 
         if allocate_buffer:

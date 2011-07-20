@@ -6,19 +6,23 @@ cimport cython as cy
 def contiguity():
     '''
     >>> contiguity()
-    3 1
+    12 4
     2 3
     2
-    1 2
+    <BLANKLINE>
+    4 8
     2 3
     2
     '''
     cdef cy.array cvarray = cy.array(shape=(2,3), itemsize=sizeof(int), format="i", mode='c')
-    assert cvarray.len == 2*3*sizeof(int)
+    assert cvarray.len == 2*3*sizeof(int), (cvarray.len, 2*3*sizeof(int))
     assert cvarray.itemsize == sizeof(int)
     print cvarray.strides[0], cvarray.strides[1]
     print cvarray.shape[0], cvarray.shape[1]
     print cvarray.ndim
+
+    print
+
     cdef cy.array farray = cy.array(shape=(2,3), itemsize=sizeof(int), format="i", mode='fortran')
     assert farray.len == 2*3*sizeof(int)
     assert farray.itemsize == sizeof(int)

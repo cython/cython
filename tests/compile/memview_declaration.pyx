@@ -1,3 +1,5 @@
+# mode: compile
+
 cimport cython
 from cython.view cimport contig as foo, full as bar #, follow
 from cython cimport view
