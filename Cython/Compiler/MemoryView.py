@@ -567,20 +567,26 @@ def get_axes_specs(env, axes):
 
     return axes_specs
 
+def all(it):
+    for item in it:
+        if not item:
+            return False
+    return True
+
 def is_cf_contig(specs):
     is_c_contig = is_f_contig = False
 
     if (len(specs) == 1 and specs == [('direct', 'contig')]):
         is_c_contig = True
 
-    elif (specs[-1] == ('direct','contig') and 
-          all(axis == ('direct','follow') for axis in specs[:-1])):
+    elif (specs[-1] == ('direct','contig') and
+          all([axis == ('direct','follow') for axis in specs[:-1]])):
         # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
         is_c_contig = True
 
     elif (len(specs) > 1 and 
-        specs[0] == ('direct','contig') and 
-        all(axis == ('direct','follow') for axis in specs[1:])):
+        specs[0] == ('direct','contig') and
+        all([axis == ('direct','follow') for axis in specs[1:]])):
         # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
         is_f_contig = True
 

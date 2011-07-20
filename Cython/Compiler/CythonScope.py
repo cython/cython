@@ -346,7 +346,7 @@ cdef class array:
             self.len = stride * self.itemsize
         elif mode == "c":
             idx = self.ndim-1; stride = itemsize
-            for dim in reversed(shape):
+            for dim in shape[::-1]:
                 self.strides[idx] = stride
                 int_dim = <Py_ssize_t>dim
                 stride = stride * int_dim
