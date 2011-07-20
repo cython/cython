@@ -2075,7 +2075,7 @@ def is_memoryviewslice_access(s):
         if s.sy == ':':
             retval = True
 
-    for sv in reversed(saved):
+    for sv in saved[::-1]:
         s.put_back(*sv)
 
     return retval

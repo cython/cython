@@ -51,8 +51,8 @@ class CythonUtilityCode(object):
     Functions decorated with @cname('c_func_name') get the given cname.
 
     For cdef classes the rules are as follows:
-        obj struct      -> <cname>
-        obj type ptr    -> __pyx_ptype_<cname>
+        obj struct      -> <cname>_obj
+        obj type ptr    -> <cname>_type
         methods         -> <class_cname>_<method_cname>
 
     For methods the cname decorator is optional, but without the decorator the

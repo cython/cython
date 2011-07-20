@@ -73,6 +73,7 @@ class CythonScope(ModuleScope):
         # "end-users" but nobody will know it is there anyway...
         cython_testscope_utility_code.declare_in_scope(self)
         cython_test_extclass_utility_code.declare_in_scope(self)
+        cython_array_utility_code.declare_in_scope(self)
 
         #
         # The view sub-scope
@@ -84,66 +85,7 @@ class CythonScope(ModuleScope):
 
         cythonview_testscope_utility_code.declare_in_scope(viewscope)
 
-        for x in ('strided', 'contig', 'follow', 'direct', 'ptr', 'full'):
-            entry = viewscope.declare_var(x, py_object_type, None,
-                                          cname='__pyx_viewaxis_%s' % x,
-                                          is_cdef=True)
-            entry.utility_code_definition = view_utility_code
-
-        #
-        # cython.view.memoryview declaration
-        #
-        self.memviewentry = entry = viewscope.declare_c_class(memview_name, None,
-                implementing=1,
-                objstruct_cname = memview_objstruct_cname,
-                typeobj_cname = memview_typeobj_cname,
-                typeptr_cname= memview_typeptr_cname)
-
-        entry.utility_code_definition = view_utility_code
-
-        #
-        # cython.array declaration
-        #
-        name = u'array'
-        entry = self.declare_c_class(name, None,
-                implementing=1,
-                objstruct_cname='__pyx_obj_array',
-                typeobj_cname='__pyx_tobj_array',
-                typeptr_cname=Naming.typeptr_prefix+name)
-
-        # NOTE: the typeptr_cname is constrained to be '__pyx_ptype_<name>'
-        # (name is 'array' in this case).  otherwise the code generation for
-        # the struct pointers will not work!
-
-        entry.utility_code_definition = cython_array_utility_code
-
-        arr_scope = entry.type.scope
-
-        arr_scope.declare_var(u'data', c_char_ptr_type, None, is_cdef = 1)
-        arr_scope.declare_var(u'len', c_size_t_type, None, is_cdef = 1)
-        arr_scope.declare_var(u'format', c_char_ptr_type, None, is_cdef = 1)
-        arr_scope.declare_var(u'ndim', c_int_type, None, is_cdef = 1)
-        arr_scope.declare_var(u'shape', c_py_ssize_t_ptr_type, None, is_cdef = 1)
-        arr_scope.declare_var(u'strides', c_py_ssize_t_ptr_type, None, is_cdef = 1)
-        arr_scope.declare_var(u'itemsize', c_py_ssize_t_type, None, is_cdef = 1)
-
-        # declare the __getbuffer__ & __releasebuffer__ functions
-
-        for idx, name in enumerate(('__getbuffer__', '__releasebuffer__')):
-            entry = arr_scope.declare_pyfunction(name, None)
-            # FIXME XXX: hack right here!!!
-            entry.func_cname = '__pyx_pf_9__pyxutil_5array_%d' % (idx + 1) + name
-            entry.utility_code_definition = cython_array_utility_code
-
-        #
-        # Declare the array modes
-        #
-        entry = self.declare_var(u'PyBUF_C_CONTIGUOUS', c_int_type, None,
-                cname='PyBUF_C_CONTIGUOUS',is_cdef = 1)
-        entry = self.declare_var(u'PyBUF_F_CONTIGUOUS', c_int_type, None,
-                is_cdef = 1)
-        entry = self.declare_var(u'PyBUF_ANY_CONTIGUOUS', c_int_type, None,
-                is_cdef = 1)
+        view_utility_code.declare_in_scope(viewscope)
 
 
 def create_cython_scope(context, create_testscope):
@@ -167,9 +109,9 @@ cdef object _testscope(int value):
 undecorated_methods_protos = UtilityCode(proto=u"""
     /* These methods are undecorated and have therefore no prototype */
     static PyObject *__pyx_TestClass_cdef_method(
-            struct __pyx_TestClass *self, int value);
+            struct __pyx_TestClass_obj *self, int value);
     static PyObject *__pyx_TestClass_cpdef_method(
-            struct __pyx_TestClass *self, int value, int skip_dispatch);
+            struct __pyx_TestClass_obj *self, int value, int skip_dispatch);
     static PyObject *__pyx_TestClass_def_method(
             PyObject *self, PyObject *value);
 """)
@@ -237,9 +179,8 @@ cdef object _testscope(int value):
 """)
 
 memview_name = u'memoryview'
-memview_typeptr_cname = Naming.typeptr_prefix+memview_name
-memview_typeobj_cname = '__pyx_tobj_'+memview_name
-memview_objstruct_cname = '__pyx_obj_'+memview_name
+memview_typeptr_cname = '__pyx_memoryview_type'
+memview_objstruct_cname = '__pyx_memoryview_obj'
 view_utility_code = CythonUtilityCode(
 u"""
 cdef class Enum(object):
@@ -260,6 +201,7 @@ cdef extern from *:
     int __Pyx_GetBuffer(object, Py_buffer *, int)
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
+@cname('__pyx_memoryview')
 cdef class memoryview(object):
 
     cdef object obj
@@ -274,13 +216,11 @@ cdef class memoryview(object):
         self.obj = None
         __Pyx_ReleaseBuffer(&self.view)
 
+@cname('__pyx_memoryview_new')
 cdef memoryview memoryview_cwrapper(object o, int flags):
     return memoryview(o, flags)
-""", name="view_code",
-    prefix="__pyx_viewaxis_",
-    requires=(Buffer.GetAndReleaseBufferUtilityCode(),))
+""", name="view_code", requires=(Buffer.GetAndReleaseBufferUtilityCode(),))
 
-cyarray_prefix = u'__pyx_cythonarray_'
 cython_array_utility_code = CythonUtilityCode(u'''
 cdef extern from "stdlib.h":
     void *malloc(size_t)
@@ -293,6 +233,7 @@ cdef extern from "Python.h":
         PyBUF_F_CONTIGUOUS,
         PyBUF_ANY_CONTIGUOUS
 
+@cname("__pyx_array")
 cdef class array:
 
     cdef:
@@ -304,20 +245,22 @@ cdef class array:
         Py_ssize_t *strides
         Py_ssize_t itemsize
         str mode
+        void (*callback_free_data)(char *data)
 
-    def __cinit__(array self, tuple shape, Py_ssize_t itemsize, char *format, mode="c"):
+    def __cinit__(array self, tuple shape, Py_ssize_t itemsize, char *format,
+                  mode="c", bint allocate_buffer=True):
 
         self.ndim = len(shape)
         self.itemsize = itemsize
 
         if not self.ndim:
             raise ValueError("Empty shape tuple for cython.array")
-        
+
         if self.itemsize <= 0:
             raise ValueError("itemsize <= 0 for cython.array")
 
         self.format = format
-        
+
         self.shape = <Py_ssize_t *>malloc(sizeof(Py_ssize_t)*self.ndim)
         self.strides = <Py_ssize_t *>malloc(sizeof(Py_ssize_t)*self.ndim)
 
@@ -358,9 +301,14 @@ cdef class array:
 
         self.mode = mode
 
-        self.data = <char *>malloc(self.len)
-        if not self.data:
-            raise MemoryError("unable to allocate array data.")
+        if allocate_buffer:
+            self.data = <char *>malloc(self.len)
+            if not self.data:
+                raise MemoryError("unable to allocate array data.")
+        else:
+            self.data = NULL
+
+        self.callback_free_data = NULL
 
     def __getbuffer__(self, Py_buffer *info, int flags):
 
@@ -383,13 +331,16 @@ cdef class array:
         info.obj = None
 
     def __releasebuffer__(array self, Py_buffer* info):
-        # array.__releasebuffer__ should not be called, 
+        # array.__releasebuffer__ should not be called,
         # because the Py_buffer's 'obj' field is set to None.
         raise NotImplementedError()
 
     def __dealloc__(array self):
         if self.data:
-            free(self.data)
+            if self.callback_free_data != NULL:
+                self.callback_free_data(self.data)
+            else:
+                free(self.data)
             self.data = NULL
         if self.strides:
             free(self.strides)
@@ -400,7 +351,7 @@ cdef class array:
         self.format = NULL
         self.itemsize = 0
 
+@cname("__pyx_array_new")
 cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *mode):
     return array(shape, itemsize, format, mode)
-
-''', prefix=cyarray_prefix)
+''')

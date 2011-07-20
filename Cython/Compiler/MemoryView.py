@@ -378,7 +378,7 @@ static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice
 
     char *to_buf = (char *)to_mvs->data;
     char *from_buf = (char *)from_mvs->data;
-    struct __pyx_obj_memoryview *temp_memview = 0;
+    struct __pyx_memoryview_obj *temp_memview = 0;
     char *temp_data = 0;
 
     int ndim_idx = 0;
@@ -700,13 +700,13 @@ static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
     __Pyx_RefNannyDeclarations
     int i;
     __Pyx_memviewslice new_mvs = {0, 0};
-    struct __pyx_obj_memoryview *from_memview = from_mvs.memview;
+    struct __pyx_memoryview_obj *from_memview = from_mvs.memview;
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = 0;
     PyObject *temp_int = 0;
-    struct __pyx_obj_array *array_obj = 0;
-    struct __pyx_obj_memoryview *memview_obj = 0;
-    char mode[] = "%(mode)s";
+    struct __pyx_array_obj *array_obj = 0;
+    struct __pyx_memoryview_obj *memview_obj = 0;
+    char *mode = "%(mode)s";
 
     __Pyx_RefNannySetupContext("%(copy_name)s");
 
@@ -726,13 +726,13 @@ static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
         }
     }
 
-    array_obj = __pyx_cythonarray_array_cwrapper(shape_tuple, %(sizeof_dtype)s, buf->format, mode);
+    array_obj = __pyx_array_new(shape_tuple, %(sizeof_dtype)s, buf->format, mode);
     if (unlikely(!array_obj)) {
         goto fail;
     }
     __Pyx_GOTREF(array_obj);
 
-    memview_obj = __pyx_viewaxis_memoryview_cwrapper((PyObject *)array_obj, %(contig_flag)s);
+    memview_obj = __pyx_memoryview_new((PyObject *) array_obj, %(contig_flag)s);
     if (unlikely(!memview_obj)) {
         goto fail;
     }
@@ -810,18 +810,18 @@ memviewslice_init_code = UtilityCode(proto="""\
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
-static int __Pyx_ValidateAndInit_memviewslice(struct __pyx_obj_memoryview *memview, 
+static int __Pyx_ValidateAndInit_memviewslice(struct __pyx_memoryview_obj *memview,
                                 int *axes_specs, int c_or_f_flag,  int ndim, __Pyx_TypeInfo *dtype,
                                 __Pyx_BufFmt_StackElem stack[], __Pyx_memviewslice *memviewslice);
 
 static int __Pyx_init_memviewslice(
-                struct __pyx_obj_memoryview *memview,
+                struct __pyx_memoryview_obj *memview,
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
 """ % {'BUF_MAX_NDIMS' :Options.buffer_max_dims},
 impl = """\
 static int __Pyx_ValidateAndInit_memviewslice(
-                struct __pyx_obj_memoryview *memview,
+                struct __pyx_memoryview_obj *memview,
                 int *axes_specs,
                 int c_or_f_flag,
                 int ndim,
@@ -951,7 +951,7 @@ no_fail:
 }
 
 static int __Pyx_init_memviewslice(
-                struct __pyx_obj_memoryview *memview,
+                struct __pyx_memoryview_obj *memview,
                 int ndim,
                 __Pyx_memviewslice *memviewslice) {
 

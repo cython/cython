@@ -5,13 +5,15 @@ from cython cimport TestClass, _testclass_new as TestClass_New
 from cython cimport test_call, test_dep
 from cython.view cimport _testscope as viewtester
 
+from cpython cimport PyObject
+
 cdef extern from *:
     # TestClass stuff
-    cdef struct __pyx_TestClass:
+    cdef struct __pyx_TestClass_obj:
         int value
 
     # Type pointer
-    cdef __pyx_TestClass *TestClassType "__pyx_ptype___pyx_TestClass"
+    cdef PyObject *TestClassType "__pyx_TestClass_type"
 
     # This is a cdef function
     cdef __pyx_TestClass_New(int)
@@ -50,14 +52,14 @@ def test_cdef_class_cython_utility():
     TestClass(20)
     TestClass(50)
     """
-    cdef __pyx_TestClass *objstruct
+    cdef __pyx_TestClass_obj *objstruct
 
     obj =  TestClass_New(7)
-    objstruct = <__pyx_TestClass *> obj
+    objstruct = <__pyx_TestClass_obj *> obj
     print objstruct.value
 
     obj =  __pyx_TestClass_New(14)
-    objstruct = <__pyx_TestClass *> obj
+    objstruct = <__pyx_TestClass_obj *> obj
     print objstruct.value
 
     print (<object> TestClassType)(20)

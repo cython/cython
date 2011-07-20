@@ -7630,9 +7630,8 @@ class CoerceToMemViewSliceNode(CoercionNode):
         import MemoryView, Buffer
         memviewobj = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
         buf_flag = MemoryView.get_buf_flag(self.type.axes)
-        code.putln("%s = (PyObject *)"
-                "__pyx_viewaxis_memoryview_cwrapper(%s, %s);" %\
-                        (memviewobj, self.arg.py_result(), buf_flag))
+        code.putln("%s = (PyObject *) __pyx_memoryview_new(%s, %s);" %
+                                (memviewobj, self.arg.py_result(), buf_flag))
         code.putln(code.error_goto_if_PyErr(self.pos))
         ndim = len(self.type.axes)
         spec_int_arr = code.funcstate.allocate_temp(
@@ -7658,7 +7657,7 @@ class CoerceToMemViewSliceNode(CoercionNode):
         else:
             c_or_f_flag = "0"
         code.putln(code.error_goto_if("-1 == __Pyx_ValidateAndInit_memviewslice("
-                        "(struct __pyx_obj_memoryview *) %(memviewobj)s,"
+                        "(struct __pyx_memoryview_obj *) %(memviewobj)s,"
                         " %(spec_int_arr)s, %(c_or_f_flag)s, %(ndim)d,"
                         " &%(dtype_typeinfo)s, __pyx_stack, &%(result)s)" % locals(), self.pos))
         code.putln("}")

@@ -535,6 +535,7 @@ class GetAndReleaseBufferUtilityCode(object):
     # which has the right tp_flags set, but emulation otherwise.
 
     requires = None
+    is_cython_utility = False
 
     def __init__(self):
         pass

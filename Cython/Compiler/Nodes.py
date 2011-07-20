@@ -6986,9 +6986,9 @@ class CnameDecoratorNode(StatNode):
             scope = self.node.scope
 
             e.cname = self.cname
-            e.type.objstruct_cname = self.cname
+            e.type.objstruct_cname = self.cname + '_obj'
             e.type.typeobj_cname = Naming.typeobj_prefix + self.cname
-            e.type.typeptr_cname = Naming.typeptr_prefix + self.cname
+            e.type.typeptr_cname = self.cname + '_type'
 
             e.as_variable.cname = py_object_type.cast_code(e.type.typeptr_cname)
 
@@ -7002,6 +7002,7 @@ class CnameDecoratorNode(StatNode):
         self.node.analyse_expressions(env)
 
     def generate_function_definitions(self, env, code):
+        "Ensure a prototype for every @cname method in the right place"
         if self.is_function and env.is_c_class_scope:
             # method in cdef class, generate a prototype in the header
             h_code = code.globalstate['utility_code_proto']
