@@ -27,6 +27,14 @@ class BaseType(object):
         else:
             return base_code
 
+    def check_for_null_code(self, cname):
+        """
+        Return the code for a NULL-check in case an UnboundLocalError should
+        be raised if an entry of this type is referenced before assignment.
+        Returns None if no check should be performed.
+        """
+        return None
+
     def invalid_value(self):
         """
         Returns the most invalid value an object of this type can assume as a
@@ -461,9 +469,14 @@ class MemoryViewSliceType(PyrexType):
                 is_contig_name = \
                         MemoryView.get_is_contig_func_name(c_or_f)
 
+                cfunctype = CFuncType(
+                        return_type=c_int_type,
+                        args=[CFuncTypeArg("memviewslice", self, None)],
+                        exception_value="-1",
+                )
+
                 entry = scope.declare_cfunction(cython_name,
-                            CFuncType(c_int_type,
-                                [CFuncTypeArg("memviewslice", self, None)]),
+                            cfunctype,
                             pos = None,
                             defining = 1,
                             cname = is_contig_name)
@@ -481,6 +494,9 @@ class MemoryViewSliceType(PyrexType):
     def global_init_code(self, entry, code):
         code.putln("%s.data = NULL;" % entry.cname)
         code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_ptr_type, nanny=False)
+
+    def check_for_null_code(self, cname):
+        return cname + '.memview'
 
 class BufferType(BaseType):
     #
@@ -567,6 +583,9 @@ class PyObjectType(PyrexType):
 
     def global_init_code(self, entry, code):
         code.put_init_var_to_py_none(entry, nanny=False)
+
+    def check_for_null_code(self, cname):
+        return cname
 
 
 class BuiltinObjectType(PyObjectType):

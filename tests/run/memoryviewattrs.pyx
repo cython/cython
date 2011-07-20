@@ -75,7 +75,7 @@ def test_nonecheck1():
     >>> test_nonecheck1()
     Traceback (most recent call last):
       ...
-    AttributeError: 'NoneType' object has no attribute 'is_c_contig'
+    UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
     cdef int[:,:,:] uninitialized
     print uninitialized.is_c_contig()
@@ -87,7 +87,7 @@ def test_nonecheck2():
     >>> test_nonecheck2()
     Traceback (most recent call last):
       ...
-    AttributeError: 'NoneType' object has no attribute 'is_f_contig'
+    UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
     cdef int[:,:,:] uninitialized
     print uninitialized.is_f_contig()
@@ -99,7 +99,7 @@ def test_nonecheck3():
     >>> test_nonecheck3()
     Traceback (most recent call last):
       ...
-    AttributeError: 'NoneType' object has no attribute 'copy'
+    UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
     cdef int[:,:,:] uninitialized
     uninitialized.copy()
@@ -111,7 +111,7 @@ def test_nonecheck4():
     >>> test_nonecheck4()
     Traceback (most recent call last):
       ...
-    AttributeError: 'NoneType' object has no attribute 'copy_fortran'
+    UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
     cdef int[:,:,:] uninitialized
     uninitialized.copy_fortran()
@@ -123,7 +123,7 @@ def test_nonecheck5():
     >>> test_nonecheck5()
     Traceback (most recent call last):
       ...
-    AttributeError: 'NoneType' object has no attribute '_data'
+    UnboundLocalError: local variable 'uninitialized' referenced before assignment
     '''
     cdef int[:,:,:] uninitialized
     uninitialized._data

@@ -19,11 +19,17 @@ INVALID_ERR = "Invalid axis specification."
 EXPR_ERR = "no expressions allowed in axis spec, only names (e.g. cython.view.contig)."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
 
-memview_c_contiguous = "PyBUF_C_CONTIGUOUS"
-memview_f_contiguous = "PyBUF_F_CONTIGUOUS"
-memview_any_contiguous = "PyBUF_ANY_CONTIGUOUS"
+def concat_flags(*flags):
+    return "(%s)" % "|".join(flags)
+
+format_flag = "PyBUF_FORMAT"
+
+memview_c_contiguous = concat_flags(format_flag, "PyBUF_C_CONTIGUOUS")
+memview_f_contiguous = concat_flags(format_flag, "PyBUF_F_CONTIGUOUS")
+memview_any_contiguous = concat_flags(format_flag, "PyBUF_ANY_CONTIGUOUS")
 memview_full_access = "PyBUF_FULL"
-memview_strided_access = "PyBUF_STRIDED"
+#memview_strided_access = "PyBUF_STRIDED"
+memview_strided_access = "PyBUF_RECORDS"
 
 MEMVIEW_DIRECT = 1
 MEMVIEW_PTR    = 2
@@ -40,6 +46,7 @@ _spec_to_const = {
         'ptr'    : MEMVIEW_PTR,
         'full'   : MEMVIEW_FULL
         }
+
 
 def specs_to_code(specs):
     arr = []

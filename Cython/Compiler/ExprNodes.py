@@ -1599,7 +1599,7 @@ class NameNode(AtomicExprNode):
             code.put_gotref(self.py_result())
 
         elif entry.is_local or entry.in_closure or entry.from_closure:
-            if entry.type.is_pyobject:
+            if entry.type.check_for_null_code(entry.cname):
                 if (self.cf_maybe_null or self.cf_is_null) \
                        and not self.allow_null:
                     code.put_error_if_unbound(self.pos, entry)
