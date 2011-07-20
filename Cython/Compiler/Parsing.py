@@ -2048,7 +2048,8 @@ def p_bracketed_base_type(s, base_type_node, nonempty, empty):
         if is_memoryviewslice_access(s):
             return p_memoryviewslice_access(s, base_type_node)
         else:
-            return p_buffer_access(s, base_type_node)
+            return p_buffer_or_template(s, base_type_node, None)
+            # return p_buffer_access(s, base_type_node)
     elif not empty and not nonempty:
         # only anonymous C arrays and memoryview slice arrays here.  We
         # disallow buffer declarations for now, due to ambiguity with anonymous
