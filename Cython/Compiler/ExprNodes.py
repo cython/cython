@@ -8763,16 +8763,13 @@ __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
 static int
 __Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value)
 {
-    if (value == NULL) {
-        Py_XDECREF(op->func_doc);
-        Py_INCREF(Py_None);
+    PyObject *tmp = op->func_doc;
+    if (value == NULL)
         op->func_doc = Py_None; /* Mark as deleted */
-    } else {
-        PyObject *tmp = op->func_doc;
+    else
         op->func_doc = value;
-        Py_INCREF(value);
-        Py_XDECREF(tmp);
-    }
+    Py_INCREF(op->func_doc);
+    Py_XDECREF(tmp);
     return 0;
 }
 
