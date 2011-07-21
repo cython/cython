@@ -1090,9 +1090,6 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
 }
 
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
-  if (!ts) {
-    PyErr_SetString(PyExc_ValueError, "Got NULL buffer format");
-  }
   int got_Z = 0;
   while (1) {
     switch(*ts) {

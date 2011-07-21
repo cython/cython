@@ -3,6 +3,7 @@ from Scanning import StringSourceDescriptor
 import Symtab
 import Naming
 from Cython.Compiler import Visitor
+import Code
 
 class NonManglingModuleScope(Symtab.ModuleScope):
 
@@ -43,7 +44,7 @@ class CythonUtilityCodeContext(StringParseContext):
         return self.scope
 
 
-class CythonUtilityCode(object):
+class CythonUtilityCode(Code.UtilityCodeBase):
     """
     Utility code written in the Cython language itself.
 

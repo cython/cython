@@ -63,6 +63,7 @@ else:
         'Cython.Plex'     : ['*.pxd'],
         'Cython.Compiler' : ['*.pxd'],
         'Cython.Runtime'  : ['*.pyx', '*.pxd'],
+        'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h'],
         'Cython'          : [ p[7:] for p in pxd_include_patterns ],
         }
 
@@ -272,6 +273,7 @@ packages = [
     'Cython.Tests',
     'Cython.Build.Tests',
     'Cython.Compiler.Tests',
+    'Cython.Utility',
 ]
 
 if include_debugger:
@@ -279,7 +281,6 @@ if include_debugger:
     packages.append('Cython.Debugger.Tests')
     # it's enough to do this for Py2.5+:
     setup_args['package_data']['Cython.Debugger.Tests'] = ['codefile', 'cfuncs.c']
-
 
 setup(
   name = 'Cython',

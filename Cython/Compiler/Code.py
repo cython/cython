@@ -8,7 +8,10 @@ cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, none_or_sub=object, basestring=object)
 
+import os
 import re
+import codecs
+
 import Naming
 import Options
 import StringEncoding
@@ -16,6 +19,7 @@ from Cython import Utils
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 import DebugFlags
+import Errors
 
 from Cython.Utils import none_or_sub
 try:
@@ -38,17 +42,130 @@ uncachable_builtins = [
     'WindowsError',
     ]
 
-class UtilityCode(object):
+class UtilityCodeBase(object):
+
+    is_cython_utility = False
+
+    _utility_cache = {}
+
+    @classmethod
+    def _add_utility(self, utility, type, lines, begin_lineno):
+        if utility:
+            code = '\n' * begin_lineno + ''.join(lines)
+            if type == 'Proto':
+                utility[0] = code
+            else:
+                utility[1] = code
+
+    @classmethod
+    def load_utilities_from_file(cls, path):
+        utilities = cls._utility_cache.get(path)
+        if utilities:
+            return utilities
+
+        Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        filename = os.path.join(Cython_dir, "Utility", path)
+        f = codecs.open(filename, encoding='UTF-8')
+
+        _, ext = os.path.splitext(path)
+        if ext in ('.pyx', '.py', '.pxd', '.pxi'):
+            comment = '#'
+        else:
+            comment = '//'
+
+        regex = r'%s\s*Utility(Proto|Code)\s*:\s*((\w|\.)+)\s*' % comment
+        flags = re.DOTALL
+
+        utilities = {}
+        lines = []
+
+        utility = type = None
+        begin_lineno = 0
+        for lineno, line in enumerate(f):
+            m = re.search(regex, line)
+            if m:
+                cls._add_utility(utility, type, lines, begin_lineno)
+
+                begin_lineno = lineno + 1
+                type, name = m.group(1), m.group(2)
+                utility = utilities.setdefault(name, [None, None])
+                utilities[name] = utility
+
+                lines = []
+            else:
+                lines.append(line)
+
+        if not utility:
+            raise ValueError("Empty utility code file")
+
+        # Don't forget to add the last utility code
+        cls._add_utility(utility, type, lines, begin_lineno)
+
+        f.close()
+
+        cls._utility_cache[path] = utilities
+        return utilities
+
+    @classmethod
+    def load_utility_from_file(cls, path, util_code_name, proto_fmt_dict=None,
+                               impl_fmt_dict=None, *args, **kwargs):
+        """
+        Load a utility code from a file specified by path (relative to
+        Cython/Utility) and name util_code_name.
+
+        Utilities in the file can be specified as follows:
+
+            # UtilityProto: name
+            # UtilityImpl: name
+
+        for prototypes and implementation respectively. For non-python or
+        -cython files a // comment should be used instead.
+
+        proto_fmt_dict and impl_format_dict can optionally be given to perform
+        any substitutions.
+
+        If the @cname decorator is not used and this is a CythonUtilityCode,
+        one should pass in the 'name' keyword argument to be used for name
+        mangling of such entries.
+        """
+        proto, impl = cls.load_utility_as_string(path, util_code_name)
+
+        if proto:
+            if proto_fmt_dict:
+                proto = proto % proto_fmt_dict
+            kwargs['proto'] = proto
+
+        if impl:
+            if impl_fmt_dict:
+                impl = impl % impl_fmt_dict
+            kwargs['impl'] = impl
+
+        if 'name' not in kwargs:
+            kwargs['name'] = os.path.splitext(path)[0]
+
+        return cls(*args, **kwargs)
+
+    @classmethod
+    def load_utility_as_string(cls, path, util_code_name):
+        """
+        Load a utility code as a string. Returns (proto, implementation)
+        """
+        utilities = cls.load_utilities_from_file(path)
+        return utilities[util_code_name]
+
+    def __str__(self):
+        return "<%s(%s)" % (type(self).__name__, self.name)
+
+
+class UtilityCode(UtilityCodeBase):
     # Stores utility code to add during code generation.
     #
     # See GlobalState.put_utility_code.
     #
     # hashes/equals by instance
 
-    is_cython_utility = False
-
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
-                 proto_block='utility_code_proto'):
+                 proto_block='utility_code_proto', name=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -58,6 +175,7 @@ class UtilityCode(object):
         self._cache = {}
         self.specialize_list = []
         self.proto_block = proto_block
+        self.name = name
 
     def get_tree(self):
         pass

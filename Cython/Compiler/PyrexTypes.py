@@ -498,6 +498,7 @@ class MemoryViewSliceType(PyrexType):
     def check_for_null_code(self, cname):
         return cname + '.memview'
 
+
 class BufferType(BaseType):
     #
     #  Delegates most attribute

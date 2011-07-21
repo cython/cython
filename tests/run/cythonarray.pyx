@@ -1,3 +1,7 @@
+# mode: run
+
+from __future__ import unicode_literals
+
 # from cython cimport array
 # cimport cython.array as array
 cimport cython as cy

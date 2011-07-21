@@ -1,7 +1,10 @@
 
 cimport cython
 
-cdef class UtilityCode:
+cdef class UtilityCodeBase(object):
+    pass
+
+cdef class UtilityCode(UtilityCodeBase):
     cdef public object proto
     cdef public object impl
     cdef public object init
