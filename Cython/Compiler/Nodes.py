@@ -5639,6 +5639,7 @@ class CImportStatNode(StatNode):
             if self.as_name:
                 env.declare_module(self.as_name, module_scope, self.pos)
             else:
+                env.add_imported_module(module_scope)
                 env.declare_module(top_name, top_module_scope, self.pos)
         else:
             name = self.as_name or self.module_name
