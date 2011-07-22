@@ -12,6 +12,7 @@ import os
 import re
 import codecs
 
+import glob
 import Naming
 import Options
 import StringEncoding
@@ -20,6 +21,7 @@ from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 import DebugFlags
 import Errors
+from Cython import Tempita as tempita
 
 from Cython.Utils import none_or_sub
 try:
@@ -41,6 +43,9 @@ uncachable_builtins = [
     # be available at import time
     'WindowsError',
     ]
+
+Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+Utility_dir = os.path.join(Cython_dir, "Utility")
 
 class UtilityCodeBase(object):
 
@@ -69,8 +74,7 @@ class UtilityCodeBase(object):
         if utilities:
             return utilities
 
-        Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        filename = os.path.join(Cython_dir, "Utility", path)
+        filename = os.path.join(Utility_dir, path)
         f = codecs.open(filename, encoding='UTF-8')
 
         _, ext = os.path.splitext(path)
@@ -111,8 +115,8 @@ class UtilityCodeBase(object):
         return utilities
 
     @classmethod
-    def load_utility_from_file(cls, path, util_code_name, proto_fmt_dict=None,
-                               impl_fmt_dict=None, *args, **kwargs):
+    def load_utility_from_file(cls, path, util_code_name,
+                               context=None, **kwargs):
         """
         Load a utility code from a file specified by path (relative to
         Cython/Utility) and name util_code_name.
@@ -125,37 +129,52 @@ class UtilityCodeBase(object):
         for prototypes and implementation respectively. For non-python or
         -cython files a // comment should be used instead.
 
-        proto_fmt_dict and impl_format_dict can optionally be given to perform
-        any substitutions.
+        If context is given, the utility is considered a tempita template.
+        The context dict (which may be empty) will be unpacked to form
+        all the variables in the template.
 
         If the @cname decorator is not used and this is a CythonUtilityCode,
         one should pass in the 'name' keyword argument to be used for name
         mangling of such entries.
         """
-        proto, impl = cls.load_utility_as_string(path, util_code_name)
+        proto, impl = cls.load_utility_as_string(path, util_code_name, context)
 
-        if proto:
-            if proto_fmt_dict:
-                proto = proto % proto_fmt_dict
+        if proto is not None:
             kwargs['proto'] = proto
-
-        if impl:
-            if impl_fmt_dict:
-                impl = impl % impl_fmt_dict
+        if impl is not None:
             kwargs['impl'] = impl
 
         if 'name' not in kwargs:
             kwargs['name'] = os.path.splitext(path)[0]
 
-        return cls(*args, **kwargs)
+        return cls(**kwargs)
 
     @classmethod
-    def load_utility_as_string(cls, path, util_code_name):
+    def load_utility_as_string(cls, path, util_code_name, context=None):
         """
         Load a utility code as a string. Returns (proto, implementation)
         """
         utilities = cls.load_utilities_from_file(path)
-        return utilities[util_code_name]
+
+        proto, impl = utilities[util_code_name]
+        if proto:
+            if context is not None:
+                proto = tempita.sub(proto, **context)
+
+        if impl:
+            if context is not None:
+                impl = tempita.sub(impl, **context)
+
+        return proto, impl
+
+    @classmethod
+    def load_utility(cls, name, context=None, **kwargs):
+        "Load utility name with context from a utility file name.suffix"
+        files = glob.glob(os.path.join(Utility_dir, name + '.*'))
+        if len(files) != 1:
+            raise ValueError("Need exactly one utility file")
+
+        return cls.load_utilities_from_file(files[0], name, context, **kwargs)
 
     def __str__(self):
         return "<%s(%s)" % (type(self).__name__, self.name)
@@ -1274,6 +1293,12 @@ class CCodeWriter(object):
             self.level += dl
         elif fix_indent:
             self.level += 1
+
+    def putln_tempita(self, code, **context):
+        self.putln(tempita.sub(code, **context))
+
+    def put_tempita(self, code, **context):
+        self.put(tempita.sub(code, **context))
 
     def increase_indent(self):
         self.level = self.level + 1

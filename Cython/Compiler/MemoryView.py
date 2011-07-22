@@ -112,7 +112,7 @@ def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code
     for i in range(ndim):
         code.putln("%s.shape[%d] = %s.shape[%d];" % (lhs_cname, i, rhs_cname, i))
         code.putln("%s.strides[%d] = %s.strides[%d];" % (lhs_cname, i, rhs_cname, i))
-        # code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % (lhs_cname, i, rhs_cname, i))
+        code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % (lhs_cname, i, rhs_cname, i))
 
 def get_buf_flag(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
@@ -186,7 +186,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         self.buf_ptr_type = dtype
 
     def get_buf_suboffsetvars(self):
-        return self._for_all_ndim("%s.memview->view.suboffsets[%d]")
+        return self._for_all_ndim("%s.suboffsets[%d]")
 
     def get_buf_stridevars(self):
         return self._for_all_ndim("%s.strides[%d]")
@@ -267,7 +267,7 @@ static int %s(const __Pyx_memviewslice mvs) {
     %(for_loop)s {
 
 #ifdef DEBUG
-        /* printf("mvs.suboffsets[i] %%d\\n", mvs.suboffsets[i]); */
+        printf("mvs.suboffsets[i] %%d\\n", mvs.suboffsets[i]);
         printf("mvs.strides[i] %%d\\n", mvs.strides[i]);
         printf("mvs.shape[i] %%d\\n", mvs.shape[i]);
         printf("size %%d\\n", size);
@@ -275,7 +275,7 @@ static int %s(const __Pyx_memviewslice mvs) {
 #endif
 #undef DEBUG
 
-        if(mvs.memview->view.suboffsets[i] >= 0) {
+        if(mvs.suboffsets[i] >= 0) {
             return 0;
         }
         if(size * itemsize != mvs.strides[i]) {
@@ -374,13 +374,17 @@ class CopyFuncUtilCode(object):
             mode = 'fortran'
             contig_flag = "PyBUF_F_CONTIGUOUS"
 
-        code.put(copy_template %
-            dict(
-                 copy_name=self.copy_func_name,
-                 mode=mode,
-                 sizeof_dtype="sizeof(%s)" % self.from_memview.dtype.declaration_code(''),
-                 contig_flag=contig_flag,
-                 copy_contents_name=copy_contents_name))
+        context = dict(
+            copy_name=self.copy_func_name,
+            mode=mode,
+            sizeof_dtype="sizeof(%s)" % self.from_memview.dtype.declaration_code(''),
+            contig_flag=contig_flag,
+            copy_contents_name=copy_contents_name
+        )
+
+        _, copy_code = UtilityCode.load_utility_as_string(
+                    "MemoryView_C.c", "MemviewSliceCopyTemplate", context)
+        code.put(copy_code)
 
 
 def get_copy_contents_func(from_mvs, to_mvs, cfunc_name):
@@ -744,10 +748,8 @@ def load_memview_c_utility(name, *args, **kwargs):
 def load_memview_c_string(name):
     return UtilityCode.load_utility_as_string("MemoryView_C.c", name)
 
-_, copy_template = UtilityCode.load_utility_as_string(
-                "MemoryView_C.c", "MemviewSliceCopyTemplate")
 
-fmt_dict = {
+context = {
     'memview_struct_name': memview_objstruct_cname,
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
@@ -755,10 +757,10 @@ fmt_dict = {
 memviewslice_declare_code = load_memview_c_utility(
         name="MemviewSliceStruct",
         proto_block='utility_code_proto_before_types',
-        proto_fmt_dict=fmt_dict)
+        context=context)
 
 memviewslice_init_code = load_memview_c_utility(
     name="MemviewSliceInit",
-    proto_fmt_dict={'BUF_MAX_NDIMS': Options.buffer_max_dims},
+    context={'BUF_MAX_NDIMS': Options.buffer_max_dims},
     requires=[memviewslice_declare_code],
 )

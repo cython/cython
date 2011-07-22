@@ -3,13 +3,13 @@
 /* memoryview slice struct */
 
 typedef struct {
-  struct %(memview_struct_name)s *memview;
+  struct {{memview_struct_name}} *memview;
   /* For convenience and faster access */
   char *data;
-  Py_ssize_t shape[%(max_dims)d];
-  Py_ssize_t strides[%(max_dims)d];
-  /* Py_ssize_t suboffsets[%(max_dims)d]; */
-} %(memviewslice_name)s;
+  Py_ssize_t shape[{{max_dims}}];
+  Py_ssize_t strides[{{max_dims}}];
+  Py_ssize_t suboffsets[{{max_dims}}];
+} {{memviewslice_name}};
 
 // UtilityProto: MemviewSliceInit
 
@@ -194,12 +194,11 @@ static int __Pyx_init_memviewslice(
     for(i=0; i<ndim; i++) {
         memviewslice->strides[i] = buf->strides[i];
         memviewslice->shape[i]   = buf->shape[i];
-        /*
         if(buf->suboffsets) {
             memviewslice->suboffsets[i] = buf->suboffsets[i];
         } else {
             memviewslice->suboffsets[i] = -1;
-        }*/
+        }
     }
 
     __Pyx_INCREF((PyObject *)memview);
@@ -221,7 +220,7 @@ no_fail:
 
 // UtilityCode: MemviewSliceCopyTemplate
 
-static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
+static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
 
     __Pyx_RefNannyDeclarations
     int i;
@@ -232,9 +231,9 @@ static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
     PyObject *temp_int = 0;
     struct __pyx_array_obj *array_obj = 0;
     struct __pyx_memoryview_obj *memview_obj = 0;
-    char *mode = "%(mode)s";
+    char *mode = "{{mode}}";
 
-    __Pyx_RefNannySetupContext("%(copy_name)s");
+    __Pyx_RefNannySetupContext("{{copy_name}}");
 
     shape_tuple = PyTuple_New((Py_ssize_t)(buf->ndim));
     if(unlikely(!shape_tuple)) {
@@ -252,13 +251,13 @@ static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
         }
     }
 
-    array_obj = __pyx_array_new(shape_tuple, %(sizeof_dtype)s, buf->format, mode);
+    array_obj = __pyx_array_new(shape_tuple, {{sizeof_dtype}}, buf->format, mode);
     if (unlikely(!array_obj)) {
         goto fail;
     }
     __Pyx_GOTREF(array_obj);
 
-    memview_obj = __pyx_memoryview_new((PyObject *) array_obj, %(contig_flag)s);
+    memview_obj = __pyx_memoryview_new((PyObject *) array_obj, {{contig_flag}});
     if (unlikely(!memview_obj)) {
         goto fail;
     }
@@ -270,7 +269,7 @@ static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
         goto fail;
     }
 
-    if (unlikely(-1 == %(copy_contents_name)s(&from_mvs, &new_mvs))) {
+    if (unlikely(-1 == {{copy_contents_name}}(&from_mvs, &new_mvs))) {
         /* PyErr_SetString(PyExc_RuntimeError,
             "Could not copy contents of memoryview slice."); */
         goto fail;

@@ -2345,8 +2345,12 @@ class IndexNode(ExprNode):
 
         skip_child_analysis = False
         buffer_access = False
-#        memoryviewslice_access = False
-        if self.base.type.is_buffer or self.base.type.is_memoryviewslice:
+        memoryviewslice_access = False
+
+        if (self.base.type.is_memoryviewslice and not self.indices and
+                isinstance(self.index, EllipsisNode)):
+            memoryviewslice_access = True
+        elif self.base.type.is_buffer or self.base.type.is_memoryviewslice:
             if self.indices:
                 indices = self.indices
             else:
@@ -2390,11 +2394,11 @@ class IndexNode(ExprNode):
                     if self.type.is_buffer:
                         self.base.entry.buffer_aux.writable_needed = True
 
-#        elif memoryviewslice_access:
-#            self.type = self.base.type
-#            self.is_memoryviewslice_access = True
-#            if getting:
-#                error(self.pos, "memoryviews currently support setting only.")
+        elif memoryviewslice_access:
+            self.type = self.base.type
+            self.is_memoryviewslice_access = True
+            if getting:
+                error(self.pos, "memoryviews currently support setting only.")
 
         else:
             base_type = self.base.type

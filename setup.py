@@ -274,6 +274,7 @@ packages = [
     'Cython.Build.Tests',
     'Cython.Compiler.Tests',
     'Cython.Utility',
+    'Cython.Tempita',
 ]
 
 if include_debugger:

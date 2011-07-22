@@ -20,7 +20,10 @@ def create_array(shape, mode='c'):
 
 def slice_contig_indexing():
     """
-    >>> slice_contig_indexing()
+    >>> print "disabled"
+    disabled
+
+    slice_contig_indexing()
     98
     61
     98
