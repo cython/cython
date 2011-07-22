@@ -18,6 +18,7 @@ dist/
 *.rej
 *.dep
 *.swp
+*.so
 *~
 
 tags
