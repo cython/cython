@@ -5414,15 +5414,15 @@ class TryFinallyStatNode(StatNode):
             code.putln("int __pyx_why;")
 
             if error_label_used and self.preserve_exception:
+                if self.is_try_finally_in_nogil:
+                    code.declare_gilstate()
+
                 code.putln("PyObject *%s, *%s, *%s;" % Naming.exc_vars)
                 code.putln("int %s;" % Naming.exc_lineno_name)
                 exc_var_init_zero = ''.join(
                                 ["%s = 0; " % var for var in Naming.exc_vars])
                 exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
                 code.putln(exc_var_init_zero)
-
-                if self.is_try_finally_in_nogil:
-                    code.declare_gilstate()
             else:
                 exc_var_init_zero = None
 
