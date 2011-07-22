@@ -1689,7 +1689,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         return node.arg
 
-    def visit_TypecastNode(self, node):
+    def _visit_TypecastNode(self, node):
+        # disabled - the user may have had a reason to put a type
+        # cast, even if it looks redundant to Cython
         """
         Drop redundant type casts.
         """
