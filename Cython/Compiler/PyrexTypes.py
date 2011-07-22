@@ -1372,9 +1372,10 @@ impl="""
 
 complex_to_py_utility_code = UtilityCode(
 proto="""
-#define __pyx_PyComplex_FromComplex(z) \\
-        PyComplex_FromDoubles((double)__Pyx_CREAL(z), \\
-                              (double)__Pyx_CIMAG(z))
+static CYTHON_INLINE PyObject *__pyx_PyComplex_FromComplex(__pyx_t_double_complex z) {
+    return PyComplex_FromDoubles((double)__Pyx_CREAL(z),
+                                 (double)__Pyx_CIMAG(z));
+}
 """)
 
 complex_from_py_utility_code = UtilityCode(
