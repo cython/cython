@@ -33,6 +33,7 @@ class Ctx(object):
     nogil = 0
     namespace = None
     templates = None
+    allow_struct_enum_decorator = False
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -1754,7 +1755,8 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if s.sy not in ('def', 'cdef', 'cpdef', 'class'):
+        bad_toks =  'def', 'cdef', 'cpdef', 'class'
+        if not ctx.allow_struct_enum_decorator and s.sy not in bad_toks:
             s.error("Decorators can only be followed by functions or classes")
     elif s.sy == 'pass' and cdef_flag:
         # empty cdef block
@@ -1774,7 +1776,10 @@ def p_statement(s, ctx, first_statement = 0):
         s.level = ctx.level
         node = p_cdef_statement(s, ctx(overridable = overridable))
         if decorators is not None:
-            if not isinstance(node, (Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode)):
+            tup = Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode
+            if ctx.allow_struct_enum_decorator:
+                tup += Nodes.CStructOrUnionDefNode, Nodes.CEnumDefNode
+            if not isinstance(node, tup):
                 s.error("Decorators can only be followed by functions or classes")
             node.decorators = decorators
         return node
@@ -2892,8 +2897,8 @@ def p_doc_string(s):
     else:
         return None
 
-def p_code(s, level=None):
-    body = p_statement_list(s, Ctx(level = level), first_statement = 1)
+def p_code(s, level=None, ctx=Ctx):
+    body = p_statement_list(s, ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
@@ -2915,7 +2920,7 @@ def p_compiler_directive_comments(s):
         s.next()
     return result
 
-def p_module(s, pxd, full_module_name):
+def p_module(s, pxd, full_module_name, ctx=Ctx):
     pos = s.position()
 
     directive_comments = p_compiler_directive_comments(s)
@@ -2930,7 +2935,7 @@ def p_module(s, pxd, full_module_name):
     else:
         level = 'module'
 
-    body = p_statement_list(s, Ctx(level = level), first_statement = 1)
+    body = p_statement_list(s, ctx(level=level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))

@@ -49,9 +49,15 @@ class UtilityCodeBase(object):
     _utility_cache = {}
 
     @classmethod
-    def _add_utility(self, utility, type, lines, begin_lineno):
+    def _add_utility(cls, utility, type, lines, begin_lineno):
         if utility:
-            code = '\n' * begin_lineno + ''.join(lines)
+            if cls.is_cython_utility:
+                # Don't forget our line number
+                code = '\n' * begin_lineno + ''.join(lines)
+            else:
+                # line numbers are not important here
+                code = '\n'.join(lines)
+
             if type == 'Proto':
                 utility[0] = code
             else:
@@ -74,8 +80,6 @@ class UtilityCodeBase(object):
             comment = '//'
 
         regex = r'%s\s*Utility(Proto|Code)\s*:\s*((\w|\.)+)\s*' % comment
-        flags = re.DOTALL
-
         utilities = {}
         lines = []
 

@@ -86,7 +86,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context = CythonUtilityCodeContext(self.name)
         context.prefix = self.prefix
         #context = StringParseContext(self.name)
-        tree = parse_from_strings(self.name, self.pyx, context=context)
+        tree = parse_from_strings(self.name, self.pyx, context=context,
+                                  allow_struct_enum_decorator=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:

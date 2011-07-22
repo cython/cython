@@ -368,10 +368,13 @@ class MemoryViewSliceType(PyrexType):
 
         self.dtype = base_dtype
         self.axes = axes
+        self.ndim = len(axes)
 
         import MemoryView
         self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
         assert not (self.is_c_contig and self.is_f_contig)
+
+        self.mode = MemoryView.get_mode(axes)
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and

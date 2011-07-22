@@ -93,7 +93,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                 return aux_var
 
             auxvars = ((PyrexTypes.c_pyx_buffer_nd_type, Naming.pybuffernd_prefix),
-                      (PyrexTypes.c_pyx_buffer_type, Naming.pybufferstruct_prefix))
+                       (PyrexTypes.c_pyx_buffer_type, Naming.pybufferstruct_prefix))
             pybuffernd, rcbuffer = [decvar(type, prefix) for (type, prefix) in auxvars]
 
             entry.buffer_aux = Symtab.BufferAux(pybuffernd, rcbuffer)
@@ -195,15 +195,26 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 # Code generation
 #
 
-def get_buf_suboffsetvars(entry):
-    return [("%s.diminfo[%d].suboffsets" % \
-            (entry.buffer_aux.buflocal_nd_var.cname, i)) for i in range(entry.type.ndim)]
-def get_buf_stridevars(entry):
-    return [("%s.diminfo[%d].strides" % \
-            (entry.buffer_aux.buflocal_nd_var.cname, i)) for i in range(entry.type.ndim)]
-def get_buf_shapevars(entry):
-    return [("%s.diminfo[%d].shape" % \
-            (entry.buffer_aux.buflocal_nd_var.cname, i)) for i in range(entry.type.ndim)]
+class BufferEntry(object):
+    def __init__(self, entry):
+        self.entry = entry
+        self.type = entry.type
+        self.cname = entry.buffer_aux.buflocal_nd_var.cname
+        self.buf_ptr = "%s.rcbuffer->pybuffer.buf" % self.cname
+        self.buf_ptr_type = self.entry.type.buffer_ptr_type
+
+    def get_buf_suboffsetvars(self):
+        return self._for_all_ndim("%s.diminfo[%d].suboffsets")
+
+    def get_buf_stridevars(self):
+        return self._for_all_ndim("%s.diminfo[%d].strides")
+
+    def get_buf_shapevars(self):
+        return self._for_all_ndim("%s.diminfo[%d].shape")
+
+    def _for_all_ndim(self, s):
+        return [s % (self.cname, i) for i in range(self.type.ndim)]
+
 
 def get_flags(buffer_aux, buffer_type):
     flags = 'PyBUF_FORMAT'
@@ -358,7 +369,8 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
 
     code.putln("}") # Release stack
 
-def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, code):
+def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
+                           pos, code, negative_indices):
     """
     Generates code to process indices and calculate an offset into
     a buffer. Returns a C string which gives a pointer which can be
@@ -370,11 +382,9 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
     body. The lookup however is delegated to a inline function that is instantiated
     once per ndim (lookup with suboffsets tend to get quite complicated).
 
+    entry is a BufferEntry
     """
-    bufaux = entry.buffer_aux
-    pybuffernd_struct = bufaux.buflocal_nd_var.cname
-    # bufstruct = bufaux.buffer_info_var.cname
-    negative_indices = directives['wraparound'] and entry.type.negative_indices
+    negative_indices = directives['wraparound'] and negative_indices
 
     if directives['boundscheck']:
         # Check bounds and fix negative indices.
@@ -384,7 +394,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
         tmp_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         code.putln("%s = -1;" % tmp_cname)
         for dim, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
-                                                         get_buf_shapevars(entry))):
+                                                         entry.get_buf_shapevars())):
             if signed != 0:
                 # not unsigned, deal with negative index
                 code.putln("if (%s < 0) {" % cname)
@@ -412,7 +422,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
     elif negative_indices:
         # Only fix negative indices.
         for signed, cname, shape in zip(index_signeds, index_cnames,
-                                        get_buf_shapevars(entry)):
+                                        entry.get_buf_shapevars()):
             if signed != 0:
                 code.putln("if (%s < 0) %s += %s;" % (cname, cname, shape))
 
@@ -423,7 +433,9 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
     nd = entry.type.ndim
     mode = entry.type.mode
     if mode == 'full':
-        for i, s, o in zip(index_cnames, get_buf_stridevars(entry), get_buf_suboffsetvars(entry)):
+        for i, s, o in zip(index_cnames,
+                           entry.get_buf_stridevars(),
+                           entry.get_buf_suboffsetvars()):
             params.append(i)
             params.append(s)
             params.append(o)
@@ -441,7 +453,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
             funcgen = buf_lookup_fortran_code
         else:
             assert False
-        for i, s in zip(index_cnames, get_buf_stridevars(entry)):
+        for i, s in zip(index_cnames, entry.get_buf_stridevars()):
             params.append(i)
             params.append(s)
 
@@ -452,11 +464,9 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
         defcode = code.globalstate['utility_code_def']
         funcgen(protocode, defcode, name=funcname, nd=nd)
 
-    ptr_type = entry.type.buffer_ptr_type
-    ptrcode = "%s(%s, %s.rcbuffer->pybuffer.buf, %s)" % (funcname,
-                                      ptr_type.declaration_code(""),
-                                      pybuffernd_struct,
-                                      ", ".join(params))
+    buf_ptr_type_code = entry.buf_ptr_type.declaration_code("")
+    ptrcode = "%s(%s, %s, %s)" % (funcname, buf_ptr_type_code, entry.buf_ptr,
+                                  ", ".join(params))
     return ptrcode
 
 

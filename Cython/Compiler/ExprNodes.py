@@ -2209,6 +2209,10 @@ class IndexNode(ExprNode):
     subexprs = ['base', 'index', 'indices']
     indices = None
 
+    # Whether we're assigning to a buffer (in that case it needs to be
+    # writable)
+    writable_needed = False
+
     def __init__(self, pos, index, *args, **kw):
         ExprNode.__init__(self, pos, index=index, *args, **kw)
         self._index = index
@@ -2341,8 +2345,8 @@ class IndexNode(ExprNode):
 
         skip_child_analysis = False
         buffer_access = False
-        memoryviewslice_access = False
-        if self.base.type.is_buffer:
+#        memoryviewslice_access = False
+        if self.base.type.is_buffer or self.base.type.is_memoryviewslice:
             if self.indices:
                 indices = self.indices
             else:
@@ -2360,11 +2364,11 @@ class IndexNode(ExprNode):
             if buffer_access:
                 assert hasattr(self.base, "entry") # Must be a NameNode-like node
         
-        if self.base.type.is_memoryviewslice:
-            assert hasattr(self.base, "entry")
-            if self.indices or not isinstance(self.index, EllipsisNode):
-                error(self.pos, "Memoryviews currently support ellipsis indexing only.")
-            else: memoryviewslice_access = True
+#        if self.base.type.is_memoryviewslice:
+#            assert hasattr(self.base, "entry")
+#            if self.indices or not isinstance(self.index, EllipsisNode):
+#                error(self.pos, "Memoryviews currently support ellipsis indexing only.")
+#            else: memoryviewslice_access = True
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
@@ -2382,13 +2386,15 @@ class IndexNode(ExprNode):
                 if not self.base.entry.type.writable:
                     error(self.pos, "Writing to readonly buffer")
                 else:
-                    self.base.entry.buffer_aux.writable_needed = True
+                    self.writable_needed = True
+                    if self.type.is_buffer:
+                        self.base.entry.buffer_aux.writable_needed = True
 
-        elif memoryviewslice_access:
-            self.type = self.base.type
-            self.is_memoryviewslice_access = True
-            if getting:
-                error(self.pos, "memoryviews currently support setting only.")
+#        elif memoryviewslice_access:
+#            self.type = self.base.type
+#            self.is_memoryviewslice_access = True
+#            if getting:
+#                error(self.pos, "memoryviews currently support setting only.")
 
         else:
             base_type = self.base.type
@@ -2680,18 +2686,30 @@ class IndexNode(ExprNode):
 
     def buffer_lookup_code(self, code):
         # Assign indices to temps
-        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False) for i in self.indices]
+        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
+                           for i in self.indices]
+
         for temp, index in zip(index_temps, self.indices):
             code.putln("%s = %s;" % (temp, index.result()))
+
         # Generate buffer access code using these temps
-        import Buffer
+        import Buffer, MemoryView
         # The above could happen because child_attrs is wrong somewhere so that
         # options are not propagated.
-        return Buffer.put_buffer_lookup_code(entry=self.base.entry,
+        entry = self.base.entry
+        if entry.type.is_buffer:
+            buffer_entry = Buffer.BufferEntry(entry)
+            negative_indices = entry.type.negative_indices
+        else:
+            buffer_entry = MemoryView.MemoryViewSliceBufferEntry(entry)
+            negative_indices = Buffer.buffer_defaults['negative_indices']
+
+        return Buffer.put_buffer_lookup_code(entry=buffer_entry,
                                              index_signeds=[i.type.signed for i in self.indices],
                                              index_cnames=index_temps,
                                              directives=code.globalstate.directives,
-                                             pos=self.pos, code=code)
+                                             pos=self.pos, code=code,
+                                             negative_indices=negative_indices)
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)

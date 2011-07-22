@@ -1255,7 +1255,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     """
 
     def handle_function(self, node):
-        if not node.decorators:
+        if not getattr(node, 'decorators', None):
             return self.visit_Node(node)
 
         for i, decorator in enumerate(node.decorators):
@@ -1289,6 +1289,8 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
 
     visit_FuncDefNode = handle_function
     visit_CClassDefNode = handle_function
+    visit_CEnumDefNode = handle_function
+    visit_CStructOrUnionDefNode = handle_function
 
 
 class ForwardDeclareTypes(CythonTransform):
@@ -1575,6 +1577,14 @@ if VALUE is not None:
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
         return None
+
+    def visit_CnameDecoratorNode(self, node):
+        self.visitchildren(node)
+
+        if not node.node:
+            return None
+
+        return node
 
     def create_Property(self, entry):
         if entry.visibility == 'public':

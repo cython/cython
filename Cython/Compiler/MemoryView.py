@@ -6,7 +6,7 @@ from Code import UtilityCode
 from UtilityCode import CythonUtilityCode
 from PyrexTypes import py_object_type, cython_memoryview_ptr_type
 import Buffer
-
+import PyrexTypes
 
 START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
 STOP_ERR = "Axis specification only allowed in the 'stop' slot."
@@ -112,7 +112,7 @@ def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code
     for i in range(ndim):
         code.putln("%s.shape[%d] = %s.shape[%d];" % (lhs_cname, i, rhs_cname, i))
         code.putln("%s.strides[%d] = %s.strides[%d];" % (lhs_cname, i, rhs_cname, i))
-        code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % (lhs_cname, i, rhs_cname, i))
+        # code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % (lhs_cname, i, rhs_cname, i))
 
 def get_buf_flag(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
@@ -171,6 +171,28 @@ def src_conforms_to_dst(src, dst):
             return False
 
     return True
+
+
+class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
+    def __init__(self, entry):
+        self.entry = entry
+        self.type = entry.type
+        self.cname = entry.cname
+        self.buf_ptr = "%s.data" % self.cname
+
+        dtype = self.entry.type.dtype
+        dtype = PyrexTypes.CPtrType(dtype)
+
+        self.buf_ptr_type = dtype
+
+    def get_buf_suboffsetvars(self):
+        return self._for_all_ndim("%s.memview->view.suboffsets[%d]")
+
+    def get_buf_stridevars(self):
+        return self._for_all_ndim("%s.strides[%d]")
+
+    def get_buf_shapevars(self):
+        return self._for_all_ndim("%s.shape[%d]")
 
 
 def get_copy_func_name(to_memview):
@@ -245,7 +267,7 @@ static int %s(const __Pyx_memviewslice mvs) {
     %(for_loop)s {
 
 #ifdef DEBUG
-        printf("mvs.suboffsets[i] %%d\\n", mvs.suboffsets[i]);
+        /* printf("mvs.suboffsets[i] %%d\\n", mvs.suboffsets[i]); */
         printf("mvs.strides[i] %%d\\n", mvs.strides[i]);
         printf("mvs.shape[i] %%d\\n", mvs.shape[i]);
         printf("size %%d\\n", size);
@@ -253,7 +275,7 @@ static int %s(const __Pyx_memviewslice mvs) {
 #endif
 #undef DEBUG
 
-        if(mvs.suboffsets[i] >= 0) {
+        if(mvs.memview->view.suboffsets[i] >= 0) {
             return 0;
         }
         if(size * itemsize != mvs.strides[i]) {
@@ -595,6 +617,20 @@ def is_cf_contig(specs):
 
     return is_c_contig, is_f_contig
 
+def get_mode(specs):
+    is_c_contig, is_f_contig = is_cf_contig(specs)
+
+    if is_c_contig:
+        return 'c'
+    elif is_f_contig:
+        return 'fortran'
+
+    for access, packing in specs:
+        if access in ('ptr', 'full'):
+            return 'full'
+
+    return 'strided'
+
 def validate_axes_specs(pos, specs):
 
     packing_specs = ('contig', 'strided', 'follow')
@@ -621,7 +657,6 @@ def validate_axes_specs(pos, specs):
                 raise CompileError(pos, "A memoryview cannot have both follow and strided axis specifiers.")
             if not (is_c_contig or is_f_contig):
                 raise CompileError(pos, "Invalid use of the follow specifier.")
-
 
 def _get_resolved_spec(env, spec):
     # spec must be a NameNode or an AttributeNode
@@ -704,13 +739,13 @@ def load_memview_cy_utility(name, *args, **kwargs):
 
 def load_memview_c_utility(name, *args, **kwargs):
     return UtilityCode.load_utility_from_file(
-                        "MemoryView.c", name, *args, **kwargs)
+                        "MemoryView_C.c", name, *args, **kwargs)
 
 def load_memview_c_string(name):
-    return UtilityCode.load_utility_as_string("MemoryView.c", name)
+    return UtilityCode.load_utility_as_string("MemoryView_C.c", name)
 
 _, copy_template = UtilityCode.load_utility_as_string(
-                "MemoryView.c", "MemviewSliceCopyTemplate")
+                "MemoryView_C.c", "MemviewSliceCopyTemplate")
 
 fmt_dict = {
     'memview_struct_name': memview_objstruct_cname,

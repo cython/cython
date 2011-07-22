@@ -55,3 +55,17 @@ def full_or_strided():
             cy.array(shape=(10,10), itemsize=sizeof(float), format='f', mode='c')
     cdef object[long long int, ndim=3, mode='strided'] stridedbuf = \
             cy.array(shape=(1,2,3), itemsize=sizeof(long long int), format='q', mode='fortran')
+
+def dont_allocate_buffer():
+    """
+    >>> dont_allocate_buffer()
+    callback called 1
+    """
+    cdef cy.array result = cy.array((10, 10), itemsize=sizeof(int), format='i', allocate_buffer=False)
+    assert result.data == NULL
+    result.data = <char *> 1
+    result.callback_free_data = callback
+    result = None
+
+cdef void callback(char *data):
+    print "callback called %d" % <long> data

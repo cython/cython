@@ -65,10 +65,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.body.stats.extend(tree.stats)
         else:
             self.body.stats.append(tree)
-        selfscope = self.scope
-        selfscope.utility_code_list.extend(scope.utility_code_list)
+
+        self.scope.utility_code_list.extend(scope.utility_code_list)
+
+        def extend_if_not_in(L1, L2):
+            for x in L2:
+                if x not in L1:
+                    L1.append(x)
+
+        extend_if_not_in(self.scope.include_files, scope.include_files)
+        extend_if_not_in(self.scope.included_files, scope.included_files)
+        extend_if_not_in(self.scope.python_include_files,
+                         scope.python_include_files)
+
         if merge_scope:
-            selfscope.merge_in(scope)
+            self.scope.merge_in(scope)
 
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:

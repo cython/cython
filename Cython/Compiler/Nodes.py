@@ -6977,11 +6977,15 @@ class CnameDecoratorNode(StatNode):
         self.node.analyse_declarations(env)
 
         self.is_function = isinstance(self.node, FuncDefNode)
+        is_struct_or_enum = isinstance(self.node, (CStructOrUnionDefNode,
+                                                   CEnumDefNode))
         e = self.node.entry
 
         if self.is_function:
             e.cname = self.cname
             e.func_cname = self.cname
+        elif is_struct_or_enum:
+            e.cname = e.type.cname = self.cname
         else:
             scope = self.node.scope
 

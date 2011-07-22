@@ -4,10 +4,11 @@
 
 typedef struct {
   struct %(memview_struct_name)s *memview;
+  /* For convenience and faster access */
   char *data;
   Py_ssize_t shape[%(max_dims)d];
   Py_ssize_t strides[%(max_dims)d];
-  Py_ssize_t suboffsets[%(max_dims)d];
+  /* Py_ssize_t suboffsets[%(max_dims)d]; */
 } %(memviewslice_name)s;
 
 // UtilityProto: MemviewSliceInit
@@ -23,6 +24,8 @@ typedef struct {
 
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
+
+/* #define __PYX_MEMSLICE_GETDATA(SLICE) ((char *) SLICE->memview->view->buf) */
 
 static int __Pyx_ValidateAndInit_memviewslice(struct __pyx_memoryview_obj *memview,
                                 int *axes_specs, int c_or_f_flag,  int ndim, __Pyx_TypeInfo *dtype,
@@ -40,7 +43,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 int *axes_specs,
                 int c_or_f_flag,
                 int ndim,
-                __Pyx_TypeInfo *dtype, 
+                __Pyx_TypeInfo *dtype,
                 __Pyx_BufFmt_StackElem stack[],
                 __Pyx_memviewslice *memviewslice) {
 
@@ -191,11 +194,12 @@ static int __Pyx_init_memviewslice(
     for(i=0; i<ndim; i++) {
         memviewslice->strides[i] = buf->strides[i];
         memviewslice->shape[i]   = buf->shape[i];
+        /*
         if(buf->suboffsets) {
             memviewslice->suboffsets[i] = buf->suboffsets[i];
         } else {
             memviewslice->suboffsets[i] = -1;
-        }
+        }*/
     }
 
     __Pyx_INCREF((PyObject *)memview);

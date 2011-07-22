@@ -7,8 +7,8 @@ ctypedef object (*p_sub_expr_func)(object)
 
 # entry points
 
-cpdef p_module(PyrexScanner s, pxd, full_module_name)
-cpdef p_code(PyrexScanner s, level= *)
+cpdef p_module(PyrexScanner s, pxd, full_module_name, ctx=*)
+cpdef p_code(PyrexScanner s, level= *, ctx=*)
 
 # internal parser states
 

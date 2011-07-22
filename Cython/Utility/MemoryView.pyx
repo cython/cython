@@ -11,6 +11,7 @@ cdef extern from "Python.h":
         PyBUF_F_CONTIGUOUS,
         PyBUF_ANY_CONTIGUOUS
 
+
 @cname("__pyx_array")
 cdef class array:
 
@@ -87,10 +88,6 @@ cdef class array:
             self.data = <char *>malloc(self.len)
             if not self.data:
                 raise MemoryError("unable to allocate array data.")
-        else:
-            self.data = NULL
-
-        self.callback_free_data = NULL
 
     def __getbuffer__(self, Py_buffer *info, int flags):
 
@@ -139,6 +136,21 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *
 
 # UtilityCode: MemoryView
 
+# from cpython cimport ...
+cdef extern from "pythread.h":
+
+    ctypedef void *PyThread_type_lock
+
+    PyThread_type_lock PyThread_allocate_lock()
+    void PyThread_free_lock(PyThread_type_lock)
+    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
+    void PyThread_release_lock(PyThread_type_lock) nogil
+
+cdef extern from *:
+    int __Pyx_GetBuffer(object, Py_buffer *, int)
+    void __Pyx_ReleaseBuffer(Py_buffer *)
+
+
 @cname('__pyx_MemviewEnum')
 cdef class Enum(object):
     cdef object name
@@ -147,6 +159,7 @@ cdef class Enum(object):
     def __repr__(self):
         return self.name
 
+
 cdef strided = Enum("<strided axis packing mode>")
 cdef contig = Enum("<contig axis packing mode>")
 cdef follow = Enum("<follow axis packing mode>")
@@ -154,24 +167,28 @@ cdef direct = Enum("<direct axis access mode>")
 cdef ptr = Enum("<ptr axis access mode>")
 cdef full = Enum("<full axis access mode>")
 
-cdef extern from *:
-    int __Pyx_GetBuffer(object, Py_buffer *, int)
-    void __Pyx_ReleaseBuffer(Py_buffer *)
 
 @cname('__pyx_memoryview')
 cdef class memoryview(object):
 
     cdef object obj
     cdef Py_buffer view
-    cdef int gotbuf_flag
+    cdef PyThread_type_lock acqcnt_lock
+    cdef int acquisition_count
 
     def __cinit__(memoryview self, object obj, int flags):
         self.obj = obj
-        __Pyx_GetBuffer(self.obj, &self.view, flags)
+        #self.acqcnt_lock = PyThread_allocate_lock()
+        #if self.acqcnt_lock == NULL:
+        #    raise MemoryError
+
+        __Pyx_GetBuffer(obj, &self.view, flags)
 
     def __dealloc__(memoryview self):
+        #PyThread_free_lock(self.acqcnt_lock)
         self.obj = None
         __Pyx_ReleaseBuffer(&self.view)
+
 
 @cname('__pyx_memoryview_new')
 cdef memoryview memoryview_cwrapper(object o, int flags):
