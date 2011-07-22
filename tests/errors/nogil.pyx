@@ -101,7 +101,6 @@ _ERRORS = u"""
 18:5: Calling gil-requiring function not allowed without gil
 27:9: Calling gil-requiring function not allowed without gil
 29:12: Assignment of Python object not allowed without gil
-31:8: Discarding owned Python object not allowed without gil
 31:16: Constructing complex number not allowed without gil
 33:8: Backquote expression not allowed without gil
 33:8: Discarding owned Python object not allowed without gil
