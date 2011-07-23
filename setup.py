@@ -63,7 +63,7 @@ else:
         'Cython.Plex'     : ['*.pxd'],
         'Cython.Compiler' : ['*.pxd'],
         'Cython.Runtime'  : ['*.pyx', '*.pxd'],
-        'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h'],
+        'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '.cpp'],
         'Cython'          : [ p[7:] for p in pxd_include_patterns ],
         }
 

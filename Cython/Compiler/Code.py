@@ -61,10 +61,10 @@ class UtilityCodeBase(object):
         if utility:
             if cls.is_cython_utility:
                 # Don't forget our line number
-                code = '\n' * begin_lineno + ''.join(lines)
+                code = '' * begin_lineno + ''.join(lines)
             else:
                 # line numbers are not important here
-                code = '\n'.join(lines)
+                code = ''.join(lines)
 
             if type == 'Proto':
                 utility[0] = code
@@ -87,7 +87,7 @@ class UtilityCodeBase(object):
         else:
             comment = '/'
 
-        regex = r'%s{5,20}\s*((\w|\.)+)\s*%s{5,20}' % (comment, comment)
+        regex = r'%s{5,30}\s*((\w|\.)+)\s*%s{5,30}' % (comment, comment)
         utilities = {}
         lines = []
 
@@ -141,11 +141,12 @@ class UtilityCodeBase(object):
 
         Utilities in the file can be specified as follows:
 
-            # UtilityProto: name
-            # UtilityImpl: name
+            ##### MyUtility.proto #####
+            ##### MyUtility #####
 
         for prototypes and implementation respectively. For non-python or
-        -cython files a // comment should be used instead.
+        -cython files /-es should be used instead. 5 to 30 pound signs may be
+        used on either side.
 
         If context is given, the utility is considered a tempita template.
         The context dict (which may be empty) will be unpacked to form
