@@ -382,8 +382,9 @@ class CopyFuncUtilCode(object):
             copy_contents_name=copy_contents_name
         )
 
-        _, copy_code = UtilityCode.load_utility_as_string(
-                    "MemoryView_C.c", "MemviewSliceCopyTemplate", context)
+        _, copy_code = UtilityCode.load_as_string("MemviewSliceCopyTemplate",
+                                                  from_file="MemoryView_C.c",
+                                                  context=context)
         code.put(copy_code)
 
 
@@ -737,17 +738,11 @@ class MemoryViewSliceTransform(CythonTransform):
         return node
 
 
-def load_memview_cy_utility(name, *args, **kwargs):
-    return CythonUtilityCode.load_utility_from_file(
-                        "MemoryView.pyx", name, *args, **kwargs)
+def load_memview_cy_utility(util_code_name, **kwargs):
+    return CythonUtilityCode.load(util_code_name, "MemoryView.pyx", **kwargs)
 
-def load_memview_c_utility(name, *args, **kwargs):
-    return UtilityCode.load_utility_from_file(
-                        "MemoryView_C.c", name, *args, **kwargs)
-
-def load_memview_c_string(name):
-    return UtilityCode.load_utility_as_string("MemoryView_C.c", name)
-
+def load_memview_c_utility(util_code_name, **kwargs):
+    return UtilityCode.load(util_code_name, "MemoryView_C.c", **kwargs)
 
 context = {
     'memview_struct_name': memview_objstruct_cname,
@@ -755,12 +750,12 @@ context = {
     'memviewslice_name': memviewslice_cname,
 }
 memviewslice_declare_code = load_memview_c_utility(
-        name="MemviewSliceStruct",
+        "MemviewSliceStruct",
         proto_block='utility_code_proto_before_types',
         context=context)
 
 memviewslice_init_code = load_memview_c_utility(
-    name="MemviewSliceInit",
+    "MemviewSliceInit",
     context={'BUF_MAX_NDIMS': Options.buffer_max_dims},
     requires=[memviewslice_declare_code],
 )

@@ -1,4 +1,4 @@
-# UtilityCode: TestClass
+########## TestClass ##########
 # These utilities are for testing purposes
 
 cdef extern from *:
@@ -44,19 +44,19 @@ cdef test_call(obj):
 cdef _testclass_new(int value):
     return TestClass(value)
 
-# UtilityCode: TestDep
+########### TestDep ##########
 
 @cname('__pyx_test_dep')
 cdef test_dep(obj):
     print 'test_dep', obj
 
-# UtilityCode: TestScope
+########## TestScope ##########
 
 @cname('__pyx_testscope')
 cdef object _testscope(int value):
     return "hello from cython scope, value=%d" % value
 
-# UtilityCode: View.TestScope
+########## View.TestScope ##########
 
 @cname('__pyx_view_testscope')
 cdef object _testscope(int value):

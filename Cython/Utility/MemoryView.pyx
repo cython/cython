@@ -1,4 +1,4 @@
-# UtilityCode: CythonArray
+########## CythonArray ##########
 
 cdef extern from "stdlib.h":
     void *malloc(size_t)
@@ -134,7 +134,7 @@ cdef class array:
 cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *mode):
     return array(shape, itemsize, format, mode.decode('ASCII'))
 
-# UtilityCode: MemoryView
+########## MemoryView ##########
 
 # from cpython cimport ...
 cdef extern from "pythread.h":

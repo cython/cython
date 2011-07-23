@@ -103,9 +103,8 @@ def create_cython_scope(context, create_testscope):
 
 # Load test utilities for the cython scope
 
-def load_testscope_utility(cython_util_name, *args, **kwargs):
-    return CythonUtilityCode.load_utility_from_file(
-                    "TestCythonScope.pyx", cython_util_name, *args, **kwargs)
+def load_testscope_utility(cy_util_name, **kwargs):
+    return CythonUtilityCode.load(cy_util_name, "TestCythonScope.pyx", **kwargs)
 
 
 undecorated_methods_protos = UtilityCode(proto=u"""

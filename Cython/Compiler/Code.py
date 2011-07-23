@@ -44,8 +44,11 @@ uncachable_builtins = [
     'WindowsError',
     ]
 
-Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-Utility_dir = os.path.join(Cython_dir, "Utility")
+def get_utility_dir():
+    # make this a function and not global variables:
+    # http://trac.cython.org/cython_trac/ticket/475
+    Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(Cython_dir, "Utility")
 
 class UtilityCodeBase(object):
 
@@ -53,7 +56,7 @@ class UtilityCodeBase(object):
 
     _utility_cache = {}
 
-    @classmethod
+    # @classmethod
     def _add_utility(cls, utility, type, lines, begin_lineno):
         if utility:
             if cls.is_cython_utility:
@@ -68,40 +71,52 @@ class UtilityCodeBase(object):
             else:
                 utility[1] = code
 
-    @classmethod
+    _add_utility = classmethod(_add_utility)
+
+    # @classmethod
     def load_utilities_from_file(cls, path):
         utilities = cls._utility_cache.get(path)
         if utilities:
             return utilities
 
-        filename = os.path.join(Utility_dir, path)
-        f = codecs.open(filename, encoding='UTF-8')
+        filename = os.path.join(get_utility_dir(), path)
 
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
         else:
-            comment = '//'
+            comment = '/'
 
-        regex = r'%s\s*Utility(Proto|Code)\s*:\s*((\w|\.)+)\s*' % comment
+        regex = r'%s{5,20}\s*((\w|\.)+)\s*%s{5,20}' % (comment, comment)
         utilities = {}
         lines = []
 
         utility = type = None
         begin_lineno = 0
-        for lineno, line in enumerate(f):
-            m = re.search(regex, line)
-            if m:
-                cls._add_utility(utility, type, lines, begin_lineno)
 
-                begin_lineno = lineno + 1
-                type, name = m.group(1), m.group(2)
-                utility = utilities.setdefault(name, [None, None])
-                utilities[name] = utility
+        f = Utils.open_source_file(filename, encoding='UTF-8')
+        try:
+            for lineno, line in enumerate(f):
+                m = re.search(regex, line)
+                if m:
+                    cls._add_utility(utility, type, lines, begin_lineno)
 
-                lines = []
-            else:
-                lines.append(line)
+                    begin_lineno = lineno + 1
+                    name = m.group(1)
+                    if name.endswith(".proto"):
+                        name = name[:-6]
+                        type = 'Proto'
+                    else:
+                        type = 'Code'
+
+                    utility = utilities.setdefault(name, [None, None])
+                    utilities[name] = utility
+
+                    lines = []
+                else:
+                    lines.append(line)
+        finally:
+            f.close()
 
         if not utility:
             raise ValueError("Empty utility code file")
@@ -114,12 +129,15 @@ class UtilityCodeBase(object):
         cls._utility_cache[path] = utilities
         return utilities
 
-    @classmethod
-    def load_utility_from_file(cls, path, util_code_name,
-                               context=None, **kwargs):
+    load_utilities_from_file = classmethod(load_utilities_from_file)
+
+    # @classmethod
+    def load(cls, util_code_name, from_file=None, context=None, **kwargs):
         """
-        Load a utility code from a file specified by path (relative to
-        Cython/Utility) and name util_code_name.
+        Load a utility code from a file specified by from_file (relative to
+        Cython/Utility) and name util_code_name. If from_file is not given,
+        load it from the file util_code_name.*. There should be only one file
+        matched by this pattern.
 
         Utilities in the file can be specified as follows:
 
@@ -137,7 +155,7 @@ class UtilityCodeBase(object):
         one should pass in the 'name' keyword argument to be used for name
         mangling of such entries.
         """
-        proto, impl = cls.load_utility_as_string(path, util_code_name, context)
+        proto, impl = cls.load_as_string(util_code_name, from_file, context)
 
         if proto is not None:
             kwargs['proto'] = proto
@@ -145,36 +163,40 @@ class UtilityCodeBase(object):
             kwargs['impl'] = impl
 
         if 'name' not in kwargs:
-            kwargs['name'] = os.path.splitext(path)[0]
+            if from_file:
+                kwargs['name'] = os.path.splitext(from_file)[0]
+            else:
+                kwargs['name'] = util_code_name
 
         return cls(**kwargs)
 
-    @classmethod
-    def load_utility_as_string(cls, path, util_code_name, context=None):
+    load = classmethod(load)
+
+    # @classmethod
+    def load_as_string(cls, util_code_name, from_file=None, context=None):
         """
         Load a utility code as a string. Returns (proto, implementation)
         """
-        utilities = cls.load_utilities_from_file(path)
+        if from_file is None:
+            files = glob.glob(os.path.join(get_utility_dir(),
+                                           util_code_name + '.*'))
+            if len(files) != 1:
+                raise ValueError("Need exactly one utility file")
+
+            from_file, = files
+
+        utilities = cls.load_utilities_from_file(from_file)
 
         proto, impl = utilities[util_code_name]
-        if proto:
-            if context is not None:
+        if context is not None:
+            if proto:
                 proto = tempita.sub(proto, **context)
-
-        if impl:
-            if context is not None:
+            if impl:
                 impl = tempita.sub(impl, **context)
 
         return proto, impl
 
-    @classmethod
-    def load_utility(cls, name, context=None, **kwargs):
-        "Load utility name with context from a utility file name.suffix"
-        files = glob.glob(os.path.join(Utility_dir, name + '.*'))
-        if len(files) != 1:
-            raise ValueError("Need exactly one utility file")
-
-        return cls.load_utilities_from_file(files[0], name, context, **kwargs)
+    load_as_string = classmethod(load_as_string)
 
     def __str__(self):
         return "<%s(%s)" % (type(self).__name__, self.name)

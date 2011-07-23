@@ -70,7 +70,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         #    while the generated node trees can be altered in the compilation of a
         #    single file.
         # Hence, delay any processing until later.
-        self.pyx = impl
+        self.impl = impl
         self.name = name
         self.prefix = prefix
         self.requires = requires or []
@@ -86,7 +86,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context = CythonUtilityCodeContext(self.name)
         context.prefix = self.prefix
         #context = StringParseContext(self.name)
-        tree = parse_from_strings(self.name, self.pyx, context=context,
+        tree = parse_from_strings(self.name, self.impl, context=context,
                                   allow_struct_enum_decorator=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 

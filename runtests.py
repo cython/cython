@@ -1156,7 +1156,11 @@ class TagsSelector:
 class RegExSelector:
     
     def __init__(self, pattern_string):
-        self.pattern = re.compile(pattern_string, re.I|re.U)
+        try:
+            self.pattern = re.compile(pattern_string, re.I|re.U)
+        except re.error:
+            print('Invalid pattern: %r' % pattern_string)
+            raise
 
     def __call__(self, testname, tags=None):
         return self.pattern.search(testname)

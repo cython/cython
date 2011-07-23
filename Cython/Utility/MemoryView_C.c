@@ -1,4 +1,4 @@
-// UtilityProto: MemviewSliceStruct
+////////// MemviewSliceStruct.proto //////////
 
 /* memoryview slice struct */
 
@@ -11,7 +11,7 @@ typedef struct {
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
 
-// UtilityProto: MemviewSliceInit
+////////// MemviewSliceInit.proto //////////
 
 #define __Pyx_BUF_MAX_NDIMS %(BUF_MAX_NDIMS)d
 
@@ -36,7 +36,7 @@ static int __Pyx_init_memviewslice(
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
 
-// UtilityCode: MemviewSliceInit
+////////// MemviewSliceInit //////////
 
 static int __Pyx_ValidateAndInit_memviewslice(
                 struct __pyx_memoryview_obj *memview,
@@ -218,7 +218,7 @@ no_fail:
     return retval;
 }
 
-// UtilityCode: MemviewSliceCopyTemplate
+////////// MemviewSliceCopyTemplate //////////
 
 static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
 
