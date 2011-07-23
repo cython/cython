@@ -7563,10 +7563,14 @@ class CoerceToPyTypeNode(CoercionNode):
     is_temp = 1
 
     def __init__(self, arg, env, type=py_object_type):
-        CoercionNode.__init__(self, arg)
         if not arg.type.create_to_py_utility_code(env):
-            error(arg.pos,
-                  "Cannot convert '%s' to Python object" % arg.type)
+            error(arg.pos, "Cannot convert '%s' to Python object" % arg.type)
+        elif arg.type.is_complex:
+            # special case: complex coercion is so complex that it
+            # uses a macro ("__pyx_PyComplex_FromComplex()"), for
+            # which the argument must be simple
+            arg = arg.coerce_to_simple(env)
+        CoercionNode.__init__(self, arg)
         if type is py_object_type:
             # be specific about some known types
             if arg.type.is_string:
