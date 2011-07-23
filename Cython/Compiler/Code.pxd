@@ -2,7 +2,7 @@
 cimport cython
 
 cdef class UtilityCodeBase(object):
-    pass
+    cdef public object name
 
 cdef class UtilityCode(UtilityCodeBase):
     cdef public object proto

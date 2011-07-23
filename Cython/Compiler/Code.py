@@ -59,12 +59,8 @@ class UtilityCodeBase(object):
     # @classmethod
     def _add_utility(cls, utility, type, lines, begin_lineno):
         if utility:
-            if cls.is_cython_utility:
-                # Don't forget our line number
-                code = '' * begin_lineno + ''.join(lines)
-            else:
-                # line numbers are not important here
-                code = ''.join(lines)
+            # Remember line numbers as least until after templating
+            code = '' * begin_lineno + ''.join(lines)
 
             if type == 'Proto':
                 utility[0] = code
@@ -96,27 +92,33 @@ class UtilityCodeBase(object):
 
         f = Utils.open_source_file(filename, encoding='UTF-8')
         try:
-            for lineno, line in enumerate(f):
-                m = re.search(regex, line)
-                if m:
-                    cls._add_utility(utility, type, lines, begin_lineno)
-
-                    begin_lineno = lineno + 1
-                    name = m.group(1)
-                    if name.endswith(".proto"):
-                        name = name[:-6]
-                        type = 'Proto'
-                    else:
-                        type = 'Code'
-
-                    utility = utilities.setdefault(name, [None, None])
-                    utilities[name] = utility
-
-                    lines = []
-                else:
-                    lines.append(line)
+            all_lines = f.readlines() # py23
         finally:
             f.close()
+
+        for lineno, line in enumerate(all_lines):
+            # apparently 'line' may be without trailing newline
+            # (NormalisedNewlineStream.readlines())
+            line = line.rstrip() + '\n'
+
+            m = re.search(regex, line)
+            if m:
+                cls._add_utility(utility, type, lines, begin_lineno)
+
+                begin_lineno = lineno + 1
+                name = m.group(1)
+                if name.endswith(".proto"):
+                    name = name[:-6]
+                    type = 'Proto'
+                else:
+                    type = 'Code'
+
+                utility = utilities.setdefault(name, [None, None])
+                utilities[name] = utility
+
+                lines = []
+            else:
+                lines.append(line)
 
         if not utility:
             raise ValueError("Empty utility code file")
@@ -190,12 +192,19 @@ class UtilityCodeBase(object):
 
         proto, impl = utilities[util_code_name]
         if context is not None:
+            if '__name' not in context:
+                context['__name'] = util_code_name
+
             if proto:
                 proto = tempita.sub(proto, **context)
             if impl:
                 impl = tempita.sub(impl, **context)
 
-        return proto, impl
+        if cls.is_cython_utility:
+            # Remember line numbers
+            return proto, impl
+
+        return proto and proto.lstrip(), impl and impl.lstrip()
 
     load_as_string = classmethod(load_as_string)
 

@@ -565,7 +565,7 @@ class TemplateDef(object):
             else:
                 raise TypeError(
                     'Extra position arguments: %s'
-                    % ', '.join(repr(v) for v in args))
+                    % ', '.join([repr(v) for v in args]))
         for name, value_expr in defaults.iteritems():
             if name not in values:
                 values[name] = self._template._eval(
@@ -660,6 +660,7 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
     chunks = []
     last = 0
     last_pos = (1, 1)
+
     token_re = re.compile(r'%s|%s' % (re.escape(delimeters[0]),
                                       re.escape(delimeters[1])))
     for match in token_re.finditer(s):

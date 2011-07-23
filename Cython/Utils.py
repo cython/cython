@@ -130,6 +130,8 @@ class NormalisedNewlineStream(object):
     while data:
         content.append(data)
         data = self.read(0x1000)
+
+    # TODO: FIXME: Shouldn't this return lines with their newline appended??
     return u''.join(content).split(u'\n')
 
 io = None
