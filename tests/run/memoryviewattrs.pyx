@@ -54,7 +54,7 @@ def test_copy_to():
     cdef int *from_dta = <int*>from_mvs._data
     for i in range(2*2*2):
         print from_dta[i],
-    print 
+    print
     # for i in range(2*2*2):
         # from_dta[i] = i
 
@@ -63,10 +63,10 @@ def test_copy_to():
     cdef int *to_data = <int*>to_mvs._data
     for i in range(2*2*2):
         print from_dta[i],
-    print 
+    print
     for i in range(2*2*2):
         print to_data[i],
-    print 
+    print
 
 @testcase
 @cython.nonecheck(True)

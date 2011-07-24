@@ -1,5 +1,6 @@
 ////////// MemviewSliceStruct.proto //////////
 
+
 /* memoryview slice struct */
 
 typedef struct {
@@ -10,6 +11,7 @@ typedef struct {
   Py_ssize_t strides[{{max_dims}}];
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
+
 
 ////////// MemviewSliceInit.proto //////////
 

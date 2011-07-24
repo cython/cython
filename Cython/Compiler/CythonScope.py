@@ -129,6 +129,6 @@ cython_test_extclass_utility_code = \
 cythonview_testscope_utility_code = load_testscope_utility("View.TestScope")
 
 view_utility_code = MemoryView.load_memview_cy_utility(
-        "MemoryView", requires=(Buffer.GetAndReleaseBufferUtilityCode(),))
+        "View.MemoryView", requires=(Buffer.GetAndReleaseBufferUtilityCode(),))
 
 cython_array_utility_code = MemoryView.load_memview_cy_utility("CythonArray")

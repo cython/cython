@@ -30,20 +30,20 @@ memview_full_access = "PyBUF_FULL"
 #memview_strided_access = "PyBUF_STRIDED"
 memview_strided_access = "PyBUF_RECORDS"
 
-MEMVIEW_DIRECT = 1
-MEMVIEW_PTR    = 2
-MEMVIEW_FULL   = 4
-MEMVIEW_CONTIG = 8
-MEMVIEW_STRIDED= 16
-MEMVIEW_FOLLOW = 32
+MEMVIEW_DIRECT = '__Pyx_MEMVIEW_DIRECT'
+MEMVIEW_PTR    = '__Pyx_MEMVIEW_PTR'
+MEMVIEW_FULL   = '__Pyx_MEMVIEW_FULL'
+MEMVIEW_CONTIG = '__Pyx_MEMVIEW_CONTIG'
+MEMVIEW_STRIDED= '__Pyx_MEMVIEW_STRIDED'
+MEMVIEW_FOLLOW = '__Pyx_MEMVIEW_FOLLOW'
 
 _spec_to_const = {
+        'direct' : MEMVIEW_DIRECT,
+        'ptr'    : MEMVIEW_PTR,
+        'full'   : MEMVIEW_FULL,
         'contig' : MEMVIEW_CONTIG,
         'strided': MEMVIEW_STRIDED,
         'follow' : MEMVIEW_FOLLOW,
-        'direct' : MEMVIEW_DIRECT,
-        'ptr'    : MEMVIEW_PTR,
-        'full'   : MEMVIEW_FULL
         }
 
 memview_name = u'memoryview'
@@ -54,7 +54,8 @@ memviewslice_cname = u'__Pyx_memviewslice'
 def specs_to_code(specs):
     arr = []
     for access, packing in specs:
-        arr.append("(%s | %s)" % (_spec_to_const[access], _spec_to_const[packing]))
+        arr.append("(%s | %s)" % (_spec_to_const[access],
+                                  _spec_to_const[packing]))
     return arr
 
 def put_init_entry(mv_cname, code):
@@ -563,35 +564,18 @@ def get_axes_specs(env, axes):
             # all others are cf_packing.
             axes_specs.append((cf_access, 'contig'))
 
-        elif isinstance(axis.step, IntBinopNode):
-            if is_c_contig or is_f_contig:
-                raise CompileError(axis.step.pos, CF_ERR)
-            if axis.step.operator != u'&':
-                raise CompileError(axis.step.pos, NOT_AMP_ERR)
-            operand1, operand2 = axis.step.operand1, axis.step.operand2
-            spec1, spec2 = [_get_resolved_spec(env, op)
-                    for op in (operand1, operand2)]
-            if spec1 in access_specs and spec2 in packing_specs:
-                axes_specs.append((spec1.name, spec2.name))
-            elif spec2 in access_specs and spec1 in packing_specs:
-                axes_specs.append((spec2.name, spec1.name))
-            else:
-                raise CompileError(axis.step.pos, INVALID_ERR)
-        
         elif isinstance(axis.step, (NameNode, AttributeNode)):
             if is_c_contig or is_f_contig:
                 raise CompileError(axis.step.pos, CF_ERR)
-            resolved_spec = _get_resolved_spec(env, axis.step)
-            if resolved_spec in access_specs:
-                axes_specs.append((resolved_spec.name, default_packing))
-            elif resolved_spec in packing_specs:
-                axes_specs.append((default_access, resolved_spec.name))
+
+            entry = _get_resolved_spec(env, axis.step)
+            if entry.name in view_constant_to_access_packing:
+                axes_specs.append(view_constant_to_access_packing[entry.name])
             else:
-                raise CompileError(axis.step.pos, INVALID_ERR)
+                raise CompilerError(axis.step.pos, INVALID_ERR)
 
         else:
             raise CompileError(axis.step.pos, INVALID_ERR)
-
 
     validate_axes_specs(axes[0].start.pos, axes_specs)
 
@@ -635,6 +619,19 @@ def get_mode(specs):
             return 'full'
 
     return 'strided'
+
+view_constant_to_access_packing = {
+    'generic':              ('full',   'strided'),
+    'strided':              ('direct', 'strided'),
+    'indirect':             ('ptr',    'strided'),
+    'generic_contiguous':   ('full',   'contig'),
+    'contiguous':           ('direct', 'contig'),
+    'indirect_contiguous':  ('ptr',    'contig'),
+}
+
+def get_access_packing(view_scope_constant):
+    if view_scope_constant.name == 'generic':
+        return 'full',
 
 def validate_axes_specs(pos, specs):
 

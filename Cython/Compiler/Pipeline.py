@@ -192,6 +192,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         FinalOptimizePhase(context),
         GilCheck(),
         UseUtilityCodeDefinitions(context),
+#        PrintTree(),
         ]
     filtered_stages = []
     for s in stages:

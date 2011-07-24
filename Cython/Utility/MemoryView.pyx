@@ -134,7 +134,7 @@ cdef class array:
 cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *mode):
     return array(shape, itemsize, format, mode.decode('ASCII'))
 
-########## MemoryView ##########
+########## View.MemoryView ##########
 
 # from cpython cimport ...
 cdef extern from "pythread.h":
@@ -159,14 +159,14 @@ cdef class Enum(object):
     def __repr__(self):
         return self.name
 
+cdef generic = Enum("<strided and direct or indirect>")
+cdef strided = Enum("<strided and direct>") # default
+cdef indirect = Enum("<strided and indirect>")
+cdef generic_contiguous = Enum("<contiguous and direct or indirect>")
+cdef contiguous = Enum("<contiguous and direct>")
+cdef indirect_contiguous = Enum("<contiguous and indirect>")
 
-cdef strided = Enum("<strided axis packing mode>")
-cdef contig = Enum("<contig axis packing mode>")
-cdef follow = Enum("<follow axis packing mode>")
-cdef direct = Enum("<direct axis access mode>")
-cdef ptr = Enum("<ptr axis access mode>")
-cdef full = Enum("<full axis access mode>")
-
+# 'follow' is implied when the first or last axis is ::1
 
 @cname('__pyx_memoryview')
 cdef class memoryview(object):

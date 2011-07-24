@@ -435,7 +435,6 @@ class MemoryViewSliceType(PyrexType):
                     cname='suboffsets',
                     is_cdef=1)
 
-            mangle_dtype = MemoryView.mangle_dtype_name(self.dtype)
             ndim = len(self.axes)
 
             to_axes_c = [('direct', 'contig')]

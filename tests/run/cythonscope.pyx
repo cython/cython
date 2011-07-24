@@ -151,16 +151,16 @@ def test_cython_utility_dep():
 def viewobjs():
     """
     >>> viewobjs()
-    <strided axis packing mode>
-    <contig axis packing mode>
-    <follow axis packing mode>
-    <direct axis access mode>
-    <ptr axis access mode>
-    <full axis access mode>
+    <strided and direct or indirect>
+    <strided and direct>
+    <strided and indirect>
+    <contiguous and direct or indirect>
+    <contiguous and direct>
+    <contiguous and indirect>
     """
+    print cython.view.generic
     print cython.view.strided
-    print cython.view.contig
-    print cython.view.follow
-    print cython.view.direct
-    print cython.view.ptr
-    print cython.view.full
+    print cython.view.indirect
+    print cython.view.generic_contiguous
+    print cython.view.contiguous
+    print cython.view.indirect_contiguous

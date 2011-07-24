@@ -60,7 +60,7 @@ class UtilityCodeBase(object):
     def _add_utility(cls, utility, type, lines, begin_lineno):
         if utility:
             # Remember line numbers as least until after templating
-            code = '' * begin_lineno + ''.join(lines)
+            code = '\n' * begin_lineno + ''.join(lines)
 
             if type == 'Proto':
                 utility[0] = code
@@ -97,10 +97,6 @@ class UtilityCodeBase(object):
             f.close()
 
         for lineno, line in enumerate(all_lines):
-            # apparently 'line' may be without trailing newline
-            # (NormalisedNewlineStream.readlines())
-            line = line.rstrip() + '\n'
-
             m = re.search(regex, line)
             if m:
                 cls._add_utility(utility, type, lines, begin_lineno)
