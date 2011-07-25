@@ -990,7 +990,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not type.scope:
             return
         code.putln(self.sue_predeclaration(type, "struct", type.objstruct_cname))
-    
+
     def generate_objstruct_definition(self, type, code):
         code.mark_pos(type.pos)
         # Generate object struct definition for an
@@ -1088,7 +1088,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_variable_definitions(self, env, code):
         for entry in env.var_entries:
-            if (not entry.in_cinclude and 
+            if (not entry.in_cinclude and
                 entry.visibility == "public"):
                 code.put(entry.type.declaration_code(entry.cname))
                 if entry.init is not None:

@@ -75,7 +75,7 @@ class CythonUtilityCode(object):
         # which when copied into the main ModuleNode overwrites
         # any __test__ in user code; not desired
         excludes = [AutoTestDictTransform]
-        
+
         import Pipeline, ParseTreeTransforms
         context = CythonUtilityCodeContext(self.name)
         context.prefix = self.prefix
