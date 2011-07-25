@@ -587,7 +587,12 @@ class ExprNode(Node):
         if dst_type.is_memoryviewslice:
             import MemoryView
             if not src.type.is_memoryviewslice:
-                src = CoerceToMemViewSliceNode(src, dst_type, env)
+                if src.type.is_pyobject:
+                    src = CoerceToMemViewSliceNode(src, dst_type, env)
+                else:
+                    error(self.pos,
+                          "Cannot convert '%s' to memoryviewslice" %
+                                                                (src_type,))
             elif not MemoryView.src_conforms_to_dst(src.type, dst_type):
                 error(self.pos, "Memoryview '%s' not conformable to memoryview '%s'." %
                         (src.type, dst_type))
@@ -1282,6 +1287,7 @@ class NameNode(AtomicExprNode):
     #  cf_is_null      boolean   Is uninitialized before this node
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
     #  allow_null      boolean   Don't raise UnboundLocalError
+    #  nogil           boolean   Whether it is used in a nogil context
 
     is_name = True
     is_cython_module = False
@@ -1293,6 +1299,7 @@ class NameNode(AtomicExprNode):
     cf_maybe_null = True
     cf_is_null = False
     allow_null = False
+    nogil = False
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1452,6 +1459,7 @@ class NameNode(AtomicExprNode):
             self.is_used_as_rvalue = 1
 
     def nogil_check(self, env):
+        self.nogil = True
         if self.is_used_as_rvalue:
             entry = self.entry
             if entry.is_builtin:
@@ -1655,9 +1663,16 @@ class NameNode(AtomicExprNode):
         else:
             if self.type.is_memoryviewslice:
                 import MemoryView
-                MemoryView.gen_acquire_memoryviewslice(rhs, self.type,
+                MemoryView.put_acquire_memoryviewslice(rhs, self.type,
                         self.entry.is_cglobal, self.result(), self.pos, code)
-                # self.generate_acquire_memoryviewslice(rhs, code)
+
+                if isinstance(rhs, CoerceToMemViewSliceNode):
+                    # We had a new reference, the lhs now has another,
+                    # dispose of ours.
+                    # code.put_xdecref_memoryviewslice(rhs.result())
+                    code.put_decref("%s.memview" % rhs.result(),
+                                    cython_memoryview_ptr_type,
+                                    nanny=False)
 
             elif self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
@@ -1736,12 +1751,17 @@ class NameNode(AtomicExprNode):
                 '__Pyx_DelAttrString(%s, "%s")' % (
                     Naming.module_cname,
                     self.entry.name))
-        elif self.entry.type.is_pyobject:
+        elif self.entry.type.is_pyobject or self.entry.type.is_memoryviewslice:
             if not self.cf_is_null:
                 if self.cf_maybe_null:
                     code.put_error_if_unbound(self.pos, self.entry)
-                code.put_decref(self.result(), self.ctype())
-                code.putln('%s = NULL;' % self.result())
+
+                if self.entry.type.is_pyobject:
+                    code.put_decref(self.result(), self.ctype())
+                    code.putln('%s = NULL;' % self.result())
+                else:
+                    code.put_xdecref_memoryviewslice(self.entry.cname,
+                                                     have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -2347,10 +2367,12 @@ class IndexNode(ExprNode):
         buffer_access = False
         memoryviewslice_access = False
 
-        if (self.base.type.is_memoryviewslice and not self.indices and
+        is_memslice = self.base.type.is_memoryviewslice
+
+        if (is_memslice and not self.indices and
                 isinstance(self.index, EllipsisNode)):
             memoryviewslice_access = True
-        elif self.base.type.is_buffer or self.base.type.is_memoryviewslice:
+        elif self.base.type.is_buffer or is_memslice:
             if self.indices:
                 indices = self.indices
             else:
@@ -2358,6 +2380,7 @@ class IndexNode(ExprNode):
                     indices = self.index.args
                 else:
                     indices = [self.index]
+
             if len(indices) == self.base.type.ndim:
                 buffer_access = True
                 skip_child_analysis = True
@@ -2365,14 +2388,9 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
+
             if buffer_access:
                 assert hasattr(self.base, "entry") # Must be a NameNode-like node
-        
-#        if self.base.type.is_memoryviewslice:
-#            assert hasattr(self.base, "entry")
-#            if self.indices or not isinstance(self.index, EllipsisNode):
-#                error(self.pos, "Memoryviews currently support ellipsis indexing only.")
-#            else: memoryviewslice_access = True
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
@@ -2386,7 +2404,10 @@ class IndexNode(ExprNode):
 
             if getting and self.type.is_pyobject:
                 self.is_temp = True
-            if setting:
+
+            if setting and self.base.type.is_memoryviewslice:
+                self.type.writable_needed = True
+            elif setting:
                 if not self.base.entry.type.writable:
                     error(self.pos, "Writing to readonly buffer")
                 else:
@@ -3990,8 +4011,8 @@ class AttributeNode(ExprNode):
                 import MemoryView
                 MemoryView.put_assign_to_memviewslice(select_code, rhs.result(), self.type,
                         pos=self.pos, code=code)
-                if rhs.is_temp:
-                    code.put_xdecref_clear("%s.memview" % rhs.result(), cython_memoryview_ptr_type)
+                #if rhs.is_temp:
+                #    code.put_xdecref_clear("%s.memview" % rhs.result(), cython_memoryview_ptr_type)
             if not self.type.is_memoryviewslice:
                 code.putln(
                     "%s = %s;" % (
@@ -7647,46 +7668,14 @@ class CoerceToMemViewSliceNode(CoercionNode):
         self.type = dst_type
         self.env = env
         self.is_temp = 1
+        self.arg = arg
 
     def generate_result_code(self, code):
-        import MemoryView, Buffer
-        memviewobj = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-        buf_flag = MemoryView.get_buf_flag(self.type.axes)
-        code.putln("%s = (PyObject *) __pyx_memoryview_new(%s, %s);" %
-                                (memviewobj, self.arg.py_result(), buf_flag))
-        code.putln(code.error_goto_if_PyErr(self.pos))
-        ndim = len(self.type.axes)
-        spec_int_arr = code.funcstate.allocate_temp(
-                PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),
-                manage_ref=False)
-        specs_code = MemoryView.specs_to_code(self.type.axes)
-        for idx, cspec in enumerate(specs_code):
-            code.putln("%s[%d] = %s;" % (spec_int_arr, idx, cspec))
+        self.type.create_from_py_utility_code(self.env)
+        code.putln("%s = %s(%s);" % (self.result(),
+                                     self.type.from_py_function,
+                                     self.arg.py_result()))
 
-        code.globalstate.use_utility_code(Buffer.acquire_utility_code)
-        code.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        dtype_typeinfo = Buffer.get_type_information_cname(code, self.type.dtype)
-
-        MemoryView.put_init_entry(self.result(), code)
-        code.putln("{")
-        code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" %
-                self.type.dtype.struct_nesting_depth())
-        result = self.result()
-        if self.type.is_c_contig:
-            c_or_f_flag = "__Pyx_IS_C_CONTIG"
-        elif self.type.is_f_contig:
-            c_or_f_flag = "__Pyx_IS_F_CONTIG"
-        else:
-            c_or_f_flag = "0"
-        code.putln(code.error_goto_if("-1 == __Pyx_ValidateAndInit_memviewslice("
-                        "(struct __pyx_memoryview_obj *) %(memviewobj)s,"
-                        " %(spec_int_arr)s, %(c_or_f_flag)s, %(ndim)d,"
-                        " &%(dtype_typeinfo)s, __pyx_stack, &%(result)s)" % locals(), self.pos))
-        code.putln("}")
-        code.put_gotref(
-                code.as_pyobject("%s.memview" % self.result(), cython_memoryview_ptr_type))
-        code.funcstate.release_temp(memviewobj)
-        code.funcstate.release_temp(spec_int_arr)
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.

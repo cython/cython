@@ -79,6 +79,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                          scope.python_include_files)
 
         if merge_scope:
+            # Ensure that we don't generate import code for these entries!
+            for entry in scope.c_class_entries:
+                entry.type.module_name = self.full_module_name
+
             self.scope.merge_in(scope)
 
     def analyse_declarations(self, env):
@@ -345,7 +349,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_declarations_for_modules(env, modules, globalstate)
         h_code.write('\n')
 
-        for utilcode in env.utility_code_list:
+        for utilcode in env.utility_code_list[:]:
             globalstate.use_utility_code(utilcode)
         globalstate.finalize_main_c_code()
 
@@ -2255,7 +2259,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate type import code for extern extension types
         # and type ready code for non-extern ones.
         for entry in env.c_class_entries:
-            if entry.visibility == 'extern':
+            if entry.visibility == 'extern' and not entry.utility_code_definition:
                 self.generate_type_import_code(env, entry.type, entry.pos, code)
             else:
                 self.generate_base_type_import_code(env, entry, code)
@@ -2265,8 +2269,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
-        if base_type and base_type.module_name != env.qualified_name \
-               and not base_type.is_builtin_type:
+        if (base_type and base_type.module_name != env.qualified_name and not
+               base_type.is_builtin_type and not entry.utility_code_definition):
             self.generate_type_import_code(env, base_type, self.pos, code)
 
     def use_type_import_utility_code(self, env):

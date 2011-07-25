@@ -15,7 +15,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
         entry.used = True
         return super(NonManglingModuleScope, self).add_imported_entry(
                                                         name, entry, pos)
-    
+
     def mangle(self, prefix, name=None):
         if name:
             if prefix in (Naming.typeobj_prefix, Naming.func_prefix, Naming.var_prefix, Naming.pyfunc_prefix):
@@ -63,7 +63,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     is_cython_utility = True
 
-    def __init__(self, impl, name="__pyxutil", prefix="", requires=None):
+    def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
+                 file=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -72,6 +73,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         # Hence, delay any processing until later.
         self.impl = impl
         self.name = name
+        self.file = file
         self.prefix = prefix
         self.requires = requires or []
 
@@ -113,10 +115,11 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     def put_code(self, output):
         pass
 
-    def declare_in_scope(self, dest_scope, used=False):
+    def declare_in_scope(self, dest_scope, used=False, modname=None):
         """
         Declare all entries from the utility code in dest_scope. Code will only
-        be included for used entries.
+        be included for used entries. If module_name is given, declare the
+        type entries with that name.
         """
         tree = self.get_tree(entries_only=True)
 
@@ -129,6 +132,10 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         for name, entry in entries.iteritems():
             entry.utility_code_definition = self
             entry.used = used
+
+            if modname and entry.type.is_extension_type:
+                entry.qualified_name = modname
+                entry.type.module_name = modname
 
         dest_scope.merge_in(tree.scope, merge_unused=True)
         tree.scope = dest_scope

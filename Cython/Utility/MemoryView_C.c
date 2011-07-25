@@ -12,6 +12,9 @@ typedef struct {
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
 
+/////////////// ObjectToMemviewSlice.proto ///////////////
+{{# __Pyx_PyObject_to_MemoryviewSlice_<count> }}
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
 
 ////////// MemviewSliceInit.proto //////////
 
@@ -27,6 +30,7 @@ typedef struct {
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
+
 /* #define __PYX_MEMSLICE_GETDATA(SLICE) ((char *) SLICE->memview->view->buf) */
 
 static int __Pyx_ValidateAndInit_memviewslice(struct __pyx_memoryview_obj *memview,
@@ -37,6 +41,49 @@ static int __Pyx_init_memviewslice(
                 struct __pyx_memoryview_obj *memview,
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
+
+#define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
+#define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
+static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
+static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
+
+/////////////// MemviewSliceIndex.proto ///////////////
+
+static CYTHON_INLINE char *__pyx_memviewslice_index_full(char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
+static CYTHON_INLINE char *__pyx_memviewslice_index_full_contig(char *bufp, Py_ssize_t suboffset);
+
+
+/////////////// ObjectToMemviewSlice ///////////////
+
+{{#__Pyx_PyObject_to_MemoryviewSlice_<count>}}
+
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
+    {{memviewslice_name}} result;
+    result.memview = NULL;
+    result.data = NULL;
+    struct __pyx_memoryview_obj *memview =  \
+        (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}});
+    __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
+    int axes_specs[] = { {{axes_specs}} };
+    int retcode;
+
+    if (unlikely(!memview))
+        goto __pyx_fail;
+
+    retcode = __Pyx_ValidateAndInit_memviewslice(memview, axes_specs,
+            {{c_or_f_flag}}, {{ndim}}, &{{dtype_typeinfo}}, stack, &result);
+
+    if (unlikely(retcode == -1))
+        goto __pyx_fail;
+
+    memview->acquisition_count = 1;
+    return result;
+__pyx_fail:
+    Py_XDECREF(memview);
+    result.memview = NULL;
+    result.data = NULL;
+    return result;
+}
 
 ////////// MemviewSliceInit //////////
 
@@ -203,8 +250,6 @@ static int __Pyx_init_memviewslice(
         }
     }
 
-    __Pyx_INCREF((PyObject *)memview);
-    __Pyx_GIVEREF((PyObject *)memview);
     memviewslice->memview = memview;
     memviewslice->data = (char *)buf->buf;
     retval = 0;
@@ -218,6 +263,62 @@ fail:
 no_fail:
     __Pyx_RefNannyFinishContext();
     return retval;
+}
+
+static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
+                                            int have_gil, int lineno) {
+    int first_time;
+    struct {{memview_struct_name}} *memview = memslice->memview;
+    if (!memview) {
+        char msg[50];
+        snprintf(msg, 50, "memoryslice is not initialized (line %d)", lineno);
+        Py_FatalError(msg);
+    }
+
+    PyThread_acquire_lock(memview->lock, 1);
+    first_time = (memview->acquisition_count++ == 0);
+    PyThread_release_lock(memview->lock);
+
+    /* printf("INCREF %d: acquisition_count=%d, refcount=%d\n", lineno,
+           memview->acquisition_count, memview->ob_refcnt); */
+
+    if (first_time) {
+        if (have_gil) {
+            Py_INCREF((PyObject *) memview);
+        } else {
+            PyGILState_STATE _gilstate = PyGILState_Ensure();
+            Py_INCREF((PyObject *) memview);
+            PyGILState_Release(_gilstate);
+        }
+    }
+}
+
+static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
+                                             int have_gil, int lineno) {
+    int last_time;
+    struct {{memview_struct_name}} *memview = memslice->memview;
+
+    if (!memview) {
+        return;
+    }
+
+    PyThread_acquire_lock(memview->lock, 1);
+    last_time = (memview->acquisition_count-- == 1);
+    PyThread_release_lock(memview->lock);
+
+    /* printf("DECREF %d: acquisition_count=%d, refcount=%d\n", lineno,
+           memview->acquisition_count, memview->ob_refcnt); */
+
+    if (last_time) {
+        if (have_gil) {
+            Py_CLEAR(memview);
+        } else {
+            PyGILState_STATE _gilstate = PyGILState_Ensure();
+            Py_CLEAR(memview);
+            PyGILState_Release(_gilstate);
+        }
+        memslice->data = NULL;
+    }
 }
 
 ////////// MemviewSliceCopyTemplate //////////
@@ -259,7 +360,8 @@ static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
     }
     __Pyx_GOTREF(array_obj);
 
-    memview_obj = __pyx_memoryview_new((PyObject *) array_obj, {{contig_flag}});
+    memview_obj = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
+                                (PyObject *) array_obj, {{contig_flag}});
     if (unlikely(!memview_obj)) {
         goto fail;
     }
@@ -290,5 +392,23 @@ no_fail:
     __Pyx_RefNannyFinishContext();
     return new_mvs;
 
+}
+
+/////////////// MemviewSliceIndex ///////////////
+
+static CYTHON_INLINE char *__pyx_memviewslice_index_full(char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset) {
+    bufp = bufp + idx * stride;
+    if (suboffset >= 0) {
+        bufp = *((char **) bufp) + suboffset;
+    }
+    return bufp;
+}
+
+/* The call has already done the indexing */
+static CYTHON_INLINE char *__pyx_memviewslice_index_full_contig(char *bufp, Py_ssize_t suboffset) {
+    if (suboffset >= 0) {
+        bufp = *((char **) bufp) + suboffset;
+    }
+    return bufp;
 }
 

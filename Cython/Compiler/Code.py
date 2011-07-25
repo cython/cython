@@ -23,7 +23,6 @@ import DebugFlags
 import Errors
 from Cython import Tempita as tempita
 
-from Cython.Utils import none_or_sub
 try:
     from __builtin__ import basestring
 except ImportError:
@@ -162,10 +161,10 @@ class UtilityCodeBase(object):
             kwargs['impl'] = impl
 
         if 'name' not in kwargs:
-            if from_file:
-                kwargs['name'] = os.path.splitext(from_file)[0]
-            else:
-                kwargs['name'] = util_code_name
+            kwargs['name'] = util_code_name
+
+        if 'file' not in kwargs and from_file:
+            kwargs['file'] = from_file
 
         return cls(**kwargs)
 
@@ -188,13 +187,8 @@ class UtilityCodeBase(object):
 
         proto, impl = utilities[util_code_name]
         if context is not None:
-            if '__name' not in context:
-                context['__name'] = util_code_name
-
-            if proto:
-                proto = tempita.sub(proto, **context)
-            if impl:
-                impl = tempita.sub(impl, **context)
+            proto = sub_tempita(proto, context, from_file, util_code_name)
+            impl = sub_tempita(impl, context, from_file, util_code_name)
 
         if cls.is_cython_utility:
             # Remember line numbers
@@ -204,19 +198,56 @@ class UtilityCodeBase(object):
 
     load_as_string = classmethod(load_as_string)
 
+    def none_or_sub(self, s, context, tempita):
+        """
+        Format a string in this utility code with context. If None, do nothing.
+        """
+        if s is None:
+            return None
+
+        if tempita:
+            return sub_tempita(s, context, self.file, self.name)
+
+        return s % context
+
     def __str__(self):
         return "<%s(%s)" % (type(self).__name__, self.name)
 
 
+def sub_tempita(s, context, file, name):
+    "Run tempita on string s with context context."
+    if not s:
+        return None
+
+    if file:
+        context['__name'] = "%s:%s" % (file, name)
+    elif name:
+        context['__name'] = name
+
+    return tempita.sub(s, **context)
+
+
 class UtilityCode(UtilityCodeBase):
-    # Stores utility code to add during code generation.
-    #
-    # See GlobalState.put_utility_code.
-    #
-    # hashes/equals by instance
+    """
+    Stores utility code to add during code generation.
+
+    See GlobalState.put_utility_code.
+
+    hashes/equals by instance
+
+    proto           C prototypes
+    impl            implemenation code
+    init            code to call on module initialization
+    requires        utility code dependencies
+    proto_block     the place in the resulting file where the prototype should
+                    end up
+    name            name of the utility code (or None)
+    file            filename of the utility code file this utility was loaded
+                    from (or None)
+    """
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
-                 proto_block='utility_code_proto', name=None):
+                 proto_block='utility_code_proto', name=None, file=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -227,11 +258,13 @@ class UtilityCode(UtilityCodeBase):
         self.specialize_list = []
         self.proto_block = proto_block
         self.name = name
+        self.file = file
 
     def get_tree(self):
         pass
 
-    def specialize(self, pyrex_type=None, **data):
+
+    def specialize(self, pyrex_type=None, tempita=False, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:
             data['type'] = pyrex_type.declaration_code('')
@@ -244,12 +277,15 @@ class UtilityCode(UtilityCodeBase):
                 requires = None
             else:
                 requires = [r.specialize(data) for r in self.requires]
+
             s = self._cache[key] = UtilityCode(
-                                        none_or_sub(self.proto, data),
-                                        none_or_sub(self.impl, data),
-                                        none_or_sub(self.init, data),
-                                        none_or_sub(self.cleanup, data),
-                                        requires, self.proto_block)
+                    self.none_or_sub(self.proto, data, tempita),
+                    self.none_or_sub(self.impl, data, tempita),
+                    self.none_or_sub(self.init, data, tempita),
+                    self.none_or_sub(self.cleanup, data, tempita),
+                    requires,
+                    self.proto_block)
+
             self.specialize_list.append(s)
             return s
 
@@ -274,6 +310,29 @@ class UtilityCode(UtilityCodeBase):
             else:
                 self.cleanup(writer, output.module_pos)
 
+
+class ContentHashingUtilityCode(UtilityCode):
+    "UtilityCode that hashes and compares based on self.proto and self.impl"
+
+    def __hash__(self):
+        return hash((self.proto, self.impl))
+
+    def __eq__(self, other):
+        return (self.proto, self.impl) == (other.proto, other.impl)
+
+
+class LazyUtilityCode(UtilityCodeBase):
+    """
+    Utility code that calls a callback with the root code writer when
+    available. Useful when you only have 'env' but not 'code'.
+    """
+
+    def __init__(self, callback):
+        self.callback = callback
+
+    def put_code(self, globalstate):
+        utility = self.callback(globalstate.rootwriter)
+        globalstate.use_utility_code(utility)
 
 
 class FunctionState(object):
@@ -1537,6 +1596,15 @@ class CCodeWriter(object):
     def put_var_xdecrefs_clear(self, entries):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
+
+    def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
+        self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+
+    def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
+        self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+
+    def put_xgiveref_memoryviewslice(self, slice_cname):
+        self.put_xgiveref("%s.memview" % slice_cname)
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from PyrexTypes import py_object_type, typecast

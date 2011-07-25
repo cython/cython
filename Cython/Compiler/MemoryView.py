@@ -46,17 +46,21 @@ _spec_to_const = {
         'follow' : MEMVIEW_FOLLOW,
         }
 
+_spec_to_abbrev = {
+    'direct'  : 'd',
+    'ptr'     : 'p',
+    'full'    : 'f',
+    'contig'  : 'c',
+    'strided' : 's',
+    'follow'  : '_',
+}
+
 memview_name = u'memoryview'
 memview_typeptr_cname = '__pyx_memoryview_type'
 memview_objstruct_cname = '__pyx_memoryview_obj'
 memviewslice_cname = u'__Pyx_memviewslice'
 
-def specs_to_code(specs):
-    arr = []
-    for access, packing in specs:
-        arr.append("(%s | %s)" % (_spec_to_const[access],
-                                  _spec_to_const[packing]))
-    return arr
+
 
 def put_init_entry(mv_cname, code):
     code.putln("%s.data = NULL;" % mv_cname)
@@ -70,7 +74,7 @@ def mangle_dtype_name(dtype):
 def axes_to_str(axes):
     return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
-def gen_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_pos, code):
+def put_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_pos, code):
     # import MemoryView
     assert rhs.type.is_memoryviewslice
 
@@ -80,32 +84,17 @@ def gen_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_p
     else:
         rhstmp = code.funcstate.allocate_temp(lhs_type, manage_ref=False)
         code.putln("%s = %s;" % (rhstmp, rhs.result_as(lhs_type)))
-        code.putln(code.error_goto_if_null("%s.memview" % rhstmp, lhs_pos))
 
-    if not rhs.result_in_temp():
-        code.put_incref("%s.memview" % rhstmp, cython_memoryview_ptr_type)
-
-    if lhs_is_cglobal:
-        code.put_gotref("%s.memview" % lhs_result)
-
-    #XXX: this is here because self.lhs_of_first_assignment is not set correctly,
-    #     once that is working this should take that flag into account.
-    #     See NameNode.generate_assignment_code
-    code.put_xdecref("%s.memview" % lhs_result, cython_memoryview_ptr_type)
-
-    if lhs_is_cglobal:
-        code.put_giveref("%s.memview" % rhstmp)
-
+    code.putln(code.error_goto_if_null("%s.memview" % rhstmp, lhs_pos))
     put_assign_to_memviewslice(lhs_result, rhstmp, lhs_type,
                                      lhs_pos, code=code)
-
-    if rhs.result_in_temp() or not pretty_rhs:
-        code.putln("%s.memview = 0;" % rhstmp)
 
     if not pretty_rhs:
         code.funcstate.release_temp(rhstmp)
 
 def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code):
+    code.put_xdecref_memoryviewslice(lhs_cname)
+    code.put_incref_memoryviewslice(rhs_cname)
 
     code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
     code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
@@ -195,6 +184,45 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
     def get_buf_shapevars(self):
         return self._for_all_ndim("%s.shape[%d]")
 
+    def generate_buffer_lookup_code(self, code, index_cnames):
+        bufp = self.buf_ptr
+        type_decl = self.type.dtype.declaration_code("")
+
+        for dim, (access, packing) in enumerate(self.type.axes):
+            shape = "%s.shape[%d]" % (self.cname, dim)
+            stride = "%s.strides[%d]" % (self.cname, dim)
+            suboffset = "%s.suboffsets[%d]" % (self.cname, dim)
+            index = index_cnames[dim]
+
+            if access == 'full' and packing in ('strided', 'follow'):
+                code.globalstate.use_utility_code(memviewslice_index_helpers)
+                bufp = ('__pyx_memviewslice_index_full(%s, %s, %s)' %
+                                            (bufp, index, stride, suboffset))
+
+            elif access == 'full' and packing == 'contig':
+                # We can skip stride multiplication with the cast
+                code.globalstate.use_utility_code(memviewslice_index_helpers)
+                bufp = '((char *) ((%s *) %s) + %s)' % (type_decl, bufp, index)
+                bufp = ('__pyx_memviewslice_index_full_contig(%s, %s)' %
+                                                            (bufp, suboffset))
+
+            elif access == 'ptr' and packing in ('strided', 'follow'):
+                bufp = ("(*((char **) %s + %s * %s) + %s)" %
+                                             (bufp, index, stride, suboffset))
+
+            elif access == 'ptr' and packing == 'contig':
+                bufp = "(*((char **) %s) + %s)" % (bufp, suboffset)
+
+            elif access == 'direct' and packing in ('strided', 'follow'):
+                bufp = "(%s + %s * %s)" % (bufp, index, stride)
+
+            else:
+                assert (access, packing) == ('direct', 'contig'), (access, packing)
+                bufp = '((char *) (((%s *) %s) + %s))' % (type_decl, bufp, index)
+
+            bufp = '( /* dim=%d */ %s )' % (dim, bufp)
+
+        return "((%s *) %s)" % (type_decl, bufp)
 
 def get_copy_func_name(to_memview):
     base = "__Pyx_BufferNew_%s_From_%s_%s"
@@ -370,10 +398,10 @@ class CopyFuncUtilCode(object):
 
         if self.to_memview.is_c_contig:
             mode = 'c'
-            contig_flag = 'PyBUF_C_CONTIGUOUS'
+            contig_flag = memview_c_contiguous
         elif self.to_memview.is_f_contig:
             mode = 'fortran'
-            contig_flag = "PyBUF_F_CONTIGUOUS"
+            contig_flag = memview_f_contiguous
 
         context = dict(
             copy_name=self.copy_func_name,
@@ -735,11 +763,13 @@ class MemoryViewSliceTransform(CythonTransform):
         return node
 
 
-def load_memview_cy_utility(util_code_name, **kwargs):
-    return CythonUtilityCode.load(util_code_name, "MemoryView.pyx", **kwargs)
+def load_memview_cy_utility(util_code_name, context=None, **kwargs):
+    return CythonUtilityCode.load(util_code_name, "MemoryView.pyx",
+                                  context=context, **kwargs)
 
-def load_memview_c_utility(util_code_name, **kwargs):
-    return UtilityCode.load(util_code_name, "MemoryView_C.c", **kwargs)
+def load_memview_c_utility(util_code_name, context=None, **kwargs):
+    return UtilityCode.load(util_code_name, "MemoryView_C.c",
+                            context=context, **kwargs)
 
 context = {
     'memview_struct_name': memview_objstruct_cname,
@@ -753,6 +783,8 @@ memviewslice_declare_code = load_memview_c_utility(
 
 memviewslice_init_code = load_memview_c_utility(
     "MemviewSliceInit",
-    context={'BUF_MAX_NDIMS': Options.buffer_max_dims},
+    context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code],
 )
+
+memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")

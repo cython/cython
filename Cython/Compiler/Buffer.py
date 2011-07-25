@@ -215,6 +215,50 @@ class BufferEntry(object):
     def _for_all_ndim(self, s):
         return [s % (self.cname, i) for i in range(self.type.ndim)]
 
+    def generate_buffer_lookup_code(self, code, index_cnames):
+        # Create buffer lookup and return it
+        # This is done via utility macros/inline functions, which vary
+        # according to the access mode used.
+        params = []
+        nd = self.type.ndim
+        mode = self.type.mode
+        if mode == 'full':
+            for i, s, o in zip(index_cnames,
+                               self.get_buf_stridevars(),
+                               self.get_buf_suboffsetvars()):
+                params.append(i)
+                params.append(s)
+                params.append(o)
+            funcname = "__Pyx_BufPtrFull%dd" % nd
+            funcgen = buf_lookup_full_code
+        else:
+            if mode == 'strided':
+                funcname = "__Pyx_BufPtrStrided%dd" % nd
+                funcgen = buf_lookup_strided_code
+            elif mode == 'c':
+                funcname = "__Pyx_BufPtrCContig%dd" % nd
+                funcgen = buf_lookup_c_code
+            elif mode == 'fortran':
+                funcname = "__Pyx_BufPtrFortranContig%dd" % nd
+                funcgen = buf_lookup_fortran_code
+            else:
+                assert False
+            for i, s in zip(index_cnames, self.get_buf_stridevars()):
+                params.append(i)
+                params.append(s)
+
+        # Make sure the utility code is available
+        if funcname not in code.globalstate.utility_codes:
+            code.globalstate.utility_codes.add(funcname)
+            protocode = code.globalstate['utility_code_proto']
+            defcode = code.globalstate['utility_code_def']
+            funcgen(protocode, defcode, name=funcname, nd=nd)
+
+        buf_ptr_type_code = self.buf_ptr_type.declaration_code("")
+        ptrcode = "%s(%s, %s, %s)" % (funcname, buf_ptr_type_code, self.buf_ptr,
+                                      ", ".join(params))
+        return ptrcode
+
 
 def get_flags(buffer_aux, buffer_type):
     flags = 'PyBUF_FORMAT'
@@ -412,7 +456,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
                 cast = "(size_t)"
             code.putln("if (%s) %s = %d;" % (
                 code.unlikely("%s >= %s%s" % (cname, cast, shape)),
-                tmp_cname, dim))
+                              tmp_cname, dim))
         code.globalstate.use_utility_code(raise_indexerror_code)
         code.putln("if (%s) {" % code.unlikely("%s != -1" % tmp_cname))
         code.putln('__Pyx_RaiseBufferIndexError(%s);' % tmp_cname)
@@ -426,48 +470,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
             if signed != 0:
                 code.putln("if (%s < 0) %s += %s;" % (cname, cname, shape))
 
-    # Create buffer lookup and return it
-    # This is done via utility macros/inline functions, which vary
-    # according to the access mode used.
-    params = []
-    nd = entry.type.ndim
-    mode = entry.type.mode
-    if mode == 'full':
-        for i, s, o in zip(index_cnames,
-                           entry.get_buf_stridevars(),
-                           entry.get_buf_suboffsetvars()):
-            params.append(i)
-            params.append(s)
-            params.append(o)
-        funcname = "__Pyx_BufPtrFull%dd" % nd
-        funcgen = buf_lookup_full_code
-    else:
-        if mode == 'strided':
-            funcname = "__Pyx_BufPtrStrided%dd" % nd
-            funcgen = buf_lookup_strided_code
-        elif mode == 'c':
-            funcname = "__Pyx_BufPtrCContig%dd" % nd
-            funcgen = buf_lookup_c_code
-        elif mode == 'fortran':
-            funcname = "__Pyx_BufPtrFortranContig%dd" % nd
-            funcgen = buf_lookup_fortran_code
-        else:
-            assert False
-        for i, s in zip(index_cnames, entry.get_buf_stridevars()):
-            params.append(i)
-            params.append(s)
-
-    # Make sure the utility code is available
-    if funcname not in code.globalstate.utility_codes:
-        code.globalstate.utility_codes.add(funcname)
-        protocode = code.globalstate['utility_code_proto']
-        defcode = code.globalstate['utility_code_def']
-        funcgen(protocode, defcode, name=funcname, nd=nd)
-
-    buf_ptr_type_code = entry.buf_ptr_type.declaration_code("")
-    ptrcode = "%s(%s, %s, %s)" % (funcname, buf_ptr_type_code, entry.buf_ptr,
-                                  ", ".join(params))
-    return ptrcode
+    return entry.generate_buffer_lookup_code(code, index_cnames)
 
 
 def use_bufstruct_declare_code(env):

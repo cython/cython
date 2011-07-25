@@ -1344,17 +1344,19 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.in_closure:
                 code.put_var_declaration(entry)
 
+        # Initialize the return variable __pyx_r
         init = ""
         if not self.return_type.is_void:
             if self.return_type.is_pyobject:
                 init = " = NULL"
+            elif self.return_type.is_memoryviewslice:
+                init = "= {0, 0}"
+
             code.putln(
                 "%s%s;" %
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
-            if self.return_type.is_memoryviewslice:
-                import MemoryView
-                MemoryView.put_init_entry(Naming.retval_cname, code)
+
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
 
@@ -1431,15 +1433,18 @@ class FuncDefNode(StatNode, BlockNode):
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
             if entry.type.is_memoryviewslice:
-                code.put_incref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
+                code.put_incref_memoryviewslice(entry.cname,
+                                                have_gil=not lenv.nogil)
+                #code.put_incref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
                 Buffer.put_init_vars(entry, code)
         # ----- Initialise local memoryviewslices
         for entry in lenv.var_entries:
-            if entry.type.is_memoryviewslice:
-                MemoryView.put_init_entry(entry.cname, code)
+            if entry.visibility == "private" and not entry.used:
+                continue
+
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
         # ----- Acquire buffer arguments
@@ -1544,7 +1549,8 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.used or entry.in_closure:
                 continue
             if entry.type.is_memoryviewslice:
-                code.put_xdecref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
+                #code.put_xdecref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
+                code.put_xdecref_memoryviewslice(entry.cname)
             if entry.type.is_pyobject:
                 code.put_var_decref(entry)
 
@@ -1554,7 +1560,8 @@ class FuncDefNode(StatNode, BlockNode):
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_decref(entry)
             if entry.type.is_memoryviewslice:
-                code.put_decref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
+                code.put_xdecref_memoryviewslice(entry.cname)
+                #code.put_decref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -1567,8 +1574,9 @@ class FuncDefNode(StatNode, BlockNode):
                 err_val = default_retval
             if self.return_type.is_pyobject:
                 code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
-            elif self.return_type.is_memoryviewslice:
-                code.put_xgiveref(code.as_pyobject("%s.memview" % Naming.retval_cname,cython_memoryview_ptr_type))
+            #elif self.return_type.is_memoryviewslice:
+            #    code.put_xgiveref(code.as_pyobject("%s.memview" % Naming.retval_cname,cython_memoryview_ptr_type))
+            #    code.put_xgiveref_memoryviewslice(Naming.retval_cname)
 
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
@@ -4153,7 +4161,8 @@ class DelStatNode(StatNode):
     def analyse_expressions(self, env):
         for arg in self.args:
             arg.analyse_target_expression(env, None)
-            if arg.type.is_pyobject:
+            if arg.type.is_pyobject or (arg.is_name and
+                                        arg.type.is_memoryviewslice):
                 pass
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
                 self.cpp_check(env)
@@ -4172,7 +4181,7 @@ class DelStatNode(StatNode):
 
     def generate_execution_code(self, code):
         for arg in self.args:
-            if arg.type.is_pyobject:
+            if arg.type.is_pyobject or arg.type.is_memoryviewslice:
                 arg.generate_deletion_code(code)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
                 arg.generate_result_code(code)
@@ -4274,14 +4283,15 @@ class ReturnStatNode(StatNode):
             code.put_xdecref(Naming.retval_cname,
                              self.return_type)
         elif self.return_type.is_memoryviewslice:
-            code.put_xdecref("%s.memview" % Naming.retval_cname,
-                    self.return_type)
+            code.put_xdecref_memoryviewslice(Naming.retval_cname)
+            #code.put_xdecref("%s.memview" % Naming.retval_cname,
+            #        self.return_type)
 
         if self.value:
             self.value.generate_evaluation_code(code)
             if self.return_type.is_memoryviewslice:
                 import MemoryView
-                MemoryView.gen_acquire_memoryviewslice(self.value, self.return_type,
+                MemoryView.put_acquire_memoryviewslice(self.value, self.return_type,
                         False, Naming.retval_cname, None, code)
             else:
                 self.value.make_owned_reference(code)

@@ -382,6 +382,10 @@ class Scope(object):
 #                entries[name] = entry
             if not shadow:
                 entries[name] = entry
+
+        if type.is_memoryviewslice:
+            entry.init = "{ 0, 0 }"
+
         entry.scope = self
         entry.visibility = visibility
         return entry

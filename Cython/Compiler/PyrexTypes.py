@@ -2,11 +2,13 @@
 #   Cython/Python language types
 #
 
-from Code import UtilityCode
+from Code import UtilityCode, LazyUtilityCode
 import StringEncoding
 import Naming
 import copy
 from Errors import error
+
+import cython
 
 class BaseType(object):
     #
@@ -331,6 +333,15 @@ class MemoryViewSliceType(PyrexType):
     has_attributes = 1
     scope = None
 
+    # These are specialcased in Defnode
+    from_py_function = None
+    to_py_function = None
+
+    exception_value = None
+    exception_check = None
+
+    utility_counter = 0
+
     def __init__(self, base_dtype, axes):
         '''
         MemoryViewSliceType(base, axes)
@@ -375,6 +386,7 @@ class MemoryViewSliceType(PyrexType):
         assert not (self.is_c_contig and self.is_f_contig)
 
         self.mode = MemoryView.get_mode(axes)
+        self.writable_needed = False
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
@@ -495,10 +507,67 @@ class MemoryViewSliceType(PyrexType):
 
     def global_init_code(self, entry, code):
         code.putln("%s.data = NULL;" % entry.cname)
-        code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_ptr_type, nanny=False)
+        code.putln("%s.memview = NULL;" % entry.cname)
+        #code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_ptr_type, nanny=False)
 
     def check_for_null_code(self, cname):
         return cname + '.memview'
+
+    def create_from_py_utility_code(self, env):
+        import MemoryView, Buffer, Code
+
+        # We don't have 'code', so use a LazyUtilityCode with a callback.
+        def lazy_utility_callback(code):
+            context['dtype_typeinfo'] = Buffer.get_type_information_cname(
+                                                          code, self.dtype)
+            return Code.ContentHashingUtilityCode.load(
+                        "ObjectToMemviewSlice", "MemoryView_C.c", context)
+
+        env.use_utility_code(Buffer.acquire_utility_code)
+        env.use_utility_code(MemoryView.memviewslice_init_code)
+        env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
+
+        if self.is_c_contig:
+            c_or_f_flag = "__Pyx_IS_C_CONTIG"
+        elif self.is_f_contig:
+            c_or_f_flag = "__Pyx_IS_F_CONTIG"
+        else:
+            c_or_f_flag = "0"
+
+        # specializing through UtilityCode.specialize is not so useful as
+        # specialize on too many things to include in the function name
+        funcname = "__Pyx_PyObject_to_MemoryviewSlice_%d" % self.utility_counter
+
+        context = dict(
+            MemoryView.context,
+            buf_flag = MemoryView.get_buf_flag(self.axes),
+            ndim = self.ndim,
+            axes_specs = ', '.join(self.axes_specs_to_code()),
+            dtype_typedecl = self.dtype.declaration_code(""),
+            struct_nesting_depth = self.dtype.struct_nesting_depth(),
+            c_or_f_flag = c_or_f_flag,
+            funcname = funcname,
+        )
+
+        self.from_py_function = funcname
+        MemoryViewSliceType.utility_counter += 1
+
+        return True
+
+    def axes_specs_to_code(self):
+        "Return a list of code constants for each axis"
+        import MemoryView
+        d = MemoryView._spec_to_const
+        return ["(%s | %s)" % (d[a], d[p]) for a, p in self.axes]
+
+    def axes_specs_to_name(self):
+        "Return an abbreviated name for our axes"
+        import MemoryView
+        d = MemoryView._spec_to_abbrev
+        return "".join(["%s%s" % (d[a], d[p]) for a, p in self.axes])
+
+    def error_condition(self, result_code):
+        return "!%s.memview" % result_code
 
 
 class BufferType(BaseType):
@@ -2698,8 +2767,8 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 
 cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
 
-memoryviewslice_type = CStructOrUnionType("__Pyx_memviewslice", "struct",
-                                    None, 1, "__Pyx_memviewslice")
+memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
+                                          None, 1, "__Pyx_memviewslice")
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()

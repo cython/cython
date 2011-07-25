@@ -10,10 +10,12 @@ import MemoryView
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
 
-    def __init__(self):
+    def __init__(self, context):
         ModuleScope.__init__(self, u'cython', None, None)
         self.pxd_file_loaded = True
         self.populate_cython_scope()
+        # The Main.Context object
+        self.context = context
 
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
@@ -80,6 +82,10 @@ class CythonScope(ModuleScope):
         # The view sub-scope
         #
         self.viewscope = viewscope = ModuleScope(u'cython.view', self, None)
+
+        # Hacky monkey patch
+        self.viewscope.global_scope = self.global_scope
+
         self.declare_module('view', viewscope, None)
         viewscope.is_cython_builtin = True
         viewscope.pxd_file_loaded = True
@@ -93,7 +99,7 @@ def create_cython_scope(context, create_testscope):
     # One could in fact probably make it a singleton,
     # but not sure yet whether any code mutates it (which would kill reusing
     # it across different contexts)
-    scope = CythonScope()
+    scope = CythonScope(context)
 
     if create_testscope:
         scope.test_cythonscope()
@@ -129,6 +135,12 @@ cython_test_extclass_utility_code = \
 cythonview_testscope_utility_code = load_testscope_utility("View.TestScope")
 
 view_utility_code = MemoryView.load_memview_cy_utility(
-        "View.MemoryView", requires=(Buffer.GetAndReleaseBufferUtilityCode(),))
+        "View.MemoryView", context=MemoryView.context,
+        requires=[Buffer.GetAndReleaseBufferUtilityCode(),
+                  MemoryView.memviewslice_declare_code],
+)
 
-cython_array_utility_code = MemoryView.load_memview_cy_utility("CythonArray")
+cython_array_utility_code = MemoryView.load_memview_cy_utility(
+        "CythonArray",
+        context=MemoryView.context,
+        requires=[view_utility_code])
