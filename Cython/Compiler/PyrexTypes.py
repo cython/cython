@@ -1970,7 +1970,7 @@ class StructUtilityCode(object):
 
     def get_tree(self):
         pass
-    
+
     def put_code(self, output):
         code = output['utility_code_def']
         proto = output['utility_code_proto']
@@ -2000,7 +2000,7 @@ class StructUtilityCode(object):
 
     def inject_tree_and_scope_into(self, module_node):
         pass
-        
+
 
 class CStructOrUnionType(CType):
     #  name          string

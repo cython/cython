@@ -68,7 +68,7 @@ class Context(object):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
-        
+
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         cyscope = CythonScope.create_cython_scope(

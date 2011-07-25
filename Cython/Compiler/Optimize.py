@@ -2427,15 +2427,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     def _handle_simple_method_unicode_endswith(self, node, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'unicode', 'endswith', 
+            node, args, is_unbound_method, 'unicode', 'endswith',
             unicode_tailmatch_utility_code, +1)
 
     def _handle_simple_method_unicode_startswith(self, node, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'unicode', 'startswith', 
+            node, args, is_unbound_method, 'unicode', 'startswith',
             unicode_tailmatch_utility_code, -1)
 
-    def _inject_tailmatch(self, node, args, is_unbound_method, type_name, 
+    def _inject_tailmatch(self, node, args, is_unbound_method, type_name,
                           method_name, utility_code, direction):
         """Replace unicode.startswith(...) and unicode.endswith(...)
         by a direct call to the corresponding C-API function.
@@ -2784,7 +2784,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     def _handle_simple_method_str_endswith(self, node, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'str', 'endswith', 
+            node, args, is_unbound_method, 'str', 'endswith',
             str_tailmatch_utility_code, +1)
 
     def _handle_simple_method_str_startswith(self, node, args, is_unbound_method):
@@ -2794,7 +2794,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     def _handle_simple_method_bytes_endswith(self, node, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'bytes', 'endswith', 
+            node, args, is_unbound_method, 'bytes', 'endswith',
             bytes_tailmatch_utility_code, +1)
 
     def _handle_simple_method_bytes_startswith(self, node, args, is_unbound_method):
@@ -2909,12 +2909,12 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
     const char* sub_ptr;
     Py_ssize_t sub_len;
     int retval;
-    
+
 #if PY_VERSION_HEX >= 0x02060000
     Py_buffer view;
     view.obj = NULL;
 #endif
-    
+
     if ( PyBytes_Check(arg) ) {
         sub_ptr = PyBytes_AS_STRING(arg);
         sub_len = PyBytes_GET_SIZE(arg);
@@ -2936,7 +2936,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
         sub_len = view.len;
 #endif
     }
-  
+
     if (end > self_len)
         end = self_len;
     else if (end < 0)
@@ -2953,7 +2953,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
         if (end-sub_len > start)
             start = end - sub_len;
     }
-        
+
     if (start + sub_len <= end)
         retval = !memcmp(self_ptr+start, sub_ptr, sub_len);
     else
@@ -2966,7 +2966,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
 
     return retval;
 }
-  
+
 static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t start,
                                    Py_ssize_t end, int direction)
 {
@@ -2982,7 +2982,7 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t 
         }
         return 0;
     }
-  
+
     return __Pyx_PyBytes_SingleTailmatch(self, substr, start, end, direction);
 }
 

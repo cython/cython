@@ -983,7 +983,7 @@ class CStructOrUnionDefNode(StatNode):
     #  packed        boolean
 
     child_attrs = ["attributes"]
-    
+
     def declare(self, env, scope=None):
         if self.visibility == 'extern' and self.packed and not scope:
             error(self.pos, "Cannot declare extern struct as 'packed'")
