@@ -2348,7 +2348,9 @@ class IndexNode(ExprNode):
                 if self.index.type.is_int:
                     if (not setting
                         and (base_type in (list_type, tuple_type, unicode_type))
-                        and (not self.index.type.signed or isinstance(self.index, IntNode) and int(self.index.value) >= 0)
+                        and (not self.index.type.signed
+                             or not env.directives['wraparound']
+                             or isinstance(self.index, IntNode) and int(self.index.value) >= 0)
                         and not env.directives['boundscheck']):
                         self.is_temp = 0
                     else:
