@@ -5501,6 +5501,8 @@ class UnaryMinusNode(UnopNode):
         if self.operand.type.is_numeric:
             self.type = PyrexTypes.widest_numeric_type(
                 self.operand.type, PyrexTypes.c_int_type)
+        elif self.operand.type.is_enum:
+            self.type = PyrexTypes.c_int_type
         else:
             self.type_error()
         if self.type.is_complex:
@@ -5527,6 +5529,8 @@ class TildeNode(UnopNode):
         if self.operand.type.is_int:
             self.type = PyrexTypes.widest_numeric_type(
                 self.operand.type, PyrexTypes.c_int_type)
+        elif self.operand.type.is_enum:
+            self.type = PyrexTypes.c_int_type
         else:
             self.type_error()
 
