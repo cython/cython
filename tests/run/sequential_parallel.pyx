@@ -688,3 +688,20 @@ def test_parallel_with_gil_continue_unnested():
         sum += i
 
     print sum
+
+
+cdef int inner_parallel_section() nogil:
+    cdef int j, sum = 0
+    for j in prange(10):
+        sum += j
+    return sum
+
+def outer_parallel_section():
+    """
+    >>> outer_parallel_section()
+    450
+    """
+    cdef int i, sum = 0
+    for i in prange(10, nogil=True):
+        sum += inner_parallel_section()
+    return sum
