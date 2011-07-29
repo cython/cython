@@ -125,6 +125,8 @@ class Entry(object):
     # utility_code_definition     For some Cython builtins, the utility code
     #                             which contains the definition of the entry.
     #                             Currently only supported for CythonScope entries.
+    # error_on_uninitialized      Have Control Flow issue an error when this entry is
+    #                             used uninitialized
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -179,6 +181,7 @@ class Entry(object):
     utility_code_definition = None
     in_with_gil_block = 0
     from_cython_utility_code = None
+    error_on_uninitialized = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
