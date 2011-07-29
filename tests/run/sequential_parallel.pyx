@@ -46,6 +46,7 @@ def test_descending_prange():
 
     return sum
 
+'''
 def test_propagation():
     """
     >>> test_propagation()
@@ -65,6 +66,7 @@ def test_propagation():
                     sum2 += y
 
     return i, j, x, y, sum1, sum2
+'''
 
 def test_unsigned_operands():
     """
@@ -224,7 +226,7 @@ def test_nan_init():
     cdef unsigned long d2 = 10
     cdef long long e1 = 10
     cdef unsigned long long e2 = 10
-    
+
     cdef actually_long_t miss1 = 10
     cdef actually_short_t miss2 = 10
     cdef myint_t typedef1 = 10
@@ -255,6 +257,27 @@ def test_nan_init():
             or typedef1 == 10):
             errp[0] = 1
 
+    cdef int i
+    for i in prange(10, nogil=True):
+        # First, trick the error checking to make it believe these variables
+        # are initialized after this if
+
+        if mybool: # mybool is always false!
+            a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
+            f = g = h = 0.0
+            p = NULL
+            miss1 = miss2 = typedef1 = 0
+
+        if (a1 == 10 or a2 == 10 or
+            b1 == 10 or b2 == 10 or
+            c1 == 10 or c2 == 10 or
+            d1 == 10 or d2 == 10 or
+            e1 == 10 or e2 == 10 or
+            f == 10.0 or g == 10.0 or h == 10.0 or
+            p == <void *> 10 or miss1 == 10 or miss2 == 10
+            or typedef1 == 10):
+            errp[0] = 1
+
     if err:
         raise Exception("One of the values was not initialized to a maximum "
                         "or NaN value")
@@ -263,9 +286,6 @@ def test_nan_init():
     with nogil, cython.parallel.parallel():
         c1 = 16
 
-    if globals().get('OPENMP_PARALLEL'):
-        # We only reach here when we are included by parallel.pyx
-        assert c1 == 20, c1
 
 cdef void nogil_print(char *s) with gil:
     print s.decode('ascii')
@@ -328,6 +348,7 @@ def test_prange_continue():
 
     free(p)
 
+'''
 def test_nested_break_continue():
     """
     >>> test_nested_break_continue()
@@ -358,6 +379,7 @@ def test_nested_break_continue():
                     continue
 
     print i
+'''
 
 cdef int parallel_return() nogil:
     cdef int i
@@ -377,6 +399,7 @@ def test_return():
     """
     print parallel_return()
 
+'''
 def test_parallel_exceptions():
     """
     >>> test_parallel_exceptions()
@@ -402,14 +425,49 @@ def test_parallel_exceptions():
     except Exception, e:
         print mylist[0]
         print e.args, sum
+'''
 
+def test_parallel_exceptions_unnested():
+    """
+    >>> test_parallel_exceptions_unnested()
+    ('I am executed first', 0)
+    ('propagate me',) 0
+    """
+    cdef int i, sum = 0
 
+    mylist = []
+
+    try:
+        with nogil, cython.parallel.parallel():
+            try:
+                for i in prange(10):
+                    with gil:
+                        raise Exception("propagate me")
+
+                    sum += i
+            finally:
+                with gil:
+                    mylist.append(("I am executed first", sum))
+    except Exception, e:
+        print mylist[0]
+        print e.args, sum
+
+'''
 cdef int parallel_exc_cdef() except -3:
     cdef int i, j
     for i in prange(10, nogil=True):
         for j in prange(10, num_threads=6):
             with gil:
                 raise Exception("propagate me")
+
+    return 0
+'''
+
+cdef int parallel_exc_cdef_unnested() except -3:
+    cdef int i
+    for i in prange(10, nogil=True):
+        with gil:
+            raise Exception("propagate me")
 
     return 0
 
@@ -420,8 +478,10 @@ def test_parallel_exc_cdef():
         ...
     Exception: propagate me
     """
-    parallel_exc_cdef()
+    parallel_exc_cdef_unnested()
+    #parallel_exc_cdef()
 
+'''
 cpdef int parallel_exc_cpdef() except -3:
     cdef int i, j
     for i in prange(10, nogil=True):
@@ -430,6 +490,16 @@ cpdef int parallel_exc_cpdef() except -3:
                 raise Exception("propagate me")
 
     return 0
+'''
+
+cpdef int parallel_exc_cpdef_unnested() except -3:
+    cdef int i, j
+    for i in prange(10, nogil=True):
+        with gil:
+            raise Exception("propagate me")
+
+    return 0
+
 
 def test_parallel_exc_cpdef():
     """
@@ -438,13 +508,28 @@ def test_parallel_exc_cpdef():
         ...
     Exception: propagate me
     """
-    parallel_exc_cpdef()
+    parallel_exc_cpdef_unnested()
+    #parallel_exc_cpdef()
 
+'''
 cdef int parallel_exc_nogil_swallow() except -1:
     cdef int i, j
     for i in prange(10, nogil=True):
         try:
             for j in prange(10):
+                with gil:
+                    raise Exception("propagate me")
+        finally:
+            return i
+
+    return 0
+'''
+
+cdef int parallel_exc_nogil_swallow_unnested() except -1:
+    cdef int i
+    with nogil:
+        try:
+            for i in prange(10):
                 with gil:
                     raise Exception("propagate me")
         finally:
@@ -457,9 +542,12 @@ def test_parallel_exc_nogil_swallow():
     >>> test_parallel_exc_nogil_swallow()
     execute me
     """
-    parallel_exc_nogil_swallow()
+    parallel_exc_nogil_swallow_unnested()
     print 'execute me'
+    #parallel_exc_nogil_swallow()
+    #print 'execute me'
 
+'''
 def parallel_exc_replace():
     """
     >>> parallel_exc_replace()
@@ -478,7 +566,6 @@ def parallel_exc_replace():
                 raise Exception("propagate me instead")
 
     return 0
-
 
 
 def _parallel_exceptions2():
@@ -545,6 +632,7 @@ def test_parallel_exceptions2():
             print 'Got signal', os.WTERMSIG(status)
 
         print 'Exit status:', os.WEXITSTATUS(status)
+'''
 
 def test_parallel_with_gil_return():
     """
@@ -565,6 +653,7 @@ def test_parallel_with_gil_return():
         with gil:
             return sum
 
+'''
 def test_parallel_with_gil_continue():
     """
     >>> test_parallel_with_gil_continue()
@@ -577,6 +666,23 @@ def test_parallel_with_gil_continue():
             with gil:
                 if i % 2:
                     continue
+
+        sum += i
+
+    print sum
+'''
+
+def test_parallel_with_gil_continue_unnested():
+    """
+    >>> test_parallel_with_gil_continue_unnested()
+    20
+    """
+    cdef int i, sum = 0
+
+    for i in prange(10, nogil=True):
+        with gil:
+            if i % 2:
+                continue
 
         sum += i
 
