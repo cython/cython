@@ -700,7 +700,9 @@ class CreateControlFlowGraph(CythonTransform):
         return node
 
     def visit_InPlaceAssignmentNode(self, node):
+        self.in_inplace_assignment = True
         self.visitchildren(node)
+        self.in_inplace_assignment = False
         self.mark_assignment(node.lhs, node.create_binop_node())
         return node
 
@@ -726,6 +728,11 @@ class CreateControlFlowGraph(CythonTransform):
             entry = node.entry or self.env.lookup(node.name)
             if entry:
                 self.flow.mark_reference(node, entry)
+
+                if entry in self.reductions and not self.in_inplace_assignment:
+                    error(node.pos,
+                          "Cannot read reduction variable in loop body")
+
         return node
 
     def visit_StatListNode(self, node):
@@ -806,10 +813,16 @@ class CreateControlFlowGraph(CythonTransform):
         # Target assignment
         self.flow.nextblock()
         self.mark_assignment(node.target)
+
         # Body block
+        if isinstance(node, Nodes.ParallelRangeNode):
+            # In case of an invalid
+            self._delete_privates(node, exclude=node.target.entry)
+
         self.flow.nextblock()
         self.visit(node.body)
         self.flow.loops.pop()
+
         # Loop it
         if self.flow.block:
             self.flow.block.add_child(condition_block)
@@ -828,10 +841,37 @@ class CreateControlFlowGraph(CythonTransform):
             self.flow.block = None
         return node
 
+    def _delete_privates(self, node, exclude=None):
+        for private_node in node.assigned_nodes:
+            if not exclude or private_node.entry is not exclude:
+                self.flow.mark_deletion(private_node, private_node.entry)
+
     def visit_ParallelRangeNode(self, node):
-        # if node.target is None an error will have been previously issued
-        if node.target is not None:
+        reductions = self.reductions
+
+        # if node.target is None or not a NameNode, an error will have
+        # been previously issued
+        if hasattr(node.target, 'entry'):
+            self.reductions = cython.set(reductions)
+
+            for private_node in node.assigned_nodes:
+                private_node.entry.error_on_uninitialized = True
+                pos, reduction = node.assignments[private_node.entry]
+                if reduction:
+                    self.reductions.add(private_node.entry)
+
             node = self.visit_ForInStatNode(node)
+
+        self.reductions = reductions
+        return node
+
+    def visit_ParallelWithBlockNode(self, node):
+        for private_node in node.assigned_nodes:
+            private_node.entry.error_on_uninitialized = True
+
+        self._delete_privates(node)
+        self.visitchildren(node)
+        self._delete_privates(node)
 
         return node
 

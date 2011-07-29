@@ -148,9 +148,10 @@ def create_pipeline(context, mode, exclude_classes=()):
         EmbedSignature(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),  ## Necessary?
+        MarkAssignments(context),
         CreateControlFlowGraph(context),
         RemoveUnreachableCode(context),
-        MarkAssignments(context),
+        # MarkAssignments(context),
         MarkOverflowingArithmetic(context),
         IntroduceBufferAuxiliaryVars(context),
         _check_c_declarations,

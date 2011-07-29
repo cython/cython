@@ -62,6 +62,7 @@ class MarkAssignments(CythonTransform):
                     pos = lhs.pos
 
                 parallel_node.assignments[lhs.entry] = (pos, inplace_op)
+                parallel_node.assigned_nodes.append(lhs)
 
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for arg in lhs.args:
