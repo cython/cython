@@ -145,7 +145,7 @@ class ControlFlow(object):
         if entry.type.is_array or entry.type.is_struct_or_union:
             return False
         return (entry.is_local or entry.is_pyclass_attr or entry.is_arg or
-                entry.from_closure or entry.in_closure)
+                entry.from_closure or entry.in_closure or entry.error_on_uninitialized)
 
     def mark_position(self, node):
         """Mark position, will be used to draw graph nodes."""
@@ -479,7 +479,8 @@ def check_definitions(flow, compiler_directives):
             if node.allow_null or entry.from_closure:
                 pass # Can be uninitialized here
             elif node.cf_is_null:
-                if entry.type.is_pyobject or entry.type.is_unspecified:
+                if (entry.type.is_pyobject or entry.type.is_unspecified or
+                        entry.error_on_uninitialized):
                     messages.error(
                         node.pos,
                         "local variable '%s' referenced before assignment"
@@ -551,14 +552,21 @@ class AssignmentCollector(TreeVisitor):
 class CreateControlFlowGraph(CythonTransform):
     """Create NameNode use and assignment graph."""
 
+    in_inplace_assignment = False
+
     def visit_ModuleNode(self, node):
         self.gv_ctx = GVContext()
+
+        # Set of NameNode reductions
+        self.reductions = cython.set()
 
         self.env_stack = []
         self.env = node.scope
         self.stack = []
         self.flow = ControlFlow()
         self.visitchildren(node)
+
+        check_definitions(self.flow, self.current_directives)
 
         dot_output = self.current_directives['control_flow.dot_output']
         if dot_output:
