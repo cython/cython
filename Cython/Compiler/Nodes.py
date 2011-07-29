@@ -5884,6 +5884,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         # If op is not None, it's a reduction.
         self.privates = {}
 
+        # [NameNode]
+        self.assigned_nodes = []
+
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 
@@ -5901,7 +5904,6 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
         self.analyse_sharing_attributes(env)
-        self.check_independent_iterations()
 
     def analyse_sharing_attributes(self, env):
         """
@@ -5917,8 +5919,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                 # consider it too implicit and magicky for users)
                 if entry in self.parent.assignments:
                     error(pos,
-                          "Cannot assign to private of outer parallel block, "
-                          "as we cannot retain its value after the loop")
+                          "Cannot assign to private of outer parallel block")
                     continue
 
             if not self.is_prange and op:
@@ -5926,20 +5927,10 @@ class ParallelStatNode(StatNode, ParallelNode):
                 error(pos, "Reductions not allowed for parallel blocks")
                 continue
 
-            if self.is_private(entry):
-                # lastprivate = self.is_prange and entry == self.target.entry
-                # By default all variables should have the same values as if
-                # executed sequentially
-                lastprivate = True
-                self.propagate_var_privatization(entry, op, lastprivate)
-
-    def is_private(self, entry):
-        """
-        True if this scope should declare the variable private, lastprivate
-        or reduction.
-        """
-        return (self.is_parallel or
-                (self.parent and entry not in self.parent.privates))
+            # By default all variables should have the same values as if
+            # executed sequentially
+            lastprivate = True
+            self.propagate_var_privatization(entry, op, lastprivate)
 
     def propagate_var_privatization(self, entry, op, lastprivate):
         """
@@ -6028,40 +6019,6 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.modified_entries.append((entry, entry.cname))
         code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
-
-    def check_independent_iterations(self):
-        """
-        This checks for uninitialized thread-private variables, it's far from
-        fool-proof as it does not take control flow into account, nor
-        assignment to a variable as both the lhs and rhs. So it detects only
-        cases like this:
-
-            for i in prange(10, nogil=True):
-                var = x # error, x is private and read before assigned
-                x = i
-
-        Fortunately, it doesn't need to be perfect, as we still initialize
-        private variables to "invalid" values, such as NULL or NaN whenever
-        possible.
-        """
-        from Cython.Compiler import ParseTreeTransforms
-
-        transform = ParseTreeTransforms.FindUninitializedParallelVars()
-        transform(self.body)
-
-        for entry, pos in transform.used_vars:
-            if entry in self.privates:
-                assignment_pos, op = self.assignments[entry]
-
-                # Reading reduction variables is valid (in fact necessary)
-                # before assignment
-                if not op and pos < assignment_pos:
-                    if self.is_prange:
-                        error(pos, "Expression value depends on previous loop "
-                                   "iteration, cannot execute in parallel")
-                    else:
-                        error(pos, "Expression depends on an uninitialized "
-                                   "thread-private variable")
 
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
@@ -6739,11 +6696,11 @@ class ParallelRangeNode(ParallelStatNode):
         if not self.is_parallel:
             code.put("#pragma omp for")
             self.privatization_insertion_point = code.insertion_point()
-            reduction_codepoint = self.parent.privatization_insertion_point
+            # reduction_codepoint = self.parent.privatization_insertion_point
         else:
             code.put("#pragma omp parallel")
             self.privatization_insertion_point = code.insertion_point()
-            reduction_codepoint = self.privatization_insertion_point
+            # reduction_codepoint = self.privatization_insertion_point
             code.putln("")
             code.putln("#endif /* _OPENMP */")
 
@@ -6754,6 +6711,11 @@ class ParallelRangeNode(ParallelStatNode):
 
             code.putln("#ifdef _OPENMP")
             code.put("#pragma omp for")
+
+        # Nested parallelism is not supported, so we can put reductions on the
+        # for and not on the parallel (but would be valid, but gcc45 bugs on
+        # the former)
+        reduction_codepoint = code
 
         for entry, (op, lastprivate) in self.privates.iteritems():
             # Don't declare the index variable as a reduction

@@ -79,10 +79,11 @@ def test_unsigned_operands():
     cdef int step = 1
 
     cdef int steps_taken = 0
+    cdef int *steps_takenp = &steps_taken
 
     for i in prange(start, stop, step, nogil=True):
         steps_taken += 1
-        if steps_taken > 10:
+        if steps_takenp[0] > 10:
             abort()
 
     return steps_taken
@@ -168,7 +169,7 @@ def test_closure_parallel_with_gil():
         for i in prange(10, nogil=True):
             with gil:
                 sum += temp1 + temp2 + i
-                assert abs(sum - sum) == 0
+                # assert abs(sum - sum) == 0
 
         return sum
 
