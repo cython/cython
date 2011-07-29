@@ -76,6 +76,33 @@ def f(x):
             with gil:
                 yield x
 
+# Disabled nesting:
+
+for i in prange(10, nogil=True):
+    for y in prange(10):
+        pass
+
+with nogil, cython.parallel.parallel():
+    for i in prange(10):
+        for i in prange(10):
+            pass
+
+
+# Assign to private from parallel block in prange:
+cdef int myprivate1, myprivate2
+
+with nogil, cython.parallel.parallel():
+    myprivate1 = 1
+    for i in prange(10):
+        myprivate1 = 3
+        myprivate2 = 4
+    myprivate2 = 2
+
+# Disallow parallel with block reductions:
+i = 0
+with nogil, cython.parallel.parallel():
+    i += 1
+
 _ERRORS = u"""
 e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
 e_cython_parallel.pyx:4:0: No such directive: cython.parallel.something
@@ -97,4 +124,9 @@ e_cython_parallel.pyx:62:36: cython.parallel.parallel() does not take positional
 e_cython_parallel.pyx:65:36: Invalid keyword argument: invalid
 e_cython_parallel.pyx:73:12: Yield not allowed in parallel sections
 e_cython_parallel.pyx:77:16: Yield not allowed in parallel sections
+e_cython_parallel.pyx:82:19: Parallel nesting not supported due to bugs in gcc 4.5
+e_cython_parallel.pyx:87:23: Parallel nesting not supported due to bugs in gcc 4.5
+e_cython_parallel.pyx:97:19: Cannot assign to private of outer parallel block, as we cannot retain its value after the loop
+e_cython_parallel.pyx:98:19: Cannot assign to private of outer parallel block, as we cannot retain its value after the loop
+e_cython_parallel.pyx:104:6: Reductions not allowed for parallel blocks
 """

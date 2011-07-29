@@ -26,6 +26,8 @@ class MarkAssignments(CythonTransform):
     # tells us whether we're in a normal loop
     in_loop = False
 
+    parallel_errors = False
+
     def __init__(self, context):
         super(CythonTransform, self).__init__()
         self.context = context
@@ -176,16 +178,29 @@ class MarkAssignments(CythonTransform):
         else:
             node.parent = None
 
+        nested = False
         if node.is_prange:
             if not node.parent:
                 node.is_parallel = True
             else:
                 node.is_parallel = (node.parent.is_prange or not
                                     node.parent.is_parallel)
+                nested = node.parent.is_prange
         else:
             node.is_parallel = True
+            # Note: nested with parallel() blocks are handled by
+            # ParallelRangeTransform!
+            # nested = node.parent
+            nested = node.parent and node.parent.is_prange
 
         self.parallel_block_stack.append(node)
+
+        nested = nested or len(self.parallel_block_stack) > 2
+        if not self.parallel_errors and nested:
+
+            error(node.pos,
+                  "Parallel nesting not supported due to bugs in gcc 4.5")
+            self.parallel_errors = True
 
         if node.is_prange:
             child_attrs = node.child_attrs
@@ -200,6 +215,7 @@ class MarkAssignments(CythonTransform):
             self.visitchildren(node)
             self.parallel_block_stack.pop()
 
+        self.parallel_errors = False
         return node
 
     def visit_YieldExprNode(self, node):

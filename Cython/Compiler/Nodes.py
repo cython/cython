@@ -5910,6 +5910,22 @@ class ParallelStatNode(StatNode, ParallelNode):
         analyse_expressions phase
         """
         for entry, (pos, op) in self.assignments.iteritems():
+
+            if self.is_prange and not self.is_parallel:
+                # closely nested prange in a with parallel block, disallow
+                # assigning to privates in the with parallel block (we
+                # consider it too implicit and magicky for users)
+                if entry in self.parent.assignments:
+                    error(pos,
+                          "Cannot assign to private of outer parallel block, "
+                          "as we cannot retain its value after the loop")
+                    continue
+
+            if not self.is_prange and op:
+                # Again possible, but considered to magicky
+                error(pos, "Reductions not allowed for parallel blocks")
+                continue
+
             if self.is_private(entry):
                 # lastprivate = self.is_prange and entry == self.target.entry
                 # By default all variables should have the same values as if
@@ -6590,7 +6606,6 @@ class ParallelRangeNode(ParallelStatNode):
         if hasattr(self.target, 'entry'):
             self.assignments[self.target.entry] = self.target.pos, None
 
-        self.analyse_sharing_attributes(env)
         super(ParallelRangeNode, self).analyse_expressions(env)
 
     def nogil_check(self, env):
@@ -6723,10 +6738,12 @@ class ParallelRangeNode(ParallelStatNode):
 
         if not self.is_parallel:
             code.put("#pragma omp for")
+            self.privatization_insertion_point = code.insertion_point()
+            reduction_codepoint = self.parent.privatization_insertion_point
         else:
             code.put("#pragma omp parallel")
-            self.put_num_threads(code)
             self.privatization_insertion_point = code.insertion_point()
+            reduction_codepoint = self.privatization_insertion_point
             code.putln("")
             code.putln("#endif /* _OPENMP */")
 
@@ -6744,7 +6761,10 @@ class ParallelRangeNode(ParallelStatNode):
                 if entry.type.is_pyobject:
                     error(self.pos, "Python objects cannot be reductions")
                 else:
-                    code.put(" reduction(%s:%s)" % (op, entry.cname))
+                    #code.put(" reduction(%s:%s)" % (op, entry.cname))
+                    # This is the only way reductions + nesting works in gcc4.5
+                    reduction_codepoint.put(
+                                " reduction(%s:%s)" % (op, entry.cname))
             else:
                 if entry == self.target.entry:
                     code.put(" firstprivate(%s)" % entry.cname)
@@ -6762,9 +6782,7 @@ class ParallelRangeNode(ParallelStatNode):
         if self.schedule:
             code.put(" schedule(%s)" % self.schedule)
 
-        if not self.is_parallel:
-            self.put_num_threads(self.parent.privatization_insertion_point)
-            self.privatization_insertion_point = code.insertion_point()
+        self.put_num_threads(reduction_codepoint)
 
         code.putln("")
         code.putln("#endif /* _OPENMP */")

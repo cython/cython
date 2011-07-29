@@ -44,6 +44,7 @@ def test_num_threads():
 
     return num_threads
 
+'''
 def test_parallel_catch():
     """
     >>> test_parallel_catch()
@@ -67,6 +68,7 @@ def test_parallel_catch():
 
     print len(exceptions) == num_threads
     assert len(exceptions) == num_threads, (len(exceptions), num_threads)
+'''
 
 
 OPENMP_PARALLEL = True
