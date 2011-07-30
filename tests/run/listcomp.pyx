@@ -1,3 +1,5 @@
+cimport cython
+
 def smoketest():
     """
     >>> smoketest()
@@ -76,3 +78,12 @@ def listcomp_as_condition(sequence):
     if [1 for c in sequence if c in '+-*/<=>!%&|([^~,']:
         return True
     return False
+
+@cython.test_fail_if_path_exists("//SimpleCallNode//ComprehensionNode")
+@cython.test_assert_path_exists("//ComprehensionNode")
+def sorted_listcomp(sequence):
+    """
+    >>> sorted_listcomp([3,2,4])
+    [3, 4, 5]
+    """
+    return sorted([ n+1 for n in sequence ])
