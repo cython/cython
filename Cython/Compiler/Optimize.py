@@ -1957,6 +1957,27 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "((double)-1)",
         exception_check = True)
 
+    def _handle_simple_function_set(self, node, pos_args):
+        if len(pos_args) == 1 and isinstance(pos_args[0], (ExprNodes.ListNode,
+                                                           ExprNodes.TupleNode)):
+            # We can optimise set([x,y,z]) safely into a set literal,
+            # but only if we create all items before adding them -
+            # adding an item may raise an exception if it is not
+            # hashable, but creating the later items may have
+            # side-effects.
+            args = []
+            temps = []
+            for arg in pos_args[0].args:
+                if not arg.is_simple():
+                    arg = UtilNodes.LetRefNode(arg)
+                    temps.append(arg)
+                args.append(arg)
+            result = ExprNodes.SetNode(node.pos, is_temp=1, args=args)
+            for temp in temps[::-1]:
+                result = UtilNodes.EvalWithTempExprNode(temp, result)
+            return result
+        return node
+
     def _handle_simple_function_float(self, node, pos_args):
         """Transform float() into either a C type cast or a faster C
         function call.
