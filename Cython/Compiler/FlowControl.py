@@ -215,7 +215,7 @@ class ControlFlow(object):
         offset = 0
         for entry in self.entries:
             assmts = AssignmentList()
-            assmts.bit = 1 << offset
+            assmts.bit = 1L << offset
             assmts.mask = assmts.bit
             self.assmts[entry] = assmts
             offset += 1
@@ -223,7 +223,7 @@ class ControlFlow(object):
         for block in self.blocks:
             for stat in block.stats:
                 if isinstance(stat, NameAssignment):
-                    stat.bit = 1 << offset
+                    stat.bit = 1L << offset
                     assmts = self.assmts[stat.entry]
                     assmts.stats.append(stat)
                     assmts.mask |= stat.bit
