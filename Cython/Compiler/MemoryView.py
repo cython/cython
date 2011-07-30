@@ -1,4 +1,5 @@
 from Errors import CompileError
+import ExprNodes
 from ExprNodes import IntNode, NoneNode, IntBinopNode, NameNode, AttributeNode
 from Visitor import CythonTransform
 import Options
@@ -74,8 +75,8 @@ def mangle_dtype_name(dtype):
 def axes_to_str(axes):
     return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
-def put_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_pos, code):
-    # import MemoryView
+def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
+                                incref_rhs=True, have_gil=False):
     assert rhs.type.is_memoryviewslice
 
     pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
@@ -86,15 +87,16 @@ def put_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_p
         code.putln("%s = %s;" % (rhstmp, rhs.result_as(lhs_type)))
 
     code.putln(code.error_goto_if_null("%s.memview" % rhstmp, lhs_pos))
-    put_assign_to_memviewslice(lhs_result, rhstmp, lhs_type,
-                                     lhs_pos, code=code)
+    put_assign_to_memviewslice(lhs_cname, rhstmp, lhs_type, code, incref_rhs)
 
     if not pretty_rhs:
         code.funcstate.release_temp(rhstmp)
 
-def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code):
+def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, code,
+                               incref_rhs=True):
     code.put_xdecref_memoryviewslice(lhs_cname)
-    code.put_incref_memoryviewslice(rhs_cname)
+    if incref_rhs:
+        code.put_incref_memoryviewslice(rhs_cname)
 
     code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
     code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
@@ -196,7 +198,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             if access == 'full' and packing in ('strided', 'follow'):
                 code.globalstate.use_utility_code(memviewslice_index_helpers)
-                bufp = ('__pyx_memviewslice_index_full(%s, %s, %s)' %
+                bufp = ('__pyx_memviewslice_index_full(%s, %s, %s, %s)' %
                                             (bufp, index, stride, suboffset))
 
             elif access == 'full' and packing == 'contig':
@@ -721,47 +723,6 @@ def _resolve_AttributeNode(env, node):
     for modname in modnames[1:]:
         scope = scope.lookup(modname).as_module
     return scope.lookup(path[-1])
-
-class MemoryViewSliceTransform(CythonTransform):
-
-    memviews_exist = False
-
-    def __call__(self, node):
-        return super(MemoryViewSliceTransform, self).__call__(node)
-
-    def inspect_scope(self, node, scope):
-
-        memviewvars = [entry for name, entry
-                in scope.entries.iteritems()
-                if entry.type.is_memoryviewslice]
-        if memviewvars:
-            self.memviews_exist = True
-
-    def visit_FuncDefNode(self, node):
-        # check for the existence of memview entries here.
-        self.inspect_scope(node, node.local_scope)
-        self.visitchildren(node)
-        return node
-
-    def visit_ModuleNode(self, node):
-        # check for memviews here.
-        self.inspect_scope(node, node.scope)
-        self.visitchildren(node)
-        return node
-
-    def visit_ClassDefNode(self, node):
-        # check for memviews in the class scope
-        if hasattr(node, 'scope'):
-            scope = node.scope
-        else:
-            scope = node.entry.type.scope
-        self.inspect_scope(node, scope)
-        self.visitchildren(node)
-        return node
-
-    def visit_SingleAssignmentNode(self, node):
-        return node
-
 
 def load_memview_cy_utility(util_code_name, context=None, **kwargs):
     return CythonUtilityCode.load(util_code_name, "MemoryView.pyx",

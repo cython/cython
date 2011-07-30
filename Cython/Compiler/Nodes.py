@@ -1432,9 +1432,11 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
-            if entry.type.is_memoryviewslice:
-                code.put_incref_memoryviewslice(entry.cname,
-                                                have_gil=not lenv.nogil)
+            # Note: all memoryviewslices are already newly acquired references
+            #       or increffed defaults!
+            #if entry.type.is_memoryviewslice:
+            #    code.put_incref_memoryviewslice(entry.cname,
+            #                                    have_gil=not lenv.nogil)
                 #code.put_incref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
@@ -1482,6 +1484,8 @@ class FuncDefNode(StatNode, BlockNode):
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
             buffers_present = len(lenv.buffer_entries) > 0
+            memslice_entries = [e for e in lenv.entries.itervalues()
+                                      if e.type.is_memoryviewslice]
             if buffers_present:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
                 code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
@@ -1489,6 +1493,8 @@ class FuncDefNode(StatNode, BlockNode):
                 for entry in lenv.buffer_entries:
                     Buffer.put_release_buffer_code(code, entry)
                     #code.putln("%s = 0;" % entry.cname)
+                #for entry in memslice_entries:
+                #    code.put_xdecref_memoryviewslice(entry.cname)
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
             err_val = self.error_value()
@@ -1548,10 +1554,12 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.var_entries:
             if not entry.used or entry.in_closure:
                 continue
+
             if entry.type.is_memoryviewslice:
                 #code.put_xdecref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
                 code.put_xdecref_memoryviewslice(entry.cname)
-            if entry.type.is_pyobject:
+
+            elif entry.type.is_pyobject:
                 code.put_var_decref(entry)
 
         # Decref any increfed args
@@ -1559,7 +1567,7 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_decref(entry)
-            if entry.type.is_memoryviewslice:
+            if entry.type.is_memoryviewslice and isinstance(self, DefNode):
                 code.put_xdecref_memoryviewslice(entry.cname)
                 #code.put_decref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         if self.needs_closure:
@@ -1574,9 +1582,6 @@ class FuncDefNode(StatNode, BlockNode):
                 err_val = default_retval
             if self.return_type.is_pyobject:
                 code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
-            #elif self.return_type.is_memoryviewslice:
-            #    code.put_xgiveref(code.as_pyobject("%s.memview" % Naming.retval_cname,cython_memoryview_ptr_type))
-            #    code.put_xgiveref_memoryviewslice(Naming.retval_cname)
 
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
@@ -2805,6 +2810,9 @@ class DefNode(FuncDefNode):
                     "%s = %s;" % (
                         arg.entry.cname,
                         arg.calculate_default_value_code(code)))
+                if arg.type.is_memoryviewslice:
+                    code.put_incref_memoryviewslice(arg.entry.cname,
+                                                    have_gil=True)
 
     def generate_stararg_init_code(self, max_positional_args, code):
         if self.starstar_arg:
@@ -2982,6 +2990,22 @@ class DefNode(FuncDefNode):
                 self.name,
                 code.error_goto(self.pos)))
         code.putln('}')
+
+        # convert arg values to their final type and assign them
+        for i, arg in enumerate(all_args):
+            if arg.default and not arg.type.is_pyobject:
+                code.putln("if (values[%d]) {" % i)
+            self.generate_arg_assignment(arg, "values[%d]" % i, code)
+            if arg.default and not arg.type.is_pyobject:
+                code.putln('} else {')
+                code.putln(
+                    "%s = %s;" % (
+                        arg.entry.cname,
+                        arg.calculate_default_value_code(code)))
+                if arg.type.is_memoryviewslice:
+                    code.put_incref_memoryviewslice(arg.entry.cname,
+                                                    have_gil=True)
+                code.putln('}')
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from signature type to
@@ -4291,8 +4315,12 @@ class ReturnStatNode(StatNode):
             self.value.generate_evaluation_code(code)
             if self.return_type.is_memoryviewslice:
                 import MemoryView
-                MemoryView.put_acquire_memoryviewslice(self.value, self.return_type,
-                        False, Naming.retval_cname, None, code)
+                MemoryView.put_acquire_memoryviewslice(
+                        lhs_cname=Naming.retval_cname,
+                        lhs_type=self.return_type,
+                        lhs_pos=self.value.pos,
+                        rhs=self.value,
+                        code=code)
             else:
                 self.value.make_owned_reference(code)
                 code.putln(

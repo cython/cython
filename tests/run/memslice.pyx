@@ -48,13 +48,13 @@ def acquire_release(o1, o2):
     >>> B = IntMockBuffer("B", range(6))
     >>> acquire_release(A, B)
     acquired A
+    acquired B
     released A
-    acquired B
     released B
-    >>> acquire_release(None, None)
     >>> acquire_release(None, B)
-    acquired B
-    released B
+    Traceback (most recent call last):
+       ...
+    TypeError: 'NoneType' does not have the buffer interface
     """
     cdef int[:] buf
     buf = o1
@@ -122,8 +122,6 @@ def acquire_failure3():
     >>> acquire_failure3()
     acquired working
     0 3
-    released working
-    acquired working
     0 3
     released working
     """
@@ -151,6 +149,10 @@ def acquire_nonbuffer1(first, second=None):
     >>> acquire_nonbuffer1(None, 2)
     Traceback (most recent call last):
       ...
+    TypeError: 'NoneType' does not have the buffer interface
+    >>> acquire_nonbuffer1(4, object())
+    Traceback (most recent call last):
+      ...
     TypeError: 'int' does not have the buffer interface
     """
     cdef int[:] buf
@@ -163,8 +165,6 @@ def acquire_nonbuffer2():
     >>> acquire_nonbuffer2()
     acquired working
     0 3
-    released working
-    acquired working
     0 3
     released working
     """
@@ -195,9 +195,7 @@ def as_argument(int[:] bufarg, int n):
 def as_argument_defval(int[:] bufarg=IntMockBuffer('default', range(6)), int n=6):
     """
     >>> as_argument_defval()
-    acquired default
     0 1 2 3 4 5 END
-    released default
     >>> A = IntMockBuffer("A", range(6))
     >>> as_argument_defval(A, 6)
     acquired A
@@ -233,14 +231,14 @@ def forin_assignment(objs, int pick):
     >>> forin_assignment([A, B, A, A], 2)
     acquired A
     2
-    released A
     acquired B
-    2
-    released B
-    acquired A
-    2
     released A
+    2
     acquired A
+    released B
+    2
+    acquired A
+    released A
     2
     released A
     """
@@ -532,7 +530,7 @@ def c_contig_2d(int[:, ::1] buf):
 @testcase
 def f_contig(int[::1, :] buf):
     """
-    >>> A = IntMockBuffer(None, range(4), shape=(2, 2))
+    >>> A = IntMockBuffer(None, range(4), shape=(2, 2), strides=(1, 2))
     >>> f_contig(A)
     2
     >>> [str(x) for x in A.recieved_flags]
@@ -688,7 +686,7 @@ def printbuf_int_2d(o, shape):
     released A
     """
     # should make shape builtin
-    cdef int[:, :] buf
+    cdef int[::view.generic, ::view.generic] buf
     buf = o
     cdef int i, j
     for i in range(shape[0]):

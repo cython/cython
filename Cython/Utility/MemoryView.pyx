@@ -166,7 +166,7 @@ cdef extern from "pythread.h":
     void PyThread_release_lock(PyThread_type_lock) nogil
 
 cdef extern from *:
-    int __Pyx_GetBuffer(object, Py_buffer *, int)
+    int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
     ctypedef struct {{memviewslice_name}}:
@@ -174,6 +174,9 @@ cdef extern from *:
         Py_ssize_t shape[{{max_dims}}]
         Py_ssize_t strides[{{max_dims}}]
         Py_ssize_t suboffsets[{{max_dims}}]
+
+    void puts(char *)
+    void printf(char *, ...)
 
 
 @cname('__pyx_MemviewEnum')
@@ -197,10 +200,9 @@ cdef indirect_contiguous = Enum("<contiguous and indirect>")
 cdef class memoryview(object):
 
     cdef object obj
-    cdef Py_buffer view
     cdef PyThread_type_lock lock
     cdef int acquisition_count
-
+    cdef Py_buffer view
 
     def __cinit__(memoryview self, object obj, int flags):
         self.obj = obj
@@ -212,7 +214,8 @@ cdef class memoryview(object):
 
     def __dealloc__(memoryview self):
         __Pyx_ReleaseBuffer(&self.view)
-        PyThread_free_lock(self.lock)
+        if self.lock != NULL:
+            PyThread_free_lock(self.lock)
 
     @cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
@@ -255,6 +258,9 @@ cdef class memoryview(object):
         bytesitem = itemp[:self.view.itemsize]
         return struct.unpack(fmt, bytesitem)
 
+    def __str__(self):
+        return "<MemoryView of %r at 0x%x>" % (self.obj, id(self))
+
 
 @cname('__pyx_memoryviewslice')
 cdef class _memoryviewslice(memoryview):
@@ -277,9 +283,9 @@ cdef memoryview_cwrapper(object o, int flags):
     return memoryview(o, flags)
 
 @cname('__pyx_memoryview_fromslice')
-cdef memoryview memoryview_from_memview_cwrapper(memoryview m,  int flags,
-                        int new_ndim, {{memviewslice_name}} *memviewslice):
-    cdef _memoryviewslice result = _memoryviewslice(m.obj, flags)
+cdef memoryview memoryview_from_memview_cwrapper(
+        {{memviewslice_name}} *memviewslice, object orig_obj, int flags, int new_ndim):
+    cdef _memoryviewslice result = _memoryviewslice(orig_obj, flags)
 
     result.from_slice = memviewslice[0]
 

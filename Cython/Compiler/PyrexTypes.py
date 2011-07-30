@@ -376,12 +376,13 @@ class MemoryViewSliceType(PyrexType):
         the *first* axis' packing spec and 'follow' for all other packing
         specs.
         '''
+        import MemoryView
 
         self.dtype = base_dtype
         self.axes = axes
         self.ndim = len(axes)
+        self.flags = MemoryView.get_buf_flag(self.axes)
 
-        import MemoryView
         self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
         assert not (self.is_c_contig and self.is_f_contig)
 
@@ -540,7 +541,7 @@ class MemoryViewSliceType(PyrexType):
 
         context = dict(
             MemoryView.context,
-            buf_flag = MemoryView.get_buf_flag(self.axes),
+            buf_flag = self.flags,
             ndim = self.ndim,
             axes_specs = ', '.join(self.axes_specs_to_code()),
             dtype_typedecl = self.dtype.declaration_code(""),
@@ -553,6 +554,13 @@ class MemoryViewSliceType(PyrexType):
         MemoryViewSliceType.utility_counter += 1
 
         return True
+
+    def create_to_py_utility_code(self, env):
+        return True
+
+    def get_to_py_function(self, obj):
+        return "__pyx_memoryview_fromslice(&%s, %s.memview->obj, %s, %s);" % (
+                                obj.result(), obj.result(), self.flags, self.ndim)
 
     def axes_specs_to_code(self):
         "Return a list of code constants for each axis"

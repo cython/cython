@@ -1362,6 +1362,7 @@ class NameNode(AtomicExprNode):
                     node.entry = var_entry
                     node.analyse_rvalue_entry(env)
                     return node
+
         return super(NameNode, self).coerce_to(dst_type, env)
 
     def analyse_as_module(self, env):
@@ -1662,17 +1663,7 @@ class NameNode(AtomicExprNode):
                 rhs.free_temps(code)
         else:
             if self.type.is_memoryviewslice:
-                import MemoryView
-                MemoryView.put_acquire_memoryviewslice(rhs, self.type,
-                        self.entry.is_cglobal, self.result(), self.pos, code)
-
-                if isinstance(rhs, CoerceToMemViewSliceNode):
-                    # We had a new reference, the lhs now has another,
-                    # dispose of ours.
-                    # code.put_xdecref_memoryviewslice(rhs.result())
-                    code.put_decref("%s.memview" % rhs.result(),
-                                    cython_memoryview_ptr_type,
-                                    nanny=False)
+                self.generate_acquire_memoryviewslice(rhs, code)
 
             elif self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
@@ -1715,6 +1706,21 @@ class NameNode(AtomicExprNode):
                     print("...generating post-assignment code for %s" % rhs)
                 rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
+
+    def generate_acquire_memoryviewslice(self, rhs, code):
+        """
+        If the value was coerced to a memoryviewslice, its a new reference.
+        Otherwise we're simply using a borrowed reference from another slice
+        """
+        import MemoryView
+
+        MemoryView.put_acquire_memoryviewslice(
+            lhs_cname=self.result(),
+            lhs_type=self.type,
+            lhs_pos=self.pos,
+            rhs=rhs,
+            code=code,
+            incref_rhs=not isinstance(rhs, CoerceToMemViewSliceNode))
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -4009,10 +4015,9 @@ class AttributeNode(ExprNode):
                 code.put_decref(select_code, self.ctype())
             elif self.type.is_memoryviewslice:
                 import MemoryView
-                MemoryView.put_assign_to_memviewslice(select_code, rhs.result(), self.type,
-                        pos=self.pos, code=code)
-                #if rhs.is_temp:
-                #    code.put_xdecref_clear("%s.memview" % rhs.result(), cython_memoryview_ptr_type)
+                MemoryView.put_assign_to_memviewslice(
+                        select_code, rhs.result(), self.type, code)
+
             if not self.type.is_memoryviewslice:
                 code.putln(
                     "%s = %s;" % (
@@ -7863,12 +7868,17 @@ class CoerceToPyTypeNode(CoercionNode):
         pass
 
     def generate_result_code(self, code):
-        function = self.arg.type.to_py_function
-        code.putln('%s = %s(%s); %s' % (
+        if self.arg.type.is_memoryviewslice:
+            funccall = self.arg.type.get_to_py_function(self.arg)
+        else:
+            funccall = "%s(%s)" % (self.arg.type.to_py_function,
+                                   self.arg.result())
+
+        code.putln('%s = %s; %s' % (
             self.result(),
-            function,
-            self.arg.result(),
+            funccall,
             code.error_goto_if_null(self.result(), self.pos)))
+
         code.put_gotref(self.py_result())
 
 

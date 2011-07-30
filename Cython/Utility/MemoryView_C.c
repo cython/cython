@@ -76,7 +76,6 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     if (unlikely(retcode == -1))
         goto __pyx_fail;
 
-    memview->acquisition_count = 1;
     return result;
 __pyx_fail:
     Py_XDECREF(memview);
@@ -165,7 +164,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
             }
         }
 
-        if (spec & (__Pyx_MEMVIEW_PTR | __Pyx_MEMVIEW_FULL)) {
+        if (spec & __Pyx_MEMVIEW_PTR) {
             if (!buf->suboffsets) {
                 PyErr_SetString(PyExc_ValueError,
                     "Buffer not able to be indirectly accessed.");
@@ -252,6 +251,7 @@ static int __Pyx_init_memviewslice(
 
     memviewslice->memview = memview;
     memviewslice->data = (char *)buf->buf;
+    memview->acquisition_count++;
     retval = 0;
     goto no_fail;
 
@@ -265,22 +265,39 @@ no_fail:
     return retval;
 }
 
+
+static CYTHON_INLINE void __pyx_fatalerror(char *fmt, ...) {
+    va_list vargs;
+    char msg[200];
+
+    va_start(vargs, fmt);
+
+#ifdef HAVE_STDARG_PROTOTYPES
+    va_start(vargs, fmt);
+#else
+    va_start(vargs);
+#endif
+
+    vsnprintf(msg, 200, fmt, vargs);
+    Py_FatalError(msg);
+
+    va_end(vargs);
+}
+
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
                                             int have_gil, int lineno) {
     int first_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
-    if (!memview) {
-        char msg[50];
-        snprintf(msg, 50, "memoryslice is not initialized (line %d)", lineno);
-        Py_FatalError(msg);
-    }
+    if (!memview)
+        __pyx_fatalerror("memoryslice is not initialized (line %d)", lineno);
+
+    if (memview->acquisition_count <= 0)
+        __pyx_fatalerror("Acquisition count is %d (line %d)",
+                         memview->acquisition_count, lineno);
 
     PyThread_acquire_lock(memview->lock, 1);
     first_time = (memview->acquisition_count++ == 0);
     PyThread_release_lock(memview->lock);
-
-    /* printf("INCREF %d: acquisition_count=%d, refcount=%d\n", lineno,
-           memview->acquisition_count, memview->ob_refcnt); */
 
     if (first_time) {
         if (have_gil) {
@@ -298,26 +315,26 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
     int last_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
-    if (!memview) {
+    if (!memview)
         return;
-    }
+
+    if (memview->acquisition_count <= 0)
+        __pyx_fatalerror("Acquisition count is %d (line %d)",
+                         memview->acquisition_count, lineno);
 
     PyThread_acquire_lock(memview->lock, 1);
     last_time = (memview->acquisition_count-- == 1);
     PyThread_release_lock(memview->lock);
 
-    /* printf("DECREF %d: acquisition_count=%d, refcount=%d\n", lineno,
-           memview->acquisition_count, memview->ob_refcnt); */
-
     if (last_time) {
         if (have_gil) {
-            Py_CLEAR(memview);
+            Py_CLEAR(memslice->memview);
         } else {
             PyGILState_STATE _gilstate = PyGILState_Ensure();
-            Py_CLEAR(memview);
+            Py_CLEAR(memslice->memview);
             PyGILState_Release(_gilstate);
         }
-        memslice->data = NULL;
+        memslice->memview = NULL;
     }
 }
 

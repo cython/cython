@@ -1251,8 +1251,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
         for entry in memviewslice_attrs:
             code.putln("p->%s.data = NULL;" % entry.cname)
-            code.put_init_to_py_none("p->%s.memview" % entry.cname,
-                    PyrexTypes.cython_memoryview_ptr_type, nanny=False)
+            code.putln("p->%s.memview = NULL;" % entry.cname)
         entry = scope.lookup_here("__new__")
         if entry and entry.is_special:
             if entry.trivial_signature:
