@@ -122,7 +122,7 @@ def make_new_none_typed(tuple t=None):
     """
     >>> make_new_none_typed()
     Traceback (most recent call last):
-    TypeError: object.__new__(X): X is not a type object (NoneType)
+    TypeError: ...__new__(X): X is not a type object (NoneType)
     """
     m = t.__new__(t)
     return m
