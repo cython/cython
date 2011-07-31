@@ -1828,28 +1828,40 @@ class CFuncDefNode(FuncDefNode):
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
 
     def generate_argument_declarations(self, env, code):
+        scope = self.local_scope
         for arg in self.args:
             if arg.default:
-                result = arg.calculate_default_value_code(code)
-                code.putln('%s = %s;' % (
-                    arg.type.declaration_code(arg.cname), result))
+                entry = scope.lookup(arg.name)
+                if entry.cf_used:
+                    result = arg.calculate_default_value_code(code)
+                    code.putln('%s = %s;' % (
+                        arg.type.declaration_code(arg.cname), result))
 
     def generate_keyword_list(self, code):
         pass
 
     def generate_argument_parsing_code(self, env, code):
         i = 0
+        used = 0
         if self.type.optional_arg_count:
+            scope = self.local_scope
             code.putln('if (%s) {' % Naming.optional_args_cname)
             for arg in self.args:
                 if arg.default:
-                    code.putln('if (%s->%sn > %s) {' % (Naming.optional_args_cname, Naming.pyrex_prefix, i))
-                    declarator = arg.declarator
-                    while not hasattr(declarator, 'name'):
-                        declarator = declarator.base
-                    code.putln('%s = %s->%s;' % (arg.cname, Naming.optional_args_cname, self.type.opt_arg_cname(declarator.name)))
+                    entry = scope.lookup(arg.name)
+                    if entry.cf_used:
+                        code.putln('if (%s->%sn > %s) {' %
+                                   (Naming.optional_args_cname,
+                                    Naming.pyrex_prefix, i))
+                        declarator = arg.declarator
+                        while not hasattr(declarator, 'name'):
+                            declarator = declarator.base
+                        code.putln('%s = %s->%s;' %
+                                   (arg.cname, Naming.optional_args_cname,
+                                    self.type.opt_arg_cname(declarator.name)))
+                        used += 1
                     i += 1
-            for _ in range(self.type.optional_arg_count):
+            for _ in range(used):
                 code.putln('}')
             code.putln('}')
 
