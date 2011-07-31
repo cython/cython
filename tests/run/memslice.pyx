@@ -431,7 +431,7 @@ def wraparound_directive(int[:] buf, int pos_idx, int neg_idx):
 
 
 #
-# Test which flags are passed.
+# Test all kinds of indexing and flags
 #
 
 @testcase
@@ -511,6 +511,127 @@ def f_contig_2d(int[::1, :] buf):
     ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS', 'WRITABLE']
     """
     return buf[3, 1]
+
+@testcase
+def generic(int[::view.generic, ::view.generic] buf1,
+            int[::view.generic, ::view.generic] buf2):
+    """
+    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> generic(A, B)
+    acquired A
+    acquired B
+    4
+    4
+    10
+    11
+    released A
+    released B
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    >>> [str(x) for x in B.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    print buf1[1, 1]
+    print buf2[1, 1]
+
+    buf1[2, -1] = 10
+    buf2[2, -1] = 11
+
+    print buf1[2, 2]
+    print buf2[2, 2]
+
+@testcase
+def generic_contig(int[::view.generic_contiguous, :] buf1,
+                   int[::view.generic_contiguous, :] buf2):
+    """
+    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> generic_contig(A, B)
+    acquired A
+    acquired B
+    4
+    4
+    10
+    11
+    released A
+    released B
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    >>> [str(x) for x in B.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    print buf1[1, 1]
+    print buf2[1, 1]
+
+    buf1[2, -1] = 10
+    buf2[2, -1] = 11
+
+    print buf1[2, 2]
+    print buf2[2, 2]
+
+@testcase
+def indirect_strided_and_contig(
+             int[::view.indirect, ::view.strided] buf1,
+             int[::view.indirect, ::view.contiguous] buf2):
+    """
+    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> indirect_strided_and_contig(A, B)
+    acquired A
+    acquired B
+    4
+    4
+    10
+    11
+    released A
+    released B
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    >>> [str(x) for x in B.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    print buf1[1, 1]
+    print buf2[1, 1]
+
+    buf1[2, -1] = 10
+    buf2[2, -1] = 11
+
+    print buf1[2, 2]
+    print buf2[2, 2]
+
+
+@testcase
+def indirect_contig(
+             int[::view.indirect_contiguous, ::view.contiguous] buf1,
+             int[::view.indirect_contiguous, ::view.generic] buf2):
+    """
+    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> indirect_contig(A, B)
+    acquired A
+    acquired B
+    4
+    4
+    10
+    11
+    released A
+    released B
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    >>> [str(x) for x in B.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    print buf1[1, 1]
+    print buf2[1, 1]
+
+    buf1[2, -1] = 10
+    buf2[2, -1] = 11
+
+    print buf1[2, 2]
+    print buf2[2, 2]
+
+
 
 #
 # Test compiler options for bounds checking. We create an array with a

@@ -27,6 +27,22 @@ cdef object[:, ::1] unconformable2 = unconformable1
 cdef int[::1, :] dtype_unconformable = object()
 unconformable1 = dtype_unconformable
 
+# These are INVALID
+cdef int[::view.contiguous, ::1] a1
+cdef int[::view.generic_contiguous, ::1] a2
+
+cdef int[::view.contiguous, ::view.generic_contiguous] a3
+cdef int[::view.generic_contiguous, ::view.generic_contiguous] a4
+
+cdef int[::view.contiguous, ::view.contiguous] a5
+cdef int[:, ::view.contiguous, ::view.indirect_contiguous] a6
+
+cdef int[::view.generic_contiguous, ::view.contiguous] a7
+cdef int[::view.contiguous, ::view.generic_contiguous] a8
+
+# These are VALID
+cdef int[::view.indirect_contiguous, ::view.contiguous] a9
+
 _ERRORS = u'''
 11:25: Cannot specify an array that is both C and Fortran contiguous.
 12:31: Cannot specify an array that is both C and Fortran contiguous.
@@ -42,4 +58,12 @@ _ERRORS = u'''
 22:22: no expressions allowed in axis spec, only names and literals.
 25:51: Memoryview 'object[::contiguous, :]' not conformable to memoryview 'object[:, ::contiguous]'.
 28:36: Different base types for memoryviews (int, Python object)
+31:15: Invalid axis specification for a C/Fortran contiguous array.
+32:15: Invalid axis specification for a C/Fortran contiguous array.
+34:9: Generic contiguous cannot be combined with direct contiguous
+35:9: Generic contiguous cannot be combined with direct contiguous
+37:9: Only one direct contiguous axis may be specified.
+38:9: Indirect contiguous dimensions must precede direct contiguous
+40:9: Generic contiguous cannot be combined with direct contiguous
+41:9: Generic contiguous cannot be combined with direct contiguous
 '''

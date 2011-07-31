@@ -99,18 +99,22 @@ cdef class MockBuffer:
             it += self.itemsize
         return buf
 
-    cdef void* create_indirect_buffer(self, data, shape):
+    cdef void* create_indirect_buffer(self, data, shape) except NULL:
         cdef size_t n = 0
         cdef void** buf
-        assert shape[0] == len(data)
+        assert shape[0] == len(data), (shape[0], len(data))
         if len(shape) == 1:
             return self.create_buffer(data)
         else:
             shape = shape[1:]
             n = <size_t>len(data) * sizeof(void*)
             buf = <void**>stdlib.malloc(n)
+            if buf == NULL:
+                return NULL
+
             for idx, subdata in enumerate(data):
                 buf[idx] = self.create_indirect_buffer(subdata, shape)
+
             return buf
 
     cdef Py_ssize_t* list_to_sizebuf(self, l):

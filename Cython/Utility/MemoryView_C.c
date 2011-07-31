@@ -42,6 +42,11 @@ static int __Pyx_init_memviewslice(
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
 
+#if CYTHON_REFNANNY
+    /* disable inlining when running tests */
+    #define CYTHON_INLINE
+#endif
+
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
 #define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
@@ -141,7 +146,13 @@ static int __Pyx_ValidateAndInit_memviewslice(
         spec = axes_specs[i];
 
         if (spec & __Pyx_MEMVIEW_CONTIG) {
-            if (buf->strides[i] != buf->itemsize) {
+            if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL)) {
+                if (buf->strides[i] != sizeof(void *)) {
+                    PyErr_Format(PyExc_ValueError,
+                        "Buffer is not indirectly contiguous in dimension %d.", i);
+                    goto fail;
+                }
+            } else if (buf->strides[i] != buf->itemsize) {
                 PyErr_SetString(PyExc_ValueError,
                     "Buffer and memoryview are not contiguous in the same dimension.");
                 goto fail;
@@ -156,26 +167,24 @@ static int __Pyx_ValidateAndInit_memviewslice(
             }
         }
 
+        /* Todo: without PyBUF_INDIRECT we may not have suboffset information, i.e., the
+           ptr may not be set to NULL but may be uninitialized? */
         if (spec & __Pyx_MEMVIEW_DIRECT) {
             if (buf->suboffsets && buf->suboffsets[i] >= 0) {
-                PyErr_SetString(PyExc_ValueError,
-                    "Buffer not compatible with direct access.");
-                goto fail;
-            }
-        }
-
-        if (spec & __Pyx_MEMVIEW_PTR) {
-            if (!buf->suboffsets) {
-                PyErr_SetString(PyExc_ValueError,
-                    "Buffer not able to be indirectly accessed.");
-                goto fail;
-            }
-        }
-
-        if (spec & __Pyx_MEMVIEW_PTR) {
-            if (buf->suboffsets[i] < 0) {
                 PyErr_Format(PyExc_ValueError,
-                    "Buffer not indirectly accessed in %d dimension, although memoryview is.", i);
+                    "Buffer not compatible with direct access in dimension %d.", i);
+                goto fail;
+            }
+        }
+
+        if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL) && !buf->suboffsets) {
+            memviewslice->suboffsets[i] = -1;
+        }
+
+        if (spec & __Pyx_MEMVIEW_PTR) {
+            if (buf->suboffsets && buf->suboffsets[i] < 0) {
+                PyErr_Format(PyExc_ValueError,
+                    "Buffer is not indirectly accessisble in dimension %d.", i);
                 goto fail;
             }
         }

@@ -197,24 +197,22 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             flag = get_memoryview_flag(access, packing)
 
-            if flag == "generic":
+            if flag in ("generic", "generic_contiguous"):
+                # Note: we cannot do cast tricks to avoid stride multiplication
+                #       for generic_contiguous, as we may have to do (dtype *)
+                #       or (dtype **) arithmetic, we won't know which unless
+                #       we check suboffsets
                 code.globalstate.use_utility_code(memviewslice_index_helpers)
                 bufp = ('__pyx_memviewslice_index_full(%s, %s, %s, %s)' %
                                             (bufp, index, stride, suboffset))
 
-            elif flag == "generic_contiguous":
-                # We can skip stride multiplication with the cast
-                code.globalstate.use_utility_code(memviewslice_index_helpers)
-                bufp = '((char *) ((%s *) %s) + %s)' % (type_decl, bufp, index)
-                bufp = ('__pyx_memviewslice_index_full_contig(%s, %s)' %
-                                                            (bufp, suboffset))
-
             elif flag == "indirect":
-                bufp = ("(*((char **) %s + %s * %s) + %s)" %
-                                             (bufp, index, stride, suboffset))
+                bufp = "(%s + %s * %s)" % (bufp, index, stride)
+                bufp = ("(*((char **) %s) + %s)" % (bufp, suboffset))
 
             elif flag == "indirect_contiguous":
-                bufp = "(*((char **) %s) + %s)" % (bufp, suboffset)
+                # Note: we do char ** arithmetic
+                bufp = "(*((char **) %s + %s) + %s)" % (bufp, index, suboffset)
 
             elif flag == "strided":
                 bufp = "(%s + %s * %s)" % (bufp, index, stride)
@@ -621,7 +619,7 @@ def get_axes_specs(env, axes):
         else:
             raise CompileError(axis.step.pos, INVALID_ERR)
 
-    validate_axes_specs(axes[0].start.pos, axes_specs)
+    validate_axes_specs([axis.start.pos for axis in axes], axes_specs)
 
     return axes_specs
 
@@ -677,16 +675,16 @@ def get_access_packing(view_scope_constant):
     if view_scope_constant.name == 'generic':
         return 'full',
 
-def validate_axes_specs(pos, specs):
+def validate_axes_specs(positions, specs):
 
     packing_specs = ('contig', 'strided', 'follow')
     access_specs = ('direct', 'ptr', 'full')
 
     is_c_contig, is_f_contig = is_cf_contig(specs)
     
-    has_contig = has_follow = has_strided = False
+    has_contig = has_follow = has_strided = has_generic_contig = False
 
-    for access, packing in specs:
+    for pos, (access, packing) in zip(positions, specs):
 
         if not (access in access_specs and
                 packing in packing_specs):
@@ -696,8 +694,16 @@ def validate_axes_specs(pos, specs):
             has_strided = True
         elif packing == 'contig':
             if has_contig:
-                raise CompileError(pos, "Only one contiguous axis may be specified.")
-            has_contig = True
+                if access == 'ptr':
+                    raise CompileError(pos, "Indirect contiguous dimensions must precede direct contiguous")
+                elif has_generic_contig or access == 'full':
+                    raise CompileError(pos, "Generic contiguous cannot be combined with direct contiguous")
+                else:
+                    raise CompileError(pos, "Only one direct contiguous axis may be specified.")
+            # Note: We do NOT allow access == 'full' to act as
+            #       "additionally potentially contiguous"
+            has_contig = access != 'ptr'
+            has_generic_contig = has_generic_contig or access == 'full'
         elif packing == 'follow':
             if has_strided:
                 raise CompileError(pos, "A memoryview cannot have both follow and strided axis specifiers.")
