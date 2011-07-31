@@ -3105,9 +3105,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
         Py_SIZE(L) -= 1;
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
+#if PY_VERSION_HEX >= 0x02050000
     else if (Py_TYPE(L) == (&PySet_Type)) {
         return PySet_Pop(L);
     }
+#endif
 #endif
     return PyObject_CallMethod(L, (char*)"pop", NULL);
 }
