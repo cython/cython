@@ -36,6 +36,20 @@ def iteritems(dict d):
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
+def iteritems_dict(dict d):
+    """
+    >>> iteritems_dict(d)
+    [(11, 1), (12, 2), (13, 3)]
+    """
+    l = []
+    for k,v in {11 : 1, 12 : 2, 13 : 3}.iteritems():
+        l.append((k,v))
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
 def iteritems_int(dict d):
     """
     >>> iteritems_int(d)

@@ -169,7 +169,7 @@ class IterationTransform(Visitor.VisitorTransform):
             if reversed:
                 # CPython raises an error here: not a sequence
                 return node
-            dict_obj = function.obj
+            dict_obj = iterator.self or function.obj
             method = function.attribute
 
             is_py3 = self.module_scope.context.language_level >= 3
