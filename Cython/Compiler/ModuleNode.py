@@ -528,7 +528,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define PY_SSIZE_T_MIN INT_MIN
   #define PY_FORMAT_SIZE_T \"\"
   #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
-  #define PyInt_AsSsize_t(o)   PyInt_AsLong(o)
+  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_AsInt(o)
   #define PyNumber_Index(o)    PyNumber_Int(o)
   #define PyIndex_Check(o)     PyNumber_Check(o)
   #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)
