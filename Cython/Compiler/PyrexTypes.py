@@ -338,9 +338,7 @@ class MemoryViewSliceType(PyrexType):
     to_py_function = None
 
     exception_value = None
-    exception_check = None
-
-    utility_counter = 0
+    exception_check = True
 
     def __init__(self, base_dtype, axes):
         '''
@@ -381,7 +379,7 @@ class MemoryViewSliceType(PyrexType):
         self.dtype = base_dtype
         self.axes = axes
         self.ndim = len(axes)
-        self.flags = MemoryView.get_buf_flag(self.axes)
+        self.flags = MemoryView.get_buf_flags(self.axes)
 
         self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
         assert not (self.is_c_contig and self.is_f_contig)
@@ -416,7 +414,6 @@ class MemoryViewSliceType(PyrexType):
         if self.scope is None:
 
             import Symtab, MemoryView, Options
-            from MemoryView import axes_to_str
 
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
@@ -504,12 +501,12 @@ class MemoryViewSliceType(PyrexType):
 
     def specialization_suffix(self):
         import MemoryView
-        return MemoryView.axes_to_str(self.axes) + '_' + MemoryView.mangle_dtype_name(self.dtype)
+        dtype_name = MemoryView.mangle_dtype_name(self.dtype)
+        return "%s_%s" % (self.axes_to_name(), dtype_name)
 
-    def global_init_code(self, entry, code):
-        code.putln("%s.data = NULL;" % entry.cname)
-        code.putln("%s.memview = NULL;" % entry.cname)
-        #code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_ptr_type, nanny=False)
+    #def global_init_code(self, entry, code):
+    #    code.putln("%s.data = NULL;" % entry.cname)
+    #    code.putln("%s.memview = NULL;" % entry.cname)
 
     def check_for_null_code(self, cname):
         return cname + '.memview'
@@ -535,15 +532,14 @@ class MemoryViewSliceType(PyrexType):
         else:
             c_or_f_flag = "0"
 
-        # specializing through UtilityCode.specialize is not so useful as
-        # specialize on too many things to include in the function name
-        funcname = "__Pyx_PyObject_to_MemoryviewSlice_%d" % self.utility_counter
+        suffix = self.specialization_suffix()
+        funcname = "__Pyx_PyObject_to_MemoryviewSlice_" + suffix
 
         context = dict(
             MemoryView.context,
             buf_flag = self.flags,
             ndim = self.ndim,
-            axes_specs = ', '.join(self.axes_specs_to_code()),
+            axes_specs = ', '.join(self.axes_to_code()),
             dtype_typedecl = self.dtype.declaration_code(""),
             struct_nesting_depth = self.dtype.struct_nesting_depth(),
             c_or_f_flag = c_or_f_flag,
@@ -551,8 +547,6 @@ class MemoryViewSliceType(PyrexType):
         )
 
         self.from_py_function = funcname
-        MemoryViewSliceType.utility_counter += 1
-
         return True
 
     def create_to_py_utility_code(self, env):
@@ -560,15 +554,15 @@ class MemoryViewSliceType(PyrexType):
 
     def get_to_py_function(self, obj):
         return "__pyx_memoryview_fromslice(&%s, %s.memview->obj, %s, %s);" % (
-                                obj.result(), obj.result(), self.flags, self.ndim)
+                       obj.result(), obj.result(), self.flags, self.ndim)
 
-    def axes_specs_to_code(self):
+    def axes_to_code(self):
         "Return a list of code constants for each axis"
         import MemoryView
         d = MemoryView._spec_to_const
         return ["(%s | %s)" % (d[a], d[p]) for a, p in self.axes]
 
-    def axes_specs_to_name(self):
+    def axes_to_name(self):
         "Return an abbreviated name for our axes"
         import MemoryView
         d = MemoryView._spec_to_abbrev
@@ -576,6 +570,24 @@ class MemoryViewSliceType(PyrexType):
 
     def error_condition(self, result_code):
         return "!%s.memview" % result_code
+
+    def __str__(self):
+        import MemoryView
+
+        axes_code_list = []
+        for access, packing in self.axes:
+            flag = MemoryView.get_memoryview_flag(access, packing)
+            if flag == "strided":
+                axes_code_list.append(":")
+            else:
+                axes_code_list.append("::" + flag)
+
+        if self.dtype.is_pyobject:
+            dtype_name = self.dtype.name
+        else:
+            dtype_name = self.dtype
+
+        return "%s[%s]" % (dtype_name, ", ".join(axes_code_list))
 
 
 class BufferType(BaseType):
@@ -631,6 +643,9 @@ class PyObjectType(PyrexType):
 
     def __repr__(self):
         return "<PyObjectType>"
+
+    def __eq__(self, other):
+        return isinstance(other, PyObjectType) and self.name == other.name
 
     def can_coerce_to_pyobject(self, env):
         return True

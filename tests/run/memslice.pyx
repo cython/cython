@@ -1,11 +1,4 @@
-# Tests the buffer access syntax functionality by constructing
-# mock buffer objects.
-#
-# Note that the buffers are mock objects created for testing
-# the buffer access behaviour -- for instance there is no flag
-# checking in the buffer objects (why test our test case?), rather
-# what we want to test is what is passed into the flags argument.
-#
+# Note: see also bufaccess.pyx
 
 from __future__ import unicode_literals
 
@@ -417,25 +410,6 @@ def list_comprehension(int[:] buf, len):
     cdef int i
     print u"|".join([unicode(buf[i]) for i in range(len)])
 
-#
-# The negative_indices buffer option
-#
-@testcase
-def no_negative_indices(object[int, negative_indices=False] buf, int idx):
-    """
-    The most interesting thing here is to inspect the C source and
-    make sure optimal code is produced.
-
-    >>> A = IntMockBuffer(None, range(6))
-    >>> no_negative_indices(A, 3)
-    3
-    >>> no_negative_indices(A, -1)
-    Traceback (most recent call last):
-        ...
-    IndexError: Out of bounds on buffer access (axis 0)
-    """
-    return buf[idx]
-
 @testcase
 @cython.wraparound(False)
 def wraparound_directive(int[:] buf, int pos_idx, int neg_idx):
@@ -459,19 +433,6 @@ def wraparound_directive(int[:] buf, int pos_idx, int neg_idx):
 #
 # Test which flags are passed.
 #
-# @testcase
-# def readonly(obj):
-#     """
-#     >>> R = UnsignedShortMockBuffer("R", range(27), shape=(3, 3, 3))
-#     >>> readonly(R)
-#     acquired R
-#     25
-#     released R
-#     >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
-#     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
-#     """
-#     cdef unsigned short int[:, :, :] buf = obj
-#     print buf[2, 2, 1]
 
 @testcase
 def writable(obj):
@@ -510,7 +471,7 @@ def c_contig(int[::1] buf):
     >>> c_contig(A)
     2
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS', 'WRITABLE']
     """
     return buf[2]
 
@@ -523,7 +484,7 @@ def c_contig_2d(int[:, ::1] buf):
     >>> c_contig_2d(A)
     7
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS', 'WRITABLE']
     """
     return buf[1, 3]
 
@@ -534,12 +495,12 @@ def f_contig(int[::1, :] buf):
     >>> f_contig(A)
     2
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS', 'WRITABLE']
     """
     return buf[0, 1]
 
 @testcase
-def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
+def f_contig_2d(int[::1, :] buf):
     """
     Must set up strides manually to ensure Fortran ordering.
 
@@ -547,7 +508,7 @@ def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
     >>> f_contig_2d(A)
     7
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS', 'WRITABLE']
     """
     return buf[3, 1]
 
@@ -600,18 +561,6 @@ def unsafe_get(int[:] buf, int idx):
     """
     return buf[idx]
 
-# @testcase
-# @cython.boundscheck(False)
-# def unsafe_get_nonegative(object[int, negative_indices=False] buf, int idx):
-#     """
-#     Also inspect the C source to see that it is optimal...
-#
-#     >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
-#     >>> unsafe_get_nonegative(A, -2)
-#     3
-#     """
-#     return buf[idx]
-
 @testcase
 def mixed_get(int[:] buf, int unsafe_idx, int safe_idx):
     """
@@ -628,25 +577,6 @@ def mixed_get(int[:] buf, int unsafe_idx, int safe_idx):
     with cython.boundscheck(True):
         two = buf[safe_idx]
     return (one, two)
-
-#
-# Coercions
-#
-## @testcase
-## def coercions(object[unsigned char] uc):
-##     """
-## TODO
-##     """
-##     print type(uc[0])
-##     uc[0] = -1
-##     print uc[0]
-##     uc[0] = <int>3.14
-##     print uc[0]
-
-##     cdef char* ch = b"asfd"
-##     cdef object[object] objbuf
-##     objbuf[3] = ch
-
 
 #
 # Testing that accessing data using various types of buffer access
@@ -759,7 +689,7 @@ def printbuf_td_cy_int(td_cy_int[:] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_short(object[td_h_short] buf, shape):
+def printbuf_td_h_short(td_h_short[:] buf, shape):
     """
     >>> printbuf_td_h_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
@@ -774,7 +704,7 @@ def printbuf_td_h_short(object[td_h_short] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
+def printbuf_td_h_cy_short(td_h_cy_short[:] buf, shape):
     """
     >>> printbuf_td_h_cy_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
@@ -789,7 +719,7 @@ def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
+def printbuf_td_h_ushort(td_h_ushort[:] buf, shape):
     """
     >>> printbuf_td_h_ushort(UnsignedShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
@@ -804,7 +734,7 @@ def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_double(object[td_h_double] buf, shape):
+def printbuf_td_h_double(td_h_double[:] buf, shape):
     """
     >>> printbuf_td_h_double(DoubleMockBuffer(None, [0.25, 1, 3.125]), (3,))
     0.25 1.0 3.125 END
@@ -831,7 +761,7 @@ def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
 @testcase
-def printbuf_object(object[object] buf, shape):
+def printbuf_object(object[:] buf, shape):
     """
     Only play with unique objects, interned numbers etc. will have
     unpredictable refcounts.
@@ -854,7 +784,7 @@ def printbuf_object(object[object] buf, shape):
         print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
 
 @testcase
-def assign_to_object(object[object] buf, int idx, obj):
+def assign_to_object(object[:] buf, int idx, obj):
     """
     See comments on printbuf_object above.
 
@@ -873,7 +803,7 @@ def assign_to_object(object[object] buf, int idx, obj):
     buf[idx] = obj
 
 @testcase
-def assign_temporary_to_object(object[object] buf):
+def assign_temporary_to_object(object[:] buf):
     """
     See comments on printbuf_object above.
 
@@ -900,68 +830,10 @@ def assign_temporary_to_object(object[object] buf):
     buf[1] = {3-2: 2+(2*4)-2}
 
 #
-# cast option
-#
-@testcase
-def buffer_cast(object[unsigned int, cast=True] buf, int idx):
-    """
-    Round-trip a signed int through unsigned int buffer access.
-
-    >>> A = IntMockBuffer(None, [-100])
-    >>> buffer_cast(A, 0)
-    -100
-    """
-    cdef unsigned int data = buf[idx]
-    return <int>data
-
-@testcase
-def buffer_cast_fails(object[char, cast=True] buf):
-    """
-    Cannot cast between datatype of different sizes.
-
-    >>> buffer_cast_fails(IntMockBuffer(None, [0]))
-    Traceback (most recent call last):
-        ...
-    ValueError: Item size of buffer (4 bytes) does not match size of 'char' (1 byte)
-    """
-    return buf[0]
-
-#
-# Typed buffers
-#
-@testcase
-def typedbuffer1(obj):
-    """
-    >>> typedbuffer1(IntMockBuffer("A", range(10)))
-    acquired A
-    released A
-    >>> typedbuffer1(None)
-    >>> typedbuffer1(4)
-    Traceback (most recent call last):
-       ...
-    TypeError: Cannot convert int to memslice.IntMockBuffer
-    """
-    cdef IntMockBuffer[int, ndim=1] buf = obj
-
-@testcase
-def typedbuffer2(IntMockBuffer[int, ndim=1] obj):
-    """
-    >>> typedbuffer2(IntMockBuffer("A", range(10)))
-    acquired A
-    released A
-    >>> typedbuffer2(None)
-    >>> typedbuffer2(4)
-    Traceback (most recent call last):
-       ...
-    TypeError: Argument 'obj' has incorrect type (expected memslice.IntMockBuffer, got int)
-    """
-    pass
-
-#
 # Test __cythonbufferdefaults__
 #
 @testcase
-def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
+def bufdefaults1(int[:] buf):
     """
     For IntStridedMockBuffer, mode should be
     "strided" by defaults which should show
@@ -972,13 +844,13 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     acquired A
     released A
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES']
+    ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
     pass
 
 
 @testcase
-def basic_struct(object[MyStruct] buf):
+def basic_struct(MyStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -990,7 +862,7 @@ def basic_struct(object[MyStruct] buf):
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
 
 @testcase
-def nested_struct(object[NestedStruct] buf):
+def nested_struct(NestedStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -1002,7 +874,7 @@ def nested_struct(object[NestedStruct] buf):
     print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
 
 @testcase
-def packed_struct(object[PackedStruct] buf):
+def packed_struct(PackedStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -1017,7 +889,7 @@ def packed_struct(object[PackedStruct] buf):
     print buf[0].a, buf[0].b
 
 @testcase
-def nested_packed_struct(object[NestedPackedStruct] buf):
+def nested_packed_struct(NestedPackedStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -1030,25 +902,9 @@ def nested_packed_struct(object[NestedPackedStruct] buf):
     """
     print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
 
-cdef struct LongComplex:
-    long double real
-    long double imag
-
-cdef class LongComplexMockBuffer(MockBuffer):
-    cdef int write(self, char* buf, object value) except -1:
-        cdef LongComplex* s
-        s = <LongComplex*>buf;
-        s.real, s.imag = value
-        return 0
-
-    cdef get_itemsize(self): return sizeof(LongComplex)
-    cdef get_default_format(self): return b"Zg"
-
-#cdef extern from "complex.h":
-#    pass
 
 @testcase
-def complex_dtype(object[long double complex] buf):
+def complex_dtype(long double complex[:] buf):
     """
     >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     -1j
@@ -1056,7 +912,7 @@ def complex_dtype(object[long double complex] buf):
     print buf[0]
 
 @testcase
-def complex_inplace(object[long double complex] buf):
+def complex_inplace(long double complex[:] buf):
     """
     >>> complex_inplace(LongComplexMockBuffer(None, [(0, -1)]))
     (1+1j)
@@ -1065,7 +921,7 @@ def complex_inplace(object[long double complex] buf):
     print buf[0]
 
 @testcase
-def complex_struct_dtype(object[LongComplex] buf):
+def complex_struct_dtype(LongComplex[:] buf):
     """
     Note that the format string is "Zg" rather than "2g", yet a struct
     is accessed.
@@ -1075,7 +931,7 @@ def complex_struct_dtype(object[LongComplex] buf):
     print buf[0].real, buf[0].imag
 
 @testcase
-def complex_struct_inplace(object[LongComplex] buf):
+def complex_struct_inplace(LongComplex[:] buf):
     """
     >>> complex_struct_inplace(LongComplexMockBuffer(None, [(0, -1)]))
     1.0 1.0
@@ -1092,9 +948,85 @@ def complex_struct_inplace(object[LongComplex] buf):
 def buffer_nogil():
     """
     >>> buffer_nogil()
-    10
+    (10, 10)
     """
     cdef int[:] buf = IntMockBuffer(None, [1,2,3])
+    cdef int[:] buf2 = IntMockBuffer(None, [4,5,6])
+
     with nogil:
         buf[1] = 10
-    return buf[1]
+        buf2 = buf
+
+    return buf[1], buf2[1]
+
+#
+### Test cdef functions
+#
+cdef cdef_function(int[:] buf1, object[::view.indirect, :] buf2 = ObjectMockBuffer(None,
+                                                            [["spam"],["ham"],["eggs"]])):
+    print 'cdef called'
+    print buf1[6], buf2[1, 0]
+    buf2[1, 0] = "eggs"
+
+def test_cdef_function(o1, o2=None):
+    """
+    >>> A = IntMockBuffer("A", range(10))
+    >>> test_cdef_function(A)
+    acquired A
+    cdef called
+    6 ham
+    released A
+    acquired A
+    cdef called
+    6 eggs
+    released A
+    >>> B = ObjectMockBuffer("B", range(25), shape=(5, 5))
+    >>> test_cdef_function(A, B)
+    acquired A
+    acquired B
+    cdef called
+    6 eggs
+    released A
+    released B
+    acquired A
+    acquired B
+    cdef called
+    6 eggs
+    released A
+    released B
+    """
+    cdef_function(o1)
+    cdef_function(o1)
+
+    if o2:
+        cdef_function(o1, o2)
+
+cdef int[:] global_A = IntMockBuffer("A", range(10))
+cdef object[::view.indirect, :] global_B = ObjectMockBuffer(
+                            None, [["spam"],["ham"],["eggs"]])
+
+cdef cdef_function2(int[:] buf1, object[::view.indirect, :] buf2 = global_B):
+    print 'cdef2 called'
+    print buf1[6], buf2[1, 0]
+    buf2[1, 0] = "eggs"
+
+def test_cdef_function2():
+    """
+    >>> test_cdef_function2()
+    cdef2 called
+    6 ham
+    eggs
+    cdef2 called
+    6 eggs
+    """
+    cdef int[:] A = global_A
+    cdef object[::view.indirect, :] B = global_B
+
+    cdef_function2(A, B)
+
+    del A
+    del B
+
+    print global_B[1, 0]
+
+    cdef_function2(global_A, global_B)

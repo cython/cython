@@ -258,6 +258,9 @@ cdef class memoryview(object):
         bytesitem = itemp[:self.view.itemsize]
         return struct.unpack(fmt, bytesitem)
 
+    def __repr__(self):
+        return "<MemoryView of %s at 0x%x>" % (self.obj.__class__.__name__, id(self))
+
     def __str__(self):
         return "<MemoryView of %r at 0x%x>" % (self.obj, id(self))
 
@@ -283,8 +286,8 @@ cdef memoryview_cwrapper(object o, int flags):
     return memoryview(o, flags)
 
 @cname('__pyx_memoryview_fromslice')
-cdef memoryview memoryview_from_memview_cwrapper(
-        {{memviewslice_name}} *memviewslice, object orig_obj, int flags, int new_ndim):
+cdef memoryview_from_memview_cwrapper({{memviewslice_name}} *memviewslice,
+                                object orig_obj, int flags, int new_ndim):
     cdef _memoryviewslice result = _memoryviewslice(orig_obj, flags)
 
     result.from_slice = memviewslice[0]

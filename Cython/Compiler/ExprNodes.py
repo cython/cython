@@ -594,8 +594,14 @@ class ExprNode(Node):
                           "Cannot convert '%s' to memoryviewslice" %
                                                                 (src_type,))
             elif not MemoryView.src_conforms_to_dst(src.type, dst_type):
-                error(self.pos, "Memoryview '%s' not conformable to memoryview '%s'." %
-                        (src.type, dst_type))
+                if src.type.dtype.same_as(dst_type.dtype):
+                    msg = "Memoryview '%s' not conformable to memoryview '%s'."
+                    tup = src.type, dst_type
+                else:
+                    msg = "Different base types for memoryviews (%s, %s)"
+                    tup = src.type.dtype, dst_type.dtype
+
+                error(self.pos, msg % tup)
 
         elif dst_type.is_pyobject:
             if not src.type.is_pyobject:
@@ -2412,13 +2418,13 @@ class IndexNode(ExprNode):
                 self.is_temp = True
 
             if setting and self.base.type.is_memoryviewslice:
-                self.type.writable_needed = True
+                self.base.type.writable_needed = True
             elif setting:
                 if not self.base.entry.type.writable:
                     error(self.pos, "Writing to readonly buffer")
                 else:
                     self.writable_needed = True
-                    if self.type.is_buffer:
+                    if self.base.type.is_buffer:
                         self.base.entry.buffer_aux.writable_needed = True
 
         elif memoryviewslice_access:
@@ -2570,7 +2576,7 @@ class IndexNode(ExprNode):
         if self.is_buffer_access:
             if code.globalstate.directives['nonecheck']:
                 self.put_nonecheck(code)
-            self.buffer_ptr_code = self.buffer_lookup_code(code)
+            buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
             if self.type.is_pyobject:
                 # is_temp is True, so must pull out value and incref it.
                 code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
@@ -2657,11 +2663,14 @@ class IndexNode(ExprNode):
         # Used from generate_assignment_code and InPlaceAssignmentNode
         if code.globalstate.directives['nonecheck']:
             self.put_nonecheck(code)
-        ptrexpr = self.buffer_lookup_code(code)
+
+        buffer_entry, ptrexpr = self.buffer_lookup_code(code)
+
         if self.buffer_type.dtype.is_pyobject:
             # Must manage refcounts. Decref what is already there
             # and incref what we put in.
-            ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type, manage_ref=False)
+            ptr = code.funcstate.allocate_temp(buffer_entry.buf_ptr_type,
+                                               manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
             code.put_gotref("*%s" % ptr)
@@ -2735,12 +2744,14 @@ class IndexNode(ExprNode):
             buffer_entry = MemoryView.MemoryViewSliceBufferEntry(entry)
             negative_indices = Buffer.buffer_defaults['negative_indices']
 
-        return Buffer.put_buffer_lookup_code(entry=buffer_entry,
-                                             index_signeds=[i.type.signed for i in self.indices],
-                                             index_cnames=index_temps,
-                                             directives=code.globalstate.directives,
-                                             pos=self.pos, code=code,
-                                             negative_indices=negative_indices)
+
+        return buffer_entry, Buffer.put_buffer_lookup_code(
+               entry=buffer_entry,
+               index_signeds=[i.type.signed for i in self.indices],
+               index_cnames=index_temps,
+               directives=code.globalstate.directives,
+               pos=self.pos, code=code,
+               negative_indices=negative_indices)
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
@@ -7680,6 +7691,13 @@ class CoerceToMemViewSliceNode(CoercionNode):
         code.putln("%s = %s(%s);" % (self.result(),
                                      self.type.from_py_function,
                                      self.arg.py_result()))
+
+        error_cond = self.type.error_condition(self.result())
+        code.putln(code.error_goto_if(error_cond, self.pos))
+
+    def generate_disposal_code(self, code):
+        code.put_xdecref_memoryviewslice(self.result(),
+                                         have_gil=not self.env.nogil)
 
 
 class CastNode(CoercionNode):

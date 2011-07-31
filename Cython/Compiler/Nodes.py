@@ -1428,16 +1428,20 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must
         # incref it to properly keep track of refcounts.
+        is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
-            # Note: all memoryviewslices are already newly acquired references
-            #       or increffed defaults!
-            #if entry.type.is_memoryviewslice:
-            #    code.put_incref_memoryviewslice(entry.cname,
-            #                                    have_gil=not lenv.nogil)
-                #code.put_incref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
+
+            # Note: defaults are always increffed. For def functions, we
+            #       we aquire arguments from object converstion, so we have
+            #       new references. If we are a cdef function, we need to
+            #       incref our arguments
+            if is_cdef and entry.type.is_memoryviewslice:
+                code.put_incref_memoryviewslice(entry.cname,
+                                                have_gil=not lenv.nogil)
+
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
@@ -1567,7 +1571,7 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_decref(entry)
-            if entry.type.is_memoryviewslice and isinstance(self, DefNode):
+            if entry.type.is_memoryviewslice:
                 code.put_xdecref_memoryviewslice(entry.cname)
                 #code.put_decref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         if self.needs_closure:

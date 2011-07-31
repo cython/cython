@@ -1062,22 +1062,6 @@ def nested_packed_struct(object[NestedPackedStruct] buf):
     """
     print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
 
-cdef struct LongComplex:
-    long double real
-    long double imag
-
-cdef class LongComplexMockBuffer(MockBuffer):
-    cdef int write(self, char* buf, object value) except -1:
-        cdef LongComplex* s
-        s = <LongComplex*>buf;
-        s.real, s.imag = value
-        return 0
-
-    cdef get_itemsize(self): return sizeof(LongComplex)
-    cdef get_default_format(self): return b"Zg"
-
-#cdef extern from "complex.h":
-#    pass
 
 @testcase
 def complex_dtype(object[long double complex] buf):

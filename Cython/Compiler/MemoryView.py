@@ -14,9 +14,8 @@ STOP_ERR = "Axis specification only allowed in the 'stop' slot."
 STEP_ERR = "Only the value 1 (one) or valid axis specification allowed in the step slot."
 ONE_ERR = "The value 1 (one) may appear in the first or last axis specification only."
 BOTH_CF_ERR = "Cannot specify an array that is both C and Fortran contiguous."
-NOT_AMP_ERR = "Invalid operator, only an ampersand '&' is allowed."
 INVALID_ERR = "Invalid axis specification."
-EXPR_ERR = "no expressions allowed in axis spec, only names (e.g. cython.view.contig)."
+EXPR_ERR = "no expressions allowed in axis spec, only names and literals."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
 
 def concat_flags(*flags):
@@ -24,9 +23,9 @@ def concat_flags(*flags):
 
 format_flag = "PyBUF_FORMAT"
 
-memview_c_contiguous = concat_flags(format_flag, "PyBUF_C_CONTIGUOUS")
-memview_f_contiguous = concat_flags(format_flag, "PyBUF_F_CONTIGUOUS")
-memview_any_contiguous = concat_flags(format_flag, "PyBUF_ANY_CONTIGUOUS")
+memview_c_contiguous = "(PyBUF_C_CONTIGUOUS | PyBUF_FORMAT | PyBUF_WRITABLE)"
+memview_f_contiguous = "(PyBUF_F_CONTIGUOUS | PyBUF_FORMAT | PyBUF_WRITABLE)"
+memview_any_contiguous = "(PyBUF_ANY_CONTIGUOUS | PyBUF_FORMAT | PyBUF_WRITABLE)"
 memview_full_access = "PyBUF_FULL"
 #memview_strided_access = "PyBUF_STRIDED"
 memview_strided_access = "PyBUF_RECORDS"
@@ -72,8 +71,8 @@ def mangle_dtype_name(dtype):
     import Buffer
     return Buffer.mangle_dtype_name(dtype)
 
-def axes_to_str(axes):
-    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
+#def axes_to_str(axes):
+#    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
 def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
                                 incref_rhs=True, have_gil=False):
@@ -106,7 +105,7 @@ def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, code,
         code.putln("%s.strides[%d] = %s.strides[%d];" % (lhs_cname, i, rhs_cname, i))
         code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % (lhs_cname, i, rhs_cname, i))
 
-def get_buf_flag(specs):
+def get_buf_flags(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
 
     if is_c_contig:
@@ -196,50 +195,65 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             suboffset = "%s.suboffsets[%d]" % (self.cname, dim)
             index = index_cnames[dim]
 
-            if access == 'full' and packing in ('strided', 'follow'):
+            flag = get_memoryview_flag(access, packing)
+
+            if flag == "generic":
                 code.globalstate.use_utility_code(memviewslice_index_helpers)
                 bufp = ('__pyx_memviewslice_index_full(%s, %s, %s, %s)' %
                                             (bufp, index, stride, suboffset))
 
-            elif access == 'full' and packing == 'contig':
+            elif flag == "generic_contiguous":
                 # We can skip stride multiplication with the cast
                 code.globalstate.use_utility_code(memviewslice_index_helpers)
                 bufp = '((char *) ((%s *) %s) + %s)' % (type_decl, bufp, index)
                 bufp = ('__pyx_memviewslice_index_full_contig(%s, %s)' %
                                                             (bufp, suboffset))
 
-            elif access == 'ptr' and packing in ('strided', 'follow'):
+            elif flag == "indirect":
                 bufp = ("(*((char **) %s + %s * %s) + %s)" %
                                              (bufp, index, stride, suboffset))
 
-            elif access == 'ptr' and packing == 'contig':
+            elif flag == "indirect_contiguous":
                 bufp = "(*((char **) %s) + %s)" % (bufp, suboffset)
 
-            elif access == 'direct' and packing in ('strided', 'follow'):
+            elif flag == "strided":
                 bufp = "(%s + %s * %s)" % (bufp, index, stride)
 
             else:
-                assert (access, packing) == ('direct', 'contig'), (access, packing)
+                assert flag == 'contiguous', flag
                 bufp = '((char *) (((%s *) %s) + %s))' % (type_decl, bufp, index)
 
             bufp = '( /* dim=%d */ %s )' % (dim, bufp)
 
         return "((%s *) %s)" % (type_decl, bufp)
 
-def get_copy_func_name(to_memview):
-    base = "__Pyx_BufferNew_%s_From_%s_%s"
-    if to_memview.is_c_contig:
-        return base % ('C', axes_to_str(to_memview.axes), mangle_dtype_name(to_memview.dtype))
+def get_memoryview_flag(access, packing):
+    if access == 'full' and packing in ('strided', 'follow'):
+        return 'generic'
+    elif access == 'full' and packing == 'contig':
+        return 'generic_contiguous'
+    elif access == 'ptr' and packing in ('strided', 'follow'):
+        return 'indirect'
+    elif access == 'ptr' and packing == 'contig':
+        return 'indirect_contiguous'
+    elif access == 'direct' and packing in ('strided', 'follow'):
+        return 'strided'
     else:
-        return base % ('F', axes_to_str(to_memview.axes), mangle_dtype_name(to_memview.dtype))
+        assert (access, packing) == ('direct', 'contig'), (access, packing)
+        return 'contiguous'
+
+def get_copy_func_name(to_memview):
+    base = "__Pyx_BufferNew_%s_From_%s"
+    if to_memview.is_c_contig:
+        return base % ('C', to_memview.specialization_suffix())
+    else:
+        return base % ('F', to_memview.specialization_suffix())
 
 def get_copy_contents_name(from_mvs, to_mvs):
-    dtype = from_mvs.dtype
-    assert dtype == to_mvs.dtype
-    return ('__Pyx_BufferCopyContents_%s_%s_%s' %
-            (axes_to_str(from_mvs.axes),
-             axes_to_str(to_mvs.axes),
-             mangle_dtype_name(dtype)))
+    assert from_mvs.dtype == to_mvs.dtype
+    return '__Pyx_BufferCopyContents_%s_to_%s' % (from_mvs.specialization_suffix(),
+                                                  to_mvs.specialization_suffix())
+
 
 class IsContigFuncUtilCode(object):
     

@@ -311,3 +311,16 @@ cdef class NestedPackedStructMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(NestedPackedStruct)
     cdef get_default_format(self): return b"ci^ci@i"
 
+cdef struct LongComplex:
+    long double real
+    long double imag
+
+cdef class LongComplexMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef LongComplex* s
+        s = <LongComplex*>buf;
+        s.real, s.imag = value
+        return 0
+
+    cdef get_itemsize(self): return sizeof(LongComplex)
+    cdef get_default_format(self): return b"Zg"
