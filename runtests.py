@@ -880,9 +880,9 @@ class CythonPyregrTestCase(CythonRunTestCase):
 
     def run_tests(self, result):
         try:
-            from test import test_support as support
-        except ImportError: # Py3k
             from test import support
+        except ImportError: # Python2.x
+            from test import test_support as support
 
         def run_test(result):
             def run_unittest(*classes):
