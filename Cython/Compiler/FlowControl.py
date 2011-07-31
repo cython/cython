@@ -523,8 +523,7 @@ def check_definitions(flow, compiler_directives):
             if is_arg:
                 if warn_unused_arg:
                     messages.warning(entry.pos, "Unused argument '%s'" % entry.name)
-                # TODO: handle unused arguments
-                entry.cf_used = True
+                entry.cf_used = False
             else:
                 if warn_unused:
                     messages.warning(entry.pos, "Unused entry '%s'" % entry.name)
