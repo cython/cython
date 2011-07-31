@@ -42,10 +42,6 @@ static int __Pyx_init_memviewslice(
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
 
-#if CYTHON_REFNANNY
-    /* disable inlining when running tests */
-    #define CYTHON_INLINE
-#endif
 
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
 #define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
@@ -429,12 +425,3 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(char *bufp, Py_ssize_t 
     }
     return bufp;
 }
-
-/* The call has already done the indexing */
-static CYTHON_INLINE char *__pyx_memviewslice_index_full_contig(char *bufp, Py_ssize_t suboffset) {
-    if (suboffset >= 0) {
-        bufp = *((char **) bufp) + suboffset;
-    }
-    return bufp;
-}
-
