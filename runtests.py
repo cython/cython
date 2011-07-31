@@ -1236,6 +1236,36 @@ def check_thread_termination(ignore_seen=True):
         sys.stderr.write('...%s\n'  % repr(t))
     raise PendingThreadsError("left-over threads found after running test")
 
+def subprocess_output(cmd):
+    try:
+        try:
+            import subprocess
+        except:
+            return os.popen4(cmd)[1].read()
+        else:
+            return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()[0]
+    except OSError:
+        return ''
+
+def get_version():
+    from Cython.Compiler.Version import version as cython_version
+    full_version = cython_version
+    top = os.path.dirname(os.path.abspath(__file__))
+    if os.path.exists(os.path.join(top, '.git')):
+        try:
+            old_dir = os.getcwd()
+            os.chdir(top)
+            head_commit = subprocess_output(['git', 'rev-parse', 'HEAD']).strip()
+            version_commit = subprocess_output(['git', 'rev-parse', cython_version]).strip()
+            diff = subprocess_output(['git', 'diff', '--stat']).strip()
+            if head_commit != version_commit:
+                full_version += " " + head_commit
+            if diff:
+                full_version += ' + uncommitted changes'
+        finally:
+            os.chdir(old_dir)
+    return full_version
+
 def main():
 
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
@@ -1389,8 +1419,7 @@ def main():
     sys.stderr.write("Python %s\n" % sys.version)
     sys.stderr.write("\n")
     if WITH_CYTHON:
-        from Cython.Compiler.Version import version
-        sys.stderr.write("Running tests against Cython %s\n" % version)
+        sys.stderr.write("Running tests against Cython %s\n" % get_version())
     else:
         sys.stderr.write("Running tests without Cython.\n")
 
