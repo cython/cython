@@ -67,9 +67,9 @@ def make_new_builtin():
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
 def make_new_none(type t=None):
     """
-    >>> isinstance(make_new_none(), MyType)
+    >>> make_new_none()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: object.__new__(X): X is not a type object (NoneType)
+    TypeError: ...__new__(X): X is not a type object (NoneType)
     """
     m = t.__new__(t)
     return m
