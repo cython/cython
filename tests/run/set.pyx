@@ -89,6 +89,17 @@ def test_set_pop():
     two = s1.pop()
     return s1
 
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode")
+def test_object_pop(s):
+    """
+    >>> s = _set([2])
+    >>> test_object_pop(s)
+    2
+    >>> list(s)
+    []
+    """
+    return s.pop()
+
 def test_set_discard():
     """
     >>> type(test_set_discard()) is _set
