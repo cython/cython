@@ -127,6 +127,7 @@ class Entry(object):
     #                             Currently only supported for CythonScope entries.
     # error_on_uninitialized      Have Control Flow issue an error when this entry is
     #                             used uninitialized
+    # cf_used          boolean    Entry is used
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -182,6 +183,7 @@ class Entry(object):
     in_with_gil_block = 0
     from_cython_utility_code = None
     error_on_uninitialized = False
+    cf_used = True
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
