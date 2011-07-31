@@ -1792,10 +1792,15 @@ class CFuncDefNode(FuncDefNode):
         return False
 
     def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
+        scope = self.local_scope
         arg_decls = []
         type = self.type
         for arg in type.args[:len(type.args)-type.optional_arg_count]:
-            arg_decls.append(arg.declaration_code())
+            arg_decl = arg.declaration_code()
+            entry = scope.lookup(arg.name)
+            if not entry.cf_used:
+                arg_decl = 'CYTHON_UNUSED %s' % arg_decl
+            arg_decls.append(arg_decl)
         if with_dispatch and self.overridable:
             arg_decls.append(PyrexTypes.c_int_type.declaration_code(Naming.skip_dispatch_cname))
         if type.optional_arg_count and with_opt_args:
