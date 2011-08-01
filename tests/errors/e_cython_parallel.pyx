@@ -118,6 +118,8 @@ for i in prange(10, nogil=True):
     with gil:
         print sum
 
+for pyobj in prange("hello"):
+    pass
 
 _ERRORS = u"""
 e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
@@ -147,4 +149,6 @@ e_cython_parallel.pyx:98:19: Cannot assign to private of outer parallel block
 e_cython_parallel.pyx:104:6: Reductions not allowed for parallel blocks
 e_cython_parallel.pyx:110:7: local variable 'i' referenced before assignment
 e_cython_parallel.pyx:119:17: Cannot read reduction variable in loop body
+e_cython_parallel.pyx:121:20: stop argument must be numeric
+e_cython_parallel.pyx:121:19: prange() can only be used without the GIL
 """

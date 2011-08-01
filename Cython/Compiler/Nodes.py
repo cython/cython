@@ -6539,9 +6539,8 @@ class ParallelRangeNode(ParallelStatNode):
             if node is not None:
                 node.analyse_types(env)
                 if not node.type.is_numeric:
-                    error(node.pos, "%s argument must be numeric or a pointer "
-                                    "(perhaps if a numeric literal is too "
-                                    "big, use 1000LL)" % name)
+                    error(node.pos, "%s argument must be numeric" % name)
+                    continue
 
                 if not node.is_literal:
                     node = node.coerce_to_temp(env)
