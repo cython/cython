@@ -1832,7 +1832,7 @@ class CFuncDefNode(FuncDefNode):
         for arg in self.args:
             if arg.default:
                 entry = scope.lookup(arg.name)
-                if entry.cf_used:
+                if self.overridable or entry.cf_used:
                     result = arg.calculate_default_value_code(code)
                     code.putln('%s = %s;' % (
                         arg.type.declaration_code(arg.cname), result))
@@ -1849,7 +1849,7 @@ class CFuncDefNode(FuncDefNode):
             for arg in self.args:
                 if arg.default:
                     entry = scope.lookup(arg.name)
-                    if entry.cf_used:
+                    if self.overridable or entry.cf_used:
                         code.putln('if (%s->%sn > %s) {' %
                                    (Naming.optional_args_cname,
                                     Naming.pyrex_prefix, i))
