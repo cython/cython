@@ -387,6 +387,8 @@ class MemoryViewSliceType(PyrexType):
         self.mode = MemoryView.get_mode(axes)
         self.writable_needed = False
 
+        self.dtype_name = MemoryView.mangle_dtype_name(self.dtype)
+
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
             self.dtype.same_as(other_type.dtype) and
@@ -500,9 +502,7 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def specialization_suffix(self):
-        import MemoryView
-        dtype_name = MemoryView.mangle_dtype_name(self.dtype)
-        return "%s_%s" % (self.axes_to_name(), dtype_name)
+        return "%s_%s" % (self.axes_to_name(), self.dtype_name)
 
     #def global_init_code(self, entry, code):
     #    code.putln("%s.data = NULL;" % entry.cname)
@@ -552,9 +552,49 @@ class MemoryViewSliceType(PyrexType):
     def create_to_py_utility_code(self, env):
         return True
 
-    def get_to_py_function(self, obj):
-        return "__pyx_memoryview_fromslice(&%s, %s.memview->obj, %s, %s);" % (
-                       obj.result(), obj.result(), self.flags, self.ndim)
+    def get_to_py_function(self, env, obj):
+        to_py_func, from_py_func = self.dtype_object_conversion_funcs(env)
+        to_py_func = "(PyObject *(*)(char *)) " + to_py_func
+        from_py_func = "(int (*)(char *, PyObject *)) " + from_py_func
+
+        tup = (obj.result(), obj.result(), self.flags, self.ndim,
+               to_py_func, from_py_func)
+        return ("__pyx_memoryview_fromslice(&%s, %s.memview->obj, "
+                                            "%s, %s, %s, %s);" % tup)
+
+    def dtype_object_conversion_funcs(self, env):
+        import MemoryView, Code
+
+        get_function = "__pyx_memview_get_%s" % self.dtype_name
+        set_function = "__pyx_memview_set_%s" % self.dtype_name
+
+        context = dict(
+            get_function = get_function,
+            set_function = set_function,
+        )
+
+        if self.dtype.is_pyobject:
+            utility_name = "MemviewObjectToObject"
+        else:
+            if not (self.dtype.create_to_py_utility_code(env) and
+                    self.dtype.create_from_py_utility_code(env)):
+                print "cannot convert %s" % self.dtype
+                return "NULL", "NULL"
+
+            utility_name = "MemviewDtypeToObject"
+            error_condition = (self.dtype.error_condition('value') or
+                               'PyErr_Occurred()')
+            context.update(
+                to_py_function = self.dtype.to_py_function,
+                from_py_function = self.dtype.from_py_function,
+                dtype = self.dtype.declaration_code(""),
+                error_condition = error_condition,
+            )
+
+        utility = Code.ContentHashingUtilityCode.load(
+                        utility_name, "MemoryView_C.c", context=context)
+        env.use_utility_code(utility)
+        return get_function, set_function
 
     def axes_to_code(self):
         "Return a list of code constants for each axis"

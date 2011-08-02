@@ -1422,6 +1422,7 @@ class NameNode(AtomicExprNode):
             self.result_ctype = py_object_type
 
     def analyse_types(self, env):
+        self.initialized_check = env.directives['initializedcheck']
         if self.entry is None:
             self.entry = env.lookup(self.name)
         if not self.entry:
@@ -1455,15 +1456,21 @@ class NameNode(AtomicExprNode):
         #print "Entry:", self.entry.__dict__ ###
         self.analyse_entry(env)
         entry = self.entry
+
         if entry.is_declared_generic:
             self.result_ctype = py_object_type
+
         if entry.is_pyglobal or entry.is_builtin:
             if entry.is_builtin and entry.is_const:
                 self.is_temp = 0
             else:
                 self.is_temp = 1
                 env.use_utility_code(get_name_interned_utility_code)
+
             self.is_used_as_rvalue = 1
+        elif entry.type.is_memoryviewslice:
+            self.is_temp = False
+            self.is_used_as_rvalue = True
 
     def nogil_check(self, env):
         self.nogil = True
@@ -1474,6 +1481,10 @@ class NameNode(AtomicExprNode):
                     self.gil_error()
             elif entry.is_pyglobal:
                 self.gil_error()
+            elif self.entry.type.is_memoryviewslice:
+                if self.cf_is_null or self.cf_maybe_null:
+                    import MemoryView
+                    MemoryView.err_if_nogil_initialized_check(self.pos, env)
 
     gil_message = "Accessing Python global or builtin"
 
@@ -1614,10 +1625,14 @@ class NameNode(AtomicExprNode):
             code.put_gotref(self.py_result())
 
         elif entry.is_local or entry.in_closure or entry.from_closure:
-            if entry.type.check_for_null_code(entry.cname):
-                if (self.cf_maybe_null or self.cf_is_null) \
-                       and not self.allow_null:
-                    code.put_error_if_unbound(self.pos, entry)
+            # Raise UnboundLocalError for objects and memoryviewslices
+            raise_unbound = (
+                (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)
+            null_code = entry.type.check_for_null_code(entry.cname)
+            memslice_check = entry.type.is_memoryviewslice and self.initialized_check
+
+            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
+                code.put_error_if_unbound(self.pos, entry)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -2401,18 +2416,23 @@ class IndexNode(ExprNode):
                     if not x.type.is_int:
                         buffer_access = False
 
-            if buffer_access:
+            if buffer_access and not self.base.type.is_memoryviewslice:
                 assert hasattr(self.base, "entry") # Must be a NameNode-like node
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
 
+        self.nogil = env.nogil
+
         if buffer_access:
+            if self.base.type.is_memoryviewslice and not self.base.is_name:
+                self.base = self.base.coerce_to_temp(env)
+
             self.indices = indices
             self.index = None
             self.type = self.base.type.dtype
             self.is_buffer_access = True
-            self.buffer_type = self.base.entry.type
+            self.buffer_type = self.base.type #self.base.entry.type
 
             if getting and self.type.is_pyobject:
                 self.is_temp = True
@@ -2734,9 +2754,14 @@ class IndexNode(ExprNode):
 
         # Generate buffer access code using these temps
         import Buffer, MemoryView
-        # The above could happen because child_attrs is wrong somewhere so that
-        # options are not propagated.
-        entry = self.base.entry
+
+        if self.base.is_name:
+            entry = self.base.entry
+        else:
+            assert self.base.is_temp
+            cname = self.base.result()
+            entry = Symtab.Entry(cname, cname, self.base.type, self.base.pos)
+
         if entry.type.is_buffer:
             buffer_entry = Buffer.BufferEntry(entry)
             negative_indices = entry.type.negative_indices
@@ -3345,20 +3370,27 @@ class SimpleCallNode(CallNode):
                     if i > 0 or i == 1 and self.self is not None: # skip first arg
                         warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
                         break
+
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
         else:
             self.type = func_type.return_type
+
         if self.function.is_name or self.function.is_attribute:
             if self.function.entry and self.function.entry.utility_code:
                 self.is_temp = 1 # currently doesn't work for self.calculate_result_code()
+
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
             self.is_temp = 1
         elif func_type.exception_value is not None \
                  or func_type.exception_check:
             self.is_temp = 1
+        elif self.type.is_memoryviewslice:
+            self.is_temp = 1
+            # func_type.exception_check = True
+
         # Called in 'nogil' context?
         self.nogil = env.nogil
         if (self.nogil and
@@ -3436,6 +3468,9 @@ class SimpleCallNode(CallNode):
             exc_checks = []
             if self.type.is_pyobject and self.is_temp:
                 exc_checks.append("!%s" % self.result())
+            elif self.type.is_memoryviewslice:
+                assert self.is_temp
+                exc_checks.append(self.type.error_condition(self.result()))
             else:
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
@@ -3758,6 +3793,7 @@ class AttributeNode(ExprNode):
         self.analyse_types(env, target = 1)
 
     def analyse_types(self, env, target = 0):
+        self.initialized_check = env.directives['initializedcheck']
         if self.analyse_as_cimported_attribute(env, target):
             self.entry.used = True
         elif not target and self.analyse_as_unbound_cmethod(env):
@@ -3862,6 +3898,8 @@ class AttributeNode(ExprNode):
                 self.result_ctype = py_object_type
         elif target and self.obj.type.is_builtin_type:
             error(self.pos, "Assignment to an immutable object field")
+        #elif self.type.is_memoryviewslice and not target:
+        #    self.is_temp = True
 
     def analyse_attribute(self, env, obj_type = None):
         # Look up attribute and set self.type and self.member.
@@ -3933,6 +3971,8 @@ class AttributeNode(ExprNode):
     def nogil_check(self, env):
         if self.is_py_attr:
             self.gil_error()
+        import MemoryView
+        MemoryView.err_if_nogil_initialized_check(self.pos, env, 'attribute')
 
     gil_message = "Accessing Python attribute"
 
@@ -3987,6 +4027,16 @@ class AttributeNode(ExprNode):
                     code.intern_identifier(self.attribute),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+        elif self.type.is_memoryviewslice:
+            if self.initialized_check:
+                code.putln(textwrap.dedent('''
+                    if (unlikely(!%s.memview)) {
+                        PyErr_SetString(PyExc_AttributeError,
+                                        "Memoryview is not initialized");
+                        %s
+                    }''' % (self.result(), code.error_goto(self.pos))))
+            #code.putln("%s = %s;" % (self.result(),
+            #                         self.calculate_result_code()))
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
@@ -7860,6 +7910,8 @@ class CoerceToPyTypeNode(CoercionNode):
             # FIXME: check that the target type and the resulting type are compatible
             pass
 
+        self.env = env
+
     gil_message = "Converting to Python object"
 
     def may_be_none(self):
@@ -7887,7 +7939,7 @@ class CoerceToPyTypeNode(CoercionNode):
 
     def generate_result_code(self, code):
         if self.arg.type.is_memoryviewslice:
-            funccall = self.arg.type.get_to_py_function(self.arg)
+            funccall = self.arg.type.get_to_py_function(self.env, self.arg)
         else:
             funccall = "%s(%s)" % (self.arg.type.to_py_function,
                                    self.arg.result())

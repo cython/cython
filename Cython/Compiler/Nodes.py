@@ -10,7 +10,7 @@ cython.declare(sys=object, os=object, time=object, copy=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                absolute_path_length=cython.Py_ssize_t)
 
-import sys, os, time, copy
+import sys, os, time, copy, textwrap
 
 import Builtin
 from Errors import error, warning, InternalError, CompileError
@@ -1501,7 +1501,12 @@ class FuncDefNode(StatNode, BlockNode):
                 #    code.put_xdecref_memoryviewslice(entry.cname)
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
-            err_val = self.error_value()
+            if self.return_type.is_memoryviewslice:
+                MemoryView.put_init_entry(Naming.retval_cname, code)
+                err_val = Naming.retval_cname
+            else:
+                err_val = self.error_value()
+
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
                 # TODO: Fix exception tracing (though currently unused by cProfile).
@@ -1552,6 +1557,26 @@ class FuncDefNode(StatNode, BlockNode):
                 Buffer.put_release_buffer_code(code, entry)
         if is_getbuffer_slot:
             self.getbuffer_normal_cleanup(code)
+
+        if self.return_type.is_memoryviewslice:
+            # See if our return value is uninitialized on non-error return
+            # import MemoryView
+            # MemoryView.err_if_nogil_initialized_check(self.pos, env)
+            cond = code.unlikely(self.return_type.error_condition(
+                                                    Naming.retval_cname))
+            code.putln(
+                'if (%s) {' % cond)
+            if env.nogil:
+                code.put_ensure_gil()
+            code.putln(
+                    'PyErr_SetString('
+                        'PyExc_TypeError,'
+                        '"Memoryview return value is not initialized");')
+            if env.nogil:
+                code.put_release_ensured_gil()
+            code.putln(
+                '}')
+
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
 
@@ -4312,8 +4337,6 @@ class ReturnStatNode(StatNode):
                              self.return_type)
         elif self.return_type.is_memoryviewslice:
             code.put_xdecref_memoryviewslice(Naming.retval_cname)
-            #code.put_xdecref("%s.memview" % Naming.retval_cname,
-            #        self.return_type)
 
         if self.value:
             self.value.generate_evaluation_code(code)
@@ -7042,7 +7065,12 @@ class CnameDecoratorNode(StatNode):
 
             for name, entry in scope.entries.iteritems():
                 if entry.func_cname:
-                    entry.func_cname = '%s_%s' % (self.cname, entry.cname)
+                    cname = entry.cname
+                    if '.' in cname:
+                        # remove __pyx_base from func_cname
+                        cname = cname.split('.')[-1]
+
+                    entry.func_cname = '%s_%s' % (self.cname, cname)
 
     def analyse_expressions(self, env):
         self.node.analyse_expressions(env)

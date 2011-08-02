@@ -1,4 +1,4 @@
-from Errors import CompileError
+from Errors import CompileError, error
 import ExprNodes
 from ExprNodes import IntNode, NoneNode, IntBinopNode, NameNode, AttributeNode
 from Visitor import CythonTransform
@@ -17,6 +17,12 @@ BOTH_CF_ERR = "Cannot specify an array that is both C and Fortran contiguous."
 INVALID_ERR = "Invalid axis specification."
 EXPR_ERR = "no expressions allowed in axis spec, only names and literals."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
+ERR_UNINITIALIZED = ("Cannot check if memoryview %s is initialized without the "
+                     "GIL, consider using initializedcheck(False)")
+
+def err_if_nogil_initialized_check(pos, env, name='variable'):
+    if env.nogil and env.directives['initializedcheck']:
+        error(pos, ERR_UNINITIALIZED % name)
 
 def concat_flags(*flags):
     return "(%s)" % "|".join(flags)
@@ -85,7 +91,8 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
         rhstmp = code.funcstate.allocate_temp(lhs_type, manage_ref=False)
         code.putln("%s = %s;" % (rhstmp, rhs.result_as(lhs_type)))
 
-    code.putln(code.error_goto_if_null("%s.memview" % rhstmp, lhs_pos))
+    # Allow uninitialized assignment
+    #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
     put_assign_to_memviewslice(lhs_cname, rhstmp, lhs_type, code, incref_rhs)
 
     if not pretty_rhs:
@@ -739,9 +746,15 @@ def _resolve_AttributeNode(env, node):
     modnames = path[:-1]
     # must be at least 1 module name, o/w not an AttributeNode.
     assert modnames
-    scope = env.lookup(modnames[0]).as_module
-    for modname in modnames[1:]:
-        scope = scope.lookup(modname).as_module
+
+    scope = env
+    for modname in modnames:
+        mod = scope.lookup(modname)
+        if not mod:
+            raise CompileError(
+                    node.pos, "undeclared name not builtin: %s" % modname)
+        scope = mod.as_module
+
     return scope.lookup(path[-1])
 
 def load_memview_cy_utility(util_code_name, context=None, **kwargs):

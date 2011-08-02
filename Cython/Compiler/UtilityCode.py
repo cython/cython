@@ -64,7 +64,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     is_cython_utility = True
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
-                 file=None):
+                 file=None, from_scope=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -76,6 +76,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.file = file
         self.prefix = prefix
         self.requires = requires or []
+        self.from_scope = from_scope
 
     def get_tree(self, entries_only=False):
         from AnalysedTreeTransforms import AutoTestDictTransform
@@ -107,6 +108,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         before = ParseTreeTransforms.InterpretCompilerDirectives
         pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
                                                  before=before)
+
+        if self.from_scope:
+            def scope_transform(module_node):
+                module_node.scope.merge_in(self.from_scope)
+                return module_node
+
+            transform = ParseTreeTransforms.AnalyseDeclarationsTransform
+            pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
+                                                     before=scope_transform)
 
         (err, tree) = Pipeline.run_pipeline(pipeline, tree)
         assert not err, err

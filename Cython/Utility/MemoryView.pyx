@@ -217,18 +217,10 @@ cdef class memoryview(object):
         if self.lock != NULL:
             PyThread_free_lock(self.lock)
 
-    @cname('__pyx_memoryview_getitem')
-    def __getitem__(memoryview self, object index):
-        # cdef Py_ssize_t idx
-        cdef char *itemp = <char *> self.view.buf
-        cdef bytes bytesitem
-        cdef str fmt = self.view.format
-
-        import struct
-        try:
-            itemsize = struct.calcsize(fmt)
-        except struct.error:
-            raise TypeError("Unsupported format: %r" % fmt)
+    cdef char *get_item_pointer(memoryview self, object index) except NULL:
+        cdef Py_ssize_t dim
+        cdef Py_buffer view = self.view
+        cdef char *itemp = <char *> view.buf
 
         if index is Ellipsis:
             return self
@@ -252,17 +244,50 @@ cdef class memoryview(object):
 
             for dim, idx in enumerate(tup):
                 _check_index(idx)
-                itemp = pybuffer_index(&self.view, itemp, idx, dim + 1)
+                itemp = pybuffer_index(&self.view, itemp, idx, dim)
 
+        return itemp
+
+    @cname('__pyx_memoryview_getitem')
+    def __getitem__(memoryview self, object index):
+        cdef char *itemp = self.get_item_pointer(index)
+        return self.convert_item_to_object(itemp)
+
+    @cname('__pyx_memoryview_setitem')
+    def __setitem__(memoryview self, object index, object value):
+        cdef char *itemp = self.get_item_pointer(index)
+        self.assign_item_from_object(itemp, value)
+
+    cdef convert_item_to_object(self, char *itemp):
+        """Only used if instantiated manually by the user, or if Cython doesn't
+        know how to convert the type"""
+        import struct
+        cdef bytes bytesitem
         # Do a manual and complete check here instead of this easy hack
         bytesitem = itemp[:self.view.itemsize]
-        return struct.unpack(fmt, bytesitem)
+        return struct.unpack(self.view.format, bytesitem)
+
+    cdef assign_item_from_object(self, char *itemp, object value):
+        """Only used if instantiated manually by the user, or if Cython doesn't
+        know how to convert the type"""
+        import struct
+        cdef char c
+        cdef bytes bytesvalue
+        cdef Py_ssize_t i
+
+        if isinstance(value, tuple):
+            bytesvalue = struct.pack(self.view.format, *value)
+        else:
+            bytesvalue = struct.pack(self.view.format, value)
+
+        for i, c in enumerate(bytesvalue):
+            itemp[i] = c
 
     def __repr__(self):
-        return "<MemoryView of %s at 0x%x>" % (self.obj.__class__.__name__, id(self))
+        return "<MemoryView of %r at 0x%x>" % (self.obj.__class__.__name__, id(self))
 
     def __str__(self):
-        return "<MemoryView of %r at 0x%x>" % (self.obj, id(self))
+        return "<MemoryView of %r object>" % (self.obj.__class__.__name__,)
 
 
 @cname('__pyx_memoryviewslice')
@@ -274,11 +299,26 @@ cdef class _memoryviewslice(memoryview):
     # Restore the original Py_buffer before releasing
     cdef Py_buffer orig_view
 
+    cdef object (*to_object_func)(char *)
+    cdef int (*to_dtype_func)(char *, object) except 0
+
     def __cinit__(self, object obj, int flags):
         self.orig_view = self.view
 
     def __dealloc__(self):
         self.view = self.orig_view
+
+    cdef convert_item_to_object(self, char *itemp):
+        if self.to_object_func != NULL:
+            self.to_object_func(itemp)
+        else:
+            memoryview.convert_item_to_object(self, itemp)
+
+    cdef assign_item_from_object(self, char *itemp, object value):
+        if self.to_dtype_func != NULL:
+            self.to_dtype_func(itemp, value)
+        else:
+            memoryview.assign_item_from_object(self, itemp, value)
 
 
 @cname('__pyx_memoryview_new')
@@ -286,16 +326,20 @@ cdef memoryview_cwrapper(object o, int flags):
     return memoryview(o, flags)
 
 @cname('__pyx_memoryview_fromslice')
-cdef memoryview_from_memview_cwrapper({{memviewslice_name}} *memviewslice,
-                                object orig_obj, int flags, int new_ndim):
+cdef memoryview_from_memslice_cwrapper(
+            {{memviewslice_name}} *memviewslice, object orig_obj, int flags, int cur_ndim,
+             object (*to_object_func)(char *), int (*to_dtype_func)(char *, object)):
     cdef _memoryviewslice result = _memoryviewslice(orig_obj, flags)
+    cdef int new_ndim = result.view.ndim - cur_ndim
 
     result.from_slice = memviewslice[0]
 
     result.view.shape = <Py_ssize_t *> (&result.from_slice.shape + new_ndim)
     result.view.strides = <Py_ssize_t *> (&result.from_slice.strides + new_ndim)
     result.view.suboffsets = <Py_ssize_t *> (&result.from_slice.suboffsets + new_ndim)
-    result.view.ndim = new_ndim
+    result.view.ndim = cur_ndim
+
+    result.to_object_func = to_object_func
 
     return result
 
@@ -336,14 +380,14 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index, int dim
     if index < 0:
         index += view.shape[dim]
         if index < 0:
-            raise IndexError("Out of bounds in dimension %d" % dim)
+            raise IndexError("Out of bounds on buffer access (axis %d)" % dim)
 
     if index > shape:
-        raise IndexError("Out of bounds in dimension %d" % dim)
+        raise IndexError("Out of bounds on buffer access (axis %d)" % dim)
 
     resultp = bufp + index * stride
-
     if suboffset >= 0:
         resultp = (<char **> resultp)[0] + suboffset
 
     return resultp
+

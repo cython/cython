@@ -49,10 +49,7 @@ static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
 
 /////////////// MemviewSliceIndex.proto ///////////////
-
-static CYTHON_INLINE char *__pyx_memviewslice_index_full(char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
-static CYTHON_INLINE char *__pyx_memviewslice_index_full_contig(char *bufp, Py_ssize_t suboffset);
-
+static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
 
 /////////////// ObjectToMemviewSlice ///////////////
 
@@ -173,10 +170,6 @@ static int __Pyx_ValidateAndInit_memviewslice(
             }
         }
 
-        if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL) && !buf->suboffsets) {
-            memviewslice->suboffsets[i] = -1;
-        }
-
         if (spec & __Pyx_MEMVIEW_PTR) {
             if (buf->suboffsets && buf->suboffsets[i] < 0) {
                 PyErr_Format(PyExc_ValueError,
@@ -238,16 +231,16 @@ static int __Pyx_init_memviewslice(
         PyErr_SetString(PyExc_ValueError,
             "buf is NULL.");
         goto fail;
-    } else if(memviewslice->memview || memviewslice->data) {
+    } else if (memviewslice->memview || memviewslice->data) {
         PyErr_SetString(PyExc_ValueError,
             "memviewslice is already initialized!");
         goto fail;
     }
 
-    for(i=0; i<ndim; i++) {
+    for (i = 0; i < ndim; i++) {
         memviewslice->strides[i] = buf->strides[i];
         memviewslice->shape[i]   = buf->shape[i];
-        if(buf->suboffsets) {
+        if (buf->suboffsets) {
             memviewslice->suboffsets[i] = buf->suboffsets[i];
         } else {
             memviewslice->suboffsets[i] = -1;
@@ -294,15 +287,16 @@ static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
     int first_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
     if (!memview)
-        __pyx_fatalerror("memoryslice is not initialized (line %d)", lineno);
+        return; /* allow uninitialized memoryview assignment */
+        /* __pyx_fatalerror("memoryslice is not initialized (line %d)", lineno); */
 
     if (memview->acquisition_count <= 0)
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 
-    PyThread_acquire_lock(memview->lock, 1);
+    //PyThread_acquire_lock(memview->lock, 1);
     first_time = (memview->acquisition_count++ == 0);
-    PyThread_release_lock(memview->lock);
+    //PyThread_release_lock(memview->lock);
 
     if (first_time) {
         if (have_gil) {
@@ -327,9 +321,9 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 
-    PyThread_acquire_lock(memview->lock, 1);
+    //PyThread_acquire_lock(memview->lock, 1);
     last_time = (memview->acquisition_count-- == 1);
-    PyThread_release_lock(memview->lock);
+    //PyThread_release_lock(memview->lock);
 
     if (last_time) {
         if (have_gil) {
@@ -418,10 +412,46 @@ no_fail:
 
 /////////////// MemviewSliceIndex ///////////////
 
-static CYTHON_INLINE char *__pyx_memviewslice_index_full(char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset) {
+static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset) {
     bufp = bufp + idx * stride;
     if (suboffset >= 0) {
         bufp = *((char **) bufp) + suboffset;
     }
     return bufp;
+}
+
+/////////////// MemviewDtypeToObject.proto ///////////////
+PyObject *{{get_function}}(const char *itemp); /* proto */
+int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+
+/////////////// MemviewDtypeToObject ///////////////
+{{#__pyx_memview_<dtype_name>_to_object}}
+
+PyObject *{{get_function}}(const char *itemp) {
+    return (PyObject *) {{to_py_function}}(*({{dtype}} *) itemp);
+}
+
+int {{set_function}}(const char *itemp, PyObject *obj) {
+    {{dtype}} value = {{from_py_function}}(obj);
+    if ({{error_condition}})
+        return 0;
+    *({{dtype}} *) itemp = value;
+    return 1;
+}
+
+/////////////// MemviewObjectToObject.proto ///////////////
+PyObject *{{get_function}}(const char *itemp); /* proto */
+int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+
+/////////////// MemviewObjectToObject ///////////////
+PyObject *{{get_function}}(const char *itemp) {
+    PyObject *result = *(PyObject **) itemp;
+    Py_INCREF(result);
+    return result;
+}
+
+int {{set_function}}(const char *itemp, PyObject *obj) {
+    Py_INCREF(obj);
+    *(PyObject **) itemp = obj;
+    return 1;
 }

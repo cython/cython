@@ -75,6 +75,7 @@ buffer_max_dims = 32
 directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
+    'initializedcheck' : True,
     'embedsignature' : False,
     'locals' : {},
     'auto_cpdef': False,
