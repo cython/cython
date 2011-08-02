@@ -156,7 +156,7 @@ def test_set_of_tuple():
     >>> sorted(s)
     [1, 2, 3]
     """
-    return set([1, 2, 3])
+    return set((1, 2, 3))
 
 def sorted(it):
     # Py3 can't compare strings to ints
