@@ -1205,6 +1205,8 @@ class CCodeWriter(object):
             return
         if storage_class:
             self.put("%s " % storage_class)
+        if not entry.cf_used:
+            self.put('CYTHON_UNUSED ')
         self.put(entry.type.declaration_code(
                 entry.cname, dll_linkage = dll_linkage))
         if entry.init is not None:
