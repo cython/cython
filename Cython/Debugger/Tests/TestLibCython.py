@@ -249,7 +249,10 @@ class GdbDebuggerTestCase(DebuggerTestCase):
                                      stdout=subprocess.PIPE)
                 python_version = p.stdout.read().decode('ascii')
                 p.wait()
-                python_version_number = list(map(int, python_version.split()))
+                try:
+                    python_version_number = list(map(int, python_version.split()))
+                except ValueError:
+                    have_gdb = False
 
 
         # Be Python 3 compatible
