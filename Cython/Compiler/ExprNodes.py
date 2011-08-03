@@ -4029,12 +4029,12 @@ class AttributeNode(ExprNode):
             code.put_gotref(self.py_result())
         elif self.type.is_memoryviewslice:
             if self.initialized_check:
-                code.putln(textwrap.dedent('''
-                    if (unlikely(!%s.memview)) {
-                        PyErr_SetString(PyExc_AttributeError,
-                                        "Memoryview is not initialized");
-                        %s
-                    }''' % (self.result(), code.error_goto(self.pos))))
+                code.putln(
+                    'if (unlikely(!%s.memview)) {'
+                        'PyErr_SetString(PyExc_AttributeError,'
+                                        '"Memoryview is not initialized");'
+                        '%s'
+                    '}' % (self.result(), code.error_goto(self.pos)))
             #code.putln("%s = %s;" % (self.result(),
             #                         self.calculate_result_code()))
         else:

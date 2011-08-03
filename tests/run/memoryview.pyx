@@ -127,7 +127,7 @@ def test_cdef_attribute():
 
     print ExtClass().mview
 
-
+'''
 def basic_struct(MyStruct[:] mslice):
     """
     See also buffmt.pyx
@@ -218,7 +218,7 @@ def complex_struct_inplace(LongComplex[:] mslice):
     buf[0].real += 1
     buf[0].imag += 2
     print buf[0].real, buf[0].imag
-
+'''
 #
 # Getting items and index bounds checking
 #
@@ -227,6 +227,8 @@ def get_int_2d(int[:, :] mslice, int i, int j):
     >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d(C, 1, 1)
     acquired C
+    acquired C
+    released C
     released C
     4
 
@@ -342,6 +344,8 @@ def writable(unsigned short int[:, :, :] mslice):
     >>> R = UnsignedShortMockBuffer("R", range(27), shape=(3, 3, 3))
     >>> writable(R)
     acquired R
+    acquired R
+    released R
     released R
     >>> [str(x) for x in R.recieved_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
@@ -354,6 +358,8 @@ def strided(int[:] mslice):
     >>> A = IntMockBuffer("A", range(4))
     >>> strided(A)
     acquired A
+    acquired A
+    released A
     released A
     2
 
@@ -412,10 +418,14 @@ def generic(int[::view.generic, ::view.generic] mslice1,
     >>> generic(A, B)
     acquired A
     acquired B
+    acquired A
+    acquired B
     4
     4
     10
     11
+    released A
+    released B
     released A
     released B
     """
@@ -438,10 +448,14 @@ def generic_contig(int[::view.generic_contiguous, :] mslice1,
     >>> generic_contig(A, B)
     acquired A
     acquired B
+    acquired A
+    acquired B
     4
     4
     10
     11
+    released A
+    released B
     released A
     released B
     """

@@ -310,9 +310,9 @@ cdef class _memoryviewslice(memoryview):
 
     cdef convert_item_to_object(self, char *itemp):
         if self.to_object_func != NULL:
-            self.to_object_func(itemp)
+            return self.to_object_func(itemp)
         else:
-            memoryview.convert_item_to_object(self, itemp)
+            return memoryview.convert_item_to_object(self, itemp)
 
     cdef assign_item_from_object(self, char *itemp, object value):
         if self.to_dtype_func != NULL:
@@ -328,7 +328,8 @@ cdef memoryview_cwrapper(object o, int flags):
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_from_memslice_cwrapper(
             {{memviewslice_name}} *memviewslice, object orig_obj, int flags, int cur_ndim,
-             object (*to_object_func)(char *), int (*to_dtype_func)(char *, object)):
+             object (*to_object_func)(char *),
+             int (*to_dtype_func)(char *, object) except 0):
     cdef _memoryviewslice result = _memoryviewslice(orig_obj, flags)
     cdef int new_ndim = result.view.ndim - cur_ndim
 
@@ -340,6 +341,7 @@ cdef memoryview_from_memslice_cwrapper(
     result.view.ndim = cur_ndim
 
     result.to_object_func = to_object_func
+    result.to_dtype_func = to_dtype_func
 
     return result
 
@@ -382,7 +384,7 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index, int dim
         if index < 0:
             raise IndexError("Out of bounds on buffer access (axis %d)" % dim)
 
-    if index > shape:
+    if index >= shape:
         raise IndexError("Out of bounds on buffer access (axis %d)" % dim)
 
     resultp = bufp + index * stride

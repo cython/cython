@@ -452,6 +452,7 @@ PyObject *{{get_function}}(const char *itemp) {
 
 int {{set_function}}(const char *itemp, PyObject *obj) {
     Py_INCREF(obj);
+    Py_DECREF(*(PyObject **) itemp);
     *(PyObject **) itemp = obj;
     return 1;
 }
