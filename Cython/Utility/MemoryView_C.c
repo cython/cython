@@ -421,16 +421,24 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ss
 }
 
 /////////////// MemviewDtypeToObject.proto ///////////////
+{{if to_py_function}}
 PyObject *{{get_function}}(const char *itemp); /* proto */
+{{endif}}
+
+{{if from_py_function}}
 int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+{{endif}}
 
 /////////////// MemviewDtypeToObject ///////////////
 {{#__pyx_memview_<dtype_name>_to_object}}
 
+{{if to_py_function}}
 PyObject *{{get_function}}(const char *itemp) {
     return (PyObject *) {{to_py_function}}(*({{dtype}} *) itemp);
 }
+{{endif}}
 
+{{if from_py_function}}
 int {{set_function}}(const char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
     if ({{error_condition}})
@@ -438,6 +446,7 @@ int {{set_function}}(const char *itemp, PyObject *obj) {
     *({{dtype}} *) itemp = value;
     return 1;
 }
+{{endif}}
 
 /////////////// MemviewObjectToObject.proto ///////////////
 PyObject *{{get_function}}(const char *itemp); /* proto */

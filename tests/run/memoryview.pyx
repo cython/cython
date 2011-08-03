@@ -127,18 +127,18 @@ def test_cdef_attribute():
 
     print ExtClass().mview
 
-'''
+
 def basic_struct(MyStruct[:] mslice):
     """
     See also buffmt.pyx
 
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
-    1 2 3 4 5
+    [('a', 1), ('b', 2), ('c', 3L), ('d', 4), ('e', 5)]
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
-    1 2 3 4 5
+    [('a', 1), ('b', 2), ('c', 3L), ('d', 4), ('e', 5)]
     """
     buf = mslice
-    print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
+    print sorted(buf[0].items())
 
 def nested_struct(NestedStruct[:] mslice):
     """
@@ -150,7 +150,8 @@ def nested_struct(NestedStruct[:] mslice):
     1 2 3 4 5
     """
     buf = mslice
-    print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
+    d = buf[0]
+    print d['x']['a'], d['x']['b'], d['y']['a'], d['y']['b'], d['z']
 
 def packed_struct(PackedStruct[:] mslice):
     """
@@ -165,7 +166,7 @@ def packed_struct(PackedStruct[:] mslice):
 
     """
     buf = mslice
-    print buf[0].a, buf[0].b
+    print buf[0]['a'], buf[0]['b']
 
 def nested_packed_struct(NestedPackedStruct[:] mslice):
     """
@@ -179,7 +180,8 @@ def nested_packed_struct(NestedPackedStruct[:] mslice):
     1 2 3 4 5
     """
     buf = mslice
-    print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
+    d = buf[0]
+    print d['a'], d['b'], d['sub']['a'], d['sub']['b'], d['c']
 
 
 def complex_dtype(long double complex[:] mslice):
@@ -207,18 +209,8 @@ def complex_struct_dtype(LongComplex[:] mslice):
     0.0 -1.0
     """
     buf = mslice
-    print buf[0].real, buf[0].imag
+    print buf[0]['real'], buf[0]['imag']
 
-def complex_struct_inplace(LongComplex[:] mslice):
-    """
-    >>> complex_struct_inplace(LongComplexMockBuffer(None, [(0, -1)]))
-    1.0 1.0
-    """
-    buf = mslice
-    buf[0].real += 1
-    buf[0].imag += 2
-    print buf[0].real, buf[0].imag
-'''
 #
 # Getting items and index bounds checking
 #

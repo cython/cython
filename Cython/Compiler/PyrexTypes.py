@@ -2,7 +2,7 @@
 #   Cython/Python language types
 #
 
-from Code import UtilityCode, LazyUtilityCode
+from Code import UtilityCode, LazyUtilityCode, ContentHashingUtilityCode
 import StringEncoding
 import Naming
 import copy
@@ -518,7 +518,7 @@ class MemoryViewSliceType(PyrexType):
         def lazy_utility_callback(code):
             context['dtype_typeinfo'] = Buffer.get_type_information_cname(
                                                           code, self.dtype)
-            return Code.ContentHashingUtilityCode.load(
+            return ContentHashingUtilityCode.load(
                         "ObjectToMemviewSlice", "MemoryView_C.c", context)
 
         env.use_utility_code(Buffer.acquire_utility_code)
@@ -576,10 +576,16 @@ class MemoryViewSliceType(PyrexType):
         if self.dtype.is_pyobject:
             utility_name = "MemviewObjectToObject"
         else:
-            if not (self.dtype.create_to_py_utility_code(env) and
-                    self.dtype.create_from_py_utility_code(env)):
-                print "cannot convert %s" % self.dtype
+            to_py = self.dtype.create_to_py_utility_code(env)
+            from_py = self.dtype.create_from_py_utility_code(env)
+            if not (to_py or from_py):
                 return "NULL", "NULL"
+
+            if not self.dtype.to_py_function:
+                get_function = "NULL"
+
+            if not self.dtype.from_py_function:
+                set_function = "NULL"
 
             utility_name = "MemviewDtypeToObject"
             error_condition = (self.dtype.error_condition('value') or
@@ -591,7 +597,7 @@ class MemoryViewSliceType(PyrexType):
                 error_condition = error_condition,
             )
 
-        utility = Code.ContentHashingUtilityCode.load(
+        utility = ContentHashingUtilityCode.load(
                         utility_name, "MemoryView_C.c", context=context)
         env.use_utility_code(utility)
         return get_function, set_function
@@ -2329,17 +2335,19 @@ class CFuncTypeArg(object):
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
 
-class StructUtilityCode(object):
+class ToPyStructUtilityCode(object):
 
     requires = None
 
     def __init__(self, type, forward_decl):
         self.type = type
-        self.header = "static PyObject* %s(%s)" % (type.to_py_function, type.declaration_code('s'))
+        self.header = "static PyObject* %s(%s)" % (type.to_py_function,
+                                                   type.declaration_code('s'))
         self.forward_decl = forward_decl
 
     def __eq__(self, other):
-        return isinstance(other, StructUtilityCode) and self.header == other.header
+        return isinstance(other, ToPyStructUtilityCode) and self.header == other.header
+
     def __hash__(self):
         return hash(self.header)
 
@@ -2389,6 +2397,7 @@ class CStructOrUnionType(CType):
 
     is_struct_or_union = 1
     has_attributes = 1
+    exception_check = True
 
     def __init__(self, name, kind, scope, typedef_flag, cname, packed=False):
         self.name = name
@@ -2399,26 +2408,63 @@ class CStructOrUnionType(CType):
         self.is_struct = kind == 'struct'
         if self.is_struct:
             self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
+            self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
         self.exception_check = True
-        self._convert_code = None
+        self._convert_to_py_code = None
+        self._convert_from_py_code = None
         self.packed = packed
 
     def create_to_py_utility_code(self, env):
         if env.outer_scope is None:
             return False
 
-        if self._convert_code is False: return # tri-state-ish
+        if self._convert_to_py_code is False: return # tri-state-ish
 
-        if self._convert_code is None:
+        if self._convert_to_py_code is None:
             for member in self.scope.var_entries:
                 if not member.type.to_py_function or not member.type.create_to_py_utility_code(env):
                     self.to_py_function = None
-                    self._convert_code = False
+                    self._convert_to_py_code = False
                     return False
             forward_decl = (self.entry.visibility != 'extern')
-            self._convert_code = StructUtilityCode(self, forward_decl)
+            self._convert_to_py_code = ToPyStructUtilityCode(self, forward_decl)
 
-        env.use_utility_code(self._convert_code)
+        env.use_utility_code(self._convert_to_py_code)
+        return True
+
+    def create_from_py_utility_code(self, env):
+        if env.outer_scope is None:
+            return False
+
+        if self._convert_from_py_code is False: return # tri-state-ish
+
+        if self._convert_from_py_code is None:
+            for member in self.scope.var_entries:
+                if (not member.type.from_py_function or not
+                        member.type.create_from_py_utility_code(env)):
+                    self.from_py_function = None
+                    self._convert_from_py_code = False
+                    return False
+
+            forward_decl = (self.entry.visibility != 'extern')
+
+            # Avoid C compiler warnings
+            nesting_depth = 0
+            type = self
+            while type.is_struct_or_union:
+                type = type.scope.var_entries[0].type
+                nesting_depth += 1
+
+            context = dict(
+                struct_type_decl = self.declaration_code(""),
+                var_entries = self.scope.var_entries,
+                funcname = self.from_py_function,
+                init = '%s 0 %s' % ('{' * nesting_depth, '}' * nesting_depth)
+            )
+            self._convert_from_py_code = ContentHashingUtilityCode.load(
+                      "FromPyStructUtility", "TypeConversion.c", context)
+
+        env.use_utility_code(self._convert_from_py_code)
         return True
 
     def __repr__(self):

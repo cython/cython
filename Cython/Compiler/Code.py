@@ -1598,9 +1598,13 @@ class CCodeWriter(object):
             self.put_var_xdecref_clear(entry)
 
     def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
+        import MemoryView
+        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
         self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
 
     def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
+        import MemoryView
+        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
         self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
 
     def put_xgiveref_memoryviewslice(self, slice_cname):
