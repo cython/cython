@@ -1670,6 +1670,7 @@ class CFuncDefNode(FuncDefNode):
     inline_in_pxd = False
     decorators = None
     directive_locals = None
+    override = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -1802,7 +1803,12 @@ class CFuncDefNode(FuncDefNode):
                 arg_decl = 'CYTHON_UNUSED %s' % arg_decl
             arg_decls.append(arg_decl)
         if with_dispatch and self.overridable:
-            arg_decls.append(PyrexTypes.c_int_type.declaration_code(Naming.skip_dispatch_cname))
+            dispatch_arg = PyrexTypes.c_int_type.declaration_code(
+                Naming.skip_dispatch_cname)
+            if self.override:
+                arg_decls.append(dispatch_arg)
+            else:
+                arg_decls.append('CYTHON_UNUSED %s' % dispatch_arg)
         if type.optional_arg_count and with_opt_args:
             arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if type.has_varargs:
@@ -1832,7 +1838,7 @@ class CFuncDefNode(FuncDefNode):
         for arg in self.args:
             if arg.default:
                 entry = scope.lookup(arg.name)
-                if self.overridable or entry.cf_used:
+                if self.override or entry.cf_used:
                     result = arg.calculate_default_value_code(code)
                     code.putln('%s = %s;' % (
                         arg.type.declaration_code(arg.cname), result))
@@ -1849,7 +1855,7 @@ class CFuncDefNode(FuncDefNode):
             for arg in self.args:
                 if arg.default:
                     entry = scope.lookup(arg.name)
-                    if self.overridable or entry.cf_used:
+                    if self.override or entry.cf_used:
                         code.putln('if (%s->%sn > %s) {' %
                                    (Naming.optional_args_cname,
                                     Naming.pyrex_prefix, i))
