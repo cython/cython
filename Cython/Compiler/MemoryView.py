@@ -66,8 +66,6 @@ memview_typeptr_cname = '__pyx_memoryview_type'
 memview_objstruct_cname = '__pyx_memoryview_obj'
 memviewslice_cname = u'__Pyx_memviewslice'
 
-
-
 def put_init_entry(mv_cname, code):
     code.putln("%s.data = NULL;" % mv_cname)
     code.putln("%s.memview = NULL;" % mv_cname)
@@ -129,18 +127,9 @@ def get_buf_flags(specs):
     else:
         return memview_strided_access
 
-def use_memview_util_code(env):
-    import CythonScope
-    env.use_utility_code(CythonScope.view_utility_code)
-    env.use_utility_code(memviewslice_declare_code)
-
-def use_memview_cwrap(env):
-    import CythonScope
-    env.use_utility_code(CythonScope.view_utility_code)
 
 def use_cython_array(env):
-    import CythonScope
-    env.use_utility_code(CythonScope.cython_array_utility_code)
+    env.use_utility_code(cython_array_utility_code)
 
 def src_conforms_to_dst(src, dst):
     '''
@@ -778,7 +767,31 @@ memviewslice_declare_code = load_memview_c_utility(
 memviewslice_init_code = load_memview_c_utility(
     "MemviewSliceInit",
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
-    requires=[memviewslice_declare_code, Buffer.acquire_utility_code],
+    requires=[memviewslice_declare_code,
+              Buffer.acquire_utility_code],
 )
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
+
+typeinfo_to_format_code = load_memview_cy_utility(
+        "BufferFormatFromTypeInfo", requires=[Buffer._typeinfo_to_format_code])
+
+view_utility_code = load_memview_cy_utility(
+        "View.MemoryView",
+        context=context,
+        requires=[Buffer.GetAndReleaseBufferUtilityCode(),
+                  Buffer.buffer_struct_declare_code,
+                  Buffer.empty_bufstruct_utility,
+                  memviewslice_init_code],
+)
+
+cython_array_utility_code = load_memview_cy_utility(
+        "CythonArray",
+        context=context,
+        requires=[view_utility_code])
+
+memview_fromslice_utility_code = load_memview_cy_utility(
+        "MemviewFromSlice",
+        context=context,
+        requires=[view_utility_code],
+)

@@ -291,22 +291,21 @@ class Scope(object):
         entries = [(name, entry)
                        for name, entry in other.entries.iteritems()
                            if entry.used or merge_unused]
-        # !@#$ py23
-        entries = dict(entries)
 
         self.entries.update(entries)
 
         for attr in ('const_entries',
-                  'type_entries',
-                  'sue_entries',
-                  'arg_entries',
-                  'var_entries',
-                  'pyfunc_entries',
-                  'cfunc_entries',
-                  'c_class_entries'):
+                     'type_entries',
+                     'sue_entries',
+                     'arg_entries',
+                     'var_entries',
+                     'pyfunc_entries',
+                     'cfunc_entries',
+                     'c_class_entries'):
             self_entries = getattr(self, attr)
+            names = set([e.name for e in self_entries])
             for entry in getattr(other, attr):
-                if entry.used or merge_unused:
+                if (entry.used or merge_unused) and entry.name not in names:
                     self_entries.append(entry)
 
     def __str__(self):

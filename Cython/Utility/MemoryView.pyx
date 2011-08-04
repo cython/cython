@@ -12,6 +12,10 @@ cdef extern from "Python.h":
         PyBUF_ANY_CONTIGUOUS
         PyBUF_FORMAT
 
+
+    void Py_INCREF(object)
+    void Py_DECREF(object)
+
 cdef extern from *:
     object __pyx_memoryview_new(object obj, int flags)
 
@@ -52,6 +56,8 @@ cdef class array:
         self.strides = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
 
         if not self.shape or not self.strides:
+            free(self.shape)
+            free(self.strides)
             raise MemoryError("unable to allocate shape or strides.")
 
         cdef int idx
@@ -93,7 +99,6 @@ cdef class array:
                 raise MemoryError("unable to allocate array data.")
 
     def __getbuffer__(self, Py_buffer *info, int flags):
-
         cdef int bufmode = -1
         if self.mode == b"c":
             bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
@@ -114,27 +119,28 @@ cdef class array:
         else:
             info.format = NULL
 
-        # we do not need to call releasebuffer
-        info.obj = None
+        # info.obj = self
+        # Py_INCREF(self)
 
-    def __releasebuffer__(array self, Py_buffer* info):
-        # array.__releasebuffer__ should not be called,
-        # because the Py_buffer's 'obj' field is set to None.
-        raise NotImplementedError()
+    def __releasebuffer__(self, Py_buffer *info):
+        pass
 
     def __dealloc__(array self):
-        if self.data:
-            if self.callback_free_data != NULL:
-                self.callback_free_data(self.data)
-            else:
-                free(self.data)
-            self.data = NULL
+        if self.callback_free_data != NULL:
+            self.callback_free_data(self.data)
+        else:
+            free(self.data)
+
+        self.data = NULL
+
         if self.strides:
             free(self.strides)
             self.strides = NULL
+
         if self.shape:
             free(self.shape)
             self.shape = NULL
+
         self.format = NULL
         self.itemsize = 0
 
@@ -148,8 +154,15 @@ cdef class array:
 
 
 @cname("__pyx_array_new")
-cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *mode):
-    return array(shape, itemsize, format, mode.decode('ASCII'))
+cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *mode, char *buf):
+    cdef array result
+    if buf == NULL:
+        result = array(shape, itemsize, format, mode.decode('ASCII'))
+    else:
+        result = array(shape, itemsize, format, mode.decode('ASCII'), allocate_buffer=False)
+        result.data = buf
+
+    return result
 
 ########## View.MemoryView ##########
 
@@ -169,14 +182,7 @@ cdef extern from *:
     int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
-    ctypedef struct {{memviewslice_name}}:
-        char *data
-        Py_ssize_t shape[{{max_dims}}]
-        Py_ssize_t strides[{{max_dims}}]
-        Py_ssize_t suboffsets[{{max_dims}}]
-
-    void puts(char *)
-    void printf(char *, ...)
+    ctypedef struct PyObject
 
 
 @cname('__pyx_MemviewEnum')
@@ -206,14 +212,18 @@ cdef class memoryview(object):
 
     def __cinit__(memoryview self, object obj, int flags):
         self.obj = obj
-        __Pyx_GetBuffer(obj, &self.view, flags)
+
+        if type(self) is memoryview or obj is not None:
+            __Pyx_GetBuffer(obj, &self.view, flags)
 
         self.lock = PyThread_allocate_lock()
         if self.lock == NULL:
             raise MemoryError
 
     def __dealloc__(memoryview self):
-        __Pyx_ReleaseBuffer(&self.view)
+        if self.obj is not None:
+            __Pyx_ReleaseBuffer(&self.view)
+
         if self.lock != NULL:
             PyThread_free_lock(self.lock)
 
@@ -265,7 +275,11 @@ cdef class memoryview(object):
         cdef bytes bytesitem
         # Do a manual and complete check here instead of this easy hack
         bytesitem = itemp[:self.view.itemsize]
-        return struct.unpack(self.view.format, bytesitem)
+        result = struct.unpack(self.view.format, bytesitem)
+        if len(self.view.format) == 1:
+            return result[0]
+
+        return result
 
     cdef assign_item_from_object(self, char *itemp, object value):
         """Only used if instantiated manually by the user, or if Cython doesn't
@@ -283,67 +297,26 @@ cdef class memoryview(object):
         for i, c in enumerate(bytesvalue):
             itemp[i] = c
 
+    property _obj:
+        @cname('__pyx_memoryview__get__obj')
+        def __get__(self):
+            if (self.obj is None and <PyObject *> self.view.obj != NULL and
+                    self.view.obj is not None):
+                return <object> self.view.obj
+
+            return self.obj
+
     def __repr__(self):
-        return "<MemoryView of %r at 0x%x>" % (self.obj.__class__.__name__, id(self))
+        return "<MemoryView of %r at 0x%x>" % (self._obj.__class__.__name__, id(self))
 
     def __str__(self):
-        return "<MemoryView of %r object>" % (self.obj.__class__.__name__,)
-
-
-@cname('__pyx_memoryviewslice')
-cdef class _memoryviewslice(memoryview):
-    "Internal class for passing memory view slices to Python"
-
-    # We need this to keep our shape/strides/suboffset pointers valid
-    cdef {{memviewslice_name}} from_slice
-    # Restore the original Py_buffer before releasing
-    cdef Py_buffer orig_view
-
-    cdef object (*to_object_func)(char *)
-    cdef int (*to_dtype_func)(char *, object) except 0
-
-    def __cinit__(self, object obj, int flags):
-        self.orig_view = self.view
-
-    def __dealloc__(self):
-        self.view = self.orig_view
-
-    cdef convert_item_to_object(self, char *itemp):
-        if self.to_object_func != NULL:
-            return self.to_object_func(itemp)
-        else:
-            return memoryview.convert_item_to_object(self, itemp)
-
-    cdef assign_item_from_object(self, char *itemp, object value):
-        if self.to_dtype_func != NULL:
-            self.to_dtype_func(itemp, value)
-        else:
-            memoryview.assign_item_from_object(self, itemp, value)
+        return "<MemoryView of %r object>" % (self._obj.__class__.__name__,)
 
 
 @cname('__pyx_memoryview_new')
 cdef memoryview_cwrapper(object o, int flags):
     return memoryview(o, flags)
 
-@cname('__pyx_memoryview_fromslice')
-cdef memoryview_from_memslice_cwrapper(
-            {{memviewslice_name}} *memviewslice, object orig_obj, int flags, int cur_ndim,
-             object (*to_object_func)(char *),
-             int (*to_dtype_func)(char *, object) except 0):
-    cdef _memoryviewslice result = _memoryviewslice(orig_obj, flags)
-    cdef int new_ndim = result.view.ndim - cur_ndim
-
-    result.from_slice = memviewslice[0]
-
-    result.view.shape = <Py_ssize_t *> (&result.from_slice.shape + new_ndim)
-    result.view.strides = <Py_ssize_t *> (&result.from_slice.strides + new_ndim)
-    result.view.suboffsets = <Py_ssize_t *> (&result.from_slice.suboffsets + new_ndim)
-    result.view.ndim = cur_ndim
-
-    result.to_object_func = to_object_func
-    result.to_dtype_func = to_dtype_func
-
-    return result
 
 cdef _check_index(index):
     if not PyIndex_Check(index):
@@ -393,3 +366,134 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index, int dim
 
     return resultp
 
+############### MemviewFromSlice ###############
+
+cdef extern from *:
+    cdef struct __pyx_memoryview:
+        Py_buffer view
+        PyObject *obj
+
+    ctypedef struct {{memviewslice_name}}:
+        __pyx_memoryview *memview
+        char *data
+        Py_ssize_t shape[{{max_dims}}]
+        Py_ssize_t strides[{{max_dims}}]
+        Py_ssize_t suboffsets[{{max_dims}}]
+
+
+    void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+    void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+
+
+@cname('__pyx_memoryviewslice')
+cdef class _memoryviewslice(memoryview):
+    "Internal class for passing memory view slices to Python"
+
+    # We need this to keep our shape/strides/suboffset pointers valid
+    cdef {{memviewslice_name}} from_slice
+    # We need this only to print it's classes name
+    cdef object from_object
+
+    cdef object (*to_object_func)(char *)
+    cdef int (*to_dtype_func)(char *, object) except 0
+
+    def __dealloc__(self):
+        __PYX_XDEC_MEMVIEW(&self.from_slice, 1)
+
+    cdef convert_item_to_object(self, char *itemp):
+        if self.to_object_func != NULL:
+            return self.to_object_func(itemp)
+        else:
+            return memoryview.convert_item_to_object(self, itemp)
+
+    cdef assign_item_from_object(self, char *itemp, object value):
+        if self.to_dtype_func != NULL:
+            self.to_dtype_func(itemp, value)
+        else:
+            memoryview.assign_item_from_object(self, itemp, value)
+
+    property _obj:
+        @cname('__pyx_memoryviewslice__get__obj')
+        def __get__(self):
+            return self.from_object
+
+
+@cname('__pyx_memoryview_fromslice')
+cdef memoryview_from_memslice_cwrapper(
+            {{memviewslice_name}} *memviewslice, int cur_ndim,
+             object (*to_object_func)(char *),
+             int (*to_dtype_func)(char *, object) except 0):
+
+    assert 0 < cur_ndim <= memviewslice.memview.view.ndim
+
+    cdef _memoryviewslice result = _memoryviewslice(None, 0)
+    cdef int new_ndim = memviewslice.memview.view.ndim - cur_ndim
+
+    result.from_slice = memviewslice[0]
+    __PYX_INC_MEMVIEW(memviewslice, 1)
+
+    result.from_object = <object> memviewslice.memview.obj
+
+    result.view = memviewslice.memview.view
+    result.view.shape = <Py_ssize_t *> (&result.from_slice.shape + new_ndim)
+    result.view.strides = <Py_ssize_t *> (&result.from_slice.strides + new_ndim)
+    result.view.suboffsets = <Py_ssize_t *> (&result.from_slice.suboffsets + new_ndim)
+    result.view.ndim = cur_ndim
+
+    result.to_object_func = to_object_func
+    result.to_dtype_func = to_dtype_func
+
+    return result
+
+############### BufferFormatFromTypeInfo ###############
+cdef extern from *:
+    ctypedef struct __Pyx_StructField
+
+    ctypedef struct __Pyx_TypeInfo:
+      char* name
+      __Pyx_StructField* fields
+      size_t size
+      char typegroup
+      char is_unsigned
+
+    ctypedef struct __Pyx_StructField:
+      __Pyx_TypeInfo* type
+      char* name
+      size_t offset
+
+    ctypedef struct __Pyx_BufFmt_StackElem:
+      __Pyx_StructField* field
+      size_t parent_offset
+
+    #ctypedef struct __Pyx_BufFmt_Context:
+    #  __Pyx_StructField root
+      __Pyx_BufFmt_StackElem* head
+
+    struct __pyx_typeinfo_string:
+        char string[3]
+
+    __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *)
+
+
+@cname('__pyx_format_from_typeinfo')
+cdef format_from_typeinfo(__Pyx_TypeInfo *type):
+    cdef __Pyx_StructField *field
+    cdef __pyx_typeinfo_string fmt
+
+    if type.typegroup == 'S':
+        assert type.fields != NULL and type.fields.type != NULL
+
+        parts = ["T{"]
+        field = type.fields
+
+        while field.type:
+            parts.append(format_from_typeinfo(field.type))
+            field += 1
+
+        parts.append("}")
+        result = "".join(parts)
+    else:
+        fmt = __Pyx_TypeInfoToFormat(type)
+        result = fmt.string
+
+    return result

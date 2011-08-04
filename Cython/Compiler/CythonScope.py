@@ -71,12 +71,14 @@ class CythonScope(ModuleScope):
 #        self.test_cythonscope()
 
     def test_cythonscope(self):
-        # A special function just to make it easy to test the scope and
-        # utility code functionality in isolation. It is available to
-        # "end-users" but nobody will know it is there anyway...
+        """
+        Creates some entries for testing purposes and entries for
+        cython.array() and for cython.view.*.
+        """
         cython_testscope_utility_code.declare_in_scope(self)
         cython_test_extclass_utility_code.declare_in_scope(self)
-        cython_array_utility_code.declare_in_scope(self)
+
+        MemoryView.cython_array_utility_code.declare_in_scope(self)
 
         #
         # The view sub-scope
@@ -92,7 +94,9 @@ class CythonScope(ModuleScope):
 
         cythonview_testscope_utility_code.declare_in_scope(viewscope)
 
-        view_utility_code.declare_in_scope(viewscope)
+        view_utility_scope = MemoryView.view_utility_code.declare_in_scope(viewscope)
+        MemoryView.memview_fromslice_utility_code.from_scope = view_utility_scope
+        MemoryView.memview_fromslice_utility_code.declare_in_scope(viewscope)
 
 
 def create_cython_scope(context, create_testscope):
@@ -133,14 +137,3 @@ cython_test_extclass_utility_code = \
                                      test_cython_utility_dep])
 
 cythonview_testscope_utility_code = load_testscope_utility("View.TestScope")
-
-view_utility_code = MemoryView.load_memview_cy_utility(
-        "View.MemoryView", context=MemoryView.context,
-        requires=[Buffer.GetAndReleaseBufferUtilityCode(),
-                  MemoryView.memviewslice_declare_code],
-)
-
-cython_array_utility_code = MemoryView.load_memview_cy_utility(
-        "CythonArray",
-        context=MemoryView.context,
-        requires=[view_utility_code])

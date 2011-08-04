@@ -2440,8 +2440,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     type.typeptr_cname, type.typeobj_cname))
 
 def generate_cfunction_declaration(entry, env, code, definition):
+    from_cy_utility = entry.used and entry.utility_code_definition
     if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
-            or entry.defined_in_pxd or entry.visibility == 'extern')):
+            or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
         if entry.visibility == 'extern':
             storage_class = "%s " % Naming.extern_c_macro
             dll_linkage = "DL_IMPORT"

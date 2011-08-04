@@ -35,19 +35,9 @@ static void __Pyx_RaiseBufferFallbackError(void) {
      "Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!");
 }
 
-/////////////// BufferFormatCheck.proto ///////////////
-{{#
+/////////////// BufferFormatStructs.proto ///////////////
 
-    Buffer format string checking
-
-    Buffer type checking. Utility code for checking that acquired
-    buffers match our assumptions. We only need to check ndim and
-    the format string; the access mode/flags is checked by the
-    exporter.
-
-    The alignment code is copied from _struct.c in Python.
-}}
-
+#define IS_UNSIGNED(type) (((type) -1) > 0)
 
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
@@ -57,6 +47,7 @@ typedef struct {
   struct __Pyx_StructField_* fields;
   size_t size;     /* sizeof(type) */
   char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject */
+  char is_unsigned;
 } __Pyx_TypeInfo;
 
 typedef struct __Pyx_StructField_ {
@@ -81,6 +72,19 @@ typedef struct {
   char enc_packmode;
 } __Pyx_BufFmt_Context;
 
+
+/////////////// BufferFormatCheck.proto ///////////////
+{{#
+
+    Buffer format string checking
+
+    Buffer type checking. Utility code for checking that acquired
+    buffers match our assumptions. We only need to check ndim and
+    the format string; the access mode/flags is checked by the
+    exporter.
+
+    The alignment code is copied from _struct.c in Python.
+}}
 
 static CYTHON_INLINE int  __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj,
     __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
@@ -245,6 +249,7 @@ static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
     }
   }
 }
+
 
 static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
   if (ctx->head == NULL || ctx->head->field == &ctx->root) {
@@ -518,4 +523,61 @@ static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (info->buf == NULL) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
   __Pyx_ReleaseBuffer(info);
+}
+
+
+/////////////// TypeInfoToFormat.proto ///////////////
+struct __pyx_typeinfo_string {
+    char string[3];
+};
+static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type);
+
+/////////////// TypeInfoToFormat ///////////////
+{{# See also MemoryView.pyx:BufferFormatFromTypeInfo }}
+
+static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type) {
+    struct __pyx_typeinfo_string result = { {0} };
+    char *buf = (char *) result.string;
+    size_t size = type->size;
+
+    switch (type->typegroup) {
+        case 'I':
+        case 'U':
+            if (size == 1)
+                *buf = 'c';
+            else if (size == 2)
+                *buf = 'h';
+            else if (size == 4)
+                *buf = 'i';
+            else if (size == 8)
+                *buf = 'q';
+
+            if (type->is_unsigned)
+                *buf = toupper(*buf);
+            break;
+        case 'P':
+            *buf = 'P';
+            break;
+        case 'C':
+          {
+             __Pyx_TypeInfo complex_type = *type;
+            complex_type.typegroup = 'R';
+            complex_type.size /= 2;
+
+            *buf++ = 'Z';
+            /* Note: What about short/int/long complex? Probably not used? */
+            *buf = __Pyx_TypeInfoToFormat(&complex_type).string[0];
+            break;
+          }
+        case 'R':
+            if (size == 4)
+                *buf = 'f';
+            else if (size == 8)
+                *buf = 'd';
+            else
+                *buf = 'g';
+            break;
+    }
+
+    return result;
 }

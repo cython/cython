@@ -115,8 +115,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 return module_node
 
             transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-            pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
-                                                     before=scope_transform)
+            pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
+                                                     before=transform)
 
         (err, tree) = Pipeline.run_pipeline(pipeline, tree)
         assert not err, err
@@ -125,7 +125,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     def put_code(self, output):
         pass
 
-    def declare_in_scope(self, dest_scope, used=False, modname=None):
+    def declare_in_scope(self, dest_scope, used=False):
         """
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries. If module_name is given, declare the
@@ -143,13 +143,12 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             entry.utility_code_definition = self
             entry.used = used
 
-            if modname and entry.type.is_extension_type:
-                entry.qualified_name = modname
-                entry.type.module_name = modname
-
-        dest_scope.merge_in(tree.scope, merge_unused=True)
+        original_scope = tree.scope
+        dest_scope.merge_in(original_scope, merge_unused=True)
         tree.scope = dest_scope
 
         for dep in self.requires:
             if dep.is_cython_utility:
                 dep.declare_in_scope(dest_scope)
+
+        return original_scope

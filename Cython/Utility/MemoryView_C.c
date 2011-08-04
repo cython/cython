@@ -56,9 +56,8 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ss
 {{#__Pyx_PyObject_to_MemoryviewSlice_<count>}}
 
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
-    {{memviewslice_name}} result;
-    result.memview = NULL;
-    result.data = NULL;
+    {{memviewslice_name}} result = {0};
+
     struct __pyx_memoryview_obj *memview =  \
         (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}});
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
@@ -294,9 +293,9 @@ static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 
-    //PyThread_acquire_lock(memview->lock, 1);
+    PyThread_acquire_lock(memview->lock, 1);
     first_time = (memview->acquisition_count++ == 0);
-    //PyThread_release_lock(memview->lock);
+    PyThread_release_lock(memview->lock);
 
     if (first_time) {
         if (have_gil) {
@@ -321,9 +320,9 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 
-    //PyThread_acquire_lock(memview->lock, 1);
+    PyThread_acquire_lock(memview->lock, 1);
     last_time = (memview->acquisition_count-- == 1);
-    //PyThread_release_lock(memview->lock);
+    PyThread_release_lock(memview->lock);
 
     if (last_time) {
         if (have_gil) {
@@ -370,7 +369,7 @@ static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
         }
     }
 
-    array_obj = __pyx_array_new(shape_tuple, {{sizeof_dtype}}, buf->format, mode);
+    array_obj = __pyx_array_new(shape_tuple, {{sizeof_dtype}}, buf->format, mode, NULL);
     if (unlikely(!array_obj)) {
         goto fail;
     }
@@ -412,12 +411,15 @@ no_fail:
 
 /////////////// MemviewSliceIndex ///////////////
 
-static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset) {
+static CYTHON_INLINE char *
+__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx,
+                              Py_ssize_t stride, Py_ssize_t suboffset)
+{
     bufp = bufp + idx * stride;
     if (suboffset >= 0) {
         bufp = *((char **) bufp) + suboffset;
     }
-    return bufp;
+    return (char *) bufp;
 }
 
 /////////////// MemviewDtypeToObject.proto ///////////////

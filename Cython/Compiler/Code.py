@@ -318,7 +318,12 @@ class ContentHashingUtilityCode(UtilityCode):
         return hash((self.proto, self.impl))
 
     def __eq__(self, other):
-        return (self.proto, self.impl) == (other.proto, other.impl)
+        if not isinstance(other, type(self)):
+            return False
+
+        self_proto = getattr(self, 'proto', None)
+        other_proto = getattr(other, 'proto', None)
+        return (self_proto, self.impl) == (other_proto, other.impl)
 
 
 class LazyUtilityCode(UtilityCodeBase):

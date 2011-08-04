@@ -553,14 +553,15 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def get_to_py_function(self, env, obj):
+        import MemoryView
+        env.use_utility_code(MemoryView.memview_fromslice_utility_code)
+
         to_py_func, from_py_func = self.dtype_object_conversion_funcs(env)
         to_py_func = "(PyObject *(*)(char *)) " + to_py_func
         from_py_func = "(int (*)(char *, PyObject *)) " + from_py_func
 
-        tup = (obj.result(), obj.result(), self.flags, self.ndim,
-               to_py_func, from_py_func)
-        return ("__pyx_memoryview_fromslice(&%s, %s.memview->obj, "
-                                            "%s, %s, %s, %s);" % tup)
+        tup = (obj.result(), self.ndim, to_py_func, from_py_func)
+        return "__pyx_memoryview_fromslice(&%s, %s, %s, %s);" % tup
 
     def dtype_object_conversion_funcs(self, env):
         import MemoryView, Code

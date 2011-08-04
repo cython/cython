@@ -5,7 +5,7 @@ from ExprNodes import *
 from StringEncoding import EncodedString
 from Errors import CompileError
 from UtilityCode import CythonUtilityCode
-from Code import UtilityCode
+from Code import UtilityCode, ContentHashingUtilityCode
 import Cython.Compiler.Options
 import Interpreter
 import PyrexTypes
@@ -34,10 +34,11 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         assert isinstance(node, ModuleNode)
         self.max_ndim = 0
         result = super(IntroduceBufferAuxiliaryVars, self).__call__(node)
-        if self.buffers_exists or self.using_memoryview:
+        if self.buffers_exists:
             use_bufstruct_declare_code(node.scope)
             use_py2_buffer_functions(node.scope)
-            use_empty_bufstruct_code(node.scope, self.max_ndim)
+            node.scope.use_utility_code(empty_bufstruct_utility)
+
         return result
 
 
@@ -476,13 +477,15 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
 def use_bufstruct_declare_code(env):
     env.use_utility_code(buffer_struct_declare_code)
 
-def use_empty_bufstruct_code(env, max_ndim):
+
+def get_empty_bufstruct_code(max_ndim):
     code = dedent("""
         Py_ssize_t __Pyx_zeros[] = {%s};
         Py_ssize_t __Pyx_minusones[] = {%s};
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
-    env.use_utility_code(UtilityCode(proto=code))
+    return UtilityCode(proto=code)
 
+empty_bufstruct_utility = get_empty_bufstruct_code(Options.buffer_max_dims)
 
 def buf_lookup_full_code(proto, defin, name, nd):
     """
@@ -725,12 +728,18 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             print dtype
             assert False
 
-        typecode.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\' };'
+        if dtype.is_int:
+            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+        else:
+            is_unsigned = "0"
+
+        typecode.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\', %s };'
                         ) % (name,
                              rep,
                              structinfo_name,
                              declcode,
                              typegroup,
+                             is_unsigned,
                         ), safe=True)
     return name
 
@@ -753,5 +762,11 @@ impl = """
 """)
 
 raise_buffer_fallback_code = load_buffer_utility("BufferFallbackError")
+buffer_structs_code = load_buffer_utility("BufferFormatStructs")
 acquire_utility_code = load_buffer_utility("BufferFormatCheck",
-                                           context=context)
+                                           context=context,
+                                           requires=[buffer_structs_code])
+
+# See utility code BufferFormatFromTypeInfo
+_typeinfo_to_format_code = load_buffer_utility(
+        "TypeInfoToFormat", context={}, requires=[buffer_structs_code])

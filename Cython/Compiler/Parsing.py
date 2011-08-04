@@ -297,7 +297,8 @@ def p_typecast(s):
     pos = s.position()
     s.next()
     base_type = p_c_base_type(s)
-    if base_type.name is None:
+    is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
+    if not is_memslice and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
@@ -307,6 +308,10 @@ def p_typecast(s):
         typecheck = 0
     s.expect(">")
     operand = p_factor(s)
+    if is_memslice:
+        return ExprNodes.CythonArrayNode(pos, base_type_node=base_type,
+                                         operand=operand)
+
     return ExprNodes.TypecastNode(pos,
         base_type = base_type,
         declarator = declarator,

@@ -219,28 +219,20 @@ def get_int_2d(int[:, :] mslice, int i, int j):
     >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d(C, 1, 1)
     acquired C
-    acquired C
-    released C
     released C
     4
 
     Check negative indexing:
     >>> get_int_2d(C, -1, 0)
     acquired C
-    acquired C
-    released C
     released C
     3
     >>> get_int_2d(C, -1, -2)
     acquired C
-    acquired C
-    released C
     released C
     4
     >>> get_int_2d(C, -2, -3)
     acquired C
-    acquired C
-    released C
     released C
     0
 
@@ -265,50 +257,34 @@ def set_int_2d(int[:, :] mslice, int i, int j, int value):
     >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> set_int_2d(C, 1, 1, 10)
     acquired C
-    acquired C
-    released C
     released C
     >>> get_int_2d(C, 1, 1)
     acquired C
-    acquired C
-    released C
     released C
     10
 
     Check negative indexing:
     >>> set_int_2d(C, -1, 0, 3)
     acquired C
-    acquired C
-    released C
     released C
     >>> get_int_2d(C, -1, 0)
     acquired C
-    acquired C
-    released C
     released C
     3
 
     >>> set_int_2d(C, -1, -2, 8)
     acquired C
-    acquired C
-    released C
     released C
     >>> get_int_2d(C, -1, -2)
     acquired C
-    acquired C
-    released C
     released C
     8
 
     >>> set_int_2d(C, -2, -3, 9)
     acquired C
-    acquired C
-    released C
     released C
     >>> get_int_2d(C, -2, -3)
     acquired C
-    acquired C
-    released C
     released C
     9
 
@@ -336,8 +312,6 @@ def writable(unsigned short int[:, :, :] mslice):
     >>> R = UnsignedShortMockBuffer("R", range(27), shape=(3, 3, 3))
     >>> writable(R)
     acquired R
-    acquired R
-    released R
     released R
     >>> [str(x) for x in R.recieved_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
@@ -350,8 +324,6 @@ def strided(int[:] mslice):
     >>> A = IntMockBuffer("A", range(4))
     >>> strided(A)
     acquired A
-    acquired A
-    released A
     released A
     2
 
@@ -410,14 +382,10 @@ def generic(int[::view.generic, ::view.generic] mslice1,
     >>> generic(A, B)
     acquired A
     acquired B
-    acquired A
-    acquired B
     4
     4
     10
     11
-    released A
-    released B
     released A
     released B
     """
@@ -440,14 +408,10 @@ def generic_contig(int[::view.generic_contiguous, :] mslice1,
     >>> generic_contig(A, B)
     acquired A
     acquired B
-    acquired A
-    acquired B
     4
     4
     10
     11
-    released A
-    released B
     released A
     released B
     """

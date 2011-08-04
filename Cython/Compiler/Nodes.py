@@ -126,6 +126,7 @@ class Node(object):
         __metaclass__ = VerboseCodeWriter
 
     is_name = 0
+    is_none = 0
     is_literal = 0
     is_terminator = 0
     temps = None
@@ -137,6 +138,11 @@ class Node(object):
 
     cf_state = None
 
+    # This may be an additional (or 'actual') type that will be checked when
+    # this node is coerced to another type. This could be useful to set when
+    # the actual type to which it can coerce is known, but you want to leave
+    # the type a py_object_type
+    coercion_type = None
 
     def __init__(self, pos, **kw):
         self.pos = pos
@@ -823,11 +829,17 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
             return self.type
 
         self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs)
-        MemoryView.use_memview_util_code(env)
-        MemoryView.use_cython_array(env)
-        MemoryView.use_memview_util_code(env)
-        env.use_utility_code(MemoryView.memviewslice_declare_code)
+        if self.type.dtype.is_memoryviewslice:
+            error(self.pos, "Memoryview slices may not be used as the "
+                            "base type for memoryview slices")
+
+        self.use_memview_utilities(env)
         return self.type
+
+    def use_memview_utilities(self, env):
+        import MemoryView
+        env.use_utility_code(MemoryView.view_utility_code)
+
 
 class CNestedBaseTypeNode(CBaseTypeNode):
     # For C++ classes that live inside other C++ classes.

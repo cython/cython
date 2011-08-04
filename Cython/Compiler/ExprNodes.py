@@ -584,6 +584,11 @@ class ExprNode(Node):
         if dst_type.is_reference:
             dst_type = dst_type.ref_base_type
 
+        if self.coercion_type is not None:
+            # This is purely for error checking purposes!
+            node = NameNode(self.pos, name='', type=self.coercion_type)
+            node.coerce_to(dst_type, env)
+
         if dst_type.is_memoryviewslice:
             import MemoryView
             if not src.type.is_memoryviewslice:
@@ -747,6 +752,7 @@ class PyConstNode(AtomicExprNode):
 class NoneNode(PyConstNode):
     #  The constant value None
 
+    is_none = 1
     value = "Py_None"
 
     constant_result = None
@@ -6051,6 +6057,157 @@ class TypecastNode(ExprNode):
             code.put_incref(self.result(), self.ctype())
 
 
+ERR_START = "Start may not be given"
+ERR_NOT_STOP = "Stop must be provided to indicate shape"
+ERR_STEPS = ("Strides may only be given to indicate contiguity. "
+             "Consider slicing it after conversion")
+ERR_NOT_POINTER = "Can only create cython.array from pointer"
+ERR_BASE_TYPE = "Pointer base type does not match cython.array base type"
+
+class CythonArrayNode(ExprNode):
+    """
+    Used when a pointer of base_type is cast to a memoryviewslice with that
+    base type. i.e.
+
+        <int[::1, :]> p
+
+    creates a fortran-contiguous cython.array.
+
+    We leave the type set to object so coercions to object are more efficient
+    and less work. Acquiring a memoryviewslice from this will be just as
+    efficient. ExprNode.coerce_to() will do the additional typecheck on
+    self.compile_time_type
+    """
+
+    subexprs = ['operand', 'shapes']
+
+    shapes = None
+    is_temp = True
+    mode = "c"
+
+    shape_type = PyrexTypes.c_py_ssize_t_type
+
+    def analyse_types(self, env):
+        import MemoryView
+
+        self.type = error_type
+        self.env = env
+
+        self.shapes = []
+
+        for axis_no, axis in enumerate(self.base_type_node.axes):
+            if not axis.start.is_none:
+                return error(axis.start.pos, ERR_START)
+
+            if axis.stop.is_none:
+                return error(axis.pos, ERR_NOT_STOP)
+
+            axis.stop.analyse_types(env)
+            shape = axis.stop.coerce_to(self.shape_type, env)
+            if not shape.is_literal:
+                shape.coerce_to_temp(env)
+
+            self.shapes.append(shape)
+
+            if not axis.stop.type.is_int:
+                return error(axis.stop.pos, "Expected an integer type")
+
+            first_or_last = axis_no in (0, len(self.base_type_node.axes) - 1)
+            if not axis.step.is_none and first_or_last:
+                axis.step.analyse_types(env)
+                if (not axis.step.type.is_int and axis.step.is_literal and not
+                        axis.step.type.is_error):
+                    return error(axis.step.pos, "Expected an integer literal")
+
+                if axis.step.compile_time_value(env) != 1:
+                    return error(axis.step.pos, ERR_STEPS)
+
+                if axis_no == 0:
+                    self.mode = "fortran"
+
+            elif axis.step and not first_or_last:
+                return error(axis.step.pos, ERR_STEPS)
+
+        self.operand.analyse_types(env)
+        array_dtype = self.base_type_node.base_type_node.analyse(env)
+
+        if not self.operand.type.is_ptr:
+            return error(self.operand.pos, ERR_NOT_POINTER)
+
+        elif not self.operand.type.base_type.same_as(array_dtype):
+            return error(self.operand.pos, ERR_BASE_TYPE)
+
+        #self.operand = self.operand.coerce_to(PyrexTypes.c_char_ptr_type, env)
+        if not self.operand.is_name:
+            self.operand = self.operand.coerce_to_temp(env)
+
+        axes = [('direct', 'follow')] * len(self.base_type_node.axes)
+        if self.mode == "fortran":
+            axes[0] = ('direct', 'contig')
+        else:
+            axes[-1] = ('direct', 'contig')
+
+        self.coercion_type = PyrexTypes.MemoryViewSliceType(array_dtype, axes)
+        #self.type = py_object_type
+        self.type = env.global_scope().context.cython_scope.lookup("array").type
+        assert self.type
+
+        env.use_utility_code(MemoryView.cython_array_utility_code)
+        env.use_utility_code(MemoryView.typeinfo_to_format_code)
+
+    def allocate_temp_result(self, code):
+        if self.temp_code:
+            raise RuntimeError("temp allocated mulitple times")
+
+        self.temp_code = code.funcstate.allocate_temp(self.type, True)
+
+    def generate_result_code(self, code):
+        import Buffer
+
+        shapes = [self.shape_type.cast_code(shape.result())
+                      for shape in self.shapes]
+        dtype = self.coercion_type.dtype
+
+        shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
+        format_temp = code.funcstate.allocate_temp(py_object_type, True)
+
+        itemsize = "sizeof(%s)" % dtype.declaration_code("")
+        type_info = Buffer.get_type_information_cname(code, dtype)
+
+        code.putln("if (!%s) {" % self.operand.result())
+        code.putln(    'PyErr_SetString(PyExc_ValueError,'
+                            '"Cannot create cython.array from NULL pointer");')
+        code.putln(code.error_goto(self.operand.pos))
+        code.putln("}")
+
+        code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
+                                                (format_temp, type_info))
+        code.putln('%s = Py_BuildValue("(%s)", %s);' % (shapes_temp,
+                                                        "n" * len(shapes),
+                                                        ", ".join(shapes)))
+
+        err = "!%s || !%s || !PyBytes_Check(%s)" % (format_temp, shapes_temp,
+                                                    format_temp)
+        code.putln(code.error_goto_if(err, self.pos))
+        code.put_gotref(format_temp)
+        code.put_gotref(shapes_temp)
+
+        tup = (self.result(), shapes_temp, itemsize, format_temp,
+               self.mode, self.operand.result())
+        code.putln('%s = __pyx_array_new('
+                            '%s, %s, PyBytes_AS_STRING(%s), '
+                            '"%s", (char *) %s);' % tup)
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result())
+
+        def dispose(temp):
+            code.put_decref_clear(temp, py_object_type)
+            code.funcstate.release_temp(temp)
+
+        dispose(shapes_temp)
+        dispose(format_temp)
+
+
 class SizeofNode(ExprNode):
     #  Abstract base class for sizeof(x) expression nodes.
 
@@ -7909,6 +8066,10 @@ class CoerceToPyTypeNode(CoercionNode):
         else:
             # FIXME: check that the target type and the resulting type are compatible
             pass
+
+        if arg.type.is_memoryviewslice:
+            # Register utility codes at this point
+            arg.type.get_to_py_function(env, arg)
 
         self.env = env
 
