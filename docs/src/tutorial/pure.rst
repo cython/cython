@@ -142,11 +142,10 @@ Pointer types may be constructed with ``cython.pointer(cython.int)``, and
 arrays as ``cython.int[10]``. A limited attempt is made to emulate these more
 complex types, but only so much can be done from the Python language.
 
-Decorators (not yet implemented)
+Decorators
 --------------------------------
 
-We have settled on ``@cython.cclass`` for the ``cdef class``
-decorators, and ``@cython.cfunc`` and ``@cython.ccall`` for :keyword:`cdef` and
-:keyword:`cpdef` functions (respectively).
-http://codespeak.net/pipermail/cython-dev/2008-November/002925.html
+Use the ``@cython.cclass`` decorator to create a ``cdef class``.
+Use the ``@cython.cfunc`` and ``@cython.ccall`` decorators for :keyword:`cdef`
+and :keyword:`cpdef` functions (respectively).
 
