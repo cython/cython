@@ -485,7 +485,17 @@ For-loops
     for i in range(n):
         ...
 
-* The other form available in C is the for-from style
+* Iteration over C arrays is also permitted, e.g.
+::
+
+    cdef double x
+    cdef double* data
+    for x in data[:10]:
+        ...
+
+* Iterating over many builtin types such as lists and tuples is optimized.
+
+* There is also a more C-style for-from syntax
 
  * The target expression must be a variable name.
  * The name between the lower and upper bounds must be the same as the target name.
@@ -500,7 +510,7 @@ For-loops
 
  * To reverse the direction, reverse the conditional operation::
 
-    for i from 0 >= i > n:
+    for i from n > i >= 0:
         ...
 
 * The ``break`` and ``continue`` are permissible.
