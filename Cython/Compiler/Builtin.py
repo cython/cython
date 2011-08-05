@@ -127,14 +127,6 @@ bad:
 
 pyexec_utility_code = UtilityCode(
 proto = """
-#if PY_VERSION_HEX < 0x02040000
-#ifndef Py_COMPILE_H
-#include "compile.h"
-#endif
-#ifndef Py_EVAL_H
-#include "eval.h"
-#endif
-#endif
 static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyRun2(PyObject*, PyObject*);
 """,
@@ -234,12 +226,7 @@ static PyObject* __Pyx_Intern(PyObject* s) {
 }
 ''')
 
-def put_py23_set_init_utility_code(code, pos):
-    code.putln("#if PY_VERSION_HEX < 0x02040000")
-    code.putln(code.error_goto_if_neg("__Pyx_Py23SetsImport()", pos))
-    code.putln("#endif")
-
-py23_set_utility_code = UtilityCode(
+py_set_utility_code = UtilityCode(
 proto = """
 #if PY_VERSION_HEX < 0x02050000
 #ifndef PyAnySet_CheckExact
@@ -282,64 +269,13 @@ static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
 }
 
 #endif /* PyAnySet_CheckExact (<= Py2.4) */
-
-#if PY_VERSION_HEX < 0x02040000
-#ifndef Py_SETOBJECT_H
-#define Py_SETOBJECT_H
-
-static PyTypeObject *__Pyx_PySet_Type = NULL;
-static PyTypeObject *__Pyx_PyFrozenSet_Type = NULL;
-
-#define PySet_Type (*__Pyx_PySet_Type)
-#define PyFrozenSet_Type (*__Pyx_PyFrozenSet_Type)
-
-#define PyAnySet_Check(ob) \\
-    (PyAnySet_CheckExact(ob) || \\
-     PyType_IsSubtype((ob)->ob_type, &PySet_Type) || \\
-     PyType_IsSubtype((ob)->ob_type, &PyFrozenSet_Type))
-
-#define PyFrozenSet_CheckExact(ob) ((ob)->ob_type == &PyFrozenSet_Type)
-
-static int __Pyx_Py23SetsImport(void) {
-    PyObject *sets=0, *Set=0, *ImmutableSet=0;
-
-    sets = PyImport_ImportModule((char *)"sets");
-    if (!sets) goto bad;
-    Set = PyObject_GetAttrString(sets, (char *)"Set");
-    if (!Set) goto bad;
-    ImmutableSet = PyObject_GetAttrString(sets, (char *)"ImmutableSet");
-    if (!ImmutableSet) goto bad;
-    Py_DECREF(sets);
-
-    __Pyx_PySet_Type       = (PyTypeObject*) Set;
-    __Pyx_PyFrozenSet_Type = (PyTypeObject*) ImmutableSet;
-
-    return 0;
-
- bad:
-    Py_XDECREF(sets);
-    Py_XDECREF(Set);
-    Py_XDECREF(ImmutableSet);
-    return -1;
-}
-
-#else
-static int __Pyx_Py23SetsImport(void) { return 0; }
-#endif /* !Py_SETOBJECT_H */
-#endif /* < Py2.4  */
 #endif /* < Py2.5  */
 """,
-init = put_py23_set_init_utility_code,
-cleanup = """
-#if PY_VERSION_HEX < 0x02040000
-Py_XDECREF(__Pyx_PySet_Type); __Pyx_PySet_Type = NULL;
-Py_XDECREF(__Pyx_PyFrozenSet_Type); __Pyx_PyFrozenSet_Type = NULL;
-#endif /* < Py2.4  */
-""")
+)
 
 builtin_utility_code = {
-    'set'       : py23_set_utility_code,
-    'frozenset' : py23_set_utility_code,
+    'set'       : py_set_utility_code,
+    'frozenset' : py_set_utility_code,
 }
 
 
@@ -529,13 +465,13 @@ builtin_types_table = [
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
     ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
-                                                  utility_code = py23_set_utility_code),
+                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("discard", "TO", "r", "PySet_Discard",
-                                                  utility_code = py23_set_utility_code),
+                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add",
-                                                  utility_code = py23_set_utility_code),
+                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop",
-                                                  utility_code = py23_set_utility_code)]),
+                                                  utility_code = py_set_utility_code)]),
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 
