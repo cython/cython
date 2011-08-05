@@ -52,7 +52,7 @@ copyright = '2011, Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ew
 # The short X.Y version.
 version = '0.15'
 # The full version, including alpha/beta/rc tags.
-release = '0.15pre'
+release = '0.15'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
