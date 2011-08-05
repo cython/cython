@@ -1,6 +1,5 @@
 import tempfile
 import sys, os, re, inspect
-from cython import set
 
 try:
     import hashlib

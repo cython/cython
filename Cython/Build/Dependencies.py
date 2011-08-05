@@ -1,6 +1,5 @@
 from glob import glob
 import re, os, sys
-from cython import set
 
 
 from distutils.extension import Extension
@@ -8,7 +7,6 @@ from distutils.extension import Extension
 from Cython import Utils
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
-# Unfortunately, Python 2.3 doesn't support decorators.
 def cached_method(f):
     cache_name = '__%s_cache' % f.__name__
     def wrapper(self, *args):
@@ -254,12 +252,11 @@ class DependencyTree(object):
         self.context = context
         self._transitive_cache = {}
 
-    #@cached_method
+    @cached_method
     def parse_dependencies(self, source_filename):
         return parse_dependencies(source_filename)
-    parse_dependencies = cached_method(parse_dependencies)
-
-    #@cached_method
+    
+    @cached_method
     def cimports_and_externs(self, filename):
         cimports, includes, externs = self.parse_dependencies(filename)[:3]
         cimports = set(cimports)
@@ -275,25 +272,22 @@ class DependencyTree(object):
             else:
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return tuple(cimports), tuple(externs)
-    cimports_and_externs = cached_method(cimports_and_externs)
 
     def cimports(self, filename):
         return self.cimports_and_externs(filename)[0]
 
-    #@cached_method
+    @cached_method
     def package(self, filename):
         dir = os.path.dirname(filename)
         if os.path.exists(os.path.join(dir, '__init__.py')):
             return self.package(dir) + (os.path.basename(dir),)
         else:
             return ()
-    package = cached_method(package)
 
-    #@cached_method
+    @cached_method
     def fully_qualifeid_name(self, filename):
         module = os.path.splitext(os.path.basename(filename))[0]
         return '.'.join(self.package(filename) + (module,))
-    fully_qualifeid_name = cached_method(fully_qualifeid_name)
 
     def find_pxd(self, module, filename=None):
         if module[0] == '.':
@@ -306,7 +300,7 @@ class DependencyTree(object):
         return self.context.find_pxd_file(module, None)
     find_pxd = cached_method(find_pxd)
 
-    #@cached_method
+    @cached_method
     def cimported_files(self, filename):
         if filename[-4:] == '.pyx' and os.path.exists(filename[:-4] + '.pxd'):
             self_pxd = [filename[:-4] + '.pxd']
@@ -319,7 +313,6 @@ class DependencyTree(object):
             print("\n\t".join(a))
             print("\n\t".join(b))
         return tuple(self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)]))
-    cimported_files = cached_method(cimported_files)
 
     def immediate_dependencies(self, filename):
         all = list(self.cimported_files(filename))
@@ -327,10 +320,9 @@ class DependencyTree(object):
             all.append(os.path.normpath(os.path.join(os.path.dirname(filename), extern)))
         return tuple(all)
 
-    #@cached_method
+    @cached_method
     def timestamp(self, filename):
         return os.path.getmtime(filename)
-    timestamp = cached_method(timestamp)
 
     def extract_timestamp(self, filename):
         # TODO: .h files from extern blocks

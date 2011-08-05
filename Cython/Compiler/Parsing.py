@@ -875,7 +875,7 @@ def p_comp_for(s, body):
     pos = s.position()
     s.next()
     kw = p_for_bounds(s, allow_testlist=False)
-    kw.update(dict(else_clause = None, body = p_comp_iter(s, body)))
+    kw.update(else_clause = None, body = p_comp_iter(s, body))
     return Nodes.ForStatNode(pos, **kw)
 
 def p_comp_if(s, body):
@@ -1404,7 +1404,7 @@ def p_for_statement(s):
     kw = p_for_bounds(s, allow_testlist=True)
     body = p_suite(s)
     else_clause = p_else_clause(s)
-    kw.update(dict(body = body, else_clause = else_clause))
+    kw.update(body = body, else_clause = else_clause)
     return Nodes.ForStatNode(pos, **kw)
 
 def p_for_bounds(s, allow_testlist=True):
@@ -2187,7 +2187,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = cython.set([
+supported_overloaded_operators = set([
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',

@@ -3,7 +3,6 @@
 #
 
 import cython
-from cython import set
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
                CompileError=object, UtilityCode=object, StringEncoding=object, operator=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,

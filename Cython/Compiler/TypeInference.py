@@ -7,12 +7,6 @@ from Cython import Utils
 from PyrexTypes import py_object_type, unspecified_type
 from Visitor import CythonTransform
 
-try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
-
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type whithout a known entry.

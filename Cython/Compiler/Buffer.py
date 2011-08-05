@@ -10,11 +10,6 @@ import PyrexTypes
 import Naming
 import Symtab
 
-try:
-    set
-except NameError:
-    from sets import Set as set
-
 import textwrap
 
 def dedent(text, reindent=0):

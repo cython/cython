@@ -339,7 +339,7 @@ def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     and appends them to ref_node_sequence.  The input list is modified
     in-place.
     """
-    seen_nodes = cython.set()
+    seen_nodes = set()
     ref_nodes = {}
     def find_duplicates(node):
         if node.is_literal or node.is_name:
@@ -610,11 +610,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'operator.comma'        : ExprNodes.c_binop_constructor(','),
     }
 
-    special_methods = cython.set(['declare', 'union', 'struct', 'typedef', 'sizeof',
+    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof',
                                   'cast', 'pointer', 'compiled', 'NULL', 'parallel'])
     special_methods.update(unop_method_nodes.keys())
 
-    valid_parallel_directives = cython.set([
+    valid_parallel_directives = set([
         "parallel",
         "prange",
         "threadid",
@@ -626,7 +626,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         self.compilation_directive_defaults = {}
         for key, value in compilation_directive_defaults.items():
             self.compilation_directive_defaults[unicode(key)] = copy.deepcopy(value)
-        self.cython_module_names = cython.set()
+        self.cython_module_names = set()
         self.directive_names = {}
         self.parallel_directives = {}
 
@@ -1380,7 +1380,7 @@ if VALUE is not None:
         return node
 
     def visit_ModuleNode(self, node):
-        self.seen_vars_stack.append(cython.set())
+        self.seen_vars_stack.append(set())
         node.analyse_declarations(self.env_stack[-1])
         self.visitchildren(node)
         self.seen_vars_stack.pop()
@@ -1412,7 +1412,7 @@ if VALUE is not None:
         return node
 
     def visit_FuncDefNode(self, node):
-        self.seen_vars_stack.append(cython.set())
+        self.seen_vars_stack.append(set())
         lenv = node.local_scope
         node.declare_arguments(lenv)
         for var, type_node in node.directive_locals.items():
@@ -1446,7 +1446,7 @@ if VALUE is not None:
         node.analyse_declarations(env)
         # the node may or may not have a local scope
         if node.has_local_scope:
-            self.seen_vars_stack.append(cython.set(self.seen_vars_stack[-1]))
+            self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
             self.env_stack.append(node.expr_scope)
             node.analyse_scoped_declarations(node.expr_scope)
             self.visitchildren(node)
@@ -2345,7 +2345,7 @@ class DebugTransform(CythonTransform):
 
     def __init__(self, context, options, result):
         super(DebugTransform, self).__init__(context)
-        self.visited = cython.set()
+        self.visited = set()
         # our treebuilder and debug output writer
         # (see Cython.Debugger.debug_output.CythonDebugWriter)
         self.tb = self.context.gdb_debug_outputwriter

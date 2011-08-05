@@ -7,12 +7,6 @@ if sys.version_info[:2] < (2, 3):
     sys.stderr.write("Sorry, Cython requires Python 2.3 or later\n")
     sys.exit(1)
 
-try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
-
 import itertools
 
 import Code

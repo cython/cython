@@ -1,6 +1,5 @@
 
 import cython
-from cython import set
 cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
                UtilNodes=object, Naming=object)
