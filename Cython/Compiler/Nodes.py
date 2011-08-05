@@ -1670,6 +1670,7 @@ class CFuncDefNode(FuncDefNode):
     inline_in_pxd = False
     decorators = None
     directive_locals = None
+    override = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -1792,12 +1793,22 @@ class CFuncDefNode(FuncDefNode):
         return False
 
     def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
+        scope = self.local_scope
         arg_decls = []
         type = self.type
         for arg in type.args[:len(type.args)-type.optional_arg_count]:
-            arg_decls.append(arg.declaration_code())
+            arg_decl = arg.declaration_code()
+            entry = scope.lookup(arg.name)
+            if not entry.cf_used:
+                arg_decl = 'CYTHON_UNUSED %s' % arg_decl
+            arg_decls.append(arg_decl)
         if with_dispatch and self.overridable:
-            arg_decls.append(PyrexTypes.c_int_type.declaration_code(Naming.skip_dispatch_cname))
+            dispatch_arg = PyrexTypes.c_int_type.declaration_code(
+                Naming.skip_dispatch_cname)
+            if self.override:
+                arg_decls.append(dispatch_arg)
+            else:
+                arg_decls.append('CYTHON_UNUSED %s' % dispatch_arg)
         if type.optional_arg_count and with_opt_args:
             arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if type.has_varargs:
@@ -1823,28 +1834,40 @@ class CFuncDefNode(FuncDefNode):
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
 
     def generate_argument_declarations(self, env, code):
+        scope = self.local_scope
         for arg in self.args:
             if arg.default:
-                result = arg.calculate_default_value_code(code)
-                code.putln('%s = %s;' % (
-                    arg.type.declaration_code(arg.cname), result))
+                entry = scope.lookup(arg.name)
+                if self.override or entry.cf_used:
+                    result = arg.calculate_default_value_code(code)
+                    code.putln('%s = %s;' % (
+                        arg.type.declaration_code(arg.cname), result))
 
     def generate_keyword_list(self, code):
         pass
 
     def generate_argument_parsing_code(self, env, code):
         i = 0
+        used = 0
         if self.type.optional_arg_count:
+            scope = self.local_scope
             code.putln('if (%s) {' % Naming.optional_args_cname)
             for arg in self.args:
                 if arg.default:
-                    code.putln('if (%s->%sn > %s) {' % (Naming.optional_args_cname, Naming.pyrex_prefix, i))
-                    declarator = arg.declarator
-                    while not hasattr(declarator, 'name'):
-                        declarator = declarator.base
-                    code.putln('%s = %s->%s;' % (arg.cname, Naming.optional_args_cname, self.type.opt_arg_cname(declarator.name)))
+                    entry = scope.lookup(arg.name)
+                    if self.override or entry.cf_used:
+                        code.putln('if (%s->%sn > %s) {' %
+                                   (Naming.optional_args_cname,
+                                    Naming.pyrex_prefix, i))
+                        declarator = arg.declarator
+                        while not hasattr(declarator, 'name'):
+                            declarator = declarator.base
+                        code.putln('%s = %s->%s;' %
+                                   (arg.cname, Naming.optional_args_cname,
+                                    self.type.opt_arg_cname(declarator.name)))
+                        used += 1
                     i += 1
-            for _ in range(self.type.optional_arg_count):
+            for _ in range(used):
                 code.putln('}')
             code.putln('}')
 
@@ -2321,8 +2344,12 @@ class DefNode(FuncDefNode):
                 if arg.is_self_arg or arg.is_type_arg:
                     arg_code_list.append("PyObject *%s" % arg.hdr_cname)
                 else:
-                    arg_code_list.append(
-                        arg.hdr_type.declaration_code(arg.hdr_cname))
+                    decl = arg.hdr_type.declaration_code(arg.hdr_cname)
+                    entry = self.local_scope.lookup(arg.name)
+                    if not entry.cf_used:
+                        arg_code_list.append('CYTHON_UNUSED ' + decl)
+                    else:
+                        arg_code_list.append(decl)
         if not self.entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if (self.entry.scope.is_c_class_scope and self.entry.name == "__ipow__"):
