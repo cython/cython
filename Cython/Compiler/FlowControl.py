@@ -13,8 +13,6 @@ from PyrexTypes import py_object_type, unspecified_type
 from Visitor import TreeVisitor, CythonTransform
 from Errors import error, warning, CompileError, InternalError
 
-from cython import set
-
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type whithout a known entry.
     def __init__(self, type):
@@ -215,7 +213,7 @@ class ControlFlow(object):
         offset = 0
         for entry in self.entries:
             assmts = AssignmentList()
-            assmts.bit = 1L << offset
+            assmts.bit = 1 << offset
             assmts.mask = assmts.bit
             self.assmts[entry] = assmts
             offset += 1
@@ -223,7 +221,7 @@ class ControlFlow(object):
         for block in self.blocks:
             for stat in block.stats:
                 if isinstance(stat, NameAssignment):
-                    stat.bit = 1L << offset
+                    stat.bit = 1 << offset
                     assmts = self.assmts[stat.entry]
                     assmts.stats.append(stat)
                     assmts.mask |= stat.bit
@@ -561,7 +559,7 @@ class CreateControlFlowGraph(CythonTransform):
         self.gv_ctx = GVContext()
 
         # Set of NameNode reductions
-        self.reductions = cython.set()
+        self.reductions = set()
 
         self.env_stack = []
         self.env = node.scope
@@ -857,7 +855,7 @@ class CreateControlFlowGraph(CythonTransform):
         # if node.target is None or not a NameNode, an error will have
         # been previously issued
         if hasattr(node.target, 'entry'):
-            self.reductions = cython.set(reductions)
+            self.reductions = set(reductions)
 
             for private_node in node.assigned_nodes:
                 private_node.entry.error_on_uninitialized = True

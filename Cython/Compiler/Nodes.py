@@ -3,7 +3,6 @@
 #   Pyrex - Parse tree nodes
 #
 import cython
-from cython import set
 cython.declare(sys=object, os=object, time=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object, \

@@ -11,9 +11,11 @@ import time
 import unittest
 import doctest
 import operator
+import subprocess
 import tempfile
-import warnings
 import traceback
+import warnings
+
 try:
     from StringIO import StringIO
 except ImportError:
@@ -116,24 +118,13 @@ def get_openmp_compiler_flags(language):
 
     matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
-        import subprocess
-    except ImportError:
-        try:
-            in_, out_err = os.popen4([cc, "-v"])
-        except EnvironmentError:
-            warnings.warn("Unable to find the %s compiler: %s: %s" %
-                          (language, os.strerror(sys.exc_info()[1].errno), cc))
-            return None
-        output = out_err.read()
-    else:
-        try:
-            p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE)
-        except EnvironmentError:
-            # Be compatible with Python 3
-            warnings.warn("Unable to find the %s compiler: %s: %s" %
-                          (language, os.strerror(sys.exc_info()[1].errno), cc))
-            return None
-        _, output = p.communicate()
+        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE)
+    except EnvironmentError:
+        # Be compatible with Python 3
+        warnings.warn("Unable to find the %s compiler: %s: %s" %
+                      (language, os.strerror(sys.exc_info()[1].errno), cc))
+        return None
+    _, output = p.communicate()
 
     output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
 
@@ -1036,20 +1027,16 @@ class EndToEndTest(unittest.TestCase):
             old_path = os.environ.get('PYTHONPATH')
             os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + os.path.join(self.cython_syspath, (old_path or ''))
             for command in commands.split('\n'):
-                if sys.version_info[:2] >= (2,4):
-                    import subprocess
-                    p = subprocess.Popen(commands,
-                                         stderr=subprocess.PIPE,
-                                         stdout=subprocess.PIPE,
-                                         shell=True)
-                    out, err = p.communicate()
-                    res = p.returncode
-                    if res != 0:
-                        print(command)
-                        print(out)
-                        print(err)
-                else:
-                    res = os.system(command)
+                p = subprocess.Popen(commands,
+                                     stderr=subprocess.PIPE,
+                                     stdout=subprocess.PIPE,
+                                     shell=True)
+                out, err = p.communicate()
+                res = p.returncode
+                if res != 0:
+                    print(command)
+                    print(out)
+                    print(err)
                 self.assertEqual(0, res, "non-zero exit status")
         finally:
             if old_path:
@@ -1238,12 +1225,7 @@ def check_thread_termination(ignore_seen=True):
 
 def subprocess_output(cmd):
     try:
-        try:
-            import subprocess
-        except:
-            return os.popen4(cmd)[1].read()
-        else:
-            return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()[0]
+        return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()[0]
     except OSError:
         return ''
 

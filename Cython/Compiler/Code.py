@@ -118,13 +118,13 @@ class FunctionState(object):
     # exc_vars         (string * 3)    exception variables for reraise, or None
 
     # Not used for now, perhaps later
-    def __init__(self, owner, names_taken=cython.set()):
+    def __init__(self, owner, names_taken=set()):
         self.names_taken = names_taken
         self.owner = owner
 
         self.error_label = None
         self.label_counter = 0
-        self.labels_used = cython.set()
+        self.labels_used = set()
         self.return_label = self.new_label()
         self.new_error_label()
         self.continue_label = None
@@ -309,7 +309,7 @@ class FunctionState(object):
         """
         Useful to find out which temps were used in a code block
         """
-        self.collect_temps_stack.append(cython.set())
+        self.collect_temps_stack.append(set())
 
     def stop_collecting_temps(self):
         return self.collect_temps_stack.pop()
@@ -504,7 +504,7 @@ class GlobalState(object):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
-        self.utility_codes = cython.set()
+        self.utility_codes = set()
         self.declared_cnames = {}
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
