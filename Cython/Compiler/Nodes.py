@@ -7920,11 +7920,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
 force_init_threads_utility_code = UtilityCode(
 proto="""
 #ifndef __PYX_FORCE_INIT_THREADS
-  #if PY_VERSION_HEX < 0x02040200
-    #define __PYX_FORCE_INIT_THREADS 1
-  #else
-    #define __PYX_FORCE_INIT_THREADS 0
-  #endif
+  #define __PYX_FORCE_INIT_THREADS 0
 #endif
 """)
 
