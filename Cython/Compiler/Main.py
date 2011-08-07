@@ -648,9 +648,7 @@ def main(command_line = 0):
         options = CompilationOptions(default_options)
         sources = args
 
-    if options.show_version:
-        sys.stderr.write("Cython version %s\n" % Version.version)
-    if options.working_path!="":
+    if options.working_path:
         os.chdir(options.working_path)
     try:
         result = compile(sources, options)
