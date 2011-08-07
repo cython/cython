@@ -3558,6 +3558,7 @@ class AttributeNode(ExprNode):
         cy = self.obj.as_cython_attribute()
         if cy:
             return "%s.%s" % (cy, self.attribute)
+        return None
 
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a cpdef function
