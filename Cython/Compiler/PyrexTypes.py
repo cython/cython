@@ -433,6 +433,11 @@ class BuiltinObjectType(PyObjectType):
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
         elif src_type.is_extension_type:
+            # FIXME: This is an ugly special case that we currently
+            # keep supporting.  It allows users to specify builtin
+            # types as external extension types, while keeping them
+            # compatible with the real builtin types.  We already
+            # generate a warning for it.  Big TODO: remove!
             return (src_type.module_name == '__builtin__' and
                     src_type.name == self.name)
         else:
@@ -553,6 +558,14 @@ class PyExtensionType(PyObjectType):
         if isinstance(src_type, PyExtensionType):
             if src_type.base_type is not None:
                 return self.assignable_from(src_type.base_type)
+        if isinstance(src_type, BuiltinObjectType):
+            # FIXME: This is an ugly special case that we currently
+            # keep supporting.  It allows users to specify builtin
+            # types as external extension types, while keeping them
+            # compatible with the real builtin types.  We already
+            # generate a warning for it.  Big TODO: remove!
+            return (self.module_name == '__builtin__' and
+                    self.name == src_type.name)
         return False
 
     def declaration_code(self, entity_code,
