@@ -445,7 +445,7 @@ class BuiltinObjectType(PyObjectType):
         return True
 
     def subtype_of(self, type):
-        return type.is_pyobject and self.assignable_from(type)
+        return type.is_pyobject and type.assignable_from(self)
 
     def type_check_function(self, exact=True):
         type_name = self.name
