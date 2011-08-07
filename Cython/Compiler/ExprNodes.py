@@ -7829,6 +7829,9 @@ class CloneNode(CoercionNode):
     def result(self):
         return self.arg.result()
 
+    def may_be_none(self):
+        return self.arg.may_be_none()
+
     def type_dependencies(self, env):
         return self.arg.type_dependencies(env)
 
