@@ -537,7 +537,7 @@ class PyExtensionType(PyObjectType):
             scope.parent_type = self
 
     def subtype_of_resolved_type(self, other_type):
-        if other_type.is_extension_type:
+        if other_type.is_extension_type or other_type.is_builtin_type:
             return self is other_type or (
                 self.base_type and self.base_type.subtype_of(other_type))
         else:
@@ -1950,6 +1950,7 @@ class CFuncTypeArg(object):
     not_none = False
     or_none = False
     accept_none = True
+    accept_builtin_subtypes = False
 
     def __init__(self, name, type, pos, cname=None):
         self.name = name
