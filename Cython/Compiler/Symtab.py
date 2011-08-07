@@ -68,6 +68,7 @@ class Entry(object):
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
+    # is_builtin_cmethod boolean  Is a C method of a builtin type (implies is_cmethod)
     # is_unbound_cmethod boolean  Is an unbound C method of an extension type
     # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
@@ -136,6 +137,7 @@ class Entry(object):
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
+    is_builtin_cmethod = False
     is_unbound_cmethod = 0
     is_anonymous = 0
     is_type = 0
@@ -1761,7 +1763,17 @@ class CClassScope(ClassScope):
     def lookup_here(self, name):
         if name == "__new__":
             name = EncodedString("__cinit__")
-        return ClassScope.lookup_here(self, name)
+        entry = ClassScope.lookup_here(self, name)
+        if entry and entry.is_builtin_cmethod:
+            if not self.parent_type.is_builtin_type:
+                # For subtypes of builtin types, we can only return
+                # optimised C methods if the type if final.
+                # Otherwise, subtypes may choose to override the
+                # method, but the optimisation would prevent the
+                # subtype method from being called.
+                if not self.directives['final']:
+                    return None
+        return entry
 
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', api = 0, in_pxd = 0,
@@ -1843,17 +1855,24 @@ class CClassScope(ClassScope):
         def adapt(cname):
             return "%s.%s" % (Naming.obj_base_cname, base_entry.cname)
         for base_entry in \
-            base_scope.inherited_var_entries + base_scope.var_entries:
-                entry = self.declare(base_entry.name, adapt(base_entry.cname),
-                    base_entry.type, None, 'private')
-                entry.is_variable = 1
-                self.inherited_var_entries.append(entry)
+                base_scope.inherited_var_entries + base_scope.var_entries:
+            entry = self.declare(base_entry.name, adapt(base_entry.cname),
+                                 base_entry.type, None, 'private')
+            entry.is_variable = 1
+            self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
+            cname = base_entry.cname
+            var_entry = base_entry.as_variable
+            is_builtin = var_entry and var_entry.is_builtin
+            if not is_builtin:
+                cname = adapt(cname)
             entry = self.add_cfunction(base_entry.name, base_entry.type,
-                                       base_entry.pos, adapt(base_entry.cname),
+                                       base_entry.pos, cname,
                                        base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
-
+            if is_builtin:
+                entry.is_builtin_cmethod = True
+                entry.as_variable = var_entry
 
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
