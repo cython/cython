@@ -19,7 +19,7 @@ import Errors
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
 from Errors import PyrexError, CompileError, InternalError, AbortError, error, warning
-from Symtab import BuiltinScope, ModuleScope
+from Symtab import ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
 import DebugFlags
