@@ -643,10 +643,12 @@ def main(command_line = 0):
     any_failures = 0
     if command_line:
         from CmdLine import parse_command_line
-        options, sources = parse_command_line(args)
+        flags, sources = parse_command_line(args)
     else:
-        options = CompilationOptions(default_options)
+        flags = {}
         sources = args
+
+    options = CompilationOptions(default_options, **flags)
 
     if options.working_path:
         os.chdir(options.working_path)
