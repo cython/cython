@@ -151,24 +151,13 @@ WARNING: RECURSIVE COMPILATION IS STILL BROKEN
 
 import os
 
-def XXX_assign_variables(options):
-    for option in ['embed', 'embed_pos_in_docstring', 'pre_import',
-                   'generate_cleanup_code', 'docstrings', 'annotate',
-                   'convert_range', 'fast_fail', 'warning_errors',
-                   'disable_function_redefinition', 'old_style_globals',
-                   'warning_errors', 'disable_function_redefinition',
-                   'old_style_globals']:
-        try:
-            setattr(Options, option, getattr(options, option))
-            delattr(options, option)
-        except AttributeError:
-            pass
-
 class BasicParser:
     def refine(self, options):
+        # Separe source files list from all other options
         sources = options.sources
         del options.sources
 
+        # Basic sanity check
         if options.gdb_debug:
             options.output_dir = os.curdir
         if not sources:
@@ -178,6 +167,7 @@ class BasicParser:
         if options.embed and len(sources) > 1:
             self.error('only one source file allowed when using --embed')
 
+        # Parse compiler directives into a dictionary
         if options.compiler_directives:
             dirs = ','.join(d for d in options.compiler_directives)
             try:
@@ -186,6 +176,7 @@ class BasicParser:
             except ValueError, e:
                 parser.error('compiler directive: %s' % e.args[0])
 
+        # Sets specified debug flags
         if options.debug_flags:
             for flag in options.debug_flags:
                 flag = 'debug_' + flag.replace('-', '_')
@@ -195,7 +186,13 @@ class BasicParser:
                 else:
                     parser.error('unknown debug flag: %s' % flag)
 
-        XXX_assign_variables(options)
+        # Sets gathered Option values XXX
+        for option in vars(Options).keys():
+            try:
+                setattr(Options, option, getattr(options, option))
+                delattr(options, option)
+            except AttributeError:
+                pass
 
         return vars(options), sources
 
