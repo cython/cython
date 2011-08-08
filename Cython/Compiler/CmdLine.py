@@ -32,7 +32,8 @@ menu = {
             'dest' : 'use_listing_file', 'const' : 1, 'action' : 'store_const',
             'help' : 'Write error messages to a listing file'},
         ('-I', '--include-dir') : {
-            'dest' : 'include_path', 'action' : 'append', 'metavar' : '<directory>',
+            'dest' : 'include_path', 'action' : 'append', 'default' : [],
+            'metavar' : '<directory>',
             'help' : '''Search for include files in named <directory>
                         (multiple include directories are allowed).'''},
         ('-o', '--output-file') : {
@@ -123,19 +124,18 @@ menu = {
             'help' : '''Makes globals() give the first non-Cython module
                         globals in the call stack. For SAGE compatibility''' }},
    'internal options' : {
-       ('--directive', '-X') : {
+       ('-X', '--directive') : {
            'dest' : 'compiler_directives', 'action' : 'append',
-           'metavar' : '<name>=<value>,', 'nargs' : '+',
+           'metavar' : '<name>=<value>[,<name>=<value>...]',
            'help' : 'Overrides a #pragma compiler directive'},
-       ('--debug') : {
-            'dest' : 'debug_flags', 'action' : 'append',
-            'metavar' : '<flag>', 'nargs' : '+',
+       ('-d', '--debug') : {
+            'dest' : 'debug_flags', 'action' : 'append', 'metavar' : '<flag>',
             'help' : "Sets Cython's internal debug options"}},
 #    'experimental options' : { # MacOS X only
 #        ('-C', '--compile') : {
 #            'dest' : 'compile', 'action' : 'store_true',
 #            'help' : 'Compile generated .c file to .o file' },
-#        ('--link') : {
+#        ('-l', '--link') : {
 #            'dest' : 'link', 'action' : 'store_true',
 #            'help' : '''Link .o file to produce extension module (implies -C)
 #                        Additional .o files to link may be supplied when using -X.''' }},
@@ -153,41 +153,19 @@ import os
 
 def XXX_assign_variables(options):
     for option in ['embed', 'embed_pos_in_docstring', 'pre_import',
-                    'generate_cleanup_code', 'docstrings', 'annotate',
-                    'convert_range', 'fast_fail', 'warning_errors',
-                    'disable_function_redefinition', 'old_style_globals',
-                    'warning_errors', 'disable_function_redefinition',
-                    'old_style_globals']:
+                   'generate_cleanup_code', 'docstrings', 'annotate',
+                   'convert_range', 'fast_fail', 'warning_errors',
+                   'disable_function_redefinition', 'old_style_globals',
+                   'warning_errors', 'disable_function_redefinition',
+                   'old_style_globals']:
         setattr(Options, option, getattr(options, option, None))
         try:
-            del options.__dict__[option]
-        except KeyError:
+            delattr(options, option)
+        except AttributeError:
             pass
 
-def XXX_parse_debug_flags(parser, flags, options):
-    for option in flags:
-        if option.startswith('--debug'):
-            option = option[2:].replace('-', '_')
-            import DebugFlags
-            if option in dir(DebugFlags):
-                setattr(DebugFlags, option, True)
-            else:
-                parser.error('unknown debug flag: %s' % option)
-        elif option.startswith('-X'):
-            if option[2:].strip():
-                x_args = option[2:]
-            else:
-                x_args = pop_arg()
-            try:
-                options.compiler_directives = Options.parse_directive_list(
-                    x_args, relaxed_bool=True,
-                    current_settings=options.compiler_directives)
-            except ValueError, e:
-                parser.error('error in compiler directive: %s' % e.args[0])
-
 class BasicParser:
-    def refine(self, results):
-        options, extra = results
+    def refine(self, options):
         sources = options.sources
         del options.sources
 
@@ -200,13 +178,27 @@ class BasicParser:
         if options.embed and len(sources) > 1:
             self.error('only one source file allowed when using --embed')
 
-        XXX_parse_debug_flags(self, extra, options)
+        if options.compiler_directives:
+            dirs = ','.join(d for d in options.compiler_directives)
+            try:
+                options.compiler_directives = Options.parse_directive_list(
+                    dirs, relaxed_bool=True)
+            except ValueError, e:
+                parser.error('compiler directive: %s' % e.args[0])
+
+        if options.debug_flags:
+            for flag in options.debug_flags:
+                flag = 'debug_' + flag.replace('-', '_')
+                import DebugFlags
+                if flag in dir(DebugFlags):
+                    setattr(DebugFlags, flag, True)
+                else:
+                    parser.error('unknown debug flag: %s' % flag)
+
         XXX_assign_variables(options)
 
-        return options, sources
+        return vars(options), sources
 
-
-from Main import CompilationOptions, default_options #Cython.Compiler.
 import sys
 
 if sys.version_info >= (2, 7):
@@ -227,8 +219,7 @@ if sys.version_info >= (2, 7):
                         group.add_argument(*flag, **parameters)
 
         def parse(self, args):
-            options = CompilationOptions(default_options)
-            results = parser.parse_known_args(args, namespace=options)
+            results = self.parse_args(args)
             return self.refine(results)
 
 else:
@@ -254,22 +245,13 @@ else:
                 if group is not self: self.add_option_group(group)
 
         def parse(self, args):
-            options, sources = parser.parse_args(args, values=CompilationOptions)
+            options, sources = parser.parse_args(args)
             options.sources = sources
             options, sources = self.refine((options, sources))
-            return CompilationOptions(options), sources
+            return options, sources
 
 
 parser = Parser()
 
-
 def parse_command_line(args):
     return parser.parse(args)
-
-
-if __name__ == '__main__':
-    import sys
-    options, sources = parse_command_line(sys.argv[1:])
-    print vars(options)
-    print Options.embed
-    print sources
