@@ -158,8 +158,8 @@ def XXX_assign_variables(options):
                    'disable_function_redefinition', 'old_style_globals',
                    'warning_errors', 'disable_function_redefinition',
                    'old_style_globals']:
-        setattr(Options, option, getattr(options, option, None))
         try:
+            setattr(Options, option, getattr(options, option))
             delattr(options, option)
         except AttributeError:
             pass
