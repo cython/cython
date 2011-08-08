@@ -19,11 +19,14 @@ from Cython.TestUtils import CythonTest
 from Cython.Compiler.CmdLine import parse_command_line
 
 import Cython.Compiler.Options as Options
+import Cython.Compiler.DebugFlags as DebugFlags
 
 def parse(string):
     return parse_command_line(string.split())
 
+#FIXME very time consuming
 def parser_return_code(string):
+    '''Return code of Cython, if it had been invoked with <string> as cline.'''
     return os.system("""python -c \"from Cython.Compiler.CmdLine import \
         parse_command_line as p\np('%s'.split())\" &> /dev/null""" % string)
 
@@ -52,24 +55,30 @@ class TestCommandLine(CythonTest):
         self.failUnlessEqual(opt['include_path'], ['/usr/include/mistery/dot'])
 
     def test_directive_options(self):
-        opt, src = parse('-Xfake test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], ['fake'])
-        opt, src = parse('-Xwooofake test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], ['wooofake'])
-        opt, src = parse('-Xfake=2 test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], ['fake=2'])
-        opt, src = parse('-Xfake=2,sub=1 test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], ['fake=2,sub=1'])
-        opt, src = parse('--directive fake=2,sub=1 test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], ['fake=2,sub=1'])
+        opt, src = parse('-Xboundscheck=False test.pyx')
+        self.failUnlessEqual(opt['compiler_directives'], {'boundscheck': False})
+        opt, src = parse('-Xnonecheck=True test.pyx')
+        self.failUnlessEqual(opt['compiler_directives'], {'nonecheck': True})
+        opt, src = parse('-Xcdivision=True test.pyx')
+        self.failUnlessEqual(opt['compiler_directives'], {'cdivision': True})
+        opt, src = parse('-Xlanguage_level=2,profile=True test.pyx')
+        self.failUnlessEqual(opt['compiler_directives'],
+            {'profile': True, 'language_level': 2})
+        opt, src = parse('--directive callspec=False,final=True test.pyx')
+        self.failUnlessEqual(opt['compiler_directives'],
+            {'callspec': 'False', 'final': True})
+        opt, src = parse('-Xauto_cpdef=True,profile=True -I. -Xinternal=True test.pyx')
+        self.failUnlessEqual(opt['compiler_directives'],
+            {'profile': True, 'internal': True, 'auto_cpdef': True} )
 
     def test_debug_options(self):
-        opt, src = parse('-I. --debug fake1 test.pyx')
-        self.failUnlessEqual(opt['debug_flags'], ['fake1'])
-        opt, src = parse('--debug=fake2 test.pyx')
-        self.failUnlessEqual(opt['debug_flags'], ['fake2'])
-        opt, src = parse('-dfake3 test.pyx')
-        self.failUnlessEqual(opt['debug_flags'], ['fake3'])
+        opt, src = parse('-I. --debug temp_code_comments test.pyx')
+        self.failUnless(DebugFlags.debug_temp_code_comments)
+        # Let's try - instead of _
+        opt, src = parse('--debug=trace-code-generation test.pyx')
+        self.failUnless(DebugFlags.debug_trace_code_generation)
+        opt, src = parse('-dverbose_pipeline test.pyx')
+        self.failUnless(DebugFlags.debug_verbose_pipeline)
 
     def test_output_options(self):
         opt, src = parse('-I. -I /usr -o mytestexec test.pyx')
