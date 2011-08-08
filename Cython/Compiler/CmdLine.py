@@ -245,10 +245,8 @@ else:
                 if group is not self: self.add_option_group(group)
 
         def parse(self, args):
-            options, sources = parser.parse_args(args)
-            options.sources = sources
-            options, sources = self.refine((options, sources))
-            return options, sources
+            results = self.parse_args(args)
+            return self.refine(results)
 
 
 parser = Parser()
