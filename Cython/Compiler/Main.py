@@ -509,12 +509,12 @@ class CompilationOptions(object):
 
     def __init__(self, defaults = None, **kw):
         self.include_path = []
-        if defaults:
-            if isinstance(defaults, CompilationOptions):
-                defaults = defaults.__dict__
+        if isinstance(defaults, CompilationOptions):
+            options = defaults.__dict__
         else:
-            defaults = default_options
-        self.__dict__.update(defaults)
+            options = default_options
+
+        self.__dict__.update(options)
         self.__dict__.update(kw)
 
     def create_context(self):
