@@ -29,10 +29,10 @@ menu = {
             'help' : 'Source file(s) to be compiled.' }},
     'environment setup': {
         ('-l', '--create-listing') : {
-            'dest' : 'use_listing_file', 'const' : 1, 'action' : 'store_const',
+            'dest' : 'use_listing_file', 'action' : 'store_true',
             'help' : 'Write error messages to a listing file'},
         ('-I', '--include-dir') : {
-            'dest' : 'include_path', 'action' : 'append', 'default' : [],
+            'dest' : 'include_path', 'action' : 'append',
             'metavar' : '<directory>',
             'help' : '''Search for include files in named <directory>
                         (multiple include directories are allowed).'''},
@@ -45,10 +45,10 @@ menu = {
                         (the directory modules are searched from)'''}},
     'compilation' : {
         ('-t', '--timestamps') : {
-            'dest' : 'timestamps', 'const' : 1, 'action' : 'store_const',
+            'dest' : 'timestamps', 'action' : 'store_true',
             'help' : 'Only compile newer source files (implied)'},
         ('-f', '--force') : {
-            'dest' : 'timestamps', 'const' : 0, 'action' : 'store_const',
+            'dest' : 'timestamps', 'action' : 'store_false',
             'help' : 'Compile all source files (overrides -t)'},
         ('-z', '--pre-import') : {
             'dest' : 'pre_import', 'metavar' : '<module>',
@@ -80,10 +80,10 @@ menu = {
             'help' : 'Compile based on Python-3 syntax and code semantics.'}},
     'recursive compilation': {
         ('-r', '--recursive') : {
-            'dest' : 'recursive', 'const' : 1, 'action' : 'store_const',
+            'dest' : 'recursive', 'action' : 'store_true',
             'help' : 'Recursively find and compile dependencies (implies -t)'},
         ('-q', '--quiet') : {
-            'dest' : 'quiet', 'const' : 1, 'action' : 'store_const',
+            'dest' : 'quiet', 'action' : 'store_true',
             'help' : "Don't print module names in recursive mode" },
         ('-v', '--verbose') : {
             'dest' : 'verbose', 'action' : 'count',
@@ -100,10 +100,10 @@ menu = {
             'dest' : 'embed', 'const' : 'main', 'nargs' : '?', 'metavar' : '<module>',
             'help' : 'Generate a main() function that embeds the Python interpreter.'},
         ('-+', '--cplus') : {
-            'dest' : 'cplus', 'const' : 1, 'action' : 'store_const',
+            'dest' : 'cplus', 'action' : 'store_true',
             'help' : 'Output a C++ rather than C file.' },
         ('-p', '--embed-positions') : {
-            'dest' : 'embed_pos_in_docstring', 'const' : 1, 'action' : 'store_const',
+            'dest' : 'embed_pos_in_docstring', 'action' : 'store_true',
             'help' : '''If specified, the positions in Cython files of each
                         function definition is embedded in its docstring.''' },
         ('--no-c-in-traceback') : {
@@ -244,8 +244,8 @@ else:
         def parse(self, args):
             results, others = self.parse_args(args)
             results.sources = others
-            final = self.refine(results)
-            return final
+            return self.refine(results)
+
 
 parser = Parser()
 
