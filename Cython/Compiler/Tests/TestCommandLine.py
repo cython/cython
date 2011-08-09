@@ -35,20 +35,20 @@ FAILURE = 512
 class TestCommandLine(CythonTest):
     def test_source_recognition(self):
         opt, src = parse('-z test -t -f -I. source.pyx')
-        self.failUnlessEqual(src, ['source.pyx'])
+        self.assertEqual(src, ['source.pyx'])
         opt, src = parse('-z=test -t -f -I. sourceXX.pyx')
-        self.failUnlessEqual(src, ['sourceXX.pyx'])
+        self.assertEqual(src, ['sourceXX.pyx'])
         opt, src = parse('-I. source.pyx source2.pyx -f -D')
-        self.failUnlessEqual(src, ['source.pyx', 'source2.pyx'])
+        self.assertEqual(src, ['source.pyx', 'source2.pyx'])
         #opt, src = parse('-I. source.pyx -f -D source2.pyx')
-        #self.failUnlessEqual(src, ['source.pyx', 'source2.pyx'])
+        #self.assertEqual(src, ['source.pyx', 'source2.pyx'])
         opt, src = parse('-I. -f -D source.pyx source2.pyx')
-        self.failUnlessEqual(src, ['source.pyx', 'source2.pyx'])
+        self.assertEqual(src, ['source.pyx', 'source2.pyx'])
 
     def test_embed_recognition(self):
         opt, src = parse('--embed --gdb -2  test.pyx')
-        self.failUnlessEqual(Options.embed, 'main')
-        self.failUnlessEqual(src, ['test.pyx'])
+        self.assertEqual(Options.embed, 'main')
+        self.assertEqual(src, ['test.pyx'])
 
     def test_embed_explicit_recognition(self):
         try:
@@ -57,33 +57,45 @@ class TestCommandLine(CythonTest):
             self.skipTest('--embed <name> is parseable only by newer argparse')
 
         opt, src = parse('--fast-fail --embed mainX -f --gdb s.py')
-        self.failUnlessEqual(Options.embed, 'mainX')
+        self.assertEqual(Options.embed, 'mainX')
         opt, src = parse('--fast-fail -f --embed=mainY --gdb s.py')
-        self.failUnlessEqual(Options.embed, 'mainY')
+        self.assertEqual(Options.embed, 'mainY')
 
 
     def test_include_recognition(self):
         opt, src = parse('-v -r -Igreedy -w x test.pyx')
-        self.failUnless(opt['include_path'] == ['greedy'] and src == ['test.pyx'])
+        self.assertEqual(opt['include_path'], ['greedy'])
+        self.assertEqual(src, ['test.pyx'])
         opt, src = parse('-I/usr/include/mistery/dot test.pyx')
-        self.failUnlessEqual(opt['include_path'], ['/usr/include/mistery/dot'])
+        self.assertEqual(opt['include_path'], ['/usr/include/mistery/dot'])
 
     def test_directive_options(self):
         opt, src = parse('-Xboundscheck=False test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], {'boundscheck': False})
+        self.assertEqual(opt['compiler_directives'], {'boundscheck': False})
         opt, src = parse('-Xnonecheck=True test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], {'nonecheck': True})
+        self.assertEqual(opt['compiler_directives'], {'nonecheck': True})
         opt, src = parse('-Xcdivision=True test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'], {'cdivision': True})
+        self.assertEqual(opt['compiler_directives'], {'cdivision': True})
         opt, src = parse('-Xlanguage_level=2,profile=True test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'],
+        self.assertEqual(opt['compiler_directives'],
             {'profile': True, 'language_level': 2})
         opt, src = parse('--directive callspec=False,final=True test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'],
+        self.assertEqual(opt['compiler_directives'],
             {'callspec': 'False', 'final': True})
         opt, src = parse('-Xauto_cpdef=True,profile=True -I. -Xinternal=True test.pyx')
-        self.failUnlessEqual(opt['compiler_directives'],
+        self.assertEqual(opt['compiler_directives'],
             {'profile': True, 'internal': True, 'auto_cpdef': True} )
+
+    def test_output_options(self):
+        opt, src = parse('-I. -I /usr -o mytestexec test.pyx')
+        self.assertEqual(opt['output_file'], 'mytestexec')
+        opt, src = parse('-I. -o2mytestexec -I /usr test.pyx')
+        self.assertEqual(opt['output_file'], '2mytestexec')
+
+    def test_if_arguments_are_required_correctly(self):
+        self.assertEqual(parser_return_code('-I'), FAILURE)
+        self.assertEqual(parser_return_code(''), FAILURE)
+        self.assertEqual(parser_return_code('-X source.py'), FAILURE)
 
     def test_debug_options(self):
         opt, src = parse('-I. --debug temp_code_comments test.pyx')
@@ -93,17 +105,6 @@ class TestCommandLine(CythonTest):
         self.failUnless(DebugFlags.debug_trace_code_generation)
         opt, src = parse('-dverbose_pipeline test.pyx')
         self.failUnless(DebugFlags.debug_verbose_pipeline)
-
-    def test_output_options(self):
-        opt, src = parse('-I. -I /usr -o mytestexec test.pyx')
-        self.failUnlessEqual(opt['output_file'], 'mytestexec')
-        opt, src = parse('-I. -o2mytestexec -I /usr test.pyx')
-        self.failUnlessEqual(opt['output_file'], '2mytestexec')
-
-    def test_if_arguments_are_required_correctly(self):
-        self.failUnless(parser_return_code('-I') == FAILURE)
-        self.failUnless(parser_return_code('') == FAILURE)
-        self.failUnless(parser_return_code('-X source.py') == FAILURE)
 
 
 if __name__ == '__main__':
