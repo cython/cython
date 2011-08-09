@@ -192,7 +192,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         FinalOptimizePhase(context),
         GilCheck(),
         UseUtilityCodeDefinitions(context),
-#        PrintTree(),
         ]
     filtered_stages = []
     for s in stages:
@@ -293,7 +292,9 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 # Running a pipeline
 #
 
-def run_pipeline(pipeline, source):
+def run_pipeline(pipeline, source, printtree=True):
+    from Cython.Compiler.Visitor import PrintTree
+
     error = None
     data = source
     try:
@@ -303,6 +304,8 @@ def run_pipeline(pipeline, source):
                     if DebugFlags.debug_verbose_pipeline:
                         t = time()
                         print "Entering pipeline phase %r" % phase
+                    if not printtree and isinstance(phase, PrintTree):
+                        continue
                     data = phase(data)
                     if DebugFlags.debug_verbose_pipeline:
                         print "    %.3f seconds" % (time() - t)

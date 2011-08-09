@@ -187,7 +187,7 @@ class PyrexType(BaseType):
     def needs_nonecheck(self):
         return 0
 
-        
+
 def public_decl(base_code, dll_linkage):
     if dll_linkage:
         return "%s(%s)" % (dll_linkage, base_code)
@@ -414,8 +414,7 @@ class MemoryViewSliceType(PyrexType):
 
     def attributes_known(self):
         if self.scope is None:
-
-            import Symtab, MemoryView, Options
+            import Symtab
 
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
@@ -424,8 +423,17 @@ class MemoryViewSliceType(PyrexType):
 
             scope.parent_type = self
 
-            scope.declare_var('_data', c_char_ptr_type, None, cname='data', is_cdef=1)
+            scope.declare_var('_data', c_char_ptr_type, None,
+                              cname='data', is_cdef=1)
 
+        return True
+
+    def declare_attribute(self, attribute):
+        import MemoryView, Options
+
+        scope = self.scope
+
+        if attribute == 'shape':
             scope.declare_var('shape',
                     c_array_type(c_py_ssize_t_type,
                         Options.buffer_max_dims),
@@ -433,6 +441,7 @@ class MemoryViewSliceType(PyrexType):
                     cname='shape',
                     is_cdef=1)
 
+        elif attribute == 'strides':
             scope.declare_var('strides',
                     c_array_type(c_py_ssize_t_type,
                         Options.buffer_max_dims),
@@ -440,6 +449,7 @@ class MemoryViewSliceType(PyrexType):
                     cname='strides',
                     is_cdef=1)
 
+        elif attribute == 'suboffsets':
             scope.declare_var('suboffsets',
                     c_array_type(c_py_ssize_t_type,
                         Options.buffer_max_dims),
@@ -447,6 +457,7 @@ class MemoryViewSliceType(PyrexType):
                     cname='suboffsets',
                     is_cdef=1)
 
+        elif attribute in ("copy", "copy_fortran"):
             ndim = len(self.axes)
 
             to_axes_c = [('direct', 'contig')]

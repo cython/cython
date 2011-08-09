@@ -5,7 +5,6 @@
 
 typedef struct {
   struct {{memview_struct_name}} *memview;
-  /* For convenience and faster access */
   char *data;
   Py_ssize_t shape[{{max_dims}}];
   Py_ssize_t strides[{{max_dims}}];
@@ -29,9 +28,6 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
 
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
-
-
-/* #define __PYX_MEMSLICE_GETDATA(SLICE) ((char *) SLICE->memview->view->buf) */
 
 static int __Pyx_ValidateAndInit_memviewslice(struct __pyx_memoryview_obj *memview,
                                 int *axes_specs, int c_or_f_flag,  int ndim, __Pyx_TypeInfo *dtype,
@@ -170,7 +166,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
         }
 
         if (spec & __Pyx_MEMVIEW_PTR) {
-            if (buf->suboffsets && buf->suboffsets[i] < 0) {
+            if (!buf->suboffsets || (buf->suboffsets && buf->suboffsets[i] < 0)) {
                 PyErr_Format(PyExc_ValueError,
                     "Buffer is not indirectly accessisble in dimension %d.", i);
                 goto fail;
@@ -287,7 +283,6 @@ static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
     struct {{memview_struct_name}} *memview = memslice->memview;
     if (!memview)
         return; /* allow uninitialized memoryview assignment */
-        /* __pyx_fatalerror("memoryslice is not initialized (line %d)", lineno); */
 
     if (memview->acquisition_count <= 0)
         __pyx_fatalerror("Acquisition count is %d (line %d)",
@@ -324,6 +319,7 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
     last_time = (memview->acquisition_count-- == 1);
     PyThread_release_lock(memview->lock);
 
+    memslice->data = NULL;
     if (last_time) {
         if (have_gil) {
             Py_CLEAR(memslice->memview);
@@ -332,6 +328,7 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
             Py_CLEAR(memslice->memview);
             PyGILState_Release(_gilstate);
         }
+    } else {
         memslice->memview = NULL;
     }
 }

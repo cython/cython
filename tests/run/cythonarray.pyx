@@ -5,7 +5,8 @@ from __future__ import unicode_literals
 from cython cimport array
 cimport cython as cy
 
-from libc.stdlib cimport malloc, free
+include "cythonarrayutil.pxi"
+
 
 def contiguity():
     '''
@@ -66,26 +67,6 @@ def dont_allocate_buffer():
     result.data = <char *> 1
     result.callback_free_data = callback
     result = None
-
-cdef void callback(char *data):
-    print "callback called %d" % <long> data
-
-cdef create_array(shape, mode):
-    cdef array result = array(shape, itemsize=sizeof(int), format='i', mode=mode)
-    cdef int *data = <int *> result.data
-    cdef int i, j, cidx, fidx
-
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            cidx = i * shape[1] + j
-            fidx = i + j * shape[0]
-
-            if mode == 'fortran':
-                data[fidx] = cidx
-            else:
-                data[cidx] = cidx
-
-    return result
 
 def test_cython_array_getbuffer():
     """

@@ -104,11 +104,11 @@ def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, code,
 
     code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
     code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
-    ndim = len(memviewslicetype.axes)
-    for i in range(ndim):
-        code.putln("%s.shape[%d] = %s.shape[%d];" % (lhs_cname, i, rhs_cname, i))
-        code.putln("%s.strides[%d] = %s.strides[%d];" % (lhs_cname, i, rhs_cname, i))
-        code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % (lhs_cname, i, rhs_cname, i))
+    for i in range(memviewslicetype.ndim):
+        tup = (lhs_cname, i, rhs_cname, i)
+        code.putln("%s.shape[%d] = %s.shape[%d];" % tup)
+        code.putln("%s.strides[%d] = %s.strides[%d];" % tup)
+        code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % tup)
 
 def get_buf_flags(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
@@ -182,14 +182,18 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         return self._for_all_ndim("%s.shape[%d]")
 
     def generate_buffer_lookup_code(self, code, index_cnames):
+        axes = [(dim, index_cnames[dim], access, packing)
+                    for dim, (access, packing) in enumerate(self.type.axes)]
+        return self._generate_buffer_lookup_code(code, axes)
+
+    def _generate_buffer_lookup_code(self, code, axes, cast_result=True):
         bufp = self.buf_ptr
         type_decl = self.type.dtype.declaration_code("")
 
-        for dim, (access, packing) in enumerate(self.type.axes):
+        for dim, index, access, packing in axes:
             shape = "%s.shape[%d]" % (self.cname, dim)
             stride = "%s.strides[%d]" % (self.cname, dim)
             suboffset = "%s.suboffsets[%d]" % (self.cname, dim)
-            index = index_cnames[dim]
 
             flag = get_memoryview_flag(access, packing)
 
@@ -219,7 +223,214 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             bufp = '( /* dim=%d */ %s )' % (dim, bufp)
 
-        return "((%s *) %s)" % (type_decl, bufp)
+        if cast_result:
+            return "((%s *) %s)" % (type_decl, bufp)
+
+        return bufp
+
+    def generate_buffer_slice_code(self, code, indices, type, dst_type, dst):
+        """
+        Generate code for a new memoryview slice.
+
+        indices     An index in the indices list is either a SliceNode where
+        start/stop and step are converted to temps of type Py_ssize_t, or a
+        temp integer index of type Py_ssize_t.
+
+        type        is the type that is sliced
+        dst_type    is the resulting type
+        dst         is the result memoryview slice temp
+
+        For every dimension we do the following:
+
+            ensure 0 <= start < n and 0 <= stop <= n
+
+            if every dimension is direct:
+                keep track of possible offsets, set data * to
+                mslice[0, 0, 0, ...] after the loop
+            else:
+                keep a variable 'dim' that
+                    if < 0
+                        indicates the data *
+                    else
+                        indicates suboffsets[dim]
+
+            now set shape, strides and suboffsets according to start/stop/step
+
+            add the slice or indexing offset to data * or to suboffsets[dim]
+
+            update the dim variable if necessary
+        """
+        axes = []
+        temps = []
+        dtype = PyrexTypes.c_py_ssize_t_type
+
+        def put_bounds_code(r, start):
+            "ensure that start 0 <= r < n"
+            code.putln("if (%s < 0) {" % r)
+            code.putln(    "%s += %s;" % (r, shape))
+            code.putln(    "if (%s < 0) %s = 0;" % (r, r))
+
+            if start:
+                code.putln("} else if (%s >= %s) %s = %s - 1;" % (r, shape, r, shape))
+            else:
+                code.putln("} else if (%s > %s) %s = %s;" % (r, shape, r, shape))
+
+        def update_dim():
+            "if we are indirect, update our dim index"
+            if access in ('ptr', 'generic'):
+                if access == 'generic':
+                    code.put("if (%s >= 0)" % suboffset)
+                code.putln("%s = %d;" % (offset_dim, dst_dim))
+
+        all_direct = True
+        for access, packing in type.axes:
+            all_direct = all_direct and access == 'direct'
+            if not all_direct:
+                break
+
+        if not all_direct:
+            offset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type,
+                                                      False)
+            code.putln("%s = -1;" % (offset_dim,))
+            code.putln("%s.data = %s.data;" % (dst, self.cname))
+
+        dst_dim = 0
+        for dim, index in enumerate(indices):
+            goto_err = code.error_goto(index.pos)
+
+            shape = "%s.shape[%d]" % (self.cname, dim)
+            stride = "%s.strides[%d]" % (self.cname, dim)
+            suboffset = "%s.suboffsets[%d]" % (self.cname, dim)
+
+            dst_shape = "%s.shape[%d]" % (dst, dst_dim)
+            dst_stride = "%s.strides[%d]" % (dst, dst_dim)
+            dst_suboffset = "%s.suboffsets[%d]" % (dst, dst_dim)
+
+            access, packing = type.axes[dim]
+
+            if isinstance(index, ExprNodes.SliceNode):
+                # slice or part of ellipsis
+
+                start = stop = step = None
+                dst_dim += 1
+
+                # First fix the bounds
+                if not index.start.is_none:
+                    start = index.start.result()
+                    put_bounds_code(start, start=True)
+
+                if not index.stop.is_none:
+                    stop = index.stop.result()
+                    put_bounds_code(stop, start=False)
+
+                # Compute the new strides
+                if not index.step.is_none:
+                    step = index.step.result()
+                    code.putln("%s = %s * %s;" % (dst_stride, stride, step))
+
+                else:
+                    code.putln("%s = %s;" % (dst_stride, stride))
+
+                # Take care of suboffsets
+                code.putln("%s = %s;" % (dst_suboffset, suboffset))
+
+                # If start or stop is not specified, then we need to set
+                # them according to step
+                if not start or not stop:
+                    if step:
+                        code.putln("if (%s > 0) {" % step)
+
+                        if not start:
+                            start = code.funcstate.allocate_temp(dtype, False)
+                            temps.append(start)
+                            code.putln("%s = 0;" % start)
+                        if not stop:
+                            stop = code.funcstate.allocate_temp(dtype, False)
+                            temps.append(stop)
+                            code.putln("%s = %s;" % (stop, shape))
+
+                        code.putln("} else {")
+
+                        if start:
+                            code.putln("%s = %s - 1;" % (start, shape))
+                        if stop:
+                            code.putln("%s = -1;" % stop)
+
+                        code.putln("}")
+                    else:
+                        if not start:
+                            start = "0"
+                        if not stop:
+                            stop = shape
+
+                d = dict(locals(), step=step or "1")
+
+                # Take care of shape
+                code.putln("%(dst_shape)s = (%(stop)s - %(start)s) / %(step)s;" % d)
+                code.putln("if (%(dst_shape)s && (%(stop)s - %(start)s) %% %(step)s) %(dst_shape)s++;" % d)
+                code.putln("if (%(dst_shape)s < 0) %(dst_shape)s = 0;" % d)
+
+                # Take care of slicing offsets
+                if start != "0":
+                    if all_direct:
+                        axes.append([dim, start, access, packing])
+                    else:
+                        offset = "%s * %s" % (start, stride)
+                        d = dict(dim=offset_dim, dst=dst, offset=offset)
+                        code.putln("if (%(dim)s < 0) %(dst)s.data += %(offset)s;" % d)
+                        code.putln("else %(dst)s.suboffsets[%(dim)s] += %(offset)s;" % d)
+
+            else:
+                # integer index (or object converted to integer index)
+                # Note: this dimension disappears
+
+                assert access == 'direct'
+                r = index.result()
+
+                # Bounds checking with error
+                code.globalstate.use_utility_code(Buffer.raise_indexerror_code)
+                out_of_bounds = "%s < 0 || %s >= %s" % (r, r, shape)
+                code.putln("if (%s) {" % code.unlikely(out_of_bounds))
+                code.putln('__Pyx_RaiseBufferIndexError(%d);' % dim)
+                code.putln(code.error_goto(index.pos))
+                code.putln("}")
+
+                if all_direct:
+                    axes.append([dim, index.result(), access, packing])
+                else:
+                    add_slice_offset(r)
+
+        # Take care of data * for direct access in all dimensions
+        if all_direct:
+            bufp = self._generate_buffer_lookup_code(code, axes,
+                                                     cast_result=False)
+            code.putln("%s.data = %s;" % (dst, bufp))
+
+        # Finally take care of memview
+        code.putln("%s.memview = %s.memview;" % (dst, self.cname))
+
+        for temp in temps:
+            code.funcstate.release_temp(temp)
+
+def unellipsify(indices, ndim):
+    result = []
+    seen_ellipsis = False
+
+    for index in indices:
+        if isinstance(index, ExprNodes.EllipsisNode):
+            none = ExprNodes.NoneNode(index.pos)
+            full_slice = ExprNodes.SliceNode(index.pos, start=none,
+                                             stop=none, step=none)
+            if seen_ellipsis:
+                result.append(full_slice)
+            else:
+                nslices = ndim - len(indices) + 1
+                result.extend([full_slice] * nslices)
+                seen_ellipsis = True
+        else:
+            result.append(index)
+
+    return result
 
 def get_memoryview_flag(access, packing):
     if access == 'full' and packing in ('strided', 'follow'):
@@ -250,7 +461,7 @@ def get_copy_contents_name(from_mvs, to_mvs):
 
 
 class IsContigFuncUtilCode(object):
-    
+
     requires = None
 
     def __init__(self, c_or_f):
@@ -337,7 +548,7 @@ static int %(copy_to_name)s(const __Pyx_memviewslice from_mvs, __Pyx_memviewslic
 '''
 
 class CopyContentsFuncUtilCode(object):
-    
+
     requires = None
 
     def __init__(self, from_memview, to_memview):
@@ -587,7 +798,7 @@ def get_axes_specs(env, axes):
         if not isinstance(axis.stop, NoneNode):
             raise CompileError(axis.stop.pos, STOP_ERR)
 
-        # step slot can be None, the value 1, 
+        # step slot can be None, the value 1,
         # a single axis spec, or an IntBinopNode.
         if isinstance(axis.step, NoneNode):
             if is_c_contig or is_f_contig:
@@ -598,7 +809,7 @@ def get_axes_specs(env, axes):
         elif isinstance(axis.step, IntNode):
             if idx not in (0, len(axes)-1):
                 raise CompileError(axis.step.pos, ONE_ERR)
-            # the packing for the ::1 axis is contiguous, 
+            # the packing for the ::1 axis is contiguous,
             # all others are cf_packing.
             axes_specs.append((cf_access, 'contig'))
 
@@ -636,7 +847,7 @@ def is_cf_contig(specs):
         # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
         is_c_contig = True
 
-    elif (len(specs) > 1 and 
+    elif (len(specs) > 1 and
         specs[0] == ('direct','contig') and
         all([axis == ('direct','follow') for axis in specs[1:]])):
         # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
@@ -677,7 +888,7 @@ def validate_axes_specs(positions, specs):
     access_specs = ('direct', 'ptr', 'full')
 
     is_c_contig, is_f_contig = is_cf_contig(specs)
-    
+
     has_contig = has_follow = has_strided = has_generic_contig = False
 
     for pos, (access, packing) in zip(positions, specs):

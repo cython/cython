@@ -23,6 +23,7 @@ def testcase(func):
 
 
 include "mockbuffers.pxi"
+include "cythonarrayutil.pxi"
 
 #
 # Buffer acquire and release tests
@@ -1083,12 +1084,14 @@ def buffer_nogil():
 #
 ### Test cdef functions
 #
-cdef cdef_function(int[:] buf1, object[::view.indirect, :] buf2 = ObjectMockBuffer(None,
-                                                            [["spam"],["ham"],["eggs"]])):
+
+objs = [["spam"], ["ham"], ["eggs"]]
+cdef cdef_function(int[:] buf1, object[::view.indirect, :] buf2 = ObjectMockBuffer(None, objs)):
     print 'cdef called'
     print buf1[6], buf2[1, 0]
     buf2[1, 0] = "eggs"
 
+@testcase
 def test_cdef_function(o1, o2=None):
     """
     >>> A = IntMockBuffer("A", range(10))
@@ -1101,18 +1104,21 @@ def test_cdef_function(o1, o2=None):
     cdef called
     6 eggs
     released A
-    >>> B = ObjectMockBuffer("B", range(25), shape=(5, 5))
+    >>> L = [[x] for x in range(25)]
+    >>> B = ObjectMockBuffer("B", L, shape=(5, 5))
     >>> test_cdef_function(A, B)
     acquired A
-    acquired B
     cdef called
     6 eggs
     released A
-    released B
+    acquired A
+    cdef called
+    6 eggs
+    released A
     acquired A
     acquired B
     cdef called
-    6 eggs
+    6 1
     released A
     released B
     """
@@ -1122,15 +1128,15 @@ def test_cdef_function(o1, o2=None):
     if o2:
         cdef_function(o1, o2)
 
-cdef int[:] global_A = IntMockBuffer("A", range(10))
-cdef object[::view.indirect, :] global_B = ObjectMockBuffer(
-                            None, [["spam"],["ham"],["eggs"]])
+cdef int[:] global_A = IntMockBuffer("Global_A", range(10))
+cdef object[::view.indirect, :] global_B = ObjectMockBuffer(None, objs)
 
 cdef cdef_function2(int[:] buf1, object[::view.indirect, :] buf2 = global_B):
     print 'cdef2 called'
     print buf1[6], buf2[1, 0]
     buf2[1, 0] = "eggs"
 
+@testcase
 def test_cdef_function2():
     """
     >>> test_cdef_function2()
@@ -1151,3 +1157,76 @@ def test_cdef_function2():
     print global_B[1, 0]
 
     cdef_function2(global_A, global_B)
+
+@testcase
+def test_slicing(arg):
+    """
+    Test simple slicing
+    >>> test_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
+    acquired A
+    3 9 2
+    1232 -44 4
+    -1 -1 -1
+    released A
+
+    Test direct slicing, negative slice oob in dim 2
+    >>> test_slicing(IntMockBuffer("A", range(1 * 2 * 3), shape=(1, 2, 3)))
+    acquired A
+    0 0 2
+    48 -12 4
+    -1 -1 -1
+    released A
+
+    Test indirect slicing
+    >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
+    >>> test_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
+    acquired A
+    2 0 2
+    8 -4 4
+    0 0 -1
+    released A
+    """
+    cdef int[::view.generic, ::view.generic, :] a = arg
+    cdef int[::view.generic, ::view.generic, :] b = a[2:8:2, -4:1:-1, 1:3]
+
+    print b.shape[0], b.shape[1], b.shape[2]
+    print b.strides[0], b.strides[1], b.strides[2]
+    print b.suboffsets[0], b.suboffsets[1], b.suboffsets[2]
+
+    cdef int i, j, k
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            for k in range(b.shape[2]):
+                itemA = a[2 + 2 * i, -4 - j, 1 + k]
+                itemB = b[i, j, k]
+                assert itemA == itemB, (i, j, k, itemA, itemB)
+
+@testcase
+def test_slicing_and_indexing(arg):
+    """
+    >>> a = IntStridedMockBuffer("A", range(10 * 3 * 5), shape=(10, 3, 5))
+    >>> test_slicing_and_indexing(a)
+    acquired A
+    5 2
+    60 8
+    126 113
+    [111]
+    released A
+    """
+    cdef int[:, :, :] a = arg
+    cdef int[:, :] b = a[-5:, 1, 1::2]
+    cdef int[:, :] c = b[4:1:-1, ::-1]
+    cdef int[:] d = c[2, 1:2]
+
+    print b.shape[0], b.shape[1]
+    print b.strides[0], b.strides[1]
+
+    cdef int i, j
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            itemA = a[-5 + i, 1, 1 + 2 * j]
+            itemB = b[i, j]
+            assert itemA == itemB, (i, j, itemA, itemB)
+
+    print c[1, 1], c[2, 0]
+    print [d[i] for i in range(d.shape[0])]

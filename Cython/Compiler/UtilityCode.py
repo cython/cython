@@ -118,7 +118,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
                                                      before=transform)
 
-        (err, tree) = Pipeline.run_pipeline(pipeline, tree)
+        (err, tree) = Pipeline.run_pipeline(pipeline, tree, printtree=False)
         assert not err, err
         return tree
 

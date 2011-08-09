@@ -2266,6 +2266,10 @@ class IndexNode(ExprNode):
     # writable)
     writable_needed = False
 
+    # Whether we are indexing or slicing a memoryviewslice
+    memslice_index = False
+    memslice_slice = False
+
     def __init__(self, pos, index, *args, **kw):
         ExprNode.__init__(self, pos, index=index, *args, **kw)
         self._index = index
@@ -2286,8 +2290,11 @@ class IndexNode(ExprNode):
         return self.base.is_ephemeral()
 
     def is_simple(self):
-        if self.is_buffer_access:
+        if self.is_buffer_access or self.memslice_index:
             return False
+        elif self.memslice_slice:
+            return True
+
         base = self.base
         return (base.is_simple() and self.index.is_simple()
                 and base.type and (base.type.is_ptr or base.type.is_array))
@@ -2377,7 +2384,13 @@ class IndexNode(ExprNode):
         # For buffers, self.index is packed out on the initial analysis, and
         # when cloning self.indices is copied.
         self.is_buffer_access = False
+
+        # a[...] = b
         self.is_memoryviewslice_access = False
+        # incomplete indexing, Ellipsis indexing or slicing
+        self.memslice_slice = False
+        # integer indexing
+        self.memslice_index = False
 
         self.base.analyse_types(env)
         if self.base.type.is_error:
@@ -2402,18 +2415,84 @@ class IndexNode(ExprNode):
 
         is_memslice = self.base.type.is_memoryviewslice
 
+        if self.indices:
+            indices = self.indices
+        elif isinstance(self.index, TupleNode):
+            indices = self.index.args
+        else:
+            indices = [self.index]
+
         if (is_memslice and not self.indices and
                 isinstance(self.index, EllipsisNode)):
+            # Memoryviewslice copying
             memoryviewslice_access = True
-        elif self.base.type.is_buffer or is_memslice:
-            if self.indices:
-                indices = self.indices
-            else:
-                if isinstance(self.index, TupleNode):
-                    indices = self.index.args
-                else:
-                    indices = [self.index]
 
+        elif is_memslice:
+            # memoryviewslice indexing or slicing
+            import MemoryView
+
+            skip_child_analysis = True
+            indices = MemoryView.unellipsify(indices, self.base.type.ndim)
+            self.memslice_index = len(indices) == self.base.type.ndim
+            axes = []
+
+            index_type = PyrexTypes.c_py_ssize_t_type
+            new_indices = []
+
+            if len(indices) > self.base.type.ndim:
+                self.type = error_type
+                return error(indices[self.base.type.ndim].pos,
+                             "Too many indices specified for type %s" %
+                                                        self.base.type)
+
+            suboffsets_dim = -1
+            for i, index in enumerate(indices[:]):
+                index.analyse_types(env)
+                access, packing = self.base.type.axes[i]
+                if isinstance(index, SliceNode):
+                    suboffsets_dim = i
+                    self.memslice_slice = True
+                    axes.append((access, 'strided'))
+
+                    # Coerce start, stop and step to temps of the right type
+                    for attr in ('start', 'stop', 'step'):
+                        value = getattr(index, attr)
+                        if not value.is_none:
+                            value = value.coerce_to(index_type, env)
+                            value = value.coerce_to_temp(env)
+                            setattr(index, attr, value)
+                            new_indices.append(value)
+
+                elif index.type.is_int:
+                    self.memslice_index = True
+                    index = index.coerce_to(index_type, env).coerce_to_temp(
+                                                                 index_type)
+                    indices[i] = index
+                    new_indices.append(index)
+
+                    if access in ('ptr', 'generic') and i != 0:
+                        # If this dimension is to disappear, then how do we
+                        # indicate that we need to dereference in this dimension
+                        # if the previous dimension is already indirect, or if
+                        # the previous dimension was direct but also indexed?
+                        # Basically only a[i, j, k, :] can work, as you can
+                        # set the base pointer to start in the fourth dimension
+                        self.type = error_type
+                        return error(index.pos,
+                                     "Indexing of non-leading indirect or generic "
+                                     "dimensions not supported yet, "
+                                     "try slicing with i:i+1")
+
+                else:
+                    self.type = error_type
+                    return error(index.pos, "Invalid index for memoryview specified")
+
+            self.memslice_index = self.memslice_index and not self.memslice_slice
+            self.original_indices = indices
+            self.indices = new_indices
+
+        elif self.base.type.is_buffer:
+            # Buffer indexing
             if len(indices) == self.base.type.ndim:
                 buffer_access = True
                 skip_child_analysis = True
@@ -2430,7 +2509,7 @@ class IndexNode(ExprNode):
 
         self.nogil = env.nogil
 
-        if buffer_access:
+        if buffer_access or self.memslice_index:
             if self.base.type.is_memoryviewslice and not self.base.is_name:
                 self.base = self.base.coerce_to_temp(env)
 
@@ -2458,6 +2537,11 @@ class IndexNode(ExprNode):
             self.is_memoryviewslice_access = True
             if getting:
                 error(self.pos, "memoryviews currently support setting only.")
+
+        elif self.memslice_slice:
+            self.is_temp = True
+            self.type = PyrexTypes.MemoryViewSliceType(
+                            self.base.type.dtype, axes)
 
         else:
             base_type = self.base.type
@@ -2533,7 +2617,7 @@ class IndexNode(ExprNode):
     gil_message = "Indexing Python object"
 
     def nogil_check(self, env):
-        if self.is_buffer_access:
+        if self.is_buffer_access or self.memslice_index:
             if env.directives['boundscheck']:
                 error(self.pos, "Cannot check buffer index bounds without gil; use boundscheck(False) directive")
                 return
@@ -2599,7 +2683,7 @@ class IndexNode(ExprNode):
                 i.free_temps(code)
 
     def generate_result_code(self, code):
-        if self.is_buffer_access:
+        if self.is_buffer_access or self.memslice_index:
             if code.globalstate.directives['nonecheck']:
                 self.put_nonecheck(code)
             buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
@@ -2607,6 +2691,10 @@ class IndexNode(ExprNode):
                 # is_temp is True, so must pull out value and incref it.
                 code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
                 code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+
+        elif self.memslice_slice:
+            self.put_memoryviewslice_slice_code(code)
+
         elif self.is_temp:
             if self.type.is_pyobject:
                 if self.index.type.is_int:
@@ -2677,7 +2765,7 @@ class IndexNode(ExprNode):
                 self.extra_index_params(),
                 code.error_goto(self.pos)))
 
-    def generate_memoryviewslice_setitem_code(self, rhs, code, op=""):
+    def generate_memoryviewslice_copy_code(self, rhs, code, op=""):
         assert isinstance(self.index, EllipsisNode)
         import MemoryView
         util_code = MemoryView.CopyContentsFuncUtilCode(rhs.type, self.type)
@@ -2687,7 +2775,7 @@ class IndexNode(ExprNode):
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
-        if code.globalstate.directives['nonecheck']:
+        if code.globalstate.directives['nonecheck'] and not self.memslice_index:
             self.put_nonecheck(code)
 
         buffer_entry, ptrexpr = self.buffer_lookup_code(code)
@@ -2712,10 +2800,13 @@ class IndexNode(ExprNode):
 
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
-        if self.is_buffer_access:
+        if self.is_buffer_access or self.memslice_index:
             self.generate_buffer_setitem_code(rhs, code)
+        elif self.memslice_slice:
+            error(rhs.pos, "Slice assignment not supported yet")
+            #self.generate_memoryviewslice_setslice_code(rhs, code)
         elif self.is_memoryviewslice_access:
-            self.generate_memoryviewslice_setitem_code(rhs, code)
+            self.generate_memoryviewslice_copy_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
@@ -2750,15 +2841,7 @@ class IndexNode(ExprNode):
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
 
-    def buffer_lookup_code(self, code):
-        # Assign indices to temps
-        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
-                           for i in self.indices]
-
-        for temp, index in zip(index_temps, self.indices):
-            code.putln("%s = %s;" % (temp, index.result()))
-
-        # Generate buffer access code using these temps
+    def buffer_entry(self):
         import Buffer, MemoryView
 
         if self.base.is_name:
@@ -2770,11 +2853,28 @@ class IndexNode(ExprNode):
 
         if entry.type.is_buffer:
             buffer_entry = Buffer.BufferEntry(entry)
-            negative_indices = entry.type.negative_indices
         else:
             buffer_entry = MemoryView.MemoryViewSliceBufferEntry(entry)
-            negative_indices = Buffer.buffer_defaults['negative_indices']
 
+        return buffer_entry
+
+    def buffer_lookup_code(self, code):
+        # Assign indices to temps
+        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
+                           for i in self.indices]
+
+        for temp, index in zip(index_temps, self.indices):
+            code.putln("%s = %s;" % (temp, index.result()))
+
+        # Generate buffer access code using these temps
+        import Buffer, MemoryView
+
+        buffer_entry = self.buffer_entry()
+
+        if buffer_entry.type.is_buffer:
+            negative_indices = entry.type.negative_indices
+        else:
+            negative_indices = Buffer.buffer_defaults['negative_indices']
 
         return buffer_entry, Buffer.put_buffer_lookup_code(
                entry=buffer_entry,
@@ -2784,12 +2884,21 @@ class IndexNode(ExprNode):
                pos=self.pos, code=code,
                negative_indices=negative_indices)
 
+    def put_memoryviewslice_slice_code(self, code):
+        buffer_entry = self.buffer_entry()
+        buffer_entry.generate_buffer_slice_code(code,
+                                                self.original_indices,
+                                                self.base.type,
+                                                self.type,
+                                                self.result())
+
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
         code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.base.result_as(PyrexTypes.py_object_type))
         code.putln("__Pyx_RaiseNoneIndexingError();")
         code.putln(code.error_goto(self.pos))
         code.putln("}")
+
 
 class SliceIndexNode(ExprNode):
     #  2-element slice indexing
@@ -3928,6 +4037,9 @@ class AttributeNode(ExprNode):
         if obj_type.has_attributes:
             entry = None
             if obj_type.attributes_known():
+                if (obj_type.is_memoryviewslice and not
+                        obj_type.scope.lookup_here(self.attribute)):
+                    obj_type.declare_attribute(self.attribute)
                 entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None
@@ -7384,8 +7496,8 @@ class CmpNode(object):
 
 contains_utility_code = UtilityCode(
 proto="""
-static CYTHON_INLINE int __Pyx_NegateNonNeg(int b) { 
-    return unlikely(b < 0) ? b : !b; 
+static CYTHON_INLINE int __Pyx_NegateNonNeg(int b) {
+    return unlikely(b < 0) ? b : !b;
 }
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
