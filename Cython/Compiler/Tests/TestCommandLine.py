@@ -25,6 +25,7 @@ def parse(string):
     return parse_command_line(string.split())
 
 #FIXME very time consuming
+#FIXME test is not portable to Windows!
 def parser_return_code(string):
     '''Return code of Cython, if it had been invoked with <string> as cline.'''
     return os.system("""python -c \"from Cython.Compiler.CmdLine import \
@@ -57,23 +58,32 @@ class TestCommandLine(CythonTest):
         self.assertEqual(src, ['test.pyx'])
 
     def test_embed_explicit_recognition(self):
-        # SEE HACK in CmdLine.py
-        #try:
-            #from Cython.Compiler.CmdLine import argparse
-        #except ImportError:
-            #self.skipTest('--embed <name> is parseable only by newer argparse')
+        try:
+            from Cython.Compiler.CmdLine import argparse
+        except ImportError:
+            self.skipTest('--embed <name> is parseable only by newer argparse')
 
-        #opt, src = parse('--fast-fail --embed mainX -f --gdb s.py')
-        #self.assertEqual(Options.embed, 'mainX')
-        #opt, src = parse('--fast-fail -f --embed=mainY --gdb s.py')
-        #self.assertEqual(Options.embed, 'mainY')
-        pass
+        opt, src = parse('--fast-fail --embed mainX -f --gdb s.py')
+        self.assertEqual(Options.embed, 'mainX')
+        opt, src = parse('--fast-fail -f --embed=mainY --gdb s.py')
+        self.assertEqual(Options.embed, 'mainY')
+        self.assertEqual(
+            parser_return_code('--fast-fail -f --embed=mainY --gdb'),
+            FAILURE)
+        self.assertEqual(
+            parser_return_code('--fast-fail -f --embed=mainY --gdb a.pyx b.py'),
+            FAILURE)
+        self.assertEqual(
+            parser_return_code('--fast-fail -f --embed a.pyx b.py'),
+            FAILURE)
 
     def test_include_recognition(self):
         opt, src = parse('-v -r -Igreedy -w x test.pyx')
         self.assertEqual(opt['include_path'], ['greedy'])
         self.assertEqual(src, ['test.pyx'])
         opt, src = parse('-I/usr/include/mistery/dot test.pyx')
+        self.assertEqual(opt['include_path'], ['/usr/include/mistery/dot'])
+        opt, src = parse('-I /usr/include/mistery/dot test.pyx')
         self.assertEqual(opt['include_path'], ['/usr/include/mistery/dot'])
 
     def test_directive_options(self):
