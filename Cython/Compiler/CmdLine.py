@@ -198,7 +198,7 @@ class BasicParser:
 
 import sys
 
-if sys.version_info >= (2, 7):
+if sys.version_info >= (2, 12):
     import argparse
 
     class Parser(BasicParser, argparse.ArgumentParser):
@@ -233,6 +233,10 @@ else:
                 for flag, parameters in flaglist.iteritems():
                     try:
                         if isinstance(flag, str):
+                            # HACK disallows optional name
+                            if flag == '--embed':
+                                del parameters['nargs']
+                                parameters['action'] = 'store_const'
                             group.add_option(flag, **parameters)
                         else:
                             group.add_option(*flag, **parameters)
