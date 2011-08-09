@@ -28,28 +28,42 @@ def parse(string):
 def parser_return_code(string):
     '''Return code of Cython, if it had been invoked with <string> as cline.'''
     return os.system("""python -c \"from Cython.Compiler.CmdLine import \
-        parse_command_line as p\np('%s'.split())\" &> /dev/null""" % string)
+        parse_command_line as p; p('%s'.split())\" &> /dev/null""" % string)
 
 FAILURE = 512
 
 class TestCommandLine(CythonTest):
     def test_source_recognition(self):
-        opt, src = parse('--embed=test -t -f -I. source.pyx')
+        opt, src = parse('-z test -t -f -I. source.pyx')
         self.failUnlessEqual(src, ['source.pyx'])
+        opt, src = parse('-z=test -t -f -I. sourceXX.pyx')
+        self.failUnlessEqual(src, ['sourceXX.pyx'])
         opt, src = parse('-I. source.pyx source2.pyx -f -D')
+        self.failUnlessEqual(src, ['source.pyx', 'source2.pyx'])
+        #opt, src = parse('-I. source.pyx -f -D source2.pyx')
+        #self.failUnlessEqual(src, ['source.pyx', 'source2.pyx'])
+        opt, src = parse('-I. -f -D source.pyx source2.pyx')
         self.failUnlessEqual(src, ['source.pyx', 'source2.pyx'])
 
     def test_embed_recognition(self):
-        opt, src = parse('--fast-fail -f --embed mainX --gdb s.py')
-        self.failUnlessEqual(Options.embed, 'mainX')
-        opt, src = parse('--fast-fail -f --embed=mainY --gdb s.py')
-        self.failUnlessEqual(Options.embed, 'mainY')
         opt, src = parse('--embed --gdb -2  test.pyx')
         self.failUnlessEqual(Options.embed, 'main')
         self.failUnlessEqual(src, ['test.pyx'])
 
+    def test_embed_explicit_recognition(self):
+        try:
+            from Cython.Compiler.CmdLine import argparse
+        except ImportError:
+            self.skipTest('--embed <name> is parseable only by newer argparse')
+
+        opt, src = parse('--fast-fail --embed mainX -f --gdb s.py')
+        self.failUnlessEqual(Options.embed, 'mainX')
+        opt, src = parse('--fast-fail -f --embed=mainY --gdb s.py')
+        self.failUnlessEqual(Options.embed, 'mainY')
+
+
     def test_include_recognition(self):
-        opt, src = parse('-v -r -Igreedy --embed=x test.pyx')
+        opt, src = parse('-v -r -Igreedy -w x test.pyx')
         self.failUnless(opt['include_path'] == ['greedy'] and src == ['test.pyx'])
         opt, src = parse('-I/usr/include/mistery/dot test.pyx')
         self.failUnlessEqual(opt['include_path'], ['/usr/include/mistery/dot'])
@@ -90,6 +104,7 @@ class TestCommandLine(CythonTest):
         self.failUnless(parser_return_code('-I') == FAILURE)
         self.failUnless(parser_return_code('') == FAILURE)
         self.failUnless(parser_return_code('-X source.py') == FAILURE)
+
 
 if __name__ == '__main__':
     import unittest
