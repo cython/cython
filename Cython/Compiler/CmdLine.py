@@ -33,7 +33,7 @@ menu = {
             'help' : 'Write error messages to a listing file'},
         ('-I', '--include-dir') : {
             'dest' : 'include_path', 'action' : 'append',
-            'metavar' : '<directory>',
+            'metavar' : '<directory>', 'default' : [],
             'help' : '''Search for include files in named <directory>
                         (multiple include directories are allowed).'''},
         ('-o', '--output-file') : {
@@ -96,8 +96,13 @@ menu = {
             'dest' : 'emit_linenums', 'action' : 'store_true',
             'help' : 'Produce #line directives pointing to the .pyx source' }},
     'code generation' : {
+        # HACK disallows optional name
+        #('--embed') : {
+            #'dest' : 'embed', 'const' : 'main', 'nargs' : '?',
+            #'metavar' : '<function name>',
+            #'help' : 'Generate a main() function that embeds the Python interpreter.'},
         ('--embed') : {
-            'dest' : 'embed', 'const' : 'main', 'nargs' : '?', 'metavar' : '<module>',
+            'dest' : 'embed', 'const' : 'main', 'action' : 'store_const',
             'help' : 'Generate a main() function that embeds the Python interpreter.'},
         ('-+', '--cplus') : {
             'dest' : 'cplus', 'action' : 'store_true',
@@ -167,15 +172,6 @@ class BasicParser:
         if options.embed and len(sources) > 1:
             self.error('only one source file allowed when using --embed')
 
-        # Parse compiler directives into a dictionary
-        if options.compiler_directives:
-            dirs = ','.join(options.compiler_directives)
-            try:
-                options.compiler_directives = Options.parse_directive_list(
-                    dirs, relaxed_bool=True)
-            except ValueError, e:
-                parser.error('compiler directive: %s' % e.args[0])
-
         # Sets specified debug flags
         if options.debug_flags:
             for flag in options.debug_flags:
@@ -186,10 +182,28 @@ class BasicParser:
                 else:
                     parser.error('unknown debug flag: %s' % flag)
 
+        # Parse compiler directives into a dictionary
+        if options.compiler_directives:
+            dirs = ','.join(options.compiler_directives)
+            try:
+                options.compiler_directives = Options.parse_directive_list(
+                    dirs, relaxed_bool=True,
+                    current_settings=Options.directive_defaults)
+            except ValueError, e:
+                parser.error('compiler directive: %s' % e.args[0])
+        else:
+            options.compiler_directives = {} #HACK
+
         # Sets gathered Option values XXX
         for option in vars(Options).keys():
             try:
-                setattr(Options, option, getattr(options, option))
+                var = getattr(options, option)
+                if isinstance(var, dict):
+                    getattr(Options, option).update(var)
+                elif isinstance(var, list):
+                    getattr(Options, option).append(list)
+                else:
+                    setattr(Options, option, var)
                 delattr(options, option)
             except AttributeError:
                 pass
@@ -233,10 +247,6 @@ except ImportError:
                 for flag, parameters in flaglist.iteritems():
                     try:
                         if isinstance(flag, str):
-                            # HACK disallows optional name
-                            if flag == '--embed':
-                                del parameters['nargs']
-                                parameters['action'] = 'store_const'
                             group.add_option(flag, **parameters)
                         else:
                             group.add_option(*flag, **parameters)
