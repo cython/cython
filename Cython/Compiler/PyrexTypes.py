@@ -433,6 +433,11 @@ class BuiltinObjectType(PyObjectType):
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
         elif src_type.is_extension_type:
+            # FIXME: This is an ugly special case that we currently
+            # keep supporting.  It allows users to specify builtin
+            # types as external extension types, while keeping them
+            # compatible with the real builtin types.  We already
+            # generate a warning for it.  Big TODO: remove!
             return (src_type.module_name == '__builtin__' and
                     src_type.name == self.name)
         else:
@@ -445,7 +450,7 @@ class BuiltinObjectType(PyObjectType):
         return True
 
     def subtype_of(self, type):
-        return type.is_pyobject and self.assignable_from(type)
+        return type.is_pyobject and type.assignable_from(self)
 
     def type_check_function(self, exact=True):
         type_name = self.name
@@ -532,7 +537,7 @@ class PyExtensionType(PyObjectType):
             scope.parent_type = self
 
     def subtype_of_resolved_type(self, other_type):
-        if other_type.is_extension_type:
+        if other_type.is_extension_type or other_type.is_builtin_type:
             return self is other_type or (
                 self.base_type and self.base_type.subtype_of(other_type))
         else:
@@ -553,6 +558,14 @@ class PyExtensionType(PyObjectType):
         if isinstance(src_type, PyExtensionType):
             if src_type.base_type is not None:
                 return self.assignable_from(src_type.base_type)
+        if isinstance(src_type, BuiltinObjectType):
+            # FIXME: This is an ugly special case that we currently
+            # keep supporting.  It allows users to specify builtin
+            # types as external extension types, while keeping them
+            # compatible with the real builtin types.  We already
+            # generate a warning for it.  Big TODO: remove!
+            return (self.module_name == '__builtin__' and
+                    self.name == src_type.name)
         return False
 
     def declaration_code(self, entity_code,
@@ -1937,6 +1950,7 @@ class CFuncTypeArg(object):
     not_none = False
     or_none = False
     accept_none = True
+    accept_builtin_subtypes = False
 
     def __init__(self, name, type, pos, cname=None):
         self.name = name

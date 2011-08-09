@@ -324,6 +324,7 @@ class BuiltinMethod(_BuiltinOverride):
             # override 'self' type (first argument)
             self_arg = PyrexTypes.CFuncTypeArg("", self_type, None)
             self_arg.not_none = True
+            self_arg.accept_builtin_subtypes = True
             method_type = sig.function_type(self_arg)
         self_type.scope.declare_builtin_cfunction(
             self.py_name, method_type, self.cname, utility_code = self.utility_code)

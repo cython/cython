@@ -3087,8 +3087,11 @@ class SimpleCallNode(CallNode):
                         error = 'PyExc_AttributeError',
                         format_args = [self.function.entry.name])
                 expected_type = self_arg.type
-                self.coerced_self = CloneNode(self.self).coerce_to(
-                    expected_type, env)
+                if self_arg.accept_builtin_subtypes:
+                    self.coerced_self = CMethodSelfCloneNode(self.self)
+                else:
+                    self.coerced_self = CloneNode(self.self)
+                self.coerced_self = self.coerced_self.coerce_to(expected_type, env)
                 # Insert coerced 'self' argument into argument list.
                 self.args.insert(0, self.coerced_self)
             self.analyse_c_function_call(env)
@@ -3557,6 +3560,7 @@ class AttributeNode(ExprNode):
         cy = self.obj.as_cython_attribute()
         if cy:
             return "%s.%s" % (cy, self.attribute)
+        return None
 
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a cpdef function
@@ -3816,7 +3820,7 @@ class AttributeNode(ExprNode):
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
-            if obj.type.is_extension_type:
+            if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
                     obj.type.vtabslot_cname, self.member)
@@ -7828,6 +7832,9 @@ class CloneNode(CoercionNode):
     def result(self):
         return self.arg.result()
 
+    def may_be_none(self):
+        return self.arg.may_be_none()
+
     def type_dependencies(self, env):
         return self.arg.type_dependencies(env)
 
@@ -7855,6 +7862,18 @@ class CloneNode(CoercionNode):
 
     def free_temps(self, code):
         pass
+
+
+class CMethodSelfCloneNode(CloneNode):
+    # Special CloneNode for the self argument of builtin C methods
+    # that accepts subtypes of the builtin type.  This is safe only
+    # for 'final' subtypes, as subtypes of the declared type may
+    # override the C method.
+
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_builtin_type and self.type.subtype_of(dst_type):
+            return self
+        return CloneNode.coerce_to(self, dst_type, env)
 
 
 class ModuleRefNode(ExprNode):
