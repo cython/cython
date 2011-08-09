@@ -96,14 +96,13 @@ menu = {
             'dest' : 'emit_linenums', 'action' : 'store_true',
             'help' : 'Produce #line directives pointing to the .pyx source' }},
     'code generation' : {
-        # HACK disallows optional name
-        #('--embed') : {
-            #'dest' : 'embed', 'const' : 'main', 'nargs' : '?',
-            #'metavar' : '<function name>',
-            #'help' : 'Generate a main() function that embeds the Python interpreter.'},
         ('--embed') : {
-            'dest' : 'embed', 'const' : 'main', 'action' : 'store_const',
+            'dest' : 'embed', 'const' : 'main', 'nargs' : '?',
+            'metavar' : '<function name>',
             'help' : 'Generate a main() function that embeds the Python interpreter.'},
+        #('--embed') : {
+            #'dest' : 'embed', 'const' : 'main', 'action' : 'store_const',
+            #'help' : 'Generate a main() function that embeds the Python interpreter.'},
         ('-+', '--cplus') : {
             'dest' : 'cplus', 'action' : 'store_true',
             'help' : 'Output a C++ rather than C file.' },
@@ -264,4 +263,15 @@ except ImportError:
 parser = Parser()
 
 def parse_command_line(args):
+    #HACK: prevents first source file from being absorbed by --embed
+    try:
+        pos = args.index('--embed')
+    except ValueError:
+        pass
+    else:
+        for x in args[pos+1:]:
+            if x.startswith('-'): break
+        else:
+            args.insert(pos + 1, '--')
+
     return parser.parse(args)
