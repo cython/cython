@@ -153,7 +153,7 @@ import os
 
 class BasicParser:
     def refine(self, options):
-        # Separe source files list from all other options
+        # Separate source files list from all other options
         sources = options.sources
         del options.sources
 
@@ -169,7 +169,7 @@ class BasicParser:
 
         # Parse compiler directives into a dictionary
         if options.compiler_directives:
-            dirs = ','.join(d for d in options.compiler_directives)
+            dirs = ','.join(options.compiler_directives)
             try:
                 options.compiler_directives = Options.parse_directive_list(
                     dirs, relaxed_bool=True)
@@ -198,7 +198,7 @@ class BasicParser:
 
 import sys
 
-if sys.version_info >= (2, 12):
+try:
     import argparse
 
     class Parser(BasicParser, argparse.ArgumentParser):
@@ -219,7 +219,7 @@ if sys.version_info >= (2, 12):
             results = self.parse_args(args)
             return self.refine(results)
 
-else:
+except ImportError:
     import optparse
 
     class Parser(BasicParser, optparse.OptionParser):
