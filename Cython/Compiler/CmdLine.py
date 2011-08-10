@@ -41,7 +41,7 @@ menu = {
             'help' : 'Specify name of generated C file'},
         ('-w', '--working') : {
             'dest' : 'working_path', 'metavar' : '<directory>',
-            'help' : '''Sets the working directory for Cython 
+            'help' : '''Sets the working directory for Cython
                         (the directory modules are searched from)'''}},
     'compilation' : {
         ('-t', '--timestamps') : {
@@ -66,6 +66,7 @@ menu = {
     'debugging' : {
         ('--cleanup') : {
             'dest' : 'generate_cleanup_code', 'type' : int, 'metavar' : '<level>',
+            'default' : 0,
             'help' : '''Release interned objects on python exit, for memory debugging.
                         <level> indicates aggressiveness, default 0 releases nothing.'''},
         ('--gdb') : {
@@ -100,9 +101,6 @@ menu = {
             'dest' : 'embed', 'const' : 'main', 'nargs' : '?',
             'metavar' : '<function name>',
             'help' : 'Generate a main() function that embeds the Python interpreter.'},
-        #('--embed') : {
-            #'dest' : 'embed', 'const' : 'main', 'action' : 'store_const',
-            #'help' : 'Generate a main() function that embeds the Python interpreter.'},
         ('-+', '--cplus') : {
             'dest' : 'cplus', 'action' : 'store_true',
             'help' : 'Output a C++ rather than C file.' },
@@ -144,7 +142,6 @@ menu = {
 #            'help' : '''Link .o file to produce extension module (implies -C)
 #                        Additional .o files to link may be supplied when using -X.''' }},
 }
-
 
 epilog = '''\
 Cython (http://cython.org) is a compiler for code written
@@ -194,22 +191,13 @@ class BasicParser:
             options.compiler_directives = {} #HACK
 
         # Sets gathered Option values XXX
-        for option in vars(Options).keys():
-            try:
-                var = getattr(options, option)
-                if isinstance(var, dict):
-                    getattr(Options, option).update(var)
-                elif isinstance(var, list):
-                    getattr(Options, option).append(list)
-                else:
-                    setattr(Options, option, var)
-                delattr(options, option)
-            except AttributeError:
-                pass
+        for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
+                     'generate_cleanup_code', 'docstrings', 'annotate',
+                     'convert_range', 'fast_fail', 'warning_errors',
+                     'disable_function_redefinition', 'old_style_globals']:
+            setattr(Options, flag, getattr(options, flag))
 
         return vars(options), sources
-
-import sys
 
 try:
     import argparse
