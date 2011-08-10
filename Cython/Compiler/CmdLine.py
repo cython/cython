@@ -178,16 +178,6 @@ class BasicParser:
         if getattr(options, 'embed', False) and len(sources) > 1: #HACK
             self.error('only one source file allowed when using --embed. Maybe you placed --embed after sources?')
 
-        # Sets specified debug flags
-        #if options.debug_flags:
-            #for flag in options.debug_flags:
-                #flag = 'debug_' + flag.replace('-', '_')
-                #import DebugFlags
-                #if flag in dir(DebugFlags):
-                    #setattr(DebugFlags, flag, True)
-                #else:
-                    #parser.error('unknown debug flag: %s' % flag)
-
         # Parse compiler directives into a dictionary
         if options.compiler_directives:
             dirs = ','.join(options.compiler_directives)
