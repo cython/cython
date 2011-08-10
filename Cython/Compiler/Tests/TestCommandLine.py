@@ -132,12 +132,11 @@ class TestCommandLine(CythonTest):
         self.assertEqual(parser_return_code('-X source.py'), FAILURE)
 
     def test_debug_options(self):
-        opt, src = parse('-I. --debug temp_code_comments test.pyx')
+        opt, src = parse('-I. --debug-temp-code-comments test.pyx')
         self.failUnless(DebugFlags.debug_temp_code_comments)
-        # Let's try - instead of _
-        opt, src = parse('--debug=trace-code-generation test.pyx')
+        opt, src = parse('--debug-trace-code-generation test.pyx')
         self.failUnless(DebugFlags.debug_trace_code_generation)
-        opt, src = parse('-dverbose_pipeline test.pyx')
+        opt, src = parse('--debug-verbose-pipeline test.pyx')
         self.failUnless(DebugFlags.debug_verbose_pipeline)
 
     @classmethod
