@@ -205,7 +205,6 @@ class BasicParser:
         return vars(options), sources
 
 try:
-    import fake
     import argparse
 
     class Parser(BasicParser, argparse.ArgumentParser):
