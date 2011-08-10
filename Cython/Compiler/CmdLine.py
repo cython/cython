@@ -1,4 +1,6 @@
 #
+#   Copyright 2005-2006 The Pyrex team
+#   Copyright 2006-2011 The Cython team
 #   Copyright 2011 Stefano Sanfilippo <satufk on GitHub>
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
