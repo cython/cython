@@ -125,14 +125,14 @@ menu = {
             'dest' : 'old_style_globals', 'action' : 'store_true',
             'help' : '''Makes globals() give the first non-Cython module
                         globals in the call stack. For SAGE compatibility''' }},
-   'internal options' : {
+   'behavioural options' : {
        ('-X', '--directive') : {
            'dest' : 'compiler_directives', 'action' : 'append',
            'metavar' : '<name>=<value>[,<name>=<value>...]',
-           'help' : 'Overrides a #pragma compiler directive'},
-       ('-d', '--debug') : {
-            'dest' : 'debug_flags', 'action' : 'append', 'metavar' : '<flag>',
-            'help' : "Sets Cython's internal debug options"}},
+           'help' : 'Overrides a #pragma compiler directive'}},
+       #('-d', '--debug') : {
+            #'dest' : 'debug_flags', 'action' : 'append', 'metavar' : '<flag>',
+            #'help' : "Sets Cython's internal debug options"}},
 #    'experimental options' : { # MacOS X only
 #        ('-C', '--compile') : {
 #            'dest' : 'compile', 'action' : 'store_true',
@@ -150,7 +150,14 @@ in the Cython language. Cython is based on Pyrex by Greg Ewing.
 WARNING: RECURSIVE COMPILATION IS STILL BROKEN
 (see http://trac.cython.org/cython_trac/ticket/379).'''
 
-import os
+def makedebuglist():
+    import DebugFlags
+    flags = {}
+    for var in vars(DebugFlags):
+        if var.startswith('debug'):
+            name = '--' + var.replace('_', '-')
+            flags.update({name : dict(dest=var, action='store_true')})
+    return menu.update({'compiler debugging options' : flags})
 
 class BasicParser:
     def refine(self, options):
@@ -160,6 +167,7 @@ class BasicParser:
 
         # Basic sanity check
         if options.gdb_debug:
+            import os
             options.output_dir = os.curdir
         if not options.include_path: #HACK for optparse compatibility
             options.include_path = []
@@ -171,14 +179,14 @@ class BasicParser:
             self.error('only one source file allowed when using --embed. Maybe you placed --embed after sources?')
 
         # Sets specified debug flags
-        if options.debug_flags:
-            for flag in options.debug_flags:
-                flag = 'debug_' + flag.replace('-', '_')
-                import DebugFlags
-                if flag in dir(DebugFlags):
-                    setattr(DebugFlags, flag, True)
-                else:
-                    parser.error('unknown debug flag: %s' % flag)
+        #if options.debug_flags:
+            #for flag in options.debug_flags:
+                #flag = 'debug_' + flag.replace('-', '_')
+                #import DebugFlags
+                #if flag in dir(DebugFlags):
+                    #setattr(DebugFlags, flag, True)
+                #else:
+                    #parser.error('unknown debug flag: %s' % flag)
 
         # Parse compiler directives into a dictionary
         if options.compiler_directives:
@@ -193,14 +201,21 @@ class BasicParser:
             options.compiler_directives = {} #HACK
 
         # Sets gathered Option values XXX
-        try:
-            for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
-                         'generate_cleanup_code', 'docstrings', 'annotate',
-                         'convert_range', 'fast_fail', 'warning_errors',
-                         'disable_function_redefinition', 'old_style_globals']:
+        for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
+                        'generate_cleanup_code', 'docstrings', 'annotate',
+                        'convert_range', 'fast_fail', 'warning_errors',
+                        'disable_function_redefinition', 'old_style_globals']:
+            try:
                 setattr(Options, flag, getattr(options, flag))
-        except AttributeError:
-            pass #HACK For optparse compatibility
+            except AttributeError:
+                pass
+
+        import DebugFlags
+        for flag in vars(DebugFlags):
+            try:
+                setattr(DebugFlags, flag, getattr(options, flag))
+            except AttributeError:
+                pass
 
         return vars(options), sources
 
@@ -268,6 +283,7 @@ except ImportError:
                 value = 'main'
             setattr(parser.values, option.dest, value)
 
+makedebuglist()
 parser = Parser()
 
 def parse_command_line(args):
