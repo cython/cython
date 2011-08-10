@@ -1,181 +1,291 @@
 #
-#   Cython - Command Line Parsing
+#   Copyright 2011 Stefano Sanfilippo <satufk on GitHub>
 #
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 
-import os
-import sys
+'''Cython - Command Line Parsing'''
+
+from Cython import __version__ as version
 import Options
 
-usage = """\
-Cython (http://cython.org) is a compiler for code written in the
-Cython language.  Cython is based on Pyrex by Greg Ewing.
+menu = {
+    'default' : {
+        ('-V', '--version') : {
+            'dest' : 'show_version', 'action' : 'version',
+            'version' : 'Cython version %s' % version,
+            'help' : 'Display version number of cython compiler'},
+        ('sources') : {
+            'nargs' : '+', 'metavar' : 'sourcefile.{py,pyx}',
+            'help' : 'Source file(s) to be compiled.' }},
+    'environment setup': {
+        ('-l', '--create-listing') : {
+            'dest' : 'use_listing_file', 'action' : 'store_true',
+            'help' : 'Write error messages to a listing file'},
+        ('-I', '--include-dir') : {
+            'dest' : 'include_path', 'action' : 'append',
+            'metavar' : '<directory>',
+            'help' : '''Search for include files in named <directory>
+                        (multiple include directories are allowed).'''},
+        ('-o', '--output-file') : {
+            'dest' : 'output_file', 'metavar' : '<output file>',
+            'help' : 'Specify name of generated C file'},
+        ('-w', '--working') : {
+            'dest' : 'working_path', 'metavar' : '<directory>',
+            'help' : '''Sets the working directory for Cython
+                        (the directory modules are searched from)'''}},
+    'compilation' : {
+        ('-t', '--timestamps') : {
+            'dest' : 'timestamps', 'action' : 'store_true',
+            'help' : 'Only compile newer source files (implied)'},
+        ('-f', '--force') : {
+            'dest' : 'timestamps', 'action' : 'store_false',
+            'help' : 'Compile all source files (overrides -t)'},
+        ('-z', '--pre-import') : {
+            'dest' : 'pre_import', 'metavar' : '<module>',
+            'help' : 'Import <module> before compilation.' },
+        ('--fast-fail') : {
+            'dest' : 'fast_fail', 'action' : 'store_true',
+            'help' : 'Abort the compilation on the first error.' },
+        ('-Werror', '--warning-errors'): {
+            'dest' : 'warning_errors', 'action' : 'store_true',
+            'help' : 'Make all warnings into errors.' },
+        ('-Wextra', '--warning-extra'): {
+            'dest' : 'compiler_directives', 'const' : Options.extra_warnings,
+            'action' : 'append_const',
+            'help' : 'Enable extra warnings' }},
+    'debugging' : {
+        ('--cleanup') : {
+            'dest' : 'generate_cleanup_code', 'type' : int, 'metavar' : '<level>',
+            'default' : 0,
+            'help' : '''Release interned objects on python exit, for memory debugging.
+                        <level> indicates aggressiveness, default 0 releases nothing.'''},
+        ('--gdb') : {
+            'dest' : 'gdb_debug', 'action' : 'store_true',
+            'help' : 'Output debug information for cygdb'}},
+    'Python compatibility options' : {
+        ('-2') : {
+            'dest' : 'language_level', 'const' : 2, 'action' : 'store_const',
+            'help' : 'Compile based on Python-2 syntax and code semantics.'},
+        ('-3') : {
+            'dest' : 'language_level', 'const' : 3, 'action' : 'store_const',
+            'help' : 'Compile based on Python-3 syntax and code semantics.'}},
+    'recursive compilation': {
+        ('-r', '--recursive') : {
+            'dest' : 'recursive', 'action' : 'store_true',
+            'help' : 'Recursively find and compile dependencies (implies -t)'},
+        ('-q', '--quiet') : {
+            'dest' : 'quiet', 'action' : 'store_true',
+            'help' : "Don't print module names in recursive mode" },
+        ('-v', '--verbose') : {
+            'dest' : 'verbose', 'action' : 'count',
+            'help' : 'Be verbose, print file names on multiple compilation' }},
+    'code annotation' : {
+        ('-a', '--annotate') : {
+            'dest' : 'annotate', 'action' : 'store_true',
+            'help' : 'Produce a colorized HTML version of the source.' },
+        ('--line-directives') : {
+            'dest' : 'emit_linenums', 'action' : 'store_true',
+            'help' : 'Produce #line directives pointing to the .pyx source' }},
+    'code generation' : {
+        ('--embed') : {
+            'dest' : 'embed', 'const' : 'main', 'nargs' : '?',
+            'metavar' : '<function name>',
+            'help' : 'Generate a main() function that embeds the Python interpreter.'},
+        ('-+', '--cplus') : {
+            'dest' : 'cplus', 'action' : 'store_true',
+            'help' : 'Output a C++ rather than C file.' },
+        ('-p', '--embed-positions') : {
+            'dest' : 'embed_pos_in_docstring', 'action' : 'store_true',
+            'help' : '''If specified, the positions in Cython files of each
+                        function definition is embedded in its docstring.''' },
+        ('--no-c-in-traceback') : {
+            'dest' : 'c_line_in_traceback', 'action' : 'store_false',
+            'help' : 'Omit C source code line when printing tracebacks.' },
+        ('--convert-range') : {
+            'dest' : 'convert_range', 'action' : 'store_true',
+            'help' : '''Convert `for x in range():` statements in pure C for(),
+                      whenever possibile.''' },
+        ('-D', '--no-docstrings') : {
+            'dest' : 'docstrings', 'action' : 'store_false',
+            'help' : 'Strip docstrings from the compiled module.' },
+        ('--disable-function-redefinition') : {
+            'dest' : 'disable_function_redefinition', 'action' : 'store_true',
+            'help' : 'For legacy code only, needed for some circular imports.' },
+        ('--old-style-globals') : {
+            'dest' : 'old_style_globals', 'action' : 'store_true',
+            'help' : '''Makes globals() give the first non-Cython module
+                        globals in the call stack. For SAGE compatibility''' }},
+   'behavioural options' : {
+       ('-X', '--directive') : {
+           'dest' : 'compiler_directives', 'action' : 'append',
+           'metavar' : '<name>=<value>[,<name>=<value>...]',
+           'help' : 'Overrides a #pragma compiler directive'}},
+       #('-d', '--debug') : {
+            #'dest' : 'debug_flags', 'action' : 'append', 'metavar' : '<flag>',
+            #'help' : "Sets Cython's internal debug options"}},
+#    'experimental options' : { # MacOS X only
+#        ('-C', '--compile') : {
+#            'dest' : 'compile', 'action' : 'store_true',
+#            'help' : 'Compile generated .c file to .o file' },
+#        ('-l', '--link') : {
+#            'dest' : 'link', 'action' : 'store_true',
+#            'help' : '''Link .o file to produce extension module (implies -C)
+#                        Additional .o files to link may be supplied when using -X.''' }},
+}
 
-Usage: cython [options] sourcefile.{pyx,py} ...
+epilog = '''\
+Cython (http://cython.org) is a compiler for code written
+in the Cython language. Cython is based on Pyrex by Greg Ewing.
 
-Options:
-  -V, --version                  Display version number of cython compiler
-  -l, --create-listing           Write error messages to a listing file
-  -I, --include-dir <directory>  Search for include files in named directory
-                                 (multiple include directories are allowed).
-  -o, --output-file <filename>   Specify name of generated C file
-  -t, --timestamps               Only compile newer source files
-  -f, --force                    Compile all source files (overrides implied -t)
-  -q, --quiet                    Don't print module names in recursive mode
-  -v, --verbose                  Be verbose, print file names on multiple compilation
-  -p, --embed-positions          If specified, the positions in Cython files of each
-                                 function definition is embedded in its docstring.
-  --cleanup <level>              Release interned objects on python exit, for memory debugging.
-                                 Level indicates aggressiveness, default 0 releases nothing.
-  -w, --working <directory>      Sets the working directory for Cython (the directory modules
-                                 are searched from)
-  --gdb                          Output debug information for cygdb
+WARNING: RECURSIVE COMPILATION IS STILL BROKEN
+(see http://trac.cython.org/cython_trac/ticket/379).'''
 
-  -D, --no-docstrings            Strip docstrings from the compiled module.
-  -a, --annotate                 Produce a colorized HTML version of the source.
-  --line-directives              Produce #line directives pointing to the .pyx source
-  --cplus                        Output a C++ rather than C file.
-  --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
-  -2                             Compile based on Python-2 syntax and code semantics.
-  -3                             Compile based on Python-3 syntax and code semantics.
-  --fast-fail                    Abort the compilation on the first error
-  --warning-error, -Werror       Make all warnings into errors
-  --warning-extra, -Wextra       Enable extra warnings
-  -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
-"""
+def makedebuglist():
+    import DebugFlags
+    flags = {}
+    for var in vars(DebugFlags):
+        if var.startswith('debug'):
+            name = '--' + var.replace('_', '-')
+            flags.update({name : dict(dest=var, action='store_true')})
+    return menu.update({'compiler debugging options' : flags})
 
-# The following is broken http://trac.cython.org/cython_trac/ticket/379
-#  -r, --recursive                Recursively find and compile dependencies (implies -t)
+class BasicParser:
+    def refine(self, options):
+        # Separate source files list from all other options
+        sources = options.sources
+        del options.sources
 
+        # Basic sanity check
+        if options.gdb_debug:
+            import os
+            options.output_dir = os.curdir
+        if not options.include_path: #HACK for optparse compatibility
+            options.include_path = []
+        if not sources:
+            self.error('no source file specified.')
+        if options.output_file and len(sources) > 1:
+            self.error('only one source file allowed when using -o')
+        if getattr(options, 'embed', False) and len(sources) > 1: #HACK
+            self.error('only one source file allowed when using --embed. Maybe you placed --embed after sources?')
 
-#The following experimental options are supported only on MacOSX:
-#  -C, --compile    Compile generated .c file to .o file
-#  --link           Link .o file to produce extension module (implies -C)
-#  -+, --cplus      Use C++ compiler for compiling and linking
-#  Additional .o files to link may be supplied when using -X."""
+        # Parse compiler directives into a dictionary
+        if options.compiler_directives:
+            dirs = ','.join(options.compiler_directives)
+            try:
+                options.compiler_directives = Options.parse_directive_list(
+                    dirs, relaxed_bool=True,
+                    current_settings=Options.directive_defaults)
+            except ValueError, e:
+                parser.error('compiler directive: %s' % e.args[0])
+        else:
+            options.compiler_directives = {} #HACK
 
-def bad_usage():
-    sys.stderr.write(usage)
-    sys.exit(1)
+        # Sets gathered Option values XXX
+        for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
+                        'generate_cleanup_code', 'docstrings', 'annotate',
+                        'convert_range', 'fast_fail', 'warning_errors',
+                        'disable_function_redefinition', 'old_style_globals']:
+            try:
+                setattr(Options, flag, getattr(options, flag))
+            except AttributeError:
+                pass
+
+        import DebugFlags
+        for flag in vars(DebugFlags):
+            try:
+                setattr(DebugFlags, flag, getattr(options, flag))
+            except AttributeError:
+                pass
+
+        return vars(options), sources
+
+try:
+    import argparse
+
+    class Parser(BasicParser, argparse.ArgumentParser):
+        def __init__(self):
+            argparse.ArgumentParser.__init__(self, epilog=epilog,
+                formatter_class=argparse.RawDescriptionHelpFormatter,
+                fromfile_prefix_chars='@')
+            newgroup = lambda t: self.add_argument_group(title=t)
+            for grouptitle, flaglist in menu.iteritems():
+                group = self if grouptitle == 'default' else newgroup(grouptitle)
+                for flag, parameters in flaglist.iteritems():
+                    if isinstance(flag, str):
+                        group.add_argument(flag, **parameters)
+                    else:
+                        group.add_argument(*flag, **parameters)
+
+        def parse(self, args):
+            results = self.parse_args(args)
+            return self.refine(results)
+
+except ImportError:
+    import optparse
+
+    class Parser(BasicParser, optparse.OptionParser):
+        def __init__(self):
+            optparse.OptionParser.__init__(self, epilog=epilog,
+                version=menu['default'][('-V', '--version')]['version'],
+                usage="%prog [options] sourcefile.{pyx,py} ...")
+            newgroup = lambda t: optparse.OptionGroup(self, t)
+            for grouptitle, flaglist in menu.iteritems():
+                group = self if grouptitle == 'default' else newgroup(grouptitle)
+                for flag, parameters in flaglist.iteritems():
+                    try:
+                        if '--embed' in flag:
+                            del parameters['nargs'], parameters['const']
+                            parameters['action'] = 'callback'
+                            parameters['callback'] = self.__embed_callback
+                        if isinstance(flag, str):
+                            group.add_option(flag, **parameters)
+                        else:
+                            group.add_option(*flag, **parameters)
+                    except optparse.OptionError:
+                        pass
+
+                if group is not self: self.add_option_group(group)
+
+        def parse(self, args):
+            results, others = self.parse_args(args)
+            results.sources = others
+            return self.refine(results)
+
+        # super HACK to support implicit --embed arg 'main' value
+        @staticmethod
+        def __embed_callback(option, opt_str, value, parser):
+            assert value is None
+            # If next arg is not last and it is not an option,
+            # or a source file had already been specified
+            if (not parser.rargs[0].startswith('-') and len(parser.rargs) > 1):
+                value = parser.rargs.pop(0)
+            else:
+                value = 'main'
+            setattr(parser.values, option.dest, value)
+
+makedebuglist()
+parser = Parser()
 
 def parse_command_line(args):
-
-    from Cython.Compiler.Main import \
-        CompilationOptions, default_options
-
-    def pop_arg():
-        if args:
-            return args.pop(0)
+    #HACK: prevents first source file from being absorbed by --embed
+    try:
+        pos = args.index('--embed')
+    except ValueError:
+        pass
+    else:
+        for x in args[pos+1:]:
+            if x.startswith('-'): break
         else:
-            bad_usage()
+            args.insert(pos + 1, '--')
 
-    def get_param(option):
-        tail = option[2:]
-        if tail:
-            return tail
-        else:
-            return pop_arg()
-
-    options = CompilationOptions(default_options)
-    sources = []
-    while args:
-        if args[0].startswith("-"):
-            option = pop_arg()
-            if option in ("-V", "--version"):
-                options.show_version = 1
-            elif option in ("-l", "--create-listing"):
-                options.use_listing_file = 1
-            elif option in ("-+", "--cplus"):
-                options.cplus = 1
-            elif option == "--embed":
-                Options.embed = "main"
-            elif option.startswith("--embed="):
-                Options.embed = options[8:]
-            elif option.startswith("-I"):
-                options.include_path.append(get_param(option))
-            elif option == "--include-dir":
-                options.include_path.append(pop_arg())
-            elif option in ("-w", "--working"):
-                options.working_path = pop_arg()
-            elif option in ("-o", "--output-file"):
-                options.output_file = pop_arg()
-            elif option in ("-r", "--recursive"):
-                options.recursive = 1
-            elif option in ("-t", "--timestamps"):
-                options.timestamps = 1
-            elif option in ("-f", "--force"):
-                options.timestamps = 0
-            elif option in ("-v", "--verbose"):
-                options.verbose += 1
-            elif option in ("-p", "--embed-positions"):
-                Options.embed_pos_in_docstring = 1
-            elif option in ("-z", "--pre-import"):
-                Options.pre_import = pop_arg()
-            elif option == "--cleanup":
-                Options.generate_cleanup_code = int(pop_arg())
-            elif option in ("-D", "--no-docstrings"):
-                Options.docstrings = False
-            elif option in ("-a", "--annotate"):
-                Options.annotate = True
-            elif option == "--convert-range":
-                Options.convert_range = True
-            elif option == "--line-directives":
-                options.emit_linenums = True
-            elif option == "--no-c-in-traceback":
-                options.c_line_in_traceback = False
-            elif option == "--gdb":
-                options.gdb_debug = True
-                options.output_dir = os.curdir
-            elif option == '-2':
-                options.language_level = 2
-            elif option == '-3':
-                options.language_level = 3
-            elif option == "--fast-fail":
-                Options.fast_fail = True
-            elif option in ('-Werror', '--warning-errors'):
-                Options.warning_errors = True
-            elif option in ('-Wextra', '--warning-extra'):
-                options.compiler_directives.update(Options.extra_warnings)
-            elif option == "--disable-function-redefinition":
-                Options.disable_function_redefinition = True
-            elif option == "--old-style-globals":
-                Options.old_style_globals = True
-            elif option == "--directive" or option.startswith('-X'):
-                if option.startswith('-X') and option[2:].strip():
-                    x_args = option[2:]
-                else:
-                    x_args = pop_arg()
-                try:
-                    options.compiler_directives = Options.parse_directive_list(
-                        x_args, relaxed_bool=True,
-                        current_settings=options.compiler_directives)
-                except ValueError, e:
-                    sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
-                    sys.exit(1)
-            elif option.startswith('--debug'):
-                option = option[2:].replace('-', '_')
-                import DebugFlags
-                if option in dir(DebugFlags):
-                    setattr(DebugFlags, option, True)
-                else:
-                    sys.stderr.write("Unknown debug flag: %s\n" % option)
-                    bad_usage()
-            elif option in ('-h', '--help'):
-                sys.stdout.write(usage)
-                sys.exit(0)
-            else:
-                sys.stderr.write("Unknown compiler flag: %s\n" % option)
-                sys.exit(1)
-        else:
-            sources.append(pop_arg())
-    if options.use_listing_file and len(sources) > 1:
-        sys.stderr.write(
-            "cython: Only one source file allowed when using -o\n")
-        sys.exit(1)
-    if len(sources) == 0 and not options.show_version:
-        bad_usage()
-    if Options.embed and len(sources) > 1:
-        sys.stderr.write(
-            "cython: Only one source file allowed when using -embed\n")
-        sys.exit(1)
-    return options, sources
-
+    return parser.parse(args)
