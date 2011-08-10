@@ -14,6 +14,7 @@
 #   limitations under the License.
 
 import os
+import multiprocessing
 
 from Cython.TestUtils import CythonTest
 from Cython.Compiler.CmdLine import parse_command_line
@@ -24,12 +25,11 @@ import Cython.Compiler.DebugFlags as DebugFlags
 def parse(string):
     return parse_command_line(string.split())
 
-#FIXME very time consuming
-#FIXME test is not portable to Windows!
 def parser_return_code(string):
     '''Return code of Cython, if it had been invoked with <string> as cline.'''
-    return os.system("""python -c \"from Cython.Compiler.CmdLine import \
-        parse_command_line as p; p('%s'.split())\" &> /dev/null""" % string)
+    p = multiprocessing.Process(target=parse_command_line, args=(string.split())
+    p.join()
+    return p.exitcode
 
 FAILURE = 512
 
@@ -133,6 +133,10 @@ class TestCommandLine(CythonTest):
         opt, src = parse('-dverbose_pipeline test.pyx')
         self.failUnless(DebugFlags.debug_verbose_pipeline)
 
+    @classmethod
+    def tearDownClass(cls):
+        # Clean up permanent options XXX
+        reload(Options)
 
 if __name__ == '__main__':
     import unittest
