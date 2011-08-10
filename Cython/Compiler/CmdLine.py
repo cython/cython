@@ -161,6 +161,8 @@ class BasicParser:
         # Basic sanity check
         if options.gdb_debug:
             options.output_dir = os.curdir
+        if not options.include_path: #HACK for optparse compatibility
+            options.include_path = []
         if not sources:
             self.error('no source file specified.')
         if options.output_file and len(sources) > 1:
@@ -193,9 +195,9 @@ class BasicParser:
         # Sets gathered Option values XXX
         try:
             for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
-                            'generate_cleanup_code', 'docstrings', 'annotate',
-                            'convert_range', 'fast_fail', 'warning_errors',
-                            'disable_function_redefinition', 'old_style_globals']:
+                         'generate_cleanup_code', 'docstrings', 'annotate',
+                         'convert_range', 'fast_fail', 'warning_errors',
+                         'disable_function_redefinition', 'old_style_globals']:
                 setattr(Options, flag, getattr(options, flag))
         except AttributeError:
             pass #HACK For optparse compatibility
