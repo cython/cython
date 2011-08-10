@@ -27,11 +27,12 @@ def parse(string):
 
 def parser_return_code(string):
     '''Return code of Cython, if it had been invoked with <string> as cline.'''
-    p = multiprocessing.Process(target=parse_command_line, args=(string.split())
+    p = multiprocessing.Process(target=parse_command_line, args=[string.split()])
+    p.start()
     p.join()
     return p.exitcode
 
-FAILURE = 512
+FAILURE = 2
 
 class TestCommandLine(CythonTest):
     def test_source_recognition(self):
@@ -56,15 +57,24 @@ class TestCommandLine(CythonTest):
         opt, src = parse('--gdb -2 --embed test.pyx')
         self.assertEqual(Options.embed, 'main')
         self.assertEqual(src, ['test.pyx'])
+        opt, src = parse('--fast-fail --embed mainX -f --gdb s.py')
+        self.assertEqual(Options.embed, 'mainX')
+        #XXX should not be used
+        opt, src = parse('--fast-fail -f --gdb s.py --embed mainZ')
+        self.assertEqual(src, ['s.py'])
+        self.assertEqual(Options.embed, 'mainZ')
+        self.assertEqual(
+            parser_return_code('--fast-fail -f --embed a.pyx b.py'),
+            FAILURE)
+        self.assertEqual(
+            parser_return_code('--fast-fail -f --embed a.pyx b.py c.py'),
+            FAILURE)
 
     def test_embed_explicit_recognition(self):
         try:
             from Cython.Compiler.CmdLine import argparse
         except ImportError:
             self.skipTest('--embed <name> is parseable only by newer argparse')
-
-        opt, src = parse('--fast-fail --embed mainX -f --gdb s.py')
-        self.assertEqual(Options.embed, 'mainX')
         opt, src = parse('--fast-fail -f --embed=mainY --gdb s.py')
         self.assertEqual(Options.embed, 'mainY')
         self.assertEqual(
@@ -72,9 +82,6 @@ class TestCommandLine(CythonTest):
             FAILURE)
         self.assertEqual(
             parser_return_code('--fast-fail -f --embed=mainY --gdb a.pyx b.py'),
-            FAILURE)
-        self.assertEqual(
-            parser_return_code('--fast-fail -f --embed a.pyx b.py'),
             FAILURE)
 
     def test_include_recognition(self):

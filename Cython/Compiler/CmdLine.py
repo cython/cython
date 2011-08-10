@@ -33,7 +33,7 @@ menu = {
             'help' : 'Write error messages to a listing file'},
         ('-I', '--include-dir') : {
             'dest' : 'include_path', 'action' : 'append',
-            'metavar' : '<directory>', 'default' : [],
+            'metavar' : '<directory>',
             'help' : '''Search for include files in named <directory>
                         (multiple include directories are allowed).'''},
         ('-o', '--output-file') : {
@@ -165,8 +165,8 @@ class BasicParser:
             self.error('no source file specified.')
         if options.output_file and len(sources) > 1:
             self.error('only one source file allowed when using -o')
-        if options.embed and len(sources) > 1:
-            self.error('only one source file allowed when using --embed')
+        if getattr(options, 'embed', False) and len(sources) > 1: #HACK
+            self.error('only one source file allowed when using --embed. Maybe you placed --embed after sources?')
 
         # Sets specified debug flags
         if options.debug_flags:
@@ -191,15 +191,19 @@ class BasicParser:
             options.compiler_directives = {} #HACK
 
         # Sets gathered Option values XXX
-        for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
-                     'generate_cleanup_code', 'docstrings', 'annotate',
-                     'convert_range', 'fast_fail', 'warning_errors',
-                     'disable_function_redefinition', 'old_style_globals']:
-            setattr(Options, flag, getattr(options, flag))
+        try:
+            for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
+                            'generate_cleanup_code', 'docstrings', 'annotate',
+                            'convert_range', 'fast_fail', 'warning_errors',
+                            'disable_function_redefinition', 'old_style_globals']:
+                setattr(Options, flag, getattr(options, flag))
+        except AttributeError:
+            pass #HACK For optparse compatibility
 
         return vars(options), sources
 
 try:
+    import fake
     import argparse
 
     class Parser(BasicParser, argparse.ArgumentParser):
@@ -233,6 +237,10 @@ except ImportError:
                 group = self if grouptitle == 'default' else newgroup(grouptitle)
                 for flag, parameters in flaglist.iteritems():
                     try:
+                        if '--embed' in flag:
+                            del parameters['nargs'], parameters['const']
+                            parameters['action'] = 'callback'
+                            parameters['callback'] = self.__embed_callback
                         if isinstance(flag, str):
                             group.add_option(flag, **parameters)
                         else:
@@ -247,6 +255,17 @@ except ImportError:
             results.sources = others
             return self.refine(results)
 
+        # super HACK to support implicit --embed arg 'main' value
+        @staticmethod
+        def __embed_callback(option, opt_str, value, parser):
+            assert value is None
+            # If next arg is not last and it is not an option,
+            # or a source file had already been specified
+            if (not parser.rargs[0].startswith('-') and len(parser.rargs) > 1):
+                value = parser.rargs.pop(0)
+            else:
+                value = 'main'
+            setattr(parser.values, option.dest, value)
 
 parser = Parser()
 
