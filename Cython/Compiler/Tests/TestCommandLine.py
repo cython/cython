@@ -60,9 +60,9 @@ class TestCommandLine(CythonTest):
         opt, src = parse('--fast-fail --embed mainX -f --gdb s.py')
         self.assertEqual(Options.embed, 'mainX')
         #XXX should not be used
-        opt, src = parse('--fast-fail -f --gdb s.py --embed mainZ')
-        self.assertEqual(src, ['s.py'])
-        self.assertEqual(Options.embed, 'mainZ')
+        #opt, src = parse('--fast-fail -f --gdb s.py --embed mainZ')
+        #self.assertEqual(src, ['s.py'])
+        #self.assertEqual(Options.embed, 'mainZ')
         self.assertEqual(
             parser_return_code('--fast-fail -f --embed a.pyx b.py'),
             FAILURE)
