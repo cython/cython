@@ -115,7 +115,7 @@ class TestCommandLine(CythonTest):
             {'profile': True, 'language_level': 2}))
         opt, src = parse('--directive callspec=False,final=True test.pyx')
         self.failUnless(issubset(opt['compiler_directives'],
-            {'callspec': 'False', 'final': True}))
+            {'callspec': False, 'final': True}))
         opt, src = parse('-Xauto_cpdef=True,profile=True -I. -Xinternal=True test.pyx')
         self.failUnless(issubset(opt['compiler_directives'],
             {'profile': True, 'internal': True, 'auto_cpdef': True} ))
