@@ -174,7 +174,8 @@ def time(fn, *args):
 def test_bpnn(iterations):
     times = []
     for _ in range(iterations):
-        times.append( time(demo) )
+        result, t = time(demo)
+        times.append(t)
     return times
 
 if __name__ == "__main__":
