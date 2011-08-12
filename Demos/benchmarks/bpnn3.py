@@ -15,8 +15,8 @@ import util
 random.seed(0)
 
 # calculate a random number where:  a <= rand < b
-def rand(a, b):
-        return (b-a)*random.random() + a
+def rand(a, b, random=random.random):
+        return (b-a)*random() + a
 
 # Make a matrix (we could use NumPy to speed this up)
 def makeMatrix(I, J, fill=0.0):
