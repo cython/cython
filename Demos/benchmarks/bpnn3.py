@@ -7,14 +7,6 @@
 
 import math
 import random as random
-import operator
-import string
-#import psyco
-#psyco.full()
-#from psyco.classes import *
-#psyco.log()
-#psyco.profile()
-#__metaclass__ = type
 
 # Local imports
 import util
