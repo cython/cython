@@ -134,7 +134,6 @@ running session.  Please check `Sage documentation
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
 
-====================
 Compiler directives
 ====================
 
