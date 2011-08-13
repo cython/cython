@@ -1959,6 +1959,7 @@ class DefNode(FuncDefNode):
     #  when the def statement is inside a Python class definition.
     #
     #  assmt   AssignmentNode   Function construction/assignment
+    #  py_cfunc_node  PyCFunctionNode/InnerFunctionNode   The PyCFunction to create and assign
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
@@ -1974,6 +1975,7 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
+    py_cfunc_node = None
     doc = None
 
     def __init__(self, pos, **kwds):
@@ -2314,10 +2316,10 @@ class DefNode(FuncDefNode):
             genv = genv.outer_scope
 
         if genv.is_closure_scope:
-            rhs = ExprNodes.InnerFunctionNode(
+            rhs = self.py_cfunc_node = ExprNodes.InnerFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
         else:
-            rhs = ExprNodes.PyCFunctionNode(
+            rhs = self.py_cfunc_node = ExprNodes.PyCFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = env.directives['binding'])
 
         if env.is_py_class_scope:

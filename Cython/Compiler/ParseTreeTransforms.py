@@ -1205,7 +1205,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     def visit_DefNode(self, func_node):
         scope_type = self.scope_type
         func_node = self.visit_FuncDefNode(func_node)
-        if scope_type is not 'cclass' or not func_node.decorators:
+        if scope_type != 'cclass' or not func_node.decorators:
             return func_node
         return self._handle_decorators(
             func_node, func_node.name)
@@ -2001,9 +2001,9 @@ class CreateClosureClasses(CythonTransform):
 
         if not from_closure and (self.path or inner_node):
             if not inner_node:
-                if not node.assmt:
+                if not node.py_cfunc_node:
                     raise InternalError, "DefNode does not have assignment node"
-                inner_node = node.assmt.rhs
+                inner_node = node.py_cfunc_node
             inner_node.needs_self_code = False
             node.needs_outer_scope = False
 
