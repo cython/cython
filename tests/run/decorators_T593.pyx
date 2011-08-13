@@ -1,4 +1,6 @@
+# mode: run
 # ticket: 593
+# tag: property, decorator
 
 """
 >>> am_i_buggy
