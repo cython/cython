@@ -2066,6 +2066,10 @@ class CreateClosureClasses(CythonTransform):
             self.path.pop()
         return node
 
+    def visit_CFuncDefNode(self, node):
+        self.visitchildren(node)
+        return node
+
 
 class GilCheck(VisitorTransform):
     """
