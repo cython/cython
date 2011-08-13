@@ -2295,6 +2295,9 @@ class DefNode(FuncDefNode):
         if self.needs_assignment_synthesis(env):
             # Shouldn't we be doing this at the module level too?
             self.synthesize_assignment_node(env)
+        elif self.decorators:
+            for decorator in self.decorators[::-1]:
+                decorator.decorator.analyse_expressions(env)
 
     def needs_assignment_synthesis(self, env, code=None):
         if self.no_assignment_synthesis:
