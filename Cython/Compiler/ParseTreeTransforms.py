@@ -1885,7 +1885,7 @@ class MarkClosureVisitor(CythonTransform):
         return node
 
     def visit_CFuncDefNode(self, node):
-        self.visit_FuncDefNode(node)
+        self.visitchildren(node)
         if node.needs_closure:
             error(node.pos, "closures inside cdef functions not yet supported")
         return node
