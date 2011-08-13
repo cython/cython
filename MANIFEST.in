@@ -21,6 +21,7 @@ recursive-include Cython/Debugger/Tests *
 recursive-include Tools *
 recursive-include tests *.pyx *.pxd *.pxi *.py *.h *.BROKEN bugs.txt
 recursive-include tests *_lib.cpp *.srctree
+recursive-include docs *
 include runtests.py
 
 include Cython/Debugger/Tests/cfuncs.c
