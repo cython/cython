@@ -1866,26 +1866,24 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if collector.yields:
+            if isinstance(node, Nodes.CFuncDefNode):
+                # Will report error later
+                return node
             for i, yield_expr in enumerate(collector.yields):
                 yield_expr.label_num = i + 1
 
-            gbody = Nodes.GeneratorBodyDefNode(pos=node.pos,
-                                               name=node.name,
-                                               body=node.body)
-            generator = Nodes.GeneratorDefNode(pos=node.pos,
-                                               name=node.name,
-                                               args=node.args,
-                                               star_arg=node.star_arg,
-                                               starstar_arg=node.starstar_arg,
-                                               doc=node.doc,
-                                               decorators=node.decorators,
-                                               gbody=gbody,
-                                               lambda_name=node.lambda_name)
+            gbody = Nodes.GeneratorBodyDefNode(
+                pos=node.pos, name=node.name, body=node.body)
+            generator = Nodes.GeneratorDefNode(
+                pos=node.pos, name=node.name, args=node.args,
+                star_arg=node.star_arg, starstar_arg=node.starstar_arg,
+                doc=node.doc, decorators=node.decorators,
+                gbody=gbody, lambda_name=node.lambda_name)
             return generator
         return node
 
     def visit_CFuncDefNode(self, node):
-        self.visitchildren(node)
+        self.visit_FuncDefNode(node)
         if node.needs_closure:
             error(node.pos, "closures inside cdef functions not yet supported")
         return node
