@@ -2268,6 +2268,7 @@ class DefNode(FuncDefNode):
                     arg.entry.init = "0"
             else:
                 arg.entry = self.declare_argument(env, arg)
+            arg.entry.is_arg = 1
             arg.entry.used = 1
             arg.entry.is_self_arg = arg.is_self_arg
             if arg.hdr_type:
@@ -2284,6 +2285,7 @@ class DefNode(FuncDefNode):
             else:
                 type = py_object_type
             entry = env.declare_var(arg.name, type, arg.pos)
+            entry.is_arg = 1
             entry.used = 1
             entry.init = "0"
             entry.xdecref_cleanup = 1
