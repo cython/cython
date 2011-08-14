@@ -82,12 +82,3 @@ def class_not_in_closure():
             return 1
 
     return ClosureClass0()
-
-class ODict(dict):
-   def __init__(self):
-       dict.__init__(self)
-       self._order = []
-       dict.__setitem__(self, '_order', self._order)
-   def __setitem__(self, key, value):
-       dict.__setitem__(self, key, value)
-       self._order.append(key)
