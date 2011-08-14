@@ -514,14 +514,7 @@ def check_definitions(flow, compiler_directives):
     for entry in flow.entries:
         if (not entry.cf_references and not entry.is_pyclass_attr
             and not entry.in_closure):
-            # TODO: starred args entries are not marked with is_arg flag
-            for assmt in entry.cf_assignments:
-                if assmt.is_arg:
-                    is_arg = True
-                    break
-            else:
-                is_arg = False
-            if is_arg:
+            if entry.is_arg:
                 if warn_unused_arg:
                     messages.warning(entry.pos, "Unused argument '%s'" %
                                      entry.name)
