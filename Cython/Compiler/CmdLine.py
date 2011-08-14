@@ -160,7 +160,7 @@ def makedebuglist():
     for var in vars(DebugFlags):
         if var.startswith('debug'):
             name = '--' + var.replace('_', '-')
-            flags.update({name : dict(dest=var, action='store_true')})
+            flags.update({(name,) : dict(dest=var, action='store_true')})
     return menu.update({'compiler debugging options' : flags})
 
 class BasicParser:
@@ -226,10 +226,7 @@ try:
             for grouptitle, flaglist in menu.iteritems():
                 group = self if grouptitle == 'default' else newgroup(grouptitle)
                 for flag, parameters in flaglist.iteritems():
-                    if isinstance(flag, str):
-                        group.add_argument(flag, **parameters)
-                    else:
-                        group.add_argument(*flag, **parameters)
+                    group.add_argument(*flag, **parameters)
 
         def parse(self, args):
             results = self.parse_args(args)
@@ -253,10 +250,8 @@ except ImportError:
                             del parameters['nargs']  #= 1
                             parameters['action'] = 'callback'
                             parameters['callback'] = self.__embed_callback
-                        if isinstance(flag, str):
-                            group.add_option(flag, **parameters)
-                        else:
-                            group.add_option(*flag, **parameters)
+
+                        group.add_option(*flag, **parameters)
                     except optparse.OptionError:
                         pass
 
