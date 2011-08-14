@@ -18,7 +18,8 @@
 '''Cython - Command Line Parsing'''
 
 from Cython import __version__ as version
-import Options
+
+import Cython.Compiler.Options as Options
 
 menu = {
     'default' : {
@@ -26,7 +27,7 @@ menu = {
             'dest' : 'show_version', 'action' : 'version',
             'version' : 'Cython version %s' % version,
             'help' : 'Display version number of cython compiler'},
-        ('sources') : {
+        ('sources',) : {
             'nargs' : '+', 'metavar' : 'sourcefile.{py,pyx}',
             'help' : 'Source file(s) to be compiled.' }},
     'environment setup': {
@@ -55,7 +56,7 @@ menu = {
         ('-z', '--pre-import') : {
             'dest' : 'pre_import', 'metavar' : '<module>',
             'help' : 'Import <module> before compilation.' },
-        ('--fast-fail') : {
+        ('--fast-fail',) : {
             'dest' : 'fast_fail', 'action' : 'store_true',
             'help' : 'Abort the compilation on the first error.' },
         ('-Werror', '--warning-errors'): {
@@ -66,19 +67,19 @@ menu = {
             'action' : 'append_const',
             'help' : 'Enable extra warnings' }},
     'debugging' : {
-        ('--cleanup') : {
+        ('--cleanup',) : {
             'dest' : 'generate_cleanup_code', 'type' : int, 'metavar' : '<level>',
             'default' : 0,
             'help' : '''Release interned objects on python exit, for memory debugging.
                         <level> indicates aggressiveness, default 0 releases nothing.'''},
-        ('--gdb') : {
+        ('--gdb',) : {
             'dest' : 'gdb_debug', 'action' : 'store_true',
             'help' : 'Output debug information for cygdb'}},
     'Python compatibility options' : {
-        ('-2') : {
+        ('-2',) : {
             'dest' : 'language_level', 'const' : 2, 'action' : 'store_const',
             'help' : 'Compile based on Python-2 syntax and code semantics.'},
-        ('-3') : {
+        ('-3',) : {
             'dest' : 'language_level', 'const' : 3, 'action' : 'store_const',
             'help' : 'Compile based on Python-3 syntax and code semantics.'}},
     'recursive compilation': {
@@ -95,11 +96,11 @@ menu = {
         ('-a', '--annotate') : {
             'dest' : 'annotate', 'action' : 'store_true',
             'help' : 'Produce a colorized HTML version of the source.' },
-        ('--line-directives') : {
+        ('--line-directives',) : {
             'dest' : 'emit_linenums', 'action' : 'store_true',
             'help' : 'Produce #line directives pointing to the .pyx source' }},
     'code generation' : {
-        ('--embed') : {
+        ('--embed',) : {
             'dest' : 'embed', 'const' : 'main', 'nargs' : '?',
             'metavar' : '<function name>',
             'help' : 'Generate a main() function that embeds the Python interpreter.'},
@@ -110,20 +111,20 @@ menu = {
             'dest' : 'embed_pos_in_docstring', 'action' : 'store_true',
             'help' : '''If specified, the positions in Cython files of each
                         function definition is embedded in its docstring.''' },
-        ('--no-c-in-traceback') : {
+        ('--no-c-in-traceback',) : {
             'dest' : 'c_line_in_traceback', 'action' : 'store_false',
             'help' : 'Omit C source code line when printing tracebacks.' },
-        ('--convert-range') : {
+        ('--convert-range',) : {
             'dest' : 'convert_range', 'action' : 'store_true',
             'help' : '''Convert `for x in range():` statements in pure C for(),
                       whenever possibile.''' },
         ('-D', '--no-docstrings') : {
             'dest' : 'docstrings', 'action' : 'store_false',
             'help' : 'Strip docstrings from the compiled module.' },
-        ('--disable-function-redefinition') : {
+        ('--disable-function-redefinition',) : {
             'dest' : 'disable_function_redefinition', 'action' : 'store_true',
             'help' : 'For legacy code only, needed for some circular imports.' },
-        ('--old-style-globals') : {
+        ('--old-style-globals',) : {
             'dest' : 'old_style_globals', 'action' : 'store_true',
             'help' : '''Makes globals() give the first non-Cython module
                         globals in the call stack. For SAGE compatibility''' }},
@@ -153,7 +154,8 @@ WARNING: RECURSIVE COMPILATION IS STILL BROKEN
 (see http://trac.cython.org/cython_trac/ticket/379).'''
 
 def makedebuglist():
-    import DebugFlags
+    '''Reads flags from DebugFlags, and turn them into boolean options.'''
+    import Cython.Compiler.DebugFlags as DebugFlags
     flags = {}
     for var in vars(DebugFlags):
         if var.startswith('debug'):
@@ -162,6 +164,7 @@ def makedebuglist():
     return menu.update({'compiler debugging options' : flags})
 
 class BasicParser:
+    '''Basic command line parser functions, used by all parsers.'''
     def refine(self, options):
         # Separate source files list from all other options
         sources = options.sources
@@ -187,8 +190,8 @@ class BasicParser:
                 options.compiler_directives = Options.parse_directive_list(
                     dirs, relaxed_bool=True,
                     current_settings=Options.directive_defaults)
-            except ValueError, e:
-                parser.error('compiler directive: %s' % e.args[0])
+            except ValueError, error:
+                parser.error('compiler directive: %s' % error.args[0])
         else:
             options.compiler_directives = {} #HACK
 
@@ -246,7 +249,8 @@ except ImportError:
                 for flag, parameters in flaglist.iteritems():
                     try:
                         if '--embed' in flag:
-                            del parameters['nargs'], parameters['const']
+                            del parameters['const']
+                            del parameters['nargs']  #= 1
                             parameters['action'] = 'callback'
                             parameters['callback'] = self.__embed_callback
                         if isinstance(flag, str):
@@ -285,8 +289,8 @@ def parse_command_line(args):
     except ValueError:
         pass
     else:
-        for x in args[pos+1:]:
-            if x.startswith('-'): break
+        for arg in args[pos+1:]:
+            if arg.startswith('-'): break
         else:
             args.insert(pos + 1, '--')
 
