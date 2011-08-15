@@ -1,5 +1,5 @@
 # mode: run
-# tag: string, unicode, bytes, sequence unpacking, starexpr
+# tag: string, unicode, sequence unpacking, starexpr
 
 def unpack_single_str():
     """
