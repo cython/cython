@@ -4053,6 +4053,8 @@ class SequenceNode(ExprNode):
         # Need to work around the fact that generate_evaluation_code
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
+        for item in self.unpacked_items:
+            item.allocate(code)
         special_unpack = (rhs.type is py_object_type
                           or rhs.type in (tuple_type, list_type)
                           or not rhs.type.is_builtin_type)
@@ -4070,8 +4072,6 @@ class SequenceNode(ExprNode):
                 sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
             code.putln("if (%s) {" % sequence_type_test)
             code.putln("PyObject* sequence = %s;" % rhs.py_result())
-            for item in self.unpacked_items:
-                item.allocate(code)
             if len(sequence_types) == 2:
                 code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
             self.generate_special_parallel_unpacking_code(code, sequence_types[0])
