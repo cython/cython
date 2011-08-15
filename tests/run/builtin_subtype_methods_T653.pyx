@@ -4,6 +4,20 @@
 
 cimport cython
 
+cdef class MyList(list):
+    def test_append(self, x):
+        """
+        >>> l = MyList()
+        >>> type(l) is MyList
+        True
+        >>> list(l)
+        []
+        >>> l.test_append(5)
+        >>> list(l)
+        [5]
+        """
+        self.append(x)
+
 cdef class MyDict(dict):
     @cython.test_assert_path_exists("//ComprehensionNode//AttributeNode",
                                     "//ComprehensionNode//AttributeNode[@attribute='items']")
