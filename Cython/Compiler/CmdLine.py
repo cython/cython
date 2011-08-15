@@ -17,9 +17,21 @@
 
 '''Cython - Command Line Parsing'''
 
-from Cython import __version__ as version
+__all__ = ['parser', 'parse_command_line']
 
+from Cython import __version__ as version
 import Cython.Compiler.Options as Options
+
+try:
+    # Just to see if it was implemented (Py >= 3.0)
+    'test'.isidentifier()
+except AttributeError:
+    import tokenize
+    import re
+    identifierre = re.compile('^%s$' % tokenize.Name)
+    isidentifier = identifierre.match
+else:
+    isidentifier = lambda s: s.isidentifier()
 
 menu = {
     'default' : {
@@ -133,9 +145,6 @@ menu = {
            'dest' : 'compiler_directives', 'action' : 'append',
            'metavar' : '<name>=<value>[,<name>=<value>...]',
            'help' : 'Overrides a #pragma compiler directive'}},
-       #('-d', '--debug') : {
-            #'dest' : 'debug_flags', 'action' : 'append', 'metavar' : '<flag>',
-            #'help' : "Sets Cython's internal debug options"}},
 #    'experimental options' : { # MacOS X only
 #        ('-C', '--compile') : {
 #            'dest' : 'compile', 'action' : 'store_true',
@@ -195,26 +204,19 @@ class BasicParser:
         else:
             options.compiler_directives = {} #HACK
 
-        # Sets gathered Option values XXX
-        for flag in ['embed', 'embed_pos_in_docstring', 'pre_import',
-                        'generate_cleanup_code', 'docstrings', 'annotate',
-                        'convert_range', 'fast_fail', 'warning_errors',
-                        'disable_function_redefinition', 'old_style_globals']:
-            try:
-                setattr(Options, flag, getattr(options, flag))
-            except AttributeError:
-                pass
-
-        import DebugFlags
-        for flag in vars(DebugFlags):
-            try:
-                setattr(DebugFlags, flag, getattr(options, flag))
-            except AttributeError:
-                pass
+        # Sets gathered Option and Debug options XXX
+        import Cython.Compiler.DebugFlags as DebugFlags
+        for module in Options, DebugFlags:
+            for flag in vars(module):
+                try:
+                    setattr(module, flag, getattr(options, flag))
+                except AttributeError:
+                    pass
 
         return vars(options), sources
 
 try:
+    #import suca
     import argparse
 
     class Parser(BasicParser, argparse.ArgumentParser):
@@ -229,6 +231,17 @@ try:
                     group.add_argument(*flag, **parameters)
 
         def parse(self, args):
+            #HACK: prevents first source file from being absorbed by --embed XXX
+            try:
+                pos = args.index('--embed')
+            except ValueError:
+                pass
+            else:
+                for arg in args[pos+1:]:
+                    if arg.startswith('-'): break
+                else:
+                    args.insert(pos + 1, '--')
+
             results = self.parse_args(args)
             return self.refine(results)
 
@@ -246,8 +259,8 @@ except ImportError:
                 for flag, parameters in flaglist.iteritems():
                     try:
                         if '--embed' in flag:
-                            del parameters['const']
-                            del parameters['nargs']  #= 1
+                            del parameters['const'], parameters['nargs']
+                            parameters['type'] = 'str'
                             parameters['action'] = 'callback'
                             parameters['callback'] = self.__embed_callback
 
@@ -265,28 +278,15 @@ except ImportError:
         # super HACK to support implicit --embed arg 'main' value
         @staticmethod
         def __embed_callback(option, opt_str, value, parser):
-            assert value is None
-            # If next arg is not last and it is not an option,
-            # or a source file had already been specified
-            if (not parser.rargs[0].startswith('-') and len(parser.rargs) > 1):
-                value = parser.rargs.pop(0)
+            if isidentifier(value):
+                main = value
             else:
-                value = 'main'
-            setattr(parser.values, option.dest, value)
+                main = 'main'
+                parser.rargs.insert(0, value)
+            setattr(parser.values, option.dest, main)
 
 makedebuglist()
 parser = Parser()
 
 def parse_command_line(args):
-    #HACK: prevents first source file from being absorbed by --embed
-    try:
-        pos = args.index('--embed')
-    except ValueError:
-        pass
-    else:
-        for arg in args[pos+1:]:
-            if arg.startswith('-'): break
-        else:
-            args.insert(pos + 1, '--')
-
     return parser.parse(args)

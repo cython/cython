@@ -71,10 +71,6 @@ class TestCommandLine(CythonTest):
             FAILURE)
 
     def test_embed_explicit_recognition(self):
-        try:
-            from Cython.Compiler.CmdLine import argparse
-        except ImportError:
-            self.skipTest('--embed <name> is parseable only by newer argparse')
         opt, src = parse('--fast-fail -f --embed=mainY --gdb s.py')
         self.assertEqual(Options.embed, 'mainY')
         self.assertEqual(
@@ -113,9 +109,9 @@ class TestCommandLine(CythonTest):
         opt, src = parse('-Xlanguage_level=2,profile=True test.pyx')
         self.failUnless(issubset(opt['compiler_directives'],
             {'profile': True, 'language_level': 2}))
-        opt, src = parse('--directive callspec=False,final=True test.pyx')
+        opt, src = parse('--directive callspec=stdcall,final=True test.pyx')
         self.failUnless(issubset(opt['compiler_directives'],
-            {'callspec': False, 'final': True}))
+            {'callspec': 'stdcall', 'final': True}))
         opt, src = parse('-Xauto_cpdef=True,profile=True -I. -Xinternal=True test.pyx')
         self.failUnless(issubset(opt['compiler_directives'],
             {'profile': True, 'internal': True, 'auto_cpdef': True} ))
@@ -141,7 +137,7 @@ class TestCommandLine(CythonTest):
 
     @classmethod
     def tearDownClass(cls):
-        # Clean up permanent options XXX
+        # Clean up permanent options
         reload(Options)
 
 if __name__ == '__main__':
