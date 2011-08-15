@@ -4101,6 +4101,8 @@ class SequenceNode(ExprNode):
                 code.put_incref(item.result(), item.ctype())
             rhs.generate_disposal_code(code)
             code.putln("} else {")
+        else:
+            code.putln("{")
 
         if special_unpack and rhs.type is tuple_type:
             code.globalstate.use_utility_code(tuple_unpacking_error_code)
@@ -4109,8 +4111,7 @@ class SequenceNode(ExprNode):
             code.putln(code.error_goto(self.pos))
         else:
             self.generate_generic_parallel_unpacking_code(code, rhs)
-        if special_unpack:
-            code.putln("}")
+        code.putln("}")
 
         for value_node in self.coerced_unpacked_items:
             value_node.generate_evaluation_code(code)
@@ -4134,7 +4135,7 @@ class SequenceNode(ExprNode):
     def generate_generic_parallel_unpacking_code(self, code, rhs):
         code.globalstate.use_utility_code(iternext_unpacking_end_utility_code)
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-        code.putln("Py_ssize_t index = -1;")
+        code.putln("Py_ssize_t index = -1;") # must be at the start of a C block!
 
         iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
