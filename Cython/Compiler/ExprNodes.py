@@ -1529,12 +1529,24 @@ class NameNode(AtomicExprNode):
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
                 namespace = entry.scope.namespace_cname
-            code.putln(
-                '%s = PyObject_GetItem(%s, %s); %s' % (
-                self.result(),
-                namespace,
-                interned_cname,
-                code.error_goto_if_null(self.result(), self.pos)))
+            if not self.cf_is_null:
+                code.putln(
+                    '%s = PyObject_GetItem(%s, %s);' % (
+                        self.result(),
+                        namespace,
+                        interned_cname))
+            if self.cf_maybe_null:
+                if not self.cf_is_null:
+                    code.putln('if (unlikely(!%s)) {' % self.result())
+                    code.putln('PyErr_Clear();')
+                code.putln(
+                    '%s = __Pyx_GetName(%s, %s);' % (
+                    self.result(),
+                    Naming.module_cname,
+                    interned_cname))
+                if not self.cf_is_null:
+                    code.putln("}");
+            code.putln(code.error_goto_if_null(self.result(), self.pos))
             code.put_gotref(self.py_result())
 
         elif entry.is_pyglobal or entry.is_builtin:
