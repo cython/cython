@@ -284,7 +284,8 @@ class PostParse(ScopeTrackingTransform):
         """Flatten parallel assignments into separate single
         assignments or cascaded assignments.
         """
-        if sum([ 1 for expr in expr_list if expr.is_sequence_constructor ]) < 2:
+        if sum([ 1 for expr in expr_list
+                 if expr.is_sequence_constructor or expr.is_string_literal ]) < 2:
             # no parallel assignments => nothing to do
             return node
 
@@ -412,6 +413,17 @@ def sort_common_subsequences(items):
                 items[i] = items[i-1]
             items[new_pos] = item
 
+def unpack_string_to_character_literals(literal):
+    chars = []
+    pos = literal.pos
+    stype = literal.__class__
+    sval = literal.value
+    sval_type = sval.__class__
+    for char in sval:
+        cval = sval_type(char)
+        chars.append(stype(pos, value=cval, constant_result=cval))
+    return chars
+
 def flatten_parallel_assignments(input, output):
     #  The input is a list of expression nodes, representing the LHSs
     #  and RHS of one (possibly cascaded) assignment statement.  For
@@ -420,13 +432,21 @@ def flatten_parallel_assignments(input, output):
     #  individual elements.  This transformation is applied
     #  recursively, so that nested structures get matched as well.
     rhs = input[-1]
-    if not rhs.is_sequence_constructor or not sum([lhs.is_sequence_constructor for lhs in input[:-1]]):
+    if (not (rhs.is_sequence_constructor or
+             (rhs.is_string_literal and not (rhs.type.is_string or
+                                             rhs.type is Builtin.bytes_type)))
+        or not sum([lhs.is_sequence_constructor for lhs in input[:-1]])):
         output.append(input)
         return
 
     complete_assignments = []
 
-    rhs_size = len(rhs.args)
+    if rhs.is_sequence_constructor:
+        rhs_args = rhs.args
+    elif rhs.is_string_literal:
+        rhs_args = unpack_string_to_character_literals(rhs)
+
+    rhs_size = len(rhs_args)
     lhs_targets = [ [] for _ in xrange(rhs_size) ]
     starred_assignments = []
     for lhs in input[:-1]:
@@ -448,7 +468,7 @@ def flatten_parallel_assignments(input, output):
             continue
         elif starred_targets:
             map_starred_assignment(lhs_targets, starred_assignments,
-                                   lhs.args, rhs.args)
+                                   lhs.args, rhs_args)
         elif lhs_size < rhs_size:
             error(lhs.pos, "too many values to unpack (expected %d, got %d)"
                   % (lhs_size, rhs_size))
@@ -463,7 +483,7 @@ def flatten_parallel_assignments(input, output):
         output.append(complete_assignments)
 
     # recursively flatten partial assignments
-    for cascade, rhs in zip(lhs_targets, rhs.args):
+    for cascade, rhs in zip(lhs_targets, rhs_args):
         if cascade:
             cascade.append(rhs)
             flatten_parallel_assignments(cascade, output)

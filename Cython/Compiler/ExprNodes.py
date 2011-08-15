@@ -200,6 +200,7 @@ class ExprNode(Node):
     #
 
     is_sequence_constructor = 0
+    is_string_literal = 0
     is_attribute = 0
 
     saved_subexpr_nodes = None
@@ -960,6 +961,7 @@ class BytesNode(ConstNode):
     #
     # value      BytesLiteral
 
+    is_string_literal = True
     # start off as Python 'bytes' to support len() in O(1)
     type = bytes_type
 
@@ -1040,6 +1042,7 @@ class UnicodeNode(PyConstNode):
     # value        EncodedString
     # bytes_value  BytesLiteral    the literal parsed as bytes string ('-3' unicode literals only)
 
+    is_string_literal = True
     bytes_value = None
     type = unicode_type
 
@@ -1104,6 +1107,7 @@ class StringNode(PyConstNode):
     # is_identifier  boolean
 
     type = str_type
+    is_string_literal = True
     is_identifier = None
     unicode_value = None
 
@@ -3680,7 +3684,7 @@ class AttributeNode(ExprNode):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
             return module_scope.lookup_type(self.attribute)
-        if not isinstance(self.obj, (UnicodeNode, StringNode, BytesNode)):
+        if not self.obj.is_string_literal:
             base_type = self.obj.analyse_as_type(env)
             if base_type and hasattr(base_type, 'scope') and base_type.scope is not None:
                 return base_type.scope.lookup_type(self.attribute)
@@ -4811,7 +4815,7 @@ class DictNode(ExprNode):
             for item in self.key_value_pairs:
                 if isinstance(item.key, CoerceToPyTypeNode):
                     item.key = item.key.arg
-                if not isinstance(item.key, (UnicodeNode, StringNode, BytesNode)):
+                if not item.key.is_string_literal:
                     error(item.key.pos, "Invalid struct field identifier")
                     item.key = StringNode(item.key.pos, value="<error>")
                 else:
@@ -6695,11 +6699,9 @@ class CmpNode(object):
         type1_can_be_int = False
         type2_can_be_int = False
 
-        if isinstance(operand1, (StringNode, BytesNode, UnicodeNode)) \
-               and operand1.can_coerce_to_char_literal():
+        if operand1.is_string_literal and operand1.can_coerce_to_char_literal():
             type1_can_be_int = True
-        if isinstance(operand2, (StringNode, BytesNode, UnicodeNode)) \
-                 and operand2.can_coerce_to_char_literal():
+        if operand2.is_string_literal and operand2.can_coerce_to_char_literal():
             type2_can_be_int = True
 
         if type1.is_int:
