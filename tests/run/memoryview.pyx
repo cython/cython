@@ -587,3 +587,76 @@ def assign_temporary_to_object(object[:] mslice):
     """
     buf = mslice
     buf[1] = {3-2: 2+(2*4)-2}
+
+def test_slicing(arg):
+    """
+    Test simple slicing
+    >>> test_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
+    acquired A
+    3 9 2
+    1232 -44 4
+    -1 -1 -1
+    released A
+
+    Test direct slicing, negative slice oob in dim 2
+    >>> test_slicing(IntMockBuffer("A", range(1 * 2 * 3), shape=(1, 2, 3)))
+    acquired A
+    0 0 2
+    48 -12 4
+    -1 -1 -1
+    released A
+
+    Test indirect slicing
+    >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
+    >>> test_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
+    acquired A
+    2 0 2
+    8 -4 4
+    0 0 -1
+    released A
+    """
+    cdef int[::view.generic, ::view.generic, :] _a = arg
+    a = _a
+    b = a[2:8:2, -4:1:-1, 1:3]
+
+    print b.shape[0], b.shape[1], b.shape[2]
+    print b.strides[0], b.strides[1], b.strides[2]
+    print b.suboffsets[0], b.suboffsets[1], b.suboffsets[2]
+
+    cdef int i, j, k
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            for k in range(b.shape[2]):
+                itemA = a[2 + 2 * i, -4 - j, 1 + k]
+                itemB = b[i, j, k]
+                assert itemA == itemB, (i, j, k, itemA, itemB)
+
+def test_slicing_and_indexing(arg):
+    """
+    >>> a = IntStridedMockBuffer("A", range(10 * 3 * 5), shape=(10, 3, 5))
+    >>> test_slicing_and_indexing(a)
+    acquired A
+    5 2
+    60 8
+    126 113
+    [111]
+    released A
+    """
+    cdef int[:, :, :] _a = arg
+    a = _a
+    b = a[-5:, 1, 1::2]
+    c = b[4:1:-1, ::-1]
+    d = c[2, 1:2]
+
+    print b.shape[0], b.shape[1]
+    print b.strides[0], b.strides[1]
+
+    cdef int i, j
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            itemA = a[-5 + i, 1, 1 + 2 * j]
+            itemB = b[i, j]
+            assert itemA == itemB, (i, j, itemA, itemB)
+
+    print c[1, 1], c[2, 0]
+    print [d[i] for i in range(d.shape[0])]

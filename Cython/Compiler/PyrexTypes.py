@@ -488,6 +488,7 @@ class MemoryViewSliceType(PyrexType):
                 entry.utility_code_definition = \
                         MemoryView.CopyFuncUtilCode(self, to_memview)
 
+        elif attribute in ("is_c_contig", "is_f_contig"):
             # is_c_contig and is_f_contig functions
             for (c_or_f, cython_name) in (('c', 'is_c_contig'), ('fortran', 'is_f_contig')):
 
@@ -564,9 +565,6 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def get_to_py_function(self, env, obj):
-        import MemoryView
-        env.use_utility_code(MemoryView.memview_fromslice_utility_code)
-
         to_py_func, from_py_func = self.dtype_object_conversion_funcs(env)
         to_py_func = "(PyObject *(*)(char *)) " + to_py_func
         from_py_func = "(int (*)(char *, PyObject *)) " + from_py_func

@@ -120,7 +120,6 @@ cdef class array:
             info.format = NULL
 
         # info.obj = self
-        # Py_INCREF(self)
 
     def __releasebuffer__(self, Py_buffer *info):
         pass
@@ -184,6 +183,20 @@ cdef extern from *:
 
     ctypedef struct PyObject
 
+    cdef struct __pyx_memoryview "__pyx_memoryview_obj":
+        Py_buffer view
+        PyObject *obj
+
+    ctypedef struct {{memviewslice_name}}:
+        __pyx_memoryview *memview
+        char *data
+        Py_ssize_t shape[{{max_dims}}]
+        Py_ssize_t strides[{{max_dims}}]
+        Py_ssize_t suboffsets[{{max_dims}}]
+
+    void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+    void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+
 
 @cname('__pyx_MemviewEnum')
 cdef class Enum(object):
@@ -229,42 +242,34 @@ cdef class memoryview(object):
 
     cdef char *get_item_pointer(memoryview self, object index) except NULL:
         cdef Py_ssize_t dim
-        cdef Py_buffer view = self.view
-        cdef char *itemp = <char *> view.buf
+        cdef char *itemp = <char *> self.view.buf
 
-        if index is Ellipsis:
-            return self
-
-        elif isinstance(index, slice):
-            if index == slice(None):
-                return self
-
-            raise NotImplementedError
-
-        else:
-            if not isinstance(index, tuple):
-                index = (index,)
-
-            tup = _unellipsify(index, self.view.ndim)
-
-            if len(tup) != self.view.ndim:
-                raise NotImplementedError(
-                        "Expected %d indices (got %d)" %
-                             (self.view.ndim, len(tup)))
-
-            for dim, idx in enumerate(tup):
-                _check_index(idx)
-                itemp = pybuffer_index(&self.view, itemp, idx, dim)
+        for dim, idx in enumerate(index):
+            _check_index(idx)
+            itemp = pybuffer_index(&self.view, itemp, idx, dim)
 
         return itemp
 
     @cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
-        cdef char *itemp = self.get_item_pointer(index)
-        return self.convert_item_to_object(itemp)
+        if index is Ellipsis:
+            return self
+
+        have_slices, index = _unellipsify(index, self.view.ndim)
+
+        cdef char *itemp
+        if have_slices:
+            return pybuffer_slice(self, index)
+        else:
+            itemp = self.get_item_pointer(index)
+            return self.convert_item_to_object(itemp)
 
     @cname('__pyx_memoryview_setitem')
     def __setitem__(memoryview self, object index, object value):
+        have_slices, index = _unellipsify(index, self.view.ndim)
+        if have_slices:
+            raise NotImplementedError("Slice assignment not supported yet")
+
         cdef char *itemp = self.get_item_pointer(index)
         self.assign_item_from_object(itemp, value)
 
@@ -297,6 +302,22 @@ cdef class memoryview(object):
         for i, c in enumerate(bytesvalue):
             itemp[i] = c
 
+    property T:
+        @cname('__pyx_memoryview_transpose')
+        def __get__(self):
+            cdef memoryview result = memoryview_copy(self)
+
+            cdef int ndim = self.view.ndim
+            cdef Py_ssize_t *strides = result.view.strides
+            cdef Py_ssize_t *shape = result.view.shape
+
+            # reverse strides and shape
+            for i in range(ndim / 2):
+                strides[i], strides[ndim - i] = strides[ndim - i], strides[i]
+                shape[i], shape[ndim - i] = shape[ndim - i], shape[i]
+
+            return result
+
     property _obj:
         @cname('__pyx_memoryview__get__obj')
         def __get__(self):
@@ -305,6 +326,23 @@ cdef class memoryview(object):
                 return <object> self.view.obj
 
             return self.obj
+
+    property shape:
+        @cname('__pyx_memoryview_get_shape')
+        def __get__(self):
+            return tuple([self.view.shape[i] for i in xrange(self.view.ndim)])
+
+
+    property strides:
+        @cname('__pyx_memoryview_get_strides')
+        def __get__(self):
+            return tuple([self.view.strides[i] for i in xrange(self.view.ndim)])
+
+
+    property suboffsets:
+        @cname('__pyx_memoryview_get_suboffsets')
+        def __get__(self):
+            return tuple([self.view.suboffsets[i] for i in xrange(self.view.ndim)])
 
     def __repr__(self):
         return "<MemoryView of %r at 0x%x>" % (self._obj.__class__.__name__, id(self))
@@ -322,23 +360,130 @@ cdef _check_index(index):
     if not PyIndex_Check(index):
         raise TypeError("Cannot index with %s" % type(index))
 
-cdef tuple _unellipsify(tuple tup, int ndim):
-    if Ellipsis in tup:
-        result = []
-        for idx, item in enumerate(tup):
-            if item is Ellipsis:
+cdef tuple _unellipsify(object index, int ndim):
+    if not isinstance(index, tuple):
+        tup = (index,)
+    else:
+        tup = index
+
+    result = []
+    have_slices = False
+    seen_ellipsis = False
+    for idx, item in enumerate(tup):
+        if item is Ellipsis:
+            if not seen_ellipsis:
                 result.extend([slice(None)] * (ndim - len(tup) + 1))
                 result.extend(tup[idx + 1:])
-                break
-
+            else:
+                result.append(slice(None))
+            have_slices = True
+        else:
+            have_slices = have_slices or isinstance(item, slice)
             result.append(item)
 
-        return tuple(result)
+    nslices = ndim - len(result)
+    if nslices:
+        result.extend([slice(None)] * nslices)
 
-    return tup
+    for idx in tup:
+        if isinstance(idx, slice):
+            return True, tup
+
+    return False, tup
+
+@cname('__pyx_pybuffer_slice')
+cdef memoryview pybuffer_slice(memoryview memview, object indices):
+    cdef Py_ssize_t idx, dim, new_dim = 0, suboffset_dim = -1
+    cdef Py_ssize_t shape, stride
+    cdef bint negative_step
+    cdef int new_ndim = 0
+    cdef {{memviewslice_name}} dst
+
+    for dim, index in enumerate(indices):
+        shape = memview.view.shape[dim]
+        stride = memview.view.strides[dim]
+
+        if PyIndex_Check(index):
+            idx = index
+            if idx < 0:
+                idx += shape
+            if not 0 <= idx < shape:
+                raise IndexError("Index out of bounds (axis %d)" % dim)
+        else:
+            # index is a slice
+            new_ndim += 1
+
+            start, stop, step = index.start, index.stop, index.step
+            negative_step = step and step < 0
+
+            # set some defaults
+            if not start:
+                if negative_step:
+                    start = shape - 1
+                else:
+                    start = 0
+
+            if not stop:
+                if negative_step:
+                    stop = -1
+                else:
+                    stop = shape
+
+            # check our bounds
+            if start < 0:
+                start += shape
+                if start < 0:
+                    start = 0
+            elif start >= shape:
+                start = shape - 1
+
+            if stop < 0:
+                stop += shape
+                if stop < 0:
+                    stop = 0
+            elif stop > shape:
+                stop = shape
+
+            step = step or 1
+
+            # shape/strides/suboffsets
+            dst.strides[new_dim] = stride * step
+            dst.shape[new_dim] = (stop - start) / step
+            if (stop - start) % step:
+                dst.shape[new_dim] += 1
+            dst.suboffsets[new_dim] = memview.view.suboffsets[dim]
+
+            # set this for the slicing offset
+            if negative_step:
+                idx = stop
+            else:
+                idx = start
+
+        # Add the slicing or idexing offsets to the right suboffset or base data *
+        if suboffset_dim < 0:
+            dst.data += idx * stride
+        else:
+            dst.suboffsets[suboffset_dim] += idx * stride
+
+        if memview.view.suboffsets[dim]:
+            if PyIndex_Check(index):
+                raise IndexError(
+                    "Cannot make indirect dimension %d disappear through "
+                    "indexing, consider slicing with %d:%d" % (dim, idx, idx + 1))
+            suboffset_dim = new_dim
+
+    cdef _memoryviewslice memviewsliceobj
+    if isinstance(memview, _memoryviewslice):
+        memviewsliceobj = memview
+        return memoryview_fromslice(&dst, new_dim,
+                                    memviewsliceobj.to_object_func,
+                                    memviewsliceobj.to_dtype_func)
+    else:
+        return memoryview_fromslice(&dst, new_dim, NULL, NULL)
 
 @cname('__pyx_pybuffer_index')
-cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index, int dim) except NULL:
+cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
+                          int dim) except NULL:
     cdef Py_ssize_t shape, stride, suboffset = -1
     cdef Py_ssize_t itemsize = view.itemsize
     cdef char *resultp
@@ -365,25 +510,6 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index, int dim
         resultp = (<char **> resultp)[0] + suboffset
 
     return resultp
-
-############### MemviewFromSlice ###############
-
-cdef extern from *:
-    cdef struct __pyx_memoryview:
-        Py_buffer view
-        PyObject *obj
-
-    ctypedef struct {{memviewslice_name}}:
-        __pyx_memoryview *memview
-        char *data
-        Py_ssize_t shape[{{max_dims}}]
-        Py_ssize_t strides[{{max_dims}}]
-        Py_ssize_t suboffsets[{{max_dims}}]
-
-
-    void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
-    void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
-
 
 @cname('__pyx_memoryviewslice')
 cdef class _memoryviewslice(memoryview):
@@ -419,15 +545,14 @@ cdef class _memoryviewslice(memoryview):
 
 
 @cname('__pyx_memoryview_fromslice')
-cdef memoryview_from_memslice_cwrapper(
-            {{memviewslice_name}} *memviewslice, int cur_ndim,
-             object (*to_object_func)(char *),
-             int (*to_dtype_func)(char *, object) except 0):
+cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
+                          int ndim,
+                          object (*to_object_func)(char *),
+                          int (*to_dtype_func)(char *, object) except 0):
 
-    assert 0 < cur_ndim <= memviewslice.memview.view.ndim
+    assert 0 < ndim <= memviewslice.memview.view.ndim, (ndim, memviewslice.memview.view.ndim)
 
     cdef _memoryviewslice result = _memoryviewslice(None, 0)
-    cdef int new_ndim = memviewslice.memview.view.ndim - cur_ndim
 
     result.from_slice = memviewslice[0]
     __PYX_INC_MEMVIEW(memviewslice, 1)
@@ -435,15 +560,40 @@ cdef memoryview_from_memslice_cwrapper(
     result.from_object = <object> memviewslice.memview.obj
 
     result.view = memviewslice.memview.view
-    result.view.shape = <Py_ssize_t *> (&result.from_slice.shape + new_ndim)
-    result.view.strides = <Py_ssize_t *> (&result.from_slice.strides + new_ndim)
-    result.view.suboffsets = <Py_ssize_t *> (&result.from_slice.suboffsets + new_ndim)
-    result.view.ndim = cur_ndim
+    result.view.shape = <Py_ssize_t *> &result.from_slice.shape
+    result.view.strides = <Py_ssize_t *> result.from_slice.strides
+    result.view.suboffsets = <Py_ssize_t *> &result.from_slice.suboffsets
+    result.view.ndim = ndim
 
     result.to_object_func = to_object_func
     result.to_dtype_func = to_dtype_func
 
     return result
+
+cdef memoryview_copy(memoryview memview):
+    cdef {{memviewslice_name}} memviewslice
+    cdef int dim
+    cdef object (*to_object_func)(char *)
+    cdef int (*to_dtype_func)(char *, object) except 0
+
+    memviewslice.memview = <__pyx_memoryview *> memview
+    memviewslice.data = <char *> memview.view.buf
+
+    # Copy all of these as from_slice will
+    for dim in range(memview.view.ndim):
+        memviewslice.shape[dim] = memview.view.shape[dim]
+        memviewslice.strides[dim] = memview.view.strides[dim]
+        memviewslice.suboffsets[dim] = memview.view.suboffsets[dim]
+
+    if isinstance(memview, _memoryviewslice):
+        to_object_func = (<_memoryviewslice> memview).to_object_func
+        to_dtype_func = (<_memoryviewslice> memview).to_dtype_func
+    else:
+        to_object_func = NULL
+        to_dtype_func = NULL
+
+    return memoryview_fromslice(&memviewslice, memview.view.ndim,
+                                to_object_func, to_dtype_func)
 
 ############### BufferFormatFromTypeInfo ###############
 cdef extern from *:

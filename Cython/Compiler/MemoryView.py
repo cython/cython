@@ -412,15 +412,18 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         for temp in temps:
             code.funcstate.release_temp(temp)
 
+def empty_slice(pos):
+    none = ExprNodes.NoneNode(pos)
+    return ExprNodes.SliceNode(pos, start=none,
+                               stop=none, step=none)
+
 def unellipsify(indices, ndim):
     result = []
     seen_ellipsis = False
 
     for index in indices:
         if isinstance(index, ExprNodes.EllipsisNode):
-            none = ExprNodes.NoneNode(index.pos)
-            full_slice = ExprNodes.SliceNode(index.pos, start=none,
-                                             stop=none, step=none)
+            full_slice = empty_slice(index.pos)
             if seen_ellipsis:
                 result.append(full_slice)
             else:
@@ -429,6 +432,10 @@ def unellipsify(indices, ndim):
                 seen_ellipsis = True
         else:
             result.append(index)
+
+    if len(result) < ndim:
+        nslices = ndim - len(result)
+        result.extend([empty_slice(indices[-1].pos)] * nslices)
 
     return result
 
@@ -950,7 +957,7 @@ def _resolve_AttributeNode(env, node):
     scope = env
     for modname in modnames:
         mod = scope.lookup(modname)
-        if not mod:
+        if not mod or not mod.as_module:
             raise CompileError(
                     node.pos, "undeclared name not builtin: %s" % modname)
         scope = mod.as_module
@@ -1001,8 +1008,8 @@ cython_array_utility_code = load_memview_cy_utility(
         context=context,
         requires=[view_utility_code])
 
-memview_fromslice_utility_code = load_memview_cy_utility(
-        "MemviewFromSlice",
-        context=context,
-        requires=[view_utility_code],
-)
+# memview_fromslice_utility_code = load_memview_cy_utility(
+        # "MemviewFromSlice",
+        # context=context,
+        # requires=[view_utility_code],
+# )

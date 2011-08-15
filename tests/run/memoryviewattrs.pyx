@@ -19,24 +19,30 @@ def test_shape_stride_suboffset():
     u'''
     >>> test_shape_stride_suboffset()
     5 7 11
-    616 88 8
+    77 11 1
     -1 -1 -1
+    <BLANKLINE>
     5 7 11
-    8 40 280
+    1 5 35
     -1 -1 -1
+    <BLANKLINE>
     5 7 11
-    616 88 8
+    77 11 1
     -1 -1 -1
     '''
-    cdef unsigned long[:,:,:] larr = array((5,7,11), sizeof(unsigned long), 'L')
+    cdef char[:,:,:] larr = array((5,7,11), 1, 'b')
     print larr.shape[0], larr.shape[1], larr.shape[2]
     print larr.strides[0], larr.strides[1], larr.strides[2]
     print larr.suboffsets[0], larr.suboffsets[1], larr.suboffsets[2]
-    larr = array((5,7,11), sizeof(unsigned long), 'L', mode='fortran')
+    print
+
+    larr = array((5,7,11), 1, 'b', mode='fortran')
     print larr.shape[0], larr.shape[1], larr.shape[2]
     print larr.strides[0], larr.strides[1], larr.strides[2]
     print larr.suboffsets[0], larr.suboffsets[1], larr.suboffsets[2]
-    cdef unsigned long[:,:,:] c_contig = larr.copy()
+    print
+
+    cdef char[:,:,:] c_contig = larr.copy()
     print c_contig.shape[0], c_contig.shape[1], c_contig.shape[2]
     print c_contig.strides[0], c_contig.strides[1], c_contig.strides[2]
     print c_contig.suboffsets[0], c_contig.suboffsets[1], c_contig.suboffsets[2]
@@ -161,7 +167,7 @@ def test_is_contiguous():
     print fort_contig.is_c_contig(), fort_contig.is_f_contig()
     cdef int[:,:,:] strided = fort_contig
     print strided.is_c_contig(), strided.is_f_contig()
-    print 
+    print
     fort_contig = fort_contig.copy_fortran()
     print fort_contig.is_c_contig(), fort_contig.is_f_contig()
     print strided.is_c_contig(), strided.is_f_contig()

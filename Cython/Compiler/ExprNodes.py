@@ -2452,7 +2452,10 @@ class IndexNode(ExprNode):
                 if isinstance(index, SliceNode):
                     suboffsets_dim = i
                     self.memslice_slice = True
-                    axes.append((access, 'strided'))
+                    if packing == 'contig' and index.step.is_none:
+                        axes.append((access, 'contig'))
+                    else:
+                        axes.append((access, 'strided'))
 
                     # Coerce start, stop and step to temps of the right type
                     for attr in ('start', 'stop', 'step'):

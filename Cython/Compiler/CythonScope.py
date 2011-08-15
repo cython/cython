@@ -83,20 +83,16 @@ class CythonScope(ModuleScope):
         #
         # The view sub-scope
         #
-        self.viewscope = viewscope = ModuleScope(u'cython.view', self, None)
-
-        # Hacky monkey patch
-        self.viewscope.global_scope = self.global_scope
-
-        self.declare_module('view', viewscope, None)
+        self.viewscope = viewscope = ModuleScope(u'view', self, None)
+        self.declare_module('view', viewscope, None).as_module = viewscope
         viewscope.is_cython_builtin = True
         viewscope.pxd_file_loaded = True
 
         cythonview_testscope_utility_code.declare_in_scope(viewscope)
 
         view_utility_scope = MemoryView.view_utility_code.declare_in_scope(viewscope)
-        MemoryView.memview_fromslice_utility_code.from_scope = view_utility_scope
-        MemoryView.memview_fromslice_utility_code.declare_in_scope(viewscope)
+        # MemoryView.memview_fromslice_utility_code.from_scope = view_utility_scope
+        # MemoryView.memview_fromslice_utility_code.declare_in_scope(viewscope)
 
 
 def create_cython_scope(context, create_testscope):
