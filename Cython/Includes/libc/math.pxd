@@ -1,18 +1,18 @@
 cdef extern from "math.h" nogil:
 
-    enum: M_E
-    enum: M_LOG2E
-    enum: M_LOG10E
-    enum: M_LN2
-    enum: M_LN10
-    enum: M_PI
-    enum: M_PI_2
-    enum: M_PI_4
-    enum: M_1_PI
-    enum: M_2_PI
-    enum: M_2_SQRTPI
-    enum: M_SQRT2
-    enum: M_SQRT1_2
+    double M_E
+    double M_LOG2E
+    double M_LOG10E
+    double M_LN2
+    double M_LN10
+    double M_PI
+    double M_PI_2
+    double M_PI_4
+    double M_1_PI
+    double M_2_PI
+    double M_2_SQRTPI
+    double M_SQRT2
+    double M_SQRT1_2
 
     double acos(double x)
     double asin(double x)
