@@ -142,7 +142,8 @@ class ControlFlow(object):
     def is_tracked(self, entry):
         if entry.is_anonymous:
             return False
-        if entry.type.is_array or entry.type.is_struct_or_union:
+        if (entry.type.is_array or entry.type.is_struct_or_union or
+                entry.type.is_cpp_class):
             return False
         return (entry.is_local or entry.is_pyclass_attr or entry.is_arg or
                 entry.from_closure or entry.in_closure or entry.error_on_uninitialized)
