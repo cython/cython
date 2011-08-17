@@ -32,7 +32,7 @@ def context(position):
 
 def format_position(position):
     if position:
-        return u"%s:%d:%d: " % (position[0].get_description(),
+        return u"%s:%d:%d: " % (position[0].filename,
                                 position[1], position[2])
     return u''
 
