@@ -1338,6 +1338,8 @@ def main():
                       help="working directory")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'BUILD'),
                       help="working directory")
+    parser.add_option("--debug", dest="for_debugging", default=False, action="store_true",
+                      help="configure for easier use with a debugger (e.g. gdb)")
 
     options, cmd_args = parser.parse_args()
 
@@ -1408,6 +1410,11 @@ def main():
         sys.stderr.write("Running tests against Cython %s\n" % get_version())
     else:
         sys.stderr.write("Running tests without Cython.\n")
+
+    if options.for_debugging:
+        options.cleanup_workdir = False
+        options.cleanup_sharedlibs = False
+        options.fork = False
 
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll
