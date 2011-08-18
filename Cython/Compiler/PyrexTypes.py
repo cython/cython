@@ -1697,9 +1697,12 @@ class CFuncType(CType):
     #  nogil            boolean    Can be called without gil
     #  with_gil         boolean    Acquire gil around function body
     #  templates        [string] or None
+    #  is_strict_signature boolean  function refuses to accept coerced arguments
+    #                               (used for optimisation overrides)
 
     is_cfunction = 1
     original_sig = None
+    is_strict_signature = False
 
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
@@ -2592,6 +2595,8 @@ def best_match(args, functions, pos=None):
             if dst_type.assignable_from(src_type):
                 if src_type == dst_type or dst_type.same_as(src_type):
                     pass # score 0
+                elif func_type.is_strict_signature:
+                    break # exact match requested but not found
                 elif is_promotion(src_type, dst_type):
                     score[2] += 1
                 elif not src_type.is_pyobject:

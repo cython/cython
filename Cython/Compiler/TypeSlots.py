@@ -32,6 +32,8 @@ class Signature(object):
     #    'b'  bint
     #    'I'  int *
     #    'l'  long
+    #    'f'  float
+    #    'd'  double
     #    'h'  Py_hash_t
     #    'z'  Py_ssize_t
     #    'Z'  Py_ssize_t *
@@ -53,6 +55,8 @@ class Signature(object):
         'b': PyrexTypes.c_bint_type,
         'I': PyrexTypes.c_int_ptr_type,
         'l': PyrexTypes.c_long_type,
+        'f': PyrexTypes.c_float_type,
+        'd': PyrexTypes.c_double_type,
         'h': PyrexTypes.c_py_hash_t_type,
         'z': PyrexTypes.c_py_ssize_t_type,
         'Z': PyrexTypes.c_py_ssize_t_ptr_type,

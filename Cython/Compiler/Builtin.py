@@ -283,10 +283,12 @@ builtin_utility_code = {
 
 class _BuiltinOverride(object):
     def __init__(self, py_name, args, ret_type, cname, py_equiv = "*",
-                 utility_code = None, sig = None, func_type = None):
+                 utility_code = None, sig = None, func_type = None,
+                 is_strict_signature = False):
         self.py_name, self.cname, self.py_equiv = py_name, cname, py_equiv
         self.args, self.ret_type = args, ret_type
         self.func_type, self.sig = func_type, sig
+        self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
 
 class BuiltinAttribute(object):
@@ -312,6 +314,8 @@ class BuiltinFunction(_BuiltinOverride):
             if sig is None:
                 sig = Signature(self.args, self.ret_type)
             func_type = sig.function_type()
+            if self.is_strict_signature:
+                func_type.is_strict_signature = True
         scope.declare_builtin_cfunction(self.py_name, func_type, self.cname,
                                         self.py_equiv, self.utility_code)
 
@@ -332,6 +336,12 @@ class BuiltinMethod(_BuiltinOverride):
 
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
+    BuiltinFunction('abs',        "d",    "d",     "fabs",
+                    is_strict_signature = True),
+    BuiltinFunction('abs',        "f",    "f",     "fabsf",
+                    is_strict_signature = True),
+    BuiltinFunction('abs',        "i",    "l",     "labs",
+                    is_strict_signature = True),
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
     #('chr',       "",     "",      ""),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
