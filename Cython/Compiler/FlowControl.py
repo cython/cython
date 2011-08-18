@@ -1109,3 +1109,10 @@ class CreateControlFlowGraph(CythonTransform):
         self.flow.nextblock()
         self.env = self.env_stack.pop()
         return node
+
+    def visit_AmpersandNode(self, node):
+        if node.operand.is_name:
+            # Fake assignment to silence warning
+            self.mark_assignment(node.operand)
+        self.visitchildren(node)
+        return node
