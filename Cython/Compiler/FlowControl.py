@@ -626,7 +626,8 @@ class CreateControlFlowGraph(CythonTransform):
         entry = node.entry
         if entry.is_anonymous:
             entry = self.env.lookup(node.name)
-        self.flow.mark_assignment(node, object_expr, entry)
+        if entry:
+            self.flow.mark_assignment(node, object_expr, entry)
         return self.visit_FuncDefNode(node)
 
     def visit_GeneratorBodyDefNode(self, node):
