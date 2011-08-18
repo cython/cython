@@ -151,10 +151,8 @@ class ControlFlow(object):
         if self.block:
             self.block.positions.add(node.pos[:2])
 
-    def mark_assignment(self, lhs, rhs, entry=None):
+    def mark_assignment(self, lhs, rhs, entry):
         if self.block:
-            if entry is None:
-                entry = lhs.entry
             if not self.is_tracked(entry):
                 return
             assignment = NameAssignment(lhs, rhs, entry)
@@ -619,7 +617,10 @@ class CreateControlFlowGraph(CythonTransform):
     def visit_DefNode(self, node):
         ## XXX: no target name node here
         node.used = True
-        self.flow.mark_assignment(node, object_expr, self.env.lookup(node.name))
+        entry = node.entry
+        if entry.is_anonymous:
+            entry = self.env.lookup(node.name)
+        self.flow.mark_assignment(node, object_expr, entry)
         return self.visit_FuncDefNode(node)
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -643,10 +644,13 @@ class CreateControlFlowGraph(CythonTransform):
         if not rhs:
             rhs = object_expr
         if lhs.is_name:
-            if lhs.entry is None:
-                # TODO: This shouldn't happen...
+            if lhs.entry is not None:
+                entry = lhs.entry
+            else:
+                entry = self.env.lookup(lhs.name)
+            if entry is None: # TODO: This shouldn't happen...
                 return
-            self.flow.mark_assignment(lhs, rhs)
+            self.flow.mark_assignment(lhs, rhs, entry)
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for arg in lhs.args:
                 self.mark_assignment(arg)
