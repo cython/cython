@@ -3233,6 +3233,8 @@ class SimpleCallNode(CallNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
         else:
             self.type = func_type.return_type
+        if self.function.entry and self.function.entry.utility_code:
+            self.is_temp = 1 # currently doesn't work for self.calculate_result_code()
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
             self.is_temp = 1
@@ -3285,6 +3287,8 @@ class SimpleCallNode(CallNode):
 
     def generate_result_code(self, code):
         func_type = self.function_type()
+        if self.function.entry and self.function.entry.utility_code:
+            code.globalstate.use_utility_code(self.function.entry.utility_code)
         if func_type.is_pyobject:
             arg_code = self.arg_tuple.py_result()
             code.putln(

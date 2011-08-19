@@ -1702,12 +1702,11 @@ class CFuncType(CType):
 
     is_cfunction = 1
     original_sig = None
-    is_strict_signature = False
 
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
-            templates = None):
+            templates = None, is_strict_signature = False):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -1719,6 +1718,7 @@ class CFuncType(CType):
         self.with_gil = with_gil
         self.is_overridable = is_overridable
         self.templates = templates
+        self.is_strict_signature = is_strict_signature
 
     def __repr__(self):
         arg_reprs = map(repr, self.args)

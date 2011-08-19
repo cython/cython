@@ -23,6 +23,20 @@ proto = """
 """
 )
 
+abs_int_utility_code = UtilityCode(
+proto = '''
+#if HAVE_LONG_LONG
+#define __Pyx_abs_int(x) \
+    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : \
+     ((sizeof(x) <= sizeof(long)) ? ((unsigned long)labs(x)) : \
+      ((unsigned PY_LONG_LONG)llabs(x))))
+#else
+#define __Pyx_abs_int(x) \
+    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : ((unsigned long)labs(x)))
+#endif
+#define __Pyx_abs_long(x) __Pyx_abs_int(x)
+''')
+
 iter_next_utility_code = UtilityCode(
 proto = """
 #define __Pyx_PyIter_Next(obj) __Pyx_PyIter_Next2(obj, NULL);
@@ -330,6 +344,8 @@ class BuiltinMethod(_BuiltinOverride):
             self_arg.not_none = True
             self_arg.accept_builtin_subtypes = True
             method_type = sig.function_type(self_arg)
+            if self.is_strict_signature:
+                method_type.is_strict_signature = True
         self_type.scope.declare_builtin_cfunction(
             self.py_name, method_type, self.cname, utility_code = self.utility_code)
 
@@ -340,8 +356,20 @@ builtin_function_table = [
                     is_strict_signature = True),
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
                     is_strict_signature = True),
-    BuiltinFunction('abs',        "i",    "l",     "labs",
-                    is_strict_signature = True),
+    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_int",
+                    utility_code = abs_int_utility_code,
+                    func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.c_uint_type, [
+                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_int_type, None)
+                            ],
+                        is_strict_signature = True)),
+    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_long",
+                    utility_code = abs_int_utility_code,
+                    func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.c_ulong_type, [
+                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_long_type, None)
+                            ],
+                        is_strict_signature = True)),
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
     #('chr',       "",     "",      ""),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
