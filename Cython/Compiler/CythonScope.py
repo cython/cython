@@ -75,10 +75,13 @@ class CythonScope(ModuleScope):
         Creates some entries for testing purposes and entries for
         cython.array() and for cython.view.*.
         """
-        cython_testscope_utility_code.declare_in_scope(self)
-        cython_test_extclass_utility_code.declare_in_scope(self)
+        cython_testscope_utility_code.declare_in_scope(
+                                self, cython_scope=self)
+        cython_test_extclass_utility_code.declare_in_scope(
+                                    self, cython_scope=self)
 
-        MemoryView.cython_array_utility_code.declare_in_scope(self)
+        MemoryView.cython_array_utility_code.declare_in_scope(
+                                        self, cython_scope=self)
 
         #
         # The view sub-scope
@@ -88,9 +91,11 @@ class CythonScope(ModuleScope):
         viewscope.is_cython_builtin = True
         viewscope.pxd_file_loaded = True
 
-        cythonview_testscope_utility_code.declare_in_scope(viewscope)
+        cythonview_testscope_utility_code.declare_in_scope(
+                                                viewscope, cython_scope=self)
 
-        view_utility_scope = MemoryView.view_utility_code.declare_in_scope(viewscope)
+        view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
+                                                viewscope, cython_scope=self)
         # MemoryView.memview_fromslice_utility_code.from_scope = view_utility_scope
         # MemoryView.memview_fromslice_utility_code.declare_in_scope(viewscope)
 

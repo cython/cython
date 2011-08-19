@@ -165,6 +165,8 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *
 
 ########## View.MemoryView ##########
 
+import cython
+
 # from cpython cimport ...
 cdef extern from "Python.h":
     int PyIndex_Check(object)
@@ -245,7 +247,6 @@ cdef class memoryview(object):
         cdef char *itemp = <char *> self.view.buf
 
         for dim, idx in enumerate(index):
-            _check_index(idx)
             itemp = pybuffer_index(&self.view, itemp, idx, dim)
 
         return itemp
@@ -255,13 +256,13 @@ cdef class memoryview(object):
         if index is Ellipsis:
             return self
 
-        have_slices, index = _unellipsify(index, self.view.ndim)
+        have_slices, indices = _unellipsify(index, self.view.ndim)
 
         cdef char *itemp
         if have_slices:
-            return pybuffer_slice(self, index)
+            return memview_slice(self, indices)
         else:
-            itemp = self.get_item_pointer(index)
+            itemp = self.get_item_pointer(indices)
             return self.convert_item_to_object(itemp)
 
     @cname('__pyx_memoryview_setitem')
@@ -355,12 +356,11 @@ cdef class memoryview(object):
 cdef memoryview_cwrapper(object o, int flags):
     return memoryview(o, flags)
 
-
-cdef _check_index(index):
-    if not PyIndex_Check(index):
-        raise TypeError("Cannot index with %s" % type(index))
-
 cdef tuple _unellipsify(object index, int ndim):
+    """
+    Replace all ellipses with full slices and fill incomplete indices with
+    full slices.
+    """
     if not isinstance(index, tuple):
         tup = (index,)
     else:
@@ -373,11 +373,14 @@ cdef tuple _unellipsify(object index, int ndim):
         if item is Ellipsis:
             if not seen_ellipsis:
                 result.extend([slice(None)] * (ndim - len(tup) + 1))
-                result.extend(tup[idx + 1:])
+                seen_ellipsis = True
             else:
                 result.append(slice(None))
             have_slices = True
         else:
+            if not isinstance(item, slice) and not PyIndex_Check(item):
+                raise TypeError("Cannot index with type '%s'" % type(item))
+
             have_slices = have_slices or isinstance(item, slice)
             result.append(item)
 
@@ -385,102 +388,212 @@ cdef tuple _unellipsify(object index, int ndim):
     if nslices:
         result.extend([slice(None)] * nslices)
 
-    for idx in tup:
-        if isinstance(idx, slice):
-            return True, tup
+    return have_slices or nslices, tuple(result)
 
-    return False, tup
+#
+### Slicing a memoryview
+#
 
-@cname('__pyx_pybuffer_slice')
-cdef memoryview pybuffer_slice(memoryview memview, object indices):
-    cdef Py_ssize_t idx, dim, new_dim = 0, suboffset_dim = -1
-    cdef Py_ssize_t shape, stride
+@cname('__pyx_memview_slice')
+cdef memoryview memview_slice(memoryview memview, object indices):
+    cdef int new_ndim = 0, suboffset_dim = -1, dim
     cdef bint negative_step
-    cdef int new_ndim = 0
-    cdef {{memviewslice_name}} dst
+    cdef {{memviewslice_name}} dst, src
+    cdef {{memviewslice_name}} *p_src
+
+    cdef _memoryviewslice memviewsliceobj
+
+    assert memview.view.ndim > 0
+
+    if isinstance(memview, _memoryviewslice):
+        memviewsliceobj = memview
+        p_src = &memviewsliceobj.from_slice
+    else:
+        create_slice(memview, &src)
+        p_src = &src
+
+    # Note: don't use variable src at this point
+    # SubNote: we should be able to declare variables in blocks...
+
+    # memoryview_fromslice() will inc our dst slice
+    dst.memview = p_src.memview
+    dst.data = p_src.data
 
     for dim, index in enumerate(indices):
-        shape = memview.view.shape[dim]
-        stride = memview.view.strides[dim]
-
         if PyIndex_Check(index):
-            idx = index
-            if idx < 0:
-                idx += shape
-            if not 0 <= idx < shape:
-                raise IndexError("Index out of bounds (axis %d)" % dim)
+            slice_memviewslice(p_src, &dst, True, dim, new_ndim, &suboffset_dim,
+                               index, 0, 0, 0, 0, 0, False)
         else:
-            # index is a slice
+            slice_memviewslice(p_src, &dst, True, dim, new_ndim, &suboffset_dim,
+                               index.start or 0,
+                               index.stop or 0,
+                               index.step or 0,
+                               index.start is not None,
+                               index.stop is not None,
+                               index.step is not None,
+                               True)
             new_ndim += 1
 
-            start, stop, step = index.start, index.stop, index.step
-            negative_step = step and step < 0
+    if isinstance(memview, _memoryviewslice):
+        return memoryview_fromslice(&dst, new_ndim,
+                                    memviewsliceobj.to_object_func,
+                                    memviewsliceobj.to_dtype_func)
+    else:
+        return memoryview_fromslice(&dst, new_ndim, NULL, NULL)
 
-            # set some defaults
-            if not start:
-                if negative_step:
-                    start = shape - 1
-                else:
-                    start = 0
+#
+### Slicing in a single dimension of a memoryviewslice
+#
 
-            if not stop:
-                if negative_step:
-                    stop = -1
-                else:
-                    stop = shape
+cdef extern from "stdlib.h":
+    void abort() nogil
 
-            # check our bounds
+cdef extern from "stdio.h":
+    ctypedef struct FILE
+    FILE *stderr
+    int fputs(char *s, FILE *stream)
+
+cdef extern from "pystate.h":
+    void PyThreadState_Get() nogil
+
+    # These are not actually nogil, but we check for the GIL before calling them
+    void PyErr_SetString(PyObject *type, char *msg) nogil
+    PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
+
+
+cdef:
+    char *ERR_OOB = "Index out of bounds (axis %d)"
+    char *ERR_STEP = "Step must not be zero (axis %d)"
+    char *ERR_INDIRECT_GIL = ("Cannot make indirect dimension %d disappear "
+                              "through indexing, consider slicing with %d:%d")
+    char *ERR_INDIRECT_NOGIL = ("Cannot make indirect dimension %d disappear "
+                                "through indexing")
+    PyObject *exc = <PyObject *> IndexError
+
+@cname('__pyx_memoryview_slice_memviewslice')
+cdef char *slice_memviewslice({{memviewslice_name}} *src,
+                              {{memviewslice_name}} *dst,
+                              bint have_gil,
+                              int dim,
+                              int new_ndim,
+                              int *suboffset_dim,
+                              Py_ssize_t start,
+                              Py_ssize_t stop,
+                              Py_ssize_t step,
+                              int have_start,
+                              int have_stop,
+                              int have_step,
+                              bint is_slice) nogil except *:
+    """
+    Create a new slice dst given slice src.
+
+    have_gil        - if true, the GIL must be held and exceptions may be raised
+    dim             - the current src dimension (indexing will make dimensions
+                                                 disappear)
+    new_dim         - the new dst dimension
+    suboffset_dim   - pointer to a single int initialized to -1 to keep track of
+                      where slicing offsets should be added
+    """
+
+    cdef:
+        Py_ssize_t shape, stride, suboffset
+        Py_ssize_t new_shape
+        bint negative_step
+
+    if have_gil:
+        # Assert the GIL
+        PyThreadState_Get()
+
+    shape = src.shape[dim]
+    stride = src.strides[dim]
+    suboffset = src.suboffsets[dim]
+
+    if not is_slice:
+        # index is a normal integer-like index
+        if start < 0:
+            start += shape
+        if not 0 <= start < shape:
+            if have_gil:
+                PyErr_Format(exc, ERR_OOB, dim)
+            return ERR_OOB
+    else:
+        # index is a slice
+        negative_step = have_step != 0 and step < 0
+
+        if have_step and step == 0:
+            if have_gil:
+                # ValueError might be more appropriate, but this will make it consistent
+                # with nogil slicing
+                PyErr_SetString(exc, ERR_STEP)
+            return ERR_STEP
+
+        # check our bounds and set defaults
+        if have_start:
             if start < 0:
                 start += shape
                 if start < 0:
                     start = 0
             elif start >= shape:
+                if negative_step:
+                    start = shape - 1
+                else:
+                    start = shape
+        else:
+            if negative_step:
                 start = shape - 1
+            else:
+                start = 0
 
+        if have_stop:
             if stop < 0:
                 stop += shape
                 if stop < 0:
                     stop = 0
             elif stop > shape:
                 stop = shape
-
-            step = step or 1
-
-            # shape/strides/suboffsets
-            dst.strides[new_dim] = stride * step
-            dst.shape[new_dim] = (stop - start) / step
-            if (stop - start) % step:
-                dst.shape[new_dim] += 1
-            dst.suboffsets[new_dim] = memview.view.suboffsets[dim]
-
-            # set this for the slicing offset
-            if negative_step:
-                idx = stop
-            else:
-                idx = start
-
-        # Add the slicing or idexing offsets to the right suboffset or base data *
-        if suboffset_dim < 0:
-            dst.data += idx * stride
         else:
-            dst.suboffsets[suboffset_dim] += idx * stride
+            if negative_step:
+                stop = -1
+            else:
+                stop = shape
 
-        if memview.view.suboffsets[dim]:
-            if PyIndex_Check(index):
-                raise IndexError(
-                    "Cannot make indirect dimension %d disappear through "
-                    "indexing, consider slicing with %d:%d" % (dim, idx, idx + 1))
-            suboffset_dim = new_dim
+        if not have_step:
+            step = 1
 
-    cdef _memoryviewslice memviewsliceobj
-    if isinstance(memview, _memoryviewslice):
-        memviewsliceobj = memview
-        return memoryview_fromslice(&dst, new_dim,
-                                    memviewsliceobj.to_object_func,
-                                    memviewsliceobj.to_dtype_func)
+        # len = ceil( (stop - start) / step )
+        with cython.cdivision(True):
+            new_shape = (stop - start) // step
+
+            if (stop - start) % step:
+                new_shape += 1
+
+        if new_shape < 0:
+            new_shape = 0
+
+        # shape/strides/suboffsets
+        dst.strides[new_ndim] = stride * step
+        dst.shape[new_ndim] = new_shape
+        dst.suboffsets[new_ndim] = suboffset
+
+    # Add the slicing or idexing offsets to the right suboffset or base data *
+    if suboffset_dim[0] < 0:
+        dst.data += start * stride
     else:
-        return memoryview_fromslice(&dst, new_dim, NULL, NULL)
+        dst.suboffsets[suboffset_dim[0]] += start * stride
 
+    if suboffset >= 0:
+        if not is_slice:
+            if have_gil:
+                PyErr_Format(exc, ERR_INDIRECT_GIL, dim, start, start + 1)
+            return ERR_INDIRECT_NOGIL
+        else:
+            suboffset_dim[0] = new_ndim
+
+    return NULL
+
+#
+### Index a memoryview
+#
 @cname('__pyx_pybuffer_index')
 cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
                           int dim) except NULL:
@@ -511,13 +624,16 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
 
     return resultp
 
+#
+### Creating new memoryview objects from slices and memoryviews
+#
 @cname('__pyx_memoryviewslice')
 cdef class _memoryviewslice(memoryview):
-    "Internal class for passing memory view slices to Python"
+    "Internal class for passing memoryview slices to Python"
 
     # We need this to keep our shape/strides/suboffset pointers valid
     cdef {{memviewslice_name}} from_slice
-    # We need this only to print it's classes name
+    # We need this only to print it's class' name
     cdef object from_object
 
     cdef object (*to_object_func)(char *)
@@ -550,9 +666,12 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
                           object (*to_object_func)(char *),
                           int (*to_dtype_func)(char *, object) except 0):
 
+    cdef _memoryviewslice result
+    cdef int i
+
     assert 0 < ndim <= memviewslice.memview.view.ndim, (ndim, memviewslice.memview.view.ndim)
 
-    cdef _memoryviewslice result = _memoryviewslice(None, 0)
+    result = _memoryviewslice(None, 0)
 
     result.from_slice = memviewslice[0]
     __PYX_INC_MEMVIEW(memviewslice, 1)
@@ -560,30 +679,41 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
     result.from_object = <object> memviewslice.memview.obj
 
     result.view = memviewslice.memview.view
-    result.view.shape = <Py_ssize_t *> &result.from_slice.shape
-    result.view.strides = <Py_ssize_t *> result.from_slice.strides
-    result.view.suboffsets = <Py_ssize_t *> &result.from_slice.suboffsets
+    result.view.buf = <void *> memviewslice.data
     result.view.ndim = ndim
+
+    result.view.shape = <Py_ssize_t *> result.from_slice.shape
+    result.view.strides = <Py_ssize_t *> result.from_slice.strides
+    result.view.suboffsets = <Py_ssize_t *> result.from_slice.suboffsets
+
+    result.view.len = result.view.itemsize
+    for i in range(ndim):
+        result.view.len *= result.view.shape[i]
 
     result.to_object_func = to_object_func
     result.to_dtype_func = to_dtype_func
 
     return result
 
+@cname('__pyx_memoryview_create_slice')
+cdef void create_slice(memoryview memview, {{memviewslice_name}} *dst):
+    cdef int dim
+
+    dst.memview = <__pyx_memoryview *> memview
+    dst.data = <char *> memview.view.buf
+
+    for dim in range(memview.view.ndim):
+        dst.shape[dim] = memview.view.shape[dim]
+        dst.strides[dim] = memview.view.strides[dim]
+        dst.suboffsets[dim] = memview.view.suboffsets[dim]
+
+@cname('__pyx_memoryview_copy')
 cdef memoryview_copy(memoryview memview):
     cdef {{memviewslice_name}} memviewslice
-    cdef int dim
     cdef object (*to_object_func)(char *)
     cdef int (*to_dtype_func)(char *, object) except 0
 
-    memviewslice.memview = <__pyx_memoryview *> memview
-    memviewslice.data = <char *> memview.view.buf
-
-    # Copy all of these as from_slice will
-    for dim in range(memview.view.ndim):
-        memviewslice.shape[dim] = memview.view.shape[dim]
-        memviewslice.strides[dim] = memview.view.strides[dim]
-        memviewslice.suboffsets[dim] = memview.view.suboffsets[dim]
+    create_slice(memview, &memviewslice)
 
     if isinstance(memview, _memoryviewslice):
         to_object_func = (<_memoryviewslice> memview).to_object_func

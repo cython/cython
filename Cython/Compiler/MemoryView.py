@@ -228,189 +228,72 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         return bufp
 
-    def generate_buffer_slice_code(self, code, indices, type, dst_type, dst):
-        """
-        Generate code for a new memoryview slice.
+    def generate_buffer_slice_code(self, code, indices, type, dst_type, dst, have_gil):
+        slicefunc = "__pyx_memoryview_slice_memviewslice"
+        new_ndim = 0
+        cname = self.cname
 
-        indices     An index in the indices list is either a SliceNode where
-        start/stop and step are converted to temps of type Py_ssize_t, or a
-        temp integer index of type Py_ssize_t.
+        suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type,
+                                                     False)
 
-        type        is the type that is sliced
-        dst_type    is the resulting type
-        dst         is the result memoryview slice temp
+        index_code = ("%(slicefunc)s(&%(cname)s, &%(dst)s, %(have_gil)d, "
+                                    "%(dim)d, %(new_ndim)d, &%(suboffset_dim)s, "
+                                    "%(idx)s, 0, 0, 0, 0, 0, 0)")
 
-        For every dimension we do the following:
+        slice_code = ("%(slicefunc)s(&%(cname)s, &%(dst)s, %(have_gil)d, "
+                                    "/* dim */ %(dim)d, "
+                                    "/* new_ndim */ %(new_ndim)d, "
+                                    "/* suboffset_dim */ &%(suboffset_dim)s, "
+                                    "/* start */ %(start)s, "
+                                    "/* stop */ %(stop)s, "
+                                    "/* step */ %(step)s, "
+                                    "/* have_start */ %(have_start)d, "
+                                    "/* have_stop */ %(have_stop)d, "
+                                    "/* have_step */ %(have_step)d, "
+                                    "/* is_slice */ 1)")
 
-            ensure 0 <= start < n and 0 <= stop <= n
+        def generate_slice_call(expr):
+            pos = index.pos
 
-            if every dimension is direct:
-                keep track of possible offsets, set data * to
-                mslice[0, 0, 0, ...] after the loop
+            if have_gil:
+                code.putln(code.error_goto_if(expr, pos))
             else:
-                keep a variable 'dim' that
-                    if < 0
-                        indicates the data *
-                    else
-                        indicates suboffsets[dim]
+                code.putln("{")
+                code.putln(    "const char *__pyx_t_result = %s;" % expr)
 
-            now set shape, strides and suboffsets according to start/stop/step
+                code.putln(    "if (unlikely(__pyx_t_result)) {")
+                code.put_ensure_gil()
+                code.putln(        "PyErr_Format(PyExc_IndexError, "
+                                                "__pyx_t_result, %d)" % dim)
+                code.put_release_ensured_gil()
+                code.putln(code.goto_error(pos))
+                code.putln(    "}")
 
-            add the slice or indexing offset to data * or to suboffsets[dim]
-
-            update the dim variable if necessary
-        """
-        axes = []
-        temps = []
-        dtype = PyrexTypes.c_py_ssize_t_type
-
-        def put_bounds_code(r, start):
-            "ensure that start 0 <= r < n"
-            code.putln("if (%s < 0) {" % r)
-            code.putln(    "%s += %s;" % (r, shape))
-            code.putln(    "if (%s < 0) %s = 0;" % (r, r))
-
-            if start:
-                code.putln("} else if (%s >= %s) %s = %s - 1;" % (r, shape, r, shape))
-            else:
-                code.putln("} else if (%s > %s) %s = %s;" % (r, shape, r, shape))
-
-        def update_dim():
-            "if we are indirect, update our dim index"
-            if access in ('ptr', 'generic'):
-                if access == 'generic':
-                    code.put("if (%s >= 0)" % suboffset)
-                code.putln("%s = %d;" % (offset_dim, dst_dim))
-
-        all_direct = True
-        for access, packing in type.axes:
-            all_direct = all_direct and access == 'direct'
-            if not all_direct:
-                break
-
-        if not all_direct:
-            offset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type,
-                                                      False)
-            code.putln("%s = -1;" % (offset_dim,))
-            code.putln("%s.data = %s.data;" % (dst, self.cname))
-
-        dst_dim = 0
-        for dim, index in enumerate(indices):
-            goto_err = code.error_goto(index.pos)
-
-            shape = "%s.shape[%d]" % (self.cname, dim)
-            stride = "%s.strides[%d]" % (self.cname, dim)
-            suboffset = "%s.suboffsets[%d]" % (self.cname, dim)
-
-            dst_shape = "%s.shape[%d]" % (dst, dst_dim)
-            dst_stride = "%s.strides[%d]" % (dst, dst_dim)
-            dst_suboffset = "%s.suboffsets[%d]" % (dst, dst_dim)
-
-            access, packing = type.axes[dim]
-
-            if isinstance(index, ExprNodes.SliceNode):
-                # slice or part of ellipsis
-
-                start = stop = step = None
-                dst_dim += 1
-
-                # First fix the bounds
-                if not index.start.is_none:
-                    start = index.start.result()
-                    put_bounds_code(start, start=True)
-
-                if not index.stop.is_none:
-                    stop = index.stop.result()
-                    put_bounds_code(stop, start=False)
-
-                # Compute the new strides
-                if not index.step.is_none:
-                    step = index.step.result()
-                    code.putln("%s = %s * %s;" % (dst_stride, stride, step))
-
-                else:
-                    code.putln("%s = %s;" % (dst_stride, stride))
-
-                # Take care of suboffsets
-                code.putln("%s = %s;" % (dst_suboffset, suboffset))
-
-                # If start or stop is not specified, then we need to set
-                # them according to step
-                if not start or not stop:
-                    if step:
-                        code.putln("if (%s > 0) {" % step)
-
-                        if not start:
-                            start = code.funcstate.allocate_temp(dtype, False)
-                            temps.append(start)
-                            code.putln("%s = 0;" % start)
-                        if not stop:
-                            stop = code.funcstate.allocate_temp(dtype, False)
-                            temps.append(stop)
-                            code.putln("%s = %s;" % (stop, shape))
-
-                        code.putln("} else {")
-
-                        if start:
-                            code.putln("%s = %s - 1;" % (start, shape))
-                        if stop:
-                            code.putln("%s = -1;" % stop)
-
-                        code.putln("}")
-                    else:
-                        if not start:
-                            start = "0"
-                        if not stop:
-                            stop = shape
-
-                d = dict(locals(), step=step or "1")
-
-                # Take care of shape
-                code.putln("%(dst_shape)s = (%(stop)s - %(start)s) / %(step)s;" % d)
-                code.putln("if (%(dst_shape)s && (%(stop)s - %(start)s) %% %(step)s) %(dst_shape)s++;" % d)
-                code.putln("if (%(dst_shape)s < 0) %(dst_shape)s = 0;" % d)
-
-                # Take care of slicing offsets
-                if start != "0":
-                    if all_direct:
-                        axes.append([dim, start, access, packing])
-                    else:
-                        offset = "%s * %s" % (start, stride)
-                        d = dict(dim=offset_dim, dst=dst, offset=offset)
-                        code.putln("if (%(dim)s < 0) %(dst)s.data += %(offset)s;" % d)
-                        code.putln("else %(dst)s.suboffsets[%(dim)s] += %(offset)s;" % d)
-
-            else:
-                # integer index (or object converted to integer index)
-                # Note: this dimension disappears
-
-                assert access == 'direct'
-                r = index.result()
-
-                # Bounds checking with error
-                code.globalstate.use_utility_code(Buffer.raise_indexerror_code)
-                out_of_bounds = "%s < 0 || %s >= %s" % (r, r, shape)
-                code.putln("if (%s) {" % code.unlikely(out_of_bounds))
-                code.putln('__Pyx_RaiseBufferIndexError(%d);' % dim)
-                code.putln(code.error_goto(index.pos))
                 code.putln("}")
 
-                if all_direct:
-                    axes.append([dim, index.result(), access, packing])
-                else:
-                    add_slice_offset(r)
+        code.putln("%s = -1;" % suboffset_dim)
+        code.putln("%(dst)s.data = %(cname)s.data;" % locals())
+        code.putln("%(dst)s.memview = %(cname)s.memview;" % locals())
 
-        # Take care of data * for direct access in all dimensions
-        if all_direct:
-            bufp = self._generate_buffer_lookup_code(code, axes,
-                                                     cast_result=False)
-            code.putln("%s.data = %s;" % (dst, bufp))
+        for dim, index in enumerate(indices):
+            if not isinstance(index, ExprNodes.SliceNode):
+                idx = index.result()
+                generate_slice_call(index_code % locals())
+            else:
+                d = {}
+                for s in "start stop step".split():
+                    idx = getattr(index, s)
+                    have_idx = d['have_' + s] = not idx.is_none
+                    if have_idx:
+                        d[s] = idx.result()
+                    else:
+                        d[s] = "0"
 
-        # Finally take care of memview
-        code.putln("%s.memview = %s.memview;" % (dst, self.cname))
+                d.update(locals())
+                generate_slice_call(slice_code % d)
+                new_ndim += 1
 
-        for temp in temps:
-            code.funcstate.release_temp(temp)
+        code.funcstate.release_temp(suboffset_dim)
 
 def empty_slice(pos):
     none = ExprNodes.NoneNode(pos)
@@ -420,10 +303,13 @@ def empty_slice(pos):
 def unellipsify(indices, ndim):
     result = []
     seen_ellipsis = False
+    have_slices = False
 
     for index in indices:
         if isinstance(index, ExprNodes.EllipsisNode):
+            have_slices = True
             full_slice = empty_slice(index.pos)
+
             if seen_ellipsis:
                 result.append(full_slice)
             else:
@@ -431,13 +317,15 @@ def unellipsify(indices, ndim):
                 result.extend([full_slice] * nslices)
                 seen_ellipsis = True
         else:
+            have_slices = have_slices or isinstance(index, ExprNodes.SliceNode)
             result.append(index)
 
     if len(result) < ndim:
+        have_slices = True
         nslices = ndim - len(result)
         result.extend([empty_slice(indices[-1].pos)] * nslices)
 
-    return result
+    return have_slices, result
 
 def get_memoryview_flag(access, packing):
     if access == 'full' and packing in ('strided', 'follow'):
@@ -884,10 +772,6 @@ view_constant_to_access_packing = {
     'contiguous':           ('direct', 'contig'),
     'indirect_contiguous':  ('ptr',    'contig'),
 }
-
-def get_access_packing(view_scope_constant):
-    if view_scope_constant.name == 'generic':
-        return 'full',
 
 def validate_axes_specs(positions, specs):
 

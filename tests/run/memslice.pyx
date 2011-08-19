@@ -2,6 +2,7 @@
 
 from __future__ import unicode_literals
 
+cimport cython
 from cython cimport view
 
 __test__ = {}
@@ -1158,40 +1159,127 @@ def test_cdef_function2():
 
     cdef_function2(global_A, global_B)
 
+
+def print_int_offsets(*args):
+    for item in args:
+        print item / sizeof(int),
+
+    print
+
 @testcase
-def test_slicing(arg):
+def test_generic_slicing(arg):
     """
     Test simple slicing
-    >>> test_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
+    >>> test_generic_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
     acquired A
     3 9 2
-    1232 -44 4
+    308 -11 1
     -1 -1 -1
     released A
 
     Test direct slicing, negative slice oob in dim 2
-    >>> test_slicing(IntMockBuffer("A", range(1 * 2 * 3), shape=(1, 2, 3)))
+    >>> test_generic_slicing(IntMockBuffer("A", range(1 * 2 * 3), shape=(1, 2, 3)))
     acquired A
     0 0 2
-    48 -12 4
+    12 -3 1
     -1 -1 -1
     released A
 
     Test indirect slicing
     >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
-    >>> test_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
+    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
     acquired A
     2 0 2
-    8 -4 4
-    0 0 -1
+    0 1 -1
     released A
+
+    >>> stride1 = 21 * 14
+    >>> stride2 = 21
+    >>> L = [[range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21) for j in xrange(14)] for k in xrange(9)]
+    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)))
+    acquired A
+    3 9 2
+    20 1 -1
+    released A
+
     """
     cdef int[::view.generic, ::view.generic, :] a = arg
     cdef int[::view.generic, ::view.generic, :] b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape[0], b.shape[1], b.shape[2]
-    print b.strides[0], b.strides[1], b.strides[2]
-    print b.suboffsets[0], b.suboffsets[1], b.suboffsets[2]
+    if b.suboffsets[0] < 0:
+        print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
+    print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
+
+    cdef int i, j, k
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            for k in range(b.shape[2]):
+                itemA = a[2 + 2 * i, -4 - j, 1 + k]
+                itemB = b[i, j, k]
+                assert itemA == itemB, (i, j, k, itemA, itemB)
+
+@testcase
+def test_indirect_slicing(arg):
+    """
+    Test indirect slicing
+    >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
+    >>> test_indirect_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
+    acquired A
+    5 3 2
+    0 0 -1
+    58
+    56
+    released A
+
+    >>> stride1 = 21 * 14
+    >>> stride2 = 21
+    >>> L = [[range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21) for j in xrange(14)] for k in xrange(9)]
+    >>> test_indirect_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)))
+    acquired A
+    5 14 3
+    0 16 -1
+    2412
+    2410
+    released A
+    """
+    cdef int[::view.indirect, ::view.indirect, :] a = arg
+    cdef int[::view.indirect, ::view.indirect, :] b = a[-5:, ..., -5:100:2]
+    cdef int[::view.indirect, ::view.indirect] c = b[..., 0]
+
+    print b.shape[0], b.shape[1], b.shape[2]
+    print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
+
+    print b[4, 2, 1]
+    print c[4, 2]
+
+@testcase
+def test_direct_slicing(arg):
+    """
+    Fused types would be convenient to test this stuff!
+
+    Test simple slicing
+    >>> test_direct_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
+    acquired A
+    3 9 2
+    308 -11 1
+    -1 -1 -1
+    released A
+
+    Test direct slicing, negative slice oob in dim 2
+    >>> test_direct_slicing(IntMockBuffer("A", range(1 * 2 * 3), shape=(1, 2, 3)))
+    acquired A
+    0 0 2
+    12 -3 1
+    -1 -1 -1
+    released A
+    """
+    cdef int[:, :, ::1] a = arg
+    cdef int[:, :, :] b = a[2:8:2, -4:1:-1, 1:3]
+
+    print b.shape[0], b.shape[1], b.shape[2]
+    print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
+    print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
 
     cdef int i, j, k
     for i in range(b.shape[0]):
@@ -1208,7 +1296,7 @@ def test_slicing_and_indexing(arg):
     >>> test_slicing_and_indexing(a)
     acquired A
     5 2
-    60 8
+    15 2
     126 113
     [111]
     released A
@@ -1219,7 +1307,7 @@ def test_slicing_and_indexing(arg):
     cdef int[:] d = c[2, 1:2]
 
     print b.shape[0], b.shape[1]
-    print b.strides[0], b.strides[1]
+    print_int_offsets(b.strides[0], b.strides[1])
 
     cdef int i, j
     for i in range(b.shape[0]):
@@ -1230,3 +1318,15 @@ def test_slicing_and_indexing(arg):
 
     print c[1, 1], c[2, 0]
     print [d[i] for i in range(d.shape[0])]
+
+
+@testcase
+def test_oob():
+    """
+    >>> test_oob()
+    Traceback (most recent call last):
+       ...
+    IndexError: Index out of bounds (axis 1)
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    print a[:, 20]

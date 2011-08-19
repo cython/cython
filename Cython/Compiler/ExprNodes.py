@@ -2432,7 +2432,8 @@ class IndexNode(ExprNode):
             import MemoryView
 
             skip_child_analysis = True
-            indices = MemoryView.unellipsify(indices, self.base.type.ndim)
+            have_slices, indices = MemoryView.unellipsify(indices,
+                                                          self.base.type.ndim)
             self.memslice_index = len(indices) == self.base.type.ndim
             axes = []
 
@@ -2462,24 +2463,19 @@ class IndexNode(ExprNode):
                         value = getattr(index, attr)
                         if not value.is_none:
                             value = value.coerce_to(index_type, env)
-                            value = value.coerce_to_temp(env)
+                            #value = value.coerce_to_temp(env)
                             setattr(index, attr, value)
                             new_indices.append(value)
 
                 elif index.type.is_int:
                     self.memslice_index = True
-                    index = index.coerce_to(index_type, env).coerce_to_temp(
-                                                                 index_type)
+                    index = index.coerce_to(index_type, env)\
+                    #.coerce_to_temp(
+                    #                                             index_type)
                     indices[i] = index
                     new_indices.append(index)
 
-                    if access in ('ptr', 'generic') and i != 0:
-                        # If this dimension is to disappear, then how do we
-                        # indicate that we need to dereference in this dimension
-                        # if the previous dimension is already indirect, or if
-                        # the previous dimension was direct but also indexed?
-                        # Basically only a[i, j, k, :] can work, as you can
-                        # set the base pointer to start in the fourth dimension
+                    if access in ('ptr', 'generic') and i != 0 and have_slices:
                         self.type = error_type
                         return error(index.pos,
                                      "Indexing of non-leading indirect or generic "
@@ -2493,6 +2489,8 @@ class IndexNode(ExprNode):
             self.memslice_index = self.memslice_index and not self.memslice_slice
             self.original_indices = indices
             self.indices = new_indices
+
+            self.env = env
 
         elif self.base.type.is_buffer:
             # Buffer indexing
@@ -2893,7 +2891,8 @@ class IndexNode(ExprNode):
                                                 self.original_indices,
                                                 self.base.type,
                                                 self.type,
-                                                self.result())
+                                                self.result(),
+                                                have_gil = not self.env.nogil)
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
@@ -4092,8 +4091,9 @@ class AttributeNode(ExprNode):
     def nogil_check(self, env):
         if self.is_py_attr:
             self.gil_error()
-        import MemoryView
-        MemoryView.err_if_nogil_initialized_check(self.pos, env, 'attribute')
+        elif self.type.is_memoryviewslice:
+            import MemoryView
+            MemoryView.err_if_nogil_initialized_check(self.pos, env, 'attribute')
 
     gil_message = "Accessing Python attribute"
 

@@ -9,6 +9,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix
+        self.cython_scope = None
         Symtab.ModuleScope.__init__(self, *args, **kw)
 
     def add_imported_entry(self, name, entry, pos):
@@ -31,9 +32,12 @@ class CythonUtilityCodeContext(StringParseContext):
 
     def find_module(self, module_name, relative_to = None, pos = None,
                     need_pxd = 1):
+
         if module_name != self.module_name:
-            raise AssertionError("Not yet supporting any cimports/includes "
-                                 "from string code snippets")
+            if module_name not in self.modules:
+                raise AssertionError("Only the cython cimport is supported.")
+            else:
+                return self.modules[module_name]
 
         if self.scope is None:
             self.scope = NonManglingModuleScope(self.prefix,
@@ -78,7 +82,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.requires = requires or []
         self.from_scope = from_scope
 
-    def get_tree(self, entries_only=False):
+    def get_tree(self, entries_only=False, cython_scope=None):
         from AnalysedTreeTransforms import AutoTestDictTransform
         # The AutoTestDictTransform creates the statement "__test__ = {}",
         # which when copied into the main ModuleNode overwrites
@@ -88,6 +92,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         import Pipeline, ParseTreeTransforms
         context = CythonUtilityCodeContext(self.name)
         context.prefix = self.prefix
+        context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(self.name, self.impl, context=context,
                                   allow_struct_enum_decorator=True)
@@ -125,13 +130,13 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     def put_code(self, output):
         pass
 
-    def declare_in_scope(self, dest_scope, used=False):
+    def declare_in_scope(self, dest_scope, used=False, cython_scope=None):
         """
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries. If module_name is given, declare the
         type entries with that name.
         """
-        tree = self.get_tree(entries_only=True)
+        tree = self.get_tree(entries_only=True, cython_scope=cython_scope)
 
         entries = tree.scope.entries
         entries.pop('__name__')

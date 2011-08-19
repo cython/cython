@@ -284,7 +284,7 @@ static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
     if (!memview)
         return; /* allow uninitialized memoryview assignment */
 
-    if (memview->acquisition_count <= 0)
+    if (memview->acquisition_count < 0)
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 

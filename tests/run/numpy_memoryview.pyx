@@ -6,13 +6,15 @@ Test slicing for memoryviews and memoryviewslices
 """
 
 cimport numpy as np
-import numpy
+import numpy as np
+
+ctypedef np.int32_t dtype_t
 
 def get_array():
     # We need to type our array to get a __pyx_get_buffer() that typechecks
     # for np.ndarray and calls __getbuffer__ in numpy.pxd
-    cdef np.ndarray[int, ndim=3] a
-    a = numpy.arange(8 * 14 * 11).reshape(8, 14, 11)
+    cdef np.ndarray[dtype_t, ndim=3] a
+    a = np.arange(8 * 14 * 11, dtype=np.int32).reshape(8, 14, 11)
     return a
 
 a = get_array()
@@ -31,11 +33,11 @@ def test_partial_slicing(array):
     """
     >>> test_partial_slicing(a)
     """
-    cdef int[:, :, :] a = array
+    cdef dtype_t[:, :, :] a = array
     obj = array[4]
 
-    cdef int[:, :] b = a[4, :]
-    cdef int[:, :] c = a[4]
+    cdef dtype_t[:, :] b = a[4, :]
+    cdef dtype_t[:, :] c = a[4]
 
     ae(b.shape[0], c.shape[0], obj.shape[0])
     ae(b.shape[1], c.shape[1], obj.shape[1])
@@ -46,15 +48,15 @@ def test_ellipsis(array):
     """
     >>> test_ellipsis(a)
     """
-    cdef int[:, :, :] a = array
+    cdef dtype_t[:, :, :] a = array
 
-    cdef int[:, :] b = a[..., 4]
+    cdef dtype_t[:, :] b = a[..., 4]
     b_obj = array[..., 4]
 
-    cdef int[:, :] c = a[4, ...]
+    cdef dtype_t[:, :] c = a[4, ...]
     c_obj = array[4, ...]
 
-    cdef int[:, :] d = a[2:8, ..., 2]
+    cdef dtype_t[:, :] d = a[2:8, ..., 2]
     d_obj = array[2:8, ..., 2]
 
     ae(tuple([b.shape[i] for i in range(2)]), b_obj.shape)
@@ -75,7 +77,7 @@ def test_ellipsis(array):
         for j in range(d.shape[1]):
             ae(d[i, j], d_obj[i, j])
 
-    cdef int[:] e = a[..., 5, 6]
+    cdef dtype_t[:] e = a[..., 5, 6]
     e_obj = array[..., 5, 6]
     ae(e.shape[0], e_obj.shape[0])
     ae(e.strides[0], e_obj.strides[0])
@@ -88,7 +90,7 @@ def test_partial_slicing_memoryview(array):
     """
     >>> test_partial_slicing_memoryview(a)
     """
-    cdef int[:, :, :] _a = array
+    cdef dtype_t[:, :, :] _a = array
     a = _a
     obj = array[4]
 
@@ -104,7 +106,7 @@ def test_ellipsis_memoryview(array):
     """
     >>> test_ellipsis_memoryview(a)
     """
-    cdef int[:, :, :] _a = array
+    cdef dtype_t[:, :, :] _a = array
     a = _a
 
     b = a[..., 4]
