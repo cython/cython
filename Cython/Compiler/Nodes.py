@@ -1457,7 +1457,16 @@ class FuncDefNode(StatNode, BlockNode):
                 # TODO: Fix exception tracing (though currently unused by cProfile).
                 # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
                 # code.put_trace_exception()
+
+                if lenv.nogil:
+                    code.putln("{")
+                    code.put_ensure_gil()
+
                 code.put_add_traceback(self.entry.qualified_name)
+
+                if lenv.nogil:
+                    code.put_release_ensured_gil()
+                    code.putln("}")
             else:
                 warning(self.entry.pos, "Unraisable exception in function '%s'." \
                             % self.entry.qualified_name, 0)
