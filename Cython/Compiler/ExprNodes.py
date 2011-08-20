@@ -504,8 +504,12 @@ class ExprNode(Node):
 
     def generate_disposal_code(self, code):
         if self.is_temp:
-            if self.type.is_pyobject and self.result():
-                code.put_decref_clear(self.result(), self.ctype())
+            if self.result():
+                if self.type.is_pyobject:
+                    code.put_decref_clear(self.result(), self.ctype())
+                elif self.type.is_memoryviewslice:
+                    code.put_xdecref_memoryviewslice(
+                            self.result(), have_gil=not self.in_nogil_context)
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -520,6 +524,9 @@ class ExprNode(Node):
         if self.is_temp:
             if self.type.is_pyobject:
                 code.putln("%s = 0;" % self.result())
+            elif self.type.is_memoryviewslice:
+                code.putln("%s.memview = NULL;" % self.result())
+                code.putln("%s.data = NULL;" % self.result())
         else:
             self.generate_subexpr_disposal_code(code)
 
@@ -1477,6 +1484,7 @@ class NameNode(AtomicExprNode):
         elif entry.type.is_memoryviewslice:
             self.is_temp = False
             self.is_used_as_rvalue = True
+            self.use_managed_ref = True
 
     def nogil_check(self, env):
         self.nogil = True
@@ -1635,6 +1643,11 @@ class NameNode(AtomicExprNode):
             raise_unbound = (
                 (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)
             null_code = entry.type.check_for_null_code(entry.cname)
+
+            # if entry.type.is_memoryviewslice:
+            #     have_gil = not self.in_nogil_context
+            #     code.put_incref_memoryviewslice(entry.cname, have_gil)
+
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
 
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
@@ -1732,12 +1745,15 @@ class NameNode(AtomicExprNode):
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
                 rhs.generate_post_assignment_code(code)
+            elif rhs.result_in_temp():
+                rhs.generate_post_assignment_code(code)
+
             rhs.free_temps(code)
 
     def generate_acquire_memoryviewslice(self, rhs, code):
         """
-        If the value was coerced to a memoryviewslice, its a new reference.
-        Otherwise we're simply using a borrowed reference from another slice
+        Slices, coercions from objects, return values etc are new references.
+        We have a borrowed reference in case of dst = src
         """
         import MemoryView
 
@@ -1747,7 +1763,8 @@ class NameNode(AtomicExprNode):
             lhs_pos=self.pos,
             rhs=rhs,
             code=code,
-            incref_rhs=not isinstance(rhs, CoerceToMemViewSliceNode))
+            incref_rhs=rhs.is_name,
+            have_gil=not self.nogil)
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -2469,9 +2486,7 @@ class IndexNode(ExprNode):
 
                 elif index.type.is_int:
                     self.memslice_index = True
-                    index = index.coerce_to(index_type, env)\
-                    #.coerce_to_temp(
-                    #                                             index_type)
+                    index = index.coerce_to(index_type, env)
                     indices[i] = index
                     new_indices.append(index)
 
@@ -2488,6 +2503,8 @@ class IndexNode(ExprNode):
 
             self.memslice_index = self.memslice_index and not self.memslice_slice
             self.original_indices = indices
+            # All indices with all start/stop/step for slices.
+            # We need to keep this around
             self.indices = new_indices
 
             self.env = env
@@ -2540,7 +2557,9 @@ class IndexNode(ExprNode):
                 error(self.pos, "memoryviews currently support setting only.")
 
         elif self.memslice_slice:
+            self.index = None
             self.is_temp = True
+            self.use_managed_ref = True
             self.type = PyrexTypes.MemoryViewSliceType(
                             self.base.type.dtype, axes)
 
@@ -2618,8 +2637,8 @@ class IndexNode(ExprNode):
     gil_message = "Indexing Python object"
 
     def nogil_check(self, env):
-        if self.is_buffer_access or self.memslice_index:
-            if env.directives['boundscheck']:
+        if self.is_buffer_access or self.memslice_index or self.memslice_slice:
+            if not self.memslice_slice and env.directives['boundscheck']:
                 error(self.pos, "Cannot check buffer index bounds without gil; use boundscheck(False) directive")
                 return
             elif self.type.is_pyobject:
@@ -2887,12 +2906,13 @@ class IndexNode(ExprNode):
 
     def put_memoryviewslice_slice_code(self, code):
         buffer_entry = self.buffer_entry()
+        have_gil = not self.in_nogil_context
         buffer_entry.generate_buffer_slice_code(code,
                                                 self.original_indices,
                                                 self.base.type,
                                                 self.type,
                                                 self.result(),
-                                                have_gil = not self.env.nogil)
+                                                have_gil=have_gil)
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
@@ -6206,8 +6226,6 @@ class CythonArrayNode(ExprNode):
         import MemoryView
 
         self.type = error_type
-        self.env = env
-
         self.shapes = []
 
         for axis_no, axis in enumerate(self.base_type_node.axes):
@@ -8004,8 +8022,9 @@ class CoerceToMemViewSliceNode(CoercionNode):
         assert not arg.type.is_memoryviewslice
         CoercionNode.__init__(self, arg)
         self.type = dst_type
-        self.env = env
         self.is_temp = 1
+        self.env = env
+        self.use_managed_ref = True
         self.arg = arg
 
     def generate_result_code(self, code):
@@ -8016,10 +8035,6 @@ class CoerceToMemViewSliceNode(CoercionNode):
 
         error_cond = self.type.error_condition(self.result())
         code.putln(code.error_goto_if(error_cond, self.pos))
-
-    def generate_disposal_code(self, code):
-        code.put_xdecref_memoryviewslice(self.result(),
-                                         have_gil=not self.env.nogil)
 
 
 class CastNode(CoercionNode):

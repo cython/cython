@@ -1495,7 +1495,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_goto(code.return_label)
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
-                code.put_xdecref(cname, type)
+                code.put_xdecref(cname, type, have_gil=not lenv.nogil)
 
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
@@ -4347,8 +4347,8 @@ class ReturnStatNode(StatNode):
         if self.return_type.is_pyobject:
             code.put_xdecref(Naming.retval_cname,
                              self.return_type)
-        elif self.return_type.is_memoryviewslice:
-            code.put_xdecref_memoryviewslice(Naming.retval_cname)
+        #elif self.return_type.is_memoryviewslice:
+        #    code.put_xdecref_memoryviewslice(Naming.retval_cname)
 
         if self.value:
             self.value.generate_evaluation_code(code)
@@ -4359,7 +4359,9 @@ class ReturnStatNode(StatNode):
                         lhs_type=self.return_type,
                         lhs_pos=self.value.pos,
                         rhs=self.value,
-                        code=code)
+                        code=code,
+                        incref_rhs=True,
+                        have_gil=self.in_nogil_context)
             else:
                 self.value.make_owned_reference(code)
                 code.putln(

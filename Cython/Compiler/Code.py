@@ -462,10 +462,11 @@ class FunctionState(object):
 
         A C string referring to the variable is returned.
         """
-        if not type.is_pyobject:
+        if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
             manage_ref = False
+
         freelist = self.temps_free.get((type, manage_ref))
         if freelist is not None and len(freelist) > 0:
             result = freelist.pop()
@@ -508,7 +509,7 @@ class FunctionState(object):
         for name, type, manage_ref in self.temps_allocated:
             freelist = self.temps_free.get((type, manage_ref))
             if freelist is None or name not in freelist:
-                used.append((name, type, manage_ref))
+                used.append((name, type, manage_ref and type.is_pyobject))
         return used
 
     def temps_holding_reference(self):
@@ -518,14 +519,14 @@ class FunctionState(object):
         """
         return [(name, type)
                 for name, type, manage_ref in self.temps_in_use()
-                if manage_ref]
+                if manage_ref  and type.is_pyobject]
 
     def all_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
         """
         return [(cname, type)
-                for cname, type, manage_ref in self.temps_allocated
-                if manage_ref]
+                    for cname, type, manage_ref in self.temps_allocated
+                        if manage_ref]
 
     def all_free_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python
@@ -534,9 +535,9 @@ class FunctionState(object):
         error case.
         """
         return [(cname, type)
-                for (type, manage_ref), freelist in self.temps_free.items()
-                if manage_ref
-                for cname in freelist]
+                    for (type, manage_ref), freelist in self.temps_free.items()
+                        if manage_ref
+                            for cname in freelist]
 
     def start_collecting_temps(self):
         """
@@ -1464,6 +1465,8 @@ class CCodeWriter(object):
             decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
+            elif type.is_memoryviewslice:
+                self.putln("%s = { 0 };" % decl)
             else:
                 self.putln("%s;" % decl)
 
@@ -1544,13 +1547,21 @@ class CCodeWriter(object):
             self.putln("Py_DECREF(%s); %s = 0;" % (
                 typecast(py_object_type, type, cname), cname))
 
-    def put_xdecref(self, cname, type, nanny=True):
+    def put_xdecref(self, cname, type, nanny=True, have_gil=True):
+        if type.is_memoryviewslice:
+            self.put_xdecref_memoryviewslice(cname, have_gil=have_gil)
+            return
+
         if nanny:
             self.putln("__Pyx_XDECREF(%s);" % self.as_pyobject(cname, type))
         else:
             self.putln("Py_XDECREF(%s);" % self.as_pyobject(cname, type))
 
     def put_xdecref_clear(self, cname, type, nanny=True):
+        if type.is_memoryviewslice:
+            self.put_xdecref_memoryviewslice(cname)
+            return
+
         if nanny:
             self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
                 self.as_pyobject(cname, type), cname))

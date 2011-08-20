@@ -460,16 +460,6 @@ cdef extern from "pystate.h":
     void PyErr_SetString(PyObject *type, char *msg) nogil
     PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
 
-
-cdef:
-    char *ERR_OOB = "Index out of bounds (axis %d)"
-    char *ERR_STEP = "Step must not be zero (axis %d)"
-    char *ERR_INDIRECT_GIL = ("Cannot make indirect dimension %d disappear "
-                              "through indexing, consider slicing with %d:%d")
-    char *ERR_INDIRECT_NOGIL = ("Cannot make indirect dimension %d disappear "
-                                "through indexing")
-    PyObject *exc = <PyObject *> IndexError
-
 @cname('__pyx_memoryview_slice_memviewslice')
 cdef char *slice_memviewslice({{memviewslice_name}} *src,
                               {{memviewslice_name}} *dst,
@@ -499,6 +489,15 @@ cdef char *slice_memviewslice({{memviewslice_name}} *src,
         Py_ssize_t shape, stride, suboffset
         Py_ssize_t new_shape
         bint negative_step
+
+        # Somehow these pointers are NULL when set as globals... this needs investigation
+        char *ERR_OOB = "Index out of bounds (axis %d)"
+        char *ERR_STEP = "Step must not be zero (axis %d)"
+        char *ERR_INDIRECT_GIL = ("Cannot make indirect dimension %d disappear "
+                              "through indexing, consider slicing with %d:%d")
+        char *ERR_INDIRECT_NOGIL = ("Cannot make indirect dimension %d disappear "
+                                "through indexing")
+        PyObject *exc = <PyObject *> IndexError
 
     if have_gil:
         # Assert the GIL

@@ -2223,6 +2223,7 @@ class GilCheck(VisitorTransform):
         if self.env_stack and self.nogil and node.nogil_check:
             node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
+        node.in_nogil_context = self.nogil
         return node
 
 

@@ -1330,3 +1330,73 @@ def test_oob():
     """
     cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
     print a[:, 20]
+
+
+cdef int nogil_oob(int[:, :] a) nogil except 0:
+    a[100, 9:]
+    return 1
+
+@testcase
+def test_nogil_oob1():
+    """
+    A is acquired at the beginning of the function and released at the end.
+    B is acquired as a temporary and as such is immediately released in the
+    except clause.
+    >>> test_nogil_oob1()
+    acquired A
+    acquired B
+    released B
+    Index out of bounds (axis 0)
+    Index out of bounds (axis 0)
+    released A
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+
+    try:
+        nogil_oob(IntMockBuffer("B", range(4 * 9), shape=(4, 9)))
+    except IndexError, e:
+        print e.args[0]
+
+    try:
+        # Enable when the nogil exception propagation fix is merged
+        #with nogil:
+        nogil_oob(a)
+    except IndexError, e:
+        print e.args[0]
+
+@testcase
+def test_nogil_oob2():
+    """
+    >>> test_nogil_oob2()
+    Traceback (most recent call last):
+       ...
+    IndexError: Index out of bounds (axis 0)
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    with nogil:
+        a[100, 9:]
+
+@cython.boundscheck(False)
+cdef int cdef_nogil(int[:, :] a) nogil except 0:
+    cdef int i, j
+    cdef int[:, :] b = a[::-1, 3:10:2]
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            b[i, j] = -b[i, j]
+
+    return 1
+
+@testcase
+def test_nogil():
+    """
+    >>> test_nogil()
+    acquired A
+    released A
+    acquired A
+    -25
+    released A
+    """
+    _a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    cdef_nogil(_a)
+    cdef int[:, :] a = _a
+    print a[2, 7]

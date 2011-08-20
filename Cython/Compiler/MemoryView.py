@@ -79,7 +79,7 @@ def mangle_dtype_name(dtype):
 #    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
 def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
-                                incref_rhs=True, have_gil=False):
+                                incref_rhs=False, have_gil=False):
     assert rhs.type.is_memoryviewslice
 
     pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
@@ -97,18 +97,20 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
         code.funcstate.release_temp(rhstmp)
 
 def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, code,
-                               incref_rhs=True):
+                               incref_rhs=False):
     code.put_xdecref_memoryviewslice(lhs_cname)
     if incref_rhs:
         code.put_incref_memoryviewslice(rhs_cname)
 
-    code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
-    code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
-    for i in range(memviewslicetype.ndim):
-        tup = (lhs_cname, i, rhs_cname, i)
-        code.putln("%s.shape[%d] = %s.shape[%d];" % tup)
-        code.putln("%s.strides[%d] = %s.strides[%d];" % tup)
-        code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % tup)
+    code.putln("%s = %s;" % (lhs_cname, rhs_cname))
+
+    #code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
+    #code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
+    #for i in range(memviewslicetype.ndim):
+    #    tup = (lhs_cname, i, rhs_cname, i)
+    #    code.putln("%s.shape[%d] = %s.shape[%d];" % tup)
+    #    code.putln("%s.strides[%d] = %s.strides[%d];" % tup)
+    #    code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % tup)
 
 def get_buf_flags(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
@@ -264,9 +266,9 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 code.putln(    "if (unlikely(__pyx_t_result)) {")
                 code.put_ensure_gil()
                 code.putln(        "PyErr_Format(PyExc_IndexError, "
-                                                "__pyx_t_result, %d)" % dim)
+                                                "__pyx_t_result, %d);" % dim)
                 code.put_release_ensured_gil()
-                code.putln(code.goto_error(pos))
+                code.putln(code.error_goto(pos))
                 code.putln(    "}")
 
                 code.putln("}")
@@ -274,6 +276,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         code.putln("%s = -1;" % suboffset_dim)
         code.putln("%(dst)s.data = %(cname)s.data;" % locals())
         code.putln("%(dst)s.memview = %(cname)s.memview;" % locals())
+        code.put_incref_memoryviewslice(dst)
 
         for dim, index in enumerate(indices):
             if not isinstance(index, ExprNodes.SliceNode):
@@ -294,6 +297,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 new_ndim += 1
 
         code.funcstate.release_temp(suboffset_dim)
+
 
 def empty_slice(pos):
     none = ExprNodes.NoneNode(pos)
