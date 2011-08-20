@@ -2892,7 +2892,7 @@ class IndexNode(ExprNode):
         buffer_entry = self.buffer_entry()
 
         if buffer_entry.type.is_buffer:
-            negative_indices = entry.type.negative_indices
+            negative_indices = buffer_entry.type.negative_indices
         else:
             negative_indices = Buffer.buffer_defaults['negative_indices']
 
@@ -3861,6 +3861,7 @@ class AttributeNode(ExprNode):
     entry = None
     is_called = 0
     needs_none_check = True
+    is_memslice_transpose = False
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -4061,7 +4062,14 @@ class AttributeNode(ExprNode):
             if obj_type.attributes_known():
                 if (obj_type.is_memoryviewslice and not
                         obj_type.scope.lookup_here(self.attribute)):
-                    obj_type.declare_attribute(self.attribute)
+                    if self.attribute == 'T':
+                        self.is_memslice_transpose = True
+                        self.is_temp = True
+                        self.use_managed_ref = True
+                        self.type = self.obj.type
+                        return
+                    else:
+                        obj_type.declare_attribute(self.attribute)
                 entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None
@@ -4169,15 +4177,31 @@ class AttributeNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         elif self.type.is_memoryviewslice:
-            if self.initialized_check:
+            if self.is_memslice_transpose:
+                # transpose the slice
+                if self.in_nogil_context:
+                    error(self.pos, "Cannot transpose slice in nogil mode")
+                    return
+
+                for access, packing in self.type.axes:
+                    if access == 'ptr':
+                        error(self.pos, "Transposing not supported for slices "
+                                        "with indirect dimensions")
+                        return
+
+                code.putln("%s = %s;" % (self.result(), self.obj.result()))
+                if self.obj.is_name:
+                    code.put_incref_memoryviewslice(self.result(), have_gil=True)
+
+                T = "__pyx_memslice_transpose(&%s) == 0"
+                code.putln(code.error_goto_if(T % self.result(), self.pos))
+            elif self.initialized_check:
                 code.putln(
                     'if (unlikely(!%s.memview)) {'
                         'PyErr_SetString(PyExc_AttributeError,'
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
-            #code.putln("%s = %s;" % (self.result(),
-            #                         self.calculate_result_code()))
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception

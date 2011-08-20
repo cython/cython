@@ -306,17 +306,8 @@ cdef class memoryview(object):
     property T:
         @cname('__pyx_memoryview_transpose')
         def __get__(self):
-            cdef memoryview result = memoryview_copy(self)
-
-            cdef int ndim = self.view.ndim
-            cdef Py_ssize_t *strides = result.view.strides
-            cdef Py_ssize_t *shape = result.view.shape
-
-            # reverse strides and shape
-            for i in range(ndim / 2):
-                strides[i], strides[ndim - i] = strides[ndim - i], strides[i]
-                shape[i], shape[ndim - i] = shape[ndim - i], shape[i]
-
+            cdef _memoryviewslice result = memoryview_copy(self)
+            transpose_memslice(&result.from_slice)
             return result
 
     property _obj:
@@ -409,7 +400,7 @@ cdef memoryview memview_slice(memoryview memview, object indices):
         memviewsliceobj = memview
         p_src = &memviewsliceobj.from_slice
     else:
-        create_slice(memview, &src)
+        slice_copy(memview, &src)
         p_src = &src
 
     # Note: don't use variable src at this point
@@ -624,6 +615,30 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
     return resultp
 
 #
+### Transposing a memoryviewslice
+#
+@cname('__pyx_memslice_transpose')
+cdef int transpose_memslice({{memviewslice_name}} *memslice) except 0:
+    cdef int ndim = memslice.memview.view.ndim
+
+    cdef Py_ssize_t *shape = memslice.shape
+    cdef Py_ssize_t *strides = memslice.strides
+
+    # reverse strides and shape
+    cdef int i, j
+    for i in range(ndim / 2):
+        j = ndim - 1 - i
+        strides[i], strides[j] = strides[j], strides[i]
+        shape[i], shape[j] = shape[j], shape[i]
+
+        if memslice.suboffsets[i] >= 0 or memslice.suboffsets[j] >= 0:
+            dim = i if memslice.suboffsets[i] >= 0 else j
+            raise ValueError("Cannot transpose view with indirect dimension "
+                             "(axis %d)" % dim)
+
+    return 1
+
+#
 ### Creating new memoryview objects from slices and memoryviews
 #
 @cname('__pyx_memoryviewslice')
@@ -694,8 +709,8 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
 
     return result
 
-@cname('__pyx_memoryview_create_slice')
-cdef void create_slice(memoryview memview, {{memviewslice_name}} *dst):
+@cname('__pyx_memoryview_slice_copy')
+cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst):
     cdef int dim
 
     dst.memview = <__pyx_memoryview *> memview
@@ -712,7 +727,7 @@ cdef memoryview_copy(memoryview memview):
     cdef object (*to_object_func)(char *)
     cdef int (*to_dtype_func)(char *, object) except 0
 
-    create_slice(memview, &memviewslice)
+    slice_copy(memview, &memviewslice)
 
     if isinstance(memview, _memoryviewslice):
         to_object_func = (<_memoryviewslice> memview).to_object_func

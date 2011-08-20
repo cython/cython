@@ -140,3 +140,26 @@ def test_ellipsis_memoryview(array):
     e_obj = array[..., 5, 6]
     ae(e.shape[0], e_obj.shape[0])
     ae(e.strides[0], e_obj.strides[0])
+
+def test_transpose():
+    """
+    >>> test_transpose()
+    3 4
+    (3, 4)
+    (3, 4)
+    11 11 11 11 11 11
+    """
+    cdef dtype_t[:, :] a
+
+    numpy_obj = np.arange(4 * 3, dtype=np.int32).reshape(4, 3)
+
+    a = numpy_obj
+    a_obj = a
+
+    cdef dtype_t[:, :] b = a.T
+    print a.T.shape[0], a.T.shape[1]
+    print a_obj.T.shape
+    print numpy_obj.T.shape
+
+    print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
+
