@@ -121,6 +121,11 @@ for i in prange(10, nogil=True):
 for pyobj in prange("hello"):
     pass
 
+from cython import parallel
+with nogil, parallel.parallel():
+    for i in parallel.prange(10):
+        pass
+
 _ERRORS = u"""
 e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
 e_cython_parallel.pyx:4:0: No such directive: cython.parallel.something
