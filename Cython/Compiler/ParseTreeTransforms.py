@@ -696,7 +696,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
         if result:
             directive = full_name.split('.')
-            if full_name == u"cython.parallel.*":
+            if full_name == u"cython.parallel":
+                self.parallel_directives[u"parallel"] = u"cython.parallel"
+            elif full_name == u"cython.parallel.*":
                 for name in self.valid_parallel_directives:
                     self.parallel_directives[name] = u"cython.parallel.%s" % name
             elif (len(directive) != 3 or
