@@ -1,6 +1,6 @@
 #
-#   Pyrex - Tables describing slots in the type object
-#           and associated know-how.
+#   Tables describing slots in the CPython type object
+#   and associated know-how.
 #
 
 import Naming

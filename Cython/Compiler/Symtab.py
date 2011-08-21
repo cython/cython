@@ -1578,7 +1578,7 @@ class ClassScope(Scope):
     #  Abstract base class for namespace of
     #  Python class or extension type.
     #
-    #  class_name     string   Pyrex name of the class
+    #  class_name     string   Python name of the class
     #  scope_prefix   string   Additional prefix for names
     #                          declared in the class
     #  doc    string or None   Doc string

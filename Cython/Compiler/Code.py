@@ -1,6 +1,6 @@
 # cython: language_level = 3, py2_import=True
 #
-#   Pyrex - Code output module
+#   Code output module
 #
 
 import cython

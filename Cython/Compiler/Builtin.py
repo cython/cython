@@ -1,5 +1,5 @@
 #
-#   Pyrex - Builtin Definitions
+#   Builtin Definitions
 #
 
 from Symtab import BuiltinScope, StructOrUnionScope
