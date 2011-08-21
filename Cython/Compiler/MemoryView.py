@@ -230,7 +230,16 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         return bufp
 
-    def generate_buffer_slice_code(self, code, indices, type, dst_type, dst, have_gil):
+    def generate_buffer_slice_code(self, code, indices, dst, have_gil):
+        """
+        Slice a memoryviewslice.
+
+        indices     - list of index nodes. If not a SliceNode, then it must be
+                      coercible to Py_ssize_t
+
+        Simply call __pyx_memoryview_slice_memviewslice with the right
+        arguments.
+        """
         slicefunc = "__pyx_memoryview_slice_memviewslice"
         new_ndim = 0
         cname = self.cname

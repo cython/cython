@@ -1400,3 +1400,21 @@ def test_nogil():
     cdef_nogil(_a)
     cdef int[:, :] a = _a
     print a[2, 7]
+
+@testcase
+def test_convert_slicenode_to_indexnode():
+    """
+    When indexing with a[i:j] a SliceNode gets created instead of an IndexNode, which
+    forces coercion to object and back. This would not only be inefficient, but it would
+    also not compile in nogil mode. So instead we mutate it into an IndexNode.
+
+    >>> test_convert_slicenode_to_indexnode()
+    acquired A
+    2
+    released A
+    """
+    cdef int[:] a = IntMockBuffer("A", range(10), shape=(10,))
+    with nogil:
+        a = a[2:4]
+    print a[0]
+

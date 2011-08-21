@@ -2392,7 +2392,7 @@ class IndexNode(ExprNode):
     def analyse_target_types(self, env):
         self.analyse_base_and_index_types(env, setting = 1)
 
-    def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
+    def analyse_base_and_index_types(self, env, getting = 0, setting = 0, analyse_base = True):
         # Note: This might be cleaned up by having IndexNode
         # parsed in a saner way and only construct the tuple if
         # needed.
@@ -2409,7 +2409,9 @@ class IndexNode(ExprNode):
         # integer indexing
         self.memslice_index = False
 
-        self.base.analyse_types(env)
+        if analyse_base:
+            self.base.analyse_types(env)
+
         if self.base.type.is_error:
             # Do not visit child tree if base is undeclared to avoid confusing
             # error messages
@@ -2417,20 +2419,21 @@ class IndexNode(ExprNode):
             return
 
         is_slice = isinstance(self.index, SliceNode)
+
         # Potentially overflowing index value.
         if not is_slice and isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
             self.index = self.index.coerce_to_pyobject(env)
 
+        is_memslice = self.base.type.is_memoryviewslice
+
         # Handle the case where base is a literal char* (and we expect a string, not an int)
-        if isinstance(self.base, BytesNode) or is_slice:
+        if not is_memslice and (isinstance(self.base, BytesNode) or is_slice):
             if self.base.type.is_string or not (self.base.type.is_ptr or self.base.type.is_array):
                 self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
         buffer_access = False
         memoryviewslice_access = False
-
-        is_memslice = self.base.type.is_memoryviewslice
 
         if self.indices:
             indices = self.indices
@@ -2909,8 +2912,6 @@ class IndexNode(ExprNode):
         have_gil = not self.in_nogil_context
         buffer_entry.generate_buffer_slice_code(code,
                                                 self.original_indices,
-                                                self.base.type,
-                                                self.type,
                                                 self.result(),
                                                 have_gil=have_gil)
 
@@ -2965,13 +2966,33 @@ class SliceIndexNode(ExprNode):
         pass
 
     def analyse_target_types(self, env):
-        self.analyse_types(env)
+        self.analyse_types(env, getting=False)
         # when assigning, we must accept any Python type
         if self.type.is_pyobject:
             self.type = py_object_type
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, getting=True):
         self.base.analyse_types(env)
+
+        if self.base.type.is_memoryviewslice:
+            # Gross hack here! But we do not know the type until this point,
+            # and we cannot create and return a new node. So we change the
+            # type...
+            none_node = NoneNode(self.pos)
+            index = SliceNode(self.pos,
+                              start=self.start or none_node,
+                              stop=self.stop or none_node,
+                              step=none_node)
+            del self.start
+            del self.stop
+            self.index = index
+            self.__class__ = IndexNode
+            self.analyse_base_and_index_types(env,
+                                              getting=getting,
+                                              setting=not getting,
+                                              analyse_base=False)
+            return
+
         if self.start:
             self.start.analyse_types(env)
         if self.stop:
