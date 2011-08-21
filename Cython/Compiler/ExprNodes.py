@@ -6374,7 +6374,7 @@ class CythonArrayNode(ExprNode):
                self.mode, self.operand.result())
         code.putln('%s = __pyx_array_new('
                             '%s, %s, PyBytes_AS_STRING(%s), '
-                            '"%s", (char *) %s);' % tup)
+                            '(char *) "%s", (char *) %s);' % tup)
         code.putln(code.error_goto_if_null(self.result(), self.pos))
         code.put_gotref(self.result())
 

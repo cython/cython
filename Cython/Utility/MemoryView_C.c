@@ -12,7 +12,6 @@ typedef struct {
 } {{memviewslice_name}};
 
 /////////////// ObjectToMemviewSlice.proto ///////////////
-{{# __Pyx_PyObject_to_MemoryviewSlice_<count> }}
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
 
 ////////// MemviewSliceInit.proto //////////
@@ -48,8 +47,6 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
 
 /////////////// ObjectToMemviewSlice ///////////////
-
-{{#__Pyx_PyObject_to_MemoryviewSlice_<count>}}
 
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     {{memviewslice_name}} result = {0};
@@ -346,7 +343,7 @@ static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
     PyObject *temp_int = 0;
     struct __pyx_array_obj *array_obj = 0;
     struct __pyx_memoryview_obj *memview_obj = 0;
-    char *mode = "{{mode}}";
+    char *mode = (char *) "{{mode}}";
 
     __Pyx_RefNannySetupContext("{{copy_name}}");
 
