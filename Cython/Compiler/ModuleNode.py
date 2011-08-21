@@ -1,5 +1,5 @@
 #
-#   Pyrex - Module parse tree node
+#   Module parse tree node
 #
 
 import cython

@@ -1,5 +1,5 @@
 #
-#   Pyrex - Parse tree nodes for expressions
+#   Parse tree nodes for expressions
 #
 
 import cython

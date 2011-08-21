@@ -1,7 +1,7 @@
+#
+#   Parse tree nodes
+#
 
-#
-#   Pyrex - Parse tree nodes
-#
 import cython
 cython.declare(sys=object, os=object, time=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
@@ -415,7 +415,7 @@ class CDeclaratorNode(Node):
 
 
 class CNameDeclaratorNode(CDeclaratorNode):
-    #  name    string             The Pyrex name being declared
+    #  name    string             The Cython name being declared
     #  cname   string or None     C name, if specified
     #  default ExprNode or None   the value assigned on declaration
 

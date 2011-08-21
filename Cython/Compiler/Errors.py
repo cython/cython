@@ -1,5 +1,5 @@
 #
-#   Pyrex - Errors
+#   Errors
 #
 
 import sys

@@ -1,5 +1,5 @@
 #
-#   Pyrex - C naming conventions
+#   C naming conventions
 #
 #
 #   Prefixes for generating C names.

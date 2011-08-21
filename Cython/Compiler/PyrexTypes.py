@@ -1,5 +1,5 @@
 #
-#   Pyrex - Types
+#   Cython/Python language types
 #
 
 from Code import UtilityCode
@@ -10,7 +10,7 @@ from Errors import error
 
 class BaseType(object):
     #
-    #  Base class for all Pyrex types including pseudo-types.
+    #  Base class for all Cython types including pseudo-types.
 
     def can_coerce_to_pyobject(self, env):
         return False
@@ -35,7 +35,7 @@ class BaseType(object):
 
 class PyrexType(BaseType):
     #
-    #  Base class for all Pyrex types.
+    #  Base class for all Cython types
     #
     #  is_pyobject           boolean     Is a Python object type
     #  is_extension_type     boolean     Is a Python extension type
@@ -72,7 +72,7 @@ class PyrexType(BaseType):
     #      'DL_IMPORT', and will be added to the base type part of
     #      the declaration.
     #    * If pyrex = 1, this is for use in a 'cdef extern'
-    #      statement of a Pyrex include file.
+    #      statement of a Cython include file.
     #
     #  assignable_from(src_type)
     #    Tests whether a variable of this type can be
