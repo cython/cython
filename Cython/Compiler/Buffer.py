@@ -590,6 +590,8 @@ class GetAndReleaseBufferUtilityCode(object):
             for m in scope.cimported_modules:
                 find_buffer_types(m)
             for e in scope.type_entries:
+                if isinstance(e.utility_code_definition, CythonUtilityCode):
+                    continue
                 t = e.type
                 if t.is_extension_type:
                     if scope is cython_scope and not e.used:

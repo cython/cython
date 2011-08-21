@@ -9,10 +9,9 @@ from PyrexTypes import py_object_type, cython_memoryview_ptr_type
 import Buffer
 import PyrexTypes
 
-START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
-STOP_ERR = "Axis specification only allowed in the 'stop' slot."
-STEP_ERR = "Only the value 1 (one) or valid axis specification allowed in the step slot."
-ONE_ERR = "The value 1 (one) may appear in the first or last axis specification only."
+START_ERR = "Start must not be given."
+STOP_ERR = "Axis specification only allowed in the 'step' slot."
+STEP_ERR = "Step must be omitted, 1, or a valid specifier."
 BOTH_CF_ERR = "Cannot specify an array that is both C and Fortran contiguous."
 INVALID_ERR = "Invalid axis specification."
 EXPR_ERR = "no expressions allowed in axis spec, only names and literals."
@@ -121,8 +120,6 @@ def get_buf_flags(specs):
         return memview_f_contiguous
 
     access, packing = zip(*specs)
-
-    assert 'follow' not in packing
 
     if 'full' in access or 'ptr' in access:
         return memview_full_access
@@ -675,56 +672,27 @@ def get_axes_specs(env, axes):
     default_access, default_packing = 'direct', 'strided'
     cf_access, cf_packing = default_access, 'follow'
 
-    # set the is_{c,f}_contig flag.
-    for idx, axis in ((0,axes[0]), (-1,axes[-1])):
-        if isinstance(axis.step, IntNode):
-            if axis.step.compile_time_value(env) != 1:
-                raise CompileError(axis.step.pos, STEP_ERR)
-            if len(axes) > 1 and (is_c_contig or is_f_contig):
-                raise CompileError(axis.step.pos, BOTH_CF_ERR)
-            if not idx:
-                is_f_contig = True
-            else:
-                is_c_contig = True
-            if len(axes) == 1:
-                break
-
-    assert not (is_c_contig and is_f_contig)
-
     axes_specs = []
     # analyse all axes.
     for idx, axis in enumerate(axes):
-
-        # start slot can be either a literal '0' or None.
-        if isinstance(axis.start, IntNode):
-            if axis.start.compile_time_value(env):
-                raise CompileError(axis.start.pos,  START_ERR)
-        elif not isinstance(axis.start, NoneNode):
+        if not axis.start.is_none:
             raise CompileError(axis.start.pos,  START_ERR)
 
-        # stop slot must be None.
-        if not isinstance(axis.stop, NoneNode):
+        if not axis.stop.is_none:
             raise CompileError(axis.stop.pos, STOP_ERR)
 
-        # step slot can be None, the value 1,
-        # a single axis spec, or an IntBinopNode.
-        if isinstance(axis.step, NoneNode):
-            if is_c_contig or is_f_contig:
-                axes_specs.append((cf_access, cf_packing))
-            else:
-                axes_specs.append((default_access, default_packing))
+        if axis.step.is_none:
+            axes_specs.append((default_access, default_packing))
 
         elif isinstance(axis.step, IntNode):
-            if idx not in (0, len(axes)-1):
-                raise CompileError(axis.step.pos, ONE_ERR)
             # the packing for the ::1 axis is contiguous,
             # all others are cf_packing.
-            axes_specs.append((cf_access, 'contig'))
+            if axis.step.compile_time_value(env) != 1:
+                raise CompileError(axis.step.pos, STEP_ERR)
+
+            axes_specs.append((cf_access, 'cfcontig'))
 
         elif isinstance(axis.step, (NameNode, AttributeNode)):
-            if is_c_contig or is_f_contig:
-                raise CompileError(axis.step.pos, CF_ERR)
-
             entry = _get_resolved_spec(env, axis.step)
             if entry.name in view_constant_to_access_packing:
                 axes_specs.append(view_constant_to_access_packing[entry.name])
@@ -734,7 +702,66 @@ def get_axes_specs(env, axes):
         else:
             raise CompileError(axis.step.pos, INVALID_ERR)
 
-    validate_axes_specs([axis.start.pos for axis in axes], axes_specs)
+    # First, find out if we have a ::1 somewhere
+    contig_dim = 0
+    is_contig = False
+    for idx, (access, packing) in enumerate(axes_specs):
+        if packing == 'cfcontig':
+            if is_contig:
+                raise CompileError(axis.step.pos, BOTH_CF_ERR)
+
+            contig_dim = idx
+            axes_specs[idx] = (access, 'contig')
+            is_contig = True
+
+    if is_contig:
+        # We have a ::1 somewhere, see if we're C or Fortran contiguous
+        if contig_dim == len(axes) - 1:
+            is_c_contig = True
+        else:
+            is_f_contig = True
+
+            if contig_dim and not axes_specs[contig_dim - 1][0] in ('full', 'ptr'):
+                raise CompileError(axes[contig_dim].pos,
+                                   "Fortran contiguous specifier must follow an indirect dimension")
+
+        if is_c_contig:
+            # Contiguous in the last dimension, find the last indirect dimension
+            contig_dim = -1
+            for idx, (access, packing) in enumerate(reversed(axes_specs)):
+                if access in ('ptr', 'full'):
+                    contig_dim = len(axes) - idx - 1
+
+        # Replace 'strided' with 'follow' for any dimension following the last
+        # indirect dimension, the first dimension or the dimension following
+        # the ::1.
+        #               int[::indirect, ::1, :, :]
+        #                                    ^  ^
+        #               int[::indirect, :, :, ::1]
+        #                               ^  ^
+        start = contig_dim + 1
+        stop = len(axes) - is_c_contig
+        for idx, (access, packing) in enumerate(axes_specs[start:stop]):
+            idx = contig_dim + 1 + idx
+            if access != 'direct':
+                raise CompileError(axes[idx].pos,
+                                   "Indirect dimension may not follow "
+                                   "Fortran contiguous dimension")
+            if packing == 'contig':
+                raise CompileError(axes[idx].pos,
+                                   "Dimension may not be contiguous")
+            axes_specs[idx] = (access, cf_packing)
+
+        if is_c_contig:
+            # For C contiguity, we need to fix the 'contig' dimension
+            # after the loop
+            a, p = axes_specs[-1]
+            axes_specs[-1] = a, 'contig'
+
+    validate_axes_specs([axis.start.pos for axis in axes],
+                        axes_specs,
+                        is_c_contig,
+                        is_f_contig)
 
     return axes_specs
 
@@ -786,16 +813,21 @@ view_constant_to_access_packing = {
     'indirect_contiguous':  ('ptr',    'contig'),
 }
 
-def validate_axes_specs(positions, specs):
+def validate_axes_specs(positions, specs, is_c_contig, is_f_contig):
 
     packing_specs = ('contig', 'strided', 'follow')
     access_specs = ('direct', 'ptr', 'full')
 
-    is_c_contig, is_f_contig = is_cf_contig(specs)
+    # is_c_contig, is_f_contig = is_cf_contig(specs)
 
     has_contig = has_follow = has_strided = has_generic_contig = False
 
-    for pos, (access, packing) in zip(positions, specs):
+    last_indirect_dimension = -1
+    for idx, (access, packing) in enumerate(specs):
+        if access == 'ptr':
+            last_indirect_dimension = idx
+
+    for idx, pos, (access, packing) in zip(xrange(len(specs)), positions, specs):
 
         if not (access in access_specs and
                 packing in packing_specs):
@@ -805,21 +837,27 @@ def validate_axes_specs(positions, specs):
             has_strided = True
         elif packing == 'contig':
             if has_contig:
-                if access == 'ptr':
-                    raise CompileError(pos, "Indirect contiguous dimensions must precede direct contiguous")
-                elif has_generic_contig or access == 'full':
-                    raise CompileError(pos, "Generic contiguous cannot be combined with direct contiguous")
+                raise CompileError(pos, "Only one direct contiguous "
+                                        "axis may be specified.")
+
+            valid_contig_dims = last_indirect_dimension + 1, len(specs) - 1
+            if idx not in valid_contig_dims and access != 'ptr':
+                if last_indirect_dimension + 1 != len(specs) - 1:
+                    dims = "dimensions %d and %d" % valid_contig_dims
                 else:
-                    raise CompileError(pos, "Only one direct contiguous axis may be specified.")
-            # Note: We do NOT allow access == 'full' to act as
-            #       "additionally potentially contiguous"
+                    dims = "dimension %d" % valid_contig_dims[0]
+
+                raise CompileError(pos, "Only %s may be contiguous and direct" % dims)
+
             has_contig = access != 'ptr'
-            has_generic_contig = has_generic_contig or access == 'full'
         elif packing == 'follow':
             if has_strided:
                 raise CompileError(pos, "A memoryview cannot have both follow and strided axis specifiers.")
             if not (is_c_contig or is_f_contig):
                 raise CompileError(pos, "Invalid use of the follow specifier.")
+
+        if access in ('ptr', 'full'):
+            has_strided = False
 
 def _get_resolved_spec(env, spec):
     # spec must be a NameNode or an AttributeNode
@@ -859,7 +897,11 @@ def _resolve_AttributeNode(env, node):
                     node.pos, "undeclared name not builtin: %s" % modname)
         scope = mod.as_module
 
-    return scope.lookup(path[-1])
+    entry = scope.lookup(path[-1])
+    if not entry:
+        raise CompileError(node.pos, "No such attribute '%s'" % path[-1])
+
+    return entry
 
 def load_memview_cy_utility(util_code_name, context=None, **kwargs):
     return CythonUtilityCode.load(util_code_name, "MemoryView.pyx",

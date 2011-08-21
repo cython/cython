@@ -206,10 +206,27 @@ cdef class Enum(object):
     def __repr__(self):
         return self.name
 
+# Disable generic_contiguous, as it makes trouble verifying contiguity:
+#   - 'contiguous' or '::1' means the dimension is contiguous with dtype
+#   - 'indirect_contiguous' means a contiguous list of pointers
+#   - dtype contiguous must be contiguous in the first or last dimension
+#     from the start, or from the dimension following the last indirect dimension
+#
+#   e.g.
+#           int[::indirect_contiguous, ::contiguous, :]
+#
+#   is valid (list of pointers to 2d fortran-contiguous array), but
+#
+#           int[::generic_contiguous, ::contiguous, :]
+#
+#   would mean you'd have assert dimension 0 to be indirect (and pointer contiguous) at runtime.
+#   So it doesn't bring any performance benefit, and it's only confusing.
+
 cdef generic = Enum("<strided and direct or indirect>")
 cdef strided = Enum("<strided and direct>") # default
 cdef indirect = Enum("<strided and indirect>")
-cdef generic_contiguous = Enum("<contiguous and direct or indirect>")
+# Disable generic_contiguous, as it is a troublemaker
+#cdef generic_contiguous = Enum("<contiguous and direct or indirect>")
 cdef contiguous = Enum("<contiguous and direct>")
 cdef indirect_contiguous = Enum("<contiguous and indirect>")
 
@@ -676,10 +693,6 @@ cdef class _memoryviewslice(memoryview):
         @cname('__pyx_memoryviewslice__get__obj')
         def __get__(self):
             return self.from_object
-
-@cname('__pyx_memoryviewslice_check')
-cdef int __pyx_memoryviewslice_check(obj):
-    return isinstance(obj, _memoryviewslice)
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,

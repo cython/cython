@@ -2473,8 +2473,8 @@ class IndexNode(ExprNode):
                 if isinstance(index, SliceNode):
                     suboffsets_dim = i
                     self.memslice_slice = True
-                    if packing == 'contig' and index.step.is_none:
-                        axes.append((access, 'contig'))
+                    if index.step.is_none:
+                        axes.append((access, packing))
                     else:
                         axes.append((access, 'strided'))
 

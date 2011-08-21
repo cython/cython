@@ -400,31 +400,31 @@ def generic(int[::view.generic, ::view.generic] mslice1,
     print buf1[2, 2]
     print buf2[2, 2]
 
-def generic_contig(int[::view.generic_contiguous, :] mslice1,
-                   int[::view.generic_contiguous, :] mslice2):
-    """
-    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
-    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
-    >>> generic_contig(A, B)
-    acquired A
-    acquired B
-    4
-    4
-    10
-    11
-    released A
-    released B
-    """
-    buf1, buf2 = mslice1, mslice2
-
-    print buf1[1, 1]
-    print buf2[1, 1]
-
-    buf1[2, -1] = 10
-    buf2[2, -1] = 11
-
-    print buf1[2, 2]
-    print buf2[2, 2]
+#def generic_contig(int[::view.generic_contiguous, :] mslice1,
+#                   int[::view.generic_contiguous, :] mslice2):
+#    """
+#    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+#    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+#    >>> generic_contig(A, B)
+#    acquired A
+#    acquired B
+#    4
+#    4
+#    10
+#    11
+#    released A
+#    released B
+#    """
+#    buf1, buf2 = mslice1, mslice2
+#
+#    print buf1[1, 1]
+#    print buf2[1, 1]
+#
+#    buf1[2, -1] = 10
+#    buf2[2, -1] = 11
+#
+#    print buf1[2, 2]
+#    print buf2[2, 2]
 
 ctypedef int td_cy_int
 cdef extern from "bufaccess.h":

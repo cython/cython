@@ -154,13 +154,12 @@ def viewobjs():
     <strided and direct or indirect>
     <strided and direct>
     <strided and indirect>
-    <contiguous and direct or indirect>
     <contiguous and direct>
     <contiguous and indirect>
     """
     print cython.view.generic
     print cython.view.strided
     print cython.view.indirect
-    print cython.view.generic_contiguous
+    #print cython.view.generic_contiguous
     print cython.view.contiguous
     print cython.view.indirect_contiguous
