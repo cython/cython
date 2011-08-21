@@ -119,11 +119,6 @@ cdef class array:
         else:
             info.format = NULL
 
-        # info.obj = self
-
-    def __releasebuffer__(self, Py_buffer *info):
-        pass
-
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
             self.callback_free_data(self.data)
@@ -183,6 +178,9 @@ cdef extern from *:
     int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
+    void Py_INCREF(object)
+    void Py_DECREF(object)
+
     ctypedef struct PyObject
 
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
@@ -224,6 +222,7 @@ cdef class memoryview(object):
     cdef PyThread_type_lock lock
     cdef int acquisition_count
     cdef Py_buffer view
+    cdef int flags
 
     def __cinit__(memoryview self, object obj, int flags):
         self.obj = obj
@@ -302,6 +301,10 @@ cdef class memoryview(object):
 
         for i, c in enumerate(bytesvalue):
             itemp[i] = c
+
+    def __getbuffer__(self, Py_buffer *info, int flags):
+        info[0] = self.view
+        info.obj = self
 
     property T:
         @cname('__pyx_memoryview_transpose')
@@ -431,6 +434,7 @@ cdef memoryview memview_slice(memoryview memview, object indices):
                                     memviewsliceobj.to_dtype_func)
     else:
         return memoryview_fromslice(&dst, new_ndim, NULL, NULL)
+
 
 #
 ### Slicing in a single dimension of a memoryviewslice
@@ -673,6 +677,9 @@ cdef class _memoryviewslice(memoryview):
         def __get__(self):
             return self.from_object
 
+@cname('__pyx_memoryviewslice_check')
+cdef int __pyx_memoryviewslice_check(obj):
+    return isinstance(obj, _memoryviewslice)
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,

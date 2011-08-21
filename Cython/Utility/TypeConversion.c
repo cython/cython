@@ -15,7 +15,7 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
     {{for member in var_entries:}}
         {{py:attr = "result." + member.cname}}
 
-        value = PyMapping_GetItemString(o, "{{member.name}}");
+        value = PyMapping_GetItemString(o, (char *) "{{member.name}}");
         if (!value) {
             PyErr_SetString(PyExc_ValueError, "No value specified for struct "
                                               "attribute '{{member.name}}'");

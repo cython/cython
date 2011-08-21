@@ -259,7 +259,7 @@ no_fail:
 }
 
 
-static CYTHON_INLINE void __pyx_fatalerror(char *fmt, ...) {
+static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
     va_list vargs;
     char msg[200];
 

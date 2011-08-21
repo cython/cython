@@ -753,3 +753,51 @@ def test_oob():
     """
     cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
     print a[:, 20]
+
+def test_acquire_memoryview():
+    """
+    >>> test_acquire_memoryview()
+    acquired A
+    22
+    <MemoryView of 'IntMockBuffer' object>
+    22
+    22
+    released A
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    cdef object b = a
+
+    print a[2, 4]
+
+    # Make sure we don't have to keep this around
+    del a
+
+    print b
+    cdef int[:, :] c = b
+    print b[2, 4]
+    print c[2, 4]
+
+def test_acquire_memoryview_slice():
+    """
+    >>> test_acquire_memoryview_slice()
+    acquired A
+    31
+    <MemoryView of 'IntMockBuffer' object>
+    31
+    31
+    released A
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    a = a[1:, :6]
+
+    cdef object b = a
+
+    print a[2, 4]
+
+    # Make sure we don't have to keep this around
+    del a
+
+    print b
+    cdef int[:, :] c = b
+    print b[2, 4]
+    print c[2, 4]
