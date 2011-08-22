@@ -330,8 +330,8 @@ cdef class memoryview(object):
             transpose_memslice(&result.from_slice)
             return result
 
-    property _obj:
-        @cname('__pyx_memoryview__get__obj')
+    property object:
+        @cname('__pyx_memoryview__get__object')
         def __get__(self):
             if (self.obj is None and <PyObject *> self.view.obj != NULL and
                     self.view.obj is not None):
@@ -357,10 +357,10 @@ cdef class memoryview(object):
             return tuple([self.view.suboffsets[i] for i in xrange(self.view.ndim)])
 
     def __repr__(self):
-        return "<MemoryView of %r at 0x%x>" % (self._obj.__class__.__name__, id(self))
+        return "<MemoryView of %r at 0x%x>" % (self.object.__class__.__name__, id(self))
 
     def __str__(self):
-        return "<MemoryView of %r object>" % (self._obj.__class__.__name__,)
+        return "<MemoryView of %r object>" % (self.object.__class__.__name__,)
 
 
 @cname('__pyx_memoryview_new')
@@ -689,8 +689,8 @@ cdef class _memoryviewslice(memoryview):
         else:
             memoryview.assign_item_from_object(self, itemp, value)
 
-    property _obj:
-        @cname('__pyx_memoryviewslice__get__obj')
+    property object:
+        @cname('__pyx_memoryviewslice__get__object')
         def __get__(self):
             return self.from_object
 
