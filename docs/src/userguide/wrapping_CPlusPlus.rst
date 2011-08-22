@@ -65,6 +65,8 @@ and the implementation in the file called :file:`Rectangle.cpp`:
 
     #include "Rectangle.h"
 
+    using namespace shapes;
+
     Rectangle::Rectangle(int X0, int Y0, int X1, int Y1)
     {
         x0 = X0;
@@ -109,15 +111,15 @@ In Cython :file:`setup.py` scripts, one normally instantiates an Extension
 object. To make Cython generate and compile a C++ source, you just need
 to add the keyword ``language="c++"`` to your Extension construction statement, as in::
 
-    ext = Extension(
-        "rectangle",                 # name of extension
-        ["rectangle.pyx", "Rectangle.cpp"],     # filename of our Cython source
-        language="c++",              # this causes Cython to create C++ source
-        include_dirs=[...],          # usual stuff
-        libraries=["stdc++", ...],             # ditto
-        extra_link_args=[...],       # if needed
-        cmdclass = {'build_ext': build_ext}
-        )
+   from distutils.core import setup
+   from distutils.extension import Extension
+   from Cython.Distutils import build_ext
+
+   setup(ext_modules=[Extension(
+                      "rectangle",                 # name of extension
+                      ["rectangle.pyx", "Rectangle.cpp"], #  our Cython source
+                      language="c++")],  # causes Cython to create C++ source
+         cmdclass={'build_ext': build_ext})
 
 Cython will generate and compile the :file:`rectangle.cpp` file (from the
 :file:`rectangle.pyx`), then it will compile :file:`Rectangle.cpp`
