@@ -3021,6 +3021,10 @@ class GeneratorDefNode(DefNode):
         self.gbody.local_scope = self.local_scope
         self.gbody.analyse_declarations(env)
 
+    def declare_pyfunction(self, env):
+        super(GeneratorDefNode, self).declare_pyfunction(env)
+        self.entry.signature = TypeSlots.pyfunction_noargs
+
     def generate_function_body(self, env, code):
         body_cname = self.gbody.entry.func_cname
         generator_cname = '%s->%s' % (Naming.cur_scope_cname, Naming.obj_base_cname)
