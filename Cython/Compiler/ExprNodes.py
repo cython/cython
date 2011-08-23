@@ -7045,22 +7045,20 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
-        #ifdef PyUnicode_GET_LENGTH    /* PEP 393 */
+        #ifdef CYTHON_PEP393_ENABLED
         if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
             return (equals == Py_NE);
         } else if (PyUnicode_GET_LENGTH(s1) == 1) {
-            if (equals == Py_EQ)
-                return (PyUnicode_READ_CHAR(s1, 0) == PyUnicode_READ_CHAR(s2, 0));
-            else
-                return (PyUnicode_READ_CHAR(s1, 0) != PyUnicode_READ_CHAR(s2, 0));
+            Py_UCS4 ch1 = PyUnicode_READ_CHAR(s1, 0);
+            Py_UCS4 ch2 = PyUnicode_READ_CHAR(s2, 0);
+            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
         #else
         if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
             return (equals == Py_NE);
         } else if (PyUnicode_GET_SIZE(s1) == 1) {
-            if (equals == Py_EQ)
-                return (PyUnicode_AS_UNICODE(s1)[0] == PyUnicode_AS_UNICODE(s2)[0]);
-            else
-                return (PyUnicode_AS_UNICODE(s1)[0] != PyUnicode_AS_UNICODE(s2)[0]);
+            Py_UNICODE ch1 = PyUnicode_AS_UNICODE(s1)[0];
+            Py_UNICODE ch2 = PyUnicode_AS_UNICODE(s2)[0];
+            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
         #endif
         } else {
             int result = PyUnicode_Compare(s1, s2);
@@ -8428,7 +8426,7 @@ proto = '''
                                                __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
-#ifdef PyUnicode_GET_LENGTH
+#ifdef CYTHON_PEP393_ENABLED
     if (likely((0 <= i) & (i < PyUnicode_GET_LENGTH(ustring)))) {
         return PyUnicode_READ_CHAR(ustring, i);
     } else if ((-PyUnicode_GET_LENGTH(ustring) <= i) & (i < 0)) {
@@ -8454,7 +8452,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring,
     uchar_string = PyObject_GetItem(ustring, j);
     Py_DECREF(j);
     if (!uchar_string) return (Py_UCS4)-1;
-    #ifdef PyUnicode_GET_LENGTH
+    #ifdef CYTHON_PEP393_ENABLED
     uchar = PyUnicode_READ_CHAR(uchar_string, 0);
     #else
     uchar = (Py_UCS4)PyUnicode_AS_UNICODE(ustring)[0];

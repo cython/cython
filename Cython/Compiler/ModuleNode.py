@@ -580,6 +580,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 /* new Py3.3 unicode representation (PEP 393) */
 #ifdef PyUnicode_GET_LENGTH
+  #define CYTHON_PEP393_ENABLED
   #define __Pyx_PyUnicode_GET_LENGTH PyUnicode_GET_LENGTH
 #else
   #define __Pyx_PyUnicode_GET_LENGTH PyUnicode_GET_SIZE
