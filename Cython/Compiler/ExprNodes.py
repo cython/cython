@@ -2526,7 +2526,7 @@ class IndexNode(ExprNode):
                 function = "__Pyx_GetItemInt_Unicode"
                 code.globalstate.use_utility_code(getitem_int_pyunicode_utility_code)
                 code.putln(
-                    "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UNICODE)-1)) %s;" % (
+                    "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UCS4)-1)) %s;" % (
                         self.result(),
                         function,
                         self.base.py_result(),
@@ -8427,26 +8427,38 @@ proto = '''
                                                __Pyx_GetItemInt_Unicode_Fast(o, i) : \\
                                                __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
-static CYTHON_INLINE Py_UNICODE __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
+static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
+#ifdef PyUnicode_GET_LENGTH
+    if (likely((0 <= i) & (i < PyUnicode_GET_LENGTH(ustring)))) {
+        return PyUnicode_READ_CHAR(ustring, i);
+    } else if ((-PyUnicode_GET_LENGTH(ustring) <= i) & (i < 0)) {
+        i += PyUnicode_GET_LENGTH(ustring);
+        return PyUnicode_READ_CHAR(ustring, i);
+#else
     if (likely((0 <= i) & (i < PyUnicode_GET_SIZE(ustring)))) {
-        return PyUnicode_AS_UNICODE(ustring)[i];
+        return (Py_UCS4)PyUnicode_AS_UNICODE(ustring)[i];
     } else if ((-PyUnicode_GET_SIZE(ustring) <= i) & (i < 0)) {
         i += PyUnicode_GET_SIZE(ustring);
-        return PyUnicode_AS_UNICODE(ustring)[i];
+        return (Py_UCS4)PyUnicode_AS_UNICODE(ustring)[i];
+#endif
     } else {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
-        return (Py_UNICODE)-1;
+        return (Py_UCS4)-1;
     }
 }
 
-static CYTHON_INLINE Py_UNICODE __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
-    Py_UNICODE uchar;
+static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
+    Py_UCS4 uchar;
     PyObject *uchar_string;
-    if (!j) return (Py_UNICODE)-1;
+    if (!j) return (Py_UCS4)-1;
     uchar_string = PyObject_GetItem(ustring, j);
     Py_DECREF(j);
-    if (!uchar_string) return (Py_UNICODE)-1;
-    uchar = PyUnicode_AS_UNICODE(uchar_string)[0];
+    if (!uchar_string) return (Py_UCS4)-1;
+    #ifdef PyUnicode_GET_LENGTH
+    uchar = PyUnicode_READ_CHAR(uchar_string, 0);
+    #else
+    uchar = (Py_UCS4)PyUnicode_AS_UNICODE(ustring, 0);
+    #endif
     Py_DECREF(uchar_string);
     return uchar;
 }
