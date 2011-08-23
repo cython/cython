@@ -23,6 +23,7 @@ from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
      unspecified_type
+import TypeSlots
 from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
 import Builtin
@@ -5276,6 +5277,8 @@ class GeneratorExpressionNode(LambdaNode):
     def analyse_declarations(self, env):
         self.def_node.no_assignment_synthesis = True
         self.def_node.analyse_declarations(env)
+        # Force genexpr signature
+        self.def_node.entry.signature = TypeSlots.pyfunction_noargs
         env.add_lambda_def(self.def_node)
 
     def generate_result_code(self, code):
