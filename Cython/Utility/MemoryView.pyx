@@ -158,7 +158,7 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *
 
     return result
 
-########## View.MemoryView ##########
+#################### View.MemoryView ####################
 
 import cython
 
@@ -180,6 +180,7 @@ cdef extern from *:
 
     void Py_INCREF(object)
     void Py_DECREF(object)
+    void Py_XINCREF(object)
 
     ctypedef struct PyObject
 
@@ -197,6 +198,10 @@ cdef extern from *:
     void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
     void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
 
+    ctypedef struct __pyx_buffer "Py_buffer":
+        PyObject *obj
+
+    PyObject *Py_None
 
 @cname('__pyx_MemviewEnum')
 cdef class Enum(object):
@@ -246,6 +251,9 @@ cdef class memoryview(object):
 
         if type(self) is memoryview or obj is not None:
             __Pyx_GetBuffer(obj, &self.view, flags)
+            if <PyObject *> self.view.obj == NULL:
+                (<__pyx_buffer *> &self.view).obj = Py_None
+                Py_INCREF(None)
 
         self.lock = PyThread_allocate_lock()
         if self.lock == NULL:
@@ -320,6 +328,8 @@ cdef class memoryview(object):
             itemp[i] = c
 
     def __getbuffer__(self, Py_buffer *info, int flags):
+        # Note: self.view.obj must not be NULL
+        Py_INCREF(self.view.obj)
         info[0] = self.view
         info.obj = self
 
@@ -333,10 +343,6 @@ cdef class memoryview(object):
     property object:
         @cname('__pyx_memoryview__get__object')
         def __get__(self):
-            if (self.obj is None and <PyObject *> self.view.obj != NULL and
-                    self.view.obj is not None):
-                return <object> self.view.obj
-
             return self.obj
 
     property shape:
@@ -459,6 +465,7 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 
 cdef extern from "stdlib.h":
     void abort() nogil
+    void printf(char *s, ...) nogil
 
 cdef extern from "stdio.h":
     ctypedef struct FILE
@@ -715,6 +722,8 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
     result.view = memviewslice.memview.view
     result.view.buf = <void *> memviewslice.data
     result.view.ndim = ndim
+    (<__pyx_buffer *> &result.view).obj = Py_None
+    Py_INCREF(None)
 
     result.view.shape = <Py_ssize_t *> result.from_slice.shape
     result.view.strides = <Py_ssize_t *> result.from_slice.strides

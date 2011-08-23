@@ -1162,14 +1162,17 @@ def test_cdef_function2():
     cdef_function2(global_A, global_B)
 
 
-def print_int_offsets(*args):
+def print_offsets(*args, size=0, newline=True):
     for item in args:
-        print item / sizeof(int),
+        print item / size,
 
-    print
+    if newline: print
+
+def print_int_offsets(*args, newline=True):
+    print_offsets(*args, size=sizeof(int), newline=newline)
 
 @testcase
-def test_generic_slicing(arg):
+def test_generic_slicing(arg, indirect=False):
     """
     Test simple slicing
     >>> test_generic_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
@@ -1189,7 +1192,7 @@ def test_generic_slicing(arg):
 
     Test indirect slicing
     >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
-    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
+    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)), indirect=True)
     acquired A
     2 0 2
     0 1 -1
@@ -1198,10 +1201,10 @@ def test_generic_slicing(arg):
     >>> stride1 = 21 * 14
     >>> stride2 = 21
     >>> L = [[range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21) for j in xrange(14)] for k in xrange(9)]
-    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)))
+    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)), indirect=True)
     acquired A
     3 9 2
-    20 1 -1
+    10 1 -1
     released A
 
     """
@@ -1209,9 +1212,14 @@ def test_generic_slicing(arg):
     cdef int[::view.generic, ::view.generic, :] b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape[0], b.shape[1], b.shape[2]
-    if b.suboffsets[0] < 0:
+
+    if indirect:
+        print b.suboffsets[0] / sizeof(int *),
+        print b.suboffsets[1] / sizeof(int),
+        print b.suboffsets[2]
+    else:
         print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
-    print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
+        print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
 
     cdef int i, j, k
     for i in range(b.shape[0]):
@@ -1250,7 +1258,9 @@ def test_indirect_slicing(arg):
     cdef int[::view.indirect, ::view.indirect] c = b[..., 0]
 
     print b.shape[0], b.shape[1], b.shape[2]
-    print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
+    print b.suboffsets[0] / sizeof(int *),
+    print b.suboffsets[1] / sizeof(int),
+    print b.suboffsets[2]
 
     print b[4, 2, 1]
     print c[4, 2]
