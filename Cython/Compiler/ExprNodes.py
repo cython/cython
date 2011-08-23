@@ -2442,7 +2442,7 @@ class IndexNode(ExprNode):
         elif self.base.type is tuple_type:
             return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is unicode_type and self.type.is_unicode_char:
-            return "PyUnicode_AS_UNICODE(%s)[%s]" % (self.base.result(), self.index.result())
+            return "__Pyx_PyUnicode_READ_CHAR(%s, %s)" % (self.base.result(), self.index.result())
         elif (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
             error(self.pos, "Invalid use of pointer slice")
         else:
