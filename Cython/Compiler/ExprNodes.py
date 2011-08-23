@@ -8457,7 +8457,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring,
     #ifdef PyUnicode_GET_LENGTH
     uchar = PyUnicode_READ_CHAR(uchar_string, 0);
     #else
-    uchar = (Py_UCS4)PyUnicode_AS_UNICODE(ustring, 0);
+    uchar = (Py_UCS4)PyUnicode_AS_UNICODE(ustring)[0];
     #endif
     Py_DECREF(uchar_string);
     return uchar;
