@@ -926,7 +926,7 @@ class CIntType(CNumericType):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
     def invalid_value(self):
-        if rank_to_type_name[self.rank] == 'char':
+        if rank_to_type_name[int(self.rank)] == 'char':
             return "'?'"
         else:
             # We do not really know the size of the type, so return
