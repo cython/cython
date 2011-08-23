@@ -8426,19 +8426,11 @@ proto = '''
                                                __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
-#ifdef CYTHON_PEP393_ENABLED
-    if (likely((0 <= i) & (i < PyUnicode_GET_LENGTH(ustring)))) {
-        return PyUnicode_READ_CHAR(ustring, i);
-    } else if ((-PyUnicode_GET_LENGTH(ustring) <= i) & (i < 0)) {
-        i += PyUnicode_GET_LENGTH(ustring);
-        return PyUnicode_READ_CHAR(ustring, i);
-#else
-    if (likely((0 <= i) & (i < PyUnicode_GET_SIZE(ustring)))) {
-        return (Py_UCS4)PyUnicode_AS_UNICODE(ustring)[i];
-    } else if ((-PyUnicode_GET_SIZE(ustring) <= i) & (i < 0)) {
-        i += PyUnicode_GET_SIZE(ustring);
-        return (Py_UCS4)PyUnicode_AS_UNICODE(ustring)[i];
-#endif
+    const Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(ustring);
+    if (likely((0 <= i) & (i < length))) {
+        return __Pyx_PyUnicode_READ_CHAR(ustring, i);
+    } else if ((-length <= i) & (i < 0)) {
+        return __Pyx_PyUnicode_READ_CHAR(ustring, i + length);
     } else {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
         return (Py_UCS4)-1;
@@ -8452,11 +8444,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring,
     uchar_string = PyObject_GetItem(ustring, j);
     Py_DECREF(j);
     if (!uchar_string) return (Py_UCS4)-1;
-    #ifdef CYTHON_PEP393_ENABLED
-    uchar = PyUnicode_READ_CHAR(uchar_string, 0);
-    #else
-    uchar = (Py_UCS4)PyUnicode_AS_UNICODE(ustring)[0];
-    #endif
+    uchar = __Pyx_PyUnicode_READ_CHAR(uchar_string, 0);
     Py_DECREF(uchar_string);
     return uchar;
 }
