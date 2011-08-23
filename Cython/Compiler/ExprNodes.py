@@ -7045,6 +7045,15 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
+        #ifdef PyUnicode_GET_LENGTH    /* PEP 393 */
+        if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
+            return (equals == Py_NE);
+        } else if (PyUnicode_GET_LENGTH(s1) == 1) {
+            if (equals == Py_EQ)
+                return (PyUnicode_READ_CHAR(s1, 0) == PyUnicode_READ_CHAR(s2, 0));
+            else
+                return (PyUnicode_READ_CHAR(s1, 0) != PyUnicode_READ_CHAR(s2, 0));
+        #else
         if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
             return (equals == Py_NE);
         } else if (PyUnicode_GET_SIZE(s1) == 1) {
@@ -7052,6 +7061,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
                 return (PyUnicode_AS_UNICODE(s1)[0] == PyUnicode_AS_UNICODE(s2)[0]);
             else
                 return (PyUnicode_AS_UNICODE(s1)[0] != PyUnicode_AS_UNICODE(s2)[0]);
+        #endif
         } else {
             int result = PyUnicode_Compare(s1, s2);
             if ((result == -1) && unlikely(PyErr_Occurred()))
