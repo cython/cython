@@ -1053,31 +1053,42 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject*);
 ''',
 impl='''
 static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
-   static long maxval = 0;
-   long ival;
-   if (PyUnicode_Check(x)) {
-       if (unlikely(PyUnicode_GET_SIZE(x) != 1)) {
-           PyErr_Format(PyExc_ValueError,
-                        "only single character unicode strings can be converted to Py_UNICODE, "
-                        "got length %"PY_FORMAT_SIZE_T"d", PyUnicode_GET_SIZE(x));
-           return (Py_UNICODE)-1;
-       }
-       return PyUnicode_AS_UNICODE(x)[0];
-   }
-   if (unlikely(!maxval))
-       maxval = (long)PyUnicode_GetMax();
-   ival = __Pyx_PyInt_AsLong(x);
-   if (unlikely(ival < 0)) {
-       if (!PyErr_Occurred())
-           PyErr_SetString(PyExc_OverflowError,
-                           "cannot convert negative value to Py_UNICODE");
-       return (Py_UNICODE)-1;
-   } else if (unlikely(ival > maxval)) {
-       PyErr_SetString(PyExc_OverflowError,
-                       "value too large to convert to Py_UNICODE");
-       return (Py_UNICODE)-1;
-   }
-   return (Py_UNICODE)ival;
+    long ival;
+    #ifdef CYTHON_PEP393_ENABLED
+    const long maxval = 1114111;
+    #else
+    static long maxval = 0;
+    #endif
+    if (PyUnicode_Check(x)) {
+        if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
+            PyErr_Format(PyExc_ValueError,
+                         "only single character unicode strings can be converted to Py_UNICODE, "
+                         "got length %"PY_FORMAT_SIZE_T"d", __Pyx_PyUnicode_GET_LENGTH(x));
+            return (Py_UNICODE)-1;
+        }
+        #ifdef CYTHON_PEP393_ENABLED
+        ival = PyUnicode_READ_CHAR(x, 0);
+        #else
+        return PyUnicode_AS_UNICODE(x)[0];
+        #endif
+    } else {
+        #ifndef CYTHON_PEP393_ENABLED
+        if (unlikely(!maxval))
+            maxval = (long)PyUnicode_GetMax();
+        #endif
+        ival = __Pyx_PyInt_AsLong(x);
+    }
+    if (unlikely(ival < 0)) {
+        if (!PyErr_Occurred())
+            PyErr_SetString(PyExc_OverflowError,
+                            "cannot convert negative value to Py_UNICODE");
+        return (Py_UNICODE)-1;
+    } else if (unlikely(ival > maxval)) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "value too large to convert to Py_UNICODE");
+        return (Py_UNICODE)-1;
+    }
+    return (Py_UNICODE)ival;
 }
 ''')
 
