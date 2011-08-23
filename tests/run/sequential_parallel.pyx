@@ -705,3 +705,18 @@ def outer_parallel_section():
     for i in prange(10, nogil=True):
         sum += inner_parallel_section()
     return sum
+
+cdef int nogil_cdef_except_clause() nogil except 0:
+    return 1
+
+cdef void nogil_cdef_except_star() nogil except *:
+    pass
+
+def test_nogil_cdef_except_clause():
+    """
+    >>> test_nogil_cdef_except_clause()
+    """
+    cdef int i
+    for i in prange(10, nogil=True):
+        nogil_cdef_except_clause()
+        nogil_cdef_except_star()

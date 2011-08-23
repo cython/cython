@@ -6404,6 +6404,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             code.put_goto(code.return_label)
 
             if self.error_label_used:
+                code.globalstate.use_utility_code(restore_exception_utility_code)
                 code.putln("    case 4:")
                 self.restore_parallel_exception(code)
                 code.put_goto(code.error_label)
@@ -6485,7 +6486,7 @@ class ParallelRangeNode(ParallelStatNode):
 
     is_prange = True
 
-    nogil = False
+    nogil = None
     schedule = None
     num_threads = None
 
@@ -6522,6 +6523,10 @@ class ParallelRangeNode(ParallelStatNode):
                                                         (self.schedule,))
 
     def analyse_expressions(self, env):
+        if self.nogil:
+            was_nogil = env.nogil
+            env.nogil = True
+
         if self.target is None:
             error(self.pos, "prange() can only be used as part of a for loop")
             return
@@ -6572,6 +6577,9 @@ class ParallelRangeNode(ParallelStatNode):
             self.assignments[self.target.entry] = self.target.pos, None
 
         super(ParallelRangeNode, self).analyse_expressions(env)
+
+        if self.nogil:
+            env.nogil = was_nogil
 
     def nogil_check(self, env):
         names = 'start', 'stop', 'step', 'target'
