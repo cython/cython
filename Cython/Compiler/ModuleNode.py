@@ -578,6 +578,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
 
+/* new Py3.3 unicode representation (PEP 393) */
+#ifdef PyUnicode_GET_LENGTH
+  #define __Pyx_PyUnicode_GET_LENGTH PyUnicode_GET_LENGTH
+#else
+  #define __Pyx_PyUnicode_GET_LENGTH PyUnicode_GET_SIZE
+#endif
+
 #if PY_MAJOR_VERSION >= 3
   #define PyBaseString_Type            PyUnicode_Type
   #define PyStringObject               PyUnicodeObject

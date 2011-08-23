@@ -2037,7 +2037,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     _map_to_capi_len_function = {
-        Builtin.unicode_type   : "PyUnicode_GET_SIZE",
+        Builtin.unicode_type   : "__Pyx_PyUnicode_GET_LENGTH",
         Builtin.bytes_type     : "PyBytes_GET_SIZE",
         Builtin.list_type      : "PyList_GET_SIZE",
         Builtin.tuple_type     : "PyTuple_GET_SIZE",
