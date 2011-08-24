@@ -174,6 +174,9 @@ cdef extern from "pythread.h":
     int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
     void PyThread_release_lock(PyThread_type_lock) nogil
 
+cdef extern from "string.h":
+    void *memset(void *b, int c, size_t len)
+
 cdef extern from *:
     int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
     void __Pyx_ReleaseBuffer(Py_buffer *)
@@ -415,8 +418,12 @@ cdef tuple _unellipsify(object index, int ndim):
 cdef memoryview memview_slice(memoryview memview, object indices):
     cdef int new_ndim = 0, suboffset_dim = -1, dim
     cdef bint negative_step
-    cdef {{memviewslice_name}} dst, src
+    cdef {{memviewslice_name}} src, dst
     cdef {{memviewslice_name}} *p_src
+
+    # dst is copied by value in memoryview_fromslice -- initialize it
+    # src is never copied
+    memset(&dst, 0, sizeof(dst))
 
     cdef _memoryviewslice memviewsliceobj
 

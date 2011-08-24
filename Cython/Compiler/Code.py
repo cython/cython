@@ -1466,7 +1466,8 @@ class CCodeWriter(object):
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
-                self.putln("%s = { 0 };" % decl)
+                import MemoryView
+                self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
             else:
                 self.putln("%s;" % decl)
 

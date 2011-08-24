@@ -49,7 +49,7 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ss
 /////////////// ObjectToMemviewSlice ///////////////
 
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
-    {{memviewslice_name}} result = {0};
+    {{memviewslice_name}} result = {{memslice_init}};
 
     struct __pyx_memoryview_obj *memview =  \
         (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}});
@@ -336,7 +336,7 @@ static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
 
     __Pyx_RefNannyDeclarations
     int i;
-    __Pyx_memviewslice new_mvs = {0, 0};
+    __Pyx_memviewslice new_mvs = {{memslice_init}};
     struct __pyx_memoryview_obj *from_memview = from_mvs.memview;
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = 0;
