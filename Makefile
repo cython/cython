@@ -13,7 +13,7 @@ TMPDIR = .repo_tmp
 	cd $(TMPDIR) && git reset -q "$(shell cat .gitrev)"
 	mv $(TMPDIR)/.git .
 	rm -rf $(TMPDIR)
-	git checkout -- .hgtags .hgignore Doc/s5
+	git ls-files -d | xargs git checkout --
 
 repo: .git
 
