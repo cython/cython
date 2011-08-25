@@ -7052,13 +7052,16 @@ pyunicode_equals_utility_code = UtilityCode(
 proto="""
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
 """,
-# FIXME: call PyUnicode_FAST_READY() in the PEP 393 case and propagate potential errors
 impl="""
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
     if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
         #ifdef CYTHON_PEP393_ENABLED
+        if (PyUnicode_FAST_READY(s1) < 0)
+            return -1;
+        if (PyUnicode_FAST_READY(s2) < 0)
+            return -1;
         if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
             return (equals == Py_NE);
         } else if (PyUnicode_GET_LENGTH(s1) == 1) {
