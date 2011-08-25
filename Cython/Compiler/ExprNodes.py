@@ -7010,8 +7010,18 @@ proto="""
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character); /*proto*/
 """,
 # additionally handles surrogate pairs in 16bit Unicode builds
+# FIXME: propagate potential errors of PyUnicode_KIND() in the PEP 393 case
 impl="""
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
+#ifdef CYTHON_PEP393_ENABLED
+    Py_ssize_t i;
+    const int kind = PyUnicode_KIND(unicode);
+    const Py_ssize_t length = PyUnicode_GET_LENGTH(unicode);
+    for (i=0; i < length; i++) {
+        if (unlikely(uchar == PyUnicode_READ(kind, unicode, i))) return 1;
+    }
+    return 0;
+#else
     Py_UNICODE* pos;
     Py_UNICODE uchar;
     const Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
@@ -7033,6 +7043,7 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
         if (unlikely(uchar == pos[0])) return 1;
     }
     return 0;
+#endif
 }
 """)
 
@@ -7040,6 +7051,7 @@ pyunicode_equals_utility_code = UtilityCode(
 proto="""
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
 """,
+# FIXME: call PyUnicode_FAST_READY() in the PEP 393 case and propagate potential errors
 impl="""
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
     if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
