@@ -13,7 +13,6 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public dict _cache
     cdef public list specialize_list
     cdef public object proto_block
-    cdef public object name
     cdef public object file
 
     cpdef put_code(self, output)

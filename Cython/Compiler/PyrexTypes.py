@@ -699,9 +699,6 @@ class PyObjectType(PyrexType):
     def __repr__(self):
         return "<PyObjectType>"
 
-    def __eq__(self, other):
-        return isinstance(other, PyObjectType) and self.name == other.name
-
     def can_coerce_to_pyobject(self, env):
         return True
 

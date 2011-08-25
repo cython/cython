@@ -1234,7 +1234,8 @@ def check_thread_termination(ignore_seen=True):
 
 def subprocess_output(cmd):
     try:
-        return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()[0]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return p.communicate()[0].decode('UTF-8')
     except OSError:
         return ''
 
