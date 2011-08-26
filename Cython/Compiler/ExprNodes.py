@@ -7068,6 +7068,8 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
             Py_UCS4 ch1 = PyUnicode_READ_CHAR(s1, 0);
             Py_UCS4 ch2 = PyUnicode_READ_CHAR(s2, 0);
             return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
+        } else if (PyUnicode_MAX_CHAR_VALUE(s1) != PyUnicode_MAX_CHAR_VALUE(s2)) {
+            return (equals == Py_NE);
         #else
         if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
             return (equals == Py_NE);
