@@ -69,17 +69,17 @@ cdef struct MyStruct:
 
 def test_obj_to_struct(MyStruct mystruct):
     """
-    >>> test_obj_to_struct(dict(c=10, i=20, f=6.7, s="hello"))
+    >>> test_obj_to_struct(dict(c=10, i=20, f=6.7, s=b"hello"))
     c=10 i=20 f=6.70 s=hello
     >>> test_obj_to_struct(None)
     Traceback (most recent call last):
        ...
     TypeError: Expected a mapping, not NoneType
-    >>> test_obj_to_struct(dict(s="world"))
+    >>> test_obj_to_struct(dict(s=b"world"))
     Traceback (most recent call last):
        ...
     ValueError: No value specified for struct attribute 'c'
-    >>> test_obj_to_struct(dict(c="world"))
+    >>> test_obj_to_struct(dict(c=b"world"))
     Traceback (most recent call last):
        ...
     TypeError: an integer is required

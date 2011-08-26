@@ -590,7 +590,7 @@ def assign_temporary_to_object(object[:] mslice):
 
 def print_offsets(*args, size=0, newline=True):
     for item in args:
-        print item / size,
+        print item // size,
 
     if newline: print
 

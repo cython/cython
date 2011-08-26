@@ -92,16 +92,17 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
     # Allow uninitialized assignment
     #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
-    put_assign_to_memviewslice(lhs_cname, rhstmp, lhs_type, code, incref_rhs)
+    put_assign_to_memviewslice(lhs_cname, rhstmp, lhs_type, code, incref_rhs,
+                               have_gil=have_gil)
 
     if not pretty_rhs:
         code.funcstate.release_temp(rhstmp)
 
 def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, code,
-                               incref_rhs=False):
-    code.put_xdecref_memoryviewslice(lhs_cname)
+                               incref_rhs=False, have_gil=False):
+    code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
     if incref_rhs:
-        code.put_incref_memoryviewslice(rhs_cname)
+        code.put_incref_memoryviewslice(rhs_cname, have_gil=have_gil)
 
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
 

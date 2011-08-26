@@ -1644,10 +1644,6 @@ class NameNode(AtomicExprNode):
                 (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)
             null_code = entry.type.check_for_null_code(entry.cname)
 
-            # if entry.type.is_memoryviewslice:
-            #     have_gil = not self.in_nogil_context
-            #     code.put_incref_memoryviewslice(entry.cname, have_gil)
-
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
 
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
@@ -1764,7 +1760,7 @@ class NameNode(AtomicExprNode):
             rhs=rhs,
             code=code,
             incref_rhs=rhs.is_name,
-            have_gil=not self.nogil)
+            have_gil=not self.in_nogil_context)
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to

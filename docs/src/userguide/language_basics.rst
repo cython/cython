@@ -106,14 +106,18 @@ using normal C declaration syntax. For example,::
 
 When a parameter of a Python function is declared to have a C data type, it is
 passed in as a Python object and automatically converted to a C value, if
-possible. Automatic conversion is currently only possible for numeric types
-and string types; attempting to use any other type for the parameter of a
+possible. Automatic conversion is currently only possible for numeric types,
+string types and structs (composed recusively of any of these types);
+attempting to use any other type for the parameter of a
 Python function will result in a compile-time error.
+Care must be taken with strings to ensure a reference if the pointer is to be used
+after the call. Structs can be obtained from Python mappings, and again care must be taken
+with string attributes if they are to be used after the function returns.
 
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-A more complete comparison of the pros and cons of these different method 
+A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
 
 Python objects as parameters and return values

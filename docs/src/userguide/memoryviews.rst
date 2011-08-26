@@ -89,7 +89,7 @@ cdef indirect_contiguous = Enum("<contiguous and indirect>")
 
 * generic - strided and direct or indirect
 * strided - strided and direct (this is the default)
-* indirect - strided and indirect (must not be the last dimension)
+* indirect - strided and indirect
 * contiguous - contiguous and direct
 * indirect_contiguous - the list of pointers is contiguous
 
@@ -199,3 +199,4 @@ In the future some functionality may be added for convenience, like
 1. A numpy-like `.flat` attribute (that allows efficient iteration)
 2. A numpy-like `.reshape` method
 3. A method `to_numpy` which would convert a memoryview object to a NumPy object
+4. Indexing with newaxis or None to introduce a new axis
