@@ -1751,7 +1751,8 @@ class CFuncDefNode(FuncDefNode):
             self.entry.as_variable = self.py_func.entry
             # Reset scope entry the above cfunction
             env.entries[name] = self.entry
-            if not env.is_module_scope or Options.lookup_module_cpdef:
+            if (not self.entry.is_final_cmethod and
+                (not env.is_module_scope or Options.lookup_module_cpdef)):
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
         self.create_local_scope(env)

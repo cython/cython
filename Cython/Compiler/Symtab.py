@@ -70,6 +70,7 @@ class Entry(object):
     # is_cmethod       boolean    Is a C method of an extension type
     # is_builtin_cmethod boolean  Is a C method of a builtin type (implies is_cmethod)
     # is_unbound_cmethod boolean  Is an unbound C method of an extension type
+    # is_final_cmethod boolean    Is non-overridable C method
     # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
@@ -139,6 +140,7 @@ class Entry(object):
     is_cmethod = 0
     is_builtin_cmethod = False
     is_unbound_cmethod = 0
+    is_final_cmethod = 0
     is_anonymous = 0
     is_type = 0
     is_cclass = 0
@@ -157,6 +159,7 @@ class Entry(object):
     is_readonly = 0
     func_cname = None
     func_modifiers = []
+    final_func_cname = None
     doc = None
     as_variable = None
     xdecref_cleanup = 0
@@ -1798,7 +1801,9 @@ class CClassScope(ClassScope):
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
                 #print "CClassScope.declare_cfunction: checking signature" ###
-                if type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
+                if entry.is_final_cmethod:
+                    error(pos, "Overriding final methods is not allowed")
+                elif type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     pass
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     entry = self.add_cfunction(name, type, pos, cname or name, visibility='ignore', modifiers=modifiers)
@@ -1816,6 +1821,9 @@ class CClassScope(ClassScope):
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
+        if self.directives.get('final'):
+            entry.is_final_cmethod = True
+            entry.final_func_cname = entry.func_cname
         return entry
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -1874,6 +1882,10 @@ class CClassScope(ClassScope):
                                        base_entry.pos, cname,
                                        base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
+            if base_entry.is_final_cmethod:
+                entry.is_final_cmethod = True
+                if self.parent_scope == base_scope.parent_scope:
+                    entry.final_func_cname = base_entry.final_func_cname
             if is_builtin:
                 entry.is_builtin_cmethod = True
                 entry.as_variable = var_entry

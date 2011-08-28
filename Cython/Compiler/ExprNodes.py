@@ -3844,6 +3844,8 @@ class AttributeNode(ExprNode):
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
+                if self.entry.final_func_cname:
+                    return self.entry.final_func_cname
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
                     obj.type.vtabslot_cname, self.member)

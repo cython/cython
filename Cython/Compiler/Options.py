@@ -141,7 +141,7 @@ for key, val in directive_defaults.items():
 
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
-    'final' : ('cclass',),   # add 'method' in the future
+    'final' : ('cclass', 'function'),
     'internal' : ('cclass',),
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),

@@ -457,6 +457,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_typeobj_predeclaration(entry, code)
             self.generate_exttype_vtable_struct(entry, code)
             self.generate_exttype_vtabptr_declaration(entry, code)
+            self.generate_exttype_final_methods_declaration(entry, code)
 
     def generate_declarations_for_modules(self, env, modules, globalstate):
         typecode = globalstate['type_declarations']
@@ -990,6 +991,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("static struct %s *%s;" % (
                 type.vtabstruct_cname,
                 type.vtabptr_cname))
+
+    def generate_exttype_final_methods_declaration(self, entry, code):
+        if not entry.used:
+            return
+
+        code.mark_pos(entry.pos)
+        # Generate final methods prototypes
+        type = entry.type
+        for method_entry in entry.type.scope.cfunc_entries:
+            if not method_entry.is_inherited and method_entry.final_func_cname:
+                declaration = method_entry.type.declaration_code(
+                    method_entry.final_func_cname)
+                if entry.func_modifiers:
+                    modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
+                else:
+                    modifiers = ''
+                code.putln("static %s%s;" % (modifiers, declaration))
 
     def generate_objstruct_predeclaration(self, type, code):
         if not type.scope:
