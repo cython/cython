@@ -1509,8 +1509,6 @@ class FuncDefNode(StatNode, BlockNode):
                 for entry in lenv.buffer_entries:
                     Buffer.put_release_buffer_code(code, entry)
                     #code.putln("%s = 0;" % entry.cname)
-                #for entry in memslice_entries:
-                #    code.put_xdecref_memoryviewslice(entry.cname)
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
             if self.return_type.is_memoryviewslice:
@@ -1597,8 +1595,8 @@ class FuncDefNode(StatNode, BlockNode):
                 continue
 
             if entry.type.is_memoryviewslice:
-                #code.put_xdecref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
-                code.put_xdecref_memoryviewslice(entry.cname)
+                code.put_xdecref_memoryviewslice(entry.cname,
+                                                 have_gil=not lenv.nogil)
 
             elif entry.type.is_pyobject:
                 code.put_var_decref(entry)
@@ -1609,8 +1607,8 @@ class FuncDefNode(StatNode, BlockNode):
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_decref(entry)
             if entry.type.is_memoryviewslice:
-                code.put_xdecref_memoryviewslice(entry.cname)
-                #code.put_decref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
+                code.put_xdecref_memoryviewslice(entry.cname,
+                                                 have_gil=not lenv.nogil)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -1654,7 +1652,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         if code.funcstate.should_declare_error_indicator:
-            # Initialize these variables to shut up compiler warnings
+            # Initialize these variables to silence compiler warnings
             tempvardecl_code.putln("int %s = 0;" % Naming.lineno_cname)
             tempvardecl_code.putln("const char *%s = NULL;" %
                                                     Naming.filename_cname)
@@ -4347,8 +4345,6 @@ class ReturnStatNode(StatNode):
         if self.return_type.is_pyobject:
             code.put_xdecref(Naming.retval_cname,
                              self.return_type)
-        #elif self.return_type.is_memoryviewslice:
-        #    code.put_xdecref_memoryviewslice(Naming.retval_cname)
 
         if self.value:
             self.value.generate_evaluation_code(code)
@@ -4360,7 +4356,7 @@ class ReturnStatNode(StatNode):
                         lhs_pos=self.value.pos,
                         rhs=self.value,
                         code=code,
-                        incref_rhs=value.is_name,
+                        incref_rhs=self.value.is_name,
                         have_gil=self.in_nogil_context)
             else:
                 self.value.make_owned_reference(code)

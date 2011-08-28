@@ -1095,7 +1095,7 @@ class UniqueObject(object):
         return self.value
 
 objs = [[UniqueObject("spam")], [UniqueObject("ham")], [UniqueObject("eggs")]]
-addref(*objs)
+addref(*[obj for L in objs for obj in L])
 cdef cdef_function(int[:] buf1, object[::view.indirect, :] buf2 = ObjectMockBuffer(None, objs)):
     print 'cdef called'
     print buf1[6], buf2[1, 0]
@@ -1115,11 +1115,11 @@ def test_cdef_function(o1, o2=None):
     6 eggs
     released A
 
-    >> L = [[x] for x in range(25)]
-    >> addref(*L)
-    >> B = ObjectMockBuffer("B", L, shape=(5, 5))
+    >>> L = [[x] for x in range(25)]
+    >>> addref(*[obj for mylist in L for obj in mylist])
+    >>> B = ObjectMockBuffer("B", L, shape=(5, 5))
 
-    >> test_cdef_function(A, B)
+    >>> test_cdef_function(A, B)
     acquired A
     cdef called
     6 eggs
@@ -1143,7 +1143,7 @@ def test_cdef_function(o1, o2=None):
 
 cdef int[:] global_A = IntMockBuffer("Global_A", range(10))
 
-addref(*objs)
+addref(*[obj for L in objs for obj in L])
 cdef object[::view.indirect, :] global_B = ObjectMockBuffer(None, objs)
 
 cdef cdef_function2(int[:] buf1, object[::view.indirect, :] buf2 = global_B):
