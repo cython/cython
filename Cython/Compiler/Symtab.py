@@ -70,7 +70,8 @@ class Entry(object):
     # is_cmethod       boolean    Is a C method of an extension type
     # is_builtin_cmethod boolean  Is a C method of a builtin type (implies is_cmethod)
     # is_unbound_cmethod boolean  Is an unbound C method of an extension type
-    # is_final_cmethod boolean    Is non-overridable C method
+    # is_final_cmethod   boolean  Is non-overridable C method
+    # is_inline_cmethod  boolean  Is inlined C method
     # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
@@ -141,6 +142,7 @@ class Entry(object):
     is_builtin_cmethod = False
     is_unbound_cmethod = 0
     is_final_cmethod = 0
+    is_inline_cmethod = 0
     is_anonymous = 0
     is_type = 0
     is_cclass = 0
@@ -1821,7 +1823,9 @@ class CClassScope(ClassScope):
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
-        if self.directives.get('final'):
+        if u'inline' in modifiers:
+            entry.is_inline_cmethod = True
+        if self.directives.get('final') or entry.is_inline_cmethod:
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
         return entry
@@ -1884,7 +1888,9 @@ class CClassScope(ClassScope):
             entry.is_inherited = 1
             if base_entry.is_final_cmethod:
                 entry.is_final_cmethod = True
-                if self.parent_scope == base_scope.parent_scope:
+                entry.is_inline_cmethod = base_entry.is_inline_cmethod
+                if (self.parent_scope == base_scope.parent_scope or
+                    entry.is_inline_cmethod):
                     entry.final_func_cname = base_entry.final_func_cname
             if is_builtin:
                 entry.is_builtin_cmethod = True

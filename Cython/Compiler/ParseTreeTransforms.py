@@ -567,7 +567,8 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
             err = None # allow these slots
 
         if isinstance(node, Nodes.CFuncDefNode):
-            if u'inline' in node.modifiers and self.scope_type == 'pxd':
+            if (u'inline' in node.modifiers and
+                self.scope_type in ('pxd', 'cclass')):
                 node.inline_in_pxd = True
                 if node.visibility != 'private':
                     err = self.ERR_NOGO_WITH_INLINE % node.visibility
