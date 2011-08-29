@@ -1512,6 +1512,10 @@ class GeneratorExpressionScope(Scope):
         self.entries[name] = entry
         return entry
 
+    def declare_pyfunction(self, name, pos, allow_redefine=False):
+        return self.outer_scope.declare_pyfunction(
+            name, pos, allow_redefine)
+
     def declare_lambda_function(self, func_cname, pos):
         return self.outer_scope.declare_lambda_function(func_cname, pos)
 
