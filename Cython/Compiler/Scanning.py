@@ -204,6 +204,13 @@ class FileSourceDescriptor(SourceDescriptor):
     def get_description(self):
         return self.path_description
 
+    def get_error_description(self):
+        path = self.filename
+        cwd = os.getcwd() + os.path.sep
+        if path.startswith(cwd):
+            return path[len(cwd):]
+        return path
+
     def get_filenametable_entry(self):
         return self.filename
 
@@ -238,6 +245,8 @@ class StringSourceDescriptor(SourceDescriptor):
 
     def get_description(self):
         return self.name
+
+    get_error_description = get_description
 
     def get_filenametable_entry(self):
         return "stringsource"
