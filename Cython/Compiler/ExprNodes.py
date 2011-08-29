@@ -4529,7 +4529,7 @@ class ScopedExprNode(ExprNode):
 
 class ComprehensionNode(ScopedExprNode):
     subexprs = ["target"]
-    child_attrs = ["loop", "append"]
+    child_attrs = ["loop"]
 
     def infer_type(self, env):
         return self.target.infer_type(env)
