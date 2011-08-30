@@ -5258,9 +5258,19 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
+        self.def_node.no_assignment_synthesis = True
+        self.def_node.pymethdef_required = True
         self.def_node.analyse_declarations(env)
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
+
+    def analyse_types(self, env):
+        self.def_node.analyse_expressions(env)
+        super(LambdaNode, self).analyse_types(env)
+
+    def generate_result_code(self, code):
+        self.def_node.generate_execution_code(code)
+        super(LambdaNode, self).generate_result_code(code)
 
 
 class GeneratorExpressionNode(LambdaNode):
@@ -5275,11 +5285,11 @@ class GeneratorExpressionNode(LambdaNode):
     binding = False
 
     def analyse_declarations(self, env):
-        self.def_node.no_assignment_synthesis = True
-        self.def_node.analyse_declarations(env)
+        super(GeneratorExpressionNode, self).analyse_declarations(env)
+        # No pymethdef required
+        self.def_node.pymethdef_required = False
         # Force genexpr signature
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
-        env.add_lambda_def(self.def_node)
 
     def generate_result_code(self, code):
         code.putln(

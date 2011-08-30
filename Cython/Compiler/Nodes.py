@@ -1162,6 +1162,7 @@ class FuncDefNode(StatNode, BlockNode):
     #  entry           Symtab.Entry
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
+    #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
     # star_arg      PyArgDeclNode or None  * argument
     # starstar_arg  PyArgDeclNode or None  ** argument
@@ -1170,6 +1171,7 @@ class FuncDefNode(StatNode, BlockNode):
     assmt = None
     needs_closure = False
     needs_outer_scope = False
+    pymethdef_required = False
     is_generator = False
     is_generator_body = False
     modifiers = []
@@ -1289,7 +1291,8 @@ class FuncDefNode(StatNode, BlockNode):
         if preprocessor_guard:
             code.putln(preprocessor_guard)
 
-        with_pymethdef = self.needs_assignment_synthesis(env, code)
+        with_pymethdef = (self.needs_assignment_synthesis(env, code) or
+                          self.pymethdef_required)
         if self.py_func:
             self.py_func.generate_function_header(code,
                 with_pymethdef = with_pymethdef,
