@@ -96,7 +96,7 @@ uses it.
     def serve():
         cdef spamdish d
         prepare(&d)
-        print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.otherstuff)
+        print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler)
                                
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
