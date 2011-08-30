@@ -3057,8 +3057,10 @@ class GeneratorBodyDefNode(DefNode):
     def declare_generator_body(self, env):
         prefix = env.next_id(env.scope_prefix)
         name = env.next_id('generator')
-        entry = env.declare_var(prefix + name, py_object_type, self.pos, visibility='private')
-        entry.func_cname = Naming.genbody_prefix + prefix + name
+        cname = Naming.genbody_prefix + prefix + name
+        entry = env.declare_var(None, py_object_type, self.pos,
+                                cname=cname, visibility='private')
+        entry.func_cname = cname
         entry.qualified_name = EncodedString(self.name)
         self.entry = entry
 
