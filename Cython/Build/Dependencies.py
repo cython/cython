@@ -438,7 +438,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
     return module_list
 
 # This is the user-exposed entry point.
-def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, **options):
+def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, force=False, **options):
     if 'include_path' not in options:
         options['include_path'] = ['.']
     c_options = CompilationOptions(**options)
@@ -474,7 +474,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, **
                 else:
                     dep_timestamp, dep = deps.newest_dependency(source)
                     priority = 2 - (dep in deps.immediate_dependencies(source))
-                if c_timestamp < dep_timestamp:
+                if force or c_timestamp < dep_timestamp:
                     if not quiet:
                         if source == dep:
                             print("Compiling %s because it changed." % source)
@@ -497,14 +497,16 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, **
             nthreads = 0
     if not nthreads:
         for priority, pyx_file, c_file, options in to_compile:
-            cythonize_one(pyx_file, c_file, options)
+            cythonize_one(pyx_file, c_file, quiet, options)
     return module_list
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
-def cythonize_one(pyx_file, c_file, options=None):
+def cythonize_one(pyx_file, c_file, quiet, options=None):
     from Cython.Compiler.Main import compile, default_options
     from Cython.Compiler.Errors import CompileError, PyrexError
 
+    if not quiet:
+        print "Cythonizing %s" % pyx_file
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
