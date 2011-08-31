@@ -955,10 +955,10 @@ class CreateControlFlowGraph(CythonTransform):
             else:
                 # TODO: handle * pattern
                 pass
-            if clause.target:
-                self.mark_assignment(clause.target)
             entry_point = self.flow.newblock(parent=self.flow.block)
             self.flow.nextblock()
+            if clause.target:
+                self.mark_assignment(clause.target)
             self.visit(clause.body)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
