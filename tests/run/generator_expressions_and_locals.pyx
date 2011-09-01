@@ -1,5 +1,6 @@
 # mode: run
 # tag: genexpr, locals
+# ticket: 715
 
 def genexpr_not_in_locals():
     """
