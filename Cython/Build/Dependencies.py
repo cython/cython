@@ -24,6 +24,16 @@ def cached_method(f):
 
 
 def parse_list(s):
+    """
+    >>> parse_list("a b c")
+    ['a', 'b', 'c']
+    >>> parse_list("[a, b, c]")
+    ['a', 'b', 'c']
+    >>> parse_list('a " " b')
+    ['a', ' ', 'b']
+    >>> parse_list('[a, ",a", "a,", ",", ]')
+    ['a', ',a', 'a,', ',']
+    """
     if s[0] == '[' and s[-1] == ']':
         s = s[1:-1]
         delimiter = ','
@@ -32,12 +42,11 @@ def parse_list(s):
     s, literals = strip_string_literals(s)
     def unquote(literal):
         literal = literal.strip()
-        if literal[0] == "'":
+        if literal[0] in "'\"":
             return literals[literal[1:-1]]
         else:
             return literal
-
-    return [unquote(item) for item in s.split(delimiter)]
+    return [unquote(item) for item in s.split(delimiter) if item.strip()]
 
 transitive_str = object()
 transitive_list = object()
