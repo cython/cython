@@ -84,7 +84,7 @@ def test_obj_to_struct(MyStruct mystruct):
        ...
     TypeError: an integer is required
     """
-    print 'c=%d i=%d f=%.2f s=%s' % (mystruct.c, mystruct.i, mystruct.f, mystruct.s)
+    print 'c=%d i=%d f=%.2f s=%s' % (mystruct.c, mystruct.i, mystruct.f, mystruct.s.decode('UTF-8'))
 
 cdef struct NestedStruct:
     MyStruct mystruct
@@ -92,7 +92,7 @@ cdef struct NestedStruct:
 
 def test_nested_obj_to_struct(NestedStruct nested):
     """
-    >>> test_nested_obj_to_struct(dict(mystruct=dict(c=10, i=20, f=6.7, s="hello"), d=4.5))
+    >>> test_nested_obj_to_struct(dict(mystruct=dict(c=10, i=20, f=6.7, s=b"hello"), d=4.5))
     c=10 i=20 f=6.70 s=hello d=4.50
     >>> test_nested_obj_to_struct(dict(d=7.6))
     Traceback (most recent call last):
@@ -103,6 +103,9 @@ def test_nested_obj_to_struct(NestedStruct nested):
        ...
     ValueError: No value specified for struct attribute 'c'
     """
-    print 'c=%d i=%d f=%.2f s=%s d=%.2f' % (nested.mystruct.c, nested.mystruct.i,
-                                            nested.mystruct.f, nested.mystruct.s, nested.d)
+    print 'c=%d i=%d f=%.2f s=%s d=%.2f' % (nested.mystruct.c,
+                                            nested.mystruct.i,
+                                            nested.mystruct.f,
+                                            nested.mystruct.s.decode('UTF-8'),
+                                            nested.d)
 

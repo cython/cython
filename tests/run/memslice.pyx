@@ -1,3 +1,5 @@
+# mode: run
+
 # Note: see also bufaccess.pyx
 
 from __future__ import unicode_literals
@@ -5,20 +7,22 @@ from __future__ import unicode_literals
 cimport cython
 from cython cimport view
 
-__test__ = {}
-
 import sys
 import re
-exclude = []#re.compile('object').search]
+
+__test__ = {}
 
 def testcase(func):
-    for e in exclude:
-        if e(func.__name__):
-            return func
     doctest = func.__doc__
     if sys.version_info >= (3,1,1):
         doctest = doctest.replace('does not have the buffer interface',
                                   'does not support the buffer interface')
+    if sys.version_info >= (3, 0):
+        _u = str
+    else:
+        _u = unicode
+    if not isinstance(doctest, _u):
+        doctest = doctest.decode('UTF-8')
     __test__[func.__name__] = doctest
     return func
 
@@ -129,7 +133,6 @@ def acquire_failure3():
     except Exception:
         print buf[0], buf[3]
 
-
 @testcase
 def acquire_nonbuffer1(first, second=None):
     """
@@ -170,7 +173,6 @@ def acquire_nonbuffer2():
         assert False
     except Exception:
         print buf[0], buf[3]
-
 
 @testcase
 def as_argument(int[:] bufarg, int n):
@@ -545,7 +547,6 @@ def generic(int[::view.generic, ::view.generic] buf1,
 
 # Note: disabled. generic_contiguous isn't very useful (you have to check suboffsets,
 #                                                       might as well multiply with strides)
-# @testcase
 # def generic_contig(int[::view.generic_contiguous, :] buf1,
 #                    int[::view.generic_contiguous, :] buf2):
 #     """
@@ -1068,6 +1069,7 @@ def complex_struct_inplace(LongComplex[:] buf):
 #
 # Nogil
 #
+
 @testcase
 @cython.boundscheck(False)
 def buffer_nogil():
@@ -1173,16 +1175,6 @@ def test_cdef_function2():
 
     cdef_function2(global_A, global_B)
 
-
-def print_offsets(*args, size=0, newline=True):
-    for item in args:
-        print item // size,
-
-    if newline: print
-
-def print_int_offsets(*args, newline=True):
-    print_offsets(*args, size=sizeof(int), newline=newline)
-
 @testcase
 def test_generic_slicing(arg, indirect=False):
     """
@@ -1203,17 +1195,13 @@ def test_generic_slicing(arg, indirect=False):
     released A
 
     Test indirect slicing
-    >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
-    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)), indirect=True)
+    >>> test_generic_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)), indirect=True)
     acquired A
     2 0 2
     0 1 -1
     released A
 
-    >>> stride1 = 21 * 14
-    >>> stride2 = 21
-    >>> L = [[range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21) for j in xrange(14)] for k in xrange(9)]
-    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)), indirect=True)
+    >>> test_generic_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)), indirect=True)
     acquired A
     3 9 2
     10 1 -1
@@ -1226,8 +1214,8 @@ def test_generic_slicing(arg, indirect=False):
     print b.shape[0], b.shape[1], b.shape[2]
 
     if indirect:
-        print b.suboffsets[0] / sizeof(int *),
-        print b.suboffsets[1] / sizeof(int),
+        print b.suboffsets[0] // sizeof(int *),
+        print b.suboffsets[1] // sizeof(int),
         print b.suboffsets[2]
     else:
         print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
@@ -1245,8 +1233,7 @@ def test_generic_slicing(arg, indirect=False):
 def test_indirect_slicing(arg):
     """
     Test indirect slicing
-    >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
-    >>> test_indirect_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
+    >>> test_indirect_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)))
     acquired A
     5 3 2
     0 0 -1
@@ -1254,10 +1241,7 @@ def test_indirect_slicing(arg):
     56
     released A
 
-    >>> stride1 = 21 * 14
-    >>> stride2 = 21
-    >>> L = [[range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21) for j in xrange(14)] for k in xrange(9)]
-    >>> test_indirect_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)))
+    >>> test_indirect_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)))
     acquired A
     5 14 3
     0 16 -1
@@ -1270,8 +1254,8 @@ def test_indirect_slicing(arg):
     cdef int[::view.indirect, ::view.indirect] c = b[..., 0]
 
     print b.shape[0], b.shape[1], b.shape[2]
-    print b.suboffsets[0] / sizeof(int *),
-    print b.suboffsets[1] / sizeof(int),
+    print b.suboffsets[0] // sizeof(int *),
+    print b.suboffsets[1] // sizeof(int),
     print b.suboffsets[2]
 
     print b[4, 2, 1]

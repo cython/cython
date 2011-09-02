@@ -133,12 +133,12 @@ def basic_struct(MyStruct[:] mslice):
     See also buffmt.pyx
 
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
-    [('a', 1), ('b', 2), ('c', 3L), ('d', 4), ('e', 5)]
+    [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
-    [('a', 1), ('b', 2), ('c', 3L), ('d', 4), ('e', 5)]
+    [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
     """
     buf = mslice
-    print sorted(buf[0].items())
+    print sorted([(k, int(v)) for k, v in buf[0].items()])
 
 def nested_struct(NestedStruct[:] mslice):
     """
@@ -588,15 +588,6 @@ def assign_temporary_to_object(object[:] mslice):
     buf = mslice
     buf[1] = {3-2: 2+(2*4)-2}
 
-def print_offsets(*args, size=0, newline=True):
-    for item in args:
-        print item // size,
-
-    if newline: print
-
-def print_int_offsets(*args, newline=True):
-    print_offsets(*args, size=sizeof(int), newline=newline)
-
 def test_generic_slicing(arg, indirect=False):
     """
     Test simple slicing
@@ -616,8 +607,7 @@ def test_generic_slicing(arg, indirect=False):
     released A
 
     Test indirect slicing
-    >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
-    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)), indirect=True)
+    >>> test_generic_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)), indirect=True)
     acquired A
     (2, 0, 2)
     0 1 -1
@@ -625,8 +615,7 @@ def test_generic_slicing(arg, indirect=False):
 
     >>> stride1 = 21 * 14
     >>> stride2 = 21
-    >>> L = [[range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21) for j in xrange(14)] for k in xrange(9)]
-    >>> test_generic_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)), indirect=True)
+    >>> test_generic_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)), indirect=True)
     acquired A
     (3, 9, 2)
     10 1 -1
@@ -640,8 +629,8 @@ def test_generic_slicing(arg, indirect=False):
     print b.shape
 
     if indirect:
-        print b.suboffsets[0] / sizeof(int *),
-        print b.suboffsets[1] / sizeof(int),
+        print b.suboffsets[0] // sizeof(int *),
+        print b.suboffsets[1] // sizeof(int),
         print b.suboffsets[2]
     else:
         print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
@@ -658,18 +647,14 @@ def test_generic_slicing(arg, indirect=False):
 def test_indirect_slicing(arg):
     """
     Test indirect slicing
-    >>> L = [[range(k * 12 + j * 4, k * 12 + j * 4 + 4) for j in xrange(3)] for k in xrange(5)]
-    >>> test_indirect_slicing(IntMockBuffer("A", L, shape=(5, 3, 4)))
+    >>> test_indirect_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)))
     acquired A
     (5, 3, 2)
     0 0 -1
     58
     released A
 
-    >>> stride1 = 21 * 14
-    >>> stride2 = 21
-    >>> L = [[range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21) for j in xrange(14)] for k in xrange(9)]
-    >>> test_indirect_slicing(IntMockBuffer("A", L, shape=(9, 14, 21)))
+    >>> test_indirect_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)))
     acquired A
     (5, 14, 3)
     0 16 -1

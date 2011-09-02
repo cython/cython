@@ -5,6 +5,7 @@ cimport cython
 
 from cpython cimport PyObject, Py_INCREF, Py_DECREF
 
+import sys
 
 available_flags = (
     ('FORMAT', cpython.buffer.PyBUF_FORMAT),
@@ -328,3 +329,36 @@ cdef class LongComplexMockBuffer(MockBuffer):
 
     cdef get_itemsize(self): return sizeof(LongComplex)
     cdef get_default_format(self): return b"Zg"
+
+
+def print_offsets(*args, size=0, newline=True):
+    """
+    print with a trailing comma does not have the same semantics in python 3.
+    Use sys.stdout.write instead.
+
+    # python 2
+    ->> print 'foo',; sys.stdout.write('bar\n') # no space between foo and bar
+    foobar
+
+    In python 3 you get trailing spaces from the last ','
+    """
+    for idx, item in enumerate(args):
+        if idx == len(args) - 1:
+            sys.stdout.write(str(item // size))
+        else:
+            sys.stdout.write('%s ' % (item // size))
+
+    if newline: sys.stdout.write('\n')
+
+def print_int_offsets(*args, newline=True):
+    print_offsets(*args, size=sizeof(int), newline=newline)
+
+shape_5_3_4_list = [[list(range(k * 12 + j * 4, k * 12 + j * 4 + 4))
+                        for j in range(3)]
+                            for k in range(5)]
+
+stride1 = 21 * 14
+stride2 = 21
+shape_9_14_21_list = [[list(range(k * stride1 + j * stride2, k * stride1 + j * stride2 + 21))
+                           for j in range(14)]
+                               for k in range(9)]
