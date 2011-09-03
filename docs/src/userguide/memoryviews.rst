@@ -11,6 +11,8 @@ current buffer support, but has more features and cleaner syntax. A memoryview
 can be used in any context (function parameters, module-level, cdef class attribute, etc)
 and can be obtained from any object that exposes the PEP 3118 buffer interface.
 
+.. Note:: Support is experimental and new in this release, there may be bugs!
+
 Memoryview slices
 ====================
 
@@ -36,6 +38,17 @@ copied to a C or Fortran contiguous array::
 
 The `::1` in the slice type specification indicates in which dimension the data is contiguous.
 It can only be used to specify full C or Fortran contiguity.
+
+Slices can also be copied inplace::
+
+    cdef int[:, :, :] to_slice, from_slice
+    ...
+
+    # copy the elements in from_slice to to_slice
+    to_slice[...] = from_slice
+
+.. Note:: Copying of buffers with ``object`` as the base type is not supported yet.
+          Pointer types are not at all supported yet in memoryview slices.
 
 Indexing and Slicing
 --------------------
@@ -182,15 +195,6 @@ a lot, you're better off creating a memoryview object from your array::
 
     cdef int[:, ::1] myslice = my_cython_array
     memview = myslice
-
-Base Types
-==========
-As the base type any type may be used (`object`, a struct, etc). If the type name is
-not an identifier, you have to create a typedef for it::
-
-    ctypedef MyStruct *MyStruct_p
-
-    cdef MyStruct_p[:] myslice
 
 The future
 ==========
