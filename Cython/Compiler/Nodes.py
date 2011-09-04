@@ -2246,7 +2246,7 @@ class DefNode(FuncDefNode):
         entry = env.lookup_here(name)
         if entry:
             if entry.is_final_cmethod and not env.parent_type.is_final_type:
-                error(self.pos, "Only final type could have final cpdef method")
+                error(self.pos, "Only final types can have final Python (def/cpdef) methods")
             if (entry.type.is_cfunction and not entry.is_builtin_cmethod
                 and not self.is_wrapper):
                 warning(self.pos, "Overriding cdef method with def method.", 5)
