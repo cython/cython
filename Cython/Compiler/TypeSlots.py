@@ -343,7 +343,7 @@ class TypeFlagsSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
-        if not scope.directives['final']:
+        if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"

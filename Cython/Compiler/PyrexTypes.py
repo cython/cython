@@ -39,6 +39,7 @@ class PyrexType(BaseType):
     #
     #  is_pyobject           boolean     Is a Python object type
     #  is_extension_type     boolean     Is a Python extension type
+    #  is_final_type         boolean     Is a final extension type
     #  is_numeric            boolean     Is a C numeric type
     #  is_int                boolean     Is a C integer type
     #  is_float              boolean     Is a C floating point type
@@ -90,6 +91,7 @@ class PyrexType(BaseType):
     is_pyobject = 0
     is_unspecified = 0
     is_extension_type = 0
+    is_final_type = 0
     is_builtin_type = 0
     is_numeric = 0
     is_int = 0

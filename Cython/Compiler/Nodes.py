@@ -3504,7 +3504,7 @@ class CClassDefNode(ClassDefNode):
                         error(self.pos, "Base class '%s' of type '%s' is incomplete" % (
                             self.base_class_name, self.class_name))
                     elif base_class_entry.type.scope and base_class_entry.type.scope.directives and \
-                             base_class_entry.type.scope.directives['final']:
+                             base_class_entry.type.is_final_type:
                         error(self.pos, "Base class '%s' of type '%s' is final" % (
                             self.base_class_name, self.class_name))
                     elif base_class_entry.type.is_builtin_type and \

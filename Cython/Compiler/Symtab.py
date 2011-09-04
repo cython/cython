@@ -834,7 +834,7 @@ class BuiltinScope(Scope):
         scope = CClassScope(name, outer_scope=None, visibility='extern')
         scope.directives = {}
         if name == 'bool':
-            scope.directives['final'] = True
+            type.is_final_type = True
         type.set_scope(scope)
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
@@ -1249,6 +1249,9 @@ class ModuleScope(Scope):
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
                     error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
+
+        if self.directives.get('final'):
+            entry.type.is_final_type = True
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
@@ -1780,7 +1783,7 @@ class CClassScope(ClassScope):
                 # Otherwise, subtypes may choose to override the
                 # method, but the optimisation would prevent the
                 # subtype method from being called.
-                if not self.directives['final']:
+                if not self.parent_type.is_final_type:
                     return None
         return entry
 
@@ -1825,7 +1828,8 @@ class CClassScope(ClassScope):
         entry.utility_code = utility_code
         if u'inline' in modifiers:
             entry.is_inline_cmethod = True
-        if self.directives.get('final') or entry.is_inline_cmethod:
+        if (self.parent_type.is_final_type or entry.is_inline_cmethod or
+            self.directives.get('final')):
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
         return entry
