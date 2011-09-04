@@ -2244,8 +2244,12 @@ class DefNode(FuncDefNode):
         #print "DefNode.declare_pyfunction:", self.name, "in", env ###
         name = self.name
         entry = env.lookup_here(name)
-        if entry and entry.type.is_cfunction and not entry.is_builtin_cmethod and not self.is_wrapper:
-            warning(self.pos, "Overriding cdef method with def method.", 5)
+        if entry:
+            if entry.is_final_cmethod and not env.parent_type.is_final_type:
+                error(self.pos, "Only final type could have final cpdef method")
+            if (entry.type.is_cfunction and not entry.is_builtin_cmethod
+                and not self.is_wrapper):
+                warning(self.pos, "Overriding cdef method with def method.", 5)
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
         prefix = env.next_id(env.scope_prefix)
