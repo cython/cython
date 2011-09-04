@@ -17,6 +17,6 @@ cdef class SubType(BaseClass):
         pass
 
 _ERRORS = """
-11:10: Only final type could have final cpdef method
+11:10: Only final types can have final Python (def/cpdef) methods
 16:9: Overriding final methods is not allowed
 """
