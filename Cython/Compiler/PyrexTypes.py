@@ -515,6 +515,9 @@ class MemoryViewSliceType(PyrexType):
     def specialization_suffix(self):
         return "%s_%s" % (self.axes_to_name(), self.dtype_name)
 
+    def can_coerce_to_pyobject(self, env):
+        return True
+
     #def global_init_code(self, entry, code):
     #    code.putln("%s.data = NULL;" % entry.cname)
     #    code.putln("%s.memview = NULL;" % entry.cname)

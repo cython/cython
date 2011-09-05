@@ -126,6 +126,10 @@ with nogil, parallel.parallel():
     for i in parallel.prange(10):
         pass
 
+cdef int[:] dst, src = object()
+for i in prange(10, nogil=True):
+    dst = src
+
 _ERRORS = u"""
 e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
 e_cython_parallel.pyx:4:0: No such directive: cython.parallel.something
@@ -156,4 +160,5 @@ e_cython_parallel.pyx:110:7: local variable 'i' referenced before assignment
 e_cython_parallel.pyx:119:17: Cannot read reduction variable in loop body
 e_cython_parallel.pyx:121:20: stop argument must be numeric
 e_cython_parallel.pyx:121:19: prange() can only be used without the GIL
+e_cython_parallel.pyx:131:8: Memoryview slices can only be shared in parallel sections
 """

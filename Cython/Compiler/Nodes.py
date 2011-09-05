@@ -6174,9 +6174,9 @@ class ParallelStatNode(StatNode, ParallelNode):
             # By default all variables should have the same values as if
             # executed sequentially
             lastprivate = True
-            self.propagate_var_privatization(entry, op, lastprivate)
+            self.propagate_var_privatization(entry, pos, op, lastprivate)
 
-    def propagate_var_privatization(self, entry, op, lastprivate):
+    def propagate_var_privatization(self, entry, pos, op, lastprivate):
         """
         Propagate the sharing attributes of a variable. If the privatization is
         determined by a parent scope, done propagate further.
@@ -6230,6 +6230,11 @@ class ParallelStatNode(StatNode, ParallelNode):
             # sum and j are undefined here
         """
         self.privates[entry] = (op, lastprivate)
+
+        if entry.type.is_memoryviewslice:
+            error(pos, "Memoryview slices can only be shared in parallel sections")
+            return
+
         if self.is_prange:
             if not self.is_parallel and entry not in self.parent.assignments:
                 # Parent is a parallel with block
@@ -6240,7 +6245,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             # We don't need to propagate privates, only reductions and
             # lastprivates
             if parent and (op or lastprivate):
-                parent.propagate_var_privatization(entry, op, lastprivate)
+                parent.propagate_var_privatization(entry, pos, op, lastprivate)
 
     def _allocate_closure_temp(self, code, entry):
         """

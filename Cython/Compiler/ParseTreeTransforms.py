@@ -1037,7 +1037,8 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
             directive = directive.rstrip('.')
 
         cls = self.directive_to_node.get(directive)
-        if cls is None:
+        if cls is None and not (self.namenode_is_cython_module and
+                                self.parallel_directive[0] != 'parallel'):
             error(node.pos, "Invalid directive: %s" % directive)
 
         self.namenode_is_cython_module = False

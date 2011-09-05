@@ -6,6 +6,9 @@ from __future__ import unicode_literals
 
 cimport cython
 from cython cimport view
+from cython.parallel cimport prange
+
+print cython.array
 
 import sys
 import re
@@ -1366,9 +1369,8 @@ def test_nogil_oob1():
         print e.args[0]
 
     try:
-        # Enable when the nogil exception propagation fix is merged
-        #with nogil:
-        nogil_oob(a)
+        with nogil:
+            nogil_oob(a)
     except IndexError, e:
         print e.args[0]
 
@@ -1426,3 +1428,32 @@ def test_convert_slicenode_to_indexnode():
         a = a[2:4]
     print a[0]
 
+@testcase
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def test_memslice_prange(arg):
+    """
+    >>> test_memslice_prange(IntMockBuffer("A", range(400), shape=(20, 4, 5)))
+    acquired A
+    released A
+    >>> test_memslice_prange(IntMockBuffer("A", range(200), shape=(100, 2, 1)))
+    acquired A
+    released A
+    """
+    cdef int[:, :, :] src, dst
+
+    src = arg
+
+    dst = cython.array((<object> src).shape, sizeof(int), format="i")
+
+    cdef int i, j, k
+
+    for i in prange(src.shape[0], nogil=True):
+        for j in range(src.shape[1]):
+            for k in range(src.shape[2]):
+                dst[i, j, k] = src[i, j, k]
+
+    for i in range(src.shape[0]):
+        for j in range(src.shape[1]):
+            for k in range(src.shape[2]):
+                assert src[i, j, k] == dst[i, j, k], (src[i, j, k] == dst[i, j, k])
