@@ -1726,7 +1726,7 @@ class CFuncDefNode(FuncDefNode):
             defining = self.body is not None, modifiers = self.modifiers)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
-        if self.return_type.is_array and visibility != 'extern':
+        if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos,
                 "Function cannot return an array")
 
