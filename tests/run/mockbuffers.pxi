@@ -331,24 +331,10 @@ cdef class LongComplexMockBuffer(MockBuffer):
     cdef get_default_format(self): return b"Zg"
 
 
-def print_offsets(*args, size=0, newline=True):
-    """
-    print with a trailing comma does not have the same semantics in python 3.
-    Use sys.stdout.write instead.
-
-    # python 2
-    ->> print 'foo',; sys.stdout.write('bar\n') # no space between foo and bar
-    foobar
-
-    In python 3 you get trailing spaces from the last ','
-    """
-    for idx, item in enumerate(args):
-        if idx == len(args) - 1:
-            sys.stdout.write(str(item // size))
-        else:
-            sys.stdout.write('%s ' % (item // size))
-
-    if newline: sys.stdout.write('\n')
+def print_offsets(*args, size, newline=True):
+    sys.stdout.write(' '.join([str(item // size) for item in args]))
+    if newline:
+        sys.stdout.write('\n')
 
 def print_int_offsets(*args, newline=True):
     print_offsets(*args, size=sizeof(int), newline=newline)

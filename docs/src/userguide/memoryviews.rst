@@ -154,6 +154,19 @@ These typed slices can be converted to Python objects (`cython.memoryview`), and
 slicable and transposable in the same way that the slices are. They can also be converted back to typed
 slices at any time.
 
+They have the following attributes:
+
+    * shape
+    * strides
+    * suboffsets
+    * ndim
+    * size
+    * itemsize
+    * nbytes
+
+And of course the aforementioned ``T`` attribute. These attributes have the same semantics as in NumPy_.
+
+
 Cython Array
 ============
 Whenever a slice is copied (using any of the `copy` or `copy_fortran` methods), you get a new
@@ -186,21 +199,26 @@ You can also cast pointers to arrays::
 Again, when the array will go out of scope, it will free the data, unless you register a callback like above.
 Of course, you can also immidiately assign a cython.array to a typed memoryview slice.
 
-The arrays are indexable and slicable from Python space just like memoryview objects. If you need to do this
-a lot, you're better off creating a memoryview object from your array::
+The arrays are indexable and slicable from Python space just like memoryview objects, and have the same
+attributes as memoryview objects.
 
-    memview = cython.memoryview(my_cython_array, PyBUF_C_CONTIGUOUS)
+Coercion to NumPy
+=================
+Memoryview (and array) objects can be coerced to a NumPy ndarray, without having to copy the data. You can
+e.g. do::
 
-    # OR
+    cimport numpy as np
+    import numpy as np
 
-    cdef int[:, ::1] myslice = my_cython_array
-    memview = myslice
+    numpy_array = np.asarray(<np.int32_t[:10, :10]> my_pointer)
+
+Of course, you are not restricted to using NumPy's type (such as ``np.int32_t`` here), you can use any usable type.
 
 The future
 ==========
 In the future some functionality may be added for convenience, like
 
 1. A numpy-like `.flat` attribute (that allows efficient iteration)
-2. A numpy-like `.reshape` method
-3. A method `to_numpy` which would convert a memoryview object to a NumPy object
-4. Indexing with newaxis or None to introduce a new axis
+2. Indexing with newaxis or None to introduce a new axis
+
+.. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout

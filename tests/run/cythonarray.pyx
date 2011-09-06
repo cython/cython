@@ -144,3 +144,9 @@ def test_array_from_pointer():
     cdef int[:, ::1] mslice = <int[:10, :10]> getp()
     print mslice[5, 6]
     print (<int[:12, :10]> getp(12, 10))[5, 6]
+
+    # There is a reference cycle between the array object to its memoryview
+    # object that it keeps
+    del c_arr
+    import gc
+    gc.collect()

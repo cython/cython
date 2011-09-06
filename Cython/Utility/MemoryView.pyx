@@ -11,6 +11,7 @@ cdef extern from "Python.h":
         PyBUF_F_CONTIGUOUS,
         PyBUF_ANY_CONTIGUOUS
         PyBUF_FORMAT
+        PyBUF_WRITABLE
 
 
     void Py_INCREF(object)
@@ -33,6 +34,7 @@ cdef class array:
         unicode mode
         bytes _format
         void (*callback_free_data)(char *data)
+        cdef object _memview
 
     def __cinit__(array self, tuple shape, Py_ssize_t itemsize, format,
                   mode=u"c", bint allocate_buffer=True):
@@ -113,6 +115,7 @@ cdef class array:
         info.strides = self.strides
         info.suboffsets = NULL
         info.itemsize = self.itemsize
+        info.readonly = 0
 
         if flags & PyBUF_FORMAT:
             info.format = self.format
@@ -138,13 +141,24 @@ cdef class array:
         self.format = NULL
         self.itemsize = 0
 
-    def __getitem__(self, index):
-        view = __pyx_memoryview_new(self, PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT)
-        return view[index]
+    property memview:
+        @cname('__pyx_cython_array_get_memview')
+        def __get__(self):
+            # Make this a property as 'data' may be set after instantiation
+            if self._memview is None:
+                flags = PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
+                self._memview = __pyx_memoryview_new(self, flags)
 
-    def __setitem__(self, index, value):
-        view = __pyx_memoryview_new(self, PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT)
-        view[index] = value
+            return self._memview
+
+    def __getattr__(self, attr):
+        return getattr(self.memview, attr)
+
+    def __getitem__(self, item):
+        return self.memview[item]
+
+    def __setitem__(self, item, value):
+        self.memview[item] = value
 
 
 @cname("__pyx_array_new")
@@ -165,6 +179,7 @@ import cython
 # from cpython cimport ...
 cdef extern from "Python.h":
     int PyIndex_Check(object)
+    object PyLong_FromVoidPtr(void *)
 
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
@@ -244,6 +259,8 @@ cdef indirect_contiguous = Enum("<contiguous and indirect>")
 cdef class memoryview(object):
 
     cdef object obj
+    cdef object _size
+    cdef object _array_interface
     cdef PyThread_type_lock lock
     cdef int acquisition_count
     cdef Py_buffer view
@@ -336,6 +353,7 @@ cdef class memoryview(object):
         info[0] = self.view
         info.obj = self
 
+    # Some properties that have the same sematics as in NumPy
     property T:
         @cname('__pyx_memoryview_transpose')
         def __get__(self):
@@ -343,8 +361,8 @@ cdef class memoryview(object):
             transpose_memslice(&result.from_slice)
             return result
 
-    property object:
-        @cname('__pyx_memoryview__get__object')
+    property base:
+        @cname('__pyx_memoryview__get__base')
         def __get__(self):
             return self.obj
 
@@ -353,23 +371,75 @@ cdef class memoryview(object):
         def __get__(self):
             return tuple([self.view.shape[i] for i in xrange(self.view.ndim)])
 
-
     property strides:
         @cname('__pyx_memoryview_get_strides')
         def __get__(self):
             return tuple([self.view.strides[i] for i in xrange(self.view.ndim)])
-
 
     property suboffsets:
         @cname('__pyx_memoryview_get_suboffsets')
         def __get__(self):
             return tuple([self.view.suboffsets[i] for i in xrange(self.view.ndim)])
 
+    property ndim:
+        @cname('__pyx_memoryview_get_ndim')
+        def __get__(self):
+            return self.view.ndim
+
+    property itemsize:
+        @cname('__pyx_memoryview_get_itemsize')
+        def __get__(self):
+            return self.view.itemsize
+
+    property nbytes:
+        @cname('__pyx_memoryview_get_nbytes')
+        def __get__(self):
+            return self.size * self.view.itemsize
+
+    property size:
+        @cname('__pyx_memoryview_get_size')
+        def __get__(self):
+            if self._size is None:
+                result = 1
+
+                for length in self.shape:
+                    result *= length
+
+                self._size = result
+
+            return self._size
+
+    property __array_interface__:
+        @cname('__pyx_numpy_array_interface')
+        def __get__(self):
+            "Interface for NumPy to obtain a ndarray from this object"
+            # Note: we always request writable buffers, so we set readonly to
+            # False in the data tuple
+            if self._array_interface is None:
+                for suboffset in self.suboffsets:
+                    if suboffset >= 0:
+                        raise ValueError("Cannot convert indirect buffer to numpy object")
+
+                self._array_interface = dict(
+                    data = (PyLong_FromVoidPtr(self.view.buf), False),
+                    shape = self.shape,
+                    strides = self.strides,
+                    typestr = "%s%d" % (self.format, self.view.itemsize),
+                    version = 3)
+
+            return self._array_interface
+
+    def __len__(self):
+        if self.view.ndim >= 1:
+            return self.view.shape[0]
+
+        return 0
+
     def __repr__(self):
-        return "<MemoryView of %r at 0x%x>" % (self.object.__class__.__name__, id(self))
+        return "<MemoryView of %r at 0x%x>" % (self.base.__class__.__name__, id(self))
 
     def __str__(self):
-        return "<MemoryView of %r object>" % (self.object.__class__.__name__,)
+        return "<MemoryView of %r object>" % (self.base.__class__.__name__,)
 
 
 @cname('__pyx_memoryview_new')
@@ -703,8 +773,8 @@ cdef class _memoryviewslice(memoryview):
         else:
             memoryview.assign_item_from_object(self, itemp, value)
 
-    property object:
-        @cname('__pyx_memoryviewslice__get__object')
+    property base:
+        @cname('__pyx_memoryviewslice__get__base')
         def __get__(self):
             return self.from_object
 

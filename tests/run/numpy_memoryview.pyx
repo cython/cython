@@ -8,6 +8,8 @@ Test slicing for memoryviews and memoryviewslices
 cimport numpy as np
 import numpy as np
 
+include "cythonarrayutil.pxi"
+
 ctypedef np.int32_t dtype_t
 
 def get_array():
@@ -163,3 +165,36 @@ def test_transpose():
 
     print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
 
+def test_coerce_to_numpy():
+    """
+    >>> test_coerce_to_numpy()
+    34
+    34
+    2
+    """
+    cyarray = create_array(shape=(8, 5), mode="c", use_callback=True)
+    numarray = np.asarray(cyarray)
+
+    print cyarray[6, 4]
+    del cyarray
+    print numarray[6, 4]
+
+    numarray[6, 4] = 2
+    print numarray[6, 4]
+
+def test_numpy_like_attributes(cyarray):
+    """
+    >>> cyarray = create_array(shape=(8, 5), mode="c", use_callback=True)
+    >>> test_numpy_like_attributes(cyarray)
+    >>> test_numpy_like_attributes(cyarray.memview)
+    """
+    numarray = np.asarray(cyarray)
+
+    assert cyarray.shape == numarray.shape
+    assert cyarray.strides == numarray.strides
+    assert cyarray.ndim == numarray.ndim
+    assert cyarray.size == numarray.size
+    assert cyarray.nbytes == numarray.nbytes
+
+    cdef int[:, :] mslice = numarray
+    assert (<object> mslice).base is numarray
