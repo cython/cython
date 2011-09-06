@@ -4196,10 +4196,6 @@ class AttributeNode(ExprNode):
         elif self.type.is_memoryviewslice:
             if self.is_memslice_transpose:
                 # transpose the slice
-                if self.in_nogil_context:
-                    error(self.pos, "Cannot transpose slice in nogil mode")
-                    return
-
                 for access, packing in self.type.axes:
                     if access == 'ptr':
                         error(self.pos, "Transposing not supported for slices "
@@ -4207,7 +4203,7 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                if self.obj.is_name:
+                if self.obj.is_name or self.obj.is_attribute and self.obj.is_memslice_transpose:
                     code.put_incref_memoryviewslice(self.result(), have_gil=True)
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
@@ -4259,7 +4255,8 @@ class AttributeNode(ExprNode):
             elif self.type.is_memoryviewslice:
                 import MemoryView
                 MemoryView.put_assign_to_memviewslice(
-                        select_code, rhs.result(), self.type, code)
+                        select_code, rhs.result(), self.type, code,
+                        incref_rhs=rhs.is_name)
 
             if not self.type.is_memoryviewslice:
                 code.putln(

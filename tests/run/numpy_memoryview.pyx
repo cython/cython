@@ -163,6 +163,13 @@ def test_transpose():
     print a_obj.T.shape
     print numpy_obj.T.shape
 
+    cdef dtype_t[:, :] c
+    with nogil:
+        c = a.T.T
+
+    assert (<object> a).shape == (<object> c).shape
+    assert (<object> a).strides == (<object> c).strides
+
     print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
 
 def test_coerce_to_numpy():
