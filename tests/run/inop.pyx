@@ -338,3 +338,14 @@ def s(a):
     """
     cdef int result = a in [1,2,3,4] in [[1,2,3],[2,3,4],[1,2,3,4]]
     return result
+
+@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode")
+def constant_empty_sequence(a):
+    """
+    >>> constant_empty_sequence(1)
+    False
+    >>> constant_empty_sequence(5)
+    False
+    """
+    return a in ()
