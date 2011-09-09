@@ -2339,10 +2339,13 @@ class DefNode(FuncDefNode):
 
         if genv.is_closure_scope:
             rhs = self.py_cfunc_node = ExprNodes.InnerFunctionNode(
-                self.pos, pymethdef_cname = self.entry.pymethdef_cname)
+                self.pos, pymethdef_cname = self.entry.pymethdef_cname,
+                code_object = ExprNodes.CodeObjectNode(self))
         else:
             rhs = self.py_cfunc_node = ExprNodes.PyCFunctionNode(
-                self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = env.directives['binding'])
+                self.pos, pymethdef_cname = self.entry.pymethdef_cname,
+                binding = env.directives['binding'],
+                code_object = ExprNodes.CodeObjectNode(self))
 
         if env.is_py_class_scope:
             if not self.is_staticmethod and not self.is_classmethod:
@@ -7806,11 +7809,9 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
-    py_code = PyCode_New(
+    py_code = __Pyx_PyCode_New(
         0,            /*int argcount,*/
-        #if PY_MAJOR_VERSION >= 3
         0,            /*int kwonlyargcount,*/
-        #endif
         0,            /*int nlocals,*/
         0,            /*int stacksize,*/
         0,            /*int flags,*/

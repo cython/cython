@@ -5189,8 +5189,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  self_object       ExprNode or None
     #  binding           bool
     #  module_name       EncodedString      Name of defining module
+    #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = []
+    subexprs = ['code_object']
+
     self_object = None
     binding = False
 
@@ -5219,16 +5221,22 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     def generate_result_code(self, code):
         if self.binding:
             constructor = "__Pyx_CyFunction_NewEx"
+            if self.code_object:
+                code_object_result = ', ' + self.code_object.py_result()
+            else:
+                code_object_result = ', NULL'
         else:
             constructor = "PyCFunction_NewEx"
+            code_object_result = ''
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = %s(&%s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s%s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
                 self.self_result_code(),
                 py_mod_name,
+                code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -5243,6 +5251,65 @@ class InnerFunctionNode(PyCFunctionNode):
         if self.needs_self_code:
             return "((PyObject*)%s)" % (Naming.cur_scope_cname)
         return "NULL"
+
+class CodeObjectNode(ExprNode):
+    # Create a PyCodeObject for a CyFunction instance.
+    #
+    # def_node   DefNode    the Python function node
+    # varnames   TupleNode  a tuple with all variable names
+
+    subexprs = ['varnames']
+    is_temp = False
+
+    def __init__(self, def_node):
+        ExprNode.__init__(self, def_node.pos, def_node=def_node)
+        args = list(def_node.args)
+        if def_node.star_arg:
+            args.append(def_node.star_arg)
+        if def_node.starstar_arg:
+            args.append(def_node.starstar_arg)
+        # FIXME: lacks non-args !
+        self.varnames = TupleNode(
+            def_node.pos,
+            args = [ IdentifierStringNode(arg.pos, unicode_value=arg.name,
+                                          value=StringEncoding.BytesLiteral(arg.name.utf8encode()))
+                     for arg in args ],
+            is_temp = 0,
+            is_literal = 1)
+
+    def calculate_result_code(self):
+        return self.result_code
+
+    def generate_result_code(self, code):
+        self.result_code = code.get_py_const(py_object_type, 'codeobj_', cleanup_level=2)
+
+        code = code.get_cached_constants_writer()
+        code.mark_pos(self.pos)
+        func = self.def_node
+        func_name = code.get_py_string_const(
+            func.name, identifier=True, is_str=False, unicode_value=func.name)
+        # FIXME: better way to get the module file path at module init time? Encoding to use?
+        file_path = StringEncoding.BytesLiteral(func.pos[0].get_filenametable_entry().encode('utf8'))
+        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
+
+        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, 0, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
+            self.result_code,
+            len(func.args),            # argcount
+            func.num_kwonly_args,      # kwonlyargcount (Py3 only)
+            len(self.varnames.args),   # nlocals
+            Naming.empty_bytes,        # code
+            Naming.empty_tuple,        # consts
+            Naming.empty_tuple,        # names (FIXME: all local non-args!)
+            self.varnames.result(), # varnames
+            Naming.empty_tuple,        # freevars (FIXME)
+            Naming.empty_tuple,        # cellvars (FIXME)
+            file_path_const,           # filename
+            func_name,                 # name
+            self.pos[1],               # firstlineno
+            Naming.empty_bytes,        # lnotab
+            code.error_goto_if_null(self.result_code, self.pos),
+            ))
+
 
 class LambdaNode(InnerFunctionNode):
     # Lambda expression node (only used as a function reference)
@@ -8806,11 +8873,12 @@ typedef struct {
     PyObject *func_weakreflist;
     PyObject *func_name;
     PyObject *func_doc;
+    PyObject *func_code;
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
 
-static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module);
+static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module, PyObject* code);
 
 static int __Pyx_CyFunction_init(void);
 """ % Naming.__dict__,
@@ -8949,6 +9017,14 @@ __Pyx_CyFunction_get_closure(CYTHON_UNUSED __pyx_CyFunctionObject *op)
     return Py_None;
 }
 
+static PyObject *
+__Pyx_CyFunction_get_code(__pyx_CyFunctionObject *op)
+{
+    PyObject* result = (op->func_code) ? op->func_code : Py_None;
+    Py_INCREF(result);
+    return result;
+}
+
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "func_doc", (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
     {(char *) "__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
@@ -8961,6 +9037,8 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__globals__", (getter)__Pyx_CyFunction_get_globals, 0, 0, 0},
     {(char *) "func_closure", (getter)__Pyx_CyFunction_get_closure, 0, 0, 0},
     {(char *) "__closure__", (getter)__Pyx_CyFunction_get_closure, 0, 0, 0},
+    {(char *) "func_code", (getter)__Pyx_CyFunction_get_code, 0, 0, 0},
+    {(char *) "__code__", (getter)__Pyx_CyFunction_get_code, 0, 0, 0},
     {0, 0, 0, 0, 0}
 };
 
@@ -8989,7 +9067,7 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
 };
 
 
-static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
+static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module, PyObject* code) {
     __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType);
     if (op == NULL)
         return NULL;
@@ -9002,6 +9080,8 @@ static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObjec
     op->func_dict = NULL;
     op->func_name = NULL;
     op->func_doc = NULL;
+    Py_XINCREF(code);
+    op->func_code = code;
     PyObject_GC_Track(op);
     return (PyObject *)op;
 }
@@ -9016,6 +9096,7 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
     Py_XDECREF(m->func_dict);
     Py_XDECREF(m->func_name);
     Py_XDECREF(m->func_doc);
+    Py_XDECREF(m->func_code);
     PyObject_GC_Del(m);
 }
 
@@ -9026,6 +9107,7 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_dict);
     Py_VISIT(m->func_name);
     Py_VISIT(m->func_doc);
+    Py_VISIT(m->func_code);
     return 0;
 }
 

@@ -2,6 +2,9 @@
 # mode: run
 # tag: cyfunction
 
+import sys
+IS_PY3 = sys.version_info[0] >= 3
+
 def test_dict():
     """
     >>> test_dict.foo = 123
@@ -82,3 +85,67 @@ class BindingTest:
     """
     def __repr__(self):
         return '<BindingTest instance>'
+
+
+def codeof(func):
+    if IS_PY3:
+        return func.__code__
+    else:
+        return func.func_code
+
+def cy_no_arg(): pass
+def cy_one_arg(a): pass
+def cy_two_args(x, b): pass
+def cy_default_args(x=1, b=2): pass
+
+def test_code():
+    """
+    >>> def no_arg(): pass
+    >>> def one_arg(a): pass
+    >>> def two_args(x, b): pass
+    >>> def default_args(x=1, b=2): pass
+
+    >>> codeof(no_arg).co_argcount
+    0
+    >>> codeof(cy_no_arg).co_argcount
+    0
+    >>> print(codeof(no_arg).co_name)
+    no_arg
+    >>> print(codeof(cy_no_arg).co_name)
+    cy_no_arg
+    >>> codeof(no_arg).co_varnames
+    ()
+    >>> codeof(cy_no_arg).co_varnames
+    ()
+
+    >>> codeof(one_arg).co_argcount
+    1
+    >>> codeof(cy_one_arg).co_argcount
+    1
+    >>> print(codeof(one_arg).co_name)
+    one_arg
+    >>> print(codeof(cy_one_arg).co_name)
+    cy_one_arg
+    >>> codeof(one_arg).co_varnames
+    ('a',)
+    >>> codeof(cy_one_arg).co_varnames
+    ('a',)
+
+    >>> codeof(two_args).co_argcount
+    2
+    >>> codeof(cy_two_args).co_argcount
+    2
+    >>> codeof(two_args).co_varnames
+    ('x', 'b')
+    >>> codeof(cy_two_args).co_varnames
+    ('x', 'b')
+
+    >>> codeof(default_args).co_argcount
+    2
+    >>> codeof(cy_default_args).co_argcount
+    2
+    >>> codeof(default_args).co_varnames
+    ('x', 'b')
+    >>> codeof(cy_default_args).co_varnames
+    ('x', 'b')
+    """
