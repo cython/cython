@@ -94,17 +94,13 @@ def codeof(func):
         return func.func_code
 
 def cy_no_arg():
-    l = 0.5
-    m = 1
+    l = m = 1
 def cy_one_arg(a):
-    l = 0.5
-    m = 1
+    l = m = 1
 def cy_two_args(x, b):
-    l = 0.5
-    m = 1
+    l = m = 1
 def cy_default_args(x=1, b=2):
-    l = 0.5
-    m = 1
+    l = m = 1
 
 def test_code():
     """
