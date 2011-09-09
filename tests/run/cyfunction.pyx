@@ -39,6 +39,27 @@ def test_doc():
     'docstring'
     """
 
+def test_closure():
+    """
+    >>> test_closure.func_closure is None
+    True
+    """
+
+def test_globals():
+    """
+    >>> test_globals.func_globals is not None
+    True
+    >>> 'test_globals' in test_globals.func_globals or test_globals.func_globals
+    True
+    >>> 'test_name' in test_globals.func_globals or test_globals.func_globals
+    True
+    >>> 'not there' not in test_globals.func_globals or test_globals.func_globals
+    True
+    >>> try: test_globals.func_globals = {}
+    ... except (AttributeError, TypeError): pass
+    ... else: assert 0, 'FAILED'
+    """
+
 def test_reduce():
     """
     >>> import pickle

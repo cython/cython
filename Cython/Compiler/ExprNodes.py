@@ -8795,9 +8795,6 @@ proto="""
 """)
 
 
-# TODO: __Pyx_CyFunction_NewEx implicitly uses the global module
-# to get func_globals. This will need to be passed in if we share
-# this type accross modules. 
 binding_cfunc_utility_code = UtilityCode(
 proto="""
 #define __Pyx_CyFunction_USED 1
@@ -8809,7 +8806,6 @@ typedef struct {
     PyObject *func_weakreflist;
     PyObject *func_name;
     PyObject *func_doc;
-    PyObject *func_globals;
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -8820,7 +8816,7 @@ static int __Pyx_CyFunction_init(void);
 """ % Naming.__dict__,
 impl="""
 static PyObject *
-__Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
+__Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
 {
     if (op->func_doc == NULL && op->func.m_ml->ml_doc) {
 #if PY_MAJOR_VERSION >= 3
@@ -8886,7 +8882,7 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
 }
 
 static PyObject *
-__Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, void *closure)
+__Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, CYTHON_UNUSED void *closure)
 {
     PyObject *self;
 
@@ -8930,21 +8926,24 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
     Py_XDECREF(tmp);
     return 0;
 }
-
+""" + (
+# TODO: we implicitly use the global module to get func_globals.  This
+# will need to be passed into __Pyx_CyFunction_NewEx() if we share
+# this type accross modules.  We currently avoid doing this to reduce
+# the overhead of creating a function object, and to avoid keeping a
+# reference to the module dict as long as we don't need to.
+"""
 static PyObject *
-__Pyx_CyFunction_get_globals(__pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_globals(CYTHON_UNUSED __pyx_CyFunctionObject *op)
 {
-    if (op->func_globals == NULL) {
-        op->func_globals = PyDict_New();
-        if (op->func_globals == NULL)
-            return NULL;
-    }
-    Py_INCREF(op->func_globals);
-    return op->func_globals;
+    PyObject* dict = PyModule_GetDict(%(module_cname)s);
+    Py_XINCREF(dict);
+    return dict;
 }
-
+""" % Naming.__dict__ ) +
+"""
 static PyObject *
-__Pyx_CyFunction_get_closure(__pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_closure(CYTHON_UNUSED __pyx_CyFunctionObject *op)
 {
     Py_INCREF(Py_None);
     return Py_None;
@@ -9003,7 +9002,6 @@ static PyObject *__Pyx_CyFunction_NewEx(PyMethodDef *ml, PyObject *self, PyObjec
     op->func_dict = NULL;
     op->func_name = NULL;
     op->func_doc = NULL;
-    op->func_globals = PyObject_GetAttrString(%(module_cname)s, (char *)"__dict__");
     PyObject_GC_Track(op);
     return (PyObject *)op;
 }
@@ -9018,7 +9016,6 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
     Py_XDECREF(m->func_dict);
     Py_XDECREF(m->func_name);
     Py_XDECREF(m->func_doc);
-    Py_XDECREF(m->func_globals);
     PyObject_GC_Del(m);
 }
 
@@ -9029,7 +9026,6 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_dict);
     Py_VISIT(m->func_name);
     Py_VISIT(m->func_doc);
-    Py_VISIT(m->func_globals);
     return 0;
 }
 
@@ -9046,10 +9042,10 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
     PyObject *func_name = __Pyx_CyFunction_get_name(op);
 
 #if PY_MAJOR_VERSION >= 3
-    return PyUnicode_FromFormat("<cyfunction %%U at %%p>",
+    return PyUnicode_FromFormat("<cyfunction %U at %p>",
                                func_name, op);
 #else
-    return PyString_FromFormat("<cyfunction %%s at %%p>",
+    return PyString_FromFormat("<cyfunction %s at %p>",
                                PyString_AsString(func_name), op);
 #endif
 }
@@ -9118,7 +9114,7 @@ static int __Pyx_CyFunction_init(void)
     __pyx_CyFunctionType = &__pyx_CyFunctionType_type;
     return 0;
 }
-""" % Naming.__dict__)
+""")
 
 generator_utility_code = UtilityCode(
 proto="""
