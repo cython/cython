@@ -93,17 +93,25 @@ def codeof(func):
     else:
         return func.func_code
 
-def cy_no_arg(): pass
-def cy_one_arg(a): pass
-def cy_two_args(x, b): pass
-def cy_default_args(x=1, b=2): pass
+def cy_no_arg():
+    l = 0.5
+    m = 1
+def cy_one_arg(a):
+    l = 0.5
+    m = 1
+def cy_two_args(x, b):
+    l = 0.5
+    m = 1
+def cy_default_args(x=1, b=2):
+    l = 0.5
+    m = 1
 
 def test_code():
     """
-    >>> def no_arg(): pass
-    >>> def one_arg(a): pass
-    >>> def two_args(x, b): pass
-    >>> def default_args(x=1, b=2): pass
+    >>> def no_arg(): l = m = 1
+    >>> def one_arg(a): l = m = 1
+    >>> def two_args(x, b): l = m = 1
+    >>> def default_args(x=1, b=2): l = m = 1
 
     >>> codeof(no_arg).co_argcount
     0
@@ -113,10 +121,14 @@ def test_code():
     no_arg
     >>> print(codeof(cy_no_arg).co_name)
     cy_no_arg
+    >>> codeof(no_arg).co_names
+    ()
+    >>> codeof(cy_no_arg).co_names
+    ()
     >>> codeof(no_arg).co_varnames
-    ()
+    ('l', 'm')
     >>> codeof(cy_no_arg).co_varnames
-    ()
+    ('l', 'm')
 
     >>> codeof(one_arg).co_argcount
     1
@@ -126,26 +138,38 @@ def test_code():
     one_arg
     >>> print(codeof(cy_one_arg).co_name)
     cy_one_arg
+    >>> codeof(one_arg).co_names
+    ()
+    >>> codeof(cy_one_arg).co_names
+    ()
     >>> codeof(one_arg).co_varnames
-    ('a',)
+    ('a', 'l', 'm')
     >>> codeof(cy_one_arg).co_varnames
-    ('a',)
+    ('a', 'l', 'm')
 
     >>> codeof(two_args).co_argcount
     2
     >>> codeof(cy_two_args).co_argcount
     2
+    >>> codeof(two_args).co_names
+    ()
+    >>> codeof(cy_two_args).co_names
+    ()
     >>> codeof(two_args).co_varnames
-    ('x', 'b')
+    ('x', 'b', 'l', 'm')
     >>> codeof(cy_two_args).co_varnames
-    ('x', 'b')
+    ('x', 'b', 'l', 'm')
 
     >>> codeof(default_args).co_argcount
     2
     >>> codeof(cy_default_args).co_argcount
     2
+    >>> codeof(default_args).co_names
+    ()
+    >>> codeof(cy_default_args).co_names
+    ()
     >>> codeof(default_args).co_varnames
-    ('x', 'b')
+    ('x', 'b', 'l', 'm')
     >>> codeof(cy_default_args).co_varnames
-    ('x', 'b')
+    ('x', 'b', 'l', 'm')
     """

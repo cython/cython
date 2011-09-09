@@ -5256,7 +5256,7 @@ class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
     # def_node   DefNode    the Python function node
-    # varnames   TupleNode  a tuple with all variable names
+    # varnames   TupleNode  a tuple with all local variable names
 
     subexprs = ['varnames']
     is_temp = False
@@ -5268,12 +5268,12 @@ class CodeObjectNode(ExprNode):
             args.append(def_node.star_arg)
         if def_node.starstar_arg:
             args.append(def_node.starstar_arg)
-        # FIXME: lacks non-args !
+        local_vars = def_node.local_scope.var_entries
         self.varnames = TupleNode(
             def_node.pos,
             args = [ IdentifierStringNode(arg.pos, unicode_value=arg.name,
                                           value=StringEncoding.BytesLiteral(arg.name.utf8encode()))
-                     for arg in args ],
+                     for arg in args + local_vars ],
             is_temp = 0,
             is_literal = 1)
 
@@ -5299,8 +5299,8 @@ class CodeObjectNode(ExprNode):
             len(self.varnames.args),   # nlocals
             Naming.empty_bytes,        # code
             Naming.empty_tuple,        # consts
-            Naming.empty_tuple,        # names (FIXME: all local non-args!)
-            self.varnames.result(), # varnames
+            Naming.empty_tuple,        # names (FIXME)
+            self.varnames.result(),    # varnames
             Naming.empty_tuple,        # freevars (FIXME)
             Naming.empty_tuple,        # cellvars (FIXME)
             file_path_const,           # filename
