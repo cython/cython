@@ -567,7 +567,8 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
             err = None # allow these slots
 
         if isinstance(node, Nodes.CFuncDefNode):
-            if u'inline' in node.modifiers and self.scope_type == 'pxd':
+            if (u'inline' in node.modifiers and
+                self.scope_type in ('pxd', 'cclass')):
                 node.inline_in_pxd = True
                 if node.visibility != 'private':
                     err = self.ERR_NOGO_WITH_INLINE % node.visibility
@@ -1943,9 +1944,9 @@ class CreateClosureClasses(CythonTransform):
                     objstruct_cname='__pyx_Generator_object',
                     typeobj_cname='__pyx_Generator_type',
                     pos=pos, defining=True, implementing=True)
+        entry.type.is_final_type = True
         klass = entry.type.scope
         klass.is_internal = True
-        klass.directives = {'final': True}
 
         body_type = PyrexTypes.create_typedef_type('generator_body',
                                                    PyrexTypes.c_void_ptr_type,
@@ -2041,11 +2042,11 @@ class CreateClosureClasses(CythonTransform):
         entry = target_module_scope.declare_c_class(
             name=as_name, pos=node.pos, defining=True,
             implementing=True, base_type=base_type)
+        entry.type.is_final_type = True
 
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
-        class_scope.directives = {'final': True}
 
         if from_closure:
             assert cscope.is_closure_scope

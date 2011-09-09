@@ -1726,7 +1726,7 @@ class CFuncDefNode(FuncDefNode):
             defining = self.body is not None, modifiers = self.modifiers)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
-        if self.return_type.is_array and visibility != 'extern':
+        if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos,
                 "Function cannot return an array")
 
@@ -1751,7 +1751,8 @@ class CFuncDefNode(FuncDefNode):
             self.entry.as_variable = self.py_func.entry
             # Reset scope entry the above cfunction
             env.entries[name] = self.entry
-            if not env.is_module_scope or Options.lookup_module_cpdef:
+            if (not self.entry.is_final_cmethod and
+                (not env.is_module_scope or Options.lookup_module_cpdef)):
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
         self.create_local_scope(env)
@@ -2243,8 +2244,12 @@ class DefNode(FuncDefNode):
         #print "DefNode.declare_pyfunction:", self.name, "in", env ###
         name = self.name
         entry = env.lookup_here(name)
-        if entry and entry.type.is_cfunction and not entry.is_builtin_cmethod and not self.is_wrapper:
-            warning(self.pos, "Overriding cdef method with def method.", 5)
+        if entry:
+            if entry.is_final_cmethod and not env.parent_type.is_final_type:
+                error(self.pos, "Only final types can have final Python (def/cpdef) methods")
+            if (entry.type.is_cfunction and not entry.is_builtin_cmethod
+                and not self.is_wrapper):
+                warning(self.pos, "Overriding cdef method with def method.", 5)
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
         prefix = env.next_id(env.scope_prefix)
@@ -3503,7 +3508,7 @@ class CClassDefNode(ClassDefNode):
                         error(self.pos, "Base class '%s' of type '%s' is incomplete" % (
                             self.base_class_name, self.class_name))
                     elif base_class_entry.type.scope and base_class_entry.type.scope.directives and \
-                             base_class_entry.type.scope.directives['final']:
+                             base_class_entry.type.is_final_type:
                         error(self.pos, "Base class '%s' of type '%s' is final" % (
                             self.base_class_name, self.class_name))
                     elif base_class_entry.type.is_builtin_type and \
