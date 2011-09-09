@@ -640,7 +640,7 @@ class GlobalState(object):
         if cleanup_level is not None \
                and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
-            cleanup_writer.put_xdecref_clear(const.cname, type, nanny=False)
+            cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         return const
 
     def get_string_const(self, text, py_version=None):
