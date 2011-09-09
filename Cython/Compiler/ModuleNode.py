@@ -566,8 +566,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
+  #define __Pyx_PyIdentifier_FromString(s) PyString_FromString(s)
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
+  #define __Pyx_PyIdentifier_FromString(s) PyUnicode_FromString(s)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -2475,11 +2477,7 @@ static PyObject *__Pyx_ImportModule(const char *name) {
     PyObject *py_name = 0;
     PyObject *py_module = 0;
 
-    #if PY_MAJOR_VERSION < 3
-    py_name = PyString_FromString(name);
-    #else
-    py_name = PyUnicode_FromString(name);
-    #endif
+    py_name = __Pyx_PyIdentifier_FromString(name);
     if (!py_name)
         goto bad;
     py_module = PyImport_Import(py_name);
@@ -2512,11 +2510,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
         goto bad;
-    #if PY_MAJOR_VERSION < 3
-    py_name = PyString_FromString(class_name);
-    #else
-    py_name = PyUnicode_FromString(class_name);
-    #endif
+    py_name = __Pyx_PyIdentifier_FromString(class_name);
     if (!py_name)
         goto bad;
     result = PyObject_GetAttr(py_module, py_name);
