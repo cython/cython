@@ -329,6 +329,11 @@ class Scope(object):
         return self.mangle(prefix)
         #return self.parent_scope.mangle(prefix, self.name)
 
+    def mangle_class_private_name(self, name):
+        if self.parent_scope:
+            return self.parent_scope.mangle_class_private_name(name)
+        return name
+
     def next_id(self, name=None):
         # Return a cname fragment that is unique for this module
         counters = self.global_scope().id_counters
@@ -1535,8 +1540,8 @@ class ClosureScope(LocalScope):
 
     is_closure_scope = True
 
-    def __init__(self, name, scope_name, outer_scope):
-        LocalScope.__init__(self, name, outer_scope)
+    def __init__(self, name, scope_name, outer_scope, parent_scope=None):
+        LocalScope.__init__(self, name, outer_scope, parent_scope)
         self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
 
 #    def mangle_closure_cnames(self, scope_var):
@@ -1626,9 +1631,22 @@ class PyClassScope(ClassScope):
 
     is_py_class_scope = 1
 
+    def mangle_class_private_name(self, name):
+        return self.mangle_special_name(name)
+
+    def mangle_special_name(self, name):
+        if name and name.startswith('__') and not name.endswith('__'):
+            name = EncodedString('_%s%s' % (self.class_name, name))
+        return name
+
+    def lookup_here(self, name):
+        name = self.mangle_special_name(name)
+        return ClassScope.lookup_here(self, name)
+
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
+        name = self.mangle_special_name(name)
         if type is unspecified_type:
             type = py_object_type
         # Add an entry for a class attribute.

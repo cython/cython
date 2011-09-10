@@ -3800,6 +3800,8 @@ class AttributeNode(ExprNode):
     def analyse_as_python_attribute(self, env, obj_type = None):
         if obj_type is None:
             obj_type = self.obj.type
+        # mangle private '__*' Python attributes used inside of a class
+        self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
         self.type = py_object_type
         self.is_py_attr = 1
