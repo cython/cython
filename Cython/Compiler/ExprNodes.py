@@ -5269,13 +5269,13 @@ class CodeObjectNode(ExprNode):
             args.append(def_node.star_arg)
         if def_node.starstar_arg:
             args.append(def_node.starstar_arg)
-        local_vars = def_node.local_scope.var_entries
+        local_vars = [ arg for arg in def_node.local_scope.var_entries
+                       if arg.name and arg.type.is_pyobject ]
         self.varnames = TupleNode(
             def_node.pos,
             args = [ IdentifierStringNode(arg.pos, unicode_value=arg.name,
                                           value=StringEncoding.BytesLiteral(arg.name.utf8encode()))
-                     for arg in args + local_vars
-                     if arg.name and arg.type.is_pyobject ],
+                     for arg in args + local_vars ],
             is_temp = 0,
             is_literal = 1)
 
