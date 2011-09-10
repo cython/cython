@@ -1636,7 +1636,7 @@ class PyClassScope(ClassScope):
 
     def mangle_special_name(self, name):
         if name and name.startswith('__') and not name.endswith('__'):
-            name = EncodedString('_%s%s' % (self.class_name, name))
+            name = EncodedString('_%s%s' % (self.class_name.lstrip('_'), name))
         return name
 
     def lookup_here(self, name):

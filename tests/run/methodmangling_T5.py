@@ -76,3 +76,20 @@ class CyTestSub(CyTest):
         def get(o):
             return o._CyTest__x, o._CyTestSub__y, o.__y, o.__private()
         return get(self)
+
+class _UnderscoreTest(object):
+    """
+    >>> ut = _UnderscoreTest()
+    >>> '__x' in dir(ut)
+    False
+    >>> '_UnderscoreTest__x' in dir(ut)
+    True
+    >>> ut._UnderscoreTest__x
+    1
+    >>> ut.get()
+    1
+    """
+    __x = 1
+
+    def get(self):
+        return self.__x
