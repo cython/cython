@@ -2258,6 +2258,7 @@ class TransformBuiltinMethods(EnvTransform):
             # not the builtin
             return node
         pos = node.pos
+        local_names = [ var.name for var in lenv.entries.values() if var.name ]
         if func_name in ('locals', 'vars'):
             if func_name == 'locals' and len(node.args) > 0:
                 error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d"
@@ -2270,9 +2271,9 @@ class TransformBuiltinMethods(EnvTransform):
                 if len(node.args) > 0:
                     return node # nothing to do
             items = [ ExprNodes.DictItemNode(pos,
-                                             key=ExprNodes.StringNode(pos, value=var),
+                                             key=ExprNodes.IdentifierStringNode(pos, value=var),
                                              value=ExprNodes.NameNode(pos, name=var, allow_null=True))
-                      for var in lenv.entries ]
+                      for var in local_names ]
             return ExprNodes.DictNode(pos, key_value_pairs=items, exclude_null_values=True)
         else: # dir()
             if len(node.args) > 1:
@@ -2281,7 +2282,8 @@ class TransformBuiltinMethods(EnvTransform):
             if len(node.args) > 0:
                 # optimised in Builtin.py
                 return node
-            items = [ ExprNodes.StringNode(pos, value=var) for var in lenv.entries ]
+            items = [ ExprNodes.IdentifierStringNode(pos, value=var)
+                      for var in local_names ]
             return ExprNodes.ListNode(pos, args=items)
 
     def visit_SimpleCallNode(self, node):

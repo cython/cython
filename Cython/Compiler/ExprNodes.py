@@ -5270,7 +5270,7 @@ class CodeObjectNode(ExprNode):
         if def_node.starstar_arg:
             args.append(def_node.starstar_arg)
         local_vars = [ arg for arg in def_node.local_scope.var_entries
-                       if arg.name and arg.type.is_pyobject ]
+                       if arg.name ]
         self.varnames = TupleNode(
             def_node.pos,
             args = [ IdentifierStringNode(arg.pos, unicode_value=arg.name,

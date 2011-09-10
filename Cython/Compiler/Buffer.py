@@ -65,15 +65,15 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
             # Declare auxiliary vars
             cname = scope.mangle(Naming.bufstruct_prefix, name)
-            bufinfo = scope.declare_var(name="$%s" % cname, cname=cname,
+            bufinfo = scope.declare_var(name=None, cname=cname,
                                         type=PyrexTypes.c_py_buffer_type, pos=node.pos)
             if entry.is_arg:
                 bufinfo.used = True # otherwise, NameNode will mark whether it is used
 
             def var(prefix, idx, initval):
                 cname = scope.mangle(prefix, "%d_%s" % (idx, name))
-                result = scope.declare_var("$%s" % cname, PyrexTypes.c_py_ssize_t_type,
-                                         node.pos, cname=cname, is_cdef=True)
+                result = scope.declare_var(None, PyrexTypes.c_py_ssize_t_type,
+                                           node.pos, cname=cname, is_cdef=True)
 
                 result.init = initval
                 if entry.is_arg:
