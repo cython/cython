@@ -5273,8 +5273,7 @@ class CodeObjectNode(ExprNode):
                        if arg.name ]
         self.varnames = TupleNode(
             def_node.pos,
-            args = [ IdentifierStringNode(arg.pos, unicode_value=arg.name,
-                                          value=StringEncoding.BytesLiteral(arg.name.utf8encode()))
+            args = [ IdentifierStringNode(arg.pos, value=arg.name)
                      for arg in args + local_vars ],
             is_temp = 0,
             is_literal = 1)
