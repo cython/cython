@@ -93,6 +93,21 @@ def codeof(func):
     else:
         return func.func_code
 
+def varnamesof(func):
+    code = codeof(func)
+    varnames = code.co_varnames
+    if sys.version_info < (2,5):
+        pos = {'a':0, 'x':1, 'b':2, 'l':3, 'm':4}
+        varnames = tuple(sorted(varnames, key=pos.__getitem__))
+    return varnames
+
+def namesof(func):
+    code = codeof(func)
+    names = code.co_names
+    if sys.version_info < (2,5):
+        names = ()
+    return names
+
 def cy_no_arg():
     l = m = 1
 def cy_one_arg(a):
@@ -117,11 +132,11 @@ def test_code():
     no_arg
     >>> print(codeof(cy_no_arg).co_name)
     cy_no_arg
-    >>> codeof(no_arg).co_names
+    >>> namesof(no_arg)
     ()
     >>> codeof(cy_no_arg).co_names
     ()
-    >>> codeof(no_arg).co_varnames
+    >>> varnamesof(no_arg)
     ('l', 'm')
     >>> codeof(cy_no_arg).co_varnames
     ('l', 'm')
@@ -134,11 +149,11 @@ def test_code():
     one_arg
     >>> print(codeof(cy_one_arg).co_name)
     cy_one_arg
-    >>> codeof(one_arg).co_names
+    >>> namesof(one_arg)
     ()
     >>> codeof(cy_one_arg).co_names
     ()
-    >>> codeof(one_arg).co_varnames
+    >>> varnamesof(one_arg)
     ('a', 'l', 'm')
     >>> codeof(cy_one_arg).co_varnames
     ('a', 'l', 'm')
@@ -147,11 +162,11 @@ def test_code():
     2
     >>> codeof(cy_two_args).co_argcount
     2
-    >>> codeof(two_args).co_names
+    >>> namesof(two_args)
     ()
     >>> codeof(cy_two_args).co_names
     ()
-    >>> codeof(two_args).co_varnames
+    >>> varnamesof(two_args)
     ('x', 'b', 'l', 'm')
     >>> codeof(cy_two_args).co_varnames
     ('x', 'b', 'l', 'm')
@@ -160,11 +175,11 @@ def test_code():
     2
     >>> codeof(cy_default_args).co_argcount
     2
-    >>> codeof(default_args).co_names
+    >>> namesof(default_args)
     ()
     >>> codeof(cy_default_args).co_names
     ()
-    >>> codeof(default_args).co_varnames
+    >>> varnamesof(default_args)
     ('x', 'b', 'l', 'm')
     >>> codeof(cy_default_args).co_varnames
     ('x', 'b', 'l', 'm')
