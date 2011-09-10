@@ -5194,6 +5194,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     subexprs = ['code_object']
 
     self_object = None
+    code_object = None
     binding = False
 
     type = py_object_type
@@ -5273,7 +5274,8 @@ class CodeObjectNode(ExprNode):
             def_node.pos,
             args = [ IdentifierStringNode(arg.pos, unicode_value=arg.name,
                                           value=StringEncoding.BytesLiteral(arg.name.utf8encode()))
-                     for arg in args + local_vars ],
+                     for arg in args + local_vars
+                     if arg.name and arg.type.is_pyobject ],
             is_temp = 0,
             is_literal = 1)
 
