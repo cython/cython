@@ -1453,7 +1453,7 @@ class CCodeWriter(object):
             func = '__Pyx_RaiseUnboundLocalError'
             self.globalstate.use_utility_code(
                 ExprNodes.raise_unbound_local_error_utility_code)
-        self.put('if (unlikely(!%s)) { %s("%s"); %s }' % (
+        self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
             entry.cname, func, entry.name, self.error_goto(pos)))
 
     def set_error_info(self, pos):
