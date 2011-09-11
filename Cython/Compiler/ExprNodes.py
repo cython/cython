@@ -6823,10 +6823,12 @@ class CmpNode(object):
 
         # try to use numeric comparisons where possible
         elif type1.is_complex or type2.is_complex:
-            if op not in ('==', '!='):
+            if op not in ('==', '!=') \
+               and (type1.is_complex or type1.is_numeric) \
+               and (type2.is_complex or type2.is_numeric):
                 error(self.pos, "complex types are unordered")
                 new_common_type = error_type
-            if type1.is_pyobject:
+            elif type1.is_pyobject:
                 new_common_type = type1
             elif type2.is_pyobject:
                 new_common_type = type2
