@@ -6967,7 +6967,7 @@ utility_function_predeclarations = \
 #   else
 #     define CYTHON_UNUSED
 #   endif
-# elif defined(__ICC) || defined(__INTEL_COMPILER)
+# elif defined(__ICC) || (defined(__INTEL_COMPILER) && !defined(_MSC_VER))
 #   define CYTHON_UNUSED __attribute__ ((__unused__))
 # else
 #   define CYTHON_UNUSED
