@@ -5449,6 +5449,22 @@ class LocalsExprNode(DictNode):
                           exclude_null_values=True)
 
 
+class GlobalsExprNode(AtomicExprNode):
+    type = py_object_type
+    is_temp = 1
+
+    def analyse_types(self, env):
+        env.use_utility_code(Builtin.globals_utility_code)
+
+    gil_message = "Constructing globals dict"
+
+    def generate_result_code(self, code):
+        code.putln('%s = __Pyx_Globals(); %s' % (
+            self.result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
+
+
 #-------------------------------------------------------------------
 #
 #  Unary operator nodes

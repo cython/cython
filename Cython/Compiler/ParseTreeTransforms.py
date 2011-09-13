@@ -2282,11 +2282,24 @@ class TransformBuiltinMethods(EnvTransform):
                       for var in local_names ]
             return ExprNodes.ListNode(pos, args=items)
 
+    def _inject_eval(self, node, func_name):
+        lenv = self.current_env()
+        entry = lenv.lookup_here(func_name)
+        if entry or len(node.args) != 1:
+            return node
+
+        # Inject globals and locals
+        node.args.append(ExprNodes.GlobalsExprNode(node.pos))
+        node.args.append(ExprNodes.LocalsExprNode(node.pos, lenv))
+        return node
+
     def visit_SimpleCallNode(self, node):
         if isinstance(node.function, ExprNodes.NameNode):
             func_name = node.function.name
             if func_name in ('dir', 'locals', 'vars'):
                 return self._inject_locals(node, func_name)
+            if func_name == 'eval':
+                return self._inject_eval(node, func_name)
 
         # cython.foo
         function = node.function.as_cython_attribute()
