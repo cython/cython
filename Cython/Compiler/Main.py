@@ -116,7 +116,7 @@ class Context(object):
         return Errors.report_error(exc)
 
     def find_module(self, module_name,
-            relative_to = None, pos = None, need_pxd = 1):
+            relative_to = None, pos = None, need_pxd = 1, check_module_name = True):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
@@ -131,7 +131,7 @@ class Context(object):
 
         scope = None
         pxd_pathname = None
-        if not module_name_pattern.match(module_name):
+        if check_module_name and not module_name_pattern.match(module_name):
             if pos is None:
                 pos = (module_name, 0, 0)
             raise CompileError(pos,
