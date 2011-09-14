@@ -26,7 +26,8 @@ def parse_stage_factory(context):
         full_module_name = compsrc.full_module_name
         initial_pos = (source_desc, 1, 0)
         saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, False
-        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0,
+                                    check_module_name = not Options.embed)
         Options.cimport_from_pyx = saved_cimport_from_pyx
         tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
         tree.compilation_source = compsrc
