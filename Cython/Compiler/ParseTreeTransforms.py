@@ -2251,6 +2251,7 @@ class TransformBuiltinMethods(EnvTransform):
         return node
 
     def _inject_locals(self, node, func_name):
+        self.visitchildren(node)
         # locals()/dir()/vars() builtins
         lenv = self.current_env()
         entry = lenv.lookup_here(func_name)
@@ -2283,6 +2284,7 @@ class TransformBuiltinMethods(EnvTransform):
             return ExprNodes.ListNode(pos, args=items)
 
     def _inject_eval(self, node, func_name):
+        self.visitchildren(node)
         lenv = self.current_env()
         entry = lenv.lookup_here(func_name)
         if entry or len(node.args) != 1:
