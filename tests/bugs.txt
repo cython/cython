@@ -27,6 +27,7 @@ pyregr.test_socket
 pyregr.test_threading
 pyregr.test_sys
 pyregr.test_pep3131
+pyregr.test_multiprocessing
 
 # CPython regression tests that don't make sense
 pyregr.test_gdb
