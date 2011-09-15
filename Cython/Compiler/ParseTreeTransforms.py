@@ -2269,7 +2269,7 @@ class TransformBuiltinMethods(EnvTransform):
                           % len(node.args))
                 if len(node.args) > 0:
                     return node # nothing to do
-            return ExprNodes.LocalsExprNode(pos, lenv)
+            return ExprNodes.LocalsExprNode(pos, self.current_scope_node(), lenv)
         else: # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
@@ -2277,6 +2277,17 @@ class TransformBuiltinMethods(EnvTransform):
             if len(node.args) > 0:
                 # optimised in Builtin.py
                 return node
+            if lenv.is_py_class_scope or lenv.is_module_scope:
+                if lenv.is_py_class_scope:
+                    pyclass = self.current_scope_node()
+                    locals_dict = ExprNodes.CloneNode(pyclass.dict)
+                else:
+                    locals_dict = ExprNodes.GlobalsExprNode(pos)
+                return ExprNodes.SimpleCallNode(
+                    pos,
+                    function=ExprNodes.AttributeNode(
+                        pos, obj=locals_dict, attribute="keys"),
+                    args=[])
             local_names = [ var.name for var in lenv.entries.values() if var.name ]
             items = [ ExprNodes.IdentifierStringNode(pos, value=var)
                       for var in local_names ]
