@@ -4060,6 +4060,10 @@ class ExecStatNode(StatNode):
     child_attrs = ["args"]
 
     def analyse_expressions(self, env):
+        from ExprNodes import GlobalsExprNode, LocalsExprNode
+        if len(self.args) == 1:
+            self.args.append(GlobalsExprNode(self.pos))
+            self.args.append(LocalsExprNode(self.pos, env))
         for i, arg in enumerate(self.args):
             arg.analyse_expressions(env)
             arg = arg.coerce_to_pyobject(env)

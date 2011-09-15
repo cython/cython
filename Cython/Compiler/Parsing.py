@@ -1124,8 +1124,6 @@ def p_exec_statement(s):
         if s.sy == ',':
             s.next()
             args.append(p_test(s))
-    else:
-        error(pos, "'exec' currently requires a target mapping (globals/locals)")
     return Nodes.ExecStatNode(pos, args = args)
 
 def p_del_statement(s):
