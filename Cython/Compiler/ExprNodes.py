@@ -5454,6 +5454,16 @@ class GlobalsExprNode(AtomicExprNode):
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.result())
 
+
+class LocalsExprNode(DictNode):
+    def __init__(self, pos, env):
+        local_vars = [var.name for var in env.entries.values() if var.name]
+        items = [DictItemNode(pos, key=IdentifierStringNode(pos, value=var),
+                              value=NameNode(pos, name=var, allow_null=True))
+                 for var in local_vars]
+        DictNode.__init__(self, pos, key_value_pairs=items,
+                          exclude_null_values=True)
+
 #-------------------------------------------------------------------
 #
 #  Unary operator nodes
