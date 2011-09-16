@@ -2587,6 +2587,7 @@ class DefNode(FuncDefNode):
         max_positional_args = len(positional_args)
         has_fixed_positional_count = not self.star_arg and \
             min_positional_args == max_positional_args
+        has_kw_only_args = bool(kw_only_args)
 
         if self.num_required_kw_args:
             code.globalstate.use_utility_code(raise_keyword_required_utility_code)
@@ -2594,16 +2595,24 @@ class DefNode(FuncDefNode):
         if self.starstar_arg or self.star_arg:
             self.generate_stararg_init_code(max_positional_args, code)
 
+        # Before being converted and assigned to the target variables,
+        # borrowed references to all unpacked argument values are
+        # collected into a local PyObject* array, regardless if they
+        # were taken from default arguments, positional arguments or
+        # keyword arguments.
+        code.putln('{')
+        all_args = tuple(positional_args) + tuple(kw_only_args)
+        self.generate_argument_values_setup_code(
+            all_args, max_positional_args, argtuple_error_label, code)
+
         # --- optimised code when we receive keyword arguments
-        if self.num_required_kw_args:
-            likely_hint = "likely"
-        else:
-            likely_hint = "unlikely"
-        code.putln("if (%s(%s)) {" % (likely_hint, Naming.kwds_cname))
+        code.putln("if (%s(%s)) {" % (
+            (self.num_required_kw_args > 0) and "likely" or "unlikely",
+            Naming.kwds_cname))
         self.generate_keyword_unpacking_code(
             min_positional_args, max_positional_args,
-            has_fixed_positional_count,
-            positional_args, kw_only_args, argtuple_error_label, code)
+            has_fixed_positional_count, has_kw_only_args,
+            all_args, argtuple_error_label, code)
 
         # --- optimised code when we do not receive any keyword arguments
         if (self.num_required_kw_args and min_positional_args > 0) or min_positional_args == max_positional_args:
@@ -2634,44 +2643,55 @@ class DefNode(FuncDefNode):
                     code.putln(code.error_goto(self.pos))
                     break
 
-        elif min_positional_args == max_positional_args:
-            # parse the exact number of positional arguments from the
-            # args tuple
-            code.putln('} else {')
-            for i, arg in enumerate(positional_args):
-                item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
-                self.generate_arg_assignment(arg, item, code)
-            self.generate_arg_default_assignments(code)
-
         else:
-            # parse the positional arguments from the variable length
-            # args tuple
+            # optimised tuple unpacking code
             code.putln('} else {')
-            self.generate_arg_default_assignments(code)
-            code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
-            if self.star_arg:
-                code.putln('default:')
-            reversed_args = list(enumerate(positional_args))[::-1]
-            for i, arg in reversed_args:
-                if i >= min_positional_args-1:
-                    if min_positional_args > 1:
-                        code.putln('case %2d:' % (i+1)) # pure code beautification
-                    else:
-                        code.put('case %2d: ' % (i+1))
-                item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
-                self.generate_arg_assignment(arg, item, code)
-            if min_positional_args == 0:
-                code.put('case  0: ')
-            code.putln('break;')
-            if self.star_arg:
-                if min_positional_args:
-                    for i in range(min_positional_args-1, -1, -1):
-                        code.putln('case %2d:' % i)
-                    code.put_goto(argtuple_error_label)
+            if min_positional_args == max_positional_args:
+                # parse the exact number of positional arguments from
+                # the args tuple
+                for i, arg in enumerate(positional_args):
+                    code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (i, Naming.args_cname, i))
             else:
-                code.put('default: ')
-                code.put_goto(argtuple_error_label)
-            code.putln('}')
+                # parse the positional arguments from the variable length
+                # args tuple and reject illegal argument tuple sizes
+                code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+                if self.star_arg:
+                    code.putln('default:')
+                reversed_args = list(enumerate(positional_args))[::-1]
+                for i, arg in reversed_args:
+                    if i >= min_positional_args-1:
+                        if min_positional_args > 1:
+                            code.putln('case %2d:' % (i+1)) # pure code beautification
+                        else:
+                            code.put('case %2d: ' % (i+1))
+                    code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (i, Naming.args_cname, i))
+                if min_positional_args == 0:
+                    code.put('case  0: ')
+                code.putln('break;')
+                if self.star_arg:
+                    if min_positional_args:
+                        for i in range(min_positional_args-1, -1, -1):
+                            code.putln('case %2d:' % i)
+                        code.put_goto(argtuple_error_label)
+                else:
+                    code.put('default: ')
+                    code.put_goto(argtuple_error_label)
+                code.putln('}')
+
+        code.putln('}')
+
+        # convert arg values to their final type and assign them
+        for i, arg in enumerate(all_args):
+            if arg.default and not arg.type.is_pyobject:
+                code.putln("if (values[%d]) {" % i)
+            self.generate_arg_assignment(arg, "values[%d]" % i, code)
+            if arg.default and not arg.type.is_pyobject:
+                code.putln('} else {')
+                code.putln(
+                    "%s = %s;" % (
+                        arg.entry.cname,
+                        arg.calculate_default_value_code(code)))
+                code.putln('}')
 
         code.putln('}')
 
@@ -2723,14 +2743,8 @@ class DefNode(FuncDefNode):
             code.put_incref(Naming.empty_tuple, py_object_type)
             code.putln('}')
 
-    def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
-                                        has_fixed_positional_count, positional_args,
-                                        kw_only_args, argtuple_error_label, code):
-        all_args = tuple(positional_args) + tuple(kw_only_args)
-        max_args = len(all_args)
-
-        code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
-                   Naming.kwds_cname)
+    def generate_argument_values_setup_code(self, args, max_positional_args, argtuple_error_label, code):
+        max_args = len(args)
         # the 'values' array collects borrowed references to arguments
         # before doing any type coercion etc.
         code.putln("PyObject* values[%d] = {%s};" % (
@@ -2738,12 +2752,16 @@ class DefNode(FuncDefNode):
 
         # assign borrowed Python default values to the values array,
         # so that they can be overwritten by received arguments below
-        for i, arg in enumerate(all_args):
+        for i, arg in enumerate(args):
             if arg.default and arg.type.is_pyobject:
                 default_value = arg.calculate_default_value_code(code)
                 code.putln('values[%d] = %s;' % (i, arg.type.as_pyobject(default_value)))
 
-        # parse the args tuple and check that it's not too long
+    def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
+                                        has_fixed_positional_count, has_kw_only_args,
+                                        all_args, argtuple_error_label, code):
+        code.putln('Py_ssize_t kw_args;')
+        # copy the values from the args tuple and check that it's not too long
         code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
         if self.star_arg:
             code.putln('default:')
@@ -2757,8 +2775,16 @@ class DefNode(FuncDefNode):
             code.put_goto(argtuple_error_label)
         code.putln('}')
 
-        # now fill up the positional/required arguments with values
-        # from the kw dict
+        # The code above is very often (but not always) the same as
+        # the optimised non-kwargs tuple unpacking code, so we keep
+        # the code block above at the very top, before the following
+        # 'external' PyDict_Size() call, to make it easy for the C
+        # compiler to merge the two separate tuple unpacking
+        # implementations into one when they turn out to be identical.
+
+        # If we received kwargs, fill up the positional/required
+        # arguments with values from the kw dict
+        code.putln('if (likely((kw_args = PyDict_Size(%s)) > 0)) {' % Naming.kwds_cname)
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
             for i, arg in enumerate(all_args):
@@ -2815,7 +2841,7 @@ class DefNode(FuncDefNode):
             if max_positional_args > 0:
                 code.putln('}')
 
-        if kw_only_args and not self.starstar_arg:
+        if has_kw_only_args and not self.starstar_arg:
             # unpack optional keyword-only arguments
             # checking for interned strings in a dict is faster than iterating
             # but it's too likely that we must iterate if we expect **kwargs
@@ -2865,19 +2891,7 @@ class DefNode(FuncDefNode):
                 self.name))
         code.putln(code.error_goto(self.pos))
         code.putln('}')
-
-        # convert arg values to their final type and assign them
-        for i, arg in enumerate(all_args):
-            if arg.default and not arg.type.is_pyobject:
-                code.putln("if (values[%d]) {" % i)
-            self.generate_arg_assignment(arg, "values[%d]" % i, code)
-            if arg.default and not arg.type.is_pyobject:
-                code.putln('} else {')
-                code.putln(
-                    "%s = %s;" % (
-                        arg.entry.cname,
-                        arg.calculate_default_value_code(code)))
-                code.putln('}')
+        code.putln('}')
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from signature type to
