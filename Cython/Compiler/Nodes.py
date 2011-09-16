@@ -2709,10 +2709,7 @@ class DefNode(FuncDefNode):
                 reversed_args = list(enumerate(positional_args))[::-1]
                 for i, arg in reversed_args:
                     if i >= min_positional_args-1:
-                        if min_positional_args > 1:
-                            code.putln('case %2d:' % (i+1)) # pure code beautification
-                        else:
-                            code.put('case %2d: ' % (i+1))
+                        code.put('case %2d: ' % (i+1))
                     code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (i, Naming.args_cname, i))
                 if min_positional_args == 0:
                     code.put('case  0: ')
