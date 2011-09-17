@@ -16,6 +16,7 @@ from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclaration
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Build.Dependencies import strip_string_literals, cythonize
 from Cython.Compiler import Pipeline
+import cython as cython_module
 
 # A utility function to convert user-supplied ASCII strings to unicode.
 if sys.version_info[0] < 3:
@@ -125,6 +126,11 @@ def cython_inline(code,
         if not quiet:
             # Parsing from strings not fully supported (e.g. cimports).
             print("Could not parse code as a string (to extract unbound symbols).")
+    cimports = []
+    for name, arg in kwds.items():
+        if arg is cython_module:
+            cimports.append('\ncimport cython as %s' % name)
+            del kwds[name]
     arg_names = kwds.keys()
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
@@ -142,7 +148,6 @@ def cython_inline(code,
     except ImportError:
         cflags = []
         c_include_dirs = []
-        cimports = []
         qualified = re.compile(r'([.\w]+)[.]')
         for type, _ in arg_sigs:
             m = qualified.match(type)
