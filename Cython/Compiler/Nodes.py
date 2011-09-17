@@ -2781,7 +2781,7 @@ class DefNode(FuncDefNode):
 
         # If we received kwargs, fill up the positional/required
         # arguments with values from the kw dict
-        code.putln('if (likely((kw_args = PyDict_Size(%s)) > 0)) {' % Naming.kwds_cname)
+        code.putln('kw_args = PyDict_Size(%s);' % Naming.kwds_cname)
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
             for i, arg in enumerate(all_args):
@@ -2887,7 +2887,6 @@ class DefNode(FuncDefNode):
                 pos_arg_count,
                 self.name))
         code.putln(code.error_goto(self.pos))
-        code.putln('}')
         code.putln('}')
 
     def generate_argument_conversion_code(self, code):
