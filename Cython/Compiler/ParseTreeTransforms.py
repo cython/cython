@@ -2294,11 +2294,6 @@ class TransformBuiltinMethods(EnvTransform):
             return ExprNodes.ListNode(pos, args=items)
 
     def visit_SimpleCallNode(self, node):
-        if isinstance(node.function, ExprNodes.NameNode):
-            func_name = node.function.name
-            if func_name in ('dir', 'locals', 'vars'):
-                return self._inject_locals(node, func_name)
-
         # cython.foo
         function = node.function.as_cython_attribute()
         if function:
@@ -2351,6 +2346,11 @@ class TransformBuiltinMethods(EnvTransform):
                       u"'%s' not a valid cython language construct" % function)
 
         self.visitchildren(node)
+
+        if isinstance(node, ExprNodes.SimpleCallNode) and node.function.is_name:
+            func_name = node.function.name
+            if func_name in ('dir', 'locals', 'vars'):
+                return self._inject_locals(node, func_name)
         return node
 
 
