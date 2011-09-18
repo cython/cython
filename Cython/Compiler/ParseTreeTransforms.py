@@ -2250,6 +2250,17 @@ class TransformBuiltinMethods(EnvTransform):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
+    def visit_ExecStatNode(self, node):
+        lenv = self.current_env()
+        self.visitchildren(node)
+        if len(node.args) == 1:
+            node.args.append(ExprNodes.GlobalsExprNode(node.pos))
+            if not lenv.is_module_scope:
+                node.args.append(
+                    ExprNodes.LocalsExprNode(
+                        node.pos, self.current_scope_node(), lenv))
+        return node
+
     def _inject_locals(self, node, func_name):
         # locals()/dir()/vars() builtins
         lenv = self.current_env()
