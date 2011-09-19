@@ -12,6 +12,6 @@ def slice_lhs(a):
     a[:idx] = 1
 
 _ERRORS = """
-7:9: local variable 'idx' referenced before assignment
-11:10: local variable 'idx' referenced before assignment
+8:9: local variable 'idx' referenced before assignment
+12:10: local variable 'idx' referenced before assignment
 """
