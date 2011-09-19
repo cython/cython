@@ -638,10 +638,6 @@ class CreateControlFlowGraph(CythonTransform):
             self.flow.block.add_child(exc_descr.entry_point)
             self.flow.nextblock()
 
-        if isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode)):
-            self.visit(lhs)
-            return
-
         if not rhs:
             rhs = object_expr
         if lhs.is_name:
@@ -656,8 +652,7 @@ class CreateControlFlowGraph(CythonTransform):
             for arg in lhs.args:
                 self.mark_assignment(arg)
         else:
-            # Could use this info to infer cdef class attributes...
-            pass
+            self.visit(lhs)
 
         if self.flow.exceptions:
             exc_descr = self.flow.exceptions[-1]
