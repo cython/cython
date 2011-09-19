@@ -5978,7 +5978,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.body.analyse_declarations(env)
 
         if self.kwargs:
-            self.kwargs = self.kwargs.compile_time_value(env)
+            try:
+                self.kwargs = self.kwargs.compile_time_value(env)
+            except Exception, e:
+                error(self.kwargs.pos, "Only compile-time values may be "
+                                       "supplied as keyword arguments")
         else:
             self.kwargs = {}
 
@@ -5991,6 +5995,17 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
         self.analyse_sharing_attributes(env)
+
+        if self.num_threads is not None:
+            if self.parent and self.parent.num_threads is not None:
+                error(self.pos,
+                      "num_threads already declared in outer section")
+            elif not isinstance(self.num_threads, (int, long)):
+                error(self.pos,
+                      "Invalid value for num_threads argument, expected an int")
+            elif self.num_threads <= 0:
+                error(self.pos,
+                      "argument to num_threads must be greater than 0")
 
     def analyse_sharing_attributes(self, env):
         """
@@ -6131,11 +6146,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         Write self.num_threads if set as the num_threads OpenMP directive
         """
         if self.num_threads is not None:
-            if isinstance(self.num_threads, (int, long)):
-                code.put(" num_threads(%d)" % (self.num_threads,))
-            else:
-                error(self.pos, "Invalid value for num_threads argument, "
-                                "expected an int")
+            code.put(" num_threads(%d)" % (self.num_threads,))
+
 
     def declare_closure_privates(self, code):
         """
@@ -6790,11 +6802,11 @@ class ParallelRangeNode(ParallelStatNode):
         if not self.is_parallel:
             code.put("#pragma omp for")
             self.privatization_insertion_point = code.insertion_point()
-            # reduction_codepoint = self.parent.privatization_insertion_point
+            reduction_codepoint = self.parent.privatization_insertion_point
         else:
             code.put("#pragma omp parallel")
             self.privatization_insertion_point = code.insertion_point()
-            # reduction_codepoint = self.privatization_insertion_point
+            reduction_codepoint = self.privatization_insertion_point
             code.putln("")
             code.putln("#endif /* _OPENMP */")
 
@@ -6805,11 +6817,6 @@ class ParallelRangeNode(ParallelStatNode):
 
             code.putln("#ifdef _OPENMP")
             code.put("#pragma omp for")
-
-        # Nested parallelism is not supported, so we can put reductions on the
-        # for and not on the parallel (but would be valid, but gcc45 bugs on
-        # the former)
-        reduction_codepoint = code
 
         for entry, (op, lastprivate) in self.privates.iteritems():
             # Don't declare the index variable as a reduction
