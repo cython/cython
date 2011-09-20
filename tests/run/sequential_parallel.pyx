@@ -720,3 +720,15 @@ def test_nogil_cdef_except_clause():
     for i in prange(10, nogil=True):
         nogil_cdef_except_clause()
         nogil_cdef_except_star()
+
+def test_num_threads_compile():
+    cdef int i
+    for i in prange(10, nogil=True, num_threads=2):
+        pass
+
+    with nogil, cython.parallel.parallel(num_threads=2):
+        pass
+
+    with nogil, cython.parallel.parallel():
+        for i in prange(10, num_threads=2):
+            pass
