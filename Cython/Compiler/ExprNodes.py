@@ -7814,6 +7814,9 @@ class CoerceFromPyTypeNode(CoercionNode):
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 
+    def nogil_check(self, env):
+        error(self.pos, "Coercion from Python not allowed without the GIL")
+
 
 class CoerceToBooleanNode(CoercionNode):
     #  This node is used when a result needs to be used

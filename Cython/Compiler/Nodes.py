@@ -5929,13 +5929,15 @@ class ParallelStatNode(StatNode, ParallelNode):
                                 construct (replaced by its compile time value)
     """
 
-    child_attrs = ['body']
+    child_attrs = ['body', 'num_threads']
 
     body = None
 
     is_prange = False
 
     error_label_used = False
+
+    num_threads = None
 
     parallel_exc = (
         Naming.parallel_exc_type,
@@ -5977,7 +5979,15 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 
+        self.num_threads = None
+
         if self.kwargs:
+            for idx, dictitem in enumerate(self.kwargs.key_value_pairs[:]):
+                if dictitem.key.value == 'num_threads':
+                    self.num_threads = dictitem.value
+                    del self.kwargs.key_value_pairs[idx]
+                    break
+
             try:
                 self.kwargs = self.kwargs.compile_time_value(env)
             except Exception, e:
@@ -5993,6 +6003,8 @@ class ParallelStatNode(StatNode, ParallelNode):
                 setattr(self, kw, val)
 
     def analyse_expressions(self, env):
+        if self.num_threads:
+            self.num_threads.analyse_expressions(env)
         self.body.analyse_expressions(env)
         self.analyse_sharing_attributes(env)
 
@@ -6000,12 +6012,17 @@ class ParallelStatNode(StatNode, ParallelNode):
             if self.parent and self.parent.num_threads is not None:
                 error(self.pos,
                       "num_threads already declared in outer section")
-            elif not isinstance(self.num_threads, (int, long)):
+            elif self.parent:
                 error(self.pos,
-                      "Invalid value for num_threads argument, expected an int")
-            elif self.num_threads <= 0:
+                      "num_threads must be declared in the parent parallel section")
+            elif (self.num_threads.type.is_int and
+                  self.num_threads.is_literal and
+                  self.num_threads.compile_time_value(env) <= 0):
                 error(self.pos,
                       "argument to num_threads must be greater than 0")
+
+            self.num_threads = self.num_threads.coerce_to(
+                                PyrexTypes.c_int_type, env).coerce_to_temp(env)
 
     def analyse_sharing_attributes(self, env):
         """
@@ -6146,7 +6163,16 @@ class ParallelStatNode(StatNode, ParallelNode):
         Write self.num_threads if set as the num_threads OpenMP directive
         """
         if self.num_threads is not None:
-            code.put(" num_threads(%d)" % (self.num_threads,))
+            c = self.begin_of_parallel_control_block_point
+            # we need to set the owner to ourselves temporarily, as
+            # allocate_temp may generate a comment in the middle of our pragma
+            # otherwise when DebugFlags.debug_temp_code_comments is in effect
+            owner = c.funcstate.owner
+            c.funcstate.owner = c
+            self.num_threads.generate_evaluation_code(c)
+            c.funcstate.owner = owner
+
+            code.put(" num_threads(%s)" % (self.num_threads.result(),))
 
 
     def declare_closure_privates(self, code):
@@ -6510,8 +6536,6 @@ class ParallelWithBlockNode(ParallelStatNode):
     """
     This node represents a 'with cython.parallel.parallel():' block
     """
-
-    nogil_check = None
 
     valid_keyword_arguments = ['num_threads']
 

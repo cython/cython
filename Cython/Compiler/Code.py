@@ -986,11 +986,13 @@ class CCodeWriter(object):
         if create_from is not None:
             # Use same global state
             self.globalstate = create_from.globalstate
+            self.funcstate = create_from.funcstate
             # Clone formatting state
             if copy_formatting:
                 self.level = create_from.level
                 self.bol = create_from.bol
                 self.call_level = create_from.call_level
+
         if emit_linenums is None and self.globalstate:
             self.emit_linenums = self.globalstate.emit_linenums
         else:
@@ -1000,7 +1002,8 @@ class CCodeWriter(object):
     def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        result = CCodeWriter(create_from, buffer, copy_formatting, c_line_in_traceback=self.c_line_in_traceback)
+        result = CCodeWriter(create_from, buffer, copy_formatting,
+                             c_line_in_traceback=self.c_line_in_traceback)
         return result
 
     def copyto(self, f):

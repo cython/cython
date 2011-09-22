@@ -729,6 +729,6 @@ def test_num_threads_compile():
     with nogil, cython.parallel.parallel(num_threads=2):
         pass
 
-    with nogil, cython.parallel.parallel():
-        for i in prange(10, num_threads=2):
+    with nogil, cython.parallel.parallel(num_threads=2):
+        for i in prange(10):
             pass
