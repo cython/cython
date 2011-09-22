@@ -7,6 +7,19 @@ from distutils.extension import Extension
 from Cython import Utils
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
+def cached_function(f):
+    cache_name = '__%s_cache' % f.__name__
+    def wrapper(*args):
+        cache = getattr(f, cache_name, None)
+        if cache is None:
+            cache = {}
+            setattr(f, cache_name, cache)
+        if args in cache:
+            return cache[args]
+        res = cache[args] = f(*args)
+        return res
+    return wrapper
+
 def cached_method(f):
     cache_name = '__%s_cache' % f.__name__
     def wrapper(self, *args):

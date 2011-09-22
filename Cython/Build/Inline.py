@@ -14,7 +14,7 @@ from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
 from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, AnalyseDeclarationsTransform
 from Cython.Compiler.TreeFragment import parse_from_strings
-from Cython.Build.Dependencies import strip_string_literals, cythonize
+from Cython.Build.Dependencies import strip_string_literals, cythonize, cached_function
 from Cython.Compiler import Pipeline
 import cython as cython_module
 
@@ -38,6 +38,7 @@ class AllSymbols(CythonTransform, SkipDeclarations):
     def visit_NameNode(self, node):
         self.names.add(node.name)
 
+@cached_function
 def unbound_symbols(code, context=None):
     code = to_unicode(code)
     if context is None:
