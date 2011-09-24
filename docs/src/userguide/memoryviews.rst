@@ -79,26 +79,18 @@ This gives a new, transposed, view on the data.
 Specifying data layout
 ======================
 
-Data layout can be specified using the previously seen `::1` slice syntax, or by using any
-of the constants in `cython.view`.
+Data layout can be specified using the previously seen ``::1`` slice syntax, or by using any
+of the constants in ``cython.view``.
 The concepts are as follows: there is data access and data packing. Data access means either
-direct (no pointer) or indirect (pointer). Generic means you don't know, and want the compiler
-Data packing means your data may be strided (e.g. after slicing it, a[::2]) or contiguous
+direct (no pointer) or indirect (pointer).
+Data packing means your data may be strided (e.g. after slicing it, ``a[::2]``) or contiguous
 (consecutive elements are adjacent in memory). If no specifier is given in any dimension,
-the data access is assumed to be direct, and the data packing assumed to be strided.
-If you don't know whether a dimension will be direct or indirect (because you got an object
+then the data access is assumed to be direct, and the data packing assumed to be strided.
+If you don't know whether a dimension will be direct or indirect (because you're getting an object
 with a buffer interface from some library perhaps), then you can specify the `generic` flag,
 in which case it will be determined at runtime.
 
 The flags are as follows:
-
-cdef generic = Enum("<strided and direct or indirect>")
-cdef strided = Enum("<strided and direct>") # default
-cdef indirect = Enum("<strided and indirect>")
-# Disable generic_contiguous, as it is a troublemaker
-#cdef generic_contiguous = Enum("<contiguous and direct or indirect>")
-cdef contiguous = Enum("<contiguous and direct>")
-cdef indirect_contiguous = Enum("<contiguous and indirect>")
 
 * generic - strided and direct or indirect
 * strided - strided and direct (this is the default)
@@ -106,7 +98,7 @@ cdef indirect_contiguous = Enum("<contiguous and indirect>")
 * contiguous - contiguous and direct
 * indirect_contiguous - the list of pointers is contiguous
 
-They can be used as follows::
+and they can be used like this::
 
     from cython cimport view
 
