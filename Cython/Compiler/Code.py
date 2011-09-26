@@ -1341,9 +1341,8 @@ class CCodeWriter(object):
                     entry.cname))
             else:
                 self.putln("__Pyx_%sDECREF(%s); %s = 0;" % (
-                    self.entry_as_pyobject(entry),
-                    entry.cname,
                     null_check and 'X' or '',
+                    self.entry_as_pyobject(entry),
                     entry.cname))
 
     def put_var_decrefs(self, entries, used_only = 0):
