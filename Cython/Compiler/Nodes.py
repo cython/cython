@@ -2457,8 +2457,11 @@ class DefNode(FuncDefNode):
 
         for arg in self.args:
             if not arg.type.is_pyobject:
-                done = arg.type.create_from_py_utility_code(env)
-                if not done: pass # will fail later
+                if not arg.type.create_from_py_utility_code(env):
+                    pass # will fail later
+            elif arg.is_self_arg and arg.entry.in_closure:
+                # must store 'self' in the closure explicitly for extension types
+                self.generate_arg_assignment(arg, arg.hdr_cname, code)
 
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
@@ -2945,7 +2948,7 @@ class DefNode(FuncDefNode):
         for arg in self.args:
             if arg.needs_conversion:
                 self.generate_arg_conversion(arg, code)
-            elif arg.entry.in_closure:
+            elif not arg.is_self_arg and arg.entry.in_closure:
                 if arg.type.is_pyobject:
                     code.put_incref(arg.hdr_cname, py_object_type)
                 code.putln('%s = %s;' % (arg.entry.cname, arg.hdr_cname))
