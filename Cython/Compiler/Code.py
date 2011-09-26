@@ -1321,19 +1321,30 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
-    def put_var_decref_clear(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_DECREF(%s); %s = 0;" % (
-                self.entry_as_pyobject(entry), entry.cname))
-
     def put_var_xdecref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
+    def put_var_decref_clear(self, entry):
+        self._put_var_decref_clear(entry, null_check=False)
+
     def put_var_xdecref_clear(self, entry):
+        self._put_var_decref_clear(entry, null_check=True)
+
+    def _put_var_decref_clear(self, entry, null_check):
         if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
-                self.entry_as_pyobject(entry), entry.cname))
+            if entry.in_closure:
+                # reset before DECREF to make sure closure state is
+                # consistent during call to DECREF()
+                self.putln("__Pyx_%sCLEAR(%s);" % (
+                    null_check and 'X' or '',
+                    entry.cname))
+            else:
+                self.putln("__Pyx_%sDECREF(%s); %s = 0;" % (
+                    self.entry_as_pyobject(entry),
+                    entry.cname,
+                    null_check and 'X' or '',
+                    entry.cname))
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
