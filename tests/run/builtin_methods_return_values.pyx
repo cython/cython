@@ -87,3 +87,11 @@ def set_add(set s):
     """
     s.add(1)
     return s.add(2)
+
+def dict_clear(dict d):
+    """
+    >>> dict_clear({1:2,3:4}) is None
+    True
+    """
+    d.clear()
+    return d.clear()
