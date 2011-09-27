@@ -2233,6 +2233,34 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     ### methods of builtin types
 
+    PyDict_Clear_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_void_type, [
+            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
+            ])
+
+    PyDict_Clear_Retval_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
+            ])
+
+    def _handle_simple_method_dict_clear(self, node, args, is_unbound_method):
+        """Optimise dict.clear() differently, depending on the use (or
+        non-use) of the return value.
+        """
+        if len(args) != 1:
+            return node
+        if node.result_is_used:
+            return self._substitute_method_call(
+                node, "__Pyx_PyDict_Clear", self.PyDict_Clear_Retval_func_type,
+                'clear', is_unbound_method, args,
+                may_return_none=True, is_temp=True,
+                utility_code=py_dict_clear_utility_code
+                ).coerce_to(node.type, self.current_env)
+        else:
+            return self._substitute_method_call(
+                node, "PyDict_Clear", self.PyDict_Clear_func_type,
+                'clear', is_unbound_method, args, is_temp=False)
+
     PyObject_Append_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
@@ -2833,7 +2861,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     def _substitute_method_call(self, node, name, func_type,
                                 attr_name, is_unbound_method, args=(),
-                                utility_code=None,
+                                utility_code=None, is_temp=None,
                                 may_return_none=ExprNodes.PythonCapiCallNode.may_return_none):
         args = list(args)
         if args and not args[0].is_literal:
@@ -2848,12 +2876,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     error = "PyExc_AttributeError",
                     format_args = [attr_name])
             args[0] = self_arg
+        if is_temp is None:
+            is_temp = node.is_temp
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,
             args = args,
-            is_temp = node.is_temp,
+            is_temp = is_temp,
             utility_code = utility_code,
             may_return_none = may_return_none,
+            result_is_used = node.result_is_used,
             )
 
     def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
@@ -3164,6 +3195,16 @@ bad:
 }
 """
 )
+
+
+py_dict_clear_utility_code = UtilityCode(
+proto = '''
+static CYTHON_INLINE PyObject* __Pyx_PyDict_Clear(PyObject* d) {
+    PyDict_Clear(d);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+''')
 
 
 pyobject_as_double_utility_code = UtilityCode(

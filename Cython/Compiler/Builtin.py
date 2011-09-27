@@ -240,15 +240,6 @@ static PyObject* __Pyx_Intern(PyObject* s) {
 }
 ''')
 
-py_dict_clear_utility_code = UtilityCode(
-proto = '''
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Clear(PyObject* d) {
-    PyDict_Clear(d);
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-''')
-
 py_set_utility_code = UtilityCode(
 proto = """
 #if PY_VERSION_HEX < 0x02050000
@@ -504,8 +495,6 @@ builtin_types_table = [
     ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),  # FIXME: Py3 mode?
                                     BuiltinMethod("keys",  "T",   "O", "PyDict_Keys"),   # FIXME: Py3 mode?
                                     BuiltinMethod("values","T",   "O", "PyDict_Values"), # FIXME: Py3 mode?
-                                    BuiltinMethod("clear", "T",   "O", "__Pyx_PyDict_Clear",
-                                                  utility_code = py_dict_clear_utility_code),
                                     BuiltinMethod("copy",  "T",   "T", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    [BuiltinAttribute('start'),
