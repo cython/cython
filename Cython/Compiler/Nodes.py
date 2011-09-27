@@ -2929,14 +2929,14 @@ class DefNode(FuncDefNode):
         else:
             pos_arg_count = "pos_args"
         code.globalstate.use_utility_code(parse_keywords_utility_code)
-        code.put(
-            'if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, values, %s, "%s") < 0)) ' % (
+        code.putln(
+            'if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, values, %s, "%s") < 0)) %s' % (
                 Naming.kwds_cname,
                 Naming.pykwdlist_cname,
                 self.starstar_arg and self.starstar_arg.entry.cname or '0',
                 pos_arg_count,
-                self.name))
-        code.putln(code.error_goto(self.pos))
+                self.name,
+                code.error_goto(self.pos)))
         code.putln('}')
 
     def generate_argument_conversion_code(self, code):
