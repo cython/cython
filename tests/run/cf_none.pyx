@@ -82,3 +82,34 @@ def conditional_not_none(a, dict d not None):
     if a:
         d = {}
     return d.get(1)
+
+@cython.test_fail_if_path_exists('//NoneCheckNode')
+def self_dependency(int x):
+    """
+    >>> self_dependency(1)
+    (1, 2)
+    >>> self_dependency(2)
+    (None, None)
+    """
+    cdef dict a, b
+    a = {1:2}
+    b = {2:1}
+    for i in range(x):
+        a,b = b,a
+    return a.get(2), b.get(1)
+
+@cython.test_assert_path_exists('//NoneCheckNode')
+def self_dependency_none(int x):
+    """
+    >>> self_dependency_none(False)
+    1
+    >>> self_dependency_none(True)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'get'
+    """
+    cdef dict a, b
+    a = None
+    b = {2:1}
+    if x:
+        a,b = b,a
+    return b.get(2)

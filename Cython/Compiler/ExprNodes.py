@@ -1483,12 +1483,22 @@ class NameNode(AtomicExprNode):
 
     def may_be_none(self):
         if self.cf_state:
+            # gard against infinite recursion on self-dependencies
+            if getattr(self, '_none_checking', False):
+                # self-dependency - either this node receives a None
+                # value from *another* node, or it can not reference
+                # None at this point => safe to assume "not None"
+                return False
+            self._none_checking = True
             # evaluate control flow state to see if there were any
             # potential None values assigned to the node so far
+            may_be_none = False
             for assignment in self.cf_state:
                 if assignment.rhs.may_be_none():
-                    return True
-            return False
+                    may_be_none = True
+                    break
+            del self._none_checking
+            return may_be_none
         return super(NameNode, self).may_be_none()
 
     def nonlocally_immutable(self):
