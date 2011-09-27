@@ -2810,8 +2810,9 @@ class DefNode(FuncDefNode):
                                         has_fixed_positional_count, has_kw_only_args,
                                         all_args, argtuple_error_label, code):
         code.putln('Py_ssize_t kw_args;')
+        code.putln('const Py_ssize_t pos_args = PyTuple_GET_SIZE(%s);' % Naming.args_cname)
         # copy the values from the args tuple and check that it's not too long
-        code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+        code.putln('switch (pos_args) {')
         if self.star_arg:
             code.putln('default:')
         for i in range(max_positional_args-1, -1, -1):
@@ -2843,7 +2844,7 @@ class DefNode(FuncDefNode):
                 last_required_arg = max_positional_args-1
             num_required_args = self.num_required_args
             if max_positional_args > 0:
-                code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+                code.putln('switch (pos_args) {')
             for i, arg in enumerate(all_args[:last_required_arg+1]):
                 if max_positional_args > 0 and i <= max_positional_args:
                     if self.star_arg and i == max_positional_args:
@@ -2924,12 +2925,11 @@ class DefNode(FuncDefNode):
         if max_positional_args == 0:
             pos_arg_count = "0"
         elif self.star_arg:
-            code.putln("const Py_ssize_t used_pos_args = (PyTuple_GET_SIZE(%s) < %d) ? PyTuple_GET_SIZE(%s) : %d;" % (
-                    Naming.args_cname, max_positional_args,
-                    Naming.args_cname, max_positional_args))
+            code.putln("const Py_ssize_t used_pos_args = (pos_args < %d) ? pos_args : %d;" % (
+                    max_positional_args, max_positional_args))
             pos_arg_count = "used_pos_args"
         else:
-            pos_arg_count = "PyTuple_GET_SIZE(%s)" % Naming.args_cname
+            pos_arg_count = "pos_args"
         code.globalstate.use_utility_code(parse_keywords_utility_code)
         code.put(
             'if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, values, %s, "%s") < 0)) ' % (
