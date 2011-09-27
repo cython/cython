@@ -2842,7 +2842,6 @@ class DefNode(FuncDefNode):
                     last_required_arg = i
             if last_required_arg < max_positional_args:
                 last_required_arg = max_positional_args-1
-            num_required_args = self.num_required_args
             if max_positional_args > 0:
                 code.putln('switch (pos_args) {')
             for i, arg in enumerate(all_args[:last_required_arg+1]):
@@ -2862,7 +2861,6 @@ class DefNode(FuncDefNode):
                     code.putln('if (value) { values[%d] = value; kw_args--; }' % i)
                     code.putln('}')
                 else:
-                    num_required_args -= 1
                     code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
                         i, Naming.kwds_cname, pystring_cname))
                     code.putln('if (likely(values[%d])) kw_args--;' % i);
