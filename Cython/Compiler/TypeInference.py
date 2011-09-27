@@ -9,7 +9,7 @@ from Visitor import CythonTransform
 
 
 class TypedExprNode(ExprNodes.ExprNode):
-    # Used for declaring assignments of a specified type whithout a known entry.
+    # Used for declaring assignments of a specified type without a known entry.
     def __init__(self, type):
         self.type = type
 
