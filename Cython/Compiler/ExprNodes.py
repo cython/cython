@@ -1481,6 +1481,16 @@ class NameNode(AtomicExprNode):
         #  If it's not a C variable, it'll be in a temp.
         return 1
 
+    def may_be_none(self):
+        if self.cf_state:
+            # evaluate control flow state to see if there were any
+            # potential None values assigned to the node so far
+            for assignment in self.cf_state:
+                if assignment.rhs.may_be_none():
+                    return True
+            return False
+        return super(NameNode, self).may_be_none()
+
     def nonlocally_immutable(self):
         if ExprNode.nonlocally_immutable(self):
             return True

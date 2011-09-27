@@ -14,11 +14,16 @@ from Visitor import TreeVisitor, CythonTransform
 from Errors import error, warning, CompileError, InternalError
 
 class TypedExprNode(ExprNodes.ExprNode):
-    # Used for declaring assignments of a specified type whithout a known entry.
-    def __init__(self, type):
+    # Used for declaring assignments of a specified type without a known entry.
+    def __init__(self, type, may_be_none=None):
         self.type = type
+        self._may_be_none = may_be_none
 
-object_expr = TypedExprNode(py_object_type)
+    def may_be_none(self):
+        return self._may_be_none != False
+
+object_expr = TypedExprNode(py_object_type, may_be_none=True)
+object_expr_not_none = TypedExprNode(py_object_type, may_be_none=False)
 
 class ControlBlock(object):
     """Control flow graph node. Sequence of assignments and name references.
@@ -588,11 +593,13 @@ class CreateControlFlowGraph(CythonTransform):
 
         if node.star_arg:
             self.flow.mark_argument(node.star_arg,
-                                    TypedExprNode(Builtin.tuple_type),
+                                    TypedExprNode(Builtin.tuple_type,
+                                                  may_be_none=False),
                                     node.star_arg.entry)
         if node.starstar_arg:
             self.flow.mark_argument(node.starstar_arg,
-                                    TypedExprNode(Builtin.dict_type),
+                                    TypedExprNode(Builtin.dict_type,
+                                                  may_be_none=False),
                                     node.starstar_arg.entry)
         self.visitchildren(node)
         # Workaround for generators
@@ -621,7 +628,7 @@ class CreateControlFlowGraph(CythonTransform):
         if entry.is_anonymous:
             entry = self.env.lookup(node.name)
         if entry:
-            self.flow.mark_assignment(node, object_expr, entry)
+            self.flow.mark_assignment(node, object_expr_not_none, entry)
         return self.visit_FuncDefNode(node)
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -717,7 +724,8 @@ class CreateControlFlowGraph(CythonTransform):
     def visit_CArgDeclNode(self, node):
         entry = self.env.lookup(node.name)
         if entry:
-            self.flow.mark_argument(node, TypedExprNode(entry.type), entry)
+            may_be_none = not node.not_none
+            self.flow.mark_argument(node, TypedExprNode(entry.type, may_be_none), entry)
         return node
 
     def visit_NameNode(self, node):
@@ -1091,7 +1099,7 @@ class CreateControlFlowGraph(CythonTransform):
 
     def visit_PyClassDefNode(self, node):
         self.flow.mark_assignment(node.target,
-                                  object_expr, self.env.lookup(node.name))
+                                  object_expr_not_none, self.env.lookup(node.name))
         # TODO: add negative attribute list to "visitchildren"?
         self.visitchildren(node, attrs=['dict', 'metaclass',
                                         'mkw', 'bases', 'classobj'])

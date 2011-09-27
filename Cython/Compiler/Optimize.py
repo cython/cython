@@ -3530,3 +3530,12 @@ class FinalOptimizePhase(Visitor.CythonTransform):
             if not node.arg.may_be_none():
                 node.notnone = True
         return node
+
+    def visit_NoneCheckNode(self, node):
+        """Remove None checks from expressions that definitely do not
+        carry a None value.
+        """
+        self.visitchildren(node)
+        if not node.arg.may_be_none():
+            return node.arg
+        return node
