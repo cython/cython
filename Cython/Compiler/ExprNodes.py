@@ -1482,7 +1482,7 @@ class NameNode(AtomicExprNode):
         return 1
 
     def may_be_none(self):
-        if self.cf_state:
+        if self.type.is_pyobject and self.cf_state:
             # gard against infinite recursion on self-dependencies
             if getattr(self, '_none_checking', False):
                 # self-dependency - either this node receives a None
