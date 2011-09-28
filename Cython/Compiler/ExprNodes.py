@@ -7153,7 +7153,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
         #ifdef CYTHON_PEP393_ENABLED
-        if ((PyUnicode_FAST_READY(s1) < 0) || (PyUnicode_FAST_READY(s2) < 0))
+        if ((PyUnicode_READY(s1) < 0) || (PyUnicode_READY(s2) < 0))
             return -1;
         if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
             return (equals == Py_NE);
