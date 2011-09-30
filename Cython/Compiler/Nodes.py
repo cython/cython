@@ -2828,6 +2828,9 @@ class DefNode(FuncDefNode):
                     "%s = %s;" % (
                         arg.entry.cname,
                         arg.calculate_default_value_code(code)))
+                if arg.entry.type.is_memoryviewslice:
+                    code.put_incref_memoryviewslice(arg.entry.cname,
+                                                    have_gil=True)
                 code.putln('}')
 
         code.putln('}')

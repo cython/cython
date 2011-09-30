@@ -86,7 +86,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             # Declare auxiliary vars
             def decvar(type, prefix):
                 cname = scope.mangle(prefix, name)
-                aux_var = scope.declare_var(name="$%s" % cname, cname=cname,
+                aux_var = scope.declare_var(name=None, cname=cname,
                                             type=type, pos=node.pos)
                 if entry.is_arg:
                     aux_var.used = True # otherwise, NameNode will mark whether it is used

@@ -422,6 +422,7 @@ class MemoryViewSliceType(PyrexType):
                     visibility='extern')
 
             scope.parent_type = self
+            scope.directives = {}
 
             scope.declare_var('_data', c_char_ptr_type, None,
                               cname='data', is_cdef=1)
