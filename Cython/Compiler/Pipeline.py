@@ -73,10 +73,6 @@ def use_utility_code_definitions(scope, target):
 
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
-        # First, make sure any utility code pulled in by using symbols in the cython
-        # scope is included
-        use_utility_code_definitions(context.cython_scope, module_node.scope)
-
         added = []
         # Note: the list might be extended inside the loop (if some utility code
         # pulls in other utility code, explicitly or implicitly)
