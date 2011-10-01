@@ -561,18 +561,29 @@ cdef memoryview memview_slice(memoryview memview, object indices):
     dst.memview = p_src.memview
     dst.data = p_src.data
 
+    # Put everything in temps to avoid this bloody warning:
+    # "Argument evaluation order in C function call is undefined and
+    #  may not be as expected"
+    cdef {{memviewslice_name}} *p_dst = &dst
+    cdef int *p_suboffset_dim = &suboffset_dim
+    cdef Py_ssize_t start, stop, step
+    cdef bint have_start, have_stop, have_step
+
     for dim, index in enumerate(indices):
         if PyIndex_Check(index):
-            slice_memviewslice(p_src, &dst, True, dim, new_ndim, &suboffset_dim,
+            slice_memviewslice(p_src, p_dst, True, dim, new_ndim, p_suboffset_dim,
                                index, 0, 0, 0, 0, 0, False)
         else:
-            slice_memviewslice(p_src, &dst, True, dim, new_ndim, &suboffset_dim,
-                               index.start or 0,
-                               index.stop or 0,
-                               index.step or 0,
-                               index.start is not None,
-                               index.stop is not None,
-                               index.step is not None,
+            start = index.start or 0
+            stop = index.stop or 0
+            step = index.step or 0
+
+            have_start = index.start is not None
+            have_stop = index.stop is not None
+            have_step = index.step is not None
+
+            slice_memviewslice(p_src, p_dst, True, dim, new_ndim, p_suboffset_dim,
+                               start, stop, step, have_start, have_stop, have_step,
                                True)
             new_ndim += 1
 

@@ -2618,12 +2618,12 @@ class DefNode(FuncDefNode):
             if arg.type.is_pyobject and arg.entry.in_closure:
                 code.put_var_giveref(arg.entry)
 
-    def generate_arg_assignment(self, arg, item, code):
+    def generate_arg_assignment(self, arg, item, code, incref_closure=True):
         if arg.type.is_pyobject:
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
             entry = arg.entry
-            if entry.in_closure:
+            if incref_closure and entry.in_closure:
                 code.put_incref(item, PyrexTypes.py_object_type)
             code.putln("%s = %s;" % (entry.cname, item))
         else:
@@ -3035,7 +3035,7 @@ class DefNode(FuncDefNode):
         for i, arg in enumerate(all_args):
             if arg.default and not arg.type.is_pyobject:
                 code.putln("if (values[%d]) {" % i)
-            self.generate_arg_assignment(arg, "values[%d]" % i, code)
+            self.generate_arg_assignment(arg, "values[%d]" % i, code, incref_closure=False)
             if arg.default and not arg.type.is_pyobject:
                 code.putln('} else {')
                 code.putln(
