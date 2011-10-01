@@ -60,7 +60,7 @@ def full_or_strided():
 def dont_allocate_buffer():
     """
     >>> dont_allocate_buffer()
-    callback called 1
+    callback called
     """
     cdef cy.array result = cy.array((10, 10), itemsize=sizeof(int), format='i', allocate_buffer=False)
     assert result.data == NULL

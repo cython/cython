@@ -2,7 +2,7 @@ from libc.stdlib cimport malloc, free
 cimport cython
 
 cdef void callback(char *data):
-    print "callback called %d" % <long> data
+    print "callback called"
 
 def create_array(shape, mode, use_callback=False):
     cdef cython.array result = cython.array(shape, itemsize=sizeof(int),

@@ -28,13 +28,13 @@ cdef class array:
         Py_ssize_t len
         char *format
         int ndim
-        Py_ssize_t *shape
-        Py_ssize_t *strides
+        Py_ssize_t *_shape
+        Py_ssize_t *_strides
         Py_ssize_t itemsize
         unicode mode
         bytes _format
         void (*callback_free_data)(char *data)
-        cdef object _memview
+        # cdef object _memview
 
     def __cinit__(array self, tuple shape, Py_ssize_t itemsize, format,
                   mode=u"c", bint allocate_buffer=True):
@@ -54,12 +54,12 @@ cdef class array:
         self._format = format
         self.format = self._format
 
-        self.shape = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
-        self.strides = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
+        self._shape = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
+        self._strides = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
 
-        if not self.shape or not self.strides:
-            free(self.shape)
-            free(self.strides)
+        if not self._shape or not self._strides:
+            free(self._shape)
+            free(self._strides)
             raise MemoryError("unable to allocate shape or strides.")
 
         cdef int idx
@@ -69,20 +69,20 @@ cdef class array:
             if dim <= 0:
                 raise ValueError("Invalid shape.")
 
-            self.shape[idx] = dim
+            self._shape[idx] = dim
             idx += 1
 
         stride = itemsize
         if mode == "fortran":
             idx = 0
             for dim in shape:
-                self.strides[idx] = stride
+                self._strides[idx] = stride
                 stride = stride * dim
                 idx += 1
         elif mode == "c":
             idx = self.ndim-1
             for dim in shape[::-1]:
-                self.strides[idx] = stride
+                self._strides[idx] = stride
                 stride = stride * dim
                 idx -= 1
         else:
@@ -111,8 +111,8 @@ cdef class array:
         info.buf = self.data
         info.len = self.len
         info.ndim = self.ndim
-        info.shape = self.shape
-        info.strides = self.strides
+        info.shape = self._shape
+        info.strides = self._strides
         info.suboffsets = NULL
         info.itemsize = self.itemsize
         info.readonly = 0
@@ -122,6 +122,8 @@ cdef class array:
         else:
             info.format = NULL
 
+        info.obj = self
+
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
             self.callback_free_data(self.data)
@@ -130,13 +132,13 @@ cdef class array:
 
         self.data = NULL
 
-        if self.strides:
-            free(self.strides)
-            self.strides = NULL
+        if self._strides:
+            free(self._strides)
+            self._strides = NULL
 
-        if self.shape:
-            free(self.shape)
-            self.shape = NULL
+        if self._shape:
+            free(self._shape)
+            self._shape = NULL
 
         self.format = NULL
         self.itemsize = 0
@@ -145,11 +147,14 @@ cdef class array:
         @cname('__pyx_cython_array_get_memview')
         def __get__(self):
             # Make this a property as 'data' may be set after instantiation
-            if self._memview is None:
-                flags = PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
-                self._memview = __pyx_memoryview_new(self, flags)
+            #if self._memview is None:
+            #    flags = PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
+            #    self._memview = __pyx_memoryview_new(self, flags)
 
-            return self._memview
+            #return self._memview
+            flags =  PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
+            return  __pyx_memoryview_new(self, flags)
+
 
     def __getattr__(self, attr):
         return getattr(self.memview, attr)
@@ -220,6 +225,15 @@ cdef extern from *:
         PyObject *obj
 
     PyObject *Py_None
+
+    cdef enum:
+        PyBUF_C_CONTIGUOUS,
+        PyBUF_F_CONTIGUOUS,
+        PyBUF_ANY_CONTIGUOUS
+        PyBUF_FORMAT
+        PyBUF_WRITABLE
+        PyBUF_STRIDES
+        PyBUF_INDIRECT
 
 @cname('__pyx_MemviewEnum')
 cdef class Enum(object):
@@ -348,10 +362,33 @@ cdef class memoryview(object):
             itemp[i] = c
 
     def __getbuffer__(self, Py_buffer *info, int flags):
-        # Note: self.view.obj must not be NULL
-        Py_INCREF(self.view.obj)
-        info[0] = self.view
+        if flags & PyBUF_STRIDES:
+            info.shape = self.view.shape
+        else:
+            info.shape = NULL
+
+        if flags & PyBUF_STRIDES:
+            info.strides = self.view.strides
+        else:
+            info.strides = NULL
+
+        if flags & PyBUF_INDIRECT:
+            info.suboffsets = self.view.suboffsets
+        else:
+            info.suboffsets = NULL
+
+        if flags & PyBUF_FORMAT:
+            info.format = self.view.format
+        else:
+            info.format = NULL
+
+        info.buf = self.view.buf
+        info.ndim = self.view.ndim
+        info.itemsize = self.view.itemsize
+        info.len = self.view.len
+        info.readonly = 0
         info.obj = self
+
 
     # Some properties that have the same sematics as in NumPy
     property T:
@@ -374,11 +411,18 @@ cdef class memoryview(object):
     property strides:
         @cname('__pyx_memoryview_get_strides')
         def __get__(self):
+            if self.view.strides == NULL:
+                # Note: we always ask for strides, so if this is not set it's a bug
+                raise ValueError("Buffer view does not expose strides")
+
             return tuple([self.view.strides[i] for i in xrange(self.view.ndim)])
 
     property suboffsets:
         @cname('__pyx_memoryview_get_suboffsets')
         def __get__(self):
+            if self.view.suboffsets == NULL:
+                return [-1] * self.view.ndim
+
             return tuple([self.view.suboffsets[i] for i in xrange(self.view.ndim)])
 
     property ndim:
@@ -409,6 +453,9 @@ cdef class memoryview(object):
 
             return self._size
 
+    # The __array_interface__ is broken as it does not properly convert PEP 3118 format
+    # strings into NumPy typestrs. NumPy 1.5 support the new buffer interface though.
+    '''
     property __array_interface__:
         @cname('__pyx_numpy_array_interface')
         def __get__(self):
@@ -424,10 +471,11 @@ cdef class memoryview(object):
                     data = (PyLong_FromVoidPtr(self.view.buf), False),
                     shape = self.shape,
                     strides = self.strides,
-                    typestr = "%s%d" % (self.format, self.view.itemsize),
+                    typestr = "%s%d" % (self.view.format, self.view.itemsize),
                     version = 3)
 
             return self._array_interface
+    '''
 
     def __len__(self):
         if self.view.ndim >= 1:
@@ -848,12 +896,17 @@ cdef memoryview_copy(memoryview memview):
 cdef extern from *:
     ctypedef struct __Pyx_StructField
 
+    cdef enum:
+        __PYX_BUF_FLAGS_PACKED_STRUCT
+        __PYX_BUF_FLAGS_INTEGER_COMPLEX
+
     ctypedef struct __Pyx_TypeInfo:
       char* name
       __Pyx_StructField* fields
       size_t size
       char typegroup
       char is_unsigned
+      int flags
 
     ctypedef struct __Pyx_StructField:
       __Pyx_TypeInfo* type
@@ -882,6 +935,11 @@ cdef format_from_typeinfo(__Pyx_TypeInfo *type):
     if type.typegroup == 'S':
         assert type.fields != NULL and type.fields.type != NULL
 
+        if type.flags & __PYX_BUF_FLAGS_PACKED_STRUCT:
+            alignment = '^'
+        else:
+            alignment = ''
+
         parts = ["T{"]
         field = type.fields
 
@@ -889,8 +947,7 @@ cdef format_from_typeinfo(__Pyx_TypeInfo *type):
             parts.append(format_from_typeinfo(field.type))
             field += 1
 
-        parts.append("}")
-        result = "".join(parts)
+        result = alignment.join(parts) + '}'
     else:
         fmt = __Pyx_TypeInfoToFormat(type)
         result = fmt.string

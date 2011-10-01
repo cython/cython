@@ -9,6 +9,7 @@ cimport numpy as np
 import numpy as np
 
 include "cythonarrayutil.pxi"
+include "mockbuffers.pxi"
 
 ctypedef np.int32_t dtype_t
 
@@ -27,10 +28,23 @@ def ae(*args):
         if x != args[0]:
             raise AssertionError(args)
 
+__test__ = {}
+
+def testcase(f):
+    __test__[f.__name__] = f.__doc__
+    return f
+
+def testcase_numpy_1_5(f):
+    major, minor, *rest = np.__version__.split('.')
+    if (int(major), int(minor)) >= (1, 5):
+        __test__[f.__name__] = f.__doc__
+    return f
+
 #
 ### Test slicing memoryview slices
 #
 
+@testcase
 def test_partial_slicing(array):
     """
     >>> test_partial_slicing(a)
@@ -46,6 +60,7 @@ def test_partial_slicing(array):
     ae(b.strides[0], c.strides[0], obj.strides[0])
     ae(b.strides[1], c.strides[1], obj.strides[1])
 
+@testcase
 def test_ellipsis(array):
     """
     >>> test_ellipsis(a)
@@ -87,7 +102,7 @@ def test_ellipsis(array):
 #
 ### Test slicing memoryview objects
 #
-
+@testcase
 def test_partial_slicing_memoryview(array):
     """
     >>> test_partial_slicing_memoryview(a)
@@ -104,6 +119,7 @@ def test_partial_slicing_memoryview(array):
     ae(b.strides[0], c.strides[0], obj.strides[0])
     ae(b.strides[1], c.strides[1], obj.strides[1])
 
+@testcase
 def test_ellipsis_memoryview(array):
     """
     >>> test_ellipsis_memoryview(a)
@@ -143,6 +159,7 @@ def test_ellipsis_memoryview(array):
     ae(e.shape[0], e_obj.shape[0])
     ae(e.strides[0], e_obj.strides[0])
 
+@testcase
 def test_transpose():
     """
     >>> test_transpose()
@@ -172,26 +189,10 @@ def test_transpose():
 
     print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
 
-def test_coerce_to_numpy():
-    """
-    >>> test_coerce_to_numpy()
-    34
-    34
-    2
-    """
-    cyarray = create_array(shape=(8, 5), mode="c", use_callback=True)
-    numarray = np.asarray(cyarray)
-
-    print cyarray[6, 4]
-    del cyarray
-    print numarray[6, 4]
-
-    numarray[6, 4] = 2
-    print numarray[6, 4]
-
+@testcase
 def test_numpy_like_attributes(cyarray):
     """
-    >>> cyarray = create_array(shape=(8, 5), mode="c", use_callback=True)
+    >>> cyarray = create_array(shape=(8, 5), mode="c")
     >>> test_numpy_like_attributes(cyarray)
     >>> test_numpy_like_attributes(cyarray.memview)
     """
@@ -205,3 +206,164 @@ def test_numpy_like_attributes(cyarray):
 
     cdef int[:, :] mslice = numarray
     assert (<object> mslice).base is numarray
+
+
+ctypedef int td_cy_int
+cdef extern from "bufaccess.h":
+    ctypedef td_cy_int td_h_short # Defined as short, but Cython doesn't know this!
+    ctypedef float td_h_double # Defined as double
+    ctypedef unsigned int td_h_ushort # Defined as unsigned short
+ctypedef td_h_short td_h_cy_short
+
+cdef void dealloc_callback(char *data):
+    print "deallocating..."
+
+def index(cython.array array):
+    array.callback_free_data = dealloc_callback
+    print np.asarray(array)[3, 2]
+
+@testcase_numpy_1_5
+def test_coerce_to_numpy():
+    """
+    Test coercion to NumPy arrays, especially with automatically
+    generated format strings.
+
+    >>> test_coerce_to_numpy()
+    (97, 98, 600L, 700, 800)
+    deallocating...
+    (600, 700)
+    deallocating...
+    ((100, 200), (300, 400), 500)
+    deallocating...
+    (97, 900)
+    deallocating...
+    99
+    deallocating...
+    111
+    deallocating...
+    222
+    deallocating...
+    333
+    deallocating...
+    11.1
+    deallocating...
+    12.2
+    deallocating...
+    13.3
+    deallocating...
+    (14.4+15.5j)
+    deallocating...
+    (16.6+17.7j)
+    deallocating...
+    (18.8+19.9j)
+    deallocating...
+    22
+    deallocating...
+    33.33
+    deallocating...
+    44
+    deallocating...
+    """
+    #
+    ### First set up some C arrays that will be used to hold data
+    #
+    cdef MyStruct mystructs[20]
+    cdef SmallStruct smallstructs[20]
+    cdef NestedStruct nestedstructs[20]
+    cdef PackedStruct packedstructs[20]
+
+    cdef char chars[20]
+    cdef short shorts[20]
+    cdef int ints[20]
+    cdef long long longlongs[20]
+    cdef td_h_short externs[20]
+
+    cdef float floats[20]
+    cdef double doubles[20]
+    cdef long double longdoubles[20]
+
+    cdef float complex floatcomplex[20]
+    cdef double complex doublecomplex[20]
+    cdef long double complex longdoublecomplex[20]
+
+    cdef td_h_short h_shorts[20]
+    cdef td_h_double h_doubles[20]
+    cdef td_h_ushort h_ushorts[20]
+
+    cdef Py_ssize_t idx = 17
+
+    #
+    ### Initialize one element in each array
+    #
+    mystructs[idx] = {
+        'a': 'a',
+        'b': 'b',
+        'c': 600,
+        'd': 700,
+        'e': 800,
+    }
+
+    smallstructs[idx] = { 'a': 600, 'b': 700 }
+
+    nestedstructs[idx] = {
+        'x': { 'a': 100, 'b': 200 },
+        'y': { 'a': 300, 'b': 400 },
+        'z': 500,
+    }
+
+    packedstructs[idx] = { 'a': 'a', 'b': 900 }
+
+    chars[idx] = 99
+    shorts[idx] = 111
+    ints[idx] = 222
+    longlongs[idx] = 333
+    externs[idx] = 444
+
+    floats[idx] = 11.1
+    doubles[idx] = 12.2
+    longdoubles[idx] = 13.3
+
+    floatcomplex[idx] = 14.4 + 15.5j
+    doublecomplex[idx] = 16.6 + 17.7j
+    longdoublecomplex[idx] = 18.8 + 19.9j
+
+    h_shorts[idx] = 22
+    h_doubles[idx] = 33.33
+    h_ushorts[idx] = 44
+
+    #
+    ### Create a NumPy array and see if our element can be correctly retrieved
+    #
+    index(<MyStruct[:4, :5]> <MyStruct *> mystructs)
+    index(<SmallStruct[:4, :5]> <SmallStruct *> smallstructs)
+    index(<NestedStruct[:4, :5]> <NestedStruct *> nestedstructs)
+    index(<PackedStruct[:4, :5]> <PackedStruct *> packedstructs)
+
+    index(<char[:4, :5]> <char *> chars)
+    index(<short[:4, :5]> <short *> shorts)
+    index(<int[:4, :5]> <int *> ints)
+    index(<long long[:4, :5]> <long long *> longlongs)
+
+    index(<float[:4, :5]> <float *> floats)
+    index(<double[:4, :5]> <double *> doubles)
+    index(<long double[:4, :5]> <long double *> longdoubles)
+
+    index(<float complex[:4, :5]> <float complex *> floatcomplex)
+    index(<double complex[:4, :5]> <double complex *> doublecomplex)
+    index(<long double complex[:4, :5]> <long double complex *> longdoublecomplex)
+
+    index(<td_h_short[:4, :5]> <td_h_short *> h_shorts)
+    index(<td_h_double[:4, :5]> <td_h_double *> h_doubles)
+    index(<td_h_ushort[:4, :5]> <td_h_ushort *> h_ushorts)
+
+
+@testcase_numpy_1_5
+def test_memslice_getbuffer():
+    """
+    >>> test_memslice_getbuffer()
+    [[ 0  2  4]
+     [10 12 14]]
+    callback called
+    """
+    cdef int[:, :] array = create_array((4, 5), mode="c", use_callback=True)
+    print np.asarray(array)[::2, ::2]

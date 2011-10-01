@@ -42,12 +42,15 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
 
+#define __PYX_BUF_FLAGS_PACKED_STRUCT (1 << 0)
+
 typedef struct {
   const char* name; /* for error messages only */
   struct __Pyx_StructField_* fields;
   size_t size;     /* sizeof(type) */
   char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject */
   char is_unsigned;
+  int flags;
 } __Pyx_TypeInfo;
 
 typedef struct __Pyx_StructField_ {
@@ -544,7 +547,7 @@ static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type)
         case 'I':
         case 'U':
             if (size == 1)
-                *buf = 'c';
+                *buf = 'b';
             else if (size == 2)
                 *buf = 'h';
             else if (size == 4)
@@ -559,16 +562,15 @@ static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type)
             *buf = 'P';
             break;
         case 'C':
-          {
-             __Pyx_TypeInfo complex_type = *type;
+         {
+            __Pyx_TypeInfo complex_type = *type;
             complex_type.typegroup = 'R';
             complex_type.size /= 2;
 
             *buf++ = 'Z';
-            /* Note: What about short/int/long complex? Probably not used? */
             *buf = __Pyx_TypeInfoToFormat(&complex_type).string[0];
             break;
-          }
+         }
         case 'R':
             if (size == 4)
                 *buf = 'f';

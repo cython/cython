@@ -161,6 +161,27 @@ def src_conforms_to_dst(src, dst):
 
     return True
 
+def valid_memslice_dtype(dtype):
+    """
+    Return whether type dtype can be used as the base type of a
+    memoryview slice
+    """
+    if dtype.is_complex and dtype.real_type.is_int:
+        return False
+
+    return (
+        dtype.is_error or
+        dtype.is_ptr or
+        dtype.is_numeric or
+        dtype.is_struct or
+        dtype.is_pyobject or
+        (dtype.is_typedef and valid_memslice_dtype(dtype.typedef_base_type))
+    )
+
+def validate_memslice_dtype(pos, dtype):
+    if not valid_memslice_dtype(dtype):
+        error(pos, "Invalid base type for memoryview slice")
+
 
 class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
     def __init__(self, entry):

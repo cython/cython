@@ -713,6 +713,9 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             assert False
 
         rep = str(dtype)
+
+        flags = "0"
+
         if dtype.is_int:
             if dtype.signed == 0:
                 typegroup = 'U'
@@ -724,6 +727,8 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             typegroup = 'R'
         elif dtype.is_struct:
             typegroup = 'S'
+            if dtype.packed:
+                flags = "__PYX_BUF_FLAGS_PACKED_STRUCT"
         elif dtype.is_pyobject:
             typegroup = 'O'
         else:
@@ -735,13 +740,14 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         else:
             is_unsigned = "0"
 
-        typecode.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\', %s };'
+        typecode.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\', %s, %s };'
                         ) % (name,
                              rep,
                              structinfo_name,
                              declcode,
                              typegroup,
                              is_unsigned,
+                             flags,
                         ), safe=True)
     return name
 

@@ -6242,7 +6242,7 @@ class CythonArrayNode(ExprNode):
     Used when a pointer of base_type is cast to a memoryviewslice with that
     base type. i.e.
 
-        <int[::1, :]> p
+        <int[:M:1, :N]> p
 
     creates a fortran-contiguous cython.array.
 
@@ -6302,13 +6302,14 @@ class CythonArrayNode(ExprNode):
         self.operand.analyse_types(env)
         array_dtype = self.base_type_node.base_type_node.analyse(env)
 
+        MemoryView.validate_memslice_dtype(self.pos, array_dtype)
+
         if not self.operand.type.is_ptr:
             return error(self.operand.pos, ERR_NOT_POINTER)
 
         elif not self.operand.type.base_type.same_as(array_dtype):
             return error(self.operand.pos, ERR_BASE_TYPE)
 
-        #self.operand = self.operand.coerce_to(PyrexTypes.c_char_ptr_type, env)
         if not self.operand.is_name:
             self.operand = self.operand.coerce_to_temp(env)
 
@@ -6320,7 +6321,7 @@ class CythonArrayNode(ExprNode):
 
         self.coercion_type = PyrexTypes.MemoryViewSliceType(array_dtype, axes)
         #self.type = py_object_type
-        self.type = env.global_scope().context.cython_scope.lookup("array").type
+        self.type = self.get_cython_array_type(env)
         assert self.type
 
         env.use_utility_code(MemoryView.cython_array_utility_code)
@@ -6331,6 +6332,12 @@ class CythonArrayNode(ExprNode):
             raise RuntimeError("temp allocated mulitple times")
 
         self.temp_code = code.funcstate.allocate_temp(self.type, True)
+
+    def infer_type(self, env):
+        return self.get_cython_array_type(env)
+
+    def get_cython_array_type(self, env):
+        return env.global_scope().context.cython_scope.lookup("array").type
 
     def generate_result_code(self, code):
         import Buffer

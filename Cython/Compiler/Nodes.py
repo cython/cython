@@ -828,10 +828,8 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
             self.type = PyrexTypes.ErrorType()
             return self.type
 
+        MemoryView.validate_memslice_dtype(self.pos, base_type)
         self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs)
-        if self.type.dtype.is_memoryviewslice:
-            error(self.pos, "Memoryview slices may not be used as the "
-                            "base type for memoryview slices")
 
         self.use_memview_utilities(env)
         return self.type
