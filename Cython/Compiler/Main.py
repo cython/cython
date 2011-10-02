@@ -430,7 +430,7 @@ def create_default_resultobj(compilation_source, options):
 
 def run_pipeline(source, options, full_module_name = None):
     import Pipeline
-    # Set up context
+
     context = options.create_context()
 
     # Set up source object
@@ -438,6 +438,7 @@ def run_pipeline(source, options, full_module_name = None):
     abs_path = os.path.abspath(source)
     source_ext = os.path.splitext(source)[1]
     full_module_name = full_module_name or context.extract_module_name(source, options)
+
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
@@ -520,7 +521,7 @@ class CompilationOptions(object):
 
     def create_context(self):
         return Context(self.include_path, self.compiler_directives,
-                      self.cplus, self.language_level, options=self)
+                       self.cplus, self.language_level, options=self)
 
 
 class CompilationResult(object):
@@ -584,7 +585,8 @@ def compile_multiple(sources, options):
     a CompilationResultSet. Performs timestamp checking and/or recursion
     if these are specified in the options.
     """
-    context = options.create_context()
+    # run_pipeline creates the context
+    # context = options.create_context()
     sources = [os.path.abspath(source) for source in sources]
     processed = set()
     results = CompilationResultSet()

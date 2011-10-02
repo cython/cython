@@ -4,6 +4,7 @@ from time import time
 import Errors
 import DebugFlags
 import Options
+from Visitor import CythonTransform
 from Errors import PyrexError, CompileError, InternalError, AbortError, error
 
 #
@@ -72,22 +73,41 @@ def use_utility_code_definitions(scope, target):
 
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
-        # First, make sure any utility code pulled in by using symbols in the cython
-        # scope is included
-        use_utility_code_definitions(context.cython_scope, module_node.scope)
-
         added = []
         # Note: the list might be extended inside the loop (if some utility code
-        # pulls in other utility code)
+        # pulls in other utility code, explicitly or implicitly)
         for utilcode in module_node.scope.utility_code_list:
             if utilcode in added: continue
             added.append(utilcode)
+            if utilcode.requires:
+                for dep in utilcode.requires:
+                    if not dep in added and not dep in module_node.scope.utility_code_list:
+                        module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree()
             if tree:
                 module_node.merge_in(tree.body, tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage
 
+class UseUtilityCodeDefinitions(CythonTransform):
+    # Temporary hack to use any utility code in nodes' "utility_code_definitions".
+    # This should be moved to the code generation phase of the relevant nodes once
+    # it is safe to generate CythonUtilityCode at code generation time.
+    def __call__(self, node):
+        self.scope = node.scope
+        return super(UseUtilityCodeDefinitions, self).__call__(node)
+
+    def visit_AttributeNode(self, node):
+        if node.entry and node.entry.utility_code_definition:
+            self.scope.use_utility_code(node.entry.utility_code_definition)
+        return node
+
+    def visit_NameNode(self, node):
+        for e in (node.entry, node.type_entry):
+            if e and e.utility_code_definition:
+                self.scope.use_utility_code(e.utility_code_definition)
+        return node
+                     
 #
 # Pipeline factories
 #
@@ -113,6 +133,8 @@ def create_pipeline(context, mode, exclude_classes=()):
     from Optimize import DropRefcountingTransform
     from Buffer import IntroduceBufferAuxiliaryVars
     from ModuleNode import check_c_declarations, check_c_declarations_pxd
+    from ModuleNode import check_c_declarations
+
 
     if mode == 'pxd':
         _check_c_declarations = check_c_declarations_pxd
@@ -165,6 +187,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+        UseUtilityCodeDefinitions(context),
         ]
     filtered_stages = []
     for s in stages:
@@ -265,7 +288,9 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 # Running a pipeline
 #
 
-def run_pipeline(pipeline, source):
+def run_pipeline(pipeline, source, printtree=True):
+    from Cython.Compiler.Visitor import PrintTree
+
     error = None
     data = source
     try:
@@ -275,6 +300,8 @@ def run_pipeline(pipeline, source):
                     if DebugFlags.debug_verbose_pipeline:
                         t = time()
                         print "Entering pipeline phase %r" % phase
+                    if not printtree and isinstance(phase, PrintTree):
+                        continue
                     data = phase(data)
                     if DebugFlags.debug_verbose_pipeline:
                         print "    %.3f seconds" % (time() - t)

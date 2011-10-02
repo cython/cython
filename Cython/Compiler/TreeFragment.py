@@ -32,7 +32,7 @@ class StringParseContext(Main.Context):
         return ModuleScope(module_name, parent_module = None, context = self)
 
 def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
-                       context=None):
+                       context=None, allow_struct_enum_decorator=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -66,12 +66,15 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
 
     scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
                      scope = scope, context = context, initial_pos = initial_pos)
+    ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
+
     if level is None:
-        tree = Parsing.p_module(scanner, 0, module_name)
+        tree = Parsing.p_module(scanner, 0, module_name, ctx=ctx)
         tree.scope = scope
         tree.is_pxd = False
     else:
-        tree = Parsing.p_code(scanner, level=level)
+        tree = Parsing.p_code(scanner, level=level, ctx=ctx)
+
     tree.scope = scope
     return tree
 

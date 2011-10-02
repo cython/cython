@@ -4,6 +4,7 @@
 #
 
 import os, sys, re, codecs
+from Cython import Tempita
 
 def replace_suffix(path, newsuf):
     base, _ = os.path.splitext(path)
@@ -130,7 +131,8 @@ class NormalisedNewlineStream(object):
     while data:
         content.append(data)
         data = self.read(0x1000)
-    return u''.join(content).split(u'\n')
+
+    return u''.join(content).splitlines(True)
 
 io = None
 if sys.version_info >= (2,6):
@@ -214,10 +216,3 @@ def long_literal(value):
     if isinstance(value, basestring):
         value = str_to_number(value)
     return not -2**31 <= value < 2**31
-
-def none_or_sub(s, data):
-    if s is None:
-        return s
-    else:
-        return s % data
-

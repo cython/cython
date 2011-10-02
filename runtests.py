@@ -1156,7 +1156,11 @@ class TagsSelector:
 class RegExSelector:
     
     def __init__(self, pattern_string):
-        self.pattern = re.compile(pattern_string, re.I|re.U)
+        try:
+            self.pattern = re.compile(pattern_string, re.I|re.U)
+        except re.error:
+            print('Invalid pattern: %r' % pattern_string)
+            raise
 
     def __call__(self, testname, tags=None):
         return self.pattern.search(testname)
@@ -1187,6 +1191,7 @@ def refactor_for_py3(distdir, cy3_dir):
                      recursive-exclude Cython *
                      recursive-include Cython *.py *.pyx *.pxd
                      recursive-include Cython/Debugger/Tests *
+                     recursive-include Cython/Utility *
                      include runtests.py
                      include cython.py
                      ''')
@@ -1229,7 +1234,8 @@ def check_thread_termination(ignore_seen=True):
 
 def subprocess_output(cmd):
     try:
-        return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()[0]
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return p.communicate()[0].decode('UTF-8')
     except OSError:
         return ''
 

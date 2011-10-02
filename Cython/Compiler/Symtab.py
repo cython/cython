@@ -39,12 +39,9 @@ def c_safe_identifier(cname):
 class BufferAux(object):
     writable_needed = False
 
-    def __init__(self, buffer_info_var, stridevars, shapevars,
-                 suboffsetvars):
-        self.buffer_info_var = buffer_info_var
-        self.stridevars = stridevars
-        self.shapevars = shapevars
-        self.suboffsetvars = suboffsetvars
+    def __init__(self, buflocal_nd_var, rcbuf_var):
+        self.buflocal_nd_var = buflocal_nd_var
+        self.rcbuf_var = rcbuf_var
 
     def __repr__(self):
         return "<BufferAux %r>" % self.__dict__
@@ -126,6 +123,8 @@ class Entry(object):
     # error_on_uninitialized      Have Control Flow issue an error when this entry is
     #                             used uninitialized
     # cf_used          boolean    Entry is used
+
+    # TODO: utility_code and utility_code_definition serves the same purpose...
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -292,22 +291,21 @@ class Scope(object):
         entries = [(name, entry)
                        for name, entry in other.entries.iteritems()
                            if entry.used or merge_unused]
-        # !@#$ py23
-        entries = dict(entries)
 
         self.entries.update(entries)
 
         for attr in ('const_entries',
-                  'type_entries',
-                  'sue_entries',
-                  'arg_entries',
-                  'var_entries',
-                  'pyfunc_entries',
-                  'cfunc_entries',
-                  'c_class_entries'):
+                     'type_entries',
+                     'sue_entries',
+                     'arg_entries',
+                     'var_entries',
+                     'pyfunc_entries',
+                     'cfunc_entries',
+                     'c_class_entries'):
             self_entries = getattr(self, attr)
+            names = set([e.name for e in self_entries])
             for entry in getattr(other, attr):
-                if entry.used or merge_unused:
+                if (entry.used or merge_unused) and entry.name not in names:
                     self_entries.append(entry)
 
     def __str__(self):
@@ -383,6 +381,11 @@ class Scope(object):
 #                entries[name] = entry
             if not shadow:
                 entries[name] = entry
+
+        if type.is_memoryviewslice:
+            import MemoryView
+            entry.init = MemoryView.memslice_entry_init
+
         entry.scope = self
         entry.visibility = visibility
         return entry
@@ -1163,7 +1166,7 @@ class ModuleScope(Scope):
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
-        typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
+        typeobj_cname = None, typeptr_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
         buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
@@ -1205,7 +1208,10 @@ class ModuleScope(Scope):
                 type.module_name = module_name
             else:
                 type.module_name = self.qualified_name
-            type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
+            if typeptr_cname:
+                type.typeptr_cname = typeptr_cname
+            else:
+                type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
             entry = self.declare_type(name, type, pos, visibility = visibility,
                 defining = 0, shadow = shadow)
             entry.is_cclass = True

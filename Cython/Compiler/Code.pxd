@@ -1,7 +1,10 @@
 
 cimport cython
 
-cdef class UtilityCode:
+cdef class UtilityCodeBase(object):
+    cdef public object name
+
+cdef class UtilityCode(UtilityCodeBase):
     cdef public object proto
     cdef public object impl
     cdef public object init
@@ -10,6 +13,7 @@ cdef class UtilityCode:
     cdef public dict _cache
     cdef public list specialize_list
     cdef public object proto_block
+    cdef public object file
 
     cpdef put_code(self, output)
 
