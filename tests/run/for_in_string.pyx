@@ -183,3 +183,44 @@ def for_pyunicode_in_enumerate_unicode(unicode s):
             return i
     else:
         return 'X'
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def for_pyucs4_in_unicode(unicode s):
+    """
+    >>> for_pyucs4_in_unicode(unicode_abc)
+    'X'
+    >>> for_pyucs4_in_unicode(unicode_ABC)
+    'C'
+    >>> for_pyucs4_in_unicode(unicode_abc_null)
+    'X'
+    >>> for_pyucs4_in_unicode(unicode_ABC_null)
+    'C'
+    """
+    cdef Py_UCS4 c
+    for c in s:
+        if c == u'C':
+            return 'C'
+    else:
+        return 'X'
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def for_pyucs4_in_enumerate_unicode(unicode s):
+    """
+    >>> for_pyucs4_in_enumerate_unicode(unicode_abc)
+    'X'
+    >>> for_pyucs4_in_enumerate_unicode(unicode_ABC)
+    2
+    >>> for_pyucs4_in_enumerate_unicode(unicode_abc_null)
+    'X'
+    >>> for_pyucs4_in_enumerate_unicode(unicode_ABC_null)
+    4
+    """
+    cdef Py_UCS4 c
+    cdef Py_ssize_t i
+    for i, c in enumerate(s):
+        if c == u'C':
+            return i
+    else:
+        return 'X'

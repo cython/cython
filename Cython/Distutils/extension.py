@@ -1,11 +1,12 @@
 """Pyrex.Distutils.extension
 
-Provides a modified Extension class, that understands hou to describe
+Provides a modified Extension class, that understands how to describe
 Pyrex extension modules in setup scripts."""
 
 __revision__ = "$Id:$"
 
-import os, sys
+import os
+import sys
 from types import *
 import distutils.extension as _Extension
 
@@ -23,7 +24,7 @@ class Extension(_Extension.Extension):
         dict of compiler directives
     pyrex_create_listing_file : boolean
         write pyrex error messages to a listing (.lis) file.
-    pyrex_line_directivess : boolean
+    pyrex_line_directives : boolean
         emit pyx line numbers for debugging/profiling
     pyrex_cplus : boolean
         use the C++ compiler for compiling and linking.

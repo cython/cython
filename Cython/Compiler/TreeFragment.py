@@ -20,8 +20,10 @@ Support for parsing strings into code trees.
 """
 
 class StringParseContext(Main.Context):
-    def __init__(self, include_directories, name):
-        Main.Context.__init__(self, include_directories, {})
+    def __init__(self, name, include_directories=None):
+        if include_directories is None: include_directories = []
+        Main.Context.__init__(self, include_directories, {},
+                              create_testscope=False)
         self.module_name = name
 
     def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):
@@ -29,7 +31,8 @@ class StringParseContext(Main.Context):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         return ModuleScope(module_name, parent_module = None, context = self)
 
-def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None):
+def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
+                       context=None, allow_struct_enum_decorator=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -37,8 +40,14 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None):
 
     code - a unicode string containing Cython (module-level) code
     name - a descriptive name for the code source (to use in error messages etc.)
-    """
 
+    RETURNS
+
+    The tree, i.e. a ModuleNode. The ModuleNode's scope attribute is
+    set to the scope used when parsing.
+    """
+    if context is None:
+        context = StringParseContext(name)
     # Since source files carry an encoding, it makes sense in this context
     # to use a unicode string so that code fragments don't have to bother
     # with encoding. This means that test code passed in should not have an
@@ -51,18 +60,22 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None):
         initial_pos = (name, 1, 0)
     code_source = StringSourceDescriptor(name, code)
 
-    context = StringParseContext([], name)
     scope = context.find_module(module_name, pos = initial_pos, need_pxd = 0)
 
     buf = StringIO(code)
 
     scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
                      scope = scope, context = context, initial_pos = initial_pos)
+    ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
+
     if level is None:
-        tree = Parsing.p_module(scanner, 0, module_name)
+        tree = Parsing.p_module(scanner, 0, module_name, ctx=ctx)
         tree.scope = scope
+        tree.is_pxd = False
     else:
-        tree = Parsing.p_code(scanner, level=level)
+        tree = Parsing.p_code(scanner, level=level, ctx=ctx)
+
+    tree.scope = scope
     return tree
 
 class TreeCopier(VisitorTransform):

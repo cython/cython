@@ -186,6 +186,29 @@ def dict_iter(dict d):
     items = [ item for item in d.items() ]
     return keys, values, items
 
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode")
+def dict_iter_new_dict():
+    """
+    >>> dict_keys, keys, values, items = dict_iter_new_dict()
+    >>> sorted(dict_keys)
+    [11, 22, 33]
+    >>> sorted(keys)
+    [11, 22, 33]
+    >>> sorted(values)
+    [1, 2, 3]
+    >>> sorted(items)
+    [(11, 1), (22, 2), (33, 3)]
+    """
+    dict_keys = [ key for key in {11 : 1, 22 : 2, 33 : 3} ]
+    keys = [ key for key in {11 : 1, 22 : 2, 33 : 3}.keys() ]
+    values = [ value for value in {11 : 1, 22 : 2, 33 : 3}.values() ]
+    items = [ item for item in {11 : 1, 22 : 2, 33 : 3}.items() ]
+    return dict_keys, keys, values, items
+
 def int_literals():
     """
     >>> int_literals()

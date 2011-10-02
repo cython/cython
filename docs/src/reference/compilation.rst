@@ -134,7 +134,6 @@ running session.  Please check `Sage documentation
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
 
-====================
 Compiler directives
 ====================
 
@@ -144,8 +143,9 @@ Cython code.  Here is the list of currently supported directives:
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
-    raised. Currently this is only made use of for buffers, lists and
-    tuples, but could be affected other types in the future. Conditions
+    raised. Lists, tuples, and stings are affected only if the index
+    can be determined to be non-negative (or if ``wraparound`` is False). 
+    Conditions
     which would normally trigger an IndexError may instead cause
     segfaults or data corruption if this is set to False.
     Default is True.

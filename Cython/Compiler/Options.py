@@ -67,11 +67,15 @@ old_style_globals = False
 cimport_from_pyx = False
 
 
+# max # of dims for buffers -- set to same value as max # of dims for numpy
+# arrays.
+buffer_max_dims = 32
 
 # Declare compiler directives
 directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
+    'initializedcheck' : True,
     'embedsignature' : False,
     'locals' : {},
     'auto_cpdef': False,
@@ -141,7 +145,7 @@ for key, val in directive_defaults.items():
 
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
-    'final' : ('cclass',),   # add 'method' in the future
+    'final' : ('cclass', 'function'),
     'internal' : ('cclass',),
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),

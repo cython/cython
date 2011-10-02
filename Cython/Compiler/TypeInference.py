@@ -7,21 +7,20 @@ from Cython import Utils
 from PyrexTypes import py_object_type, unspecified_type
 from Visitor import CythonTransform
 
-try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
-
 
 class TypedExprNode(ExprNodes.ExprNode):
-    # Used for declaring assignments of a specified type whithout a known entry.
+    # Used for declaring assignments of a specified type without a known entry.
     def __init__(self, type):
         self.type = type
 
 object_expr = TypedExprNode(py_object_type)
 
 class MarkAssignments(CythonTransform):
+
+    # tells us whether we're in a normal loop
+    in_loop = False
+
+    parallel_errors = False
 
     def __init__(self, context):
         super(CythonTransform, self).__init__()
@@ -57,6 +56,7 @@ class MarkAssignments(CythonTransform):
                     pos = lhs.pos
 
                 parallel_node.assignments[lhs.entry] = (pos, inplace_op)
+                parallel_node.assigned_nodes.append(lhs)
 
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for arg in lhs.args:
@@ -115,6 +115,7 @@ class MarkAssignments(CythonTransform):
                 node.pos,
                 base = sequence,
                 index = ExprNodes.IntNode(node.pos, value = '0')))
+
         self.visitchildren(node)
         return node
 
@@ -126,6 +127,10 @@ class MarkAssignments(CythonTransform):
                                          '+',
                                          node.bound1,
                                          node.step))
+        self.visitchildren(node)
+        return node
+
+    def visit_WhileStatNode(self, node):
         self.visitchildren(node)
         return node
 
@@ -168,18 +173,54 @@ class MarkAssignments(CythonTransform):
         else:
             node.parent = None
 
+        nested = False
         if node.is_prange:
             if not node.parent:
                 node.is_parallel = True
             else:
                 node.is_parallel = (node.parent.is_prange or not
                                     node.parent.is_parallel)
+                nested = node.parent.is_prange
         else:
             node.is_parallel = True
+            # Note: nested with parallel() blocks are handled by
+            # ParallelRangeTransform!
+            # nested = node.parent
+            nested = node.parent and node.parent.is_prange
 
         self.parallel_block_stack.append(node)
-        self.visitchildren(node)
-        self.parallel_block_stack.pop()
+
+        nested = nested or len(self.parallel_block_stack) > 2
+        if not self.parallel_errors and nested:
+
+            error(node.pos,
+                  "Parallel nesting not supported due to bugs in gcc 4.5")
+            self.parallel_errors = True
+
+        if node.is_prange:
+            child_attrs = node.child_attrs
+            node.child_attrs = ['body', 'target', 'args']
+            self.visitchildren(node)
+            node.child_attrs = child_attrs
+
+            self.parallel_block_stack.pop()
+            if node.else_clause:
+                node.else_clause = self.visit(node.else_clause)
+        else:
+            self.visitchildren(node)
+            self.parallel_block_stack.pop()
+
+        self.parallel_errors = False
+        return node
+
+    def visit_YieldExprNode(self, node):
+        if self.parallel_block_stack:
+            error(node.pos, "Yield not allowed in parallel sections")
+
+        return node
+
+    def visit_ReturnStatNode(self, node):
+        node.in_parallel = bool(self.parallel_block_stack)
         return node
 
 

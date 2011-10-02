@@ -20,12 +20,14 @@ currently supports OpenMP, but later on more backends might be supported.
 
     Thread-locality and reductions are automatically inferred for variables.
 
-    If you assign to a variable, it becomes lastprivate, meaning that the
+    If you assign to a variable in a prange block, it becomes lastprivate, meaning that the
     variable will contain the value from the last iteration. If you use an
     inplace operator on a variable, it becomes a reduction, meaning that the
     values from the thread-local copies of the variable will be reduced with
     the operator and assigned to the original variable after the loop. The
     index variable is always lastprivate.
+    Variables assigned to in a parallel with block will be private and unusable
+    after the block, as there is no concept of a sequentially last value.
 
     The ``schedule`` is passed to OpenMP and can be one of the following:
 
@@ -88,31 +90,31 @@ currently supports OpenMP, but later on more backends might be supported.
     buffers used by a prange. A contained prange will be a worksharing loop
     that is not parallel, so any variable assigned to in the parallel section
     is also private to the prange. Variables that are private in the parallel
-    construct are undefined after the parallel block.
+    block are unavailable after the parallel block.
 
     Example with thread-local buffers::
 
-        from cython.parallel import *
-        from cython.stdlib cimport abort
+       from cython.parallel import *
+       from libc.stdlib cimport abort, malloc, free
 
-        cdef Py_ssize_t i, n = 100
-        cdef int * local_buf
-        cdef size_t size = 10
+       cdef Py_ssize_t idx, i, n = 100
+       cdef int * local_buf
+       cdef size_t size = 10
 
-        with nogil, parallel:
-            local_buf = malloc(sizeof(int) * size)
-            if local_buf == NULL:
-                abort()
+       with nogil, parallel():
+           local_buf = <int *> malloc(sizeof(int) * size)
+           if local_buf == NULL:
+               abort()
 
-            # populate our local buffer in a sequential loop
-            for i in range(size):
-                local_buf[i] = i * 2
+           # populate our local buffer in a sequential loop
+           for idx in range(size):
+               local_buf[i] = i * 2
 
-            # share the work using the thread-local buffer(s)
-            for i in prange(n, schedule='guided'):
-                func(local_buf)
+           # share the work using the thread-local buffer(s)
+           for i in prange(n, schedule='guided'):
+               func(local_buf)
 
-            free(local_buf)
+           free(local_buf)
 
     Later on sections might be supported in parallel blocks, to distribute
     code sections of work among threads.
@@ -135,7 +137,7 @@ enable OpenMP. For gcc this can be done as follows in a setup.py::
         "hello",
         ["hello.pyx"],
         extra_compile_args=['-fopenmp'],
-        libraries=['gomp'],
+        extra_link_args=['-fopenmp'],
     )
 
     setup(
@@ -144,6 +146,41 @@ enable OpenMP. For gcc this can be done as follows in a setup.py::
         ext_modules = [ext_module],
     )
 
+Breaking
+========
+The parallel with and prange blocks support break, continue and return in
+nogil mode. Additionally, it is valid to use a with gil block inside these
+blocks, and have exceptions propagate from them.
+However, because the blocks use OpenMP, they can not just be left, so the
+exiting procedure is best-effort. For prange() this means that the loop
+body is skipped after the first break, return or exception for any subsequent
+iteration in any thread. It is undefined which value shall be returned if
+multiple different values may be returned, as the iterations are in no
+particular order::
+
+    from cython.parallel import prange
+
+    cdef int func(Py_ssize_t n):
+        cdef Py_ssize_t i
+
+        for i in prange(n, nogil=True):
+            if i == 8:
+                with gil:
+                    raise Exception()
+            elif i == 4:
+                break
+            elif i == 2:
+                return i
+
+In the example above it is undefined whether an exception shall be raised,
+whether it will simply break or whether it will return 2.
+
+Nested Parallelism
+==================
+Nested parallelism is currently disabled due to a bug in gcc 4.5 [#]_. However,
+you can freely call functions with parallel sections from a parallel section.
+
 .. rubric:: References
 
 .. [#] http://www.openmp.org/mp-documents/spec30.pdf
+.. [#] http://gcc.gnu.org/bugzilla/show_bug.cgi?id=49897

@@ -54,7 +54,7 @@ cdef class ControlFlow:
      cpdef nextblock(self, parent=*)
      cpdef bint is_tracked(self, entry)
      cpdef mark_position(self, node)
-     cpdef mark_assignment(self, lhs, rhs, entry=*)
+     cpdef mark_assignment(self, lhs, rhs, entry)
      cpdef mark_argument(self, lhs, rhs, entry)
      cpdef mark_deletion(self, node, entry)
      cpdef mark_reference(self, node, entry)

@@ -1,7 +1,10 @@
 
 cimport cython
 
-cdef class UtilityCode:
+cdef class UtilityCodeBase(object):
+    cdef public object name
+
+cdef class UtilityCode(UtilityCodeBase):
     cdef public object proto
     cdef public object impl
     cdef public object init
@@ -10,6 +13,7 @@ cdef class UtilityCode:
     cdef public dict _cache
     cdef public list specialize_list
     cdef public object proto_block
+    cdef public object file
 
     cpdef put_code(self, output)
 
@@ -33,6 +37,7 @@ cdef class FunctionState:
     cdef public dict temps_free
     cdef public dict temps_used_type
     cdef public size_t temp_counter
+    cdef public list collect_temps_stack
 
     cdef public object closure_temps
     cdef public bint should_declare_error_indicator
@@ -43,6 +48,8 @@ cdef class FunctionState:
     cpdef set_loop_labels(self, labels)
     cpdef tuple get_all_labels(self)
     cpdef set_all_labels(self, labels)
+    cpdef start_collecting_temps(self)
+    cpdef stop_collecting_temps(self)
 
     cpdef list temps_in_use(self)
 

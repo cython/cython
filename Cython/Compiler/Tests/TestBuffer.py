@@ -98,3 +98,8 @@ class TestBufferOptions(CythonTest):
         self.assert_(stats[1].base_type.ndim == 3)
 
     # add exotic and impossible combinations as they come along...
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()
+

@@ -25,5 +25,7 @@ cdef void f():
     # f = j ** e # Cython prohibits this
     i = e + g
     f = h
+    i = ~a
+    i = -a
 
 f()

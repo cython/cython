@@ -1,7 +1,6 @@
 # This file contains tests corresponding to unresolved bugs,
 # which will be skipped in the normal testing run.
 
-methodmangling_T5
 class_attribute_init_values_T18
 numpy_ValueError_T172
 unsignedbehaviour_T184
@@ -15,10 +14,10 @@ closure_inside_cdef_T554
 pure_mode_cmethod_inheritance_T583
 genexpr_iterable_lookup_T600
 for_from_pyvar_loop_T601
-decorators_T593
 temp_sideeffects_T654
 class_scope_T671
 slice2_T636
+builtin_subtype_methods_T653
 
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals

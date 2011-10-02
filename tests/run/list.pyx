@@ -57,7 +57,6 @@ def test_list_sort_reversed():
     l1.sort(reversed=True)
     return l1
 
-@cython.test_assert_path_exists("//SimpleCallNode//NoneCheckNode")
 def test_list_reverse():
     """
     >>> test_list_reverse()
@@ -68,7 +67,6 @@ def test_list_reverse():
     l1.reverse()
     return l1
 
-@cython.test_assert_path_exists("//SimpleCallNode//NoneCheckNode")
 def test_list_append():
     """
     >>> test_list_append()

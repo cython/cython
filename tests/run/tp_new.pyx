@@ -67,9 +67,9 @@ def make_new_builtin():
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
 def make_new_none(type t=None):
     """
-    >>> isinstance(make_new_none(), MyType)
+    >>> make_new_none()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: object.__new__(X): X is not a type object (NoneType)
+    TypeError: ...__new__(X): X is not a type object (NoneType)
     """
     m = t.__new__(t)
     return m
@@ -120,9 +120,9 @@ def make_new_args(type t1=None, type t2=None):
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def make_new_none_typed(tuple t=None):
     """
-    >>> isinstance(make_new_none(), MyType)
+    >>> make_new_none_typed()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: object.__new__(X): X is not a type object (NoneType)
+    TypeError: ...__new__(X): X is not a type object (NoneType)
     """
     m = t.__new__(t)
     return m
@@ -131,9 +131,9 @@ def make_new_none_typed(tuple t=None):
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def make_new_untyped(t):
     """
-    >>> make_new_untyped(None)
+    >>> make_new_untyped(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: object.__new__(X): X is not a type object (NoneType)
+    TypeError: ...__new__(X): X is not a type object (NoneType)
     """
     m = t.__new__(t)
     return m

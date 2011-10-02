@@ -4,7 +4,7 @@ from Cython.Compiler import CmdLine
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
 from Cython.Compiler.Nodes import *
-from Cython.Compiler import Main
+from Cython.Compiler import Main, Symtab
 
 
 class TestNormalizeTree(TransformTest):
@@ -180,9 +180,10 @@ class TestInterpretCompilerDirectives(TransformTest):
 
         compilation_options = Main.CompilationOptions(Main.default_options)
         ctx = compilation_options.create_context()
-        self.pipeline = [
-            InterpretCompilerDirectives(ctx, ctx.compiler_directives),
-        ]
+
+        transform = InterpretCompilerDirectives(ctx, ctx.compiler_directives)
+        transform.module_scope = Symtab.ModuleScope('__main__', None, ctx)
+        self.pipeline = [transform]
 
         self.debug_exception_on_error = DebugFlags.debug_exception_on_error
 

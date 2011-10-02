@@ -1,5 +1,5 @@
 #
-#   Pyrex - Builtin Definitions
+#   Builtin Definitions
 #
 
 from Symtab import BuiltinScope, StructOrUnionScope
@@ -22,6 +22,20 @@ proto = """
 #include <string.h>
 """
 )
+
+abs_int_utility_code = UtilityCode(
+proto = '''
+#if HAVE_LONG_LONG
+#define __Pyx_abs_int(x) \
+    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : \
+     ((sizeof(x) <= sizeof(long)) ? ((unsigned long)labs(x)) : \
+      ((unsigned PY_LONG_LONG)llabs(x))))
+#else
+#define __Pyx_abs_int(x) \
+    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : ((unsigned long)labs(x)))
+#endif
+#define __Pyx_abs_long(x) __Pyx_abs_int(x)
+''')
 
 iter_next_utility_code = UtilityCode(
 proto = """
@@ -127,14 +141,6 @@ bad:
 
 pyexec_utility_code = UtilityCode(
 proto = """
-#if PY_VERSION_HEX < 0x02040000
-#ifndef Py_COMPILE_H
-#include "compile.h"
-#endif
-#ifndef Py_EVAL_H
-#include "eval.h"
-#endif
-#endif
 static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyRun2(PyObject*, PyObject*);
 """,
@@ -234,12 +240,7 @@ static PyObject* __Pyx_Intern(PyObject* s) {
 }
 ''')
 
-def put_py23_set_init_utility_code(code, pos):
-    code.putln("#if PY_VERSION_HEX < 0x02040000")
-    code.putln(code.error_goto_if_neg("__Pyx_Py23SetsImport()", pos))
-    code.putln("#endif")
-
-py23_set_utility_code = UtilityCode(
+py_set_utility_code = UtilityCode(
 proto = """
 #if PY_VERSION_HEX < 0x02050000
 #ifndef PyAnySet_CheckExact
@@ -282,64 +283,13 @@ static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
 }
 
 #endif /* PyAnySet_CheckExact (<= Py2.4) */
-
-#if PY_VERSION_HEX < 0x02040000
-#ifndef Py_SETOBJECT_H
-#define Py_SETOBJECT_H
-
-static PyTypeObject *__Pyx_PySet_Type = NULL;
-static PyTypeObject *__Pyx_PyFrozenSet_Type = NULL;
-
-#define PySet_Type (*__Pyx_PySet_Type)
-#define PyFrozenSet_Type (*__Pyx_PyFrozenSet_Type)
-
-#define PyAnySet_Check(ob) \\
-    (PyAnySet_CheckExact(ob) || \\
-     PyType_IsSubtype((ob)->ob_type, &PySet_Type) || \\
-     PyType_IsSubtype((ob)->ob_type, &PyFrozenSet_Type))
-
-#define PyFrozenSet_CheckExact(ob) ((ob)->ob_type == &PyFrozenSet_Type)
-
-static int __Pyx_Py23SetsImport(void) {
-    PyObject *sets=0, *Set=0, *ImmutableSet=0;
-
-    sets = PyImport_ImportModule((char *)"sets");
-    if (!sets) goto bad;
-    Set = PyObject_GetAttrString(sets, (char *)"Set");
-    if (!Set) goto bad;
-    ImmutableSet = PyObject_GetAttrString(sets, (char *)"ImmutableSet");
-    if (!ImmutableSet) goto bad;
-    Py_DECREF(sets);
-
-    __Pyx_PySet_Type       = (PyTypeObject*) Set;
-    __Pyx_PyFrozenSet_Type = (PyTypeObject*) ImmutableSet;
-
-    return 0;
-
- bad:
-    Py_XDECREF(sets);
-    Py_XDECREF(Set);
-    Py_XDECREF(ImmutableSet);
-    return -1;
-}
-
-#else
-static int __Pyx_Py23SetsImport(void) { return 0; }
-#endif /* !Py_SETOBJECT_H */
-#endif /* < Py2.4  */
 #endif /* < Py2.5  */
 """,
-init = put_py23_set_init_utility_code,
-cleanup = """
-#if PY_VERSION_HEX < 0x02040000
-Py_XDECREF(__Pyx_PySet_Type); __Pyx_PySet_Type = NULL;
-Py_XDECREF(__Pyx_PyFrozenSet_Type); __Pyx_PyFrozenSet_Type = NULL;
-#endif /* < Py2.4  */
-""")
+)
 
 builtin_utility_code = {
-    'set'       : py23_set_utility_code,
-    'frozenset' : py23_set_utility_code,
+    'set'       : py_set_utility_code,
+    'frozenset' : py_set_utility_code,
 }
 
 
@@ -347,10 +297,12 @@ builtin_utility_code = {
 
 class _BuiltinOverride(object):
     def __init__(self, py_name, args, ret_type, cname, py_equiv = "*",
-                 utility_code = None, sig = None, func_type = None):
+                 utility_code = None, sig = None, func_type = None,
+                 is_strict_signature = False):
         self.py_name, self.cname, self.py_equiv = py_name, cname, py_equiv
         self.args, self.ret_type = args, ret_type
         self.func_type, self.sig = func_type, sig
+        self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
 
 class BuiltinAttribute(object):
@@ -376,6 +328,8 @@ class BuiltinFunction(_BuiltinOverride):
             if sig is None:
                 sig = Signature(self.args, self.ret_type)
             func_type = sig.function_type()
+            if self.is_strict_signature:
+                func_type.is_strict_signature = True
         scope.declare_builtin_cfunction(self.py_name, func_type, self.cname,
                                         self.py_equiv, self.utility_code)
 
@@ -388,13 +342,34 @@ class BuiltinMethod(_BuiltinOverride):
             # override 'self' type (first argument)
             self_arg = PyrexTypes.CFuncTypeArg("", self_type, None)
             self_arg.not_none = True
+            self_arg.accept_builtin_subtypes = True
             method_type = sig.function_type(self_arg)
+            if self.is_strict_signature:
+                method_type.is_strict_signature = True
         self_type.scope.declare_builtin_cfunction(
             self.py_name, method_type, self.cname, utility_code = self.utility_code)
 
 
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
+    BuiltinFunction('abs',        "d",    "d",     "fabs",
+                    is_strict_signature = True),
+    BuiltinFunction('abs',        "f",    "f",     "fabsf",
+                    is_strict_signature = True),
+    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_int",
+                    utility_code = abs_int_utility_code,
+                    func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.c_uint_type, [
+                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_int_type, None)
+                            ],
+                        is_strict_signature = True)),
+    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_long",
+                    utility_code = abs_int_utility_code,
+                    func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.c_ulong_type, [
+                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_long_type, None)
+                            ],
+                        is_strict_signature = True)),
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
     #('chr',       "",     "",      ""),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
@@ -529,13 +504,13 @@ builtin_types_table = [
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
     ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
-                                                  utility_code = py23_set_utility_code),
+                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("discard", "TO", "r", "PySet_Discard",
-                                                  utility_code = py23_set_utility_code),
+                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add",
-                                                  utility_code = py23_set_utility_code),
+                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop",
-                                                  utility_code = py23_set_utility_code)]),
+                                                  utility_code = py_set_utility_code)]),
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 

@@ -89,6 +89,17 @@ def test_set_pop():
     two = s1.pop()
     return s1
 
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode")
+def test_object_pop(s):
+    """
+    >>> s = _set([2])
+    >>> test_object_pop(s)
+    2
+    >>> list(s)
+    []
+    """
+    return s.pop()
+
 def test_set_discard():
     """
     >>> type(test_set_discard()) is _set
@@ -122,6 +133,30 @@ def test_set_sideeffect_unhashable_failure():
     except TypeError: pass
     else: assert False, "expected exception not raised"
     return L
+
+@cython.test_assert_path_exists("//SetNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def test_set_of_list():
+    """
+    >>> s = test_set_of_list()
+    >>> isinstance(s, _set)
+    True
+    >>> sorted(s)
+    [1, 2, 3]
+    """
+    return set([1, 2, 3])
+
+@cython.test_assert_path_exists("//SetNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def test_set_of_tuple():
+    """
+    >>> s = test_set_of_tuple()
+    >>> isinstance(s, _set)
+    True
+    >>> sorted(s)
+    [1, 2, 3]
+    """
+    return set((1, 2, 3))
 
 def sorted(it):
     # Py3 can't compare strings to ints

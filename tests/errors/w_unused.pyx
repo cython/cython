@@ -35,6 +35,9 @@ def unused_and_unassigned():
     cdef object foo
     cdef int i
 
+def unused_generic(*args, **kwargs):
+    pass
+
 _ERRORS = """
 6:6: Unused entry 'a'
 9:9: Unused entry 'b'
@@ -44,4 +47,6 @@ _ERRORS = """
 25:4: Unused entry 'Unused'
 35:16: Unused entry 'foo'
 36:13: Unused entry 'i'
+38:20: Unused argument 'args'
+38:28: Unused argument 'kwargs'
 """

@@ -40,6 +40,15 @@ class TestInline(CythonTest):
     def test_globals(self):
         self.assertEquals(inline("return global_value + 1", **self.test_kwds), global_value + 1)
 
+    def test_pure(self):    
+        import cython as cy
+        b = inline("""
+        b = cy.declare(float, a)
+        c = cy.declare(cy.pointer(cy.float), &b)
+        return b
+        """, a=3)
+        self.assertEquals(type(b), float)
+
     if has_numpy:
 
         def test_numpy(self):

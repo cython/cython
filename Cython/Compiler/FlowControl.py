@@ -1,4 +1,3 @@
-
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, ModuleNode=object,
@@ -14,14 +13,17 @@ from PyrexTypes import py_object_type, unspecified_type
 from Visitor import TreeVisitor, CythonTransform
 from Errors import error, warning, CompileError, InternalError
 
-from cython import set
-
 class TypedExprNode(ExprNodes.ExprNode):
-    # Used for declaring assignments of a specified type whithout a known entry.
-    def __init__(self, type):
+    # Used for declaring assignments of a specified type without a known entry.
+    def __init__(self, type, may_be_none=None):
         self.type = type
+        self._may_be_none = may_be_none
 
-object_expr = TypedExprNode(py_object_type)
+    def may_be_none(self):
+        return self._may_be_none != False
+
+object_expr = TypedExprNode(py_object_type, may_be_none=True)
+object_expr_not_none = TypedExprNode(py_object_type, may_be_none=False)
 
 class ControlBlock(object):
     """Control flow graph node. Sequence of assignments and name references.
@@ -142,20 +144,20 @@ class ControlFlow(object):
     def is_tracked(self, entry):
         if entry.is_anonymous:
             return False
-        if entry.type.is_array or entry.type.is_struct_or_union:
+        if (entry.type.is_array or entry.type.is_struct_or_union or
+                entry.type.is_cpp_class):
             return False
         return (entry.is_local or entry.is_pyclass_attr or entry.is_arg or
-                entry.from_closure or entry.in_closure)
+                entry.from_closure or entry.in_closure or
+                entry.error_on_uninitialized)
 
     def mark_position(self, node):
         """Mark position, will be used to draw graph nodes."""
         if self.block:
             self.block.positions.add(node.pos[:2])
 
-    def mark_assignment(self, lhs, rhs, entry=None):
+    def mark_assignment(self, lhs, rhs, entry):
         if self.block:
-            if entry is None:
-                entry = lhs.entry
             if not self.is_tracked(entry):
                 return
             assignment = NameAssignment(lhs, rhs, entry)
@@ -476,10 +478,11 @@ def check_definitions(flow, compiler_directives):
             node.cf_maybe_null = True
             if not entry.from_closure and len(node.cf_state) == 1:
                 node.cf_is_null = True
-            if node.allow_null or entry.from_closure:
+            if node.allow_null or entry.from_closure or entry.is_pyclass_attr:
                 pass # Can be uninitialized here
             elif node.cf_is_null:
-                if entry.type.is_pyobject or entry.type.is_unspecified:
+                if (entry.type.is_pyobject or entry.type.is_unspecified or
+                        entry.error_on_uninitialized):
                     messages.error(
                         node.pos,
                         "local variable '%s' referenced before assignment"
@@ -500,34 +503,30 @@ def check_definitions(flow, compiler_directives):
 
     # Unused result
     for assmt in assignments:
-        if not assmt.refs and not assmt.entry.is_pyclass_attr \
-               and not assmt.entry.in_closure:
+        if (not assmt.refs and not assmt.entry.is_pyclass_attr
+            and not assmt.entry.in_closure):
             if assmt.entry.cf_references and warn_unused_result:
                 if assmt.is_arg:
-                    messages.warning(assmt.pos, "Unused argument value '%s'" % assmt.entry.name)
+                    messages.warning(assmt.pos, "Unused argument value '%s'" %
+                                     assmt.entry.name)
                 else:
-                    messages.warning(assmt.pos, "Unused result in '%s'" % assmt.entry.name)
+                    messages.warning(assmt.pos, "Unused result in '%s'" %
+                                     assmt.entry.name)
             assmt.lhs.cf_used = False
 
     # Unused entries
     for entry in flow.entries:
-        if not entry.cf_references and not entry.is_pyclass_attr and not entry.in_closure:
-            # TODO: starred args entries are not marked with is_arg flag
-            for assmt in entry.cf_assignments:
-                if assmt.is_arg:
-                    is_arg = True
-                    break
-            else:
-                is_arg = False
-            if is_arg:
+        if (not entry.cf_references and not entry.is_pyclass_attr
+            and not entry.in_closure):
+            if entry.is_arg:
                 if warn_unused_arg:
-                    messages.warning(entry.pos, "Unused argument '%s'" % entry.name)
-                # TODO: handle unused arguments
-                entry.cf_used = True
+                    messages.warning(entry.pos, "Unused argument '%s'" %
+                                     entry.name)
             else:
                 if warn_unused:
-                    messages.warning(entry.pos, "Unused entry '%s'" % entry.name)
-                entry.cf_used = False
+                    messages.warning(entry.pos, "Unused entry '%s'" %
+                                     entry.name)
+            entry.cf_used = False
 
     messages.report()
 
@@ -551,14 +550,21 @@ class AssignmentCollector(TreeVisitor):
 class CreateControlFlowGraph(CythonTransform):
     """Create NameNode use and assignment graph."""
 
+    in_inplace_assignment = False
+
     def visit_ModuleNode(self, node):
         self.gv_ctx = GVContext()
+
+        # Set of NameNode reductions
+        self.reductions = set()
 
         self.env_stack = []
         self.env = node.scope
         self.stack = []
         self.flow = ControlFlow()
         self.visitchildren(node)
+
+        check_definitions(self.flow, self.current_directives)
 
         dot_output = self.current_directives['control_flow.dot_output']
         if dot_output:
@@ -587,11 +593,13 @@ class CreateControlFlowGraph(CythonTransform):
 
         if node.star_arg:
             self.flow.mark_argument(node.star_arg,
-                                    TypedExprNode(Builtin.tuple_type),
+                                    TypedExprNode(Builtin.tuple_type,
+                                                  may_be_none=False),
                                     node.star_arg.entry)
         if node.starstar_arg:
             self.flow.mark_argument(node.starstar_arg,
-                                    TypedExprNode(Builtin.dict_type),
+                                    TypedExprNode(Builtin.dict_type,
+                                                  may_be_none=False),
                                     node.starstar_arg.entry)
         self.visitchildren(node)
         # Workaround for generators
@@ -616,7 +624,11 @@ class CreateControlFlowGraph(CythonTransform):
     def visit_DefNode(self, node):
         ## XXX: no target name node here
         node.used = True
-        self.flow.mark_assignment(node, object_expr, self.env.lookup(node.name))
+        entry = node.entry
+        if entry.is_anonymous:
+            entry = self.env.lookup(node.name)
+        if entry:
+            self.flow.mark_assignment(node, object_expr_not_none, entry)
         return self.visit_FuncDefNode(node)
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -633,23 +645,21 @@ class CreateControlFlowGraph(CythonTransform):
             self.flow.block.add_child(exc_descr.entry_point)
             self.flow.nextblock()
 
-        if isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode)):
-            self.visit(lhs)
-            return
-
         if not rhs:
             rhs = object_expr
         if lhs.is_name:
-            if lhs.entry is None:
-                # TODO: This shouldn't happen...
+            if lhs.entry is not None:
+                entry = lhs.entry
+            else:
+                entry = self.env.lookup(lhs.name)
+            if entry is None: # TODO: This shouldn't happen...
                 return
-            self.flow.mark_assignment(lhs, rhs)
+            self.flow.mark_assignment(lhs, rhs, entry)
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for arg in lhs.args:
                 self.mark_assignment(arg)
         else:
-            # Could use this info to infer cdef class attributes...
-            pass
+            self.visit(lhs)
 
         if self.flow.exceptions:
             exc_descr = self.flow.exceptions[-1]
@@ -692,7 +702,9 @@ class CreateControlFlowGraph(CythonTransform):
         return node
 
     def visit_InPlaceAssignmentNode(self, node):
+        self.in_inplace_assignment = True
         self.visitchildren(node)
+        self.in_inplace_assignment = False
         self.mark_assignment(node.lhs, node.create_binop_node())
         return node
 
@@ -701,7 +713,9 @@ class CreateControlFlowGraph(CythonTransform):
             if arg.is_name:
                 entry = arg.entry or self.env.lookup(arg.name)
                 if entry.in_closure or entry.from_closure:
-                    error(arg.pos, "can not delete variable '%s' referenced in nested scope" % entry.name)
+                    error(arg.pos,
+                          "can not delete variable '%s' "
+                          "referenced in nested scope" % entry.name)
                 # Mark reference
                 self.visit(arg)
                 self.flow.mark_deletion(arg, entry)
@@ -710,7 +724,8 @@ class CreateControlFlowGraph(CythonTransform):
     def visit_CArgDeclNode(self, node):
         entry = self.env.lookup(node.name)
         if entry:
-            self.flow.mark_argument(node, TypedExprNode(entry.type), entry)
+            may_be_none = not node.not_none
+            self.flow.mark_argument(node, TypedExprNode(entry.type, may_be_none), entry)
         return node
 
     def visit_NameNode(self, node):
@@ -718,6 +733,11 @@ class CreateControlFlowGraph(CythonTransform):
             entry = node.entry or self.env.lookup(node.name)
             if entry:
                 self.flow.mark_reference(node, entry)
+
+                if entry in self.reductions and not self.in_inplace_assignment:
+                    error(node.pos,
+                          "Cannot read reduction variable in loop body")
+
         return node
 
     def visit_StatListNode(self, node):
@@ -798,10 +818,16 @@ class CreateControlFlowGraph(CythonTransform):
         # Target assignment
         self.flow.nextblock()
         self.mark_assignment(node.target)
+
         # Body block
+        if isinstance(node, Nodes.ParallelRangeNode):
+            # In case of an invalid
+            self._delete_privates(node, exclude=node.target.entry)
+
         self.flow.nextblock()
         self.visit(node.body)
         self.flow.loops.pop()
+
         # Loop it
         if self.flow.block:
             self.flow.block.add_child(condition_block)
@@ -818,6 +844,40 @@ class CreateControlFlowGraph(CythonTransform):
             self.flow.block = next_block
         else:
             self.flow.block = None
+        return node
+
+    def _delete_privates(self, node, exclude=None):
+        for private_node in node.assigned_nodes:
+            if not exclude or private_node.entry is not exclude:
+                self.flow.mark_deletion(private_node, private_node.entry)
+
+    def visit_ParallelRangeNode(self, node):
+        reductions = self.reductions
+
+        # if node.target is None or not a NameNode, an error will have
+        # been previously issued
+        if hasattr(node.target, 'entry'):
+            self.reductions = set(reductions)
+
+            for private_node in node.assigned_nodes:
+                private_node.entry.error_on_uninitialized = True
+                pos, reduction = node.assignments[private_node.entry]
+                if reduction:
+                    self.reductions.add(private_node.entry)
+
+            node = self.visit_ForInStatNode(node)
+
+        self.reductions = reductions
+        return node
+
+    def visit_ParallelWithBlockNode(self, node):
+        for private_node in node.assigned_nodes:
+            private_node.entry.error_on_uninitialized = True
+
+        self._delete_privates(node)
+        self.visitchildren(node)
+        self._delete_privates(node)
+
         return node
 
     def visit_ForFromStatNode(self, node):
@@ -898,10 +958,10 @@ class CreateControlFlowGraph(CythonTransform):
             else:
                 # TODO: handle * pattern
                 pass
-            if clause.target:
-                self.mark_assignment(clause.target)
             entry_point = self.flow.newblock(parent=self.flow.block)
             self.flow.nextblock()
+            if clause.target:
+                self.mark_assignment(clause.target)
             self.visit(clause.body)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
@@ -1039,13 +1099,21 @@ class CreateControlFlowGraph(CythonTransform):
 
     def visit_PyClassDefNode(self, node):
         self.flow.mark_assignment(node.target,
-                                  object_expr, self.env.lookup(node.name))
+                                  object_expr_not_none, self.env.lookup(node.name))
         # TODO: add negative attribute list to "visitchildren"?
-        self.visitchildren(node, attrs=['dict', 'metaclass', 'mkw', 'bases', 'classobj'])
+        self.visitchildren(node, attrs=['dict', 'metaclass',
+                                        'mkw', 'bases', 'classobj'])
         self.env_stack.append(self.env)
         self.env = node.scope
         self.flow.nextblock()
         self.visitchildren(node, attrs=['body'])
         self.flow.nextblock()
         self.env = self.env_stack.pop()
+        return node
+
+    def visit_AmpersandNode(self, node):
+        if node.operand.is_name:
+            # Fake assignment to silence warning
+            self.mark_assignment(node.operand)
+        self.visitchildren(node)
         return node

@@ -1,9 +1,8 @@
 #
-#   Pyrex - Parse tree nodes for expressions
+#   Parse tree nodes for expressions
 #
 
 import cython
-from cython import set
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
                CompileError=object, UtilityCode=object, StringEncoding=object, operator=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
@@ -23,7 +22,8 @@ import Nodes
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
-     unspecified_type
+     unspecified_type, cython_memoryview_ptr_type
+import TypeSlots
 from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
 import Builtin
@@ -203,6 +203,7 @@ class ExprNode(Node):
     #
 
     is_sequence_constructor = 0
+    is_string_literal = 0
     is_attribute = 0
 
     saved_subexpr_nodes = None
@@ -402,7 +403,7 @@ class ExprNode(Node):
         # By default, any expression based on Python objects is
         # prevented in nogil environments.  Subtypes must override
         # this if they can work without the GIL.
-        if self.type.is_pyobject:
+        if self.type and self.type.is_pyobject:
             self.gil_error()
 
     def gil_assignment_check(self, env):
@@ -505,8 +506,12 @@ class ExprNode(Node):
 
     def generate_disposal_code(self, code):
         if self.is_temp:
-            if self.type.is_pyobject and self.result():
-                code.put_decref_clear(self.result(), self.ctype())
+            if self.result():
+                if self.type.is_pyobject:
+                    code.put_decref_clear(self.result(), self.ctype())
+                elif self.type.is_memoryviewslice:
+                    code.put_xdecref_memoryviewslice(
+                            self.result(), have_gil=not self.in_nogil_context)
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -521,6 +526,9 @@ class ExprNode(Node):
         if self.is_temp:
             if self.type.is_pyobject:
                 code.putln("%s = 0;" % self.result())
+            elif self.type.is_memoryviewslice:
+                code.putln("%s.memview = NULL;" % self.result())
+                code.putln("%s.data = NULL;" % self.result())
         else:
             self.generate_subexpr_disposal_code(code)
 
@@ -604,7 +612,31 @@ class ExprNode(Node):
             self.type = error_type
             return self
 
-        if dst_type.is_pyobject:
+        if self.coercion_type is not None:
+            # This is purely for error checking purposes!
+            node = NameNode(self.pos, name='', type=self.coercion_type)
+            node.coerce_to(dst_type, env)
+
+        if dst_type.is_memoryviewslice:
+            import MemoryView
+            if not src.type.is_memoryviewslice:
+                if src.type.is_pyobject:
+                    src = CoerceToMemViewSliceNode(src, dst_type, env)
+                else:
+                    error(self.pos,
+                          "Cannot convert '%s' to memoryviewslice" %
+                                                                (src_type,))
+            elif not MemoryView.src_conforms_to_dst(src.type, dst_type):
+                if src.type.dtype.same_as(dst_type.dtype):
+                    msg = "Memoryview '%s' not conformable to memoryview '%s'."
+                    tup = src.type, dst_type
+                else:
+                    msg = "Different base types for memoryviews (%s, %s)"
+                    tup = src.type.dtype, dst_type.dtype
+
+                error(self.pos, msg % tup)
+
+        elif dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 if dst_type is bytes_type and src.type.is_int:
                     src = CoerceIntToBytesNode(src, env)
@@ -748,6 +780,7 @@ class PyConstNode(AtomicExprNode):
 class NoneNode(PyConstNode):
     #  The constant value None
 
+    is_none = 1
     value = "Py_None"
 
     constant_result = None
@@ -982,6 +1015,7 @@ class BytesNode(ConstNode):
     #
     # value      BytesLiteral
 
+    is_string_literal = True
     # start off as Python 'bytes' to support len() in O(1)
     type = bytes_type
 
@@ -1062,6 +1096,7 @@ class UnicodeNode(PyConstNode):
     # value        EncodedString
     # bytes_value  BytesLiteral    the literal parsed as bytes string ('-3' unicode literals only)
 
+    is_string_literal = True
     bytes_value = None
     type = unicode_type
 
@@ -1126,6 +1161,7 @@ class StringNode(PyConstNode):
     # is_identifier  boolean
 
     type = str_type
+    is_string_literal = True
     is_identifier = None
     unicode_value = None
 
@@ -1291,6 +1327,7 @@ class NameNode(AtomicExprNode):
     #  cf_is_null      boolean   Is uninitialized before this node
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
     #  allow_null      boolean   Don't raise UnboundLocalError
+    #  nogil           boolean   Whether it is used in a nogil context
 
     is_name = True
     is_cython_module = False
@@ -1302,6 +1339,7 @@ class NameNode(AtomicExprNode):
     cf_maybe_null = True
     cf_is_null = False
     allow_null = False
+    nogil = False
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1364,6 +1402,7 @@ class NameNode(AtomicExprNode):
                     node.entry = var_entry
                     node.analyse_rvalue_entry(env)
                     return node
+
         return super(NameNode, self).coerce_to(dst_type, env)
 
     def analyse_as_module(self, env):
@@ -1417,6 +1456,7 @@ class NameNode(AtomicExprNode):
             self.result_ctype = py_object_type
 
     def analyse_types(self, env):
+        self.initialized_check = env.directives['initializedcheck']
         if self.entry is None:
             self.entry = env.lookup(self.name)
         if not self.entry:
@@ -1457,17 +1497,25 @@ class NameNode(AtomicExprNode):
         #print "Entry:", self.entry.__dict__ ###
         self.analyse_entry(env)
         entry = self.entry
+
         if entry.is_declared_generic:
             self.result_ctype = py_object_type
+
         if entry.is_pyglobal or entry.is_builtin:
             if entry.is_builtin and entry.is_const:
                 self.is_temp = 0
             else:
                 self.is_temp = 1
                 env.use_utility_code(get_name_interned_utility_code)
+
             self.is_used_as_rvalue = 1
+        elif entry.type.is_memoryviewslice:
+            self.is_temp = False
+            self.is_used_as_rvalue = True
+            self.use_managed_ref = True
 
     def nogil_check(self, env):
+        self.nogil = True
         if self.is_used_as_rvalue:
             entry = self.entry
             if entry.is_builtin:
@@ -1475,6 +1523,10 @@ class NameNode(AtomicExprNode):
                     self.gil_error()
             elif entry.is_pyglobal:
                 self.gil_error()
+            elif self.entry.type.is_memoryviewslice:
+                if self.cf_is_null or self.cf_maybe_null:
+                    import MemoryView
+                    MemoryView.err_if_nogil_initialized_check(self.pos, env)
 
     gil_message = "Accessing Python global or builtin"
 
@@ -1504,6 +1556,26 @@ class NameNode(AtomicExprNode):
     def is_simple(self):
         #  If it's not a C variable, it'll be in a temp.
         return 1
+
+    def may_be_none(self):
+        if self.type.is_pyobject and self.cf_state:
+            # gard against infinite recursion on self-dependencies
+            if getattr(self, '_none_checking', False):
+                # self-dependency - either this node receives a None
+                # value from *another* node, or it can not reference
+                # None at this point => safe to assume "not None"
+                return False
+            self._none_checking = True
+            # evaluate control flow state to see if there were any
+            # potential None values assigned to the node so far
+            may_be_none = False
+            for assignment in self.cf_state:
+                if assignment.rhs.may_be_none():
+                    may_be_none = True
+                    break
+            del self._none_checking
+            return may_be_none
+        return super(NameNode, self).may_be_none()
 
     def nonlocally_immutable(self):
         if ExprNode.nonlocally_immutable(self):
@@ -1558,12 +1630,24 @@ class NameNode(AtomicExprNode):
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
                 namespace = entry.scope.namespace_cname
-            code.putln(
-                '%s = PyObject_GetItem(%s, %s); %s' % (
-                self.result(),
-                namespace,
-                interned_cname,
-                code.error_goto_if_null(self.result(), self.pos)))
+            if not self.cf_is_null:
+                code.putln(
+                    '%s = PyObject_GetItem(%s, %s);' % (
+                        self.result(),
+                        namespace,
+                        interned_cname))
+            if self.cf_maybe_null:
+                if not self.cf_is_null:
+                    code.putln('if (unlikely(!%s)) {' % self.result())
+                    code.putln('PyErr_Clear();')
+                code.putln(
+                    '%s = __Pyx_GetName(%s, %s);' % (
+                    self.result(),
+                    Naming.module_cname,
+                    interned_cname))
+                if not self.cf_is_null:
+                    code.putln("}");
+            code.putln(code.error_goto_if_null(self.result(), self.pos))
             code.put_gotref(self.py_result())
 
         elif entry.is_pyglobal or entry.is_builtin:
@@ -1583,10 +1667,15 @@ class NameNode(AtomicExprNode):
             code.put_gotref(self.py_result())
 
         elif entry.is_local or entry.in_closure or entry.from_closure:
-            if entry.type.is_pyobject:
-                if (self.cf_maybe_null or self.cf_is_null) \
-                       and not self.allow_null:
-                    code.put_error_if_unbound(self.pos, entry)
+            # Raise UnboundLocalError for objects and memoryviewslices
+            raise_unbound = (
+                (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)
+            null_code = entry.type.check_for_null_code(entry.cname)
+
+            memslice_check = entry.type.is_memoryviewslice and self.initialized_check
+
+            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
+                code.put_error_if_unbound(self.pos, entry)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -1637,7 +1726,10 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 rhs.free_temps(code)
         else:
-            if self.type.is_buffer:
+            if self.type.is_memoryviewslice:
+                self.generate_acquire_memoryviewslice(rhs, code)
+
+            elif self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
                 # This might raise an exception in which case the assignment (done
                 # below) will not happen.
@@ -1671,14 +1763,32 @@ class NameNode(AtomicExprNode):
                                 code.put_decref(self.result(), self.ctype())
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
+            if not self.type.is_memoryviewslice:
+                code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+                if debug_disposal_code:
+                    print("NameNode.generate_assignment_code:")
+                    print("...generating post-assignment code for %s" % rhs)
+                rhs.generate_post_assignment_code(code)
+            elif rhs.result_in_temp():
+                rhs.generate_post_assignment_code(code)
 
-            code.putln('%s = %s;' % (self.result(),
-                                     rhs.result_as(self.ctype())))
-            if debug_disposal_code:
-                print("NameNode.generate_assignment_code:")
-                print("...generating post-assignment code for %s" % rhs)
-            rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
+
+    def generate_acquire_memoryviewslice(self, rhs, code):
+        """
+        Slices, coercions from objects, return values etc are new references.
+        We have a borrowed reference in case of dst = src
+        """
+        import MemoryView
+
+        MemoryView.put_acquire_memoryviewslice(
+            lhs_cname=self.result(),
+            lhs_type=self.type,
+            lhs_pos=self.pos,
+            rhs=rhs,
+            code=code,
+            incref_rhs=rhs.is_name,
+            have_gil=not self.in_nogil_context)
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -1691,10 +1801,8 @@ class NameNode(AtomicExprNode):
             rhstmp = code.funcstate.allocate_temp(self.entry.type, manage_ref=False)
             code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
 
-        buffer_aux = self.entry.buffer_aux
-        bufstruct = buffer_aux.buffer_info_var.cname
         import Buffer
-        Buffer.put_assign_to_buffer(self.result(), rhstmp, buffer_aux, self.entry.type,
+        Buffer.put_assign_to_buffer(self.result(), rhstmp, self.entry,
                                     is_initialized=not self.lhs_of_first_assignment,
                                     pos=self.pos, code=code)
 
@@ -1717,12 +1825,17 @@ class NameNode(AtomicExprNode):
                 '__Pyx_DelAttrString(%s, "%s")' % (
                     Naming.module_cname,
                     self.entry.name))
-        elif self.entry.type.is_pyobject:
+        elif self.entry.type.is_pyobject or self.entry.type.is_memoryviewslice:
             if not self.cf_is_null:
                 if self.cf_maybe_null:
                     code.put_error_if_unbound(self.pos, self.entry)
-                code.put_decref(self.result(), self.ctype())
-                code.putln('%s = NULL;' % self.result())
+
+                if self.entry.type.is_pyobject:
+                    code.put_decref(self.result(), self.ctype())
+                    code.putln('%s = NULL;' % self.result())
+                else:
+                    code.put_xdecref_memoryviewslice(self.entry.cname,
+                                                     have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -2195,6 +2308,14 @@ class IndexNode(ExprNode):
 
     is_fused_index = False
 
+    # Whether we're assigning to a buffer (in that case it needs to be
+    # writable)
+    writable_needed = False
+
+    # Whether we are indexing or slicing a memoryviewslice
+    memslice_index = False
+    memslice_slice = False
+
     def __init__(self, pos, index, *args, **kw):
         ExprNode.__init__(self, pos, index=index, *args, **kw)
         self._index = index
@@ -2215,8 +2336,11 @@ class IndexNode(ExprNode):
         return self.base.is_ephemeral()
 
     def is_simple(self):
-        if self.is_buffer_access:
+        if self.is_buffer_access or self.memslice_index:
             return False
+        elif self.memslice_slice:
+            return True
+
         base = self.base
         return (base.is_simple() and self.index.is_simple()
                 and base.type and (base.type.is_ptr or base.type.is_array))
@@ -2297,7 +2421,7 @@ class IndexNode(ExprNode):
     def analyse_target_types(self, env):
         self.analyse_base_and_index_types(env, setting = 1)
 
-    def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
+    def analyse_base_and_index_types(self, env, getting = 0, setting = 0, analyse_base = True):
         # Note: This might be cleaned up by having IndexNode
         # parsed in a saner way and only construct the tuple if
         # needed.
@@ -2307,7 +2431,16 @@ class IndexNode(ExprNode):
         # when cloning self.indices is copied.
         self.is_buffer_access = False
 
-        self.base.analyse_types(env)
+        # a[...] = b
+        self.is_memoryviewslice_access = False
+        # incomplete indexing, Ellipsis indexing or slicing
+        self.memslice_slice = False
+        # integer indexing
+        self.memslice_index = False
+
+        if analyse_base:
+            self.base.analyse_types(env)
+
         if self.base.type.is_error:
             # Do not visit child tree if base is undeclared to avoid confusing
             # error messages
@@ -2315,25 +2448,101 @@ class IndexNode(ExprNode):
             return
 
         is_slice = isinstance(self.index, SliceNode)
+
         # Potentially overflowing index value.
         if not is_slice and isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
             self.index = self.index.coerce_to_pyobject(env)
 
+        is_memslice = self.base.type.is_memoryviewslice
+
         # Handle the case where base is a literal char* (and we expect a string, not an int)
-        if isinstance(self.base, BytesNode) or is_slice:
+        if not is_memslice and (isinstance(self.base, BytesNode) or is_slice):
             if self.base.type.is_string or not (self.base.type.is_ptr or self.base.type.is_array):
                 self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
         buffer_access = False
-        if self.base.type.is_buffer:
-            if self.indices:
-                indices = self.indices
-            else:
-                if isinstance(self.index, TupleNode):
-                    indices = self.index.args
+        memoryviewslice_access = False
+
+        if self.indices:
+            indices = self.indices
+        elif isinstance(self.index, TupleNode):
+            indices = self.index.args
+        else:
+            indices = [self.index]
+
+        if (is_memslice and not self.indices and
+                isinstance(self.index, EllipsisNode)):
+            # Memoryviewslice copying
+            memoryviewslice_access = True
+
+        elif is_memslice:
+            # memoryviewslice indexing or slicing
+            import MemoryView
+
+            skip_child_analysis = True
+            have_slices, indices = MemoryView.unellipsify(indices,
+                                                          self.base.type.ndim)
+            self.memslice_index = len(indices) == self.base.type.ndim
+            axes = []
+
+            index_type = PyrexTypes.c_py_ssize_t_type
+            new_indices = []
+
+            if len(indices) > self.base.type.ndim:
+                self.type = error_type
+                return error(indices[self.base.type.ndim].pos,
+                             "Too many indices specified for type %s" %
+                                                        self.base.type)
+
+            suboffsets_dim = -1
+            for i, index in enumerate(indices[:]):
+                index.analyse_types(env)
+                access, packing = self.base.type.axes[i]
+                if isinstance(index, SliceNode):
+                    suboffsets_dim = i
+                    self.memslice_slice = True
+                    if index.step.is_none:
+                        axes.append((access, packing))
+                    else:
+                        axes.append((access, 'strided'))
+
+                    # Coerce start, stop and step to temps of the right type
+                    for attr in ('start', 'stop', 'step'):
+                        value = getattr(index, attr)
+                        if not value.is_none:
+                            value = value.coerce_to(index_type, env)
+                            #value = value.coerce_to_temp(env)
+                            setattr(index, attr, value)
+                            new_indices.append(value)
+
+                elif index.type.is_int:
+                    self.memslice_index = True
+                    index = index.coerce_to(index_type, env)
+                    indices[i] = index
+                    new_indices.append(index)
+
+                    if access in ('ptr', 'generic') and i != 0 and have_slices:
+                        self.type = error_type
+                        return error(index.pos,
+                                     "Indexing of non-leading indirect or generic "
+                                     "dimensions not supported yet, "
+                                     "try slicing with i:i+1")
+
                 else:
-                    indices = [self.index]
+                    self.type = error_type
+                    return error(index.pos, "Invalid index for memoryview specified")
+
+            self.memslice_index = self.memslice_index and not self.memslice_slice
+            self.original_indices = indices
+            # All indices with all start/stop/step for slices.
+            # We need to keep this around
+            self.indices = new_indices
+
+            self.env = env
+
+        elif self.base.type.is_buffer:
+            # Buffer indexing
             if len(indices) == self.base.type.ndim:
                 buffer_access = True
                 skip_child_analysis = True
@@ -2341,26 +2550,51 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
-            if buffer_access:
+
+            if buffer_access and not self.base.type.is_memoryviewslice:
                 assert hasattr(self.base, "entry") # Must be a NameNode-like node
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
 
-        if buffer_access:
+        self.nogil = env.nogil
+
+        if buffer_access or self.memslice_index:
+            if self.base.type.is_memoryviewslice and not self.base.is_name:
+                self.base = self.base.coerce_to_temp(env)
+
             self.indices = indices
             self.index = None
             self.type = self.base.type.dtype
             self.is_buffer_access = True
-            self.buffer_type = self.base.entry.type
+            self.buffer_type = self.base.type #self.base.entry.type
 
             if getting and self.type.is_pyobject:
                 self.is_temp = True
-            if setting:
+
+            if setting and self.base.type.is_memoryviewslice:
+                self.base.type.writable_needed = True
+            elif setting:
                 if not self.base.entry.type.writable:
                     error(self.pos, "Writing to readonly buffer")
                 else:
-                    self.base.entry.buffer_aux.writable_needed = True
+                    self.writable_needed = True
+                    if self.base.type.is_buffer:
+                        self.base.entry.buffer_aux.writable_needed = True
+
+        elif memoryviewslice_access:
+            self.type = self.base.type
+            self.is_memoryviewslice_access = True
+            if getting:
+                error(self.pos, "memoryviews currently support setting only.")
+
+        elif self.memslice_slice:
+            self.index = None
+            self.is_temp = True
+            self.use_managed_ref = True
+            self.type = PyrexTypes.MemoryViewSliceType(
+                            self.base.type.dtype, axes)
+
         else:
             base_type = self.base.type
 
@@ -2385,7 +2619,9 @@ class IndexNode(ExprNode):
                 if self.index.type.is_int:
                     if (not setting
                         and (base_type in (list_type, tuple_type, unicode_type))
-                        and (not self.index.type.signed or isinstance(self.index, IntNode) and int(self.index.value) >= 0)
+                        and (not self.index.type.signed
+                             or not env.directives['wraparound']
+                             or isinstance(self.index, IntNode) and int(self.index.value) >= 0)
                         and not env.directives['boundscheck']):
                         self.is_temp = 0
                     else:
@@ -2532,8 +2768,8 @@ class IndexNode(ExprNode):
     gil_message = "Indexing Python object"
 
     def nogil_check(self, env):
-        if self.is_buffer_access:
-            if env.directives['boundscheck']:
+        if self.is_buffer_access or self.memslice_index or self.memslice_slice:
+            if not self.memslice_slice and env.directives['boundscheck']:
                 error(self.pos, "Cannot check buffer index bounds without gil; use boundscheck(False) directive")
                 return
             elif self.type.is_pyobject:
@@ -2556,7 +2792,7 @@ class IndexNode(ExprNode):
         elif self.base.type is tuple_type:
             return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is unicode_type and self.type.is_unicode_char:
-            return "PyUnicode_AS_UNICODE(%s)[%s]" % (self.base.result(), self.index.result())
+            return "__Pyx_PyUnicode_READ_CHAR(%s, %s)" % (self.base.result(), self.index.result())
         elif (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
             error(self.pos, "Invalid use of pointer slice")
         else:
@@ -2598,14 +2834,18 @@ class IndexNode(ExprNode):
                 i.free_temps(code)
 
     def generate_result_code(self, code):
-        if self.is_buffer_access:
+        if self.is_buffer_access or self.memslice_index:
             if code.globalstate.directives['nonecheck']:
                 self.put_nonecheck(code)
-            self.buffer_ptr_code = self.buffer_lookup_code(code)
+            buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
             if self.type.is_pyobject:
                 # is_temp is True, so must pull out value and incref it.
                 code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
                 code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+
+        elif self.memslice_slice:
+            self.put_memoryviewslice_slice_code(code)
+
         elif self.is_temp:
             if self.type.is_pyobject:
                 if self.index.type.is_int:
@@ -2640,7 +2880,7 @@ class IndexNode(ExprNode):
                 function = "__Pyx_GetItemInt_Unicode"
                 code.globalstate.use_utility_code(getitem_int_pyunicode_utility_code)
                 code.putln(
-                    "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UNICODE)-1)) %s;" % (
+                    "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UCS4)-1)) %s;" % (
                         self.result(),
                         function,
                         self.base.py_result(),
@@ -2676,15 +2916,26 @@ class IndexNode(ExprNode):
                 self.extra_index_params(),
                 code.error_goto(self.pos)))
 
+    def generate_memoryviewslice_copy_code(self, rhs, code, op=""):
+        assert isinstance(self.index, EllipsisNode)
+        import MemoryView
+        util_code = MemoryView.CopyContentsFuncUtilCode(rhs.type, self.type)
+        func_name = util_code.copy_contents_name
+        code.putln(code.error_goto_if_neg("%s(&%s, &%s)" % (func_name, rhs.result(), self.base.result()), self.pos))
+        code.globalstate.use_utility_code(util_code)
+
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
-        if code.globalstate.directives['nonecheck']:
+        if code.globalstate.directives['nonecheck'] and not self.memslice_index:
             self.put_nonecheck(code)
-        ptrexpr = self.buffer_lookup_code(code)
+
+        buffer_entry, ptrexpr = self.buffer_lookup_code(code)
+
         if self.buffer_type.dtype.is_pyobject:
             # Must manage refcounts. Decref what is already there
             # and incref what we put in.
-            ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type, manage_ref=False)
+            ptr = code.funcstate.allocate_temp(buffer_entry.buf_ptr_type,
+                                               manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
             code.put_gotref("*%s" % ptr)
@@ -2700,8 +2951,13 @@ class IndexNode(ExprNode):
 
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
-        if self.is_buffer_access:
+        if self.is_buffer_access or self.memslice_index:
             self.generate_buffer_setitem_code(rhs, code)
+        elif self.memslice_slice:
+            error(rhs.pos, "Slice assignment not supported yet")
+            #self.generate_memoryviewslice_setslice_code(rhs, code)
+        elif self.is_memoryviewslice_access:
+            self.generate_memoryviewslice_copy_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
@@ -2736,20 +2992,56 @@ class IndexNode(ExprNode):
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
 
+    def buffer_entry(self):
+        import Buffer, MemoryView
+
+        if self.base.is_name:
+            entry = self.base.entry
+        else:
+            assert self.base.is_temp
+            cname = self.base.result()
+            entry = Symtab.Entry(cname, cname, self.base.type, self.base.pos)
+
+        if entry.type.is_buffer:
+            buffer_entry = Buffer.BufferEntry(entry)
+        else:
+            buffer_entry = MemoryView.MemoryViewSliceBufferEntry(entry)
+
+        return buffer_entry
+
     def buffer_lookup_code(self, code):
         # Assign indices to temps
-        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False) for i in self.indices]
+        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
+                           for i in self.indices]
+
         for temp, index in zip(index_temps, self.indices):
             code.putln("%s = %s;" % (temp, index.result()))
+
         # Generate buffer access code using these temps
-        import Buffer
-        # The above could happen because child_attrs is wrong somewhere so that
-        # options are not propagated.
-        return Buffer.put_buffer_lookup_code(entry=self.base.entry,
-                                             index_signeds=[i.type.signed for i in self.indices],
-                                             index_cnames=index_temps,
-                                             directives=code.globalstate.directives,
-                                             pos=self.pos, code=code)
+        import Buffer, MemoryView
+
+        buffer_entry = self.buffer_entry()
+
+        if buffer_entry.type.is_buffer:
+            negative_indices = buffer_entry.type.negative_indices
+        else:
+            negative_indices = Buffer.buffer_defaults['negative_indices']
+
+        return buffer_entry, Buffer.put_buffer_lookup_code(
+               entry=buffer_entry,
+               index_signeds=[i.type.signed for i in self.indices],
+               index_cnames=index_temps,
+               directives=code.globalstate.directives,
+               pos=self.pos, code=code,
+               negative_indices=negative_indices)
+
+    def put_memoryviewslice_slice_code(self, code):
+        buffer_entry = self.buffer_entry()
+        have_gil = not self.in_nogil_context
+        buffer_entry.generate_buffer_slice_code(code,
+                                                self.original_indices,
+                                                self.result(),
+                                                have_gil=have_gil)
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
@@ -2757,6 +3049,7 @@ class IndexNode(ExprNode):
         code.putln("__Pyx_RaiseNoneIndexingError();")
         code.putln(code.error_goto(self.pos))
         code.putln("}")
+
 
 class SliceIndexNode(ExprNode):
     #  2-element slice indexing
@@ -2801,13 +3094,33 @@ class SliceIndexNode(ExprNode):
         pass
 
     def analyse_target_types(self, env):
-        self.analyse_types(env)
+        self.analyse_types(env, getting=False)
         # when assigning, we must accept any Python type
         if self.type.is_pyobject:
             self.type = py_object_type
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, getting=True):
         self.base.analyse_types(env)
+
+        if self.base.type.is_memoryviewslice:
+            # Gross hack here! But we do not know the type until this point,
+            # and we cannot create and return a new node. So we change the
+            # type...
+            none_node = NoneNode(self.pos)
+            index = SliceNode(self.pos,
+                              start=self.start or none_node,
+                              stop=self.stop or none_node,
+                              step=none_node)
+            del self.start
+            del self.stop
+            self.index = index
+            self.__class__ = IndexNode
+            self.analyse_base_and_index_types(env,
+                                              getting=getting,
+                                              setting=not getting,
+                                              analyse_base=False)
+            return
+
         if self.start:
             self.start.analyse_types(env)
         if self.stop:
@@ -3221,8 +3534,11 @@ class SimpleCallNode(CallNode):
                         error = 'PyExc_AttributeError',
                         format_args = [self.function.entry.name])
                 expected_type = self_arg.type
-                self.coerced_self = CloneNode(self.self).coerce_to(
-                    expected_type, env)
+                if self_arg.accept_builtin_subtypes:
+                    self.coerced_self = CMethodSelfCloneNode(self.self)
+                else:
+                    self.coerced_self = CloneNode(self.self)
+                self.coerced_self = self.coerced_self.coerce_to(expected_type, env)
                 # Insert coerced 'self' argument into argument list.
                 self.args.insert(0, self.coerced_self)
             self.analyse_c_function_call(env)
@@ -3360,17 +3676,27 @@ class SimpleCallNode(CallNode):
                     if i > 0 or i == 1 and self.self is not None: # skip first arg
                         warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
                         break
+
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
             self.type = PyrexTypes.CPtrType(self.function.class_type)
         else:
             self.type = func_type.return_type
+
+        if self.function.is_name or self.function.is_attribute:
+            if self.function.entry and self.function.entry.utility_code:
+                self.is_temp = 1 # currently doesn't work for self.calculate_result_code()
+
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
             self.is_temp = 1
         elif func_type.exception_value is not None \
                  or func_type.exception_check:
             self.is_temp = 1
+        elif self.type.is_memoryviewslice:
+            self.is_temp = 1
+            # func_type.exception_check = True
+
         # Called in 'nogil' context?
         self.nogil = env.nogil
         if (self.nogil and
@@ -3417,6 +3743,9 @@ class SimpleCallNode(CallNode):
 
     def generate_result_code(self, code):
         func_type = self.function_type()
+        if self.function.is_name or self.function.is_attribute:
+            if self.function.entry and self.function.entry.utility_code:
+                code.globalstate.use_utility_code(self.function.entry.utility_code)
         if func_type.is_pyobject:
             arg_code = self.arg_tuple.py_result()
             code.putln(
@@ -3445,6 +3774,9 @@ class SimpleCallNode(CallNode):
             exc_checks = []
             if self.type.is_pyobject and self.is_temp:
                 exc_checks.append("!%s" % self.result())
+            elif self.type.is_memoryviewslice:
+                assert self.is_temp
+                exc_checks.append(self.type.error_condition(self.result()))
             else:
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
@@ -3698,6 +4030,7 @@ class AttributeNode(ExprNode):
     entry = None
     is_called = 0
     needs_none_check = True
+    is_memslice_transpose = False
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -3708,6 +4041,7 @@ class AttributeNode(ExprNode):
         cy = self.obj.as_cython_attribute()
         if cy:
             return "%s.%s" % (cy, self.attribute)
+        return None
 
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a cpdef function
@@ -3766,11 +4100,15 @@ class AttributeNode(ExprNode):
         self.analyse_types(env, target = 1)
 
     def analyse_types(self, env, target = 0):
+        self.initialized_check = env.directives['initializedcheck']
         if self.analyse_as_cimported_attribute(env, target):
-            return
-        if not target and self.analyse_as_unbound_cmethod(env):
-            return
-        self.analyse_as_ordinary_attribute(env, target)
+            self.entry.used = True
+        elif not target and self.analyse_as_unbound_cmethod(env):
+            self.entry.used = True
+        else:
+            self.analyse_as_ordinary_attribute(env, target)
+            if self.entry:
+                self.entry.used = True
 
     def analyse_as_cimported_attribute(self, env, target):
         # Try to interpret this as a reference to an imported
@@ -3784,6 +4122,7 @@ class AttributeNode(ExprNode):
                 entry.is_cglobal or entry.is_cfunction
                 or entry.is_type or entry.is_const):
                     self.mutate_into_name_node(env, entry, target)
+                    entry.used = 1
                     return 1
         return 0
 
@@ -3812,7 +4151,7 @@ class AttributeNode(ExprNode):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
             return module_scope.lookup_type(self.attribute)
-        if not isinstance(self.obj, (UnicodeNode, StringNode, BytesNode)):
+        if not self.obj.is_string_literal:
             base_type = self.obj.analyse_as_type(env)
             if base_type and hasattr(base_type, 'scope') and base_type.scope is not None:
                 return base_type.scope.lookup_type(self.attribute)
@@ -3866,6 +4205,8 @@ class AttributeNode(ExprNode):
                 self.result_ctype = py_object_type
         elif target and self.obj.type.is_builtin_type:
             error(self.pos, "Assignment to an immutable object field")
+        #elif self.type.is_memoryviewslice and not target:
+        #    self.is_temp = True
 
     def analyse_attribute(self, env, obj_type = None):
         # Look up attribute and set self.type and self.member.
@@ -3888,6 +4229,16 @@ class AttributeNode(ExprNode):
         if obj_type.has_attributes:
             entry = None
             if obj_type.attributes_known():
+                if (obj_type.is_memoryviewslice and not
+                        obj_type.scope.lookup_here(self.attribute)):
+                    if self.attribute == 'T':
+                        self.is_memslice_transpose = True
+                        self.is_temp = True
+                        self.use_managed_ref = True
+                        self.type = self.obj.type
+                        return
+                    else:
+                        obj_type.declare_attribute(self.attribute)
                 entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None
@@ -3921,6 +4272,8 @@ class AttributeNode(ExprNode):
     def analyse_as_python_attribute(self, env, obj_type = None):
         if obj_type is None:
             obj_type = self.obj.type
+        # mangle private '__*' Python attributes used inside of a class
+        self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
         self.type = py_object_type
         self.is_py_attr = 1
@@ -3935,6 +4288,9 @@ class AttributeNode(ExprNode):
     def nogil_check(self, env):
         if self.is_py_attr:
             self.gil_error()
+        elif self.type.is_memoryviewslice:
+            import MemoryView
+            MemoryView.err_if_nogil_initialized_check(self.pos, env, 'attribute')
 
     gil_message = "Accessing Python attribute"
 
@@ -3964,11 +4320,15 @@ class AttributeNode(ExprNode):
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
-            if obj.type.is_extension_type:
-                # If the attribute was specialized through indexing, make sure
-                # to get the right fused name, as our entry was replaced by our
-                # parent index node (AnalyseExpressionsTransform)
+            if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
+                if self.entry.final_func_cname:
+                    return self.entry.final_func_cname
+
                 if self.type.from_fused:
+                    # If the attribute was specialized through indexing, make
+                    # sure to get the right fused name, as our entry was
+                    # replaced by our parent index node
+                    # (AnalyseExpressionsTransform)
                     self.member = self.entry.cname
 
                 return "((struct %s *)%s%s%s)->%s" % (
@@ -3993,6 +4353,28 @@ class AttributeNode(ExprNode):
                     code.intern_identifier(self.attribute),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+        elif self.type.is_memoryviewslice:
+            if self.is_memslice_transpose:
+                # transpose the slice
+                for access, packing in self.type.axes:
+                    if access == 'ptr':
+                        error(self.pos, "Transposing not supported for slices "
+                                        "with indirect dimensions")
+                        return
+
+                code.putln("%s = %s;" % (self.result(), self.obj.result()))
+                if self.obj.is_name or self.obj.is_attribute and self.obj.is_memslice_transpose:
+                    code.put_incref_memoryviewslice(self.result(), have_gil=True)
+
+                T = "__pyx_memslice_transpose(&%s) == 0"
+                code.putln(code.error_goto_if(T % self.result(), self.pos))
+            elif self.initialized_check:
+                code.putln(
+                    'if (unlikely(!%s.memview)) {'
+                        'PyErr_SetString(PyExc_AttributeError,'
+                                        '"Memoryview is not initialized");'
+                        '%s'
+                    '}' % (self.result(), code.error_goto(self.pos)))
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
@@ -4019,7 +4401,7 @@ class AttributeNode(ExprNode):
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
         else:
-            if (self.obj.type.is_extension_type
+            if (self.obj.type.needs_nonecheck()
                   and self.needs_none_check
                   and code.globalstate.directives['nonecheck']):
                 self.put_nonecheck(code)
@@ -4030,11 +4412,18 @@ class AttributeNode(ExprNode):
                 code.put_giveref(rhs.py_result())
                 code.put_gotref(select_code)
                 code.put_decref(select_code, self.ctype())
-            code.putln(
-                "%s = %s;" % (
-                    select_code,
-                    rhs.result_as(self.ctype())))
-                    #rhs.result()))
+            elif self.type.is_memoryviewslice:
+                import MemoryView
+                MemoryView.put_assign_to_memviewslice(
+                        select_code, rhs.result(), self.type, code,
+                        incref_rhs=rhs.is_name)
+
+            if not self.type.is_memoryviewslice:
+                code.putln(
+                    "%s = %s;" % (
+                        select_code,
+                        rhs.result_as(self.ctype())))
+                        #rhs.result()))
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
         self.obj.generate_disposal_code(code)
@@ -4061,7 +4450,13 @@ class AttributeNode(ExprNode):
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
-        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
+        if self.obj.type.is_extension_type:
+            test = "%s == Py_None" % self.obj.result_as(PyrexTypes.py_object_type)
+        elif self.obj.type.is_memoryviewslice:
+            test = "!%s.memview" % self.obj.result()
+        else:
+            assert False
+        code.putln("if (%s) {" % code.unlikely(test))
         code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute)
         code.putln(code.error_goto(self.pos))
         code.putln("}")
@@ -4205,6 +4600,8 @@ class SequenceNode(ExprNode):
         # Need to work around the fact that generate_evaluation_code
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
+        for item in self.unpacked_items:
+            item.allocate(code)
         special_unpack = (rhs.type is py_object_type
                           or rhs.type in (tuple_type, list_type)
                           or not rhs.type.is_builtin_type)
@@ -4222,8 +4619,6 @@ class SequenceNode(ExprNode):
                 sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
             code.putln("if (%s) {" % sequence_type_test)
             code.putln("PyObject* sequence = %s;" % rhs.py_result())
-            for item in self.unpacked_items:
-                item.allocate(code)
             if len(sequence_types) == 2:
                 code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
             self.generate_special_parallel_unpacking_code(code, sequence_types[0])
@@ -4235,6 +4630,8 @@ class SequenceNode(ExprNode):
                 code.put_incref(item.result(), item.ctype())
             rhs.generate_disposal_code(code)
             code.putln("} else {")
+        else:
+            code.putln("{")
 
         if special_unpack and rhs.type is tuple_type:
             code.globalstate.use_utility_code(tuple_unpacking_error_code)
@@ -4243,8 +4640,7 @@ class SequenceNode(ExprNode):
             code.putln(code.error_goto(self.pos))
         else:
             self.generate_generic_parallel_unpacking_code(code, rhs)
-        if special_unpack:
-            code.putln("}")
+        code.putln("}")
 
         for value_node in self.coerced_unpacked_items:
             value_node.generate_evaluation_code(code)
@@ -4268,7 +4664,7 @@ class SequenceNode(ExprNode):
     def generate_generic_parallel_unpacking_code(self, code, rhs):
         code.globalstate.use_utility_code(iternext_unpacking_end_utility_code)
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-        code.putln("Py_ssize_t index = -1;")
+        code.putln("Py_ssize_t index = -1;") # must be at the start of a C block!
 
         iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
@@ -4680,7 +5076,7 @@ class ScopedExprNode(ExprNode):
 
 class ComprehensionNode(ScopedExprNode):
     subexprs = ["target"]
-    child_attrs = ["loop", "append"]
+    child_attrs = ["loop"]
 
     def infer_type(self, env):
         return self.target.infer_type(env)
@@ -4874,7 +5270,7 @@ class SetNode(ExprNode):
             self.compile_time_value_error(e)
 
     def generate_evaluation_code(self, code):
-        code.globalstate.use_utility_code(Builtin.py23_set_utility_code)
+        code.globalstate.use_utility_code(Builtin.py_set_utility_code)
         self.allocate_temp_result(code)
         code.putln(
             "%s = PySet_New(0); %s" % (
@@ -4949,7 +5345,7 @@ class DictNode(ExprNode):
             for item in self.key_value_pairs:
                 if isinstance(item.key, CoerceToPyTypeNode):
                     item.key = item.key.arg
-                if not isinstance(item.key, (UnicodeNode, StringNode, BytesNode)):
+                if not item.key.is_string_literal:
                     error(item.key.pos, "Invalid struct field identifier")
                     item.key = StringNode(item.key.pos, value="<error>")
                 else:
@@ -5313,9 +5709,12 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  self_object       ExprNode or None
     #  binding           bool
     #  module_name       EncodedString      Name of defining module
+    #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = []
+    subexprs = ['code_object']
+
     self_object = None
+    code_object = None
     binding = False
 
     type = py_object_type
@@ -5328,7 +5727,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             self.binding = True
 
         if self.binding:
-            env.use_utility_code(binding_cfunc_utility_code)
+            if self.specialized_cpdefs:
+                env.use_utility_code(fused_function_utility_code)
+            else:
+                env.use_utility_code(binding_cfunc_utility_code)
 
         #TODO(craig,haoyu) This should be moved to a better place
         self.set_mod_name(env)
@@ -5347,24 +5749,36 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     def generate_result_code(self, code):
         if self.binding:
-            constructor = "%s_NewEx" % Naming.binding_cfunc
+            if self.specialized_cpdefs:
+                constructor = "__pyx_FusedFunction_NewEx"
+            else:
+                constructor = "__Pyx_CyFunction_NewEx"
+
+            if self.code_object:
+                code_object_result = ', ' + self.code_object.py_result()
+            else:
+                code_object_result = ', NULL'
         else:
             constructor = "PyCFunction_NewEx"
+            code_object_result = ''
+
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = %s(&%s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s%s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
                 self.self_result_code(),
                 py_mod_name,
+                code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
+
         code.put_gotref(self.py_result())
 
         if self.specialized_cpdefs:
-            self.generate_fused_cpdef(code)
+            self.generate_fused_cpdef(code, code_object_result)
 
-    def generate_fused_cpdef(self, code):
+    def generate_fused_cpdef(self, code, code_object_result):
         """
         Generate binding function objects for all specialized cpdefs, and the
         original fused one. The fused function gets a dict __signatures__
@@ -5385,6 +5799,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             result=self.result(),
             py_mod_name=self.get_py_mod_name(code),
             self=self.self_result_code(),
+            code=code_object_result,
             func=code.funcstate.allocate_temp(py_object_type,
                                               manage_ref=True),
             signature=code.funcstate.allocate_temp(py_object_type,
@@ -5392,7 +5807,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         )
 
         fmt_dict['sigdict'] = \
-            "((%(binding_cfunc)s_object *) %(result)s)->__signatures__" % fmt_dict
+            "((__pyx_FusedFunctionObject *) %(result)s)->__signatures__" % fmt_dict
 
         # Initialize __signatures__
         goto_err("%(sigdict)s = PyDict_New()")
@@ -5405,8 +5820,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             goto_err('%(signature)s = PyUnicode_FromString('
                                     '"%(signature_string)s")')
 
-            goto_err("%(func)s = %(binding_cfunc)s_NewEx("
-                            "&%(pymethdef_cname)s, %(self)s, %(py_mod_name)s)")
+            goto_err("%(func)s = __pyx_FusedFunction_NewEx("
+                            "&%(pymethdef_cname)s, %(self)s, %(py_mod_name)s %(code)s)")
 
             s = "PyDict_SetItem(%(sigdict)s, %(signature)s, %(func)s)"
             code.put_error_if_neg(self.pos, s % fmt_dict)
@@ -5430,6 +5845,65 @@ class InnerFunctionNode(PyCFunctionNode):
             return "((PyObject*)%s)" % (Naming.cur_scope_cname)
         return "NULL"
 
+class CodeObjectNode(ExprNode):
+    # Create a PyCodeObject for a CyFunction instance.
+    #
+    # def_node   DefNode    the Python function node
+    # varnames   TupleNode  a tuple with all local variable names
+
+    subexprs = ['varnames']
+    is_temp = False
+
+    def __init__(self, def_node):
+        ExprNode.__init__(self, def_node.pos, def_node=def_node)
+        args = list(def_node.args)
+        if def_node.star_arg:
+            args.append(def_node.star_arg)
+        if def_node.starstar_arg:
+            args.append(def_node.starstar_arg)
+        local_vars = [ arg for arg in def_node.local_scope.var_entries
+                       if arg.name ]
+        self.varnames = TupleNode(
+            def_node.pos,
+            args = [ IdentifierStringNode(arg.pos, value=arg.name)
+                     for arg in args + local_vars ],
+            is_temp = 0,
+            is_literal = 1)
+
+    def calculate_result_code(self):
+        return self.result_code
+
+    def generate_result_code(self, code):
+        self.result_code = code.get_py_const(py_object_type, 'codeobj_', cleanup_level=2)
+
+        code = code.get_cached_constants_writer()
+        code.mark_pos(self.pos)
+        func = self.def_node
+        func_name = code.get_py_string_const(
+            func.name, identifier=True, is_str=False, unicode_value=func.name)
+        # FIXME: better way to get the module file path at module init time? Encoding to use?
+        file_path = StringEncoding.BytesLiteral(func.pos[0].get_filenametable_entry().encode('utf8'))
+        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
+
+        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, 0, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
+            self.result_code,
+            len(func.args),            # argcount
+            func.num_kwonly_args,      # kwonlyargcount (Py3 only)
+            len(self.varnames.args),   # nlocals
+            Naming.empty_bytes,        # code
+            Naming.empty_tuple,        # consts
+            Naming.empty_tuple,        # names (FIXME)
+            self.varnames.result(),    # varnames
+            Naming.empty_tuple,        # freevars (FIXME)
+            Naming.empty_tuple,        # cellvars (FIXME)
+            file_path_const,           # filename
+            func_name,                 # name
+            self.pos[1],               # firstlineno
+            Naming.empty_bytes,        # lnotab
+            code.error_goto_if_null(self.result_code, self.pos),
+            ))
+
+
 class LambdaNode(InnerFunctionNode):
     # Lambda expression node (only used as a function reference)
     #
@@ -5446,9 +5920,19 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
+        self.def_node.no_assignment_synthesis = True
+        self.def_node.pymethdef_required = True
         self.def_node.analyse_declarations(env)
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
+
+    def analyse_types(self, env):
+        self.def_node.analyse_expressions(env)
+        super(LambdaNode, self).analyse_types(env)
+
+    def generate_result_code(self, code):
+        self.def_node.generate_execution_code(code)
+        super(LambdaNode, self).generate_result_code(code)
 
 
 class GeneratorExpressionNode(LambdaNode):
@@ -5463,9 +5947,11 @@ class GeneratorExpressionNode(LambdaNode):
     binding = False
 
     def analyse_declarations(self, env):
-        self.def_node.no_assignment_synthesis = True
-        self.def_node.analyse_declarations(env)
-        env.add_lambda_def(self.def_node)
+        super(GeneratorExpressionNode, self).analyse_declarations(env)
+        # No pymethdef required
+        self.def_node.pymethdef_required = False
+        # Force genexpr signature
+        self.def_node.entry.signature = TypeSlots.pyfunction_noargs
 
     def generate_result_code(self, code):
         code.putln(
@@ -5718,6 +6204,8 @@ class UnaryMinusNode(UnopNode):
         if self.operand.type.is_numeric:
             self.type = PyrexTypes.widest_numeric_type(
                 self.operand.type, PyrexTypes.c_int_type)
+        elif self.operand.type.is_enum:
+            self.type = PyrexTypes.c_int_type
         else:
             self.type_error()
         if self.type.is_complex:
@@ -5744,6 +6232,8 @@ class TildeNode(UnopNode):
         if self.operand.type.is_int:
             self.type = PyrexTypes.widest_numeric_type(
                 self.operand.type, PyrexTypes.c_int_type)
+        elif self.operand.type.is_enum:
+            self.type = PyrexTypes.c_int_type
         else:
             self.type_error()
 
@@ -5917,7 +6407,7 @@ class TypecastNode(ExprNode):
             self.operand = self.operand.coerce_to_simple(env)
         elif self.operand.type.is_fused:
             self.operand = self.operand.coerce_to(self.type, env)
-            self.type = self.operand.type
+            #self.type = self.operand.type
 
     def is_simple(self):
         # either temp or a C cast => no side effects other than the operand's
@@ -5973,6 +6463,162 @@ class TypecastNode(ExprNode):
                     self.result(),
                     self.operand.result()))
             code.put_incref(self.result(), self.ctype())
+
+
+ERR_START = "Start may not be given"
+ERR_NOT_STOP = "Stop must be provided to indicate shape"
+ERR_STEPS = ("Strides may only be given to indicate contiguity. "
+             "Consider slicing it after conversion")
+ERR_NOT_POINTER = "Can only create cython.array from pointer"
+ERR_BASE_TYPE = "Pointer base type does not match cython.array base type"
+
+class CythonArrayNode(ExprNode):
+    """
+    Used when a pointer of base_type is cast to a memoryviewslice with that
+    base type. i.e.
+
+        <int[:M:1, :N]> p
+
+    creates a fortran-contiguous cython.array.
+
+    We leave the type set to object so coercions to object are more efficient
+    and less work. Acquiring a memoryviewslice from this will be just as
+    efficient. ExprNode.coerce_to() will do the additional typecheck on
+    self.compile_time_type
+    """
+
+    subexprs = ['operand', 'shapes']
+
+    shapes = None
+    is_temp = True
+    mode = "c"
+
+    shape_type = PyrexTypes.c_py_ssize_t_type
+
+    def analyse_types(self, env):
+        import MemoryView
+
+        self.type = error_type
+        self.shapes = []
+
+        for axis_no, axis in enumerate(self.base_type_node.axes):
+            if not axis.start.is_none:
+                return error(axis.start.pos, ERR_START)
+
+            if axis.stop.is_none:
+                return error(axis.pos, ERR_NOT_STOP)
+
+            axis.stop.analyse_types(env)
+            shape = axis.stop.coerce_to(self.shape_type, env)
+            if not shape.is_literal:
+                shape.coerce_to_temp(env)
+
+            self.shapes.append(shape)
+
+            if not axis.stop.type.is_int:
+                return error(axis.stop.pos, "Expected an integer type")
+
+            first_or_last = axis_no in (0, len(self.base_type_node.axes) - 1)
+            if not axis.step.is_none and first_or_last:
+                axis.step.analyse_types(env)
+                if (not axis.step.type.is_int and axis.step.is_literal and not
+                        axis.step.type.is_error):
+                    return error(axis.step.pos, "Expected an integer literal")
+
+                if axis.step.compile_time_value(env) != 1:
+                    return error(axis.step.pos, ERR_STEPS)
+
+                if axis_no == 0:
+                    self.mode = "fortran"
+
+            elif axis.step and not first_or_last:
+                return error(axis.step.pos, ERR_STEPS)
+
+        self.operand.analyse_types(env)
+        array_dtype = self.base_type_node.base_type_node.analyse(env)
+
+        MemoryView.validate_memslice_dtype(self.pos, array_dtype)
+
+        if not self.operand.type.is_ptr:
+            return error(self.operand.pos, ERR_NOT_POINTER)
+
+        elif not self.operand.type.base_type.same_as(array_dtype):
+            return error(self.operand.pos, ERR_BASE_TYPE)
+
+        if not self.operand.is_name:
+            self.operand = self.operand.coerce_to_temp(env)
+
+        axes = [('direct', 'follow')] * len(self.base_type_node.axes)
+        if self.mode == "fortran":
+            axes[0] = ('direct', 'contig')
+        else:
+            axes[-1] = ('direct', 'contig')
+
+        self.coercion_type = PyrexTypes.MemoryViewSliceType(array_dtype, axes)
+        #self.type = py_object_type
+        self.type = self.get_cython_array_type(env)
+        assert self.type
+
+        env.use_utility_code(MemoryView.cython_array_utility_code)
+        env.use_utility_code(MemoryView.typeinfo_to_format_code)
+
+    def allocate_temp_result(self, code):
+        if self.temp_code:
+            raise RuntimeError("temp allocated mulitple times")
+
+        self.temp_code = code.funcstate.allocate_temp(self.type, True)
+
+    def infer_type(self, env):
+        return self.get_cython_array_type(env)
+
+    def get_cython_array_type(self, env):
+        return env.global_scope().context.cython_scope.lookup("array").type
+
+    def generate_result_code(self, code):
+        import Buffer
+
+        shapes = [self.shape_type.cast_code(shape.result())
+                      for shape in self.shapes]
+        dtype = self.coercion_type.dtype
+
+        shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
+        format_temp = code.funcstate.allocate_temp(py_object_type, True)
+
+        itemsize = "sizeof(%s)" % dtype.declaration_code("")
+        type_info = Buffer.get_type_information_cname(code, dtype)
+
+        code.putln("if (!%s) {" % self.operand.result())
+        code.putln(    'PyErr_SetString(PyExc_ValueError,'
+                            '"Cannot create cython.array from NULL pointer");')
+        code.putln(code.error_goto(self.operand.pos))
+        code.putln("}")
+
+        code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
+                                                (format_temp, type_info))
+        code.putln('%s = Py_BuildValue("(%s)", %s);' % (shapes_temp,
+                                                        "n" * len(shapes),
+                                                        ", ".join(shapes)))
+
+        err = "!%s || !%s || !PyBytes_Check(%s)" % (format_temp, shapes_temp,
+                                                    format_temp)
+        code.putln(code.error_goto_if(err, self.pos))
+        code.put_gotref(format_temp)
+        code.put_gotref(shapes_temp)
+
+        tup = (self.result(), shapes_temp, itemsize, format_temp,
+               self.mode, self.operand.result())
+        code.putln('%s = __pyx_array_new('
+                            '%s, %s, PyBytes_AS_STRING(%s), '
+                            '(char *) "%s", (char *) %s);' % tup)
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result())
+
+        def dispose(temp):
+            code.put_decref_clear(temp, py_object_type)
+            code.funcstate.release_temp(temp)
+
+        dispose(shapes_temp)
+        dispose(format_temp)
 
 
 class SizeofNode(ExprNode):
@@ -6894,11 +7540,9 @@ class CmpNode(object):
         type1_can_be_int = False
         type2_can_be_int = False
 
-        if isinstance(operand1, (StringNode, BytesNode, UnicodeNode)) \
-               and operand1.can_coerce_to_char_literal():
+        if operand1.is_string_literal and operand1.can_coerce_to_char_literal():
             type1_can_be_int = True
-        if isinstance(operand2, (StringNode, BytesNode, UnicodeNode)) \
-                 and operand2.can_coerce_to_char_literal():
+        if operand2.is_string_literal and operand2.can_coerce_to_char_literal():
             type2_can_be_int = True
 
         if type1.is_int:
@@ -6928,10 +7572,12 @@ class CmpNode(object):
 
         # try to use numeric comparisons where possible
         elif type1.is_complex or type2.is_complex:
-            if op not in ('==', '!='):
+            if op not in ('==', '!=') \
+               and (type1.is_complex or type1.is_numeric) \
+               and (type2.is_complex or type2.is_numeric):
                 error(self.pos, "complex types are unordered")
                 new_common_type = error_type
-            if type1.is_pyobject:
+            elif type1.is_pyobject:
                 new_common_type = type1
             elif type2.is_pyobject:
                 new_common_type = type2
@@ -7151,8 +7797,8 @@ class CmpNode(object):
 
 contains_utility_code = UtilityCode(
 proto="""
-static CYTHON_INLINE int __Pyx_NegateNonNeg(int b) { 
-    return unlikely(b < 0) ? b : !b; 
+static CYTHON_INLINE int __Pyx_NegateNonNeg(int b) {
+    return unlikely(b < 0) ? b : !b;
 }
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
@@ -7175,48 +7821,51 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
 }
 """)
 
-pyunicode_in_unicode_utility_code = UtilityCode(
-proto="""
-static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE character); /*proto*/
-""",
-impl="""
-static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE character) {
-    Py_UNICODE* pos;
-    const Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
-    Py_UNICODE* char_start = PyUnicode_AS_UNICODE(unicode);
-
-    for (pos=char_start; pos < char_start+length; pos++) {
-        if (unlikely(character == pos[0])) return 1;
-    }
-    return 0;
-}
-""")
-
 py_ucs4_in_unicode_utility_code = UtilityCode(
 proto="""
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character); /*proto*/
+static CYTHON_INLINE int __Pyx_PyUnicodeBufferContainsUCS4(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character); /*proto*/
 """,
-# additionally handles surrogate pairs in 16bit Unicode builds
+# additionally handles surrogate pairs for Py_UNICODE buffers in 16bit Unicode builds
 impl="""
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
-    Py_UNICODE* pos;
-    Py_UNICODE uchar;
-    const Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
-    Py_UNICODE* char_start = PyUnicode_AS_UNICODE(unicode);
+#ifdef CYTHON_PEP393_ENABLED
+    Py_ssize_t i;
+    int kind;
+    void* udata;
+    Py_ssize_t length;
+    kind = PyUnicode_KIND(unicode);
+    if (likely(kind != PyUnicode_WCHAR_KIND)) {
+        udata = PyUnicode_DATA(unicode);
+        length = PyUnicode_GET_LENGTH(unicode);
+        for (i=0; i < length; i++) {
+            if (unlikely(character == PyUnicode_READ(kind, udata, i))) return 1;
+        }
+        return 0;
+    }
+#endif
+    return __Pyx_PyUnicodeBufferContainsUCS4(
+        PyUnicode_AS_UNICODE(unicode),
+        PyUnicode_GET_SIZE(unicode),
+        character);
+}
 
+static CYTHON_INLINE int __Pyx_PyUnicodeBufferContainsUCS4(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
+    Py_UNICODE uchar;
+    Py_UNICODE* pos;
     #if Py_UNICODE_SIZE == 2
-    if (unlikely(character > 65535)) {
+    if (character > 65535) {
         Py_UNICODE high_val, low_val;
         high_val = (Py_UNICODE) (0xD800 | (((character - 0x10000) >> 10) & ((1<<10)-1)));
         low_val  = (Py_UNICODE) (0xDC00 | ( (character - 0x10000)        & ((1<<10)-1)));
-        for (pos=char_start; pos < char_start+length-1; pos++) {
+        for (pos=buffer; pos < buffer+length-1; pos++) {
             if (unlikely(high_val == pos[0]) & unlikely(low_val == pos[1])) return 1;
         }
         return 0;
     }
     #endif
     uchar = (Py_UNICODE) character;
-    for (pos=char_start; pos < char_start+length; pos++) {
+    for (pos=buffer; pos < buffer+length; pos++) {
         if (unlikely(uchar == pos[0])) return 1;
     }
     return 0;
@@ -7232,13 +7881,25 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
+        #ifdef CYTHON_PEP393_ENABLED
+        if ((PyUnicode_READY(s1) < 0) || (PyUnicode_READY(s2) < 0))
+            return -1;
+        if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
+            return (equals == Py_NE);
+        } else if (PyUnicode_GET_LENGTH(s1) == 1) {
+            Py_UCS4 ch1 = PyUnicode_READ_CHAR(s1, 0);
+            Py_UCS4 ch2 = PyUnicode_READ_CHAR(s2, 0);
+            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
+        } else if (PyUnicode_MAX_CHAR_VALUE(s1) != PyUnicode_MAX_CHAR_VALUE(s2)) {
+            return (equals == Py_NE);
+        #else
         if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
             return (equals == Py_NE);
         } else if (PyUnicode_GET_SIZE(s1) == 1) {
-            if (equals == Py_EQ)
-                return (PyUnicode_AS_UNICODE(s1)[0] == PyUnicode_AS_UNICODE(s2)[0]);
-            else
-                return (PyUnicode_AS_UNICODE(s1)[0] != PyUnicode_AS_UNICODE(s2)[0]);
+            Py_UNICODE ch1 = PyUnicode_AS_UNICODE(s1)[0];
+            Py_UNICODE ch2 = PyUnicode_AS_UNICODE(s2)[0];
+            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
+        #endif
         } else {
             int result = PyUnicode_Compare(s1, s2);
             if ((result == -1) && unlikely(PyErr_Occurred()))
@@ -7360,12 +8021,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
                     return
                 if self.operand2.type is unicode_type:
-                    self.uchar_test_type = PyrexTypes.widest_numeric_type(
-                        self.operand1.type, PyrexTypes.c_py_unicode_type)
-                    if self.uchar_test_type is PyrexTypes.c_py_unicode_type:
-                        env.use_utility_code(pyunicode_in_unicode_utility_code)
-                    else:
-                        env.use_utility_code(py_ucs4_in_unicode_utility_code)
+                    env.use_utility_code(py_ucs4_in_unicode_utility_code)
                 else:
                     if self.operand1.type is PyrexTypes.c_uchar_type:
                         self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
@@ -7456,10 +8112,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 self.operand2.result())
         elif self.is_c_string_contains():
             if self.operand2.type is unicode_type:
-                if self.uchar_test_type is PyrexTypes.c_py_unicode_type:
-                    method = "__Pyx_UnicodeContains"
-                else:
-                    method = "__Pyx_UnicodeContainsUCS4"
+                method = "__Pyx_UnicodeContainsUCS4"
             else:
                 method = "__Pyx_BytesContains"
             if self.operator == "not_in":
@@ -7642,6 +8295,27 @@ class CoercionNode(ExprNode):
             file, line, col = self.pos
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+class CoerceToMemViewSliceNode(CoercionNode):
+
+    def __init__(self, arg, dst_type, env):
+        assert dst_type.is_memoryviewslice
+        assert not arg.type.is_memoryviewslice
+        CoercionNode.__init__(self, arg)
+        self.type = dst_type
+        self.is_temp = 1
+        self.env = env
+        self.use_managed_ref = True
+        self.arg = arg
+
+    def generate_result_code(self, code):
+        self.type.create_from_py_utility_code(self.env)
+        code.putln("%s = %s(%s);" % (self.result(),
+                                     self.type.from_py_function,
+                                     self.arg.py_result()))
+
+        error_cond = self.type.error_condition(self.result())
+        code.putln(code.error_goto_if(error_cond, self.pos))
+
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.
@@ -7783,10 +8457,14 @@ class CoerceToPyTypeNode(CoercionNode):
     is_temp = 1
 
     def __init__(self, arg, env, type=py_object_type):
-        CoercionNode.__init__(self, arg)
         if not arg.type.create_to_py_utility_code(env):
-            error(arg.pos,
-                  "Cannot convert '%s' to Python object" % arg.type)
+            error(arg.pos, "Cannot convert '%s' to Python object" % arg.type)
+        elif arg.type.is_complex:
+            # special case: complex coercion is so complex that it
+            # uses a macro ("__pyx_PyComplex_FromComplex()"), for
+            # which the argument must be simple
+            arg = arg.coerce_to_simple(env)
+        CoercionNode.__init__(self, arg)
         if type is py_object_type:
             # be specific about some known types
             if arg.type.is_string:
@@ -7798,6 +8476,12 @@ class CoerceToPyTypeNode(CoercionNode):
         else:
             # FIXME: check that the target type and the resulting type are compatible
             pass
+
+        if arg.type.is_memoryviewslice:
+            # Register utility codes at this point
+            arg.type.get_to_py_function(env, arg)
+
+        self.env = env
 
     gil_message = "Converting to Python object"
 
@@ -7825,12 +8509,17 @@ class CoerceToPyTypeNode(CoercionNode):
         pass
 
     def generate_result_code(self, code):
-        function = self.arg.type.to_py_function
-        code.putln('%s = %s(%s); %s' % (
+        if self.arg.type.is_memoryviewslice:
+            funccall = self.arg.type.get_to_py_function(self.env, self.arg)
+        else:
+            funccall = "%s(%s)" % (self.arg.type.to_py_function,
+                                   self.arg.result())
+
+        code.putln('%s = %s; %s' % (
             self.result(),
-            function,
-            self.arg.result(),
+            funccall,
             code.error_goto_if_null(self.result(), self.pos)))
+
         code.put_gotref(self.py_result())
 
 
@@ -7905,6 +8594,9 @@ class CoerceFromPyTypeNode(CoercionNode):
             code.error_goto_if(self.type.error_condition(self.result()), self.pos)))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
+
+    def nogil_check(self, env):
+        error(self.pos, "Coercion from Python not allowed without the GIL")
 
 
 class CoerceToBooleanNode(CoercionNode):
@@ -8039,6 +8731,9 @@ class CloneNode(CoercionNode):
     def result(self):
         return self.arg.result()
 
+    def may_be_none(self):
+        return self.arg.may_be_none()
+
     def type_dependencies(self, env):
         return self.arg.type_dependencies(env)
 
@@ -8066,6 +8761,18 @@ class CloneNode(CoercionNode):
 
     def free_temps(self, code):
         pass
+
+
+class CMethodSelfCloneNode(CloneNode):
+    # Special CloneNode for the self argument of builtin C methods
+    # that accepts subtypes of the builtin type.  This is safe only
+    # for 'final' subtypes, as subtypes of the declared type may
+    # override the C method.
+
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_builtin_type and self.type.subtype_of(dst_type):
+            return self
+        return CloneNode.coerce_to(self, dst_type, env)
 
 
 class ModuleRefNode(ExprNode):
@@ -8585,26 +9292,26 @@ proto = '''
                                                __Pyx_GetItemInt_Unicode_Fast(o, i) : \\
                                                __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
-static CYTHON_INLINE Py_UNICODE __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
-    if (likely((0 <= i) & (i < PyUnicode_GET_SIZE(ustring)))) {
-        return PyUnicode_AS_UNICODE(ustring)[i];
-    } else if ((-PyUnicode_GET_SIZE(ustring) <= i) & (i < 0)) {
-        i += PyUnicode_GET_SIZE(ustring);
-        return PyUnicode_AS_UNICODE(ustring)[i];
+static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
+    const Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(ustring);
+    if (likely((0 <= i) & (i < length))) {
+        return __Pyx_PyUnicode_READ_CHAR(ustring, i);
+    } else if ((-length <= i) & (i < 0)) {
+        return __Pyx_PyUnicode_READ_CHAR(ustring, i + length);
     } else {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
-        return (Py_UNICODE)-1;
+        return (Py_UCS4)-1;
     }
 }
 
-static CYTHON_INLINE Py_UNICODE __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
-    Py_UNICODE uchar;
+static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
+    Py_UCS4 uchar;
     PyObject *uchar_string;
-    if (!j) return (Py_UNICODE)-1;
+    if (!j) return (Py_UCS4)-1;
     uchar_string = PyObject_GetItem(ustring, j);
     Py_DECREF(j);
-    if (!uchar_string) return (Py_UNICODE)-1;
-    uchar = PyUnicode_AS_UNICODE(uchar_string)[0];
+    if (!uchar_string) return (Py_UCS4)-1;
+    uchar = __Pyx_PyUnicode_READ_CHAR(uchar_string, 0);
     Py_DECREF(uchar_string);
     return uchar;
 }
@@ -8943,391 +9650,13 @@ proto="""
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
 
-binding_cfunc_utility_code = UtilityCode(
-proto="""
-#define %(binding_cfunc)s_USED 1
-#include <structmember.h>
-
-typedef struct {
-    PyCFunctionObject func;
-    PyObject *__signatures__;
-    PyObject *type;
-    PyObject *self;
-    PyObject *__dict__;
-} %(binding_cfunc)s_object;
-
-/* Binding PyCFunction Prototypes */
-static PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module); /* proto */
-#define %(binding_cfunc)s_New(ml, self) %(binding_cfunc)s_NewEx(ml, self, NULL)
-
-static int       %(binding_cfunc)s_init(void);
-static void      %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m);
-static int       %(binding_cfunc)s_traverse(%(binding_cfunc)s_object *m, visitproc visit, void *arg);
-static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyObject *type);
-static PyObject *%(binding_cfunc)s_getitem(%(binding_cfunc)s_object *m, PyObject *idx);
-static PyObject *%(binding_cfunc)s_call(PyObject *func, PyObject *args, PyObject *kw);
-
-static PyObject *%(binding_cfunc)s_get__name__(%(binding_cfunc)s_object *func, void *closure);
-static int %(binding_cfunc)s_set__name__(%(binding_cfunc)s_object *func, PyObject *value, void *closure);
-static PyObject *%(binding_cfunc)s_get__doc__(%(binding_cfunc)s_object *func, void *closure);
-
-static PyGetSetDef %(binding_cfunc)s_getsets[] = {
-    {(char *)"__name__",
-     (getter) %(binding_cfunc)s_get__name__,
-     (setter) %(binding_cfunc)s_set__name__,
-     NULL},
-    {(char *)"__doc__",
-     (getter) %(binding_cfunc)s_get__doc__,
-     NULL,
-     NULL},
-    {NULL},
-};
-
-static PyMemberDef %(binding_cfunc)s_members[] = {
-    {(char *) "__signatures__",
-     T_OBJECT,
-     offsetof(%(binding_cfunc)s_object, __signatures__),
-     __Pyx_DOCSTR(0)},
-    {(char *) "__dict__",
-     T_OBJECT,
-     offsetof(%(binding_cfunc)s_object, __dict__),
-     __Pyx_DOCSTR(0)},
-};
-
-static PyMappingMethods %(binding_cfunc)s_mapping_methods = {
-    0,
-    (binaryfunc) %(binding_cfunc)s_getitem,
-    0,
-};
-
-static PyTypeObject __pyx_binding_PyCFunctionType_type = {
-    PyVarObject_HEAD_INIT(0, 0)
-    __Pyx_NAMESTR("cython_function_or_method"), /*tp_name*/
-    sizeof(%(binding_cfunc)s_object),   /*tp_basicsize*/
-    0,                                  /*tp_itemsize*/
-    (destructor) %(binding_cfunc)s_dealloc, /*tp_dealloc*/
-    0,                                  /*tp_print*/
-    0,                                  /*tp_getattr*/
-    0,                                  /*tp_setattr*/
-#if PY_MAJOR_VERSION < 3
-    0,                                  /*tp_compare*/
-#else
-    0,                                  /*reserved*/
-#endif
-    0,                                  /*tp_repr*/
-    0,                                  /*tp_as_number*/
-    0,                                  /*tp_as_sequence*/
-    &%(binding_cfunc)s_mapping_methods, /*tp_as_mapping*/
-    0,                                  /*tp_hash*/
-    %(binding_cfunc)s_call,             /*tp_call*/
-    0,                                  /*tp_str*/
-    0,                                  /*tp_getattro*/
-    0,                                  /*tp_setattro*/
-    0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
-    0,                                  /*tp_doc*/
-    (traverseproc) %(binding_cfunc)s_traverse,   /*tp_traverse*/
-    0,                                  /*tp_clear*/
-    0,                                  /*tp_richcompare*/
-    0,                                  /*tp_weaklistoffset*/
-    0,                                  /*tp_iter*/
-    0,                                  /*tp_iternext*/
-    0,                                  /*tp_methods*/
-    %(binding_cfunc)s_members,          /*tp_members*/
-    %(binding_cfunc)s_getsets,          /*tp_getset*/
-    &PyCFunction_Type,                  /*tp_base*/
-    0,                                  /*tp_dict*/
-    %(binding_cfunc)s_descr_get,        /*tp_descr_get*/
-    0,                                  /*tp_descr_set*/
-    offsetof(%(binding_cfunc)s_object, __dict__), /*tp_dictoffset*/
-    0,                                  /*tp_init*/
-    0,                                  /*tp_alloc*/
-    0,                                  /*tp_new*/
-    0,                                  /*tp_free*/
-    0,                                  /*tp_is_gc*/
-    0,                                  /*tp_bases*/
-    0,                                  /*tp_mro*/
-    0,                                  /*tp_cache*/
-    0,                                  /*tp_subclasses*/
-    0,                                  /*tp_weaklist*/
-    0,                                  /*tp_del*/
-#if PY_VERSION_HEX >= 0x02060000
-    0,                                  /*tp_version_tag*/
-#endif
-};
-
-static PyTypeObject *%(binding_cfunc)s = NULL;
-""" % Naming.__dict__,
-impl="""
-static PyObject *
-%(binding_cfunc)s_NewWithDict(PyMethodDef *ml, PyObject *self,
-                              PyObject *module, PyObject *dict)
-{
-    %(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object,
-                                                   %(binding_cfunc)s);
-    if (op == NULL)
-        return NULL;
-    op->func.m_ml = ml;
-
-    Py_XINCREF(self);
-    op->func.m_self = self;
-
-    Py_XINCREF(module);
-    op->func.m_module = module;
-
-    Py_XINCREF(dict);
-    op->__dict__ = dict;
-
-    op->type = NULL;
-    op->self = NULL;
-    op->__signatures__ = NULL;
-
-    PyObject_GC_Track(op);
-    return (PyObject *)op;
-}
-
-static PyObject *
-%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module)
-{
-    PyObject *dict = PyDict_New();
-    PyObject *result;
-
-    if (!dict)
-        return NULL;
-
-    result = %(binding_cfunc)s_NewWithDict(ml, self, module, dict);
-    Py_DECREF(dict);
-    return result;
-}
-
-static void %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m) {
-    PyObject_GC_UnTrack(m);
-    Py_XDECREF(m->func.m_self);
-    Py_XDECREF(m->func.m_module);
-    Py_XDECREF(m->__signatures__);
-    Py_XDECREF(m->__dict__);
-    Py_XDECREF(m->self);
-    Py_XDECREF(m->type);
-    PyObject_GC_Del(m);
-}
-
-static int
-%(binding_cfunc)s_traverse(%(binding_cfunc)s_object *m, visitproc visit,
-                           void *arg)
-{
-    Py_VISIT(m->func.m_self);
-    Py_VISIT(m->func.m_module);
-    Py_VISIT(m->self);
-    Py_VISIT(m->type);
-    Py_VISIT(m->__signatures__);
-    Py_VISIT(m->__dict__);
-    return 0;
-}
-
-static PyObject *
-%(binding_cfunc)s_get__name__(%(binding_cfunc)s_object *func, void *closure)
-{
-    PyObject *result = PyDict_GetItemString(func->__dict__, "__name__");
-    if (result) {
-        /* Borrowed reference! */
-        Py_INCREF(result);
-        return result;
-    }
-
-    return PyUnicode_FromString(func->func.m_ml->ml_name);
-}
-
-static int
-%(binding_cfunc)s_set__name__(%(binding_cfunc)s_object *func, PyObject *value,
-                              void *closure)
-{
-    return PyDict_SetItemString(func->__dict__, "__name__", value);
-}
-
-static PyObject *
-%(binding_cfunc)s_get__doc__(%(binding_cfunc)s_object *func, void *closure)
-{
-    return PyUnicode_FromString(func->func.m_ml->ml_doc);
-}
-
-static PyObject *
-%(binding_cfunc)s_descr_get(PyObject *op, PyObject *obj, PyObject *type)
-{
-    %(binding_cfunc)s_object *func = (%(binding_cfunc)s_object *) op;
-
-    if (func->self) {
-        /* Do not allow rebinding */
-        Py_INCREF(op);
-        return op;
-    }
-
-    if (obj == Py_None)
-        obj = NULL;
-
-    %(binding_cfunc)s_object *meth = (%(binding_cfunc)s_object *) \
-            %(binding_cfunc)s_NewWithDict(func->func.m_ml,
-                                          func->func.m_self,
-                                          func->func.m_module,
-                                          func->__dict__);
-
-    Py_XINCREF(func->__signatures__);
-    meth->__signatures__ = func->__signatures__;
-
-    Py_XINCREF(type);
-    meth->type = type;
-
-    Py_XINCREF(obj);
-    meth->self = obj;
-
-    return (PyObject *) meth;
-
-}
-
-static PyObject *
-%(binding_cfunc)s_getitem(%(binding_cfunc)s_object *m, PyObject *idx)
-{
-    PyObject *signature = NULL;
-    PyObject *unbound_result_func;
-    PyObject *result_func = NULL;
-
-    if (m->__signatures__ == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Function is not fused");
-        return NULL;
-    }
-
-    if (PyTuple_Check(idx)) {
-        PyObject *list = PyList_New(0);
-        Py_ssize_t n = PyTuple_GET_SIZE(idx);
-        PyObject *string = NULL;
-        PyObject *sep = NULL;
-        int i;
-
-        if (!list)
-            return NULL;
-
-        for (i = 0; i < n; i++) {
-            PyObject *item = PyTuple_GET_ITEM(idx, i);
-
-            if (PyType_Check(item))
-                string = PyObject_GetAttrString(item, "__name__");
-            else
-                string = PyObject_Str(item);
-
-            if (!string || PyList_Append(list, string) < 0)
-                goto __pyx_err;
-
-            Py_DECREF(string);
-        }
-
-        sep = PyUnicode_FromString(", ");
-        if (sep)
-            signature = PyUnicode_Join(sep, list);
-__pyx_err:
-;
-        Py_DECREF(list);
-        Py_XDECREF(sep);
-    } else {
-        signature = PyObject_Str(idx);
-    }
-
-    if (!signature)
-        return NULL;
-
-    unbound_result_func = PyObject_GetItem(m->__signatures__, signature);
-
-    if (unbound_result_func)
-        result_func = %(binding_cfunc)s_descr_get(unbound_result_func,
-                                                  m->self, m->type);
-
-    Py_DECREF(signature);
-    Py_XDECREF(unbound_result_func);
-
-    return result_func;
-}
-
-/* Note: the 'self' from method binding is passed in in the args tuple,
-         whereas PyCFunctionObject's m_self is passed in as the first
-         argument to the C function. For extension methods we also need
-         to pass 'self' as 'm_self' and not as the first element of the
-         args tuple.
-*/
-static PyObject *
-%(binding_cfunc)s_call(PyObject *func, PyObject *args, PyObject *kw)
-{
-    %(binding_cfunc)s_object *binding_func = (%(binding_cfunc)s_object *) func;
-    Py_ssize_t argc = PyTuple_GET_SIZE(args);
-    PyObject *new_args = NULL;
-    PyObject *new_func = NULL;
-    PyObject *result = NULL;
-    PyObject *self = NULL;
-
-    if (binding_func->self) {
-        /* Bound method call, put 'self' in the args tuple */
-        Py_ssize_t i;
-        new_args = PyTuple_New(argc + 1);
-        if (!new_args)
-            return NULL;
-
-        self = binding_func->self;
-        Py_INCREF(self);
-        PyTuple_SET_ITEM(new_args, 0, self);
-
-        for (i = 0; i < argc; i++) {
-            PyObject *item = PyTuple_GET_ITEM(args, i);
-            Py_INCREF(item);
-            PyTuple_SET_ITEM(new_args, i + 1, item);
-        }
-
-        args = new_args;
-    } else if (binding_func->type) {
-        /* Unbound method call */
-        if (argc < 1) {
-            PyErr_Format(PyExc_TypeError, "Need at least one argument, 0 given.");
-            return NULL;
-        }
-        self = PyTuple_GET_ITEM(args, 0);
-    }
-
-    if (self && !PyObject_IsInstance(self, binding_func->type)) {
-        PyErr_Format(PyExc_TypeError,
-                     "First argument should be of type %%s, got %%s.",
-                     ((PyTypeObject *) binding_func->type)->tp_name,
-                     self->ob_type->tp_name);
-        goto __pyx_err;
-    }
-
-    if (binding_func->__signatures__) {
-        /*
-        binaryfunc meth = (binaryfunc) binding_func->func.m_ml->ml_meth;
-        func = new_func = meth(binding_func->__signatures__, args);
-        */
-        PyObject *tup = PyTuple_Pack(3, binding_func->__signatures__, args,
-                                     kw == NULL ? Py_None : kw);
-        if (!tup)
-            goto __pyx_err;
-
-        func = new_func = PyCFunction_Call(func, tup, NULL);
-        Py_DECREF(tup);
-
-        if (!new_func)
-            goto __pyx_err;
-    }
-
-    result = PyCFunction_Call(func, args, kw);
-__pyx_err:
-    Py_XDECREF(new_args);
-    Py_XDECREF(new_func);
-    return result;
-}
-
-static int %(binding_cfunc)s_init(void) {
-    if (PyType_Ready(&%(binding_cfunc)s_type) < 0) {
-        return -1;
-    }
-    %(binding_cfunc)s = &%(binding_cfunc)s_type;
-    return 0;
-}
-""" % Naming.__dict__)
+binding_cfunc_utility_code = UtilityCode.load("CythonFunction",
+                                              context=vars(Naming))
+fused_function_utility_code = UtilityCode.load(
+        "FusedFunction",
+        "CythonFunction.c",
+        context=vars(Naming),
+        requires=[binding_cfunc_utility_code])
 
 
 generator_utility_code = UtilityCode(

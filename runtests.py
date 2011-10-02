@@ -11,9 +11,11 @@ import time
 import unittest
 import doctest
 import operator
+import subprocess
 import tempfile
-import warnings
 import traceback
+import warnings
+
 try:
     from StringIO import StringIO
 except ImportError:
@@ -116,24 +118,13 @@ def get_openmp_compiler_flags(language):
 
     matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
-        import subprocess
-    except ImportError:
-        try:
-            in_, out_err = os.popen4([cc, "-v"])
-        except EnvironmentError:
-            warnings.warn("Unable to find the %s compiler: %s: %s" %
-                          (language, os.strerror(sys.exc_info()[1].errno), cc))
-            return None
-        output = out_err.read()
-    else:
-        try:
-            p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE)
-        except EnvironmentError:
-            # Be compatible with Python 3
-            warnings.warn("Unable to find the %s compiler: %s: %s" %
-                          (language, os.strerror(sys.exc_info()[1].errno), cc))
-            return None
-        _, output = p.communicate()
+        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE)
+    except EnvironmentError:
+        # Be compatible with Python 3
+        warnings.warn("Unable to find the %s compiler: %s: %s" %
+                      (language, os.strerror(sys.exc_info()[1].errno), cc))
+        return None
+    _, output = p.communicate()
 
     output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
 
@@ -172,6 +163,7 @@ VER_DEP_MODULES = {
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
+                                          'run.property_decorator_T593', # prop.setter etc.
                                           'run.generators_py', # generators, with statement
                                           'run.pure_py', # decorators, with statement
                                           'run.purecdef',
@@ -442,6 +434,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [ (name, getattr(Options, name))
                                 for name in ('warning_errors', 'error_on_unknown_names') ]
+        self._saved_default_directives = Options.directive_defaults.items()
         Options.warning_errors = self.warning_errors
 
         if self.workdir not in sys.path:
@@ -451,6 +444,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
+        Options.directive_defaults = dict(self._saved_default_directives)
 
         try:
             sys.path.remove(self.workdir)
@@ -859,6 +853,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         CythonRunTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
+        Options.directive_defaults.update(dict(binding=True, always_allow_keywords=True))
 
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
@@ -881,9 +876,9 @@ class CythonPyregrTestCase(CythonRunTestCase):
 
     def run_tests(self, result):
         try:
-            from test import test_support as support
-        except ImportError: # Py3k
             from test import support
+        except ImportError: # Python2.x
+            from test import test_support as support
 
         def run_test(result):
             def run_unittest(*classes):
@@ -1037,20 +1032,16 @@ class EndToEndTest(unittest.TestCase):
             old_path = os.environ.get('PYTHONPATH')
             os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + os.path.join(self.cython_syspath, (old_path or ''))
             for command in commands.split('\n'):
-                if sys.version_info[:2] >= (2,4):
-                    import subprocess
-                    p = subprocess.Popen(commands,
-                                         stderr=subprocess.PIPE,
-                                         stdout=subprocess.PIPE,
-                                         shell=True)
-                    out, err = p.communicate()
-                    res = p.returncode
-                    if res != 0:
-                        print(command)
-                        print(out)
-                        print(err)
-                else:
-                    res = os.system(command)
+                p = subprocess.Popen(commands,
+                                     stderr=subprocess.PIPE,
+                                     stdout=subprocess.PIPE,
+                                     shell=True)
+                out, err = p.communicate()
+                res = p.returncode
+                if res != 0:
+                    print(command)
+                    print(out)
+                    print(err)
                 self.assertEqual(0, res, "non-zero exit status")
         finally:
             if old_path:
@@ -1166,7 +1157,11 @@ class TagsSelector:
 class RegExSelector:
     
     def __init__(self, pattern_string):
-        self.pattern = re.compile(pattern_string, re.I|re.U)
+        try:
+            self.pattern = re.compile(pattern_string, re.I|re.U)
+        except re.error:
+            print('Invalid pattern: %r' % pattern_string)
+            raise
 
     def __call__(self, testname, tags=None):
         return self.pattern.search(testname)
@@ -1197,6 +1192,7 @@ def refactor_for_py3(distdir, cy3_dir):
                      recursive-exclude Cython *
                      recursive-include Cython *.py *.pyx *.pxd
                      recursive-include Cython/Debugger/Tests *
+                     recursive-include Cython/Utility *
                      include runtests.py
                      include cython.py
                      ''')
@@ -1236,6 +1232,32 @@ def check_thread_termination(ignore_seen=True):
     for t in blocking_threads:
         sys.stderr.write('...%s\n'  % repr(t))
     raise PendingThreadsError("left-over threads found after running test")
+
+def subprocess_output(cmd):
+    try:
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return p.communicate()[0].decode('UTF-8')
+    except OSError:
+        return ''
+
+def get_version():
+    from Cython.Compiler.Version import version as cython_version
+    full_version = cython_version
+    top = os.path.dirname(os.path.abspath(__file__))
+    if os.path.exists(os.path.join(top, '.git')):
+        try:
+            old_dir = os.getcwd()
+            os.chdir(top)
+            head_commit = subprocess_output(['git', 'rev-parse', 'HEAD']).strip()
+            version_commit = subprocess_output(['git', 'rev-parse', cython_version]).strip()
+            diff = subprocess_output(['git', 'diff', '--stat']).strip()
+            if head_commit != version_commit:
+                full_version += " " + head_commit
+            if diff:
+                full_version += ' + uncommitted changes'
+        finally:
+            os.chdir(old_dir)
+    return full_version
 
 def main():
 
@@ -1323,6 +1345,8 @@ def main():
                       help="working directory")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'BUILD'),
                       help="working directory")
+    parser.add_option("--debug", dest="for_debugging", default=False, action="store_true",
+                      help="configure for easier use with a debugger (e.g. gdb)")
 
     options, cmd_args = parser.parse_args()
 
@@ -1390,10 +1414,14 @@ def main():
     sys.stderr.write("Python %s\n" % sys.version)
     sys.stderr.write("\n")
     if WITH_CYTHON:
-        from Cython.Compiler.Version import version
-        sys.stderr.write("Running tests against Cython %s\n" % version)
+        sys.stderr.write("Running tests against Cython %s\n" % get_version())
     else:
         sys.stderr.write("Running tests without Cython.\n")
+
+    if options.for_debugging:
+        options.cleanup_workdir = False
+        options.cleanup_sharedlibs = False
+        options.fork = False
 
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll

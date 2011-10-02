@@ -1,6 +1,6 @@
 # cython: auto_cpdef=True, infer_types=True, language_level=3, py2_import=True
 #
-#   Pyrex Parser
+#   Parser
 #
 
 # This should be done automatically
@@ -33,6 +33,7 @@ class Ctx(object):
     nogil = 0
     namespace = None
     templates = None
+    allow_struct_enum_decorator = False
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -296,7 +297,8 @@ def p_typecast(s):
     pos = s.position()
     s.next()
     base_type = p_c_base_type(s)
-    if base_type.name is None:
+    is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
+    if not is_memslice and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
@@ -306,6 +308,10 @@ def p_typecast(s):
         typecheck = 0
     s.expect(">")
     operand = p_factor(s)
+    if is_memslice:
+        return ExprNodes.CythonArrayNode(pos, base_type_node=base_type,
+                                         operand=operand)
+
     return ExprNodes.TypecastNode(pos,
         base_type = base_type,
         declarator = declarator,
@@ -875,7 +881,7 @@ def p_comp_for(s, body):
     pos = s.position()
     s.next()
     kw = p_for_bounds(s, allow_testlist=False)
-    kw.update(dict(else_clause = None, body = p_comp_iter(s, body)))
+    kw.update(else_clause = None, body = p_comp_iter(s, body))
     return Nodes.ForStatNode(pos, **kw)
 
 def p_comp_if(s, body):
@@ -1404,7 +1410,7 @@ def p_for_statement(s):
     kw = p_for_bounds(s, allow_testlist=True)
     body = p_suite(s)
     else_clause = p_else_clause(s)
-    kw.update(dict(body = body, else_clause = else_clause))
+    kw.update(body = body, else_clause = else_clause)
     return Nodes.ForStatNode(pos, **kw)
 
 def p_for_bounds(s, allow_testlist=True):
@@ -1754,7 +1760,8 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if s.sy not in ('def', 'cdef', 'cpdef', 'class'):
+        bad_toks =  'def', 'cdef', 'cpdef', 'class'
+        if not ctx.allow_struct_enum_decorator and s.sy not in bad_toks:
             s.error("Decorators can only be followed by functions or classes")
     elif s.sy == 'pass' and cdef_flag:
         # empty cdef block
@@ -1774,7 +1781,10 @@ def p_statement(s, ctx, first_statement = 0):
         s.level = ctx.level
         node = p_cdef_statement(s, ctx(overridable = overridable))
         if decorators is not None:
-            if not isinstance(node, (Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode)):
+            tup = Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode
+            if ctx.allow_struct_enum_decorator:
+                tup += Nodes.CStructOrUnionDefNode, Nodes.CEnumDefNode
+            if not isinstance(node, tup):
                 s.error("Decorators can only be followed by functions or classes")
             node.decorators = decorators
         return node
@@ -2002,8 +2012,12 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         complex = complex, longness = longness,
         is_self_arg = self_flag, templates = templates)
 
+    #    declarations here.
     if s.sy == '[':
-        type_node = p_buffer_or_template(s, type_node, templates)
+        if is_memoryviewslice_access(s):
+            type_node = p_memoryviewslice_access(s, type_node)
+        else:
+            type_node = p_buffer_or_template(s, type_node, templates)
 
     if s.sy == '.':
         s.next()
@@ -2034,6 +2048,63 @@ def p_buffer_or_template(s, base_type_node, templates):
         base_type_node = base_type_node)
     return result
 
+def p_bracketed_base_type(s, base_type_node, nonempty, empty):
+    # s.sy == '['
+    if empty and not nonempty:
+        # sizeof-like thing.  Only anonymous C arrays allowed (int[SIZE]).
+        return base_type_node
+    elif not empty and nonempty:
+        # declaration of either memoryview slice or buffer.
+        if is_memoryviewslice_access(s):
+            return p_memoryviewslice_access(s, base_type_node)
+        else:
+            return p_buffer_or_template(s, base_type_node, None)
+            # return p_buffer_access(s, base_type_node)
+    elif not empty and not nonempty:
+        # only anonymous C arrays and memoryview slice arrays here.  We
+        # disallow buffer declarations for now, due to ambiguity with anonymous
+        # C arrays.
+        if is_memoryviewslice_access(s):
+            return p_memoryviewslice_access(s, base_type_node)
+        else:
+            return base_type_node
+
+def is_memoryviewslice_access(s):
+    # s.sy == '['
+    # a memoryview slice declaration is distinguishable from a buffer access
+    # declaration by the first entry in the bracketed list.  The buffer will
+    # not have an unnested colon in the first entry; the memoryview slice will.
+    saved = [(s.sy, s.systring)]
+    s.next()
+    retval = False
+    if s.systring == ':':
+        retval = True
+    elif s.sy == 'INT':
+        saved.append((s.sy, s.systring))
+        s.next()
+        if s.sy == ':':
+            retval = True
+
+    for sv in saved[::-1]:
+        s.put_back(*sv)
+
+    return retval
+
+def p_memoryviewslice_access(s, base_type_node):
+    # s.sy == '['
+    pos = s.position()
+    s.next()
+    subscripts = p_subscript_list(s)
+    # make sure each entry in subscripts is a slice
+    for subscript in subscripts:
+        if len(subscript) < 2:
+            s.error("An axis specification in memoryview declaration does not have a ':'.")
+    s.expect(']')
+    indexes = make_slice_nodes(pos, subscripts)
+    result = Nodes.MemoryViewSliceTypeNode(pos,
+            base_type_node = base_type_node,
+            axes = indexes)
+    return result
 
 def looking_at_name(s):
     return s.sy == 'IDENT' and not s.systring in calling_convention_words
@@ -2204,7 +2275,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = cython.set([
+supported_overloaded_operators = set([
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
@@ -2887,8 +2958,8 @@ def p_doc_string(s):
     else:
         return None
 
-def p_code(s, level=None):
-    body = p_statement_list(s, Ctx(level = level), first_statement = 1)
+def p_code(s, level=None, ctx=Ctx):
+    body = p_statement_list(s, ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
@@ -2910,7 +2981,7 @@ def p_compiler_directive_comments(s):
         s.next()
     return result
 
-def p_module(s, pxd, full_module_name):
+def p_module(s, pxd, full_module_name, ctx=Ctx):
     pos = s.position()
 
     directive_comments = p_compiler_directive_comments(s)
@@ -2925,7 +2996,7 @@ def p_module(s, pxd, full_module_name):
     else:
         level = 'module'
 
-    body = p_statement_list(s, Ctx(level = level), first_statement = 1)
+    body = p_statement_list(s, ctx(level=level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
@@ -3033,4 +3104,3 @@ def print_parse_tree(f, node, level, key = None):
             f.write("%s]\n" % ind)
             return
     f.write("%s%s\n" % (ind, node))
-

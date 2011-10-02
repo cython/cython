@@ -1,6 +1,6 @@
 # cython: language_level = 3, py2_import=True
 #
-#   Pyrex - Code output module
+#   Code output module
 #
 
 import cython
@@ -8,7 +8,11 @@ cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, none_or_sub=object, basestring=object)
 
+import os
 import re
+import codecs
+
+import glob
 import Naming
 import Options
 import StringEncoding
@@ -16,8 +20,9 @@ from Cython import Utils
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 import DebugFlags
+import Errors
+from Cython import Tempita as tempita
 
-from Cython.Utils import none_or_sub
 try:
     from __builtin__ import basestring
 except ImportError:
@@ -38,15 +43,211 @@ uncachable_builtins = [
     'WindowsError',
     ]
 
-class UtilityCode(object):
-    # Stores utility code to add during code generation.
-    #
-    # See GlobalState.put_utility_code.
-    #
-    # hashes/equals by instance
+def get_utility_dir():
+    # make this a function and not global variables:
+    # http://trac.cython.org/cython_trac/ticket/475
+    Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(Cython_dir, "Utility")
+
+class UtilityCodeBase(object):
+
+    is_cython_utility = False
+
+    _utility_cache = {}
+
+    # @classmethod
+    def _add_utility(cls, utility, type, lines, begin_lineno):
+        if utility:
+            # Remember line numbers as least until after templating
+            code = '\n' * begin_lineno + ''.join(lines)
+
+            if type == 'Proto':
+                utility[0] = code
+            else:
+                utility[1] = code
+
+    _add_utility = classmethod(_add_utility)
+
+    # @classmethod
+    def load_utilities_from_file(cls, path):
+        utilities = cls._utility_cache.get(path)
+        if utilities:
+            return utilities
+
+        filename = os.path.join(get_utility_dir(), path)
+
+        _, ext = os.path.splitext(path)
+        if ext in ('.pyx', '.py', '.pxd', '.pxi'):
+            comment = '#'
+        else:
+            comment = '/'
+
+        regex = r'%s{5,30}\s*((\w|\.)+)\s*%s{5,30}' % (comment, comment)
+        utilities = {}
+        lines = []
+
+        utility = type = None
+        begin_lineno = 0
+
+        f = Utils.open_source_file(filename, encoding='UTF-8')
+        try:
+            all_lines = f.readlines() # py23
+        finally:
+            f.close()
+
+        for lineno, line in enumerate(all_lines):
+            m = re.search(regex, line)
+            if m:
+                cls._add_utility(utility, type, lines, begin_lineno)
+
+                begin_lineno = lineno + 1
+                name = m.group(1)
+                if name.endswith(".proto"):
+                    name = name[:-6]
+                    type = 'Proto'
+                else:
+                    type = 'Code'
+
+                utility = utilities.setdefault(name, [None, None])
+                utilities[name] = utility
+
+                lines = []
+            else:
+                lines.append(line)
+
+        if not utility:
+            raise ValueError("Empty utility code file")
+
+        # Don't forget to add the last utility code
+        cls._add_utility(utility, type, lines, begin_lineno)
+
+        f.close()
+
+        cls._utility_cache[path] = utilities
+        return utilities
+
+    load_utilities_from_file = classmethod(load_utilities_from_file)
+
+    # @classmethod
+    def load(cls, util_code_name, from_file=None, context=None, **kwargs):
+        """
+        Load a utility code from a file specified by from_file (relative to
+        Cython/Utility) and name util_code_name. If from_file is not given,
+        load it from the file util_code_name.*. There should be only one file
+        matched by this pattern.
+
+        Utilities in the file can be specified as follows:
+
+            ##### MyUtility.proto #####
+            ##### MyUtility #####
+
+        for prototypes and implementation respectively. For non-python or
+        -cython files /-es should be used instead. 5 to 30 pound signs may be
+        used on either side.
+
+        If context is given, the utility is considered a tempita template.
+        The context dict (which may be empty) will be unpacked to form
+        all the variables in the template.
+
+        If the @cname decorator is not used and this is a CythonUtilityCode,
+        one should pass in the 'name' keyword argument to be used for name
+        mangling of such entries.
+        """
+        proto, impl = cls.load_as_string(util_code_name, from_file, context)
+
+        if proto is not None:
+            kwargs['proto'] = proto
+        if impl is not None:
+            kwargs['impl'] = impl
+
+        if 'name' not in kwargs:
+            kwargs['name'] = util_code_name
+
+        if 'file' not in kwargs and from_file:
+            kwargs['file'] = from_file
+
+        return cls(**kwargs)
+
+    load = classmethod(load)
+
+    # @classmethod
+    def load_as_string(cls, util_code_name, from_file=None, context=None):
+        """
+        Load a utility code as a string. Returns (proto, implementation)
+        """
+        if from_file is None:
+            files = glob.glob(os.path.join(get_utility_dir(),
+                                           util_code_name + '.*'))
+            if len(files) != 1:
+                raise ValueError("Need exactly one utility file")
+
+            from_file, = files
+
+        utilities = cls.load_utilities_from_file(from_file)
+
+        proto, impl = utilities[util_code_name]
+        if context is not None:
+            proto = sub_tempita(proto, context, from_file, util_code_name)
+            impl = sub_tempita(impl, context, from_file, util_code_name)
+
+        if cls.is_cython_utility:
+            # Remember line numbers
+            return proto, impl
+
+        return proto and proto.lstrip(), impl and impl.lstrip()
+
+    load_as_string = classmethod(load_as_string)
+
+    def none_or_sub(self, s, context, tempita):
+        """
+        Format a string in this utility code with context. If None, do nothing.
+        """
+        if s is None:
+            return None
+
+        if tempita:
+            return sub_tempita(s, context, self.file, self.name)
+
+        return s % context
+
+    def __str__(self):
+        return "<%s(%s)" % (type(self).__name__, self.name)
+
+
+def sub_tempita(s, context, file, name):
+    "Run tempita on string s with context context."
+    if not s:
+        return None
+
+    if file:
+        context['__name'] = "%s:%s" % (file, name)
+    elif name:
+        context['__name'] = name
+
+    return tempita.sub(s, **context)
+
+
+class UtilityCode(UtilityCodeBase):
+    """
+    Stores utility code to add during code generation.
+
+    See GlobalState.put_utility_code.
+
+    hashes/equals by instance
+
+    proto           C prototypes
+    impl            implemenation code
+    init            code to call on module initialization
+    requires        utility code dependencies
+    proto_block     the place in the resulting file where the prototype should
+                    end up
+    name            name of the utility code (or None)
+    file            filename of the utility code file this utility was loaded
+                    from (or None)
+    """
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
-                 proto_block='utility_code_proto'):
+                 proto_block='utility_code_proto', name=None, file=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -56,8 +257,13 @@ class UtilityCode(object):
         self._cache = {}
         self.specialize_list = []
         self.proto_block = proto_block
+        self.name = name
+        self.file = file
 
-    def specialize(self, pyrex_type=None, **data):
+    def get_tree(self):
+        pass
+
+    def specialize(self, pyrex_type=None, tempita=False, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:
             data['type'] = pyrex_type.declaration_code('')
@@ -70,12 +276,15 @@ class UtilityCode(object):
                 requires = None
             else:
                 requires = [r.specialize(data) for r in self.requires]
+
             s = self._cache[key] = UtilityCode(
-                                        none_or_sub(self.proto, data),
-                                        none_or_sub(self.impl, data),
-                                        none_or_sub(self.init, data),
-                                        none_or_sub(self.cleanup, data),
-                                        requires, self.proto_block)
+                    self.none_or_sub(self.proto, data, tempita),
+                    self.none_or_sub(self.impl, data, tempita),
+                    self.none_or_sub(self.init, data, tempita),
+                    self.none_or_sub(self.cleanup, data, tempita),
+                    requires,
+                    self.proto_block)
+
             self.specialize_list.append(s)
             return s
 
@@ -101,6 +310,34 @@ class UtilityCode(object):
                 self.cleanup(writer, output.module_pos)
 
 
+class ContentHashingUtilityCode(UtilityCode):
+    "UtilityCode that hashes and compares based on self.proto and self.impl"
+
+    def __hash__(self):
+        return hash((self.proto, self.impl))
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+
+        self_proto = getattr(self, 'proto', None)
+        other_proto = getattr(other, 'proto', None)
+        return (self_proto, self.impl) == (other_proto, other.impl)
+
+
+class LazyUtilityCode(UtilityCodeBase):
+    """
+    Utility code that calls a callback with the root code writer when
+    available. Useful when you only have 'env' but not 'code'.
+    """
+
+    def __init__(self, callback):
+        self.callback = callback
+
+    def put_code(self, globalstate):
+        utility = self.callback(globalstate.rootwriter)
+        globalstate.use_utility_code(utility)
+
 
 class FunctionState(object):
     # return_label     string          function return point label
@@ -113,13 +350,13 @@ class FunctionState(object):
     # exc_vars         (string * 3)    exception variables for reraise, or None
 
     # Not used for now, perhaps later
-    def __init__(self, owner, names_taken=cython.set()):
+    def __init__(self, owner, names_taken=set()):
         self.names_taken = names_taken
         self.owner = owner
 
         self.error_label = None
         self.label_counter = 0
-        self.labels_used = cython.set()
+        self.labels_used = set()
         self.return_label = self.new_label()
         self.new_error_label()
         self.continue_label = None
@@ -133,6 +370,10 @@ class FunctionState(object):
         self.temps_used_type = {} # name -> (type, manage_ref)
         self.temp_counter = 0
         self.closure_temps = None
+
+        # This is used to collect temporaries, useful to find out which temps
+        # need to be privatized in parallel sections
+        self.collect_temps_stack = []
 
         # This is used for the error indicator, which needs to be local to the
         # function. It used to be global, which relies on the GIL being held.
@@ -220,10 +461,11 @@ class FunctionState(object):
 
         A C string referring to the variable is returned.
         """
-        if not type.is_pyobject:
+        if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
             manage_ref = False
+
         freelist = self.temps_free.get((type, manage_ref))
         if freelist is not None and len(freelist) > 0:
             result = freelist.pop()
@@ -236,6 +478,10 @@ class FunctionState(object):
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s allocated */" % result)
+
+        if self.collect_temps_stack:
+            self.collect_temps_stack[-1].add((result, type))
+
         return result
 
     def release_temp(self, name):
@@ -262,7 +508,7 @@ class FunctionState(object):
         for name, type, manage_ref in self.temps_allocated:
             freelist = self.temps_free.get((type, manage_ref))
             if freelist is None or name not in freelist:
-                used.append((name, type, manage_ref))
+                used.append((name, type, manage_ref and type.is_pyobject))
         return used
 
     def temps_holding_reference(self):
@@ -272,14 +518,14 @@ class FunctionState(object):
         """
         return [(name, type)
                 for name, type, manage_ref in self.temps_in_use()
-                if manage_ref]
+                if manage_ref  and type.is_pyobject]
 
     def all_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
         """
         return [(cname, type)
-                for cname, type, manage_ref in self.temps_allocated
-                if manage_ref]
+                    for cname, type, manage_ref in self.temps_allocated
+                        if manage_ref]
 
     def all_free_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python
@@ -288,9 +534,18 @@ class FunctionState(object):
         error case.
         """
         return [(cname, type)
-                for (type, manage_ref), freelist in self.temps_free.items()
-                if manage_ref
-                for cname in freelist]
+                    for (type, manage_ref), freelist in self.temps_free.items()
+                        if manage_ref
+                            for cname in freelist]
+
+    def start_collecting_temps(self):
+        """
+        Useful to find out which temps were used in a code block
+        """
+        self.collect_temps_stack.append(set())
+
+    def stop_collecting_temps(self):
+        return self.collect_temps_stack.pop()
 
     def init_closure_temps(self, scope):
         self.closure_temps = ClosureTempAllocator(scope)
@@ -478,15 +733,17 @@ class GlobalState(object):
     ]
 
 
-    def __init__(self, writer, emit_linenums=False):
+    def __init__(self, writer, module_node, emit_linenums=False):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
-        self.utility_codes = cython.set()
+        self.utility_codes = set()
         self.declared_cnames = {}
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
         self.parts = {}
+        self.module_node = module_node # because some utility code generation needs it
+                                       # (generating backwards-compatible Get/ReleaseBuffer
 
         self.const_cname_counter = 1
         self.string_const_index = {}
@@ -618,7 +875,7 @@ class GlobalState(object):
         if cleanup_level is not None \
                and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
-            cleanup_writer.put_xdecref_clear(const.cname, type, nanny=False)
+            cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         return const
 
     def get_string_const(self, text, py_version=None):
@@ -964,11 +1221,13 @@ class CCodeWriter(object):
         if create_from is not None:
             # Use same global state
             self.globalstate = create_from.globalstate
+            self.funcstate = create_from.funcstate
             # Clone formatting state
             if copy_formatting:
                 self.level = create_from.level
                 self.bol = create_from.bol
                 self.call_level = create_from.call_level
+
         if emit_linenums is None and self.globalstate:
             self.emit_linenums = self.globalstate.emit_linenums
         else:
@@ -978,7 +1237,8 @@ class CCodeWriter(object):
     def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        result = CCodeWriter(create_from, buffer, copy_formatting, c_line_in_traceback=self.c_line_in_traceback)
+        result = CCodeWriter(create_from, buffer, copy_formatting,
+                             c_line_in_traceback=self.c_line_in_traceback)
         return result
 
     def copyto(self, f):
@@ -1126,6 +1386,12 @@ class CCodeWriter(object):
         elif fix_indent:
             self.level += 1
 
+    def putln_tempita(self, code, **context):
+        self.putln(tempita.sub(code, **context))
+
+    def put_tempita(self, code, **context):
+        self.put(tempita.sub(code, **context))
+
     def increase_indent(self):
         self.level = self.level + 1
 
@@ -1183,6 +1449,8 @@ class CCodeWriter(object):
             return
         if storage_class:
             self.put("%s " % storage_class)
+        if not entry.cf_used:
+            self.put('CYTHON_UNUSED ')
         self.put(entry.type.declaration_code(
                 entry.cname, dll_linkage = dll_linkage))
         if entry.init is not None:
@@ -1196,6 +1464,9 @@ class CCodeWriter(object):
             decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
+            elif type.is_memoryviewslice:
+                import MemoryView
+                self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
             else:
                 self.putln("%s;" % decl)
 
@@ -1276,13 +1547,21 @@ class CCodeWriter(object):
             self.putln("Py_DECREF(%s); %s = 0;" % (
                 typecast(py_object_type, type, cname), cname))
 
-    def put_xdecref(self, cname, type, nanny=True):
+    def put_xdecref(self, cname, type, nanny=True, have_gil=True):
+        if type.is_memoryviewslice:
+            self.put_xdecref_memoryviewslice(cname, have_gil=have_gil)
+            return
+
         if nanny:
             self.putln("__Pyx_XDECREF(%s);" % self.as_pyobject(cname, type))
         else:
             self.putln("Py_XDECREF(%s);" % self.as_pyobject(cname, type))
 
     def put_xdecref_clear(self, cname, type, nanny=True):
+        if type.is_memoryviewslice:
+            self.put_xdecref_memoryviewslice(cname)
+            return
+
         if nanny:
             self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
                 self.as_pyobject(cname, type), cname))
@@ -1294,19 +1573,29 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
-    def put_var_decref_clear(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_DECREF(%s); %s = 0;" % (
-                self.entry_as_pyobject(entry), entry.cname))
-
     def put_var_xdecref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
+    def put_var_decref_clear(self, entry):
+        self._put_var_decref_clear(entry, null_check=False)
+
     def put_var_xdecref_clear(self, entry):
+        self._put_var_decref_clear(entry, null_check=True)
+
+    def _put_var_decref_clear(self, entry, null_check):
         if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
-                self.entry_as_pyobject(entry), entry.cname))
+            if entry.in_closure:
+                # reset before DECREF to make sure closure state is
+                # consistent during call to DECREF()
+                self.putln("__Pyx_%sCLEAR(%s);" % (
+                    null_check and 'X' or '',
+                    entry.cname))
+            else:
+                self.putln("__Pyx_%sDECREF(%s); %s = 0;" % (
+                    null_check and 'X' or '',
+                    self.entry_as_pyobject(entry),
+                    entry.cname))
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
@@ -1323,6 +1612,19 @@ class CCodeWriter(object):
     def put_var_xdecrefs_clear(self, entries):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
+
+    def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
+        import MemoryView
+        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
+        self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+
+    def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
+        import MemoryView
+        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
+        self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+
+    def put_xgiveref_memoryviewslice(self, slice_cname):
+        self.put_xgiveref("%s.memview" % slice_cname)
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from PyrexTypes import py_object_type, typecast
@@ -1383,7 +1685,7 @@ class CCodeWriter(object):
         self.putln("#ifdef WITH_THREAD")
         if declare_gilstate:
             self.put("PyGILState_STATE ")
-        self.putln("_save = PyGILState_Ensure();")
+        self.putln("__pyx_gilstate_save = PyGILState_Ensure();")
         self.putln("#endif")
 
     def put_release_ensured_gil(self):
@@ -1391,7 +1693,7 @@ class CCodeWriter(object):
         Releases the GIL, corresponds to `put_ensure_gil`.
         """
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_Release(_save);")
+        self.putln("PyGILState_Release(__pyx_gilstate_save);")
         self.putln("#endif")
 
     def put_acquire_gil(self):
@@ -1410,7 +1712,7 @@ class CCodeWriter(object):
 
     def declare_gilstate(self):
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_STATE _save;")
+        self.putln("PyGILState_STATE __pyx_gilstate_save;")
         self.putln("#endif")
 
     # error handling
@@ -1429,8 +1731,12 @@ class CCodeWriter(object):
             func = '__Pyx_RaiseUnboundLocalError'
             self.globalstate.use_utility_code(
                 ExprNodes.raise_unbound_local_error_utility_code)
-        self.put('if (unlikely(!%s)) { %s("%s"); %s }' % (
-            entry.cname, func, entry.name, self.error_goto(pos)))
+
+        self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
+                                entry.type.check_for_null_code(entry.cname),
+                                func,
+                                entry.name,
+                                self.error_goto(pos)))
 
     def set_error_info(self, pos):
         self.funcstate.should_declare_error_indicator = True

@@ -7,8 +7,8 @@ ctypedef object (*p_sub_expr_func)(object)
 
 # entry points
 
-cpdef p_module(PyrexScanner s, pxd, full_module_name)
-cpdef p_code(PyrexScanner s, level= *)
+cpdef p_module(PyrexScanner s, pxd, full_module_name, ctx=*)
+cpdef p_code(PyrexScanner s, level= *, ctx=*)
 
 # internal parser states
 
@@ -62,7 +62,7 @@ cdef p_name(PyrexScanner s, name)
 cdef p_cat_string_literal(PyrexScanner s)
 cdef p_opt_string_literal(PyrexScanner s, required_type=*)
 cdef bint check_for_non_ascii_characters(unicode string)
-@cython.locals(systr=unicode, is_python3_source=bint)
+@cython.locals(systr=unicode, is_python3_source=bint, is_raw=bint)
 cdef p_string_literal(PyrexScanner s, kind_override=*)
 cdef p_list_maker(PyrexScanner s)
 cdef p_comp_iter(PyrexScanner s, body)
@@ -131,6 +131,8 @@ cdef p_calling_convention(PyrexScanner s)
 cdef p_c_complex_base_type(PyrexScanner s)
 cpdef p_c_simple_base_type(PyrexScanner s, bint self_flag, bint nonempty, templates = *)
 cdef p_buffer_or_template(PyrexScanner s, base_type_node, templates)
+cdef is_memoryviewslice_access(PyrexScanner s)
+cdef p_memoryviewslice_access(PyrexScanner s, base_type_node)
 cdef bint looking_at_name(PyrexScanner s) except -2
 cdef object looking_at_expr(PyrexScanner s)# except -2
 cdef bint looking_at_base_type(PyrexScanner s) except -2

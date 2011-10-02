@@ -23,7 +23,5 @@ _ERRORS = u"""
 9:24: C attribute of type 'VoidP' cannot be accessed from Python
 9:24: Cannot convert 'VoidP' to Python object
 9:24: Cannot convert Python object to 'VoidP'
-17:22: C attribute of type 'Foo' cannot be accessed from Python
-17:22: Cannot convert Python object to 'Foo'
 """
 

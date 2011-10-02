@@ -1,9 +1,8 @@
 #
-#   Pyrex - Module parse tree node
+#   Module parse tree node
 #
 
 import cython
-from cython import set
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
                EncodedString=object)
@@ -51,6 +50,40 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     child_attrs = ["body"]
     directives = None
+
+    def merge_in(self, tree, scope, merge_scope=False):
+        # Merges in the contents of another tree, and possibly scope. With the
+        # current implementation below, this must be done right prior
+        # to code generation.
+        #
+        # Note: This way of doing it seems strange -- I believe the
+        # right concept is to split ModuleNode into a ModuleNode and a
+        # CodeGenerator, and tell that CodeGenerator to generate code
+        # from multiple sources.
+        assert isinstance(self.body, Nodes.StatListNode)
+        if isinstance(tree, Nodes.StatListNode):
+            self.body.stats.extend(tree.stats)
+        else:
+            self.body.stats.append(tree)
+
+        self.scope.utility_code_list.extend(scope.utility_code_list)
+
+        def extend_if_not_in(L1, L2):
+            for x in L2:
+                if x not in L1:
+                    L1.append(x)
+
+        extend_if_not_in(self.scope.include_files, scope.include_files)
+        extend_if_not_in(self.scope.included_files, scope.included_files)
+        extend_if_not_in(self.scope.python_include_files,
+                         scope.python_include_files)
+
+        if merge_scope:
+            # Ensure that we don't generate import code for these entries!
+            for entry in scope.c_class_entries:
+                entry.type.module_name = self.full_module_name
+
+            self.scope.merge_in(scope)
 
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
@@ -108,7 +141,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if (h_types or  h_vars or h_funcs or h_extension_types):
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code)
+            Code.GlobalState(h_code, self)
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -177,7 +210,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if api_vars or api_funcs or api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code)
+            Code.GlobalState(h_code, self)
             api_guard = Naming.api_guard_prefix + self.api_name(env)
             h_code.put_h_guard(api_guard)
             h_code.putln('#include "Python.h"')
@@ -275,7 +308,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             emit_linenums = options.emit_linenums
             rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums, c_line_in_traceback=options.c_line_in_traceback)
-        globalstate = Code.GlobalState(rootwriter, emit_linenums)
+        globalstate = Code.GlobalState(rootwriter, self, emit_linenums)
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
 
@@ -316,7 +349,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_declarations_for_modules(env, modules, globalstate)
         h_code.write('\n')
 
-        for utilcode in env.utility_code_list:
+        for utilcode in env.utility_code_list[:]:
             globalstate.use_utility_code(utilcode)
         globalstate.finalize_main_c_code()
 
@@ -439,6 +472,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_typeobj_predeclaration(entry, code)
             self.generate_exttype_vtable_struct(entry, code)
             self.generate_exttype_vtabptr_declaration(entry, code)
+            self.generate_exttype_final_methods_declaration(entry, code)
 
     def generate_declarations_for_modules(self, env, modules, globalstate):
         typecode = globalstate['type_declarations']
@@ -465,6 +499,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('#include "%s"' % filename)
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, please install development version of Python.")
+        code.putln("#elif PY_VERSION_HEX < 0x02040000")
+        code.putln("    #error Cython requires Python 2.4+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -497,19 +533,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define PY_LONG_LONG LONG_LONG
 #endif
 
-#if PY_VERSION_HEX < 0x02040000
-  #define METH_COEXIST 0
-  #define PyDict_CheckExact(op) (Py_TYPE(op) == &PyDict_Type)
-  #define PyDict_Contains(d,o)   PySequence_Contains(d,o)
-#endif
-
 #if PY_VERSION_HEX < 0x02050000
   typedef int Py_ssize_t;
   #define PY_SSIZE_T_MAX INT_MAX
   #define PY_SSIZE_T_MIN INT_MIN
   #define PY_FORMAT_SIZE_T \"\"
   #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
-  #define PyInt_AsSsize_t(o)   PyInt_AsLong(o)
+  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_AsInt(o)
   #define PyNumber_Index(o)    PyNumber_Int(o)
   #define PyIndex_Check(o)     PyNumber_Check(o)
   #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)
@@ -551,8 +581,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
+  #define __Pyx_PyIdentifier_FromString(s) PyString_FromString(s)
+  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \\
+          PyCode_New(a, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
+  #define __Pyx_PyIdentifier_FromString(s) PyUnicode_FromString(s)
+  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \\
+          PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -562,6 +598,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 #if (PY_VERSION_HEX < 0x02060000) || (PY_MAJOR_VERSION >= 3)
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
+#endif
+
+/* new Py3.3 unicode representation (PEP 393) */
+#if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_GET_LENGTH)
+  #define CYTHON_PEP393_ENABLED
+  #define __Pyx_PyUnicode_GET_LENGTH(u) PyUnicode_GET_LENGTH(u)
+  #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
+#else
+  #define __Pyx_PyUnicode_GET_LENGTH(u) PyUnicode_GET_SIZE(u)
+  #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AS_UNICODE(u)[i]))
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -932,6 +978,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             #    code.putln("static PyTypeObject %s;" % name)
 
     def generate_exttype_vtable_struct(self, entry, code):
+        if not entry.used:
+            return
+
         code.mark_pos(entry.pos)
         # Generate struct declaration for an extension type's vtable.
         type = entry.type
@@ -951,11 +1000,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for method_entry in scope.cfunc_entries:
                 if not method_entry.is_inherited:
                     code.putln(
-                        "%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.name))
+                        "%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.cname))
             code.putln(
                 "};")
 
     def generate_exttype_vtabptr_declaration(self, entry, code):
+        if not entry.used:
+            return
+
         code.mark_pos(entry.pos)
         # Generate declaration of pointer to an extension type's vtable.
         type = entry.type
@@ -964,11 +1016,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabstruct_cname,
                 type.vtabptr_cname))
 
+    def generate_exttype_final_methods_declaration(self, entry, code):
+        if not entry.used:
+            return
+
+        code.mark_pos(entry.pos)
+        # Generate final methods prototypes
+        type = entry.type
+        for method_entry in entry.type.scope.cfunc_entries:
+            if not method_entry.is_inherited and method_entry.final_func_cname:
+                declaration = method_entry.type.declaration_code(
+                    method_entry.final_func_cname)
+                if entry.func_modifiers:
+                    modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
+                else:
+                    modifiers = ''
+                code.putln("static %s%s;" % (modifiers, declaration))
+
     def generate_objstruct_predeclaration(self, type, code):
         if not type.scope:
             return
         code.putln(self.sue_predeclaration(type, "struct", type.objstruct_cname))
-    
+
     def generate_objstruct_definition(self, type, code):
         code.mark_pos(type.pos)
         # Generate object struct definition for an
@@ -1013,6 +1082,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.typeptr_cname)
 
     def generate_cvariable_declarations(self, env, code, definition):
+        if env.is_cython_builtin:
+            return
         for entry in env.var_entries:
             if (entry.in_cinclude or entry.in_closure or
                 (entry.visibility == 'private' and
@@ -1060,47 +1131,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
-            should_declare = (not entry.in_cinclude and
-                              (definition or entry.defined_in_pxd or
-                               entry.visibility == 'extern'))
-
-            if entry.used and (entry.inline_func_in_pxd or should_declare):
-                if entry.visibility == 'public':
-                    storage_class = "%s " % Naming.extern_c_macro
-                    dll_linkage = "DL_EXPORT"
-                elif entry.visibility == 'extern':
-                    storage_class = "%s " % Naming.extern_c_macro
-                    dll_linkage = "DL_IMPORT"
-                elif entry.visibility == 'public':
-                    storage_class = "%s " % Naming.extern_c_macro
-                    dll_linkage = "DL_EXPORT"
-                elif entry.visibility == 'private':
-                    storage_class = "static "
-                    dll_linkage = None
-                else:
-                    storage_class = "static "
-                    dll_linkage = None
-                type = entry.type
-
-                if entry.defined_in_pxd and not definition:
-                    storage_class = "static "
-                    dll_linkage = None
-                    type = CPtrType(type)
-
-                header = type.declaration_code(entry.cname,
-                                               dll_linkage = dll_linkage)
-                if entry.func_modifiers:
-                    modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
-                else:
-                    modifiers = ''
-                code.putln("%s%s%s; /*proto*/" % (
-                    storage_class,
-                    modifiers,
-                    header))
+            if entry.used:
+                generate_cfunction_declaration(entry, env, code, definition)
 
     def generate_variable_definitions(self, env, code):
         for entry in env.var_entries:
-            if (not entry.in_cinclude and 
+            if (not entry.in_cinclude and
                 entry.visibility == "public"):
                 code.put(entry.type.declaration_code(entry.cname))
                 if entry.init is not None:
@@ -1168,10 +1204,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = scope.parent_type
         base_type = type.base_type
         py_attrs = []
+        memviewslice_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject:
                 py_attrs.append(entry)
-        need_self_cast = type.vtabslot_cname or py_attrs
+            elif entry.type.is_memoryviewslice:
+                memviewslice_attrs.append(entry)
+        need_self_cast = type.vtabslot_cname or py_attrs or memviewslice_attrs
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {"
@@ -1214,6 +1253,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("p->%s = 0;" % entry.cname)
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+        for entry in memviewslice_attrs:
+            code.putln("p->%s.data = NULL;" % entry.cname)
+            code.putln("p->%s.memview = NULL;" % entry.cname)
         entry = scope.lookup_here("__new__")
         if entry and entry.is_special:
             if entry.trivial_signature:
@@ -1886,8 +1928,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
 
-        code.putln("#ifdef %s_USED" % Naming.binding_cfunc)
-        code.putln("if (%s_init() < 0) %s" % (Naming.binding_cfunc, code.error_goto(self.pos)))
+        code.putln("#ifdef __Pyx_CyFunction_USED")
+        code.putln("if (__Pyx_CyFunction_init() < 0) %s" % code.error_goto(self.pos))
+        code.putln("#endif")
+
+        code.putln("#ifdef __Pyx_FusedFunction_USED")
+        code.putln("if (__pyx_FusedFunction_init() < 0) %s" % code.error_goto(self.pos))
         code.putln("#endif")
 
         code.putln("/*--- Library function declarations ---*/")
@@ -2118,8 +2164,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # variables to None.
         for entry in env.var_entries:
             if entry.visibility != 'extern':
-                if entry.type.is_pyobject and entry.used:
-                    code.put_init_var_to_py_none(entry, nanny=False)
+                if entry.used:
+                    entry.type.global_init_code(entry, code)
 
     def generate_c_variable_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.
@@ -2233,7 +2279,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate type import code for extern extension types
         # and type ready code for non-extern ones.
         for entry in env.c_class_entries:
-            if entry.visibility == 'extern':
+            if entry.visibility == 'extern' and not entry.utility_code_definition:
                 self.generate_type_import_code(env, entry.type, entry.pos, code)
             else:
                 self.generate_base_type_import_code(env, entry, code)
@@ -2243,8 +2289,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
-        if base_type and base_type.module_name != env.qualified_name \
-               and not base_type.is_builtin_type:
+        if (base_type and base_type.module_name != env.qualified_name and not
+               base_type.is_builtin_type and not entry.utility_code_definition):
             self.generate_type_import_code(env, base_type, self.pos, code)
 
     def use_type_import_utility_code(self, env):
@@ -2414,6 +2460,40 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
 
+def generate_cfunction_declaration(entry, env, code, definition):
+    from_cy_utility = entry.used and entry.utility_code_definition
+    if entry.used and entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
+            or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
+        if entry.visibility == 'extern':
+            storage_class = "%s " % Naming.extern_c_macro
+            dll_linkage = "DL_IMPORT"
+        elif entry.visibility == 'public':
+            storage_class = "%s " % Naming.extern_c_macro
+            dll_linkage = "DL_EXPORT"
+        elif entry.visibility == 'private':
+            storage_class = "static "
+            dll_linkage = None
+        else:
+            storage_class = "static "
+            dll_linkage = None
+        type = entry.type
+
+        if entry.defined_in_pxd and not definition:
+            storage_class = "static "
+            dll_linkage = None
+            type = CPtrType(type)
+
+        header = type.declaration_code(entry.cname,
+                                       dll_linkage = dll_linkage)
+        if entry.func_modifiers:
+            modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
+        else:
+            modifiers = ''
+        code.putln("%s%s%s; /*proto*/" % (
+            storage_class,
+            modifiers,
+            header))
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
@@ -2444,11 +2524,7 @@ static PyObject *__Pyx_ImportModule(const char *name) {
     PyObject *py_name = 0;
     PyObject *py_module = 0;
 
-    #if PY_MAJOR_VERSION < 3
-    py_name = PyString_FromString(name);
-    #else
-    py_name = PyUnicode_FromString(name);
-    #endif
+    py_name = __Pyx_PyIdentifier_FromString(name);
     if (!py_name)
         goto bad;
     py_module = PyImport_Import(py_name);
@@ -2481,11 +2557,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
         goto bad;
-    #if PY_MAJOR_VERSION < 3
-    py_name = PyString_FromString(class_name);
-    #else
-    py_name = PyUnicode_FromString(class_name);
-    #endif
+    py_name = __Pyx_PyIdentifier_FromString(class_name);
     if (!py_name)
         goto bad;
     result = PyObject_GetAttr(py_module, py_name);
@@ -2937,6 +3009,9 @@ proto="""
   #define __Pyx_XGOTREF(r)
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
+
+#define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
+#define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
 """,
 impl="""
 #if CYTHON_REFNANNY

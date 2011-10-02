@@ -1,5 +1,5 @@
 #
-#   Pyrex - C naming conventions
+#   C naming conventions
 #
 #
 #   Prefixes for generating C names.
@@ -38,10 +38,8 @@ typeobj_prefix    = pyrex_prefix + "type_"
 var_prefix        = pyrex_prefix + "v_"
 varptr_prefix     = pyrex_prefix + "vp_"
 wrapperbase_prefix= pyrex_prefix + "wrapperbase_"
-bufstruct_prefix  = pyrex_prefix + "bstruct_"
-bufstride_prefix  = pyrex_prefix + "bstride_"
-bufshape_prefix   = pyrex_prefix + "bshape_"
-bufsuboffset_prefix  = pyrex_prefix + "boffset_"
+pybuffernd_prefix   = pyrex_prefix + "pybuffernd_"
+pybufferstruct_prefix  = pyrex_prefix + "pybuffer_"
 vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
@@ -108,6 +106,14 @@ exc_type_name   = pyrex_prefix + "exc_type"
 exc_value_name  = pyrex_prefix + "exc_value"
 exc_tb_name     = pyrex_prefix + "exc_tb"
 exc_lineno_name = pyrex_prefix + "exc_lineno"
+
+parallel_exc_type = pyrex_prefix + "parallel_exc_type"
+parallel_exc_value = pyrex_prefix + "parallel_exc_value"
+parallel_exc_tb = pyrex_prefix + "parallel_exc_tb"
+parallel_filename = pyrex_prefix + "parallel_filename"
+parallel_lineno = pyrex_prefix + "parallel_lineno"
+parallel_clineno = pyrex_prefix + "parallel_clineno"
+parallel_why = pyrex_prefix + "parallel_why"
 
 exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
 

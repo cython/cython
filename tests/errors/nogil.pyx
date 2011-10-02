@@ -101,7 +101,6 @@ _ERRORS = u"""
 18:5: Calling gil-requiring function not allowed without gil
 27:9: Calling gil-requiring function not allowed without gil
 29:12: Assignment of Python object not allowed without gil
-31:8: Discarding owned Python object not allowed without gil
 31:16: Constructing complex number not allowed without gil
 33:8: Backquote expression not allowed without gil
 33:8: Discarding owned Python object not allowed without gil
@@ -157,6 +156,8 @@ _ERRORS = u"""
 58:14: Truth-testing Python object not allowed without gil
 60:17: Truth-testing Python object not allowed without gil
 62:8: For-loop using object bounds or target not allowed without gil
+62:14: Coercion from Python not allowed without the GIL
+62:25: Coercion from Python not allowed without the GIL
 64:8: Try-except statement not allowed without gil
 68:8: Cannot use try/finally in nogil sections unless it contains a 'with gil' statement.
 85:8: For-loop using object bounds or target not allowed without gil

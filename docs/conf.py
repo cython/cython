@@ -12,6 +12,8 @@
 # serve to show the default value.
 
 import sys
+import re
+import os.path
 
 # If your extensions are in another directory, add it here.
 sys.path.append('sphinxext')
@@ -49,10 +51,20 @@ copyright = '2011, Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ew
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
 #
-# The short X.Y version.
-version = '0.15'
 # The full version, including alpha/beta/rc tags.
-release = '0.15pre'
+release = '0.15'
+try:
+    _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
+    with open(os.path.join(os.path.dirname(__file__), '..', 'Cython', '__init__.py')) as _f:
+        for line in _f:
+            _m = _match_version(line)
+            if _m:
+                release = _m.group(1)
+                break
+except:
+    pass
+# The short X.Y version.
+version = re.sub('^([0-9]+[.][0-9]+).*', '\g<1>', release)
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:

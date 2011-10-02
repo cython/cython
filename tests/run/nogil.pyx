@@ -19,3 +19,19 @@ cdef int g(int x) nogil:
         cdef int y
         y = x + 42
         return y
+
+cdef int with_gil_func() except 0 with gil:
+    raise Exception("error!")
+
+cdef int nogil_func() nogil except 0:
+    with_gil_func()
+
+def test_nogil_exception_propagation():
+    """
+    >>> test_nogil_exception_propagation()
+    Traceback (most recent call last):
+       ...
+    Exception: error!
+    """
+    with nogil:
+        nogil_func()

@@ -1,18 +1,20 @@
 #
-#   Pyrex - Types
+#   Cython/Python language types
 #
 
 import cython
 
-from Code import UtilityCode
+from Code import UtilityCode, LazyUtilityCode, ContentHashingUtilityCode
 import StringEncoding
 import Naming
 import copy
 from Errors import error
 
+import cython
+
 class BaseType(object):
     #
-    #  Base class for all Pyrex types including pseudo-types.
+    #  Base class for all Cython types including pseudo-types.
 
     # List of attribute names of any subtypes
     subtypes = []
@@ -44,7 +46,7 @@ class BaseType(object):
         if subtypes:
             if result is None:
                 result = []
-                seen = cython.set()
+                seen = set()
 
             for attr in subtypes:
                 list_or_subtype = getattr(self, attr)
@@ -85,6 +87,14 @@ class BaseType(object):
 
         return index_name
 
+    def check_for_null_code(self, cname):
+        """
+        Return the code for a NULL-check in case an UnboundLocalError should
+        be raised if an entry of this type is referenced before assignment.
+        Returns None if no check should be performed.
+        """
+        return None
+
     def invalid_value(self):
         """
         Returns the most invalid value an object of this type can assume as a
@@ -94,10 +104,11 @@ class BaseType(object):
 
 class PyrexType(BaseType):
     #
-    #  Base class for all Pyrex types.
+    #  Base class for all Cython types
     #
     #  is_pyobject           boolean     Is a Python object type
     #  is_extension_type     boolean     Is a Python extension type
+    #  is_final_type         boolean     Is a final extension type
     #  is_numeric            boolean     Is a C numeric type
     #  is_int                boolean     Is a C integer type
     #  is_float              boolean     Is a C floating point type
@@ -132,7 +143,7 @@ class PyrexType(BaseType):
     #      'DL_IMPORT', and will be added to the base type part of
     #      the declaration.
     #    * If pyrex = 1, this is for use in a 'cdef extern'
-    #      statement of a Pyrex include file.
+    #      statement of a Cython include file.
     #
     #  assignable_from(src_type)
     #    Tests whether a variable of this type can be
@@ -150,6 +161,7 @@ class PyrexType(BaseType):
     is_pyobject = 0
     is_unspecified = 0
     is_extension_type = 0
+    is_final_type = 0
     is_builtin_type = 0
     is_numeric = 0
     is_int = 0
@@ -172,6 +184,7 @@ class PyrexType(BaseType):
     is_returncode = 0
     is_error = 0
     is_buffer = 0
+    is_memoryviewslice = 0
     has_attributes = 0
     default_value = ""
 
@@ -226,6 +239,13 @@ class PyrexType(BaseType):
         # used for constructing a stack for walking the run-time
         # type information of the struct.
         return 1
+
+    def global_init_code(self, entry, code):
+        # abstract
+        pass
+
+    def needs_nonecheck(self):
+        return 0
 
 
 def public_decl(base_code, dll_linkage):
@@ -377,6 +397,330 @@ class CTypedefType(BaseType):
     def py_type_name(self):
         return self.typedef_base_type.py_type_name()
 
+
+class MemoryViewSliceType(PyrexType):
+
+    is_memoryviewslice = 1
+
+    has_attributes = 1
+    scope = None
+
+    # These are specialcased in Defnode
+    from_py_function = None
+    to_py_function = None
+
+    exception_value = None
+    exception_check = True
+
+    def __init__(self, base_dtype, axes):
+        '''
+        MemoryViewSliceType(base, axes)
+
+        Base is the C base type; axes is a list of (access, packing) strings,
+        where access is one of 'full', 'direct' or 'ptr' and packing is one of
+        'contig', 'strided' or 'follow'.  There is one (access, packing) tuple
+        for each dimension.
+
+        the access specifiers determine whether the array data contains
+        pointers that need to be dereferenced along that axis when
+        retrieving/setting:
+
+        'direct' -- No pointers stored in this dimension.
+        'ptr' -- Pointer stored in this dimension.
+        'full' -- Check along this dimension, don't assume either.
+
+        the packing specifiers specify how the array elements are layed-out
+        in memory.
+
+        'contig' -- The data are contiguous in memory along this dimension.
+                At most one dimension may be specified as 'contig'.
+        'strided' -- The data aren't contiguous along this dimenison.
+        'follow' -- Used for C/Fortran contiguous arrays, a 'follow' dimension
+            has its stride automatically computed from extents of the other
+            dimensions to ensure C or Fortran memory layout.
+
+        C-contiguous memory has 'direct' as the access spec, 'contig' as the
+        *last* axis' packing spec and 'follow' for all other packing specs.
+
+        Fortran-contiguous memory has 'direct' as the access spec, 'contig' as
+        the *first* axis' packing spec and 'follow' for all other packing
+        specs.
+        '''
+        import MemoryView
+
+        self.dtype = base_dtype
+        self.axes = axes
+        self.ndim = len(axes)
+        self.flags = MemoryView.get_buf_flags(self.axes)
+
+        self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
+        assert not (self.is_c_contig and self.is_f_contig)
+
+        self.mode = MemoryView.get_mode(axes)
+        self.writable_needed = False
+
+        self.dtype_name = MemoryView.mangle_dtype_name(self.dtype)
+
+    def same_as_resolved_type(self, other_type):
+        return ((other_type.is_memoryviewslice and
+            self.dtype.same_as(other_type.dtype) and
+            self.axes == other_type.axes) or
+            other_type is error_type)
+
+    def needs_nonecheck(self):
+        return True
+
+    def is_complete(self):
+        # incomplete since the underlying struct doesn't have a cython.memoryview object.
+        return 0
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        # XXX: we put these guards in for now...
+        assert not pyrex
+        assert not dll_linkage
+        import MemoryView
+        return self.base_declaration_code(
+                MemoryView.memviewslice_cname,
+                entity_code)
+
+    def attributes_known(self):
+        if self.scope is None:
+            import Symtab
+
+            self.scope = scope = Symtab.CClassScope(
+                    'mvs_class_'+self.specialization_suffix(),
+                    None,
+                    visibility='extern')
+
+            scope.parent_type = self
+            scope.directives = {}
+
+            scope.declare_var('_data', c_char_ptr_type, None,
+                              cname='data', is_cdef=1)
+
+        return True
+
+    def declare_attribute(self, attribute):
+        import MemoryView, Options
+
+        scope = self.scope
+
+        if attribute == 'shape':
+            scope.declare_var('shape',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='shape',
+                    is_cdef=1)
+
+        elif attribute == 'strides':
+            scope.declare_var('strides',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='strides',
+                    is_cdef=1)
+
+        elif attribute == 'suboffsets':
+            scope.declare_var('suboffsets',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='suboffsets',
+                    is_cdef=1)
+
+        elif attribute in ("copy", "copy_fortran"):
+            ndim = len(self.axes)
+
+            to_axes_c = [('direct', 'contig')]
+            to_axes_f = [('direct', 'contig')]
+            if ndim-1:
+                to_axes_c = [('direct', 'follow')]*(ndim-1) + to_axes_c
+                to_axes_f = to_axes_f + [('direct', 'follow')]*(ndim-1)
+
+            to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
+            to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
+
+            cython_name_c, cython_name_f = "copy", "copy_fortran"
+            copy_name_c, copy_name_f = (
+                    MemoryView.get_copy_func_name(to_memview_c),
+                    MemoryView.get_copy_func_name(to_memview_f))
+
+
+            for (to_memview, cython_name, copy_name) in ((to_memview_c, cython_name_c, copy_name_c),
+                                                         (to_memview_f, cython_name_f, copy_name_f)):
+
+                entry = scope.declare_cfunction(cython_name,
+                            CFuncType(self,
+                                [CFuncTypeArg("memviewslice", self, None)]),
+                            pos = None,
+                            defining = 1,
+                            cname = copy_name)
+
+                entry.utility_code_definition = \
+                        MemoryView.CopyFuncUtilCode(self, to_memview)
+
+        elif attribute in ("is_c_contig", "is_f_contig"):
+            # is_c_contig and is_f_contig functions
+            for (c_or_f, cython_name) in (('c', 'is_c_contig'), ('fortran', 'is_f_contig')):
+
+                is_contig_name = \
+                        MemoryView.get_is_contig_func_name(c_or_f)
+
+                cfunctype = CFuncType(
+                        return_type=c_int_type,
+                        args=[CFuncTypeArg("memviewslice", self, None)],
+                        exception_value="-1",
+                )
+
+                entry = scope.declare_cfunction(cython_name,
+                            cfunctype,
+                            pos = None,
+                            defining = 1,
+                            cname = is_contig_name)
+
+                entry.utility_code_definition = \
+                        MemoryView.IsContigFuncUtilCode(c_or_f)
+
+        return True
+
+    def specialization_suffix(self):
+        return "%s_%s" % (self.axes_to_name(), self.dtype_name)
+
+    def can_coerce_to_pyobject(self, env):
+        return True
+
+    #def global_init_code(self, entry, code):
+    #    code.putln("%s.data = NULL;" % entry.cname)
+    #    code.putln("%s.memview = NULL;" % entry.cname)
+
+    def check_for_null_code(self, cname):
+        return cname + '.memview'
+
+    def create_from_py_utility_code(self, env):
+        import MemoryView, Buffer, Code
+
+        # We don't have 'code', so use a LazyUtilityCode with a callback.
+        def lazy_utility_callback(code):
+            context['dtype_typeinfo'] = Buffer.get_type_information_cname(
+                                                          code, self.dtype)
+            return ContentHashingUtilityCode.load(
+                        "ObjectToMemviewSlice", "MemoryView_C.c", context)
+
+        env.use_utility_code(Buffer.acquire_utility_code)
+        env.use_utility_code(MemoryView.memviewslice_init_code)
+        env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
+
+        if self.is_c_contig:
+            c_or_f_flag = "__Pyx_IS_C_CONTIG"
+        elif self.is_f_contig:
+            c_or_f_flag = "__Pyx_IS_F_CONTIG"
+        else:
+            c_or_f_flag = "0"
+
+        suffix = self.specialization_suffix()
+        funcname = "__Pyx_PyObject_to_MemoryviewSlice_" + suffix
+
+        context = dict(
+            MemoryView.context,
+            buf_flag = self.flags,
+            ndim = self.ndim,
+            axes_specs = ', '.join(self.axes_to_code()),
+            dtype_typedecl = self.dtype.declaration_code(""),
+            struct_nesting_depth = self.dtype.struct_nesting_depth(),
+            c_or_f_flag = c_or_f_flag,
+            funcname = funcname,
+        )
+
+        self.from_py_function = funcname
+        return True
+
+    def create_to_py_utility_code(self, env):
+        return True
+
+    def get_to_py_function(self, env, obj):
+        to_py_func, from_py_func = self.dtype_object_conversion_funcs(env)
+        to_py_func = "(PyObject *(*)(char *)) " + to_py_func
+        from_py_func = "(int (*)(char *, PyObject *)) " + from_py_func
+
+        tup = (obj.result(), self.ndim, to_py_func, from_py_func)
+        return "__pyx_memoryview_fromslice(&%s, %s, %s, %s);" % tup
+
+    def dtype_object_conversion_funcs(self, env):
+        import MemoryView, Code
+
+        get_function = "__pyx_memview_get_%s" % self.dtype_name
+        set_function = "__pyx_memview_set_%s" % self.dtype_name
+
+        context = dict(
+            get_function = get_function,
+            set_function = set_function,
+        )
+
+        if self.dtype.is_pyobject:
+            utility_name = "MemviewObjectToObject"
+        else:
+            to_py = self.dtype.create_to_py_utility_code(env)
+            from_py = self.dtype.create_from_py_utility_code(env)
+            if not (to_py or from_py):
+                return "NULL", "NULL"
+
+            if not self.dtype.to_py_function:
+                get_function = "NULL"
+
+            if not self.dtype.from_py_function:
+                set_function = "NULL"
+
+            utility_name = "MemviewDtypeToObject"
+            error_condition = (self.dtype.error_condition('value') or
+                               'PyErr_Occurred()')
+            context.update(
+                to_py_function = self.dtype.to_py_function,
+                from_py_function = self.dtype.from_py_function,
+                dtype = self.dtype.declaration_code(""),
+                error_condition = error_condition,
+            )
+
+        utility = ContentHashingUtilityCode.load(
+                        utility_name, "MemoryView_C.c", context=context)
+        env.use_utility_code(utility)
+        return get_function, set_function
+
+    def axes_to_code(self):
+        "Return a list of code constants for each axis"
+        import MemoryView
+        d = MemoryView._spec_to_const
+        return ["(%s | %s)" % (d[a], d[p]) for a, p in self.axes]
+
+    def axes_to_name(self):
+        "Return an abbreviated name for our axes"
+        import MemoryView
+        d = MemoryView._spec_to_abbrev
+        return "".join(["%s%s" % (d[a], d[p]) for a, p in self.axes])
+
+    def error_condition(self, result_code):
+        return "!%s.memview" % result_code
+
+    def __str__(self):
+        import MemoryView
+
+        axes_code_list = []
+        for access, packing in self.axes:
+            flag = MemoryView.get_memoryview_flag(access, packing)
+            if flag == "strided":
+                axes_code_list.append(":")
+            else:
+                axes_code_list.append("::" + flag)
+
+        if self.dtype.is_pyobject:
+            dtype_name = self.dtype.name
+        else:
+            dtype_name = self.dtype
+
+        return "%s[%s]" % (dtype_name, ", ".join(axes_code_list))
+
+
 class BufferType(BaseType):
     #
     #  Delegates most attribute
@@ -473,6 +817,12 @@ class PyObjectType(PyrexType):
     def invalid_value(self):
         return "1"
 
+    def global_init_code(self, entry, code):
+        code.put_init_var_to_py_none(entry, nanny=False)
+
+    def check_for_null_code(self, cname):
+        return cname
+
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
@@ -519,6 +869,11 @@ class BuiltinObjectType(PyObjectType):
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
         elif src_type.is_extension_type:
+            # FIXME: This is an ugly special case that we currently
+            # keep supporting.  It allows users to specify builtin
+            # types as external extension types, while keeping them
+            # compatible with the real builtin types.  We already
+            # generate a warning for it.  Big TODO: remove!
             return (src_type.module_name == '__builtin__' and
                     src_type.name == self.name)
         else:
@@ -531,7 +886,7 @@ class BuiltinObjectType(PyObjectType):
         return True
 
     def subtype_of(self, type):
-        return type.is_pyobject and self.assignable_from(type)
+        return type.is_pyobject and type.assignable_from(self)
 
     def type_check_function(self, exact=True):
         type_name = self.name
@@ -597,6 +952,9 @@ class PyExtensionType(PyObjectType):
     is_extension_type = 1
     has_attributes = 1
 
+    def needs_nonecheck(self):
+        return True
+
     objtypedef_cname = None
 
     def __init__(self, name, typedef_flag, base_type, is_external=0):
@@ -622,7 +980,7 @@ class PyExtensionType(PyObjectType):
             scope.parent_type = self
 
     def subtype_of_resolved_type(self, other_type):
-        if other_type.is_extension_type:
+        if other_type.is_extension_type or other_type.is_builtin_type:
             return self is other_type or (
                 self.base_type and self.base_type.subtype_of(other_type))
         else:
@@ -643,6 +1001,14 @@ class PyExtensionType(PyObjectType):
         if isinstance(src_type, PyExtensionType):
             if src_type.base_type is not None:
                 return self.assignable_from(src_type.base_type)
+        if isinstance(src_type, BuiltinObjectType):
+            # FIXME: This is an ugly special case that we currently
+            # keep supporting.  It allows users to specify builtin
+            # types as external extension types, while keeping them
+            # compatible with the real builtin types.  We already
+            # generate a warning for it.  Big TODO: remove!
+            return (self.module_name == '__builtin__' and
+                    self.name == src_type.name)
         return False
 
     def declaration_code(self, entity_code,
@@ -1060,7 +1426,7 @@ class CIntType(CNumericType):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
     def invalid_value(self):
-        if rank_to_type_name[self.rank] == 'char':
+        if rank_to_type_name[int(self.rank)] == 'char':
             return "'?'"
         else:
             # We do not really know the size of the type, so return
@@ -1129,7 +1495,15 @@ impl='''
 static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
    long ival;
    if (PyUnicode_Check(x)) {
-       if (likely(PyUnicode_GET_SIZE(x) == 1)) {
+       Py_ssize_t length;
+       #ifdef CYTHON_PEP393_ENABLED
+       length = PyUnicode_GET_LENGTH(x);
+       if (likely(length == 1)) {
+           return PyUnicode_READ_CHAR(x, 0);
+       }
+       #else
+       length = PyUnicode_GET_SIZE(x);
+       if (likely(length == 1)) {
            return PyUnicode_AS_UNICODE(x)[0];
        }
        #if Py_UNICODE_SIZE == 2
@@ -1143,9 +1517,10 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
            }
        }
        #endif
+       #endif
        PyErr_Format(PyExc_ValueError,
                     "only single character unicode strings can be converted to Py_UCS4, "
-                    "got length %"PY_FORMAT_SIZE_T"d", PyUnicode_GET_SIZE(x));
+                    "got length %"PY_FORMAT_SIZE_T"d", length);
        return (Py_UCS4)-1;
    }
    ival = __Pyx_PyInt_AsLong(x);
@@ -1190,31 +1565,42 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject*);
 ''',
 impl='''
 static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
-   static long maxval = 0;
-   long ival;
-   if (PyUnicode_Check(x)) {
-       if (unlikely(PyUnicode_GET_SIZE(x) != 1)) {
-           PyErr_Format(PyExc_ValueError,
-                        "only single character unicode strings can be converted to Py_UNICODE, "
-                        "got length %"PY_FORMAT_SIZE_T"d", PyUnicode_GET_SIZE(x));
-           return (Py_UNICODE)-1;
-       }
-       return PyUnicode_AS_UNICODE(x)[0];
-   }
-   if (unlikely(!maxval))
-       maxval = (long)PyUnicode_GetMax();
-   ival = __Pyx_PyInt_AsLong(x);
-   if (unlikely(ival < 0)) {
-       if (!PyErr_Occurred())
-           PyErr_SetString(PyExc_OverflowError,
-                           "cannot convert negative value to Py_UNICODE");
-       return (Py_UNICODE)-1;
-   } else if (unlikely(ival > maxval)) {
-       PyErr_SetString(PyExc_OverflowError,
-                       "value too large to convert to Py_UNICODE");
-       return (Py_UNICODE)-1;
-   }
-   return (Py_UNICODE)ival;
+    long ival;
+    #ifdef CYTHON_PEP393_ENABLED
+    const long maxval = 1114111;
+    #else
+    static long maxval = 0;
+    #endif
+    if (PyUnicode_Check(x)) {
+        if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
+            PyErr_Format(PyExc_ValueError,
+                         "only single character unicode strings can be converted to Py_UNICODE, "
+                         "got length %"PY_FORMAT_SIZE_T"d", __Pyx_PyUnicode_GET_LENGTH(x));
+            return (Py_UNICODE)-1;
+        }
+        #ifdef CYTHON_PEP393_ENABLED
+        ival = PyUnicode_READ_CHAR(x, 0);
+        #else
+        return PyUnicode_AS_UNICODE(x)[0];
+        #endif
+    } else {
+        #ifndef CYTHON_PEP393_ENABLED
+        if (unlikely(!maxval))
+            maxval = (long)PyUnicode_GetMax();
+        #endif
+        ival = __Pyx_PyInt_AsLong(x);
+    }
+    if (unlikely(ival < 0)) {
+        if (!PyErr_Occurred())
+            PyErr_SetString(PyExc_OverflowError,
+                            "cannot convert negative value to Py_UNICODE");
+        return (Py_UNICODE)-1;
+    } else if (unlikely(ival > maxval)) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "value too large to convert to Py_UNICODE");
+        return (Py_UNICODE)-1;
+    }
+    return (Py_UNICODE)ival;
 }
 ''')
 
@@ -1844,6 +2230,8 @@ class CFuncType(CType):
     #  cached_specialized_types [CFuncType]   cached specialized versions of the CFuncType if defined in a pxd
     #  from_fused       boolean    Indicates whether this is a specialized
     #                              C function
+    #  is_strict_signature boolean  function refuses to accept coerced arguments
+    #                               (used for optimisation overrides)
 
     is_cfunction = 1
     original_sig = None
@@ -1855,7 +2243,7 @@ class CFuncType(CType):
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
-            templates = None):
+            templates = None, is_strict_signature = False):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -1867,6 +2255,7 @@ class CFuncType(CType):
         self.with_gil = with_gil
         self.is_overridable = is_overridable
         self.templates = templates
+        self.is_strict_signature = is_strict_signature
 
     def __repr__(self):
         arg_reprs = map(repr, self.args)
@@ -2235,6 +2624,7 @@ class CFuncTypeArg(BaseType):
     not_none = False
     or_none = False
     accept_none = True
+    accept_builtin_subtypes = False
 
     subtypes = ['type']
 
@@ -2257,16 +2647,24 @@ class CFuncTypeArg(BaseType):
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
 
-class StructUtilityCode(object):
+class ToPyStructUtilityCode(object):
+
+    requires = None
+
     def __init__(self, type, forward_decl):
         self.type = type
-        self.header = "static PyObject* %s(%s)" % (type.to_py_function, type.declaration_code('s'))
+        self.header = "static PyObject* %s(%s)" % (type.to_py_function,
+                                                   type.declaration_code('s'))
         self.forward_decl = forward_decl
 
     def __eq__(self, other):
-        return isinstance(other, StructUtilityCode) and self.header == other.header
+        return isinstance(other, ToPyStructUtilityCode) and self.header == other.header
+
     def __hash__(self):
         return hash(self.header)
+
+    def get_tree(self):
+        pass
 
     def put_code(self, output):
         code = output['utility_code_def']
@@ -2295,6 +2693,9 @@ class StructUtilityCode(object):
             proto.putln(self.type.declaration_code('') + ';')
         proto.putln(self.header + ";")
 
+    def inject_tree_and_scope_into(self, module_node):
+        pass
+
 
 class CStructOrUnionType(CType):
     #  name          string
@@ -2308,6 +2709,7 @@ class CStructOrUnionType(CType):
 
     is_struct_or_union = 1
     has_attributes = 1
+    exception_check = True
 
     def __init__(self, name, kind, scope, typedef_flag, cname, packed=False):
         self.name = name
@@ -2318,26 +2720,63 @@ class CStructOrUnionType(CType):
         self.is_struct = kind == 'struct'
         if self.is_struct:
             self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
+            self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
         self.exception_check = True
-        self._convert_code = None
+        self._convert_to_py_code = None
+        self._convert_from_py_code = None
         self.packed = packed
 
     def create_to_py_utility_code(self, env):
         if env.outer_scope is None:
             return False
 
-        if self._convert_code is False: return # tri-state-ish
+        if self._convert_to_py_code is False: return # tri-state-ish
 
-        if self._convert_code is None:
+        if self._convert_to_py_code is None:
             for member in self.scope.var_entries:
                 if not member.type.to_py_function or not member.type.create_to_py_utility_code(env):
                     self.to_py_function = None
-                    self._convert_code = False
+                    self._convert_to_py_code = False
                     return False
             forward_decl = (self.entry.visibility != 'extern')
-            self._convert_code = StructUtilityCode(self, forward_decl)
+            self._convert_to_py_code = ToPyStructUtilityCode(self, forward_decl)
 
-        env.use_utility_code(self._convert_code)
+        env.use_utility_code(self._convert_to_py_code)
+        return True
+
+    def create_from_py_utility_code(self, env):
+        if env.outer_scope is None:
+            return False
+
+        if self._convert_from_py_code is False: return # tri-state-ish
+
+        if self._convert_from_py_code is None:
+            for member in self.scope.var_entries:
+                if (not member.type.from_py_function or not
+                        member.type.create_from_py_utility_code(env)):
+                    self.from_py_function = None
+                    self._convert_from_py_code = False
+                    return False
+
+            forward_decl = (self.entry.visibility != 'extern')
+
+            # Avoid C compiler warnings
+            nesting_depth = 0
+            type = self
+            while type.is_struct_or_union:
+                type = type.scope.var_entries[0].type
+                nesting_depth += 1
+
+            context = dict(
+                struct_type_decl = self.declaration_code(""),
+                var_entries = self.scope.var_entries,
+                funcname = self.from_py_function,
+                init = '%s 0 %s' % ('{' * nesting_depth, '}' * nesting_depth)
+            )
+            self._convert_from_py_code = ContentHashingUtilityCode.load(
+                      "FromPyStructUtility", "TypeConversion.c", context)
+
+        env.use_utility_code(self._convert_from_py_code)
         return True
 
     def __repr__(self):
@@ -2750,6 +3189,21 @@ cy_numeric_type = FusedType([c_long_type,
                              c_double_type,
                              c_double_complex_type], name="numeric")
 
+# buffer-related structs
+c_buf_diminfo_type =  CStructOrUnionType("__Pyx_Buf_DimInfo", "struct",
+                                      None, 1, "__Pyx_Buf_DimInfo")
+c_pyx_buffer_type = CStructOrUnionType("__Pyx_Buffer", "struct", None, 1, "__Pyx_Buffer")
+c_pyx_buffer_ptr_type = CPtrType(c_pyx_buffer_type)
+c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
+                                      None, 1, "__Pyx_LocalBuf_ND")
+
+cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
+                                      None, 0, "__pyx_memoryview_obj")
+
+cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
+
+memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
+                                          None, 1, "__Pyx_memviewslice")
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
@@ -2912,6 +3366,10 @@ def best_match(args, functions, pos=None, env=None):
             if assignable:
                 if src_type == dst_type or dst_type.same_as(src_type):
                     pass # score 0
+                elif func_type.is_strict_signature:
+                    break # exact match requested but not found
+                elif is_promotion(src_type, dst_type):
+                    score[2] += 1
                 elif ((src_type.is_int and dst_type.is_int) or
                       (src_type.is_float and dst_type.is_float)):
                     score[2] += abs(dst_type.rank + (not dst_type.signed) -

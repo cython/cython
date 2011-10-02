@@ -1,6 +1,5 @@
 import tempfile
 import sys, os, re, inspect
-from cython import set
 
 try:
     import hashlib
@@ -15,7 +14,9 @@ from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
 from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, AnalyseDeclarationsTransform
 from Cython.Compiler.TreeFragment import parse_from_strings
-from Cython.Build.Dependencies import strip_string_literals, cythonize
+from Cython.Build.Dependencies import strip_string_literals, cythonize, cached_function
+from Cython.Compiler import Pipeline
+import cython as cython_module
 
 # A utility function to convert user-supplied ASCII strings to unicode.
 if sys.version_info[0] < 3:
@@ -37,13 +38,14 @@ class AllSymbols(CythonTransform, SkipDeclarations):
     def visit_NameNode(self, node):
         self.names.add(node.name)
 
+@cached_function
 def unbound_symbols(code, context=None):
     code = to_unicode(code)
     if context is None:
         context = Context([], default_options)
     from Cython.Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
     tree = parse_from_strings('(tree fragment)', code)
-    for phase in context.create_pipeline(pxd=False):
+    for phase in Pipeline.create_pipeline(context, 'pyx'):
         if phase is None:
             continue
         tree = phase(tree)
@@ -103,6 +105,7 @@ def cython_inline(code,
     if get_type is None:
         get_type = lambda x: 'object'
     code = to_unicode(code)
+    orig_code = code
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
     ctx = Context(cython_include_dirs, default_options)
@@ -124,10 +127,15 @@ def cython_inline(code,
         if not quiet:
             # Parsing from strings not fully supported (e.g. cimports).
             print("Could not parse code as a string (to extract unbound symbols).")
+    cimports = []
+    for name, arg in kwds.items():
+        if arg is cython_module:
+            cimports.append('\ncimport cython as %s' % name)
+            del kwds[name]
     arg_names = kwds.keys()
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
-    key = code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
+    key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
     try:
         if not os.path.exists(lib_dir):
@@ -141,7 +149,6 @@ def cython_inline(code,
     except ImportError:
         cflags = []
         c_include_dirs = []
-        cimports = []
         qualified = re.compile(r'([.\w]+)[.]')
         for type, _ in arg_sigs:
             m = qualified.match(type)

@@ -204,6 +204,13 @@ class FileSourceDescriptor(SourceDescriptor):
     def get_description(self):
         return self.path_description
 
+    def get_error_description(self):
+        path = self.filename
+        cwd = Utils.decode_filename(os.getcwd() + os.path.sep)
+        if path.startswith(cwd):
+            return path[len(cwd):]
+        return path
+
     def get_filenametable_entry(self):
         return self.filename
 
@@ -239,11 +246,16 @@ class StringSourceDescriptor(SourceDescriptor):
     def get_description(self):
         return self.name
 
+    get_error_description = get_description
+
     def get_filenametable_entry(self):
         return "stringsource"
 
     def __hash__(self):
-        return hash(self.name)
+        return id(self)
+        # Do not hash on the name, an identical string source should be the
+        # same object (name is often defaulted in other places)
+        # return hash(self.name)
 
     def __eq__(self, other):
         return isinstance(other, StringSourceDescriptor) and self.name == other.name
@@ -279,10 +291,10 @@ class PyrexScanner(Scanner):
         self.source_encoding = source_encoding
         if filename.is_python_file():
             self.in_python_file = True
-            self.keywords = cython.set(py_reserved_words)
+            self.keywords = set(py_reserved_words)
         else:
             self.in_python_file = False
-            self.keywords = cython.set(pyx_reserved_words)
+            self.keywords = set(pyx_reserved_words)
         self.trace = trace_scanner
         self.indentation_stack = [0]
         self.indentation_char = None
