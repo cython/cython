@@ -530,6 +530,12 @@ def check_definitions(flow, compiler_directives):
 
     messages.report()
 
+    # Remove Uninitialized from cf_state
+    for node in assmt_nodes:
+        node.cf_state.discard(Uninitialized)
+    for node in references:
+        node.cf_state.discard(Uninitialized)
+
 
 class AssignmentCollector(TreeVisitor):
     def __init__(self):
