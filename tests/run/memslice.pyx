@@ -1,33 +1,37 @@
-# Tests the buffer access syntax functionality by constructing
-# mock buffer objects.
-#
-# Note that the buffers are mock objects created for testing
-# the buffer access behaviour -- for instance there is no flag
-# checking in the buffer objects (why test our test case?), rather
-# what we want to test is what is passed into the flags argument.
-#
+# mode: run
+
+# Note: see also bufaccess.pyx
 
 from __future__ import unicode_literals
 
-__test__ = {}
+cimport cython
+from cython cimport view
+from cython.parallel cimport prange
+
+print cython.array
 
 import sys
 import re
-exclude = []#re.compile('object').search]
+
+__test__ = {}
 
 def testcase(func):
-    for e in exclude:
-        if e(func.__name__):
-            return func
     doctest = func.__doc__
     if sys.version_info >= (3,1,1):
         doctest = doctest.replace('does not have the buffer interface',
                                   'does not support the buffer interface')
+    if sys.version_info >= (3, 0):
+        _u = str
+    else:
+        _u = unicode
+    if not isinstance(doctest, _u):
+        doctest = doctest.decode('UTF-8')
     __test__[func.__name__] = doctest
     return func
 
 
 include "mockbuffers.pxi"
+include "cythonarrayutil.pxi"
 
 #
 # Buffer acquire and release tests
@@ -37,7 +41,7 @@ def nousage():
     """
     The challenge here is just compilation.
     """
-    cdef object[int, ndim=2] buf
+    cdef int[:, :] buf
 
 @testcase
 def acquire_release(o1, o2):
@@ -46,15 +50,15 @@ def acquire_release(o1, o2):
     >>> B = IntMockBuffer("B", range(6))
     >>> acquire_release(A, B)
     acquired A
+    acquired B
     released A
-    acquired B
     released B
-    >>> acquire_release(None, None)
     >>> acquire_release(None, B)
-    acquired B
-    released B
+    Traceback (most recent call last):
+       ...
+    TypeError: 'NoneType' does not have the buffer interface
     """
-    cdef object[int] buf
+    cdef int[:] buf
     buf = o1
     buf = o2
 
@@ -75,7 +79,7 @@ def acquire_raise(o):
     released A
 
     """
-    cdef object[int] buf
+    cdef int[:] buf
     buf = o
     raise Exception("on purpose")
 
@@ -88,7 +92,7 @@ def acquire_failure1():
     0 3
     released working
     """
-    cdef object[int] buf
+    cdef int[:] buf
     buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
@@ -106,7 +110,7 @@ def acquire_failure2():
     0 3
     released working
     """
-    cdef object[int] buf = IntMockBuffer("working", range(4))
+    cdef int[:] buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
         buf = ErrorBuffer()
@@ -120,52 +124,17 @@ def acquire_failure3():
     >>> acquire_failure3()
     acquired working
     0 3
-    released working
-    acquired working
     0 3
     released working
     """
-    cdef object[int] buf
+    cdef int[:] buf
     buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
-        buf = 3
+        buf = object()
         assert False
     except Exception:
         print buf[0], buf[3]
-
-@testcase
-def acquire_failure4():
-    """
-    >>> acquire_failure4()
-    acquired working
-    0 3
-    released working
-    acquired working
-    0 3
-    released working
-    """
-    cdef object[int] buf = IntMockBuffer("working", range(4))
-    print buf[0], buf[3]
-    try:
-        buf = 2
-        assert False
-    except Exception:
-        print buf[0], buf[3]
-
-@testcase
-def acquire_failure5():
-    """
-    >>> acquire_failure5()
-    Traceback (most recent call last):
-       ...
-    ValueError: Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!
-    """
-    cdef object[int] buf
-    buf = IntMockBuffer("working", range(4))
-    buf.fail = True
-    buf = 3
-
 
 @testcase
 def acquire_nonbuffer1(first, second=None):
@@ -181,9 +150,13 @@ def acquire_nonbuffer1(first, second=None):
     >>> acquire_nonbuffer1(None, 2)
     Traceback (most recent call last):
       ...
+    TypeError: 'NoneType' does not have the buffer interface
+    >>> acquire_nonbuffer1(4, object())
+    Traceback (most recent call last):
+      ...
     TypeError: 'int' does not have the buffer interface
     """
-    cdef object[int] buf
+    cdef int[:] buf
     buf = first
     buf = second
 
@@ -193,12 +166,10 @@ def acquire_nonbuffer2():
     >>> acquire_nonbuffer2()
     acquired working
     0 3
-    released working
-    acquired working
     0 3
     released working
     """
-    cdef object[int] buf = IntMockBuffer("working", range(4))
+    cdef int[:] buf = IntMockBuffer("working", range(4))
     print buf[0], buf[3]
     try:
         buf = ErrorBuffer
@@ -206,9 +177,8 @@ def acquire_nonbuffer2():
     except Exception:
         print buf[0], buf[3]
 
-
 @testcase
-def as_argument(object[int] bufarg, int n):
+def as_argument(int[:] bufarg, int n):
     """
     >>> A = IntMockBuffer("A", range(6))
     >>> as_argument(A, 6)
@@ -222,12 +192,10 @@ def as_argument(object[int] bufarg, int n):
     print 'END'
 
 @testcase
-def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), int n=6):
+def as_argument_defval(int[:] bufarg=IntMockBuffer('default', range(6)), int n=6):
     """
     >>> as_argument_defval()
-    acquired default
     0 1 2 3 4 5 END
-    released default
     >>> A = IntMockBuffer("A", range(6))
     >>> as_argument_defval(A, 6)
     acquired A
@@ -249,7 +217,7 @@ def cdef_assignment(obj, n):
     released A
 
     """
-    cdef object[int] buf = obj
+    cdef int[:] buf = obj
     cdef int i
     for i in range(n):
         print buf[i],
@@ -263,18 +231,18 @@ def forin_assignment(objs, int pick):
     >>> forin_assignment([A, B, A, A], 2)
     acquired A
     2
-    released A
     acquired B
-    2
-    released B
-    acquired A
-    2
     released A
+    2
     acquired A
+    released B
+    2
+    acquired A
+    released A
     2
     released A
     """
-    cdef object[int] buf
+    cdef int[:] buf
     for buf in objs:
         print buf[pick]
 
@@ -288,7 +256,7 @@ def cascaded_buffer_assignment(obj):
     released A
     released A
     """
-    cdef object[int] a, b
+    cdef int[:] a, b
     a = b = obj
 
 @testcase
@@ -302,7 +270,7 @@ def tuple_buffer_assignment1(a, b):
     released A
     released B
     """
-    cdef object[int] x, y
+    cdef int[:] x, y
     x, y = a, b
 
 @testcase
@@ -316,7 +284,7 @@ def tuple_buffer_assignment2(tup):
     released A
     released B
     """
-    cdef object[int] x, y
+    cdef int[:] x, y
     x, y = tup
 
 @testcase
@@ -327,15 +295,15 @@ def explicitly_release_buffer():
     released A
     After release
     """
-    cdef object[int] x = IntMockBuffer("A", range(10))
-    x = None
+    cdef int[:] x = IntMockBuffer("A", range(10))
+    del x
     print "After release"
 
 #
 # Getting items and index bounds checking
 #
 @testcase
-def get_int_2d(object[int, ndim=2] buf, int i, int j):
+def get_int_2d(int[:, :] buf, int i, int j):
     """
     >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d(C, 1, 1)
@@ -370,7 +338,7 @@ def get_int_2d(object[int, ndim=2] buf, int i, int j):
     return buf[i, j]
 
 @testcase
-def get_int_2d_uintindex(object[int, ndim=2] buf, unsigned int i, unsigned int j):
+def get_int_2d_uintindex(int[:, :] buf, unsigned int i, unsigned int j):
     """
     Unsigned indexing:
     >>> C = IntMockBuffer("C", range(6), (2,3))
@@ -388,7 +356,7 @@ def get_int_2d_uintindex(object[int, ndim=2] buf, unsigned int i, unsigned int j
     return buf[i, j]
 
 @testcase
-def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
+def set_int_2d(int[:, :] buf, int i, int j, int value):
     """
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
@@ -441,7 +409,7 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     buf[i, j] = value
 
 @testcase
-def list_comprehension(object[int] buf, len):
+def list_comprehension(int[:] buf, len):
     """
     >>> list_comprehension(IntMockBuffer(None, [1,2,3]), 3)
     1|2|3
@@ -449,28 +417,9 @@ def list_comprehension(object[int] buf, len):
     cdef int i
     print u"|".join([unicode(buf[i]) for i in range(len)])
 
-#
-# The negative_indices buffer option
-#
-@testcase
-def no_negative_indices(object[int, negative_indices=False] buf, int idx):
-    """
-    The most interesting thing here is to inspect the C source and
-    make sure optimal code is produced.
-
-    >>> A = IntMockBuffer(None, range(6))
-    >>> no_negative_indices(A, 3)
-    3
-    >>> no_negative_indices(A, -1)
-    Traceback (most recent call last):
-        ...
-    IndexError: Out of bounds on buffer access (axis 0)
-    """
-    return buf[idx]
-
 @testcase
 @cython.wraparound(False)
-def wraparound_directive(object[int] buf, int pos_idx, int neg_idx):
+def wraparound_directive(int[:] buf, int pos_idx, int neg_idx):
     """
     Again, the most interesting thing here is to inspect the C source.
 
@@ -489,21 +438,8 @@ def wraparound_directive(object[int] buf, int pos_idx, int neg_idx):
 
 
 #
-# Test which flags are passed.
+# Test all kinds of indexing and flags
 #
-@testcase
-def readonly(obj):
-    """
-    >>> R = UnsignedShortMockBuffer("R", range(27), shape=(3, 3, 3))
-    >>> readonly(R)
-    acquired R
-    25
-    released R
-    >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
-    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
-    """
-    cdef object[unsigned short int, ndim=3] buf = obj
-    print buf[2, 2, 1]
 
 @testcase
 def writable(obj):
@@ -513,13 +449,13 @@ def writable(obj):
     acquired R
     released R
     >>> [str(x) for x in R.recieved_flags] # Py2/3
-    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
-    cdef object[unsigned short int, ndim=3] buf = obj
+    cdef unsigned short int[:, :, :] buf = obj
     buf[2, 2, 1] = 23
 
 @testcase
-def strided(object[int, ndim=1, mode='strided'] buf):
+def strided(int[:] buf):
     """
     >>> A = IntMockBuffer("A", range(4))
     >>> strided(A)
@@ -527,7 +463,7 @@ def strided(object[int, ndim=1, mode='strided'] buf):
     released A
     2
     >>> [str(x) for x in A.recieved_flags] # Py2/3
-    ['FORMAT', 'ND', 'STRIDES']
+    ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
 
     Check that the suboffsets were patched back prior to release.
     >>> A.release_ok
@@ -536,18 +472,18 @@ def strided(object[int, ndim=1, mode='strided'] buf):
     return buf[2]
 
 @testcase
-def c_contig(object[int, ndim=1, mode='c'] buf):
+def c_contig(int[::1] buf):
     """
     >>> A = IntMockBuffer(None, range(4))
     >>> c_contig(A)
     2
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS', 'WRITABLE']
     """
     return buf[2]
 
 @testcase
-def c_contig_2d(object[int, ndim=2, mode='c'] buf):
+def c_contig_2d(int[:, ::1] buf):
     """
     Multi-dim has seperate implementation
 
@@ -555,23 +491,23 @@ def c_contig_2d(object[int, ndim=2, mode='c'] buf):
     >>> c_contig_2d(A)
     7
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS', 'WRITABLE']
     """
     return buf[1, 3]
 
 @testcase
-def f_contig(object[int, ndim=1, mode='fortran'] buf):
+def f_contig(int[::1, :] buf):
     """
-    >>> A = IntMockBuffer(None, range(4))
+    >>> A = IntMockBuffer(None, range(4), shape=(2, 2), strides=(1, 2))
     >>> f_contig(A)
     2
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS', 'WRITABLE']
     """
-    return buf[2]
+    return buf[0, 1]
 
 @testcase
-def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
+def f_contig_2d(int[::1, :] buf):
     """
     Must set up strides manually to ensure Fortran ordering.
 
@@ -579,9 +515,131 @@ def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
     >>> f_contig_2d(A)
     7
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS', 'WRITABLE']
     """
     return buf[3, 1]
+
+@testcase
+def generic(int[::view.generic, ::view.generic] buf1,
+            int[::view.generic, ::view.generic] buf2):
+    """
+    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> generic(A, B)
+    acquired A
+    acquired B
+    4
+    4
+    10
+    11
+    released A
+    released B
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    >>> [str(x) for x in B.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    print buf1[1, 1]
+    print buf2[1, 1]
+
+    buf1[2, -1] = 10
+    buf2[2, -1] = 11
+
+    print buf1[2, 2]
+    print buf2[2, 2]
+
+# Note: disabled. generic_contiguous isn't very useful (you have to check suboffsets,
+#                                                       might as well multiply with strides)
+# def generic_contig(int[::view.generic_contiguous, :] buf1,
+#                    int[::view.generic_contiguous, :] buf2):
+#     """
+#     >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+#     >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+#     >>> generic_contig(A, B)
+#     acquired A
+#     acquired B
+#     4
+#     4
+#     10
+#     11
+#     released A
+#     released B
+#     >>> [str(x) for x in A.recieved_flags]
+#     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+#     >>> [str(x) for x in B.recieved_flags]
+#     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+#     """
+#     print buf1[1, 1]
+#     print buf2[1, 1]
+#
+#     buf1[2, -1] = 10
+#     buf2[2, -1] = 11
+#
+#     print buf1[2, 2]
+#     print buf2[2, 2]
+
+@testcase
+def indirect_strided_and_contig(
+             int[::view.indirect, ::view.strided] buf1,
+             int[::view.indirect, ::view.contiguous] buf2):
+    """
+    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> indirect_strided_and_contig(A, B)
+    acquired A
+    acquired B
+    4
+    4
+    10
+    11
+    released A
+    released B
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    >>> [str(x) for x in B.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    print buf1[1, 1]
+    print buf2[1, 1]
+
+    buf1[2, -1] = 10
+    buf2[2, -1] = 11
+
+    print buf1[2, 2]
+    print buf2[2, 2]
+
+
+@testcase
+def indirect_contig(
+             int[::view.indirect_contiguous, ::view.contiguous] buf1,
+             int[::view.indirect_contiguous, ::view.generic] buf2):
+    """
+    >>> A = IntMockBuffer("A", [[0,1,2], [3,4,5], [6,7,8]])
+    >>> B = IntMockBuffer("B", [[0,1,2], [3,4,5], [6,7,8]], shape=(3, 3), strides=(1, 3))
+    >>> indirect_contig(A, B)
+    acquired A
+    acquired B
+    4
+    4
+    10
+    11
+    released A
+    released B
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    >>> [str(x) for x in B.recieved_flags]
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    print buf1[1, 1]
+    print buf2[1, 1]
+
+    buf1[2, -1] = 10
+    buf2[2, -1] = 11
+
+    print buf1[2, 2]
+    print buf2[2, 2]
+
+
 
 #
 # Test compiler options for bounds checking. We create an array with a
@@ -590,7 +648,7 @@ def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
 # what we stored in the memory or an error.
 
 @testcase
-def safe_get(object[int] buf, int idx):
+def safe_get(int[:] buf, int idx):
     """
     >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
 
@@ -619,7 +677,7 @@ def safe_get(object[int] buf, int idx):
 @testcase
 @cython.boundscheck(False) # outer decorators should take precedence
 @cython.boundscheck(True)
-def unsafe_get(object[int] buf, int idx):
+def unsafe_get(int[:] buf, int idx):
     """
     Access outside of the area the buffer publishes.
     >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
@@ -633,19 +691,7 @@ def unsafe_get(object[int] buf, int idx):
     return buf[idx]
 
 @testcase
-@cython.boundscheck(False)
-def unsafe_get_nonegative(object[int, negative_indices=False] buf, int idx):
-    """
-    Also inspect the C source to see that it is optimal...
-
-    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
-    >>> unsafe_get_nonegative(A, -2)
-    3
-    """
-    return buf[idx]
-
-@testcase
-def mixed_get(object[int] buf, int unsafe_idx, int safe_idx):
+def mixed_get(int[:] buf, int unsafe_idx, int safe_idx):
     """
     >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
     >>> mixed_get(A, -4, 0)
@@ -662,30 +708,11 @@ def mixed_get(object[int] buf, int unsafe_idx, int safe_idx):
     return (one, two)
 
 #
-# Coercions
-#
-## @testcase
-## def coercions(object[unsigned char] uc):
-##     """
-## TODO
-##     """
-##     print type(uc[0])
-##     uc[0] = -1
-##     print uc[0]
-##     uc[0] = <int>3.14
-##     print uc[0]
-
-##     cdef char* ch = b"asfd"
-##     cdef object[object] objbuf
-##     objbuf[3] = ch
-
-
-#
 # Testing that accessing data using various types of buffer access
 # all works.
 #
 
-def printbuf_int(object[int] buf, shape):
+def printbuf_int(int[:] buf, shape):
     # Utility func
     cdef int i
     for i in range(shape[0]):
@@ -718,7 +745,7 @@ def printbuf_int_2d(o, shape):
     released A
     """
     # should make shape builtin
-    cdef object[int, ndim=2] buf
+    cdef int[::view.generic, ::view.generic] buf
     buf = o
     cdef int i, j
     for i in range(shape[0]):
@@ -736,7 +763,7 @@ def printbuf_float(o, shape):
     """
 
     # should make shape builtin
-    cdef object[float] buf
+    cdef float[:] buf
     buf = o
     cdef int i, j
     for i in range(shape[0]):
@@ -748,7 +775,7 @@ def printbuf_float(o, shape):
 # Test assignments
 #
 @testcase
-def inplace_operators(object[int] buf):
+def inplace_operators(int[:] buf):
     """
     >>> buf = IntMockBuffer(None, [2, 2])
     >>> inplace_operators(buf)
@@ -776,7 +803,7 @@ cdef extern from "bufaccess.h":
 ctypedef td_h_short td_h_cy_short
 
 @testcase
-def printbuf_td_cy_int(object[td_cy_int] buf, shape):
+def printbuf_td_cy_int(td_cy_int[:] buf, shape):
     """
     >>> printbuf_td_cy_int(IntMockBuffer(None, range(3)), (3,))
     0 1 2 END
@@ -791,7 +818,7 @@ def printbuf_td_cy_int(object[td_cy_int] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_short(object[td_h_short] buf, shape):
+def printbuf_td_h_short(td_h_short[:] buf, shape):
     """
     >>> printbuf_td_h_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
@@ -806,7 +833,7 @@ def printbuf_td_h_short(object[td_h_short] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
+def printbuf_td_h_cy_short(td_h_cy_short[:] buf, shape):
     """
     >>> printbuf_td_h_cy_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
@@ -821,7 +848,7 @@ def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
+def printbuf_td_h_ushort(td_h_ushort[:] buf, shape):
     """
     >>> printbuf_td_h_ushort(UnsignedShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
@@ -836,7 +863,7 @@ def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_td_h_double(object[td_h_double] buf, shape):
+def printbuf_td_h_double(td_h_double[:] buf, shape):
     """
     >>> printbuf_td_h_double(DoubleMockBuffer(None, [0.25, 1, 3.125]), (3,))
     0.25 1.0 3.125 END
@@ -863,7 +890,7 @@ def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
 @testcase
-def printbuf_object(object[object] buf, shape):
+def printbuf_object(object[:] buf, shape):
     """
     Only play with unique objects, interned numbers etc. will have
     unpredictable refcounts.
@@ -886,7 +913,7 @@ def printbuf_object(object[object] buf, shape):
         print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
 
 @testcase
-def assign_to_object(object[object] buf, int idx, obj):
+def assign_to_object(object[:] buf, int idx, obj):
     """
     See comments on printbuf_object above.
 
@@ -905,7 +932,7 @@ def assign_to_object(object[object] buf, int idx, obj):
     buf[idx] = obj
 
 @testcase
-def assign_temporary_to_object(object[object] buf):
+def assign_temporary_to_object(object[:] buf):
     """
     See comments on printbuf_object above.
 
@@ -932,68 +959,10 @@ def assign_temporary_to_object(object[object] buf):
     buf[1] = {3-2: 2+(2*4)-2}
 
 #
-# cast option
-#
-@testcase
-def buffer_cast(object[unsigned int, cast=True] buf, int idx):
-    """
-    Round-trip a signed int through unsigned int buffer access.
-
-    >>> A = IntMockBuffer(None, [-100])
-    >>> buffer_cast(A, 0)
-    -100
-    """
-    cdef unsigned int data = buf[idx]
-    return <int>data
-
-@testcase
-def buffer_cast_fails(object[char, cast=True] buf):
-    """
-    Cannot cast between datatype of different sizes.
-
-    >>> buffer_cast_fails(IntMockBuffer(None, [0]))
-    Traceback (most recent call last):
-        ...
-    ValueError: Item size of buffer (4 bytes) does not match size of 'char' (1 byte)
-    """
-    return buf[0]
-
-#
-# Typed buffers
-#
-@testcase
-def typedbuffer1(obj):
-    """
-    >>> typedbuffer1(IntMockBuffer("A", range(10)))
-    acquired A
-    released A
-    >>> typedbuffer1(None)
-    >>> typedbuffer1(4)
-    Traceback (most recent call last):
-       ...
-    TypeError: Cannot convert int to bufaccess.IntMockBuffer
-    """
-    cdef IntMockBuffer[int, ndim=1] buf = obj
-
-@testcase
-def typedbuffer2(IntMockBuffer[int, ndim=1] obj):
-    """
-    >>> typedbuffer2(IntMockBuffer("A", range(10)))
-    acquired A
-    released A
-    >>> typedbuffer2(None)
-    >>> typedbuffer2(4)
-    Traceback (most recent call last):
-       ...
-    TypeError: Argument 'obj' has incorrect type (expected bufaccess.IntMockBuffer, got int)
-    """
-    pass
-
-#
 # Test __cythonbufferdefaults__
 #
 @testcase
-def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
+def bufdefaults1(int[:] buf):
     """
     For IntStridedMockBuffer, mode should be
     "strided" by defaults which should show
@@ -1004,13 +973,13 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     acquired A
     released A
     >>> [str(x) for x in A.recieved_flags]
-    ['FORMAT', 'ND', 'STRIDES']
+    ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
     pass
 
 
 @testcase
-def basic_struct(object[MyStruct] buf):
+def basic_struct(MyStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -1022,7 +991,7 @@ def basic_struct(object[MyStruct] buf):
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
 
 @testcase
-def nested_struct(object[NestedStruct] buf):
+def nested_struct(NestedStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -1034,7 +1003,7 @@ def nested_struct(object[NestedStruct] buf):
     print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
 
 @testcase
-def packed_struct(object[PackedStruct] buf):
+def packed_struct(PackedStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -1049,7 +1018,7 @@ def packed_struct(object[PackedStruct] buf):
     print buf[0].a, buf[0].b
 
 @testcase
-def nested_packed_struct(object[NestedPackedStruct] buf):
+def nested_packed_struct(NestedPackedStruct[:] buf):
     """
     See also buffmt.pyx
 
@@ -1064,7 +1033,7 @@ def nested_packed_struct(object[NestedPackedStruct] buf):
 
 
 @testcase
-def complex_dtype(object[long double complex] buf):
+def complex_dtype(long double complex[:] buf):
     """
     >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     -1j
@@ -1072,7 +1041,7 @@ def complex_dtype(object[long double complex] buf):
     print buf[0]
 
 @testcase
-def complex_inplace(object[long double complex] buf):
+def complex_inplace(long double complex[:] buf):
     """
     >>> complex_inplace(LongComplexMockBuffer(None, [(0, -1)]))
     (1+1j)
@@ -1081,7 +1050,7 @@ def complex_inplace(object[long double complex] buf):
     print buf[0]
 
 @testcase
-def complex_struct_dtype(object[LongComplex] buf):
+def complex_struct_dtype(LongComplex[:] buf):
     """
     Note that the format string is "Zg" rather than "2g", yet a struct
     is accessed.
@@ -1091,7 +1060,7 @@ def complex_struct_dtype(object[LongComplex] buf):
     print buf[0].real, buf[0].imag
 
 @testcase
-def complex_struct_inplace(object[LongComplex] buf):
+def complex_struct_inplace(LongComplex[:] buf):
     """
     >>> complex_struct_inplace(LongComplexMockBuffer(None, [(0, -1)]))
     1.0 1.0
@@ -1103,14 +1072,388 @@ def complex_struct_inplace(object[LongComplex] buf):
 #
 # Nogil
 #
+
 @testcase
 @cython.boundscheck(False)
 def buffer_nogil():
     """
     >>> buffer_nogil()
-    10
+    (10, 10)
     """
-    cdef object[int] buf = IntMockBuffer(None, [1,2,3])
+    cdef int[:] buf = IntMockBuffer(None, [1,2,3])
+    cdef int[:] buf2 = IntMockBuffer(None, [4,5,6])
+
     with nogil:
         buf[1] = 10
-    return buf[1]
+        buf2 = buf
+
+    return buf[1], buf2[1]
+
+#
+### Test cdef functions
+#
+class UniqueObject(object):
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return self.value
+
+objs = [[UniqueObject("spam")], [UniqueObject("ham")], [UniqueObject("eggs")]]
+addref(*[obj for L in objs for obj in L])
+cdef cdef_function(int[:] buf1, object[::view.indirect, :] buf2 = ObjectMockBuffer(None, objs)):
+    print 'cdef called'
+    print buf1[6], buf2[1, 0]
+    buf2[1, 0] = UniqueObject("eggs")
+
+@testcase
+def test_cdef_function(o1, o2=None):
+    """
+    >>> A = IntMockBuffer("A", range(10))
+    >>> test_cdef_function(A)
+    acquired A
+    cdef called
+    6 ham
+    released A
+    acquired A
+    cdef called
+    6 eggs
+    released A
+
+    >>> L = [[x] for x in range(25)]
+    >>> addref(*[obj for mylist in L for obj in mylist])
+    >>> B = ObjectMockBuffer("B", L, shape=(5, 5))
+
+    >>> test_cdef_function(A, B)
+    acquired A
+    cdef called
+    6 eggs
+    released A
+    acquired A
+    cdef called
+    6 eggs
+    released A
+    acquired A
+    acquired B
+    cdef called
+    6 1
+    released A
+    released B
+    """
+    cdef_function(o1)
+    cdef_function(o1)
+
+    if o2:
+        cdef_function(o1, o2)
+
+cdef int[:] global_A = IntMockBuffer("Global_A", range(10))
+
+addref(*[obj for L in objs for obj in L])
+cdef object[::view.indirect, :] global_B = ObjectMockBuffer(None, objs)
+
+cdef cdef_function2(int[:] buf1, object[::view.indirect, :] buf2 = global_B):
+    print 'cdef2 called'
+    print buf1[6], buf2[1, 0]
+    buf2[1, 0] = UniqueObject("eggs")
+
+@testcase
+def test_cdef_function2():
+    """
+    >>> test_cdef_function2()
+    cdef2 called
+    6 ham
+    eggs
+    cdef2 called
+    6 eggs
+    """
+    cdef int[:] A = global_A
+    cdef object[::view.indirect, :] B = global_B
+
+    cdef_function2(A, B)
+
+    del A
+    del B
+
+    print global_B[1, 0]
+
+    cdef_function2(global_A, global_B)
+
+@testcase
+def test_generic_slicing(arg, indirect=False):
+    """
+    Test simple slicing
+    >>> test_generic_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
+    acquired A
+    3 9 2
+    308 -11 1
+    -1 -1 -1
+    released A
+
+    Test direct slicing, negative slice oob in dim 2
+    >>> test_generic_slicing(IntMockBuffer("A", range(1 * 2 * 3), shape=(1, 2, 3)))
+    acquired A
+    0 0 2
+    12 -3 1
+    -1 -1 -1
+    released A
+
+    Test indirect slicing
+    >>> test_generic_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)), indirect=True)
+    acquired A
+    2 0 2
+    0 1 -1
+    released A
+
+    >>> test_generic_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)), indirect=True)
+    acquired A
+    3 9 2
+    10 1 -1
+    released A
+
+    """
+    cdef int[::view.generic, ::view.generic, :] a = arg
+    cdef int[::view.generic, ::view.generic, :] b = a[2:8:2, -4:1:-1, 1:3]
+
+    print b.shape[0], b.shape[1], b.shape[2]
+
+    if indirect:
+        print b.suboffsets[0] // sizeof(int *),
+        print b.suboffsets[1] // sizeof(int),
+        print b.suboffsets[2]
+    else:
+        print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
+        print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
+
+    cdef int i, j, k
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            for k in range(b.shape[2]):
+                itemA = a[2 + 2 * i, -4 - j, 1 + k]
+                itemB = b[i, j, k]
+                assert itemA == itemB, (i, j, k, itemA, itemB)
+
+@testcase
+def test_indirect_slicing(arg):
+    """
+    Test indirect slicing
+    >>> test_indirect_slicing(IntMockBuffer("A", shape_5_3_4_list, shape=(5, 3, 4)))
+    acquired A
+    5 3 2
+    0 0 -1
+    58
+    56
+    released A
+
+    >>> test_indirect_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)))
+    acquired A
+    5 14 3
+    0 16 -1
+    2412
+    2410
+    released A
+    """
+    cdef int[::view.indirect, ::view.indirect, :] a = arg
+    cdef int[::view.indirect, ::view.indirect, :] b = a[-5:, ..., -5:100:2]
+    cdef int[::view.indirect, ::view.indirect] c = b[..., 0]
+
+    print b.shape[0], b.shape[1], b.shape[2]
+    print b.suboffsets[0] // sizeof(int *),
+    print b.suboffsets[1] // sizeof(int),
+    print b.suboffsets[2]
+
+    print b[4, 2, 1]
+    print c[4, 2]
+
+@testcase
+def test_direct_slicing(arg):
+    """
+    Fused types would be convenient to test this stuff!
+
+    Test simple slicing
+    >>> test_direct_slicing(IntMockBuffer("A", range(8 * 14 * 11), shape=(8, 14, 11)))
+    acquired A
+    3 9 2
+    308 -11 1
+    -1 -1 -1
+    released A
+
+    Test direct slicing, negative slice oob in dim 2
+    >>> test_direct_slicing(IntMockBuffer("A", range(1 * 2 * 3), shape=(1, 2, 3)))
+    acquired A
+    0 0 2
+    12 -3 1
+    -1 -1 -1
+    released A
+    """
+    cdef int[:, :, ::1] a = arg
+    cdef int[:, :, :] b = a[2:8:2, -4:1:-1, 1:3]
+
+    print b.shape[0], b.shape[1], b.shape[2]
+    print_int_offsets(b.strides[0], b.strides[1], b.strides[2])
+    print_int_offsets(b.suboffsets[0], b.suboffsets[1], b.suboffsets[2])
+
+    cdef int i, j, k
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            for k in range(b.shape[2]):
+                itemA = a[2 + 2 * i, -4 - j, 1 + k]
+                itemB = b[i, j, k]
+                assert itemA == itemB, (i, j, k, itemA, itemB)
+
+@testcase
+def test_slicing_and_indexing(arg):
+    """
+    >>> a = IntStridedMockBuffer("A", range(10 * 3 * 5), shape=(10, 3, 5))
+    >>> test_slicing_and_indexing(a)
+    acquired A
+    5 2
+    15 2
+    126 113
+    [111]
+    released A
+    """
+    cdef int[:, :, :] a = arg
+    cdef int[:, :] b = a[-5:, 1, 1::2]
+    cdef int[:, :] c = b[4:1:-1, ::-1]
+    cdef int[:] d = c[2, 1:2]
+
+    print b.shape[0], b.shape[1]
+    print_int_offsets(b.strides[0], b.strides[1])
+
+    cdef int i, j
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            itemA = a[-5 + i, 1, 1 + 2 * j]
+            itemB = b[i, j]
+            assert itemA == itemB, (i, j, itemA, itemB)
+
+    print c[1, 1], c[2, 0]
+    print [d[i] for i in range(d.shape[0])]
+
+
+@testcase
+def test_oob():
+    """
+    >>> test_oob()
+    Traceback (most recent call last):
+       ...
+    IndexError: Index out of bounds (axis 1)
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    print a[:, 20]
+
+
+cdef int nogil_oob(int[:, :] a) nogil except 0:
+    a[100, 9:]
+    return 1
+
+@testcase
+def test_nogil_oob1():
+    """
+    A is acquired at the beginning of the function and released at the end.
+    B is acquired as a temporary and as such is immediately released in the
+    except clause.
+    >>> test_nogil_oob1()
+    acquired A
+    acquired B
+    released B
+    Index out of bounds (axis 0)
+    Index out of bounds (axis 0)
+    released A
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+
+    try:
+        nogil_oob(IntMockBuffer("B", range(4 * 9), shape=(4, 9)))
+    except IndexError, e:
+        print e.args[0]
+
+    try:
+        with nogil:
+            nogil_oob(a)
+    except IndexError, e:
+        print e.args[0]
+
+@testcase
+def test_nogil_oob2():
+    """
+    >>> test_nogil_oob2()
+    Traceback (most recent call last):
+       ...
+    IndexError: Index out of bounds (axis 0)
+    """
+    cdef int[:, :] a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    with nogil:
+        a[100, 9:]
+
+@cython.boundscheck(False)
+cdef int cdef_nogil(int[:, :] a) nogil except 0:
+    cdef int i, j
+    cdef int[:, :] b = a[::-1, 3:10:2]
+    for i in range(b.shape[0]):
+        for j in range(b.shape[1]):
+            b[i, j] = -b[i, j]
+
+    return 1
+
+@testcase
+def test_nogil():
+    """
+    >>> test_nogil()
+    acquired A
+    released A
+    acquired A
+    -25
+    released A
+    """
+    _a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
+    cdef_nogil(_a)
+    cdef int[:, :] a = _a
+    print a[2, 7]
+
+@testcase
+def test_convert_slicenode_to_indexnode():
+    """
+    When indexing with a[i:j] a SliceNode gets created instead of an IndexNode, which
+    forces coercion to object and back. This would not only be inefficient, but it would
+    also not compile in nogil mode. So instead we mutate it into an IndexNode.
+
+    >>> test_convert_slicenode_to_indexnode()
+    acquired A
+    2
+    released A
+    """
+    cdef int[:] a = IntMockBuffer("A", range(10), shape=(10,))
+    with nogil:
+        a = a[2:4]
+    print a[0]
+
+@testcase
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def test_memslice_prange(arg):
+    """
+    >>> test_memslice_prange(IntMockBuffer("A", range(400), shape=(20, 4, 5)))
+    acquired A
+    released A
+    >>> test_memslice_prange(IntMockBuffer("A", range(200), shape=(100, 2, 1)))
+    acquired A
+    released A
+    """
+    cdef int[:, :, :] src, dst
+
+    src = arg
+
+    dst = cython.array((<object> src).shape, sizeof(int), format="i")
+
+    cdef int i, j, k
+
+    for i in prange(src.shape[0], nogil=True):
+        for j in range(src.shape[1]):
+            for k in range(src.shape[2]):
+                dst[i, j, k] = src[i, j, k]
+
+    for i in range(src.shape[0]):
+        for j in range(src.shape[1]):
+            for k in range(src.shape[2]):
+                assert src[i, j, k] == dst[i, j, k], (src[i, j, k] == dst[i, j, k])

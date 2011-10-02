@@ -1037,7 +1037,8 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
             directive = directive.rstrip('.')
 
         cls = self.directive_to_node.get(directive)
-        if cls is None:
+        if cls is None and not (self.namenode_is_cython_module and
+                                self.parallel_directive[0] != 'parallel'):
             error(node.pos, "Invalid directive: %s" % directive)
 
         self.namenode_is_cython_module = False
@@ -1255,7 +1256,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     """
 
     def handle_function(self, node):
-        if not node.decorators:
+        if not getattr(node, 'decorators', None):
             return self.visit_Node(node)
 
         for i, decorator in enumerate(node.decorators):
@@ -1289,6 +1290,8 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
 
     visit_FuncDefNode = handle_function
     visit_CClassDefNode = handle_function
+    visit_CEnumDefNode = handle_function
+    visit_CStructOrUnionDefNode = handle_function
 
 
 class ForwardDeclareTypes(CythonTransform):
@@ -1575,6 +1578,14 @@ if VALUE is not None:
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
         return None
+
+    def visit_CnameDecoratorNode(self, node):
+        self.visitchildren(node)
+
+        if not node.node:
+            return None
+
+        return node
 
     def create_Property(self, entry):
         if entry.visibility == 'public':
@@ -2213,6 +2224,7 @@ class GilCheck(VisitorTransform):
         if self.env_stack and self.nogil and node.nogil_check:
             node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
+        node.in_nogil_context = self.nogil
         return node
 
 

@@ -67,11 +67,15 @@ old_style_globals = False
 cimport_from_pyx = False
 
 
+# max # of dims for buffers -- set to same value as max # of dims for numpy
+# arrays.
+buffer_max_dims = 32
 
 # Declare compiler directives
 directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
+    'initializedcheck' : True,
     'embedsignature' : False,
     'locals' : {},
     'auto_cpdef': False,
