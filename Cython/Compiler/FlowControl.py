@@ -711,9 +711,7 @@ class CreateControlFlowGraph(CythonTransform):
         self.in_inplace_assignment = True
         self.visitchildren(node)
         self.in_inplace_assignment = False
-        expr_node = node.create_binop_node()
-        expr_node.type = expr_node.infer_type(self.env)
-        self.mark_assignment(node.lhs, expr_node)
+        self.mark_assignment(node.lhs, node.create_binop_node())
         return node
 
     def visit_DelStatNode(self, node):

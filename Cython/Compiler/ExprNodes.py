@@ -704,7 +704,7 @@ class ExprNode(Node):
         return self.result_in_temp()
 
     def may_be_none(self):
-        if not self.type.is_pyobject:
+        if self.type and not self.type.is_pyobject:
             return False
         if self.constant_result not in (not_a_constant, constant_value_not_set):
             return self.constant_result is not None
@@ -1530,7 +1530,7 @@ class NameNode(AtomicExprNode):
         return 1
 
     def may_be_none(self):
-        if self.type.is_pyobject and self.cf_state:
+        if self.cf_state and self.type and self.type.is_pyobject:
             # gard against infinite recursion on self-dependencies
             if getattr(self, '_none_checking', False):
                 # self-dependency - either this node receives a None
