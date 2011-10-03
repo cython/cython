@@ -501,7 +501,7 @@ class MemoryViewSliceType(PyrexType):
 
         return True
 
-    def declare_attribute(self, attribute):
+    def declare_attribute(self, attribute, env):
         import MemoryView, Options
 
         scope = self.scope
@@ -560,6 +560,8 @@ class MemoryViewSliceType(PyrexType):
 
                 entry.utility_code_definition = \
                         MemoryView.CopyFuncUtilCode(self, to_memview)
+
+            MemoryView.use_cython_array_utility_code(env)
 
         elif attribute in ("is_c_contig", "is_f_contig"):
             # is_c_contig and is_f_contig functions

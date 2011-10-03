@@ -105,21 +105,16 @@ class CythonScope(ModuleScope):
 
         view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
                                                 viewscope, cython_scope=self)
+
         # MemoryView.memview_fromslice_utility_code.from_scope = view_utility_scope
         # MemoryView.memview_fromslice_utility_code.declare_in_scope(viewscope)
 
 
-def create_cython_scope(context, create_testscope):
+def create_cython_scope(context):
     # One could in fact probably make it a singleton,
     # but not sure yet whether any code mutates it (which would kill reusing
     # it across different contexts)
-    scope = CythonScope(context)
-
-    if create_testscope:
-        scope.test_cythonscope()
-
-    return scope
-
+    return CythonScope(context)
 
 # Load test utilities for the cython scope
 

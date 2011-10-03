@@ -65,9 +65,12 @@ class Context(object):
 
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
-        if self.cython_scope is None:
-            Context.cython_scope = CythonScope.create_cython_scope(
-                    self, create_testscope=create_testscope)
+        #if self.cython_scope is None:
+        self.cython_scope = CythonScope.create_cython_scope(self)
+
+        if create_testscope: # and not hasattr(self.cython_scope, 'viewscope'):
+            self.cython_scope.test_cythonscope()
+
         self.modules["cython"] = self.cython_scope
         self.include_directories = include_directories
         self.future_directives = set()

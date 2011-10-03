@@ -4238,7 +4238,7 @@ class AttributeNode(ExprNode):
                         self.type = self.obj.type
                         return
                     else:
-                        obj_type.declare_attribute(self.attribute)
+                        obj_type.declare_attribute(self.attribute, env)
                 entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None
@@ -6559,7 +6559,7 @@ class CythonArrayNode(ExprNode):
         self.type = self.get_cython_array_type(env)
         assert self.type
 
-        env.use_utility_code(MemoryView.cython_array_utility_code)
+        MemoryView.use_cython_array_utility_code(env)
         env.use_utility_code(MemoryView.typeinfo_to_format_code)
 
     def allocate_temp_result(self, code):

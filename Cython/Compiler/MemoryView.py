@@ -130,9 +130,6 @@ def get_buf_flags(specs):
         return memview_strided_access
 
 
-def use_cython_array(env):
-    env.use_utility_code(cython_array_utility_code)
-
 def src_conforms_to_dst(src, dst):
     '''
     returns True if src conforms to dst, False otherwise.
@@ -935,6 +932,10 @@ def load_memview_cy_utility(util_code_name, context=None, **kwargs):
 def load_memview_c_utility(util_code_name, context=None, **kwargs):
     return UtilityCode.load(util_code_name, "MemoryView_C.c",
                             context=context, **kwargs)
+
+def use_cython_array_utility_code(env):
+    env.global_scope().context.cython_scope.lookup('array_cwrapper').used = True
+    env.use_utility_code(cython_array_utility_code)
 
 context = {
     'memview_struct_name': memview_objstruct_cname,
