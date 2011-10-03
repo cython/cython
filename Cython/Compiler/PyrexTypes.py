@@ -816,9 +816,6 @@ class PyObjectType(PyrexType):
         """
         return False
 
-    def invalid_value(self):
-        return "1"
-
     def global_init_code(self, entry, code):
         code.put_init_var_to_py_none(entry, nanny=False)
 
