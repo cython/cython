@@ -68,8 +68,11 @@ class BaseType(object):
         """
         For sorting. The sorting order should correspond to the preference of
         conversion from Python types.
+
+        Override to provide something sensible. This is only implemented so that
+        python 3 doesn't trip
         """
-        return NotImplemented
+        return id(type(self)) < id(type(other))
 
     def py_type_name(self):
         """
@@ -1209,7 +1212,8 @@ class CNumericType(CType):
         if other.is_numeric:
             return self.rank > other.rank and self.signed >= other.signed
 
-        return NotImplemented
+        # Prefer numeric types over others
+        return True
 
     def py_type_name(self):
         if self.rank <= 4:
