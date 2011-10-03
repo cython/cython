@@ -114,7 +114,7 @@ def self_dependency_none(int x):
         a,b = b,a
     return b.get(2)
 
-#@cython.test_fail_if_path_exists('//NoneCheckNode')
+@cython.test_fail_if_path_exists('//NoneCheckNode')
 def in_place_op():
     vals = [0]
     vals += [1]

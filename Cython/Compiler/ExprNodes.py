@@ -6741,6 +6741,16 @@ class NumBinopNode(BinopNode):
         else:
             return None
 
+    def may_be_none(self):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if type1 and type1.is_builtin_type and type2 and type2.is_builtin_type:
+            # XXX: I can't think of any case where a binary operation
+            # on builtin types evaluates to None - add a special case
+            # here if there is one.
+            return False
+        return super(NumBinopNode, self).may_be_none()
+
     def get_constant_c_result_code(self):
         value1 = self.operand1.get_constant_c_result_code()
         value2 = self.operand2.get_constant_c_result_code()
