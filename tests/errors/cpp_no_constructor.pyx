@@ -9,5 +9,5 @@ cdef extern from *:
 new Foo(1, 2)
 
 _ERRORS = u"""
-9:7: no suitable method found
+9:7: Call with wrong number of arguments (expected 1, got 2)
 """
