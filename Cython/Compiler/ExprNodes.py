@@ -2763,7 +2763,8 @@ class IndexNode(ExprNode):
 
                     break
             else:
-                assert False
+                # This is a bug
+                raise InternalError("Couldn't find the right signature")
 
     gil_message = "Indexing Python object"
 
