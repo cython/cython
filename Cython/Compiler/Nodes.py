@@ -2499,8 +2499,6 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
         return signatures[candidates[0]]
 """ % fmt_dict
 
-        # print fragment_code
-
         fragment = TreeFragment.TreeFragment(fragment_code, level='module')
 
         # analyse the declarations of our fragment ...

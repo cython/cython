@@ -94,7 +94,7 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     Traceback (most recent call last):
       ...
     TypeError: Function call with ambiguous argument types
-    >>> opt_func[ExtClassA, cy.float, long](object(), f)
+    >>> opt_func[ExtClassA, cy.float, cy.long](object(), f)
     Traceback (most recent call last):
       ...
     TypeError: Argument 'obj' has incorrect type (expected fused_def.ExtClassA, got object)
@@ -109,8 +109,7 @@ def test_opt_func():
     str object double long
     ham 5.60 4 5.60 9
     """
-    cdef char *s = "ham"
-    opt_func(s, f, entry4)
+    opt_func("ham", f, entry4)
 
 def args_kwargs(fused_t obj, cython.floating myf = 1.2, *args, **kwargs):
     """
