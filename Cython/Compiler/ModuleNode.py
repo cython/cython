@@ -1804,7 +1804,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static PyMethodDef %s[] = {" %
                 env.method_table_cname)
         for entry in env.pyfunc_entries:
-            code.put_pymethoddef(entry, ",")
+            if not entry.fused_cfunction:
+                code.put_pymethoddef(entry, ",")
         code.putln(
                 "{0, 0, 0, 0}")
         code.putln(
