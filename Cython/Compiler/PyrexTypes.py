@@ -415,6 +415,8 @@ class MemoryViewSliceType(PyrexType):
     exception_value = None
     exception_check = True
 
+    subtypes = ['dtype']
+
     def __init__(self, base_dtype, axes):
         '''
         MemoryViewSliceType(base, axes)
@@ -462,7 +464,8 @@ class MemoryViewSliceType(PyrexType):
         self.mode = MemoryView.get_mode(axes)
         self.writable_needed = False
 
-        self.dtype_name = MemoryView.mangle_dtype_name(self.dtype)
+        if not self.dtype.is_fused:
+            self.dtype_name = MemoryView.mangle_dtype_name(self.dtype)
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
@@ -711,11 +714,17 @@ class MemoryViewSliceType(PyrexType):
         import MemoryView
 
         axes_code_list = []
-        for access, packing in self.axes:
+        for idx, (access, packing) in enumerate(self.axes):
             flag = MemoryView.get_memoryview_flag(access, packing)
             if flag == "strided":
                 axes_code_list.append(":")
             else:
+                if flag == 'contiguous':
+                    have_follow = [p for a, p in self.axes[idx - 1:idx + 1]
+                                         if p == 'follow']
+                    if have_follow or self.ndim == 1:
+                        flag = '1'
+
                 axes_code_list.append("::" + flag)
 
         if self.dtype.is_pyobject:
@@ -724,6 +733,13 @@ class MemoryViewSliceType(PyrexType):
             dtype_name = self.dtype
 
         return "%s[%s]" % (dtype_name, ", ".join(axes_code_list))
+
+    def specialize(self, values):
+        "This does not validate the base type!!"
+        dtype = self.dtype.specialize(values)
+        if dtype is not self.dtype:
+            return MemoryViewSliceType(dtype, self.axes)
+
 
 
 class BufferType(BaseType):
@@ -2579,10 +2595,10 @@ def get_fused_cname(fused_cname, orig_cname):
                                                     fused_cname, orig_cname))
 
 def get_all_specific_permutations(fused_types, id="", f2s=()):
-    fused_type = fused_types[0]
+    fused_type, = fused_types[0].get_fused_types()
     result = []
 
-    for newid, specific_type in enumerate(sorted(fused_type.types)):
+    for newid, specific_type in enumerate(fused_type.types):
         # f2s = dict(f2s, **{ fused_type: specific_type })
         f2s = dict(f2s)
         f2s.update({ fused_type: specific_type })

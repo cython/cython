@@ -13,9 +13,12 @@ def closure3(cython.integral i):
     def inner():
         return lambda cython.floating f: f
 
+def generator(cython.integral i):
+    yield i
 
 _ERRORS = u"""
 e_fused_closure.pyx:6:4: Cannot nest fused functions
 e_fused_closure.pyx:10:11: Cannot nest fused functions
 e_fused_closure.pyx:14:15: Cannot nest fused functions
+e_fused_closure.pyx:16:0: Fused generators not supported
 """

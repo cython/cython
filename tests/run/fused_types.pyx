@@ -117,6 +117,28 @@ def test_fused_with_pointer():
     print
     print fused_with_pointer(string_array).decode('ascii')
 
+include "cythonarrayutil.pxi"
+
+cpdef cython.integral test_fused_memoryviews(cython.integral[:, ::1] a):
+    """
+    >>> import cython
+    >>> a = create_array((3, 5), mode="c")
+    >>> test_fused_memoryviews[cython.int](a)
+    7
+    """
+    return a[1, 2]
+
+ctypedef int[:, ::1] memview_int
+ctypedef long[:, ::1] memview_long
+memview_t = cython.fused_type(memview_int, memview_long)
+
+def test_fused_memoryview_def(memview_t a):
+    """
+    >>> a = create_array((3, 5), mode="c")
+    >>> test_fused_memoryview_def["memview_int"](a)
+    7
+    """
+    return a[1, 2]
 
 cdef test_specialize(fused_type1 x, fused_type1 *y, composed_t z, other_t *a):
     cdef fused_type1 result

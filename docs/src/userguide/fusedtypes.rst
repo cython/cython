@@ -62,6 +62,7 @@ Indeed, one may write::
     cdef otherfunc(A *x):
         ...
 
+
 Selecting Specializations
 =========================
 You can select a specialization (an instance of the function with specific or specialized (i.e.,
@@ -78,6 +79,15 @@ You can index functions with types to get certain specializations, i.e.::
 
     # From Python space
     func[cython.float, cython.double](myfloat, mydouble)
+
+If a fused type is used as a base type, this will mean that the base type is the fused type, so the
+base type is what needs to be specialized::
+
+    cdef myfunc(A *x):
+        ...
+
+    # Specialize using int, not int *
+    myfunc[int](myint)
 
 Calling
 -------

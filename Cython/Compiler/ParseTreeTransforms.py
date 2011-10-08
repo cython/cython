@@ -1446,6 +1446,13 @@ if VALUE is not None:
                 else:
                     error(type_node.pos, "Not a type")
 
+        if node.is_generator and node.has_fused_arguments:
+            node.has_fused_arguments = False
+            error(node.pos, "Fused generators not supported")
+            node.gbody = Nodes.StatListNode(node.pos,
+                                            stats=[],
+                                            body=Nodes.PassStatNode(node.pos))
+
         if node.has_fused_arguments:
             if self.fused_function:
                 if self.fused_function not in self.fused_error_funcs:

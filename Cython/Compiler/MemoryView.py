@@ -168,16 +168,18 @@ def valid_memslice_dtype(dtype):
 
     return (
         dtype.is_error or
-        dtype.is_ptr or
+        # Pointers are not valid (yet)
+        # (dtype.is_ptr and valid_memslice_dtype(dtype.base_type)) or
         dtype.is_numeric or
         dtype.is_struct or
         dtype.is_pyobject or
+        dtype.is_fused or # accept this as it will be replaced by specializations later
         (dtype.is_typedef and valid_memslice_dtype(dtype.typedef_base_type))
     )
 
 def validate_memslice_dtype(pos, dtype):
     if not valid_memslice_dtype(dtype):
-        error(pos, "Invalid base type for memoryview slice")
+        error(pos, "Invalid base type for memoryview slice: %s" % dtype)
 
 
 class MemoryViewSliceBufferEntry(Buffer.BufferEntry):

@@ -29,6 +29,12 @@ func[float, int](x)
 func[float, int](x, y, y)
 func(x, y=y)
 
+ctypedef fused memslice_dtype_t:
+    cython.p_int # invalid dtype
+    cython.long
+
+def f(memslice_dtype_t[:, :] a):
+    pass
 
 # This is all valid
 dtype5 = fused_type(int, long, float)
@@ -54,4 +60,5 @@ fused_types.pyx:27:4: Not enough types specified to specialize the function, int
 fused_types.pyx:28:16: Call with wrong number of arguments (expected 2, got 1)
 fused_types.pyx:29:16: Call with wrong number of arguments (expected 2, got 3)
 fused_types.pyx:30:4: Keyword and starred arguments not allowed in cdef functions.
+fused_types.pyx:36:6: Invalid base type for memoryview slice: int *
 """

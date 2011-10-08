@@ -843,6 +843,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
 
 class MemoryViewSliceTypeNode(CBaseTypeNode):
 
+    name = 'memoryview'
     child_attrs = ['base_type_node', 'axes']
 
     def analyse(self, env, could_be_name = False):
@@ -2222,10 +2223,7 @@ class FusedCFuncDefNode(StatListNode):
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
 
-            for arg in copied_node.args:
-                if arg.type.is_fused:
-                    arg.type = arg.type.specialize(fused_to_specific)
-
+            self._specialize_function_args(copied_node.args, fused_to_specific)
             copied_node.return_type = self.node.return_type.specialize(
                                                     fused_to_specific)
 
@@ -2287,8 +2285,8 @@ class FusedCFuncDefNode(StatListNode):
             self.create_new_local_scope(copied_node, env, fused_to_specific)
 
             # Make the argument types in the CFuncDeclarator specific
-            for arg in copied_node.cfunc_declarator.args:
-                arg.type = arg.type.specialize(fused_to_specific)
+            self._specialize_function_args(copied_node.cfunc_declarator.args,
+                                           fused_to_specific)
 
             type.specialize_entry(entry, cname)
             env.cfunc_entries.append(entry)
@@ -2312,6 +2310,15 @@ class FusedCFuncDefNode(StatListNode):
         else:
             self.py_func = orig_py_func
 
+    def _specialize_function_args(self, args, fused_to_specific):
+        import MemoryView
+        for arg in args:
+            if arg.type.is_fused:
+                arg.type = arg.type.specialize(fused_to_specific)
+                if arg.type.is_memoryviewslice:
+                    MemoryView.validate_memslice_dtype(arg.pos, arg.type.dtype)
+
+
     def create_new_local_scope(self, node, env, f2s):
         """
         Create a new local scope for the copied node and append it to
@@ -2332,8 +2339,12 @@ class FusedCFuncDefNode(StatListNode):
     def specialize_copied_def(self, node, cname, py_entry, f2s, fused_types):
         """Specialize the copy of a DefNode given the copied node,
         the specialization cname and the original DefNode entry"""
-        type_strings = [f2s[fused_type].typeof_name()
-                            for fused_type in fused_types]
+        type_strings = [
+            fused_type.specialize(f2s).typeof_name()
+                for fused_type in fused_types
+        ]
+        #type_strings = [f2s[fused_type].typeof_name()
+        #                    for fused_type in fused_types]
 
         node.specialized_signature_string = ', '.join(type_strings)
 
