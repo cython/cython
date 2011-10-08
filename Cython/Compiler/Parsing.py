@@ -440,7 +440,8 @@ def p_call_parse_args(s, allow_genexp = True):
     s.expect(')')
     return positional_args, keyword_args, star_arg, starstar_arg
 
-def p_call_build_packed_args(pos, positional_args, keyword_args, star_arg):
+def p_call_build_packed_args(
+    pos, positional_args, keyword_args, star_arg, starstar_arg=None):
     arg_tuple = None
     keyword_dict = None
     if positional_args or not star_arg:
@@ -457,8 +458,14 @@ def p_call_build_packed_args(pos, positional_args, keyword_args, star_arg):
     if keyword_args:
         keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
                           for key, value in keyword_args]
-        keyword_dict = ExprNodes.DictNode(pos,
-            key_value_pairs = keyword_args)
+        if starstar_arg:
+            keyword_dict = ExprNodes.DictMergeNode(
+                pos,
+                key_value_pairs = keyword_args,
+                base_dict_node = starstar_arg)
+        else:
+            keyword_dict = ExprNodes.DictNode(
+                pos, key_value_pairs = keyword_args)
     return arg_tuple, keyword_dict
 
 def p_call(s, function):
@@ -474,7 +481,7 @@ def p_call(s, function):
             args = positional_args)
     else:
         arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg)
+            pos, positional_args, keyword_args, star_arg, starstar_arg)
         return ExprNodes.GeneralCallNode(pos,
             function = function,
             positional_args = arg_tuple,
