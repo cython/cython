@@ -9,6 +9,7 @@ import MemoryView
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
+    _cythonscope_initialized = False
 
     def __init__(self, context):
         ModuleScope.__init__(self, u'cython', None, None)
@@ -23,11 +24,26 @@ class CythonScope(ModuleScope):
         if type:
             return type
 
+        return super(CythonScope, self).lookup_type(name)
+
+    def lookup(self, name):
+        entry = super(CythonScope, self).lookup(name)
+
+        if entry is None and not self._cythonscope_initialized:
+            self.load_cythonscope()
+            entry = super(CythonScope, self).lookup(name)
+
+        return entry
+
     def find_module(self, module_name, pos):
         error("cython.%s is not available" % module_name, pos)
 
     def find_submodule(self, module_name):
         entry = self.entries.get(module_name, None)
+        if not entry:
+            self.load_cythonscope()
+            entry = self.entries.get(module_name, None)
+
         if entry and entry.as_module:
             return entry.as_module
         else:
@@ -68,13 +84,15 @@ class CythonScope(ModuleScope):
             defining = 1,
             cname = 'PyObject_TypeCheck')
 
-#        self.test_cythonscope()
-
-    def test_cythonscope(self):
+    def load_cythonscope(self):
         """
         Creates some entries for testing purposes and entries for
         cython.array() and for cython.view.*.
         """
+        if self._cythonscope_initialized:
+            return
+
+        self._cythonscope_initialized = True
         cython_testscope_utility_code.declare_in_scope(
                                 self, cython_scope=self)
         cython_test_extclass_utility_code.declare_in_scope(
@@ -100,16 +118,11 @@ class CythonScope(ModuleScope):
         # MemoryView.memview_fromslice_utility_code.declare_in_scope(viewscope)
 
 
-def create_cython_scope(context, create_testscope):
+def create_cython_scope(context):
     # One could in fact probably make it a singleton,
     # but not sure yet whether any code mutates it (which would kill reusing
     # it across different contexts)
-    scope = CythonScope(context)
-
-    if create_testscope:
-        scope.test_cythonscope()
-
-    return scope
+    return CythonScope(context)
 
 
 # Load test utilities for the cython scope

@@ -686,6 +686,7 @@ def get_axes_specs(env, axes):
     '''
 
     cythonscope = env.global_scope().context.cython_scope
+    cythonscope.load_cythonscope()
     viewscope = cythonscope.viewscope
 
     access_specs = tuple([viewscope.lookup(name)
