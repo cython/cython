@@ -720,7 +720,7 @@ class MemoryViewSliceType(PyrexType):
                 axes_code_list.append(":")
             else:
                 if flag == 'contiguous':
-                    have_follow = [p for a, p in self.axes[idx - 1:idx + 1]
+                    have_follow = [p for a, p in self.axes[idx - 1:idx + 2]
                                          if p == 'follow']
                     if have_follow or self.ndim == 1:
                         flag = '1'
