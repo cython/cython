@@ -5300,25 +5300,26 @@ class DictMergeNode(ExprNode):
     gil_message = "Constructing Python dict"
 
     def generate_evaluation_code(self, code):
-        #  Custom method used here because key-value
-        #  pairs are evaluated and used one at a time.
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
-        if self.base_dict_node.type is Builtin.dict_type:
-            code.putln(
-                "%s = PyDict_Copy(%s); %s" % (
-                    self.result(),
-                    self.base_dict_node.py_result(),
-                    code.error_goto_if_null(self.result(), self.pos)))
-        else:
+        self.base_dict_node.generate_evaluation_code(code)
+        if self.base_dict_node.type is not Builtin.dict_type:
             # CPython supports calling functions with non-dicts, so do we
             code.putln('if (likely(PyDict_Check(%s))) {' %
                        self.base_dict_node.py_result())
+        if self.key_value_pairs:
             code.putln(
                 "%s = PyDict_Copy(%s); %s" % (
                     self.result(),
                     self.base_dict_node.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+        else:
+            code.putln("%s = %s;" % (
+                self.result(),
+                self.base_dict_node.py_result()))
+            code.put_incref(self.result(), py_object_type)
+        if self.base_dict_node.type is not Builtin.dict_type:
             code.putln('} else {')
             code.putln(
                 "%s = PyObject_CallFunctionObjArgs("
@@ -5326,17 +5327,22 @@ class DictMergeNode(ExprNode):
                     self.result(),
                     self.base_dict_node.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
             code.putln('}')
+        self.base_dict_node.generate_disposal_code(code)
+        self.base_dict_node.free_temps(code)
 
-        code.put_gotref(self.py_result())
+        if self.key_value_pairs:
+            code.globalstate.use_utility_code(Nodes.raise_double_keywords_utility_code)
         for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
-            code.putln("if (PyDict_GetItem(%s, %s)) {" % (
+            code.putln("if (unlikely(PyDict_GetItem(%s, %s))) {" % (
                     self.result(),
                     item.key.py_result()))
-            code.putln('PyErr_SetString(PyExc_TypeError, '
-                       '"got multiple values for keyword argument"); %s' % (
-                    code.error_goto(self.pos)))
+            # FIXME: find out function name at runtime!
+            code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
+                item.key.py_result(),
+                code.error_goto(self.pos)))
             code.putln("}")
             code.put_error_if_neg(self.pos,
                 "PyDict_SetItem(%s, %s, %s)" % (
@@ -5350,6 +5356,7 @@ class DictMergeNode(ExprNode):
         self.base_dict_node.annotate(code)
         for item in self.key_value_pairs:
             item.annotate(code)
+
 
 class ModuleNameMixin(object):
     def set_mod_name(self, env):
