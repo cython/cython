@@ -3775,19 +3775,16 @@ class GeneralCallNode(CallNode):
 
     def generate_result_code(self, code):
         if self.type.is_error: return
-        if not self.keyword_args:
-            call_code = "PyObject_Call(%s, %s, NULL)" % (
-                self.function.py_result(),
-                self.positional_args.py_result())
+        if self.keyword_args:
+            kwargs = self.keyword_args.py_result()
         else:
-            call_code = "PyEval_CallObjectWithKeywords(%s, %s, %s)" % (
+            kwargs = 'NULL'
+        code.putln(
+            "%s = PyObject_Call(%s, %s, %s); %s" % (
+                self.result(),
                 self.function.py_result(),
                 self.positional_args.py_result(),
-                self.keyword_args.py_result())
-        code.putln(
-            "%s = %s; %s" % (
-                self.result(),
-                call_code,
+                kwargs,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
