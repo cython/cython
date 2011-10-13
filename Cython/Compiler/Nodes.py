@@ -3386,9 +3386,12 @@ class PyClassDefNode(ClassDefNode):
                         # find metaclass" dance at runtime
                         self.metaclass = item.value
                         del keyword_args.key_value_pairs[i]
-            if starstar_arg or (keyword_args and keyword_args.key_value_pairs):
+            if starstar_arg:
                 self.mkw = ExprNodes.KeywordArgsNode(
-                    pos, keyword_args = keyword_args, starstar_arg = starstar_arg)
+                    pos, keyword_args = keyword_args and keyword_args.key_value_pairs or [],
+                    starstar_arg = starstar_arg)
+            elif keyword_args and keyword_args.key_value_pairs:
+                self.mkw = keyword_args
             else:
                 self.mkw = ExprNodes.NullNode(pos)
             if self.metaclass is None:

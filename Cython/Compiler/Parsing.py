@@ -459,10 +459,10 @@ def p_call_build_packed_args(pos, positional_args, keyword_args,
         keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
                           for key, value in keyword_args]
         if starstar_arg:
-            keyword_dict = ExprNodes.DictMergeNode(
+            keyword_dict = ExprNodes.KeywordArgsNode(
                 pos,
-                base_dict_node = starstar_arg,
-                key_value_pairs = keyword_args)
+                starstar_arg = starstar_arg,
+                keyword_args = keyword_args)
         else:
             keyword_dict = ExprNodes.DictNode(
                 pos, key_value_pairs = keyword_args)
