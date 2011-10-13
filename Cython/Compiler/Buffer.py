@@ -754,7 +754,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
 def load_buffer_utility(util_code_name, **kwargs):
     return UtilityCode.load(util_code_name, "Buffer.c", **kwargs)
 
-context = dict(max_dims=Options.buffer_max_dims)
+context = dict(max_dims=str(Options.buffer_max_dims))
 buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare",
                                                  context=context)
 

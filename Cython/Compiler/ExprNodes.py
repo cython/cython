@@ -731,7 +731,7 @@ class ExprNode(Node):
         return self.result_in_temp()
 
     def may_be_none(self):
-        if not self.type.is_pyobject:
+        if self.type and not self.type.is_pyobject:
             return False
         if self.constant_result not in (not_a_constant, constant_value_not_set):
             return self.constant_result is not None
@@ -1564,7 +1564,7 @@ class NameNode(AtomicExprNode):
         return 1
 
     def may_be_none(self):
-        if self.type.is_pyobject and self.cf_state:
+        if self.cf_state and self.type and self.type.is_pyobject:
             # gard against infinite recursion on self-dependencies
             if getattr(self, '_none_checking', False):
                 # self-dependency - either this node receives a None
@@ -6982,6 +6982,16 @@ class NumBinopNode(BinopNode):
             return widest_type
         else:
             return None
+
+    def may_be_none(self):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if type1 and type1.is_builtin_type and type2 and type2.is_builtin_type:
+            # XXX: I can't think of any case where a binary operation
+            # on builtin types evaluates to None - add a special case
+            # here if there is one.
+            return False
+        return super(NumBinopNode, self).may_be_none()
 
     def get_constant_c_result_code(self):
         value1 = self.operand1.get_constant_c_result_code()

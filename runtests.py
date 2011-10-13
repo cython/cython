@@ -167,6 +167,13 @@ VER_DEP_MODULES = {
                                           'run.generators_py', # generators, with statement
                                           'run.pure_py', # decorators, with statement
                                           'run.purecdef',
+                                          'run.struct_conversion',
+                                          'run.cythonarray',
+                                          'run.memslice',
+                                          'run.numpy_memoryview',
+                                          'run.memoryviewattrs',
+                                          'run.memoryview',
+                                          'compile.memview_declaration',
                                           ]),
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
                                           'run.yield_inside_lambda',

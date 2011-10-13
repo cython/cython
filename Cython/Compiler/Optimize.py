@@ -2359,6 +2359,28 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             may_return_none = True,
             utility_code = dict_getitem_default_utility_code)
 
+    Pyx_PyDict_SetDefault_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_method_dict_setdefault(self, node, args, is_unbound_method):
+        """Replace dict.setdefault() by calls to PyDict_GetItem() and PyDict_SetItem().
+        """
+        if len(args) == 2:
+            args.append(ExprNodes.NoneNode(node.pos))
+        elif len(args) != 3:
+            self._error_wrong_arg_count('dict.setdefault', node, args, "2 or 3")
+            return node
+
+        return self._substitute_method_call(
+            node, "__Pyx_PyDict_SetDefault", self.Pyx_PyDict_SetDefault_func_type,
+            'setdefault', is_unbound_method, args,
+            may_return_none = True,
+            utility_code = dict_setdefault_utility_code)
+
 
     ### unicode type methods
 
@@ -3102,6 +3124,45 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 ''',
 impl = ""
 )
+
+dict_setdefault_utility_code = UtilityCode(
+proto = """
+static PyObject *__Pyx_PyDict_SetDefault(PyObject *, PyObject *, PyObject *); /*proto*/
+""",
+impl = '''
+static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
+    PyObject* value;
+#if PY_MAJOR_VERSION >= 3
+    value = PyDict_GetItemWithError(d, key);
+    if (unlikely(!value)) {
+        if (unlikely(PyErr_Occurred()))
+            return NULL;
+        if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
+            return NULL;
+        value = default_value;
+    }
+    Py_INCREF(value);
+#else
+    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
+        /* these presumably have safe hash functions */
+        value = PyDict_GetItem(d, key);
+        if (unlikely(!value)) {
+            if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
+                return NULL;
+            value = default_value;
+        }
+        Py_INCREF(value);
+    } else {
+        PyObject *m;
+        m = __Pyx_GetAttrString(d, "setdefault");
+        if (!m) return NULL;
+        value = PyObject_CallFunctionObjArgs(m, key, default_value, NULL);
+        Py_DECREF(m);
+    }
+#endif
+    return value;
+}
+''')
 
 append_utility_code = UtilityCode(
 proto = """
