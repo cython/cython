@@ -3722,11 +3722,10 @@ class GeneralCallNode(CallNode):
     #  function         ExprNode
     #  positional_args  ExprNode          Tuple of positional arguments
     #  keyword_args     ExprNode or None  Dict of keyword arguments
-    #  starstar_arg     ExprNode or None  Dict of extra keyword args
 
     type = py_object_type
 
-    subexprs = ['function', 'positional_args', 'keyword_args', 'starstar_arg']
+    subexprs = ['function', 'positional_args', 'keyword_args']
 
     nogil_check = Node.gil_error
 
@@ -3734,15 +3733,14 @@ class GeneralCallNode(CallNode):
         function = self.function.compile_time_value(denv)
         positional_args = self.positional_args.compile_time_value(denv)
         keyword_args = self.keyword_args.compile_time_value(denv)
-        starstar_arg = self.starstar_arg.compile_time_value(denv)
         try:
-            keyword_args.update(starstar_arg)
             return function(*positional_args, **keyword_args)
         except Exception, e:
             self.compile_time_value_error(e)
 
     def explicit_args_kwds(self):
-        if self.starstar_arg or not isinstance(self.positional_args, TupleNode):
+        if (self.keyword_args and not isinstance(self.keyword_args, DictNode) or
+            not isinstance(self.positional_args, TupleNode)):
             raise CompileError(self.pos,
                 'Compile-time keyword arguments must be explicit.')
         return self.positional_args.args, self.keyword_args
@@ -3754,8 +3752,6 @@ class GeneralCallNode(CallNode):
         self.positional_args.analyse_types(env)
         if self.keyword_args:
             self.keyword_args.analyse_types(env)
-        if self.starstar_arg:
-            self.starstar_arg.analyse_types(env)
         if not self.function.type.is_pyobject:
             if self.function.type.is_error:
                 self.type = error_type
@@ -3766,9 +3762,6 @@ class GeneralCallNode(CallNode):
                 self.function = self.function.coerce_to_pyobject(env)
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
-        if self.starstar_arg:
-            self.starstar_arg = \
-                self.starstar_arg.coerce_to_pyobject(env)
         function = self.function
         if function.is_name and function.type_entry:
             # We are calling an extension type constructor.  As long
@@ -3782,37 +3775,16 @@ class GeneralCallNode(CallNode):
 
     def generate_result_code(self, code):
         if self.type.is_error: return
-        kwargs_call_function = "PyEval_CallObjectWithKeywords"
-        if self.keyword_args and self.starstar_arg:
-            code.put_error_if_neg(self.pos,
-                "PyDict_Update(%s, %s)" % (
-                    self.keyword_args.py_result(),
-                    self.starstar_arg.py_result()))
-            keyword_code = self.keyword_args.py_result()
-        elif self.keyword_args:
-            keyword_code = self.keyword_args.py_result()
-        elif self.starstar_arg:
-            keyword_code = self.starstar_arg.py_result()
-            if self.starstar_arg.type is not Builtin.dict_type:
-                # CPython supports calling functions with non-dicts, so do we
-                code.globalstate.use_utility_code(kwargs_call_utility_code)
-                kwargs_call_function = "__Pyx_PyEval_CallObjectWithKeywords"
+        if self.keyword_args:
+            kwargs = self.keyword_args.py_result()
         else:
-            keyword_code = None
-        if not keyword_code:
-            call_code = "PyObject_Call(%s, %s, NULL)" % (
-                self.function.py_result(),
-                self.positional_args.py_result())
-        else:
-            call_code = "%s(%s, %s, %s)" % (
-                kwargs_call_function,
+            kwargs = 'NULL'
+        code.putln(
+            "%s = PyObject_Call(%s, %s, %s); %s" % (
+                self.result(),
                 self.function.py_result(),
                 self.positional_args.py_result(),
-                keyword_code)
-        code.putln(
-            "%s = %s; %s" % (
-                self.result(),
-                call_code,
+                kwargs,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -5280,6 +5252,7 @@ class DictItemNode(ExprNode):
     def __iter__(self):
         return iter([self.key, self.value])
 
+
 class ModuleNameMixin(object):
     def set_mod_name(self, env):
         self.module_name = env.global_scope().qualified_name
@@ -5372,36 +5345,66 @@ class Py3ClassNode(ExprNode):
         code.put_gotref(self.py_result())
 
 class KeywordArgsNode(ExprNode):
-    # Helper class for keyword arguments
+    #  Helper class for keyword arguments.
     #
-    # keyword_args ExprNode or None     Keyword arguments
-    # starstar_arg ExprNode or None     Extra arguments
+    #  starstar_arg      DictNode
+    #  keyword_args      [DictItemNode]
 
-    subexprs = ['keyword_args', 'starstar_arg']
+    subexprs = ['starstar_arg', 'keyword_args']
+    is_temp = 1
+    type = dict_type
+
+    def calculate_constant_result(self):
+        result = dict(self.starstar_arg.constant_result)
+        for item in self.keyword_args:
+            key, value = item.constant_result
+            if key in result:
+                raise ValueError("duplicate keyword argument found: %s" % key)
+            result[key] = value
+        self.constant_result = result
+
+    def compile_time_value(self, denv):
+        result = self.starstar_arg.compile_time_value(denv)
+        pairs = [ (item.key.compile_time_value(denv), item.value.compile_time_value(denv))
+                  for item in self.keyword_args ]
+        try:
+            result = dict(result)
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate keyword argument found: %s" % key)
+                result[key] = value
+        except Exception, e:
+            self.compile_time_value_error(e)
+        return result
+
+    def type_dependencies(self, env):
+        return ()
+
+    def infer_type(self, env):
+        return dict_type
 
     def analyse_types(self, env):
-        if self.keyword_args:
-            self.keyword_args.analyse_types(env)
-        if self.starstar_arg:
-            self.starstar_arg.analyse_types(env)
-            # make sure we have a Python object as **kwargs mapping
-            self.starstar_arg = \
-                self.starstar_arg.coerce_to_pyobject(env)
-        self.type = py_object_type
-        self.is_temp = 1
+        self.starstar_arg.analyse_types(env)
+        self.starstar_arg = self.starstar_arg.coerce_to_pyobject(env).as_none_safe_node(
+            # FIXME: CPython's error message starts with the runtime function name
+            'argument after ** must be a mapping, not NoneType')
+        for item in self.keyword_args:
+            item.analyse_types(env)
 
-    gil_message = "Constructing Keyword Args"
+    def may_be_none(self):
+        return False
 
-    def generate_result_code(self, code):
-        if self.keyword_args and self.starstar_arg:
-            code.put_error_if_neg(self.pos,
-                "PyDict_Update(%s, %s)" % (
-                    self.keyword_args.py_result(),
-                    self.starstar_arg.py_result()))
+    gil_message = "Constructing Python dict"
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+        self.starstar_arg.generate_evaluation_code(code)
+        if self.starstar_arg.type is not Builtin.dict_type:
+            # CPython supports calling functions with non-dicts, so do we
+            code.putln('if (likely(PyDict_Check(%s))) {' %
+                       self.starstar_arg.py_result())
         if self.keyword_args:
-            code.putln("%s = %s;" % (self.result(), self.keyword_args.result()))
-            code.put_incref(self.keyword_args.result(), self.keyword_args.ctype())
-        elif self.starstar_arg:
             code.putln(
                 "%s = PyDict_Copy(%s); %s" % (
                     self.result(),
@@ -5409,11 +5412,49 @@ class KeywordArgsNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         else:
+            code.putln("%s = %s;" % (
+                self.result(),
+                self.starstar_arg.py_result()))
+            code.put_incref(self.result(), py_object_type)
+        if self.starstar_arg.type is not Builtin.dict_type:
+            code.putln('} else {')
             code.putln(
-                "%s = PyDict_New(); %s" % (
+                "%s = PyObject_CallFunctionObjArgs("
+                "(PyObject*)&PyDict_Type, %s, NULL); %s" % (
                     self.result(),
+                    self.starstar_arg.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+            code.putln('}')
+        self.starstar_arg.generate_disposal_code(code)
+        self.starstar_arg.free_temps(code)
+
+        if not self.keyword_args:
+            return
+
+        code.globalstate.use_utility_code(Nodes.raise_double_keywords_utility_code)
+        for item in self.keyword_args:
+            item.generate_evaluation_code(code)
+            code.putln("if (unlikely(PyDict_GetItem(%s, %s))) {" % (
+                    self.result(),
+                    item.key.py_result()))
+            # FIXME: find out function name at runtime!
+            code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
+                item.key.py_result(),
+                code.error_goto(self.pos)))
+            code.putln("}")
+            code.put_error_if_neg(self.pos,
+                "PyDict_SetItem(%s, %s, %s)" % (
+                    self.result(),
+                    item.key.py_result(),
+                    item.value.py_result()))
+            item.generate_disposal_code(code)
+            item.free_temps(code)
+
+    def annotate(self, code):
+        self.starstar_arg.annotate(code)
+        for item in self.keyword_args:
+            item.annotate(code)
 
 class PyClassMetaclassNode(ExprNode):
     # Helper class holds Python3 metaclass object

@@ -1638,9 +1638,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         if not isinstance(kwargs, ExprNodes.DictNode):
             return node
-        if node.starstar_arg:
-            # we could optimize this by updating the kw dict instead
-            return node
         return kwargs
 
 
@@ -1663,11 +1660,13 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         arg_tuple = node.positional_args
         if not isinstance(arg_tuple, ExprNodes.TupleNode):
             return node
-        if node.starstar_arg:
+        keyword_args = node.keyword_args
+        if keyword_args and not isinstance(keyword_args, ExprNodes.DictNode):
+            # can't handle **kwargs
             return node
         args = arg_tuple.args
         return self._dispatch_to_handler(
-            node, function, args, node.keyword_args)
+            node, function, args, keyword_args)
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
