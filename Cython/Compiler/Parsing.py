@@ -441,7 +441,7 @@ def p_call_parse_args(s, allow_genexp = True):
     return positional_args, keyword_args, star_arg, starstar_arg
 
 def p_call_build_packed_args(pos, positional_args, keyword_args,
-                             star_arg, starstar_arg=None):
+                             star_arg, starstar_arg):
     arg_tuple = None
     keyword_dict = None
     if positional_args or not star_arg:
@@ -2779,7 +2779,7 @@ def p_class_statement(s, decorators):
         positional_args, keyword_args, star_arg, starstar_arg = \
                             p_call_parse_args(s, allow_genexp = False)
         arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg)
+            pos, positional_args, keyword_args, star_arg, None)
     if arg_tuple is None:
         # XXX: empty arg_tuple
         arg_tuple = ExprNodes.TupleNode(pos, args = [])
