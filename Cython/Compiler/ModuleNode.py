@@ -591,6 +591,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
           PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #endif
 
+#if PY_MAJOR_VERSION < 3 && PY_MINOR_VERSION < 6
+  #define PyUnicode_FromString(s) PyUnicode_Decode(s, strlen(s), "UTF-8", "strict")
+#endif
+
 #if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_CHECKTYPES 0
   #define Py_TPFLAGS_HAVE_INDEX 0

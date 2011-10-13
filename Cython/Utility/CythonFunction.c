@@ -588,6 +588,7 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
     {(char *) "__signatures__",
      T_OBJECT,
      offsetof(__pyx_FusedFunctionObject, __signatures__),
+     READONLY,
      __Pyx_DOCSTR(0)},
 };
 
@@ -616,7 +617,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_as_sequence*/
     &__pyx_FusedFunction_mapping_methods, /*tp_as_mapping*/
     0,                                  /*tp_hash*/
-    __pyx_FusedFunction_call,           /*tp_call*/
+    (ternaryfunc) __pyx_FusedFunction_call, /*tp_call*/
     0,                                  /*tp_str*/
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
