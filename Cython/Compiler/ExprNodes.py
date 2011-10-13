@@ -3232,27 +3232,6 @@ class CallNode(ExprNode):
     # allow overriding the default 'may_be_none' behaviour
     may_return_none = None
 
-    def infer_type(self, env):
-        function = self.function
-        func_type = function.infer_type(env)
-        if isinstance(self.function, NewExprNode):
-            return PyrexTypes.CPtrType(self.function.class_type)
-        if func_type.is_ptr:
-            func_type = func_type.base_type
-        if func_type.is_cfunction:
-            return func_type.return_type
-        elif func_type is type_type:
-            if function.is_name and function.entry and function.entry.type:
-                result_type = function.entry.type
-                if result_type.is_extension_type:
-                    return result_type
-                elif result_type.is_builtin_type:
-                    if function.entry.name == 'float':
-                        return PyrexTypes.c_double_type
-                    elif function.entry.name in Builtin.types_that_construct_their_instance:
-                        return result_type
-        return py_object_type
-
     def may_be_none(self):
         if self.may_return_none is not None:
             return self.may_return_none
@@ -3329,6 +3308,27 @@ class SimpleCallNode(CallNode):
         # TODO: Update when Danilo's C++ code merged in to handle the
         # the case of function overloading.
         return self.function.type_dependencies(env)
+
+    def infer_type(self, env):
+        function = self.function
+        func_type = function.infer_type(env)
+        if isinstance(self.function, NewExprNode):
+            return PyrexTypes.CPtrType(self.function.class_type)
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        if func_type.is_cfunction:
+            return func_type.return_type
+        elif func_type is type_type:
+            if function.is_name and function.entry and function.entry.type:
+                result_type = function.entry.type
+                if result_type.is_extension_type:
+                    return result_type
+                elif result_type.is_builtin_type:
+                    if function.entry.name == 'float':
+                        return PyrexTypes.c_double_type
+                    elif function.entry.name in Builtin.types_that_construct_their_instance:
+                        return result_type
+        return py_object_type
 
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
