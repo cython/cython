@@ -5984,6 +5984,8 @@ class FromImportStatNode(StatNode):
                 else:
                     coerced_item = self.item.coerce_to(target.type, env)
                 self.interned_items.append((name, target, coerced_item))
+        if self.interned_items:
+            env.use_utility_code(raise_import_error_utility_code)
 
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
@@ -5998,11 +6000,16 @@ class FromImportStatNode(StatNode):
         for name, target, coerced_item in self.interned_items:
             cname = code.intern_identifier(name)
             code.putln(
-                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                '%s = PyObject_GetAttr(%s, %s);' % (
                     item_temp,
                     self.module.py_result(),
-                    cname,
-                    code.error_goto_if_null(item_temp, self.pos)))
+                    cname))
+            code.putln('if (%s == NULL) {' % item_temp)
+            code.putln(
+                'if (PyErr_ExceptionMatches(PyExc_AttributeError)) '
+                '__Pyx_RaiseImportError(%s);' % cname)
+            code.putln(code.error_goto_if_null(item_temp, self.pos))
+            code.putln('}')
             code.put_gotref(item_temp)
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
@@ -8332,3 +8339,19 @@ init="""
     memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
 """ % vars(Naming))
 
+#------------------------------------------------------------------------------------
+
+raise_import_error_utility_code = UtilityCode(
+proto = '''
+static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name);
+''',
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name) {
+#if PY_MAJOR_VERSION < 3
+    PyErr_Format(PyExc_ImportError, "cannot import name %.230s",
+                 PyString_AsString(name));
+#else
+    PyErr_Format(PyExc_ImportError, "cannot import name %S", name);
+#endif
+}
+''')
