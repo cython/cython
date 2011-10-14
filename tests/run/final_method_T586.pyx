@@ -29,6 +29,14 @@ cdef class FinalType(object):
         self.cpdef_method()
 
 
+def test_external_call():
+    """
+    >>> test_external_call()
+    """
+    f = FinalType()
+    return f.cpdef_method()
+
+
 cdef class BaseTypeWithFinalMethods(object):
     """
     >>> obj = BaseTypeWithFinalMethods()
