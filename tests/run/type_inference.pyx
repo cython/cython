@@ -529,6 +529,24 @@ def large_literals():
     assert typeof(d) == "Python object", typeof(d)
 
 
+class EmptyContextManager(object):
+    def __enter__(self):
+        return None
+    def __exit__(self, *args):
+        return 0
+
+def with_statement():
+    """
+    >>> with_statement()
+    Python object
+    'Python object'
+    """
+    x = 1.0
+    with EmptyContextManager() as x:
+        print(typeof(x))
+    return typeof(x)
+
+
 # Regression test for trac #638.
 
 def bar(foo):
