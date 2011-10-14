@@ -36,6 +36,12 @@ def test_external_call():
     f = FinalType()
     return f.cpdef_method()
 
+def test_external_call_in_temp():
+    """
+    >>> test_external_call_in_temp()
+    """
+    return FinalType().cpdef_method()
+
 
 cdef class BaseTypeWithFinalMethods(object):
     """
