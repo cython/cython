@@ -1166,7 +1166,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
         body, target, manager = node.body, node.target, node.manager
         node.enter_call = ExprNodes.SimpleCallNode(
             pos, function = ExprNodes.AttributeNode(
-                pos, obj = ResultRefNode(manager),
+                pos, obj = ExprNodes.CloneNode(manager),
                 attribute = EncodedString('__enter__')),
             args = [],
             is_temp = True)
