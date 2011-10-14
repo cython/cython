@@ -3,7 +3,7 @@ from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
 
-class ExtractPxdCode(CythonTransform):
+class ExtractPxdCode(VisitorTransform):
     """
     Finds nodes in a pxd file that should generate code, and
     returns them in a StatListNode.
@@ -27,4 +27,8 @@ class ExtractPxdCode(CythonTransform):
         self.funcs.append(node)
         # Do not visit children, nested funcdefnodes will
         # also be moved by this action...
+        return node
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
         return node
