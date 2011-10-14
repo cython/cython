@@ -539,12 +539,47 @@ def with_statement():
     """
     >>> with_statement()
     Python object
-    'Python object'
+    Python object
     """
     x = 1.0
     with EmptyContextManager() as x:
         print(typeof(x))
-    return typeof(x)
+    print(typeof(x))
+    return x
+
+@cython.final
+cdef class TypedContextManager(object):
+    cpdef double __enter__(self):
+        return 2.0
+    def __exit__(self, *args):
+        return 0
+
+def with_statement_typed():
+    """
+    >>> with_statement_typed()
+    double
+    double
+    2.0
+    """
+    x = 1.0
+    with TypedContextManager() as x:
+        print(typeof(x))
+    print(typeof(x))
+    return x
+
+def with_statement_untyped():
+    """
+    >>> with_statement_untyped()
+    Python object
+    Python object
+    2.0
+    """
+    x = 1.0
+    cdef object t = TypedContextManager()
+    with t as x:
+        print(typeof(x))
+    print(typeof(x))
+    return x
 
 
 # Regression test for trac #638.

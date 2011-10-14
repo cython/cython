@@ -1164,16 +1164,20 @@ class WithTransform(CythonTransform, SkipDeclarations):
         self.visitchildren(node, 'body')
         pos = node.pos
         body, target, manager = node.body, node.target, node.manager
-        node.target_temp = ExprNodes.TempNode(pos, type=PyrexTypes.py_object_type)
+        node.enter_call = ExprNodes.SimpleCallNode(
+            pos, function = ExprNodes.AttributeNode(
+                pos, obj = ExprNodes.CloneNode(manager),
+                attribute = EncodedString('__enter__')),
+            args = [],
+            is_temp = True)
         if target is not None:
-            node.has_target = True
             body = Nodes.StatListNode(
                 pos, stats = [
                     Nodes.WithTargetAssignmentStatNode(
-                        pos, lhs = target, rhs = node.target_temp),
-                    body
-                    ])
-            node.target = None
+                        pos, lhs = target,
+                        rhs = ResultRefNode(node.enter_call),
+                        orig_rhs = node.enter_call),
+                    body])
 
         excinfo_target = ResultRefNode(
             pos=pos, type=Builtin.tuple_type, may_hold_none=False)
