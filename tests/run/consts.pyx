@@ -92,6 +92,14 @@ def lists():
     return [1,2,3] + [4,5,6]
 
 @cython.test_fail_if_path_exists("//MulNode")
+def multiplied_lists_right_len1():
+    """
+    >>> multiplied_lists_right_len1() == [1] * 5
+    True
+    """
+    return [1] * 5
+
+@cython.test_fail_if_path_exists("//MulNode")
 def multiplied_lists_right():
     """
     >>> multiplied_lists_right() == [1,2,3] * 5
@@ -174,6 +182,14 @@ def multiplied_const_tuple():
     True
     """
     return (1,2) * 5
+
+@cython.test_fail_if_path_exists("//MulNode")
+def multiplied_const_tuple_len1():
+    """
+    >>> multiplied_const_tuple_len1() == (1,) * 5
+    True
+    """
+    return (1,) * 5
 
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
 def compile_time_DEF():
