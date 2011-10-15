@@ -9318,9 +9318,9 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     if (PyList_CheckExact(o)) {
         Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
-            PyObject* old = PyList_GET_ITEM(o, i);
+            PyObject* old = PyList_GET_ITEM(o, n);
             Py_INCREF(v);
-            PyList_SET_ITEM(o, i, v);
+            PyList_SET_ITEM(o, n, v);
             Py_DECREF(old);
             return 1;
         }
