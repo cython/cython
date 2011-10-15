@@ -9268,22 +9268,29 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ss
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) {
-    PyObject *r;
-    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
-        r = PyList_GET_ITEM(o, i);
-        Py_INCREF(r);
+    if (PyList_CheckExact(o)) {
+        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
+        if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
+            PyObject *r = PyList_GET_ITEM(o, n);
+            Py_INCREF(r);
+            return r;
+        }
     }
-    else if (PyTuple_CheckExact(o) && ((0 <= i) & (i < PyTuple_GET_SIZE(o)))) {
-        r = PyTuple_GET_ITEM(o, i);
-        Py_INCREF(r);
+    else if (PyTuple_CheckExact(o)) {
+        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
+        if (likely((n >= 0) & (n < PyTuple_GET_SIZE(o)))) {
+            PyObject *r = PyTuple_GET_ITEM(o, n);
+            Py_INCREF(r);
+            return r;
+        }
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item && (likely(i >= 0))) {
-        r = Py_TYPE(o)->tp_as_sequence->sq_item(o, i);
+    else if (likely(i >= 0)) {
+        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
+        if (likely(m && m->sq_item)) {
+            return m->sq_item(o, i);
+        }
     }
-    else {
-        r = __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
-    }
-    return r;
+    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
 }
 """,
 impl = """
@@ -9308,18 +9315,23 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v) {
-    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
-        Py_INCREF(v);
-        Py_DECREF(PyList_GET_ITEM(o, i));
-        PyList_SET_ITEM(o, i, v);
-        return 1;
+    if (PyList_CheckExact(o)) {
+        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
+        if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
+            PyObject* old = PyList_GET_ITEM(o, i);
+            Py_INCREF(v);
+            PyList_SET_ITEM(o, i, v);
+            Py_DECREF(old);
+            return 1;
+        }
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0)))
-        return Py_TYPE(o)->tp_as_sequence->sq_ass_item(o, i, v);
-    else {
-        PyObject *j = PyInt_FromSsize_t(i);
-        return __Pyx_SetItemInt_Generic(o, j, v);
+    else if (likely(i >= 0)) {
+        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
+        if (likely(m && m->sq_ass_item)) {
+            return m->sq_ass_item(o, i, v);
+        }
     }
+    return __Pyx_SetItemInt_Generic(o, PyInt_FromSsize_t(i), v);
 }
 """,
 impl = """
@@ -9342,12 +9354,13 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 }
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i) {
-    if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && likely(i >= 0))
-        return Py_TYPE(o)->tp_as_sequence->sq_ass_item(o, i, (PyObject *)NULL);
-    else {
-        PyObject *j = PyInt_FromSsize_t(i);
-        return __Pyx_DelItem_Generic(o, j);
+    if (likely(i >= 0)) {
+        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
+        if (likely(m && m->sq_ass_item)) {
+            return m->sq_ass_item(o, i, (PyObject *)NULL);
+        }
     }
+    return __Pyx_DelItem_Generic(o, PyInt_FromSsize_t(i));
 }
 """,
 impl = """
