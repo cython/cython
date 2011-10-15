@@ -298,7 +298,8 @@ def p_typecast(s):
     s.next()
     base_type = p_c_base_type(s)
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
-    if not is_memslice and base_type.name is None:
+    is_template =isinstance(base_type, Nodes.TemplatedTypeNode)
+    if not is_memslice and not is_template and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
