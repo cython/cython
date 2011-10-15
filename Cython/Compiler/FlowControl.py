@@ -925,11 +925,12 @@ class CreateControlFlowGraph(CythonTransform):
         raise InternalError, "Generic loops are not supported"
 
     def visit_WithTargetAssignmentStatNode(self, node):
-        self.mark_assignment(node.lhs)
+        self.mark_assignment(node.lhs, node.rhs)
         return node
 
     def visit_WithStatNode(self, node):
         self.visit(node.manager)
+        self.visit(node.enter_call)
         self.visit(node.body)
         return node
 

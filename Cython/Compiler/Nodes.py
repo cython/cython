@@ -5145,11 +5145,11 @@ class WithStatNode(StatNode):
     #  target           ExprNode  the target lhs of the __enter__() call
     #  body             StatNode
     #  enter_call       ExprNode  the call to the __enter__() method
+    #  exit_var         String    the cname of the __exit__() method reference
 
-    child_attrs = ["manager", "target", "body", "enter_call"]
+    child_attrs = ["manager", "enter_call", "target", "body"]
 
     enter_call = None
-    has_target = False
 
     def analyse_declarations(self, env):
         self.manager.analyse_declarations(env)
@@ -5186,6 +5186,11 @@ class WithStatNode(StatNode):
         if not self.target:
             self.enter_call.generate_disposal_code(code)
             self.enter_call.free_temps(code)
+        else:
+            # Otherwise, the node will be cleaned up by the
+            # WithTargetAssignmentStatNode after assigning its result
+            # to the target of the 'with' statement.
+            pass
         self.manager.generate_disposal_code(code)
         self.manager.free_temps(code)
 
@@ -5210,25 +5215,43 @@ class WithTargetAssignmentStatNode(AssignmentNode):
     # This is a special cased assignment that steals the RHS reference
     # and frees its temp.
     #
-    # lhs       ExprNode  the assignment target
-    # orig_rhs  ExprNode  the return value of the __enter__() call (not owned by this node!)
-    # rhs       ResultRefNode  a ResultRefNode for the orig_rhs (owned by this node)
+    # lhs       ExprNode   the assignment target
+    # rhs       CloneNode  a (coerced) CloneNode for the orig_rhs (not owned by this node)
+    # orig_rhs  ExprNode   the original ExprNode of the rhs. this node will clean up the
+    #                      temps of the orig_rhs. basically, it takes ownership of the node
+    #                      when the WithStatNode is done with it.
 
-    child_attrs = ["lhs", "rhs"]
+    child_attrs = ["lhs"]
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
 
-    def analyse_types(self, env):
+    def analyse_expressions(self, env):
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
         self.rhs = self.rhs.coerce_to(self.lhs.type, env)
 
     def generate_execution_code(self, code):
+        if self.orig_rhs.type.is_pyobject:
+            # make sure rhs gets freed on errors, see below
+            old_error_label = code.new_error_label()
+            intermediate_error_label = code.error_label
+
         self.rhs.generate_evaluation_code(code)
         self.lhs.generate_assignment_code(self.rhs, code)
-        self.orig_rhs.generate_disposal_code(code)
+
+        if self.orig_rhs.type.is_pyobject:
+            self.orig_rhs.generate_disposal_code(code)
+            code.error_label = old_error_label
+            if code.label_used(intermediate_error_label):
+                step_over_label = code.new_label()
+                code.put_goto(step_over_label)
+                code.put_label(intermediate_error_label)
+                self.orig_rhs.generate_disposal_code(code)
+                code.put_goto(old_error_label)
+                code.put_label(step_over_label)
+
         self.orig_rhs.free_temps(code)
 
     def annotate(self, code):
