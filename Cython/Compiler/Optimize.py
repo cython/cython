@@ -3510,6 +3510,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 sequence_node.mult_factor = factor
             self.visitchildren(sequence_node)
             return sequence_node
+        if isinstance(node.operand1, ExprNodes.IntNode) and \
+               isinstance(node.operand2, (ExprNodes.ListNode, ExprNodes.TupleNode)):
+            sequence_node = node.operand2
+            factor = node.operand1
+            self._calculate_const(factor)
+            if factor.constant_result != 1:
+                sequence_node.mult_factor = factor
+            self.visitchildren(sequence_node)
+            return sequence_node
         return self.visit_BinopNode(node)
 
     def visit_PrimaryCmpNode(self, node):
