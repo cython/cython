@@ -167,6 +167,14 @@ def multiplied_lists_with_side_effects():
     """
     return [side_effect(1), side_effect(2), side_effect(3)] * 5
 
+@cython.test_fail_if_path_exists("//MulNode")
+def multiplied_const_tuple():
+    """
+    >>> multiplied_const_tuple() == (1,2) * 5
+    True
+    """
+    return (1,2) * 5
+
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
 def compile_time_DEF():
     """

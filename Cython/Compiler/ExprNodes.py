@@ -4432,8 +4432,17 @@ class SequenceNode(ExprNode):
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
         if mult:
-            counter = code.funcstate.allocate_temp(self.mult_factor.type, manage_ref=False)
-            offset = '%s * %s + ' % (counter, arg_count)
+            # FIXME: can't use a temp variable here as the code may
+            # end up in the constant building function.  Temps
+            # currently don't work there.
+
+            #counter = code.funcstate.allocate_temp(self.mult_factor.type, manage_ref=False)
+            counter = '__pyx_n'
+            code.putln('{ Py_ssize_t %s;' % counter)
+            if arg_count == 1:
+                offset = counter + ' + '
+            else:
+                offset = '%s * %s + ' % (counter, arg_count)
             code.putln('for (%s=0; %s < %s; %s++) {' % (
                 counter, counter, mult, counter
                 ))
@@ -4452,7 +4461,8 @@ class SequenceNode(ExprNode):
             code.put_giveref(arg.py_result())
         if mult:
             code.putln('}')
-            code.funcstate.release_temp(counter)
+            #code.funcstate.release_temp(counter)
+            code.putln('}')
 
     def generate_subexpr_disposal_code(self, code):
         if self.mult_factor:
