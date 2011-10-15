@@ -138,6 +138,12 @@ class ResultRefNode(AtomicExprNode):
         # nothing to do here
         return self
 
+    def type_dependencies(self, env):
+        if self.expression:
+            return (self.expression,)
+        else:
+            return ()
+
     def analyse_types(self, env):
         if self.expression is not None:
             self.type = self.expression.type
