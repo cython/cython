@@ -197,10 +197,10 @@ def manager_from_expression():
     exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
     """
     with GetManager().get(1) as x:
-        print x
+        print(x)
     g = GetManager()
     with g.get(2) as x:
-        print x
+        print(x)
 
 
 # Tests borrowed from pyregr test_with.py,
