@@ -319,16 +319,34 @@ class EnvTransform(CythonTransform):
     This transformation keeps a stack of the environments.
     """
     def __call__(self, root):
-        self.env_stack = [root.scope]
+        self.env_stack = [(root, root.scope)]
         return super(EnvTransform, self).__call__(root)
 
     def current_env(self):
-        return self.env_stack[-1]
+        return self.env_stack[-1][1]
+
+    def current_scope_node(self):
+        return self.env_stack[-1][0]
 
     def visit_FuncDefNode(self, node):
-        self.env_stack.append(node.local_scope)
+        self.env_stack.append((node, node.local_scope))
         self.visitchildren(node)
         self.env_stack.pop()
+        return node
+
+    def visit_ClassDefNode(self, node):
+        self.env_stack.append((node, node.scope))
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
+
+    def visit_ScopedExprNode(self, node):
+        if node.expr_scope:
+            self.env_stack.append((node, node.expr_scope))
+            self.visitchildren(node)
+            self.env_stack.pop()
+        else:
+            self.visitchildren(node)
         return node
 
 

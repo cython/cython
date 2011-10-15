@@ -5869,6 +5869,57 @@ class YieldExprNode(ExprNode):
         else:
             code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
 
+
+class GlobalsExprNode(AtomicExprNode):
+    type = dict_type
+    is_temp = 1
+
+    def analyse_types(self, env):
+        env.use_utility_code(Builtin.globals_utility_code)
+
+    gil_message = "Constructing globals dict"
+
+    def generate_result_code(self, code):
+        code.putln('%s = __Pyx_Globals(); %s' % (
+            self.result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
+
+
+class FuncLocalsExprNode(DictNode):
+    def __init__(self, pos, env):
+        local_vars = [var.name for var in env.entries.values() if var.name]
+        items = [DictItemNode(pos, key=IdentifierStringNode(pos, value=var),
+                              value=NameNode(pos, name=var, allow_null=True))
+                 for var in local_vars]
+        DictNode.__init__(self, pos, key_value_pairs=items,
+                          exclude_null_values=True)
+
+
+class PyClassLocalsExprNode(AtomicExprNode):
+    def __init__(self, pos, pyclass_dict):
+        AtomicExprNode.__init__(self, pos)
+        self.pyclass_dict = pyclass_dict
+
+    def analyse_types(self, env):
+        self.type = self.pyclass_dict.type
+        self.is_tmep = 0
+
+    def result(self):
+        return self.pyclass_dict.result()
+
+    def generate_result_code(self, code):
+        pass
+
+
+def LocalsExprNode(pos, scope_node, env):
+    if env.is_module_scope:
+        return GlobalsExprNode(pos)
+    if env.is_py_class_scope:
+        return PyClassLocalsExprNode(pos, scope_node.dict)
+    return FuncLocalsExprNode(pos, env)
+
+
 #-------------------------------------------------------------------
 #
 #  Unary operator nodes
