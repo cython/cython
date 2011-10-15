@@ -140,7 +140,7 @@ class ResultRefNode(AtomicExprNode):
 
     def type_dependencies(self, env):
         if self.expression:
-            return (self.expression,)
+            return self.expression.type_dependencies(env)
         else:
             return ()
 
