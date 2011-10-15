@@ -97,7 +97,7 @@ globals_utility_code = UtilityCode(
 # of Python names.  Supporting cdef names in the module and write
 # access requires a rewrite as a dedicated class.
 proto = """
-static PyObject* __Pyx_Globals(); /*proto*/
+static PyObject* __Pyx_Globals(void); /*proto*/
 """,
 impl = '''
 static PyObject* __Pyx_Globals() {
