@@ -4440,9 +4440,9 @@ class SequenceNode(ExprNode):
             counter = '__pyx_n'
             code.putln('{ Py_ssize_t %s;' % counter)
             if arg_count == 1:
-                offset = counter + ' + '
+                offset = counter
             else:
-                offset = '%s * %s + ' % (counter, arg_count)
+                offset = '%s * %s' % (counter, arg_count)
             code.putln('for (%s=0; %s < %s; %s++) {' % (
                 counter, counter, mult, counter
                 ))
@@ -4452,11 +4452,10 @@ class SequenceNode(ExprNode):
             arg = self.args[i]
             if mult or not arg.result_in_temp():
                 code.put_incref(arg.result(), arg.ctype())
-            code.putln("%s(%s, %s%s, %s);" % (
+            code.putln("%s(%s, %s, %s);" % (
                 set_item_func,
                 self.result(),
-                offset,
-                i,
+                (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
                 arg.py_result()))
             code.put_giveref(arg.py_result())
         if mult:
