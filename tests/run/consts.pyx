@@ -91,6 +91,61 @@ def lists():
     """
     return [1,2,3] + [4,5,6]
 
+@cython.test_fail_if_path_exists("//BinopNode")
+def multiplied_lists():
+    """
+    >>> multiplied_lists() == [1,2,3] * 5
+    True
+    """
+    return [1,2,3] * 5
+
+@cython.test_fail_if_path_exists("//BinopNode")
+def multiplied_lists_neg():
+    """
+    >>> multiplied_lists_neg() == [1,2,3] * -5
+    True
+    """
+    return [1,2,3] * -5
+
+@cython.test_fail_if_path_exists("//BinopNode")
+def multiplied_lists_nonconst(x):
+    """
+    >>> multiplied_lists_nonconst(5) == [1,2,3] * 5
+    True
+    >>> multiplied_lists_nonconst(-5) == [1,2,3] * -5
+    True
+    >>> multiplied_lists_nonconst(0) == [1,2,3] * 0
+    True
+    """
+    return [1,2,3] * x
+
+@cython.test_fail_if_path_exists("//BinopNode")
+def multiplied_lists_nonconst_expression(x):
+    """
+    >>> multiplied_lists_nonconst_expression(5) == [1,2,3] * (5 * 2)
+    True
+    >>> multiplied_lists_nonconst_expression(-5) == [1,2,3] * (-5 * 2)
+    True
+    >>> multiplied_lists_nonconst_expression(0) == [1,2,3] * (0 * 2)
+    True
+    """
+    return [1,2,3] * (x*2)
+
+cdef side_effect(int x):
+    print x
+    return x
+
+@cython.test_fail_if_path_exists("//BinopNode")
+def multiplied_lists_with_side_effects():
+    """
+    >>> multiplied_lists_with_side_effects() == [1,2,3] * 5
+    1
+    2
+    3
+    True
+    """
+    return [side_effect(1), side_effect(2), side_effect(3)] * 5
+
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
 def compile_time_DEF():
     """

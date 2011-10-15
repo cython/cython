@@ -3501,6 +3501,17 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                                     constant_result = node.constant_result)
         return new_node
 
+    def visit_MulNode(self, node):
+        if isinstance(node.operand1, (ExprNodes.ListNode, ExprNodes.TupleNode)):
+            sequence_node = node.operand1
+            factor = node.operand2
+            self._calculate_const(factor)
+            if factor.constant_result != 1:
+                sequence_node.mult_factor = factor
+            self.visitchildren(sequence_node)
+            return sequence_node
+        return self.visit_BinopNode(node)
+
     def visit_PrimaryCmpNode(self, node):
         self._calculate_const(node)
         if node.constant_result is ExprNodes.not_a_constant:
