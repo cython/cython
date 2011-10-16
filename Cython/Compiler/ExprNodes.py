@@ -3253,6 +3253,11 @@ class CallNode(ExprNode):
                         return result_type
         return py_object_type
 
+    def type_dependencies(self, env):
+        # TODO: Update when Danilo's C++ code merged in to handle the
+        # the case of function overloading.
+        return self.function.type_dependencies(env)
+
     def may_be_none(self):
         if self.may_return_none is not None:
             return self.may_return_none
@@ -3324,11 +3329,6 @@ class SimpleCallNode(CallNode):
             return function(*args)
         except Exception, e:
             self.compile_time_value_error(e)
-
-    def type_dependencies(self, env):
-        # TODO: Update when Danilo's C++ code merged in to handle the
-        # the case of function overloading.
-        return self.function.type_dependencies(env)
 
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
