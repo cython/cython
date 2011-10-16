@@ -1553,7 +1553,8 @@ def main():
 
     if options.pyximport_py:
         from pyximport import pyximport
-        pyximport.install(pyimport=True, build_dir=os.path.join(WORKDIR, '_pyximport'))
+        pyximport.install(pyimport=True, build_dir=os.path.join(WORKDIR, '_pyximport'),
+                          load_py_module_on_import_failure=True)
 
     result = test_runner.run(test_suite)
 
