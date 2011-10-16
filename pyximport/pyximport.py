@@ -183,7 +183,7 @@ def load_module(name, pyxfilename, pyxbuild_dir=None):
         so_path = build_module(name, pyxfilename, pyxbuild_dir)
         mod = imp.load_dynamic(name, so_path)
         assert mod.__file__ == so_path, (mod.__file__, so_path)
-    except Exception, e:
+    except Exception:
         import traceback
         raise ImportError("Building module failed: %s" %
                           traceback.format_exception_only(*sys.exc_info()[:2])),None,sys.exc_info()[2]
