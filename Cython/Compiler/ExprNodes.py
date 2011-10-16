@@ -4464,7 +4464,7 @@ class SequenceNode(ExprNode):
             #code.funcstate.release_temp(counter)
             code.putln('}')
         elif py_multiply and not plain:
-            code.putln('{ PyObject* %s = PyNumber_Multiply(%s, %s); %s' % (
+            code.putln('{ PyObject* %s = PyNumber_InPlaceMultiply(%s, %s); %s' % (
                 Naming.quick_temp_cname, target, self.mult_factor.py_result(),
                 code.error_goto_if_null(Naming.quick_temp_cname, self.pos)
                 ))
