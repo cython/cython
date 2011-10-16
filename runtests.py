@@ -1552,7 +1552,7 @@ def main():
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
 
     if options.pyximport_py:
-        import pyximport
+        from pyximport import pyximport
         pyximport.install(pyimport=True, build_dir=os.path.join(WORKDIR, '_pyximport'))
 
     result = test_runner.run(test_suite)
