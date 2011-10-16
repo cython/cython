@@ -4369,12 +4369,7 @@ class SequenceNode(ExprNode):
         if self.mult_factor:
             self.mult_factor.analyse_types(env)
             if not self.mult_factor.type.is_int:
-                if self.mult_factor.type.is_pyobject:
-                    self.mult_factor = self.mult_factor.coerce_to(
-                        PyrexTypes.c_py_ssize_t_type, env)
-                else:
-                    error(self.pos, "can't multiply sequence by non-int of type '%s'" %
-                          self.mult_factor.type)
+                self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
         self.is_temp = 1
         # not setting self.type here, subtypes do this
 
@@ -4406,38 +4401,44 @@ class SequenceNode(ExprNode):
     def generate_result_code(self, code):
         self.generate_operation_code(code)
 
-    def generate_sequence_packing_code(self, code):
+    def generate_sequence_packing_code(self, code, target=None, plain=False):
+        if target is None:
+            target = self.result()
+        py_multiply = self.mult_factor and not self.mult_factor.type.is_int
+        if plain or py_multiply:
+            mult_factor = None
+        else:
+            mult_factor = self.mult_factor
+        if mult_factor:
+            mult = mult_factor.result()
+            if isinstance(mult_factor.constant_result, (int,long)) \
+                   and mult_factor.constant_result > 0:
+                size_factor = ' * %s' % mult_factor.constant_result
+            else:
+                size_factor = ' * ((%s<0) ? 0:%s)' % (mult, mult)
+        else:
+            size_factor = ''
+            mult = ''
+
         if self.type is Builtin.list_type:
             create_func, set_item_func = 'PyList_New', 'PyList_SET_ITEM'
         elif self.type is Builtin.tuple_type:
             create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
         else:
             raise InternalError("sequence unpacking for unexpected type %s" % self.type)
-        if self.mult_factor:
-            mult = self.mult_factor.result()
-            if isinstance(self.mult_factor.constant_result, (int,long)) \
-                   and self.mult_factor.constant_result > 0:
-                size_factor = ' * %s' % self.mult_factor.constant_result
-            else:
-                size_factor = ' * ((%s<0) ? 0:%s)' % (mult, mult)
-        else:
-            size_factor = ''
-            mult = ''
         arg_count = len(self.args)
         code.putln("%s = %s(%s%s); %s" % (
-            self.result(),
-            create_func,
-            arg_count,
-            size_factor,
-            code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
+            target, create_func, arg_count, size_factor,
+            code.error_goto_if_null(target, self.pos)))
+        code.put_gotref(target)
+
         if mult:
             # FIXME: can't use a temp variable here as the code may
             # end up in the constant building function.  Temps
             # currently don't work there.
 
-            #counter = code.funcstate.allocate_temp(self.mult_factor.type, manage_ref=False)
-            counter = '__pyx_n'
+            #counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
+            counter = Naming.quick_temp_cname
             code.putln('{ Py_ssize_t %s;' % counter)
             if arg_count == 1:
                 offset = counter
@@ -4454,7 +4455,7 @@ class SequenceNode(ExprNode):
                 code.put_incref(arg.result(), arg.ctype())
             code.putln("%s(%s, %s, %s);" % (
                 set_item_func,
-                self.result(),
+                target,
                 (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
                 arg.py_result()))
             code.put_giveref(arg.py_result())
@@ -4462,9 +4463,18 @@ class SequenceNode(ExprNode):
             code.putln('}')
             #code.funcstate.release_temp(counter)
             code.putln('}')
+        elif py_multiply and not plain:
+            code.putln('{ PyObject* %s = PyNumber_Multiply(%s, %s); %s' % (
+                Naming.quick_temp_cname, target, self.mult_factor.py_result(),
+                code.error_goto_if_null(Naming.quick_temp_cname, self.pos)
+                ))
+            code.put_gotref(Naming.quick_temp_cname)
+            code.put_decref(target, py_object_type)
+            code.putln('%s = %s;' % (target, Naming.quick_temp_cname))
+            code.putln('}')
 
     def generate_subexpr_disposal_code(self, code):
-        if self.mult_factor:
+        if self.mult_factor and self.mult_factor.type.is_int:
             super(SequenceNode, self).generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead
@@ -4474,6 +4484,8 @@ class SequenceNode(ExprNode):
                 arg.generate_post_assignment_code(code)
                 # Should NOT call free_temps -- this is invoked by the default
                 # generate_evaluation_code which will do that.
+            if self.mult_factor:
+                self.mult_factor.generate_disposal_code(code)
 
     def generate_assignment_code(self, rhs, code):
         if self.starred_assignment:
@@ -4682,21 +4694,27 @@ class TupleNode(SequenceNode):
     #  Tuple constructor.
 
     type = tuple_type
+    is_partly_literal = False
 
     gil_message = "Constructing Python tuple"
 
     def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
-            self.is_temp = 0
-            self.is_literal = 1
+            self.is_temp = False
+            self.is_literal = True
         else:
             SequenceNode.analyse_types(self, env, skip_children)
             for child in self.args:
                 if not child.is_literal:
                     break
             else:
-                self.is_temp = 0
-                self.is_literal = 1
+                if not self.mult_factor or self.mult_factor.is_literal and \
+                       isinstance(self.mult_factor.constant_result, (int, long)):
+                    self.is_temp = False
+                    self.is_literal = True
+                else:
+                    self.is_temp = True
+                    self.is_partly_literal = True
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -4727,15 +4745,28 @@ class TupleNode(SequenceNode):
         if len(self.args) == 0:
             # result_code is Naming.empty_tuple
             return
-        if self.is_literal:
+        if self.is_partly_literal:
+            # underlying tuple is const, but factor is not
+            tuple_target = code.get_py_const(py_object_type, 'tuple_', cleanup_level=2)
+            const_code = code.get_cached_constants_writer()
+            const_code.mark_pos(self.pos)
+            self.generate_sequence_packing_code(const_code, tuple_target, plain=True)
+            const_code.put_giveref(tuple_target)
+            code.putln('%s = PyNumber_Multiply(%s, %s); %s' % (
+                self.result(), tuple_target, self.mult_factor.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)
+                ))
+            code.put_gotref(self.py_result())
+        elif self.is_literal:
             # non-empty cached tuple => result is global constant,
             # creation code goes into separate code writer
             self.result_code = code.get_py_const(py_object_type, 'tuple_', cleanup_level=2)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
-        self.generate_sequence_packing_code(code)
-        if self.is_literal:
+            self.generate_sequence_packing_code(code)
             code.put_giveref(self.py_result())
+        else:
+            self.generate_sequence_packing_code(code)
 
 
 class ListNode(SequenceNode):

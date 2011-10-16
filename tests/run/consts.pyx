@@ -176,6 +176,46 @@ def multiplied_lists_with_side_effects():
     return [side_effect(1), side_effect(2), side_effect(3)] * 5
 
 @cython.test_fail_if_path_exists("//MulNode")
+def multiplied_lists_nonconst_with_side_effects(x):
+    """
+    >>> multiplied_lists_nonconst_with_side_effects(5) == [1,2,3] * 5
+    1
+    2
+    3
+    True
+    """
+    return [side_effect(1), side_effect(2), side_effect(3)] * x
+
+@cython.test_fail_if_path_exists("//MulNode")
+def multiplied_nonconst_tuple_arg(x):
+    """
+    >>> multiplied_nonconst_tuple_arg(5) == (1,2) * 5
+    True
+    """
+    return (1,2) * x
+
+@cython.test_fail_if_path_exists("//MulNode")
+def multiplied_nonconst_tuple(x):
+    """
+    >>> multiplied_nonconst_tuple(5) == (1,2) * (5+1)
+    True
+    """
+    return (1,2) * (x + 1)
+
+MULT = 5
+
+@cython.test_fail_if_path_exists("//MulNode")
+def multiplied_global_nonconst_tuple():
+    """
+    >>> multiplied_global_nonconst_tuple() == (1,2,3) * 5
+    1
+    2
+    3
+    True
+    """
+    return (side_effect(1), side_effect(2), side_effect(3)) * MULT
+
+@cython.test_fail_if_path_exists("//MulNode")
 def multiplied_const_tuple():
     """
     >>> multiplied_const_tuple() == (1,2) * 5

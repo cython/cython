@@ -92,6 +92,7 @@ enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
+quick_temp_cname = pyrex_prefix + "temp" # temp variable for quick'n'dirty temping
 
 genexpr_id_ref = 'genexpr'
 
