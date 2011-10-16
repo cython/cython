@@ -1369,6 +1369,8 @@ def main():
                       help="working directory")
     parser.add_option("--debug", dest="for_debugging", default=False, action="store_true",
                       help="configure for easier use with a debugger (e.g. gdb)")
+    parser.add_option("--pyximport-py", dest="pyximport_py", default=False, action="store_true",
+                      help="use pyximport to automatically compile imported .pyx and .py files")
 
     options, cmd_args = parser.parse_args()
 
@@ -1548,6 +1550,10 @@ def main():
                                     verbose=options.verbosity > 0)
     else:
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
+
+    if options.pyximport_py:
+        import pyximport
+        pyximport.install(pyimport=True, build_dir=os.path.join(WORKDIR, '_pyximport'))
 
     result = test_runner.run(test_suite)
 
