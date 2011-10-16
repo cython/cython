@@ -513,6 +513,18 @@ def common_extension_type_base():
     w = CC()
     assert typeof(w) == "Python object", typeof(w)
 
+cdef class AcceptsKeywords:
+    def __init__(self, *args, **kwds):
+        pass
+
+@infer_types(None)
+def constructor_call():
+    """
+    >>> constructor_call()
+    """
+    x = AcceptsKeywords(a=1, b=2)
+    assert typeof(x) == "AcceptsKeywords", typeof(x)
+
 
 @infer_types(None)
 def large_literals():
