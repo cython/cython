@@ -132,6 +132,19 @@ def multiplied_lists_nonconst(x):
     True
     >>> multiplied_lists_nonconst(0) == [1,2,3] * 0
     True
+
+    >>> [1,2,3] * 'abc'
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'str'
+    >>> multiplied_nonconst_tuple_arg('abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'str'
+    >>> [1,2,3] * 1.0
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'float'
+    >>> multiplied_nonconst_tuple_arg(1.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'float'
     """
     return [1,2,3] * x
 
@@ -191,6 +204,23 @@ def multiplied_nonconst_tuple_arg(x):
     """
     >>> multiplied_nonconst_tuple_arg(5) == (1,2) * 5
     True
+    >>> multiplied_nonconst_tuple_arg(-5) == (1,2) * -5
+    True
+    >>> multiplied_nonconst_tuple_arg(0) == (1,2) * 0
+    True
+
+    >>> (1,2) * 'abc'
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'str'
+    >>> multiplied_nonconst_tuple_arg('abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'str'
+    >>> (1,2) * 1.0
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'float'
+    >>> multiplied_nonconst_tuple_arg(1.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: can't multiply sequence by non-int of type 'float'
     """
     return (1,2) * x
 
