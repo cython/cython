@@ -12,6 +12,15 @@ max_long_long = 2 ** (sizeof(long long) * 8 - 1) - 1
 
 cimport cython
 
+def abs_as_name():
+    """
+    >>> _abs = abs_as_name()
+    >>> _abs(-5)
+    5
+    """
+    x = abs
+    return x
+
 def py_abs(a):
     """
     >>> py_abs(-5)

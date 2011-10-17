@@ -221,6 +221,24 @@ def c_functions():
     assert typeof(f) == 'int (*)(int)', typeof(f)
     assert 2 == f(1)
 
+def builtin_functions():
+    """
+    >>> _abs, _getattr = builtin_functions()
+    Python object
+    Python object
+    >>> _abs(-1)
+    1
+    >>> class o(object): pass
+    >>> o.x = 1
+    >>> _getattr(o, 'x')
+    1
+    """
+    _abs = abs
+    print(typeof(_abs))
+    _getattr = getattr
+    print(typeof(_getattr))
+    return _abs, _getattr
+
 def cascade():
     """
     >>> cascade()
