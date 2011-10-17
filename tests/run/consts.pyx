@@ -133,18 +133,18 @@ def multiplied_lists_nonconst(x):
     >>> multiplied_lists_nonconst(0) == [1,2,3] * 0
     True
 
-    >>> [1,2,3] * 'abc'
+    >>> [1,2,3] * 'abc'  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'str'
+    TypeError: can't multiply sequence by non-int...
     >>> multiplied_nonconst_tuple_arg('abc')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'str'
-    >>> [1,2,3] * 1.0
+    TypeError: can't multiply sequence by non-int...
+    >>> [1,2,3] * 1.0  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'float'
+    TypeError: can't multiply sequence by non-int...
     >>> multiplied_nonconst_tuple_arg(1.0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'float'
+    TypeError: can't multiply sequence by non-int...
     """
     return [1,2,3] * x
 
@@ -209,18 +209,18 @@ def multiplied_nonconst_tuple_arg(x):
     >>> multiplied_nonconst_tuple_arg(0) == (1,2) * 0
     True
 
-    >>> (1,2) * 'abc'
+    >>> (1,2) * 'abc'  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'str'
+    TypeError: can't multiply sequence by non-int...
     >>> multiplied_nonconst_tuple_arg('abc')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'str'
-    >>> (1,2) * 1.0
+    TypeError: can't multiply sequence by non-int...
+    >>> (1,2) * 1.0  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'float'
+    TypeError: can't multiply sequence by non-int...
     >>> multiplied_nonconst_tuple_arg(1.0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: can't multiply sequence by non-int of type 'float'
+    TypeError: can't multiply sequence by non-int...
     """
     return (1,2) * x
 
