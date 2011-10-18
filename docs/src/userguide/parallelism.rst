@@ -175,12 +175,20 @@ particular order::
 In the example above it is undefined whether an exception shall be raised,
 whether it will simply break or whether it will return 2.
 
-Nested Parallelism
-==================
-Nested parallelism is currently disabled due to a bug in gcc 4.5 [#]_. However,
-you can freely call functions with parallel sections from a parallel section.
+Using OpenMP Functions
+======================
+OpenMP functions can be used by cimporting ``openmp``::
+
+    from cython.parallel cimport parallel
+    cimport openmp
+
+    cdef int num_threads
+
+    openmp.omp_set_dynamic(1)
+    with nogil, parallel():
+        num_threads = openmp.omp_get_num_threads()
+        ...
 
 .. rubric:: References
 
 .. [#] http://www.openmp.org/mp-documents/spec30.pdf
-.. [#] http://gcc.gnu.org/bugzilla/show_bug.cgi?id=49897
