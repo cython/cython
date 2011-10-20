@@ -4,5 +4,6 @@
 ctypedef object[float] mybuffer
 
 _ERRORS = u"""
-4:23: Syntax error in ctypedef statement
+1:0: Buffer vars not allowed in module scope
+4:0: Buffer types only allowed as function local variables
 """
