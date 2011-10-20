@@ -2687,8 +2687,6 @@ def p_ctypedef_statement(s, ctx):
             return p_c_struct_or_union_definition(s, pos, ctx)
     else:
         base_type = p_c_base_type(s, nonempty = 1)
-        if base_type.name is None:
-            s.error("Syntax error in ctypedef statement")
         declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
         s.expect_newline("Syntax error in ctypedef statement")
         return Nodes.CTypeDefNode(
