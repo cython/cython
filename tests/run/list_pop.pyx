@@ -125,6 +125,29 @@ def index_pop_typed(list L, int i):
     """
     return L.pop(i)
 
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
+def index_pop_literal(list L):
+    """
+    >>> L = list(range(10))
+    >>> index_pop_literal(L)
+    0
+    >>> L
+    [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+    >>> while L:
+    ...    _ = index_pop_literal(L)
+
+    >>> L
+    []
+
+    >>> index_pop_literal(L)
+    Traceback (most recent call last):
+    ...
+    IndexError: pop from empty list
+    """
+    return L.pop(0)
+
 
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def crazy_pop(L):

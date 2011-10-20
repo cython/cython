@@ -2305,12 +2305,19 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 utility_code = pop_utility_code
                 )
         elif len(args) == 2:
-            if isinstance(args[1], ExprNodes.CoerceToPyTypeNode) and args[1].arg.type.is_int:
-                original_type = args[1].arg.type
-                if PyrexTypes.widest_numeric_type(original_type, PyrexTypes.c_py_ssize_t_type) == PyrexTypes.c_py_ssize_t_type:
-                    args[1] = args[1].arg
+            index = args[1]
+            if isinstance(index, ExprNodes.CoerceToPyTypeNode):
+                index = index.arg
+            if isinstance(index, ExprNodes.IntNode):
+                index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, None)
+            if index.type.is_int:
+                widest = PyrexTypes.widest_numeric_type(
+                    index.type, PyrexTypes.c_py_ssize_t_type)
+                if widest == PyrexTypes.c_py_ssize_t_type:
+                    args[1] = index
                     return ExprNodes.PythonCapiCallNode(
-                        node.pos, "__Pyx_PyObject_PopIndex", self.PyObject_PopIndex_func_type,
+                        node.pos, "__Pyx_PyObject_PopIndex",
+                        self.PyObject_PopIndex_func_type,
                         args = args,
                         may_return_none = True,
                         is_temp = node.is_temp,
