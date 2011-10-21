@@ -32,8 +32,11 @@ try:
 except ImportError:
     basestring = str # Python 3
 
+_utility_cache = {}
 def load_c_utility(name):
-    return ContentHashingUtilityCode.load(name, "Optimize.c")
+    if name not in _utility_cache:
+      _utility_cache[name] = ContentHashingUtilityCode.load(name, "Optimize.c")
+    return _utility_cache[name]
 
 class FakePythonEnv(object):
     "A fake environment for creating type test nodes etc."

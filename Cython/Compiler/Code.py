@@ -318,6 +318,8 @@ class ContentHashingUtilityCode(UtilityCode):
         return hash((self.proto, self.impl))
 
     def __eq__(self, other):
+        if self is other:
+            return True
         if not isinstance(other, type(self)):
             return False
 
