@@ -7,8 +7,11 @@ Using Parallelism
 **********************************
 
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the GIL must be released. It
-currently supports OpenMP, but later on more backends might be supported.
+module. To use this kind of parallelism, the GIL must be released
+(see :ref:`Releasing the GIL <nogil>`).
+It currently supports OpenMP, but later on more backends might be supported.
+
+__ nogil_
 
 .. function:: prange([start,] stop[, step], nogil=False, schedule=None)
 
@@ -59,11 +62,11 @@ currently supports OpenMP, but later on more backends might be supported.
     +-----------------+------------------------------------------------------+
 
     The default schedule is implementation defined. For more information consult
-    the OpenMP specification: [#]_.
+    the OpenMP specification [#]_.
 
     Example with a reduction::
 
-        from cython.parallel import prange, parallel, threadid
+        from cython.parallel import prange
 
         cdef int i
         cdef int sum = 0
@@ -75,7 +78,7 @@ currently supports OpenMP, but later on more backends might be supported.
 
     Example with a shared numpy array::
 
-        from cython.parallel import *
+        from cython.parallel import prange
 
         def func(np.ndarray[double] x, double alpha):
             cdef Py_ssize_t i
@@ -94,8 +97,8 @@ currently supports OpenMP, but later on more backends might be supported.
 
     Example with thread-local buffers::
 
-       from cython.parallel import *
-       from libc.stdlib cimport abort, malloc, free
+       from cython.parallel import parallel, prange
+       from libc.stdlib cimport abort
 
        cdef Py_ssize_t idx, i, n = 100
        cdef int * local_buf
