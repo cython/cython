@@ -14,13 +14,10 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
                 ix += size;
             }
             if (likely(0 <= ix && ix < size)) {
-                Py_ssize_t i;
                 PyObject* v = PyList_GET_ITEM(L, ix);
                 Py_SIZE(L) -= 1;
                 size -= 1;
-                for(i=ix; i<size; i++) {
-                    PyList_SET_ITEM(L, i, PyList_GET_ITEM(L, i+1));
-                }
+                memmove(&PyList_GET_ITEM(L, ix), &PyList_GET_ITEM(L, ix+1), (size-ix)*sizeof(PyObject*));
                 return v;
             }
         }
