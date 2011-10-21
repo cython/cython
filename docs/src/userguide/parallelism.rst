@@ -98,7 +98,7 @@ __ nogil_
     Example with thread-local buffers::
 
        from cython.parallel import parallel, prange
-       from libc.stdlib cimport abort
+       from libc.stdlib cimport abort, malloc, free
 
        cdef Py_ssize_t idx, i, n = 100
        cdef int * local_buf
