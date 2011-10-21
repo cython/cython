@@ -304,8 +304,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Clear(PyObject* d) {
 
 static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 
-#define __Pyx_PyObject_AsDouble(obj) \\
-((likely(PyFloat_CheckExact(obj))) ? \\
+#define __Pyx_PyObject_AsDouble(obj) \
+((likely(PyFloat_CheckExact(obj))) ? \
  PyFloat_AS_DOUBLE(obj) : __Pyx__PyObject_AsDouble(obj))
 
 /////////////// pyobject_as_double ///////////////
