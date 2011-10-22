@@ -171,7 +171,6 @@ def valid_memslice_dtype(dtype):
 
     return (
         dtype.is_error or
-        dtype.is_ptr or
         dtype.is_numeric or
         dtype.is_struct or
         dtype.is_pyobject or

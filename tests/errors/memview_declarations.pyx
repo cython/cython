@@ -40,6 +40,9 @@ cdef int[:, ::view.contiguous, ::view.indirect_contiguous] a6
 #cdef int[::view.generic_contiguous, ::view.contiguous] a7
 #cdef int[::view.contiguous, ::view.generic_contiguous] a8
 
+ctypedef int *intp
+cdef intp[:, :] myarray
+
 # These are VALID
 cdef int[::view.indirect_contiguous, ::view.contiguous] a9
 
@@ -61,4 +64,5 @@ _ERRORS = u'''
 31:9: Dimension may not be contiguous
 37:9: Only one direct contiguous axis may be specified.
 38:9:Only dimensions 3 and 2 may be contiguous and direct
+44:10: Invalid base type for memoryview slice
 '''
