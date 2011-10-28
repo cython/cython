@@ -221,6 +221,24 @@ def c_functions():
     assert typeof(f) == 'int (*)(int)', typeof(f)
     assert 2 == f(1)
 
+def builtin_functions():
+    """
+    >>> _abs, _getattr = builtin_functions()
+    Python object
+    Python object
+    >>> _abs(-1)
+    1
+    >>> class o(object): pass
+    >>> o.x = 1
+    >>> _getattr(o, 'x')
+    1
+    """
+    _abs = abs
+    print(typeof(_abs))
+    _getattr = getattr
+    print(typeof(_getattr))
+    return _abs, _getattr
+
 def cascade():
     """
     >>> cascade()
@@ -513,6 +531,18 @@ def common_extension_type_base():
     w = CC()
     assert typeof(w) == "Python object", typeof(w)
 
+cdef class AcceptsKeywords:
+    def __init__(self, *args, **kwds):
+        pass
+
+@infer_types(None)
+def constructor_call():
+    """
+    >>> constructor_call()
+    """
+    x = AcceptsKeywords(a=1, b=2)
+    assert typeof(x) == "AcceptsKeywords", typeof(x)
+
 
 @infer_types(None)
 def large_literals():
@@ -528,6 +558,63 @@ def large_literals():
     assert typeof(c) == "long", typeof(c)
     assert typeof(d) == "Python object", typeof(d)
 
+
+class EmptyContextManager(object):
+    def __enter__(self):
+        return None
+    def __exit__(self, *args):
+        return 0
+
+def with_statement():
+    """
+    >>> with_statement()
+    Python object
+    Python object
+    """
+    x = 1.0
+    with EmptyContextManager() as x:
+        print(typeof(x))
+    print(typeof(x))
+    return x
+
+@cython.final
+cdef class TypedContextManager(object):
+    cpdef double __enter__(self):
+        return 2.0
+    def __exit__(self, *args):
+        return 0
+
+def with_statement_typed():
+    """
+    >>> with_statement_typed()
+    double
+    double
+    2.0
+    """
+    x = 1.0
+    with TypedContextManager() as x:
+        print(typeof(x))
+    print(typeof(x))
+    return x
+
+def with_statement_untyped():
+    """
+    >>> with_statement_untyped()
+    Python object
+    Python object
+    2.0
+    """
+    x = 1.0
+    cdef object t = TypedContextManager()
+    with t as x:
+        print(typeof(x))
+    print(typeof(x))
+    return x
+
+def self_lookup(a):
+    b = a
+    b = b.foo(keyword=None)
+    print typeof(b)
 
 # Regression test for trac #638.
 

@@ -240,7 +240,7 @@ def create_pxd_pipeline(context, scope, module_name):
     return [
         parse_pxd_stage_factory(context, scope, module_name)
         ] + create_pipeline(context, 'pxd') + [
-        ExtractPxdCode(context)
+        ExtractPxdCode()
         ]
 
 def create_py_pipeline(context, options, result):

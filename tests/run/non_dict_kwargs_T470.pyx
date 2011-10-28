@@ -40,7 +40,7 @@ def call_non_dict_test():
     return func(**NonDict())
 
 def call_non_dict_test_kw():
-    return func(a=5, **NonDict())
+    return func(b=5, **NonDict())
 
 
 class SubDict(dict):
@@ -51,4 +51,4 @@ def call_sub_dict_test():
     return func(**SubDict())
 
 def call_sub_dict_test_kw():
-    return func(a=5, **SubDict())
+    return func(b=5, **SubDict())

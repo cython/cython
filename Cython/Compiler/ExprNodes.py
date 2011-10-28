@@ -1376,8 +1376,12 @@ class NameNode(AtomicExprNode):
             # is used for the pointer to the type they represent.
             return type_type
         elif self.entry.type.is_cfunction:
-            # special case: referring to a C function must return its pointer
-            return PyrexTypes.CPtrType(self.entry.type)
+            if self.entry.scope.is_builtin_scope:
+                # special case: optimised builtin functions must be treated as Python objects
+                return py_object_type
+            else:
+                # special case: referring to a C function must return its pointer
+                return PyrexTypes.CPtrType(self.entry.type)
         else:
             return self.entry.type
 
@@ -3371,6 +3375,32 @@ class CallNode(ExprNode):
     # allow overriding the default 'may_be_none' behaviour
     may_return_none = None
 
+    def infer_type(self, env):
+        function = self.function
+        func_type = function.infer_type(env)
+        if isinstance(self.function, NewExprNode):
+            return PyrexTypes.CPtrType(self.function.class_type)
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        if func_type.is_cfunction:
+            return func_type.return_type
+        elif func_type is type_type:
+            if function.is_name and function.entry and function.entry.type:
+                result_type = function.entry.type
+                if result_type.is_extension_type:
+                    return result_type
+                elif result_type.is_builtin_type:
+                    if function.entry.name == 'float':
+                        return PyrexTypes.c_double_type
+                    elif function.entry.name in Builtin.types_that_construct_their_instance:
+                        return result_type
+        return py_object_type
+
+    def type_dependencies(self, env):
+        # TODO: Update when Danilo's C++ code merged in to handle the
+        # the case of function overloading.
+        return self.function.type_dependencies(env)
+
     def may_be_none(self):
         if self.may_return_none is not None:
             return self.may_return_none
@@ -3442,32 +3472,6 @@ class SimpleCallNode(CallNode):
             return function(*args)
         except Exception, e:
             self.compile_time_value_error(e)
-
-    def type_dependencies(self, env):
-        # TODO: Update when Danilo's C++ code merged in to handle the
-        # the case of function overloading.
-        return self.function.type_dependencies(env)
-
-    def infer_type(self, env):
-        function = self.function
-        func_type = function.infer_type(env)
-        if isinstance(self.function, NewExprNode):
-            return PyrexTypes.CPtrType(self.function.class_type)
-        if func_type.is_ptr:
-            func_type = func_type.base_type
-        if func_type.is_cfunction:
-            return func_type.return_type
-        elif func_type is type_type:
-            if function.is_name and function.entry and function.entry.type:
-                result_type = function.entry.type
-                if result_type.is_extension_type:
-                    return result_type
-                elif result_type.is_builtin_type:
-                    if function.entry.name == 'float':
-                        return PyrexTypes.c_double_type
-                    elif function.entry.name in Builtin.types_that_construct_their_instance:
-                        return result_type
-        return py_object_type
 
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
@@ -3881,11 +3885,10 @@ class GeneralCallNode(CallNode):
     #  function         ExprNode
     #  positional_args  ExprNode          Tuple of positional arguments
     #  keyword_args     ExprNode or None  Dict of keyword arguments
-    #  starstar_arg     ExprNode or None  Dict of extra keyword args
 
     type = py_object_type
 
-    subexprs = ['function', 'positional_args', 'keyword_args', 'starstar_arg']
+    subexprs = ['function', 'positional_args', 'keyword_args']
 
     nogil_check = Node.gil_error
 
@@ -3893,15 +3896,14 @@ class GeneralCallNode(CallNode):
         function = self.function.compile_time_value(denv)
         positional_args = self.positional_args.compile_time_value(denv)
         keyword_args = self.keyword_args.compile_time_value(denv)
-        starstar_arg = self.starstar_arg.compile_time_value(denv)
         try:
-            keyword_args.update(starstar_arg)
             return function(*positional_args, **keyword_args)
         except Exception, e:
             self.compile_time_value_error(e)
 
     def explicit_args_kwds(self):
-        if self.starstar_arg or not isinstance(self.positional_args, TupleNode):
+        if (self.keyword_args and not isinstance(self.keyword_args, DictNode) or
+            not isinstance(self.positional_args, TupleNode)):
             raise CompileError(self.pos,
                 'Compile-time keyword arguments must be explicit.')
         return self.positional_args.args, self.keyword_args
@@ -3913,8 +3915,6 @@ class GeneralCallNode(CallNode):
         self.positional_args.analyse_types(env)
         if self.keyword_args:
             self.keyword_args.analyse_types(env)
-        if self.starstar_arg:
-            self.starstar_arg.analyse_types(env)
         if not self.function.type.is_pyobject:
             if self.function.type.is_error:
                 self.type = error_type
@@ -3925,9 +3925,6 @@ class GeneralCallNode(CallNode):
                 self.function = self.function.coerce_to_pyobject(env)
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
-        if self.starstar_arg:
-            self.starstar_arg = \
-                self.starstar_arg.coerce_to_pyobject(env)
         function = self.function
         if function.is_name and function.type_entry:
             # We are calling an extension type constructor.  As long
@@ -3941,37 +3938,16 @@ class GeneralCallNode(CallNode):
 
     def generate_result_code(self, code):
         if self.type.is_error: return
-        kwargs_call_function = "PyEval_CallObjectWithKeywords"
-        if self.keyword_args and self.starstar_arg:
-            code.put_error_if_neg(self.pos,
-                "PyDict_Update(%s, %s)" % (
-                    self.keyword_args.py_result(),
-                    self.starstar_arg.py_result()))
-            keyword_code = self.keyword_args.py_result()
-        elif self.keyword_args:
-            keyword_code = self.keyword_args.py_result()
-        elif self.starstar_arg:
-            keyword_code = self.starstar_arg.py_result()
-            if self.starstar_arg.type is not Builtin.dict_type:
-                # CPython supports calling functions with non-dicts, so do we
-                code.globalstate.use_utility_code(kwargs_call_utility_code)
-                kwargs_call_function = "__Pyx_PyEval_CallObjectWithKeywords"
+        if self.keyword_args:
+            kwargs = self.keyword_args.py_result()
         else:
-            keyword_code = None
-        if not keyword_code:
-            call_code = "PyObject_Call(%s, %s, NULL)" % (
-                self.function.py_result(),
-                self.positional_args.py_result())
-        else:
-            call_code = "%s(%s, %s, %s)" % (
-                kwargs_call_function,
+            kwargs = 'NULL'
+        code.putln(
+            "%s = PyObject_Call(%s, %s, %s); %s" % (
+                self.result(),
                 self.function.py_result(),
                 self.positional_args.py_result(),
-                keyword_code)
-        code.putln(
-            "%s = %s; %s" % (
-                self.result(),
-                call_code,
+                kwargs,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -4526,11 +4502,13 @@ class SequenceNode(ExprNode):
     #  args                    [ExprNode]
     #  unpacked_items          [ExprNode] or None
     #  coerced_unpacked_items  [ExprNode] or None
+    # mult_factor              ExprNode     the integer number of content repetitions ([1,2]*3)
 
-    subexprs = ['args']
+    subexprs = ['args', 'mult_factor']
 
     is_sequence_constructor = 1
     unpacked_items = None
+    mult_factor = None
 
     def compile_time_value_list(self, denv):
         return [arg.compile_time_value(denv) for arg in self.args]
@@ -4559,6 +4537,10 @@ class SequenceNode(ExprNode):
             arg = self.args[i]
             if not skip_children: arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
+        if self.mult_factor:
+            self.mult_factor.analyse_types(env)
+            if not self.mult_factor.type.is_int:
+                self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
         self.is_temp = 1
         # not setting self.type here, subtypes do this
 
@@ -4566,6 +4548,8 @@ class SequenceNode(ExprNode):
         return False
 
     def analyse_target_types(self, env):
+        if self.mult_factor:
+            error(arg.pos, "can't assign to multiplied sequence")
         self.unpacked_items = []
         self.coerced_unpacked_items = []
         self.any_coerced_items = False
@@ -4587,6 +4571,92 @@ class SequenceNode(ExprNode):
 
     def generate_result_code(self, code):
         self.generate_operation_code(code)
+
+    def generate_sequence_packing_code(self, code, target=None, plain=False):
+        if target is None:
+            target = self.result()
+        py_multiply = self.mult_factor and not self.mult_factor.type.is_int
+        if plain or py_multiply:
+            mult_factor = None
+        else:
+            mult_factor = self.mult_factor
+        if mult_factor:
+            mult = mult_factor.result()
+            if isinstance(mult_factor.constant_result, (int,long)) \
+                   and mult_factor.constant_result > 0:
+                size_factor = ' * %s' % mult_factor.constant_result
+            else:
+                size_factor = ' * ((%s<0) ? 0:%s)' % (mult, mult)
+        else:
+            size_factor = ''
+            mult = ''
+
+        if self.type is Builtin.list_type:
+            create_func, set_item_func = 'PyList_New', 'PyList_SET_ITEM'
+        elif self.type is Builtin.tuple_type:
+            create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
+        else:
+            raise InternalError("sequence unpacking for unexpected type %s" % self.type)
+        arg_count = len(self.args)
+        code.putln("%s = %s(%s%s); %s" % (
+            target, create_func, arg_count, size_factor,
+            code.error_goto_if_null(target, self.pos)))
+        code.put_gotref(target)
+
+        if mult:
+            # FIXME: can't use a temp variable here as the code may
+            # end up in the constant building function.  Temps
+            # currently don't work there.
+
+            #counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
+            counter = Naming.quick_temp_cname
+            code.putln('{ Py_ssize_t %s;' % counter)
+            if arg_count == 1:
+                offset = counter
+            else:
+                offset = '%s * %s' % (counter, arg_count)
+            code.putln('for (%s=0; %s < %s; %s++) {' % (
+                counter, counter, mult, counter
+                ))
+        else:
+            offset = ''
+        for i in xrange(arg_count):
+            arg = self.args[i]
+            if mult or not arg.result_in_temp():
+                code.put_incref(arg.result(), arg.ctype())
+            code.putln("%s(%s, %s, %s);" % (
+                set_item_func,
+                target,
+                (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
+                arg.py_result()))
+            code.put_giveref(arg.py_result())
+        if mult:
+            code.putln('}')
+            #code.funcstate.release_temp(counter)
+            code.putln('}')
+        elif py_multiply and not plain:
+            code.putln('{ PyObject* %s = PyNumber_InPlaceMultiply(%s, %s); %s' % (
+                Naming.quick_temp_cname, target, self.mult_factor.py_result(),
+                code.error_goto_if_null(Naming.quick_temp_cname, self.pos)
+                ))
+            code.put_gotref(Naming.quick_temp_cname)
+            code.put_decref(target, py_object_type)
+            code.putln('%s = %s;' % (target, Naming.quick_temp_cname))
+            code.putln('}')
+
+    def generate_subexpr_disposal_code(self, code):
+        if self.mult_factor and self.mult_factor.type.is_int:
+            super(SequenceNode, self).generate_subexpr_disposal_code(code)
+        else:
+            # We call generate_post_assignment_code here instead
+            # of generate_disposal_code, because values were stored
+            # in the tuple using a reference-stealing operation.
+            for arg in self.args:
+                arg.generate_post_assignment_code(code)
+                # Should NOT call free_temps -- this is invoked by the default
+                # generate_evaluation_code which will do that.
+            if self.mult_factor:
+                self.mult_factor.generate_disposal_code(code)
 
     def generate_assignment_code(self, rhs, code):
         if self.starred_assignment:
@@ -4795,21 +4865,27 @@ class TupleNode(SequenceNode):
     #  Tuple constructor.
 
     type = tuple_type
+    is_partly_literal = False
 
     gil_message = "Constructing Python tuple"
 
     def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
-            self.is_temp = 0
-            self.is_literal = 1
+            self.is_temp = False
+            self.is_literal = True
         else:
             SequenceNode.analyse_types(self, env, skip_children)
             for child in self.args:
                 if not child.is_literal:
                     break
             else:
-                self.is_temp = 0
-                self.is_literal = 1
+                if not self.mult_factor or self.mult_factor.is_literal and \
+                       isinstance(self.mult_factor.constant_result, (int, long)):
+                    self.is_temp = False
+                    self.is_literal = True
+                else:
+                    self.is_temp = True
+                    self.is_partly_literal = True
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -4840,40 +4916,28 @@ class TupleNode(SequenceNode):
         if len(self.args) == 0:
             # result_code is Naming.empty_tuple
             return
-        if self.is_literal:
+        if self.is_partly_literal:
+            # underlying tuple is const, but factor is not
+            tuple_target = code.get_py_const(py_object_type, 'tuple_', cleanup_level=2)
+            const_code = code.get_cached_constants_writer()
+            const_code.mark_pos(self.pos)
+            self.generate_sequence_packing_code(const_code, tuple_target, plain=True)
+            const_code.put_giveref(tuple_target)
+            code.putln('%s = PyNumber_Multiply(%s, %s); %s' % (
+                self.result(), tuple_target, self.mult_factor.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)
+                ))
+            code.put_gotref(self.py_result())
+        elif self.is_literal:
             # non-empty cached tuple => result is global constant,
             # creation code goes into separate code writer
             self.result_code = code.get_py_const(py_object_type, 'tuple_', cleanup_level=2)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
-
-        code.putln(
-            "%s = PyTuple_New(%s); %s" % (
-                self.result(),
-                len(self.args),
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
-        for i in range(len(self.args)):
-            arg = self.args[i]
-            if not arg.result_in_temp():
-                code.put_incref(arg.result(), arg.ctype())
-            code.putln(
-                "PyTuple_SET_ITEM(%s, %s, %s);" % (
-                    self.result(),
-                    i,
-                    arg.py_result()))
-            code.put_giveref(arg.py_result())
-        if self.is_literal:
+            self.generate_sequence_packing_code(code)
             code.put_giveref(self.py_result())
-
-    def generate_subexpr_disposal_code(self, code):
-        # We call generate_post_assignment_code here instead
-        # of generate_disposal_code, because values were stored
-        # in the tuple using a reference-stealing operation.
-        for arg in self.args:
-            arg.generate_post_assignment_code(code)
-            # Should NOT call free_temps -- this is invoked by the default
-            # generate_evaluation_code which will do that.
+        else:
+            self.generate_sequence_packing_code(code)
 
 
 class ListNode(SequenceNode):
@@ -4912,6 +4976,8 @@ class ListNode(SequenceNode):
             self.obj_conversion_errors = []
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
+        elif self.mult_factor:
+            error(self.pos, "Cannot coerce multiplied list to '%s'" % dst_type)
         elif dst_type.is_ptr and dst_type.base_type is not PyrexTypes.c_void_type:
             base_type = dst_type.base_type
             self.type = PyrexTypes.CArrayType(base_type, len(self.args))
@@ -4945,31 +5011,22 @@ class ListNode(SequenceNode):
             SequenceNode.release_temp(self, env)
 
     def calculate_constant_result(self):
+        if self.mult_factor:
+            raise ValueError() # may exceed the compile time memory
         self.constant_result = [
             arg.constant_result for arg in self.args]
 
     def compile_time_value(self, denv):
-        return self.compile_time_value_list(denv)
+        l = self.compile_time_value_list(denv)
+        if self.mult_factor:
+            l *= self.mult_factor.compile_time_value(denv)
+        return l
 
     def generate_operation_code(self, code):
         if self.type.is_pyobject:
             for err in self.obj_conversion_errors:
                 report_error(err)
-            code.putln("%s = PyList_New(%s); %s" %
-                (self.result(),
-                len(self.args),
-                code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.py_result())
-            for i in range(len(self.args)):
-                arg = self.args[i]
-                #if not arg.is_temp:
-                if not arg.result_in_temp():
-                    code.put_incref(arg.result(), arg.ctype())
-                code.putln("PyList_SET_ITEM(%s, %s, %s);" %
-                    (self.result(),
-                    i,
-                    arg.py_result()))
-                code.put_giveref(arg.py_result())
+            self.generate_sequence_packing_code(code)
         elif self.type.is_array:
             for i, arg in enumerate(self.args):
                 code.putln("%s[%s] = %s;" % (
@@ -4984,15 +5041,6 @@ class ListNode(SequenceNode):
                         arg.result()))
         else:
             raise InternalError("List type never specified")
-
-    def generate_subexpr_disposal_code(self, code):
-        # We call generate_post_assignment_code here instead
-        # of generate_disposal_code, because values were stored
-        # in the list using a reference-stealing operation.
-        for arg in self.args:
-            arg.generate_post_assignment_code(code)
-            # Should NOT call free_temps -- this is invoked by the default
-            # generate_evaluation_code which will do that.
 
 
 class ScopedExprNode(ExprNode):
@@ -5447,6 +5495,7 @@ class DictItemNode(ExprNode):
     def __iter__(self):
         return iter([self.key, self.value])
 
+
 class ModuleNameMixin(object):
     def set_mod_name(self, env):
         self.module_name = env.global_scope().qualified_name
@@ -5539,36 +5588,66 @@ class Py3ClassNode(ExprNode):
         code.put_gotref(self.py_result())
 
 class KeywordArgsNode(ExprNode):
-    # Helper class for keyword arguments
+    #  Helper class for keyword arguments.
     #
-    # keyword_args ExprNode or None     Keyword arguments
-    # starstar_arg ExprNode or None     Extra arguments
+    #  starstar_arg      DictNode
+    #  keyword_args      [DictItemNode]
 
-    subexprs = ['keyword_args', 'starstar_arg']
+    subexprs = ['starstar_arg', 'keyword_args']
+    is_temp = 1
+    type = dict_type
+
+    def calculate_constant_result(self):
+        result = dict(self.starstar_arg.constant_result)
+        for item in self.keyword_args:
+            key, value = item.constant_result
+            if key in result:
+                raise ValueError("duplicate keyword argument found: %s" % key)
+            result[key] = value
+        self.constant_result = result
+
+    def compile_time_value(self, denv):
+        result = self.starstar_arg.compile_time_value(denv)
+        pairs = [ (item.key.compile_time_value(denv), item.value.compile_time_value(denv))
+                  for item in self.keyword_args ]
+        try:
+            result = dict(result)
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate keyword argument found: %s" % key)
+                result[key] = value
+        except Exception, e:
+            self.compile_time_value_error(e)
+        return result
+
+    def type_dependencies(self, env):
+        return ()
+
+    def infer_type(self, env):
+        return dict_type
 
     def analyse_types(self, env):
-        if self.keyword_args:
-            self.keyword_args.analyse_types(env)
-        if self.starstar_arg:
-            self.starstar_arg.analyse_types(env)
-            # make sure we have a Python object as **kwargs mapping
-            self.starstar_arg = \
-                self.starstar_arg.coerce_to_pyobject(env)
-        self.type = py_object_type
-        self.is_temp = 1
+        self.starstar_arg.analyse_types(env)
+        self.starstar_arg = self.starstar_arg.coerce_to_pyobject(env).as_none_safe_node(
+            # FIXME: CPython's error message starts with the runtime function name
+            'argument after ** must be a mapping, not NoneType')
+        for item in self.keyword_args:
+            item.analyse_types(env)
 
-    gil_message = "Constructing Keyword Args"
+    def may_be_none(self):
+        return False
 
-    def generate_result_code(self, code):
-        if self.keyword_args and self.starstar_arg:
-            code.put_error_if_neg(self.pos,
-                "PyDict_Update(%s, %s)" % (
-                    self.keyword_args.py_result(),
-                    self.starstar_arg.py_result()))
+    gil_message = "Constructing Python dict"
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+        self.starstar_arg.generate_evaluation_code(code)
+        if self.starstar_arg.type is not Builtin.dict_type:
+            # CPython supports calling functions with non-dicts, so do we
+            code.putln('if (likely(PyDict_Check(%s))) {' %
+                       self.starstar_arg.py_result())
         if self.keyword_args:
-            code.putln("%s = %s;" % (self.result(), self.keyword_args.result()))
-            code.put_incref(self.keyword_args.result(), self.keyword_args.ctype())
-        elif self.starstar_arg:
             code.putln(
                 "%s = PyDict_Copy(%s); %s" % (
                     self.result(),
@@ -5576,11 +5655,49 @@ class KeywordArgsNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         else:
+            code.putln("%s = %s;" % (
+                self.result(),
+                self.starstar_arg.py_result()))
+            code.put_incref(self.result(), py_object_type)
+        if self.starstar_arg.type is not Builtin.dict_type:
+            code.putln('} else {')
             code.putln(
-                "%s = PyDict_New(); %s" % (
+                "%s = PyObject_CallFunctionObjArgs("
+                "(PyObject*)&PyDict_Type, %s, NULL); %s" % (
                     self.result(),
+                    self.starstar_arg.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+            code.putln('}')
+        self.starstar_arg.generate_disposal_code(code)
+        self.starstar_arg.free_temps(code)
+
+        if not self.keyword_args:
+            return
+
+        code.globalstate.use_utility_code(Nodes.raise_double_keywords_utility_code)
+        for item in self.keyword_args:
+            item.generate_evaluation_code(code)
+            code.putln("if (unlikely(PyDict_GetItem(%s, %s))) {" % (
+                    self.result(),
+                    item.key.py_result()))
+            # FIXME: find out function name at runtime!
+            code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
+                item.key.py_result(),
+                code.error_goto(self.pos)))
+            code.putln("}")
+            code.put_error_if_neg(self.pos,
+                "PyDict_SetItem(%s, %s, %s)" % (
+                    self.result(),
+                    item.key.py_result(),
+                    item.value.py_result()))
+            item.generate_disposal_code(code)
+            item.free_temps(code)
+
+    def annotate(self, code):
+        self.starstar_arg.annotate(code)
+        for item in self.keyword_args:
+            item.annotate(code)
 
 class PyClassMetaclassNode(ExprNode):
     # Helper class holds Python3 metaclass object
@@ -6034,6 +6151,57 @@ class YieldExprNode(ExprNode):
             code.put_incref(self.result(), py_object_type)
         else:
             code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
+
+
+class GlobalsExprNode(AtomicExprNode):
+    type = dict_type
+    is_temp = 1
+
+    def analyse_types(self, env):
+        env.use_utility_code(Builtin.globals_utility_code)
+
+    gil_message = "Constructing globals dict"
+
+    def generate_result_code(self, code):
+        code.putln('%s = __Pyx_Globals(); %s' % (
+            self.result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
+
+
+class FuncLocalsExprNode(DictNode):
+    def __init__(self, pos, env):
+        local_vars = [var.name for var in env.entries.values() if var.name]
+        items = [DictItemNode(pos, key=IdentifierStringNode(pos, value=var),
+                              value=NameNode(pos, name=var, allow_null=True))
+                 for var in local_vars]
+        DictNode.__init__(self, pos, key_value_pairs=items,
+                          exclude_null_values=True)
+
+
+class PyClassLocalsExprNode(AtomicExprNode):
+    def __init__(self, pos, pyclass_dict):
+        AtomicExprNode.__init__(self, pos)
+        self.pyclass_dict = pyclass_dict
+
+    def analyse_types(self, env):
+        self.type = self.pyclass_dict.type
+        self.is_tmep = 0
+
+    def result(self):
+        return self.pyclass_dict.result()
+
+    def generate_result_code(self, code):
+        pass
+
+
+def LocalsExprNode(pos, scope_node, env):
+    if env.is_module_scope:
+        return GlobalsExprNode(pos)
+    if env.is_py_class_scope:
+        return PyClassLocalsExprNode(pos, scope_node.dict)
+    return FuncLocalsExprNode(pos, env)
+
 
 #-------------------------------------------------------------------
 #
@@ -7907,8 +8075,11 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
             Py_UCS4 ch1 = PyUnicode_READ_CHAR(s1, 0);
             Py_UCS4 ch2 = PyUnicode_READ_CHAR(s2, 0);
             return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
-        } else if (PyUnicode_MAX_CHAR_VALUE(s1) != PyUnicode_MAX_CHAR_VALUE(s2)) {
-            return (equals == Py_NE);
+"""
+## currently disabled: may not be safe depending on who created the string
+#        } else if (PyUnicode_MAX_CHAR_VALUE(s1) != PyUnicode_MAX_CHAR_VALUE(s2)) {
+#            return (equals == Py_NE);
+"""\
         #else
         if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
             return (equals == Py_NE);
@@ -9374,22 +9545,29 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ss
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) {
-    PyObject *r;
-    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
-        r = PyList_GET_ITEM(o, i);
-        Py_INCREF(r);
+    if (PyList_CheckExact(o)) {
+        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
+        if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
+            PyObject *r = PyList_GET_ITEM(o, n);
+            Py_INCREF(r);
+            return r;
+        }
     }
-    else if (PyTuple_CheckExact(o) && ((0 <= i) & (i < PyTuple_GET_SIZE(o)))) {
-        r = PyTuple_GET_ITEM(o, i);
-        Py_INCREF(r);
+    else if (PyTuple_CheckExact(o)) {
+        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
+        if (likely((n >= 0) & (n < PyTuple_GET_SIZE(o)))) {
+            PyObject *r = PyTuple_GET_ITEM(o, n);
+            Py_INCREF(r);
+            return r;
+        }
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item && (likely(i >= 0))) {
-        r = PySequence_GetItem(o, i);
+    else if (likely(i >= 0)) {
+        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
+        if (likely(m && m->sq_item)) {
+            return m->sq_item(o, i);
+        }
     }
-    else {
-        r = __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
-    }
-    return r;
+    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
 }
 """,
 impl = """
@@ -9414,18 +9592,23 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v) {
-    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
-        Py_INCREF(v);
-        Py_DECREF(PyList_GET_ITEM(o, i));
-        PyList_SET_ITEM(o, i, v);
-        return 1;
+    if (PyList_CheckExact(o)) {
+        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
+        if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
+            PyObject* old = PyList_GET_ITEM(o, n);
+            Py_INCREF(v);
+            PyList_SET_ITEM(o, n, v);
+            Py_DECREF(old);
+            return 1;
+        }
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0)))
-        return PySequence_SetItem(o, i, v);
-    else {
-        PyObject *j = PyInt_FromSsize_t(i);
-        return __Pyx_SetItemInt_Generic(o, j, v);
+    else if (likely(i >= 0)) {
+        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
+        if (likely(m && m->sq_ass_item)) {
+            return m->sq_ass_item(o, i, v);
+        }
     }
+    return __Pyx_SetItemInt_Generic(o, PyInt_FromSsize_t(i), v);
 }
 """,
 impl = """
@@ -9448,12 +9631,13 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 }
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i) {
-    if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && likely(i >= 0))
-        return PySequence_DelItem(o, i);
-    else {
-        PyObject *j = PyInt_FromSsize_t(i);
-        return __Pyx_DelItem_Generic(o, j);
+    if (likely(i >= 0)) {
+        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
+        if (likely(m && m->sq_ass_item)) {
+            return m->sq_ass_item(o, i, (PyObject *)NULL);
+        }
     }
+    return __Pyx_DelItem_Generic(o, PyInt_FromSsize_t(i));
 }
 """,
 impl = """

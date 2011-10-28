@@ -440,7 +440,8 @@ def p_call_parse_args(s, allow_genexp = True):
     s.expect(')')
     return positional_args, keyword_args, star_arg, starstar_arg
 
-def p_call_build_packed_args(pos, positional_args, keyword_args, star_arg):
+def p_call_build_packed_args(pos, positional_args, keyword_args,
+                             star_arg, starstar_arg):
     arg_tuple = None
     keyword_dict = None
     if positional_args or not star_arg:
@@ -454,11 +455,17 @@ def p_call_build_packed_args(pos, positional_args, keyword_args, star_arg):
                 operand2 = star_arg_tuple)
         else:
             arg_tuple = star_arg_tuple
-    if keyword_args:
+    if keyword_args or starstar_arg:
         keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
                           for key, value in keyword_args]
-        keyword_dict = ExprNodes.DictNode(pos,
-            key_value_pairs = keyword_args)
+        if starstar_arg:
+            keyword_dict = ExprNodes.KeywordArgsNode(
+                pos,
+                starstar_arg = starstar_arg,
+                keyword_args = keyword_args)
+        else:
+            keyword_dict = ExprNodes.DictNode(
+                pos, key_value_pairs = keyword_args)
     return arg_tuple, keyword_dict
 
 def p_call(s, function):
@@ -474,12 +481,11 @@ def p_call(s, function):
             args = positional_args)
     else:
         arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg)
+            pos, positional_args, keyword_args, star_arg, starstar_arg)
         return ExprNodes.GeneralCallNode(pos,
             function = function,
             positional_args = arg_tuple,
-            keyword_args = keyword_dict,
-            starstar_arg = starstar_arg)
+            keyword_args = keyword_dict)
 
 #lambdef: 'lambda' [varargslist] ':' test
 
@@ -1130,8 +1136,6 @@ def p_exec_statement(s):
         if s.sy == ',':
             s.next()
             args.append(p_test(s))
-    else:
-        error(pos, "'exec' currently requires a target mapping (globals/locals)")
     return Nodes.ExecStatNode(pos, args = args)
 
 def p_del_statement(s):
@@ -2738,16 +2742,13 @@ def p_ctypedef_statement(s, ctx):
         return p_fused_definition(s, pos, ctx)
     else:
         base_type = p_c_base_type(s, nonempty = 1)
-        if base_type.name is None:
-            s.error("Syntax error in ctypedef statement")
-
-    declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
-    s.expect_newline("Syntax error in ctypedef statement")
-    return Nodes.CTypeDefNode(
-        pos, base_type = base_type,
-        declarator = declarator,
-        visibility = visibility, api = api,
-        in_pxd = ctx.level == 'module_pxd')
+        declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
+        s.expect_newline("Syntax error in ctypedef statement")
+        return Nodes.CTypeDefNode(
+            pos, base_type = base_type,
+            declarator = declarator,
+            visibility = visibility, api = api,
+            in_pxd = ctx.level == 'module_pxd')
 
 def p_decorators(s):
     decorators = []
@@ -2829,7 +2830,7 @@ def p_class_statement(s, decorators):
         positional_args, keyword_args, star_arg, starstar_arg = \
                             p_call_parse_args(s, allow_genexp = False)
         arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg)
+            pos, positional_args, keyword_args, star_arg, None)
     if arg_tuple is None:
         # XXX: empty arg_tuple
         arg_tuple = ExprNodes.TupleNode(pos, args = [])

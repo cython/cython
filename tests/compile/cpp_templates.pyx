@@ -31,3 +31,7 @@ cdef char f = d.getValue2()
 f = e.getValue2()
 
 del b, e
+
+ctypedef TemplateTest1[int] TemplateTest1_int
+cdef TemplateTest1_int aa
+

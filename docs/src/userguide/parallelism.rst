@@ -7,8 +7,11 @@ Using Parallelism
 **********************************
 
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the GIL must be released. It
-currently supports OpenMP, but later on more backends might be supported.
+module. To use this kind of parallelism, the GIL must be released
+(see :ref:`Releasing the GIL <nogil>`).
+It currently supports OpenMP, but later on more backends might be supported.
+
+__ nogil_
 
 .. function:: prange([start,] stop[, step], nogil=False, schedule=None)
 
@@ -59,11 +62,11 @@ currently supports OpenMP, but later on more backends might be supported.
     +-----------------+------------------------------------------------------+
 
     The default schedule is implementation defined. For more information consult
-    the OpenMP specification: [#]_.
+    the OpenMP specification [#]_.
 
     Example with a reduction::
 
-        from cython.parallel import prange, parallel, threadid
+        from cython.parallel import prange
 
         cdef int i
         cdef int sum = 0
@@ -75,7 +78,7 @@ currently supports OpenMP, but later on more backends might be supported.
 
     Example with a shared numpy array::
 
-        from cython.parallel import *
+        from cython.parallel import prange
 
         def func(np.ndarray[double] x, double alpha):
             cdef Py_ssize_t i
@@ -94,7 +97,7 @@ currently supports OpenMP, but later on more backends might be supported.
 
     Example with thread-local buffers::
 
-       from cython.parallel import *
+       from cython.parallel import parallel, prange
        from libc.stdlib cimport abort, malloc, free
 
        cdef Py_ssize_t idx, i, n = 100
@@ -175,12 +178,20 @@ particular order::
 In the example above it is undefined whether an exception shall be raised,
 whether it will simply break or whether it will return 2.
 
-Nested Parallelism
-==================
-Nested parallelism is currently disabled due to a bug in gcc 4.5 [#]_. However,
-you can freely call functions with parallel sections from a parallel section.
+Using OpenMP Functions
+======================
+OpenMP functions can be used by cimporting ``openmp``::
+
+    from cython.parallel cimport parallel
+    cimport openmp
+
+    cdef int num_threads
+
+    openmp.omp_set_dynamic(1)
+    with nogil, parallel():
+        num_threads = openmp.omp_get_num_threads()
+        ...
 
 .. rubric:: References
 
 .. [#] http://www.openmp.org/mp-documents/spec30.pdf
-.. [#] http://gcc.gnu.org/bugzilla/show_bug.cgi?id=49897

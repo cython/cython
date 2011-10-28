@@ -65,6 +65,11 @@ class MarkAssignments(CythonTransform):
             # Could use this info to infer cdef class attributes...
             pass
 
+    def visit_WithTargetAssignmentStatNode(self, node):
+        self.mark_assignment(node.lhs, node.rhs)
+        self.visitchildren(node)
+        return node
+
     def visit_SingleAssignmentNode(self, node):
         self.mark_assignment(node.lhs, node.rhs)
         self.visitchildren(node)

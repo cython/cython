@@ -1165,16 +1165,20 @@ class WithTransform(CythonTransform, SkipDeclarations):
         self.visitchildren(node, 'body')
         pos = node.pos
         body, target, manager = node.body, node.target, node.manager
-        node.target_temp = ExprNodes.TempNode(pos, type=PyrexTypes.py_object_type)
+        node.enter_call = ExprNodes.SimpleCallNode(
+            pos, function = ExprNodes.AttributeNode(
+                pos, obj = ExprNodes.CloneNode(manager),
+                attribute = EncodedString('__enter__')),
+            args = [],
+            is_temp = True)
         if target is not None:
-            node.has_target = True
             body = Nodes.StatListNode(
                 pos, stats = [
                     Nodes.WithTargetAssignmentStatNode(
-                        pos, lhs = target, rhs = node.target_temp),
-                    body
-                    ])
-            node.target = None
+                        pos, lhs = target,
+                        rhs = ResultRefNode(node.enter_call),
+                        orig_rhs = node.enter_call),
+                    body])
 
         excinfo_target = ResultRefNode(
             pos=pos, type=Builtin.tuple_type, may_hold_none=False)
@@ -2334,6 +2338,17 @@ class TransformBuiltinMethods(EnvTransform):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
+    def visit_ExecStatNode(self, node):
+        lenv = self.current_env()
+        self.visitchildren(node)
+        if len(node.args) == 1:
+            node.args.append(ExprNodes.GlobalsExprNode(node.pos))
+            if not lenv.is_module_scope:
+                node.args.append(
+                    ExprNodes.LocalsExprNode(
+                        node.pos, self.current_scope_node(), lenv))
+        return node
+
     def _inject_locals(self, node, func_name):
         # locals()/dir()/vars() builtins
         lenv = self.current_env()
@@ -2342,7 +2357,6 @@ class TransformBuiltinMethods(EnvTransform):
             # not the builtin
             return node
         pos = node.pos
-        local_names = [ var.name for var in lenv.entries.values() if var.name ]
         if func_name in ('locals', 'vars'):
             if func_name == 'locals' and len(node.args) > 0:
                 error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d"
@@ -2354,11 +2368,7 @@ class TransformBuiltinMethods(EnvTransform):
                           % len(node.args))
                 if len(node.args) > 0:
                     return node # nothing to do
-            items = [ ExprNodes.DictItemNode(pos,
-                                             key=ExprNodes.IdentifierStringNode(pos, value=var),
-                                             value=ExprNodes.NameNode(pos, name=var, allow_null=True))
-                      for var in local_names ]
-            return ExprNodes.DictNode(pos, key_value_pairs=items, exclude_null_values=True)
+            return ExprNodes.LocalsExprNode(pos, self.current_scope_node(), lenv)
         else: # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
@@ -2366,16 +2376,36 @@ class TransformBuiltinMethods(EnvTransform):
             if len(node.args) > 0:
                 # optimised in Builtin.py
                 return node
+            if lenv.is_py_class_scope or lenv.is_module_scope:
+                if lenv.is_py_class_scope:
+                    pyclass = self.current_scope_node()
+                    locals_dict = ExprNodes.CloneNode(pyclass.dict)
+                else:
+                    locals_dict = ExprNodes.GlobalsExprNode(pos)
+                return ExprNodes.SimpleCallNode(
+                    pos,
+                    function=ExprNodes.AttributeNode(
+                        pos, obj=locals_dict, attribute="keys"),
+                    args=[])
+            local_names = [ var.name for var in lenv.entries.values() if var.name ]
             items = [ ExprNodes.IdentifierStringNode(pos, value=var)
                       for var in local_names ]
             return ExprNodes.ListNode(pos, args=items)
 
-    def visit_SimpleCallNode(self, node):
-        if isinstance(node.function, ExprNodes.NameNode):
-            func_name = node.function.name
-            if func_name in ('dir', 'locals', 'vars'):
-                return self._inject_locals(node, func_name)
+    def _inject_eval(self, node, func_name):
+        lenv = self.current_env()
+        entry = lenv.lookup_here(func_name)
+        if entry or len(node.args) != 1:
+            return node
+        # Inject globals and locals
+        node.args.append(ExprNodes.GlobalsExprNode(node.pos))
+        if not lenv.is_module_scope:
+            node.args.append(
+                ExprNodes.LocalsExprNode(
+                    node.pos, self.current_scope_node(), lenv))
+        return node
 
+    def visit_SimpleCallNode(self, node):
         # cython.foo
         function = node.function.as_cython_attribute()
         if function:
@@ -2428,6 +2458,13 @@ class TransformBuiltinMethods(EnvTransform):
                       u"'%s' not a valid cython language construct" % function)
 
         self.visitchildren(node)
+
+        if isinstance(node, ExprNodes.SimpleCallNode) and node.function.is_name:
+            func_name = node.function.name
+            if func_name in ('dir', 'locals', 'vars'):
+                return self._inject_locals(node, func_name)
+            if func_name == 'eval':
+                return self._inject_eval(node, func_name)
         return node
 
 

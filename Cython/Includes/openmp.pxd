@@ -1,6 +1,8 @@
 cdef extern from "omp.h":
-    ctypedef struct omp_lock_t
-    ctypedef struct omp_nest_lock_t
+    ctypedef struct omp_lock_t:
+        pass
+    ctypedef struct omp_nest_lock_t:
+        pass
 
     ctypedef enum omp_sched_t:
         omp_sched_static = 1,

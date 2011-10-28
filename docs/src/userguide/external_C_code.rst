@@ -420,6 +420,8 @@ Cython provides facilities for releasing the Global Interpreter Lock (GIL)
 before calling C code, and for acquiring the GIL in functions that are to be
 called back from C code that is executed without the GIL.
 
+.. _nogil:
+
 Releasing the GIL
 ^^^^^^^^^^^^^^^^^
 

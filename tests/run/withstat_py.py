@@ -181,6 +181,28 @@ def multimanager():
             print('%s %s %s %s %s' % (a, b, c, d, e))
             print(nested)
 
+
+class GetManager(object):
+    def get(self, *args):
+        return ContextManager(*args)
+
+def manager_from_expression():
+    """
+    >>> manager_from_expression()
+    enter
+    1
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    enter
+    2
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
+    with GetManager().get(1) as x:
+        print(x)
+    g = GetManager()
+    with g.get(2) as x:
+        print(x)
+
+
 # Tests borrowed from pyregr test_with.py,
 # modified to follow the constraints of Cython.
 import unittest

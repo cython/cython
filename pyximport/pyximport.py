@@ -183,10 +183,15 @@ def load_module(name, pyxfilename, pyxbuild_dir=None):
         so_path = build_module(name, pyxfilename, pyxbuild_dir)
         mod = imp.load_dynamic(name, so_path)
         assert mod.__file__ == so_path, (mod.__file__, so_path)
-    except Exception, e:
-        import traceback
-        raise ImportError("Building module failed: %s" %
-                          traceback.format_exception_only(*sys.exc_info()[:2])),None,sys.exc_info()[2]
+    except Exception:
+        if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
+            # try to fall back to normal import
+            mod = imp.load_source(name, pyxfilename)
+            assert mod.__file__ in (pyxfilename, pyxfilename+'c', pyxfilename+'o'), (mod.__file__, pyxfilename)
+        else:
+            import traceback
+            raise ImportError("Building module failed: %s" %
+                              traceback.format_exception_only(*sys.exc_info()[:2])),None,sys.exc_info()[2]
     return mod
 
 
@@ -345,7 +350,8 @@ class PyxArgs(object):
 ##pyxargs=None   
     
 def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
-            setup_args={}, reload_support=False ):
+            setup_args={}, reload_support=False,
+            load_py_module_on_import_failure=False):
     """Main entry point. Call this to install the .pyx import hook in
     your meta-path for a single Python process.  If you want it to be
     installed whenever you use Python, add it to your sitecustomize
@@ -374,6 +380,15 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     reload(<pyxmodulename>), e.g. after a change in the Cython code.
     Additional files <so_path>.reloadNN may arise on that account, when
     the previously loaded module file cannot be overwritten.
+
+    ``load_py_module_on_import_failure``: If the compilation of a .py
+    file succeeds, but the subsequent import fails for some reason,
+    retry the import with the normal .py module instead of the
+    compiled module.  Note that this may lead to unpredictable results
+    for modules that change the system state during their import, as
+    the second import will rerun these modifications in whatever state
+    the system was left after the import of the compiled module
+    failed.
     """
     if not build_dir:
         build_dir = os.path.expanduser('~/.pyxbld')
@@ -384,6 +399,7 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     pyxargs.build_in_temp = build_in_temp
     pyxargs.setup_args = (setup_args or {}).copy()
     pyxargs.reload_support = reload_support
+    pyxargs.load_py_module_on_import_failure = load_py_module_on_import_failure
 
     has_py_importer = False
     has_pyx_importer = False

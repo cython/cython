@@ -1916,6 +1916,14 @@ class CFuncDefNode(FuncDefNode):
             if type_arg.type.is_buffer and 'inline' in self.modifiers:
                 warning(formal_arg.pos, "Buffer unpacking not optimized away.", 1)
 
+            if type_arg.type.is_buffer:
+                if self.type.nogil:
+                    error(formal_arg.pos,
+                          "Buffer may not be acquired without the GIL. "
+                          "Consider using memoryview slices instead.")
+                elif 'inline' in self.modifiers:
+                    warning(formal_arg.pos, "Buffer unpacking not optimized away.", 1)
+
         self._validate_type_visibility(type.return_type, self.pos, env)
 
         name = name_declarator.name
@@ -3964,9 +3972,12 @@ class PyClassDefNode(ClassDefNode):
                         # find metaclass" dance at runtime
                         self.metaclass = item.value
                         del keyword_args.key_value_pairs[i]
-            if starstar_arg or (keyword_args and keyword_args.key_value_pairs):
+            if starstar_arg:
                 self.mkw = ExprNodes.KeywordArgsNode(
-                    pos, keyword_args = keyword_args, starstar_arg = starstar_arg)
+                    pos, keyword_args = keyword_args and keyword_args.key_value_pairs or [],
+                    starstar_arg = starstar_arg)
+            elif keyword_args and keyword_args.key_value_pairs:
+                self.mkw = keyword_args
             else:
                 self.mkw = ExprNodes.NullNode(pos)
             if self.metaclass is None:
@@ -5731,21 +5742,26 @@ class WithStatNode(StatNode):
     #  manager          The with statement manager object
     #  target           ExprNode  the target lhs of the __enter__() call
     #  body             StatNode
+    #  enter_call       ExprNode  the call to the __enter__() method
+    #  exit_var         String    the cname of the __exit__() method reference
 
-    child_attrs = ["manager", "target", "body"]
+    child_attrs = ["manager", "enter_call", "target", "body"]
 
-    has_target = False
+    enter_call = None
 
     def analyse_declarations(self, env):
         self.manager.analyse_declarations(env)
+        self.enter_call.analyse_declarations(env)
         self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
         self.manager.analyse_types(env)
+        self.enter_call.analyse_types(env)
         self.body.analyse_expressions(env)
 
     def generate_function_definitions(self, env, code):
         self.manager.generate_function_definitions(env, code)
+        self.enter_call.generate_function_definitions(env, code)
         self.body.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
@@ -5764,40 +5780,28 @@ class WithStatNode(StatNode):
         old_error_label = code.new_error_label()
         intermediate_error_label = code.error_label
 
-        enter_func = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
-            enter_func,
-            self.manager.py_result(),
-            code.get_py_string_const(EncodedString('__enter__'), identifier=True),
-            code.error_goto_if_null(enter_func, self.pos),
-            ))
-        code.put_gotref(enter_func)
+        self.enter_call.generate_evaluation_code(code)
+        if not self.target:
+            self.enter_call.generate_disposal_code(code)
+            self.enter_call.free_temps(code)
+        else:
+            # Otherwise, the node will be cleaned up by the
+            # WithTargetAssignmentStatNode after assigning its result
+            # to the target of the 'with' statement.
+            pass
         self.manager.generate_disposal_code(code)
         self.manager.free_temps(code)
-        self.target_temp.allocate(code)
-        code.putln('%s = PyObject_Call(%s, ((PyObject *)%s), NULL); %s' % (
-            self.target_temp.result(),
-            enter_func,
-            Naming.empty_tuple,
-            code.error_goto_if_null(self.target_temp.result(), self.pos),
-            ))
-        code.put_gotref(self.target_temp.result())
-        code.put_decref_clear(enter_func, py_object_type)
-        code.funcstate.release_temp(enter_func)
-        if not self.has_target:
-            code.put_decref_clear(self.target_temp.result(), type=py_object_type)
-            self.target_temp.release(code)
-            # otherwise, WithTargetAssignmentStatNode will do it for us
 
         code.error_label = old_error_label
         self.body.generate_execution_code(code)
 
-        step_over_label = code.new_label()
-        code.put_goto(step_over_label)
-        code.put_label(intermediate_error_label)
-        code.put_decref_clear(self.exit_var, py_object_type)
-        code.put_goto(old_error_label)
-        code.put_label(step_over_label)
+        if code.label_used(intermediate_error_label):
+            step_over_label = code.new_label()
+            code.put_goto(step_over_label)
+            code.put_label(intermediate_error_label)
+            code.put_decref_clear(self.exit_var, py_object_type)
+            code.put_goto(old_error_label)
+            code.put_label(step_over_label)
 
         code.funcstate.release_temp(self.exit_var)
         code.putln('}')
@@ -5809,28 +5813,44 @@ class WithTargetAssignmentStatNode(AssignmentNode):
     # This is a special cased assignment that steals the RHS reference
     # and frees its temp.
     #
-    # lhs  ExprNode  the assignment target
-    # rhs  TempNode  the return value of the __enter__() call
+    # lhs       ExprNode   the assignment target
+    # rhs       CloneNode  a (coerced) CloneNode for the orig_rhs (not owned by this node)
+    # orig_rhs  ExprNode   the original ExprNode of the rhs. this node will clean up the
+    #                      temps of the orig_rhs. basically, it takes ownership of the node
+    #                      when the WithStatNode is done with it.
 
-    child_attrs = ["lhs", "rhs"]
+    child_attrs = ["lhs"]
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
 
-    def analyse_types(self, env):
+    def analyse_expressions(self, env):
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
-        self.orig_rhs = self.rhs
         self.rhs = self.rhs.coerce_to(self.lhs.type, env)
 
     def generate_execution_code(self, code):
+        if self.orig_rhs.type.is_pyobject:
+            # make sure rhs gets freed on errors, see below
+            old_error_label = code.new_error_label()
+            intermediate_error_label = code.error_label
+
         self.rhs.generate_evaluation_code(code)
         self.lhs.generate_assignment_code(self.rhs, code)
-        self.orig_rhs.release(code)
 
-    def generate_function_definitions(self, env, code):
-        self.rhs.generate_function_definitions(env, code)
+        if self.orig_rhs.type.is_pyobject:
+            self.orig_rhs.generate_disposal_code(code)
+            code.error_label = old_error_label
+            if code.label_used(intermediate_error_label):
+                step_over_label = code.new_label()
+                code.put_goto(step_over_label)
+                code.put_label(intermediate_error_label)
+                self.orig_rhs.generate_disposal_code(code)
+                code.put_goto(old_error_label)
+                code.put_label(step_over_label)
+
+        self.orig_rhs.free_temps(code)
 
     def annotate(self, code):
         self.lhs.annotate(code)
@@ -6574,6 +6594,8 @@ class FromImportStatNode(StatNode):
                 else:
                     coerced_item = self.item.coerce_to(target.type, env)
                 self.interned_items.append((name, target, coerced_item))
+        if self.interned_items:
+            env.use_utility_code(raise_import_error_utility_code)
 
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
@@ -6588,11 +6610,16 @@ class FromImportStatNode(StatNode):
         for name, target, coerced_item in self.interned_items:
             cname = code.intern_identifier(name)
             code.putln(
-                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                '%s = PyObject_GetAttr(%s, %s);' % (
                     item_temp,
                     self.module.py_result(),
-                    cname,
-                    code.error_goto_if_null(item_temp, self.pos)))
+                    cname))
+            code.putln('if (%s == NULL) {' % item_temp)
+            code.putln(
+                'if (PyErr_ExceptionMatches(PyExc_AttributeError)) '
+                '__Pyx_RaiseImportError(%s);' % cname)
+            code.putln(code.error_goto_if_null(item_temp, self.pos))
+            code.putln('}')
             code.put_gotref(item_temp)
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
@@ -8922,3 +8949,19 @@ init="""
     memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
 """ % vars(Naming))
 
+#------------------------------------------------------------------------------------
+
+raise_import_error_utility_code = UtilityCode(
+proto = '''
+static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name);
+''',
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name) {
+#if PY_MAJOR_VERSION < 3
+    PyErr_Format(PyExc_ImportError, "cannot import name %.230s",
+                 PyString_AsString(name));
+#else
+    PyErr_Format(PyExc_ImportError, "cannot import name %S", name);
+#endif
+}
+''')

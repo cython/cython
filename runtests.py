@@ -285,8 +285,8 @@ class ErrorWriter(object):
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
-                 cleanup_workdir, cleanup_sharedlibs, with_pyregr, cython_only,
-                 languages, test_bugs, fork, language_level):
+                 cleanup_workdir, cleanup_sharedlibs, cleanup_failures,
+                 with_pyregr, cython_only, languages, test_bugs, fork, language_level):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -294,6 +294,7 @@ class TestBuilder(object):
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
+        self.cleanup_failures = cleanup_failures
         self.with_pyregr = with_pyregr
         self.cython_only = cython_only
         self.languages = languages
@@ -410,6 +411,7 @@ class TestBuilder(object):
                           annotate=self.annotate,
                           cleanup_workdir=self.cleanup_workdir,
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
+                          cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
                           fork=self.fork,
                           language_level=self.language_level,
@@ -418,8 +420,8 @@ class TestBuilder(object):
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cython_only=False, fork=True,
-                 language_level=2, warning_errors=False):
+                 cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
+                 fork=True, language_level=2, warning_errors=False):
         self.test_directory = test_directory
         self.workdir = workdir
         self.module = module
@@ -428,6 +430,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
+        self.cleanup_failures = cleanup_failures
         self.cython_only = cython_only
         self.fork = fork
         self.language_level = language_level
@@ -461,16 +464,17 @@ class CythonCompileTestCase(unittest.TestCase):
             del sys.modules[self.module]
         except KeyError:
             pass
-        cleanup_c_files = WITH_CYTHON and self.cleanup_workdir
-        cleanup_lib_files = self.cleanup_sharedlibs
+        cleanup = self.cleanup_failures or self.success
+        cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
+        cleanup_lib_files = self.cleanup_sharedlibs and cleanup
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
                 if not cleanup_c_files:
-                    if rmfile[-2:] in (".c", ".h") or rmfile[-4:] == ".cpp":
+                    if (rmfile[-2:] in (".c", ".h") or
+                        rmfile[-4:] == ".cpp" or
+                        rmfile.endswith(".html")):
                         continue
-                if not cleanup_lib_files and rmfile.endswith(".so") or rmfile.endswith(".dll"):
-                    continue
-                if self.annotate and rmfile.endswith(".html"):
+                if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
                     continue
                 try:
                     rmfile = os.path.join(self.workdir, rmfile)
@@ -484,7 +488,9 @@ class CythonCompileTestCase(unittest.TestCase):
             os.makedirs(self.workdir)
 
     def runTest(self):
+        self.success = False
         self.runCompileTest()
+        self.success = True
 
     def runCompileTest(self):
         self.compile(self.test_directory, self.module, self.workdir,
@@ -676,8 +682,13 @@ class CythonRunTestCase(CythonCompileTestCase):
         try:
             self.setUp()
             try:
+                self.success = False
                 self.runCompileTest()
+                failures, errors = len(result.failures), len(result.errors)
                 self.run_tests(result)
+                if failures == len(result.failures) and errors == len(result.errors):
+                    # No new errors...
+                    self.success = True
             finally:
                 check_thread_termination()
         except Exception:
@@ -1032,6 +1043,7 @@ class EndToEndTest(unittest.TestCase):
         os.chdir(self.old_dir)
 
     def runTest(self):
+        self.success = False
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
@@ -1055,6 +1067,7 @@ class EndToEndTest(unittest.TestCase):
                 os.environ['PYTHONPATH'] = old_path
             else:
                 del os.environ['PYTHONPATH']
+        self.success = True
 
 
 # TODO: Support cython_freeze needed here as well.
@@ -1278,6 +1291,9 @@ def main():
     parser.add_option("--no-cleanup-sharedlibs", dest="cleanup_sharedlibs",
                       action="store_false", default=True,
                       help="do not delete the generated shared libary files (allows manual module experimentation)")
+    parser.add_option("--no-cleanup-failures", dest="cleanup_failures",
+                      action="store_false", default=True,
+                      help="enable --no-cleanup and --no-cleanup-sharedlibs for failed tests only")
     parser.add_option("--no-cython", dest="with_cython",
                       action="store_false", default=True,
                       help="do not run the Cython compiler, only the C compiler")
@@ -1354,6 +1370,8 @@ def main():
                       help="working directory")
     parser.add_option("--debug", dest="for_debugging", default=False, action="store_true",
                       help="configure for easier use with a debugger (e.g. gdb)")
+    parser.add_option("--pyximport-py", dest="pyximport_py", default=False, action="store_true",
+                      help="use pyximport to automatically compile imported .pyx and .py files")
 
     options, cmd_args = parser.parse_args()
 
@@ -1509,7 +1527,8 @@ def main():
     if options.filetests and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, options.pyregr,
+                                options.cleanup_sharedlibs, options.cleanup_failures,
+                                options.pyregr,
                                 options.cython_only, languages, test_bugs,
                                 options.fork, options.language_level)
         test_suite.addTest(filetests.build_suite())
@@ -1519,7 +1538,8 @@ def main():
         if os.path.isdir(sys_pyregr_dir):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                     options.annotate_source, options.cleanup_workdir,
-                                    options.cleanup_sharedlibs, True,
+                                    options.cleanup_sharedlibs, options.cleanup_failures,
+                                    True,
                                     options.cython_only, languages, test_bugs,
                                     options.fork, sys.version_info[0])
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
@@ -1531,6 +1551,11 @@ def main():
                                     verbose=options.verbosity > 0)
     else:
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
+
+    if options.pyximport_py:
+        from pyximport import pyximport
+        pyximport.install(pyimport=True, build_dir=os.path.join(WORKDIR, '_pyximport'),
+                          load_py_module_on_import_failure=True)
 
     result = test_runner.run(test_suite)
 
