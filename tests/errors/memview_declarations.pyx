@@ -64,5 +64,5 @@ _ERRORS = u'''
 31:9: Dimension may not be contiguous
 37:9: Only one direct contiguous axis may be specified.
 38:9:Only dimensions 3 and 2 may be contiguous and direct
-44:10: Invalid base type for memoryview slice
+44:10: Invalid base type for memoryview slice: intp
 '''
