@@ -263,7 +263,6 @@ class UtilityCode(UtilityCodeBase):
     def get_tree(self):
         pass
 
-
     def specialize(self, pyrex_type=None, tempita=False, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:

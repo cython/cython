@@ -59,10 +59,10 @@ _ERRORS = u'''
 20:22: Invalid axis specification.
 21:25: Invalid axis specification.
 22:22: no expressions allowed in axis spec, only names and literals.
-25:51: Memoryview 'object[::contiguous, :]' not conformable to memoryview 'object[:, ::contiguous]'.
+25:51: Memoryview 'object[::1, :]' not conformable to memoryview 'object[:, ::1]'.
 28:36: Different base types for memoryviews (int, Python object)
 31:9: Dimension may not be contiguous
 37:9: Only one direct contiguous axis may be specified.
 38:9:Only dimensions 3 and 2 may be contiguous and direct
-44:10: Invalid base type for memoryview slice
+44:10: Invalid base type for memoryview slice: intp
 '''

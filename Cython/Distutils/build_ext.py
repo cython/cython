@@ -55,16 +55,6 @@ class Optimization(object):
 
 optimization = Optimization()
 
-try:
-    any
-except NameError:
-    def any(it):
-        for x in it:
-            if x:
-                return True
-
-        return False
-
 
 class build_ext(_build_ext.build_ext):
 
@@ -128,8 +118,8 @@ class build_ext(_build_ext.build_ext):
         # If --pyrex-gdb is in effect as a command line option or as option
         # of any Extension module, disable optimization for the C or C++
         # compiler.
-        if (self.pyrex_gdb or any([getattr(ext, 'pyrex_gdb', False)
-                                       for ext in self.extensions])):
+        if self.pyrex_gdb or [1 for ext in self.extensions
+                                     if getattr(ext, 'pyrex_gdb', False)]:
             optimization.disable_optimization()
 
         _build_ext.build_ext.run(self)

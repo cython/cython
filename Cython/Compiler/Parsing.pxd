@@ -134,9 +134,10 @@ cdef p_buffer_or_template(PyrexScanner s, base_type_node, templates)
 cdef is_memoryviewslice_access(PyrexScanner s)
 cdef p_memoryviewslice_access(PyrexScanner s, base_type_node)
 cdef bint looking_at_name(PyrexScanner s) except -2
-cdef bint looking_at_expr(PyrexScanner s) except -2
+cdef object looking_at_expr(PyrexScanner s)# except -2
 cdef bint looking_at_base_type(PyrexScanner s) except -2
 cdef bint looking_at_dotted_name(PyrexScanner s) except -2
+cdef bint looking_at_call(PyrexScanner s) except -2
 cdef p_sign_and_longness(PyrexScanner s)
 cdef p_opt_cname(PyrexScanner s)
 cpdef p_c_declarator(PyrexScanner s, ctx = *, bint empty = *, bint is_type = *, bint cmethod_flag = *,
@@ -161,6 +162,7 @@ cdef p_c_enum_definition(PyrexScanner s, pos, ctx)
 cdef p_c_enum_line(PyrexScanner s, ctx, list items)
 cdef p_c_enum_item(PyrexScanner s, ctx, list items)
 cdef p_c_struct_or_union_definition(PyrexScanner s, pos, ctx)
+cdef p_fused_definition(PyrexScanner s, pos, ctx)
 cdef p_visibility(PyrexScanner s, prev_visibility)
 cdef p_c_modifiers(PyrexScanner s)
 cdef p_c_func_or_var_declaration(PyrexScanner s, pos, ctx)
