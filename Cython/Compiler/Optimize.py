@@ -2992,8 +2992,18 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
       literal nodes at each step.  Non-literal nodes are never merged
       into a single node.
     """
+
+    def __init__(self, reevaluate=False):
+        """
+        The reevaluate argument specifies whether constant values that were
+        previously computed should be recomputed.
+        """
+        super(ConstantFolding, self).__init__()
+        self.reevaluate = reevaluate
+
     def _calculate_const(self, node):
-        if node.constant_result is not ExprNodes.constant_value_not_set:
+        if (not self.reevaluate and
+                node.constant_result is not ExprNodes.constant_value_not_set):
             return
 
         # make sure we always set the value

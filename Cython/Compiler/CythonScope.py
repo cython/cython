@@ -18,6 +18,13 @@ class CythonScope(ModuleScope):
         # The Main.Context object
         self.context = context
 
+        for fused_type in (cy_integral_type, cy_floating_type, cy_numeric_type):
+            entry = self.declare_typedef(fused_type.name,
+                                         fused_type,
+                                         None,
+                                         cname='<error>')
+            entry.in_cinclude = True
+
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
         type = parse_basic_type(name)
@@ -114,6 +121,7 @@ class CythonScope(ModuleScope):
 
         view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
                                                 viewscope, cython_scope=self)
+
         # MemoryView.memview_fromslice_utility_code.from_scope = view_utility_scope
         # MemoryView.memview_fromslice_utility_code.declare_in_scope(viewscope)
 
@@ -123,7 +131,6 @@ def create_cython_scope(context):
     # but not sure yet whether any code mutates it (which would kill reusing
     # it across different contexts)
     return CythonScope(context)
-
 
 # Load test utilities for the cython scope
 

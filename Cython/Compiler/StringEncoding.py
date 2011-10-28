@@ -115,6 +115,9 @@ class EncodedString(_unicode):
     # otherwise
     encoding = None
 
+    def __deepcopy__(self, memo):
+        return self
+
     def byteencode(self):
         assert self.encoding is not None
         return self.encode(self.encoding)
@@ -130,6 +133,9 @@ class EncodedString(_unicode):
 class BytesLiteral(_bytes):
     # bytes subclass that is compatible with EncodedString
     encoding = None
+
+    def __deepcopy__(self, memo):
+        return self
 
     def byteencode(self):
         if IS_PYTHON3:

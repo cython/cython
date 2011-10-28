@@ -2121,10 +2121,12 @@ def looking_at_expr(s):
         name = s.systring
         dotted_path = []
         s.next()
+
         while s.sy == '.':
             s.next()
             dotted_path.append(s.systring)
             s.expect('IDENT')
+
         saved = s.sy, s.systring
         if s.sy == 'IDENT':
             is_type = True
@@ -2140,12 +2142,14 @@ def looking_at_expr(s):
             s.next()
             is_type = s.sy == ']'
             s.put_back(*saved)
+
         dotted_path.reverse()
         for p in dotted_path:
             s.put_back('IDENT', p)
             s.put_back('.', '.')
+
         s.put_back('IDENT', name)
-        return not is_type
+        return not is_type and saved[0]
     else:
         return True
 
@@ -2163,6 +2167,17 @@ def looking_at_dotted_name(s):
     else:
         return 0
 
+def looking_at_call(s):
+    "See if we're looking at a.b.c("
+    # Don't mess up the original position, so save and restore it.
+    # Unfortunately there's no good way to handle this, as a subsequent call
+    # to next() will not advance the position until it reads a new token.
+    position = s.start_line, s.start_col
+    result = looking_at_expr(s) == u'('
+    if not result:
+        s.start_line, s.start_col = position
+    return result
+
 basic_c_type_names = ("void", "char", "int", "float", "double", "bint")
 
 special_basic_c_types = {
@@ -2178,6 +2193,8 @@ sign_and_longness_words = ("short", "long", "signed", "unsigned")
 
 base_type_start_words = \
     basic_c_type_names + sign_and_longness_words + tuple(special_basic_c_types)
+
+struct_enum_union = ("struct", "union", "enum", "packed")
 
 def p_sign_and_longness(s):
     signed = 1
@@ -2485,15 +2502,14 @@ def p_cdef_statement(s, ctx):
         if ctx.visibility != 'extern':
             error(pos, "C++ classes need to be declared extern")
         return p_cpp_class_definition(s, pos, ctx)
-    elif s.sy == 'IDENT' and s.systring in ("struct", "union", "enum", "packed"):
+    elif s.sy == 'IDENT' and s.systring in struct_enum_union:
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
         if ctx.overridable:
             error(pos, "C struct/union/enum cannot be declared cpdef")
-        if s.systring == "enum":
-            return p_c_enum_definition(s, pos, ctx)
-        else:
-            return p_c_struct_or_union_definition(s, pos, ctx)
+        return p_struct_enum(s, pos, ctx)
+    elif s.sy == 'IDENT' and s.systring == 'fused':
+        return p_fused_definition(s, pos, ctx)
     else:
         return p_c_func_or_var_declaration(s, pos, ctx)
 
@@ -2610,6 +2626,46 @@ def p_c_struct_or_union_definition(s, pos, ctx):
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
         api = ctx.api, in_pxd = ctx.level == 'module_pxd', packed = packed)
 
+def p_fused_definition(s, pos, ctx):
+    """
+    c(type)def fused my_fused_type:
+        ...
+    """
+    # s.systring == 'fused'
+
+    if ctx.level not in ('module', 'module_pxd'):
+        error(pos, "Fused type definition not allowed here")
+
+    s.next()
+    name = p_ident(s)
+
+    s.expect(":")
+    s.expect_newline()
+    s.expect_indent()
+
+    types = []
+    while s.sy != 'DEDENT':
+        if s.sy != 'pass':
+            #types.append(p_c_declarator(s))
+            types.append(p_c_base_type(s)) #, nonempty=1))
+        else:
+            s.next()
+
+        s.expect_newline()
+
+    s.expect_dedent()
+
+    if not types:
+        error(pos, "Need at least one type")
+
+    return Nodes.FusedTypeNode(pos, name=name, types=types)
+
+def p_struct_enum(s, pos, ctx):
+    if s.systring == 'enum':
+        return p_c_enum_definition(s, pos, ctx)
+    else:
+        return p_c_struct_or_union_definition(s, pos, ctx)
+
 def p_visibility(s, prev_visibility):
     pos = s.position()
     visibility = prev_visibility
@@ -2680,11 +2736,10 @@ def p_ctypedef_statement(s, ctx):
         ctx.api = 1
     if s.sy == 'class':
         return p_c_class_definition(s, pos, ctx)
-    elif s.sy == 'IDENT' and s.systring in ('packed', 'struct', 'union', 'enum'):
-        if s.systring == 'enum':
-            return p_c_enum_definition(s, pos, ctx)
-        else:
-            return p_c_struct_or_union_definition(s, pos, ctx)
+    elif s.sy == 'IDENT' and s.systring in struct_enum_union:
+        return p_struct_enum(s, pos, ctx)
+    elif s.sy == 'IDENT' and s.systring == 'fused':
+        return p_fused_definition(s, pos, ctx)
     else:
         base_type = p_c_base_type(s, nonempty = 1)
         declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)

@@ -15,6 +15,7 @@ Contents:
    external_C_code
    source_files_and_compilation
    wrapping_CPlusPlus
+   fusedtypes
    limitations
    pyrex_differences
    early_binding_for_speed

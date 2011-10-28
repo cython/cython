@@ -591,6 +591,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
           PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #endif
 
+#if PY_MAJOR_VERSION < 3 && PY_MINOR_VERSION < 6
+  #define PyUnicode_FromString(s) PyUnicode_Decode(s, strlen(s), "UTF-8", "strict")
+#endif
+
 #if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_CHECKTYPES 0
   #define Py_TPFLAGS_HAVE_INDEX 0
@@ -985,6 +989,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate struct declaration for an extension type's vtable.
         type = entry.type
         scope = type.scope
+
+        self.specialize_fused_types(scope)
+
         if type.vtabstruct_cname:
             code.putln("")
             code.putln(
@@ -1128,7 +1135,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
-            generate_cfunction_declaration(entry, env, code, definition)
+            if entry.used:
+                generate_cfunction_declaration(entry, env, code, definition)
 
     def generate_variable_definitions(self, env, code):
         for entry in env.var_entries:
@@ -1800,7 +1808,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static PyMethodDef %s[] = {" %
                 env.method_table_cname)
         for entry in env.pyfunc_entries:
-            code.put_pymethoddef(entry, ",")
+            if not entry.fused_cfunction:
+                code.put_pymethoddef(entry, ",")
         code.putln(
                 "{0, 0, 0, 0}")
         code.putln(
@@ -1928,6 +1937,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("if (__Pyx_CyFunction_init() < 0) %s" % code.error_goto(self.pos))
         code.putln("#endif")
 
+        code.putln("#ifdef __Pyx_FusedFunction_USED")
+        code.putln("if (__pyx_FusedFunction_init() < 0) %s" % code.error_goto(self.pos))
+        code.putln("#endif")
+
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
 
@@ -1983,6 +1996,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Function import code ---*/")
         for module in imported_modules:
+            self.specialize_fused_types(module)
             self.generate_c_function_import_code_for_module(module, env, code)
 
         code.putln("/*--- Execution code ---*/")
@@ -2200,6 +2214,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.defined_in_pxd:
                 self.generate_type_import_code(env, entry.type, entry.pos, code)
 
+    def specialize_fused_types(self, pxd_env):
+        """
+        If fused c(p)def functions are defined in an imported pxd, but not
+        used in this implementation file, we still have fused entries and
+        not specialized ones. This method replaces any fused entries with their
+        specialized ones.
+        """
+        for entry in pxd_env.cfunc_entries[:]:
+            if entry.type.is_fused:
+                # This call modifies the cfunc_entries in-place
+                entry.type.get_all_specific_function_types()
+
     def generate_c_variable_import_code_for_module(self, module, env, code):
         # Generate import code for all exported C functions in a cimported module.
         entries = []
@@ -2232,7 +2258,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate import code for all exported C functions in a cimported module.
         entries = []
         for entry in module.cfunc_entries:
-            if entry.defined_in_pxd:
+            if entry.defined_in_pxd and entry.used:
                 entries.append(entry)
         if entries:
             env.use_utility_code(import_module_utility_code)
@@ -2441,7 +2467,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 def generate_cfunction_declaration(entry, env, code, definition):
     from_cy_utility = entry.used and entry.utility_code_definition
-    if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
+    if entry.used and entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
             or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
         if entry.visibility == 'extern':
             storage_class = "%s " % Naming.extern_c_macro

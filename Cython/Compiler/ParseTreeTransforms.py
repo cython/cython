@@ -629,8 +629,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'operator.comma'        : ExprNodes.c_binop_constructor(','),
     }
 
-    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof',
-                                  'cast', 'pointer', 'compiled', 'NULL', 'parallel'])
+    special_methods = set(['declare', 'union', 'struct', 'typedef',
+                           'sizeof', 'cast', 'pointer', 'compiled',
+                           'NULL', 'fused_type', 'parallel'])
     special_methods.update(unop_method_nodes.keys())
 
     valid_parallel_directives = set([
@@ -1381,10 +1382,13 @@ if VALUE is not None:
     count += 1
     """)
 
+    fused_function = None
+
     def __call__(self, root):
         self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
         self.seen_vars_stack = []
+        self.fused_error_funcs = set()
         return super(AnalyseDeclarationsTransform, self).__call__(root)
 
     def visit_NameNode(self, node):
@@ -1424,9 +1428,20 @@ if VALUE is not None:
         return node
 
     def visit_FuncDefNode(self, node):
+        """
+        Analyse a function and its body, as that hasn't happend yet. Also
+        analyse the directive_locals set by @cython.locals(). Then, if we are
+        a function with fused arguments, replace the function (after it has
+        declared itself in the symbol table!) with a FusedCFuncDefNode, and
+        analyse its children (which are in turn normal functions). If we're a
+        normal function, just analyse the body of the function.
+        """
+        env = self.env_stack[-1]
+
         self.seen_vars_stack.append(set())
         lenv = node.local_scope
         node.declare_arguments(lenv)
+
         for var, type_node in node.directive_locals.items():
             if not lenv.lookup_here(var):   # don't redeclare args
                 type = type_node.analyse_as_type(lenv)
@@ -1434,22 +1449,54 @@ if VALUE is not None:
                     lenv.declare_var(var, type, type_node.pos)
                 else:
                     error(type_node.pos, "Not a type")
-        node.body.analyse_declarations(lenv)
 
-        if lenv.nogil and lenv.has_with_gil_block:
-            # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
-            # the entire function body in try/finally.
-            # The corresponding release will be taken care of by
-            # Nodes.FuncDefNode.generate_function_definitions()
-            node.body = Nodes.NogilTryFinallyStatNode(
-                node.body.pos,
-                body = node.body,
-                finally_clause = Nodes.EnsureGILNode(node.body.pos),
-            )
+        if node.is_generator and node.has_fused_arguments:
+            node.has_fused_arguments = False
+            error(node.pos, "Fused generators not supported")
+            node.gbody = Nodes.StatListNode(node.pos,
+                                            stats=[],
+                                            body=Nodes.PassStatNode(node.pos))
 
-        self.env_stack.append(lenv)
-        self.visitchildren(node)
-        self.env_stack.pop()
+        if node.has_fused_arguments:
+            if self.fused_function:
+                if self.fused_function not in self.fused_error_funcs:
+                    error(node.pos, "Cannot nest fused functions")
+
+                self.fused_error_funcs.add(self.fused_function)
+                # env.declare_var(node.name, PyrexTypes.py_object_type, node.pos)
+                node = Nodes.SingleAssignmentNode(
+                    node.pos,
+                    lhs=ExprNodes.NameNode(node.pos, name=node.name),
+                    rhs=ExprNodes.NoneNode(node.pos))
+                node.analyse_declarations(env)
+                return node
+
+            node = Nodes.FusedCFuncDefNode(node, env)
+
+            self.fused_function = node
+            self.visitchildren(node)
+            self.fused_function = None
+
+            if node.py_func:
+                node.stats.insert(0, node.py_func)
+        else:
+            node.body.analyse_declarations(lenv)
+
+            if lenv.nogil and lenv.has_with_gil_block:
+                # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
+                # the entire function body in try/finally.
+                # The corresponding release will be taken care of by
+                # Nodes.FuncDefNode.generate_function_definitions()
+                node.body = Nodes.NogilTryFinallyStatNode(
+                    node.body.pos,
+                    body = node.body,
+                    finally_clause = Nodes.EnsureGILNode(node.body.pos),
+                )
+
+            self.env_stack.append(lenv)
+            self.visitchildren(node)
+            self.env_stack.pop()
+
         self.seen_vars_stack.pop()
         return node
 
@@ -1628,15 +1675,18 @@ if VALUE is not None:
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
+        self.env_stack = [node.scope]
         node.scope.infer_types()
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
+        self.env_stack.append(node.local_scope)
         node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
+        self.env_stack.pop()
         return node
 
     def visit_ScopedExprNode(self, node):
@@ -1644,6 +1694,24 @@ class AnalyseExpressionsTransform(CythonTransform):
             node.expr_scope.infer_types()
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
+        return node
+
+    def visit_IndexNode(self, node):
+        """
+        Replace index nodes used to specialize cdef functions with fused
+        argument types with the Attribute- or NameNode referring to the
+        function. We then need to copy over the specialization properties to
+        the attribute or name node.
+
+        Because the indexing might be a Python indexing operation on a fused
+        function, or (usually) a Cython indexing operation, we need to
+        re-analyse the types.
+        """
+        self.visit_Node(node)
+
+        if node.is_fused_index and node.type is not PyrexTypes.error_type:
+            node = node.base
+
         return node
 
 
@@ -2084,6 +2152,10 @@ class CreateClosureClasses(CythonTransform):
         target_module_scope.check_c_class(func_scope.scope_class)
 
     def visit_LambdaNode(self, node):
+        if not isinstance(node.def_node, Nodes.DefNode):
+            # fused function, an error has been previously issued
+            return node
+
         was_in_lambda = self.in_lambda
         self.in_lambda = True
         self.create_class_from_scope(node.def_node, self.module_scope, node)
@@ -2393,6 +2465,95 @@ class TransformBuiltinMethods(EnvTransform):
                 return self._inject_locals(node, func_name)
             if func_name == 'eval':
                 return self._inject_eval(node, func_name)
+        return node
+
+
+class ReplaceFusedTypeChecks(VisitorTransform):
+    """
+    This is not a transform in the pipeline. It is invoked on the specific
+    versions of a cdef function with fused argument types. It filters out any
+    type branches that don't match. e.g.
+
+        if fused_t is mytype:
+            ...
+        elif fused_t in other_fused_type:
+            ...
+    """
+
+    # Defer the import until now to avoid circularity...
+    from Cython.Compiler import Optimize
+    transform = Optimize.ConstantFolding(reevaluate=True)
+
+    def __init__(self, local_scope):
+        super(ReplaceFusedTypeChecks, self).__init__()
+        self.local_scope = local_scope
+
+    def visit_IfStatNode(self, node):
+        """
+        Filters out any if clauses with false compile time type check
+        expression.
+        """
+        self.visitchildren(node)
+        return self.transform(node)
+
+    def visit_PrimaryCmpNode(self, node):
+        type1 = node.operand1.analyse_as_type(self.local_scope)
+        type2 = node.operand2.analyse_as_type(self.local_scope)
+
+        if type1 and type2:
+            false_node = ExprNodes.BoolNode(node.pos, value=False)
+            true_node = ExprNodes.BoolNode(node.pos, value=True)
+
+            type1 = self.specialize_type(type1, node.operand1.pos)
+            op = node.operator
+
+            if op in ('is', 'is_not', '==', '!='):
+                type2 = self.specialize_type(type2, node.operand2.pos)
+
+                is_same = type1.same_as(type2)
+                eq = op in ('is', '==')
+
+                if (is_same and eq) or (not is_same and not eq):
+                    return true_node
+
+            elif op in ('in', 'not_in'):
+                # We have to do an instance check directly, as operand2
+                # needs to be a fused type and not a type with a subtype
+                # that is fused. First unpack the typedef
+                if isinstance(type2, PyrexTypes.CTypedefType):
+                    type2 = type2.typedef_base_type
+
+                if type1.is_fused:
+                    error(node.operand1.pos, "Type is fused")
+                elif not type2.is_fused:
+                    error(node.operand2.pos,
+                          "Can only use 'in' or 'not in' on a fused type")
+                else:
+                    types = PyrexTypes.get_specialized_types(type2)
+
+                    for specific_type in types:
+                        if type1.same_as(specific_type):
+                            if op == 'in':
+                                return true_node
+                            else:
+                                return false_node
+
+                    if op == 'not_in':
+                        return true_node
+
+            return false_node
+
+        return node
+
+    def specialize_type(self, type, pos):
+        try:
+            return type.specialize(self.local_scope.fused_to_specific)
+        except KeyError:
+            error(pos, "Type is not specific")
+            return type
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
         return node
 
 
