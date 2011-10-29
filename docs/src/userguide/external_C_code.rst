@@ -446,6 +446,14 @@ header::
     cdef void my_callback(void *data) with gil:
         ...
 
+If the callback may be called from another thread then the main thread which may not be a Python thread,
+care must be taken to initialize the GIL first, through a call to ``PyEval_InitThreads()``.
+
+The GIL may also be acquired through the ``with nogil`` counterpart ``with gil``::
+
+    with gil:
+        <execute this block with the GIL acquired>
+
 Declaring a function as callable without the GIL
 --------------------------------------------------
 

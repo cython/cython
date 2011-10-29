@@ -11,6 +11,8 @@ module. To use this kind of parallelism, the GIL must be released
 (see :ref:`Releasing the GIL <nogil>`).
 It currently supports OpenMP, but later on more backends might be supported.
 
+.. NOTE:: Because the backend is OpenMP, cython.parallel functionality may only be used from the main thread or from OpenMP threads.
+
 __ nogil_
 
 .. function:: prange([start,] stop[, step], nogil=False, schedule=None)
@@ -76,11 +78,11 @@ __ nogil_
 
         print sum
 
-    Example with a shared numpy array::
+    Example with a typed memoryview (e.g. a NumPy array)::
 
         from cython.parallel import prange
 
-        def func(np.ndarray[double] x, double alpha):
+        def func(double[:] x, double alpha):
             cdef Py_ssize_t i
 
             for i in prange(x.shape[0]):
@@ -152,7 +154,7 @@ enable OpenMP. For gcc this can be done as follows in a setup.py::
 Breaking
 ========
 The parallel with and prange blocks support break, continue and return in
-nogil mode. Additionally, it is valid to use a with gil block inside these
+nogil mode. Additionally, it is valid to use a ``with gil`` block inside these
 blocks, and have exceptions propagate from them.
 However, because the blocks use OpenMP, they can not just be left, so the
 exiting procedure is best-effort. For prange() this means that the loop
