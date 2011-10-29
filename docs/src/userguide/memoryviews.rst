@@ -6,9 +6,9 @@
 Typed Memoryviews
 **************************
 
-Typed memoryviews can be used for efficient access to buffers. It is similar to the
-current buffer support, but has more features and cleaner syntax. A memoryview
-can be used in any context (function parameters, module-level, cdef class attribute, etc)
+Typed memoryviews can be used for efficient access to buffers, such as NumPy arrays, without incurring any Python overhead.
+It is similar to the current buffer support (``np.ndarray[np.float64_t, ndim=2]``, but has more features and cleaner syntax.
+A memoryview can be used in any context (function parameters, module-level, cdef class attribute, etc)
 and can be obtained from any object that exposes the PEP 3118 buffer interface.
 
 .. Note:: Support is experimental and new in this release, there may be bugs!
