@@ -155,9 +155,23 @@ They have the following attributes:
     * size
     * itemsize
     * nbytes
+    * base
 
 And of course the aforementioned ``T`` attribute. These attributes have the same semantics as in NumPy_.
+For instance, to retrieve the original object::
 
+    import numpy
+    cimport numpy as np
+
+    cdef np.int32_t[:] a = numpy.arange(10, dtype=numpy.int32)
+    a = a[::2]
+
+    print a, numpy.asarray(a), a.base
+
+    # this prints: <MemoryView of 'ndarray' object> [0 2 4 6 8] [0 1 2 3 4 5 6 7 8 9]
+
+Note that this example returns the original object from which the view was obtained, and that
+the view was resliced in the meantime.
 
 Cython Array
 ============
