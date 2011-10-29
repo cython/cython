@@ -111,9 +111,9 @@ Built-in Fused Types
 ====================
 There are some built-in fused types available for convenience, these are::
 
-    cython.integral # int, long
+    cython.integral # short, int, long
     cython.floating # float, double
-    cython.numeric  # long, double, double complex
+    cython.numeric  # short, int, long, float, double, float complex, double complex
 
 Casting Fused Functions
 =======================
@@ -178,3 +178,16 @@ It would usually be preferred to index like this, however::
 Although the latter will select the biggest types for ``int`` and ``float`` from Python space, as they are
 not type identifiers but builtin types there. Passing ``cython.int`` and ``cython.float`` would resolve that,
 however.
+
+For memoryview indexing from python space you have to use strings instead of types::
+
+    ctypedef fused my_fused_type:
+        int[:, ::1]
+        float[:, ::1]
+
+    def func(my_fused_type array):
+        ...
+
+    my_fused_type['int[:, ::1]'](myarray)
+
+The same goes for when using e.g. ``cython.numeric[:, :]``.

@@ -3201,11 +3201,16 @@ c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 # Not sure whether the unsigned versions and 'long long' should be in there
 # long long requires C99 and might be slow, and would always get preferred
 # when specialization happens through calling and not indexing
-cy_integral_type = FusedType([c_int_type, c_long_type], name="integral")
+cy_integral_type = FusedType([c_short_type, c_int_type, c_long_type],
+                             name="integral")
 # Omitting long double as it might be slow
 cy_floating_type = FusedType([c_float_type, c_double_type], name="floating")
-cy_numeric_type = FusedType([c_long_type,
+cy_numeric_type = FusedType([c_short_type,
+                             c_int_type,
+                             c_long_type,
+                             c_float_type,
                              c_double_type,
+                             c_float_complex_type,
                              c_double_complex_type], name="numeric")
 
 # buffer-related structs
