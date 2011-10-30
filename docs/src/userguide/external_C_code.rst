@@ -416,16 +416,17 @@ available by all three methods.
 Acquiring and Releasing the GIL
 ---------------------------------
 
-Cython provides facilities for releasing the Global Interpreter Lock (GIL)
-before calling C code, and for acquiring the GIL in functions that are to be
-called back from C code that is executed without the GIL.
+Cython provides facilities for acquiring and releasing the
+`Global Interpreter Lock (GIL) <http://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_.
+This may be useful when calling into (external C) code that may block, or when wanting to use Python from a
+C callback.
 
 .. _nogil:
 
 Releasing the GIL
 ^^^^^^^^^^^^^^^^^
 
-You can release the GIL around a section of code using the 
+You can release the GIL around a section of code using the
 :keyword:`with nogil` statement::
 
     with nogil:
@@ -446,10 +447,12 @@ header::
     cdef void my_callback(void *data) with gil:
         ...
 
-If the callback may be called from another thread then the main thread which may not be a Python thread,
-care must be taken to initialize the GIL first, through a call to ``PyEval_InitThreads()``.
+If the callback may be called from another non-Python thread,
+care must be taken to initialize the GIL first, through a call to
+`PyEval_InitThreads() <http://docs.python.org/dev/c-api/init.html#PyEval_InitThreads>`_.
+If you're already using  :ref:`cython.parallel <parallel>` in your module, this will already have been taken care of.
 
-The GIL may also be acquired through the ``with nogil`` counterpart ``with gil``::
+The GIL may also be acquired through the ``with gil`` statement::
 
     with gil:
         <execute this block with the GIL acquired>
@@ -469,6 +472,9 @@ manipulate Python objects in any way or call any function that does so without
 acquiring the GIL first. Some of these restrictions are currently checked by
 Cython, but not all. It is possible that more stringent checking will be
 performed in the future.
+
+.. NOTE:: This declaration declares that it is safe to call the function without the GIL,
+          it does not in itself release the GIL.
 
 Declaring a function with :keyword:`gil` also implicitly makes its signature
 :keyword:`nogil`.

@@ -2,6 +2,8 @@
 
 .. py:module:: cython.parallel
 
+.. _parallel:
+
 **********************************
 Using Parallelism
 **********************************
@@ -11,7 +13,8 @@ module. To use this kind of parallelism, the GIL must be released
 (see :ref:`Releasing the GIL <nogil>`).
 It currently supports OpenMP, but later on more backends might be supported.
 
-.. NOTE:: Because the backend is OpenMP, cython.parallel functionality may only be used from the main thread or from OpenMP threads.
+.. NOTE:: Functionality in this module may only be used from the main thread
+          or parallel regions due to OpenMP restrictions.
 
 __ nogil_
 
