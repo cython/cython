@@ -231,6 +231,15 @@ cdef class ObjectMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(void*)
     cdef get_default_format(self): return b"@O"
 
+cdef extern from "Python.h":
+    ctypedef struct PyObject:
+        pass
+
+    ctypedef int (*visitproc)(PyObject *obj, void *arg)
+    ctypedef int (*inquiry)(PyObject *self)
+
+    void Py_VISIT(object)
+    void Py_CLEAR(object)
 
 cdef class IntStridedMockBuffer(IntMockBuffer):
     cdef __cythonbufferdefaults__ = {"mode" : "strided"}

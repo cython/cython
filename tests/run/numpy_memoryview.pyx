@@ -367,3 +367,27 @@ def test_memslice_getbuffer():
     """
     cdef int[:, :] array = create_array((4, 5), mode="c", use_callback=True)
     print np.asarray(array)[::2, ::2]
+
+cdef class DeallocateMe(object):
+    def __dealloc__(self):
+        print "deallocated!"
+
+# Disabled! References cycles don't seem to be supported by NumPy
+# @testcase
+def acquire_release_cycle(obj):
+    """
+    >>> a = np.arange(20, dtype=np.object)
+    >>> a[10] = DeallocateMe()
+    >>> acquire_release_cycle(a)
+    deallocated!
+    """
+    import gc
+
+    cdef object[:] buf = obj
+    buf[1] = buf
+
+    gc.collect()
+
+    del buf
+
+    gc.collect()
