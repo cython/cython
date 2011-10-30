@@ -116,9 +116,13 @@ def get_openmp_compiler_flags(language):
     # For some reason, cc can be e.g. 'gcc -pthread'
     cc = cc.split()[0]
 
+    # Force english output
+    env = os.environ.copy()
+    env['LC_MESSAGES'] = 'C'
+
     matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
-        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE)
+        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
     except EnvironmentError:
         # Be compatible with Python 3
         warnings.warn("Unable to find the %s compiler: %s: %s" %
