@@ -130,6 +130,21 @@ cdef int[:] dst, src = object()
 for i in prange(10, nogil=True):
     dst = src
 
+for i in prange(10, nogil=True, chunksize=20):
+    pass
+
+for i in prange(10, nogil=True, schedule='static', chunksize=-1):
+    pass
+
+for i in prange(10, nogil=True, schedule='runtime', chunksize=10):
+    pass
+
+cdef int chunksize():
+    return 10
+
+for i in prange(10, nogil=True, schedule='static', chunksize=chunksize()):
+    pass
+
 _ERRORS = u"""
 e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
 e_cython_parallel.pyx:4:0: No such directive: cython.parallel.something
@@ -161,4 +176,8 @@ e_cython_parallel.pyx:119:17: Cannot read reduction variable in loop body
 e_cython_parallel.pyx:121:20: stop argument must be numeric
 e_cython_parallel.pyx:121:19: prange() can only be used without the GIL
 e_cython_parallel.pyx:131:8: Memoryview slices can only be shared in parallel sections
+e_cython_parallel.pyx:133:42: Must provide schedule with chunksize
+e_cython_parallel.pyx:136:62: Chunksize must not be negative
+e_cython_parallel.pyx:139:62: Chunksize not valid for the schedule runtime
+e_cython_parallel.pyx:145:70: Calling gil-requiring function not allowed without gil
 """

@@ -18,7 +18,7 @@ It currently supports OpenMP, but later on more backends might be supported.
 
 __ nogil_
 
-.. function:: prange([start,] stop[, step], nogil=False, schedule=None)
+.. function:: prange([start,] stop[, step][, nogil=False][, schedule=None[, chunksize=None]][, num_threads=None])
 
     This function can be used for parallel loops. OpenMP automatically
     starts a thread pool and distributes the work according to the schedule
@@ -44,21 +44,20 @@ __ nogil_
     +=================+======================================================+
     |static           | The iteration space is divided into chunks that are  |
     |                 | approximately equal in size, and at most one chunk   |
-    |                 | is distributed to each thread.                       |
+    |                 | is distributed to each thread, if ``chunksize`` is   |
+    |                 | not given. If ``chunksize`` is specified, iterations |
+    |                 | are distributed cyclically in a static manner with a |
+    |                 | blocksize of ``chunksize``.                          |
     +-----------------+------------------------------------------------------+
     |dynamic          | The iterations are distributed to threads in the team|
-    |                 | as the threads request them, with a chunk size of 1. |
+    |                 | as the threads request them, with a default chunk    |
+    |                 | size of 1.                                           |
     +-----------------+------------------------------------------------------+
     |guided           | The iterations are distributed to threads in the team|
     |                 | as the threads request them. The size of each chunk  |
     |                 | is proportional to the number of unassigned          |
     |                 | iterations divided by the number of threads in the   |
-    |                 | team, decreasing to 1.                               |
-    +-----------------+------------------------------------------------------+
-    |auto             | The decision regarding scheduling is delegated to the|
-    |                 | compiler and/or runtime system. The programmer gives |
-    |                 | the implementation the freedom to choose any possible|
-    |                 | mapping of iterations to threads in the team.        |
+    |                 | team, decreasing to 1 (or ``chunksize`` if given).   |
     +-----------------+------------------------------------------------------+
     |runtime          | The schedule and chunk size are taken from the       |
     |                 | runtime-scheduling-variable, which can be set through|
@@ -66,8 +65,24 @@ __ nogil_
     |                 | ``OMP_SCHEDULE`` environment variable.               |
     +-----------------+------------------------------------------------------+
 
+..    |auto             | The decision regarding scheduling is delegated to the|
+..    |                 | compiler and/or runtime system. The programmer gives |
+..    |                 | the implementation the freedom to choose any possible|
+..    |                 | mapping of iterations to threads in the team.        |
+..    +-----------------+------------------------------------------------------+
+
     The default schedule is implementation defined. For more information consult
     the OpenMP specification [#]_.
+
+    The ``num_threads`` argument indicates how many threads the team should consist of. If not given,
+    OpenMP will decide how many threads to use. Typically this is the number of cores available on
+    the machine. However, this may be controlled through the ``omp_set_num_threads()`` function, or
+    through the ``OMP_NUM_THREADS`` environment variable.
+
+    The ``chunksize`` argument indicates the chunksize to be used for dividing the iterations among threads.
+    This is only valid for ``static``, ``dynamic`` and ``guided`` scheduling, and is optional. Different chunksizes
+    may give substatially different performance results, depending on the schedule, the load balance it provides,
+    the scheduling overhead and the amount of false sharing (if any).
 
     Example with a reduction::
 
@@ -91,7 +106,7 @@ __ nogil_
             for i in prange(x.shape[0]):
                 x[i] = alpha * x[i]
 
-.. function:: parallel
+.. function:: parallel(num_threads=None)
 
     This directive can be used as part of a ``with`` statement to execute code
     sequences in parallel. This is currently useful to setup thread-local

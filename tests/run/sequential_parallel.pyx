@@ -732,3 +732,32 @@ def test_num_threads_compile():
     with nogil, cython.parallel.parallel(num_threads=2):
         for i in prange(10):
             pass
+
+cdef int chunksize() nogil:
+    return 3
+
+def test_chunksize():
+    """
+    >>> test_chunksize()
+    45
+    45
+    45
+    """
+    cdef int i, sum
+
+    sum = 0
+    for i in prange(10, nogil=True, num_threads=2, schedule='static', chunksize=chunksize()):
+        sum += i
+    print sum
+
+    sum = 0
+    for i in prange(10, nogil=True, num_threads=6, schedule='dynamic', chunksize=chunksize()):
+        sum += i
+    print sum
+
+    sum = 0
+    with nogil, cython.parallel.parallel():
+        for i in prange(10, schedule='guided', chunksize=chunksize()):
+            sum += i
+    print sum
+

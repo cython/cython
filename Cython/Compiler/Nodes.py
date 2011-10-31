@@ -6681,6 +6681,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     error_label_used = False
 
     num_threads = None
+    chunksize = None
 
     parallel_exc = (
         Naming.parallel_exc_type,
@@ -6725,11 +6726,17 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.num_threads = None
 
         if self.kwargs:
-            for idx, dictitem in enumerate(self.kwargs.key_value_pairs[:]):
+            # Try to find num_threads and chunksize keyword arguments
+            pairs = []
+            for dictitem in self.kwargs.key_value_pairs:
                 if dictitem.key.value == 'num_threads':
                     self.num_threads = dictitem.value
-                    del self.kwargs.key_value_pairs[idx]
-                    break
+                elif self.is_prange and dictitem.key.value == 'chunksize':
+                    self.chunksize = dictitem.value
+                else:
+                    pairs.append(dictitem)
+
+            self.kwargs.key_value_pairs = pairs
 
             try:
                 self.kwargs = self.kwargs.compile_time_value(env)
@@ -6748,6 +6755,10 @@ class ParallelStatNode(StatNode, ParallelNode):
     def analyse_expressions(self, env):
         if self.num_threads:
             self.num_threads.analyse_expressions(env)
+
+        if self.chunksize:
+            self.chunksize.analyse_expressions(env)
+
         self.body.analyse_expressions(env)
         self.analyse_sharing_attributes(env)
 
@@ -6906,21 +6917,25 @@ class ParallelStatNode(StatNode, ParallelNode):
                     code.putln("%s = %s;" % (entry.cname,
                                              entry.type.cast_code(invalid_value)))
 
+    def evaluate_before_block(self, code, expr):
+        c = self.begin_of_parallel_control_block_point
+        # we need to set the owner to ourselves temporarily, as
+        # allocate_temp may generate a comment in the middle of our pragma
+        # otherwise when DebugFlags.debug_temp_code_comments is in effect
+        owner = c.funcstate.owner
+        c.funcstate.owner = c
+        expr.generate_evaluation_code(c)
+        c.funcstate.owner = owner
+
+        return expr.result()
+
     def put_num_threads(self, code):
         """
         Write self.num_threads if set as the num_threads OpenMP directive
         """
         if self.num_threads is not None:
-            c = self.begin_of_parallel_control_block_point
-            # we need to set the owner to ourselves temporarily, as
-            # allocate_temp may generate a comment in the middle of our pragma
-            # otherwise when DebugFlags.debug_temp_code_comments is in effect
-            owner = c.funcstate.owner
-            c.funcstate.owner = c
-            self.num_threads.generate_evaluation_code(c)
-            c.funcstate.owner = owner
-
-            code.put(" num_threads(%s)" % (self.num_threads.result(),))
+            code.put(" num_threads(%s)" % self.evaluate_before_block(code,
+                                                        self.num_threads))
 
 
     def declare_closure_privates(self, code):
@@ -7340,7 +7355,8 @@ class ParallelRangeNode(ParallelStatNode):
     else_clause  Node or None   the else clause of this loop
     """
 
-    child_attrs = ['body', 'target', 'else_clause', 'args']
+    child_attrs = ['body', 'target', 'else_clause', 'args', 'num_threads',
+                   'chunksize']
 
     body = target = else_clause = args = None
 
@@ -7350,9 +7366,8 @@ class ParallelRangeNode(ParallelStatNode):
 
     nogil = None
     schedule = None
-    num_threads = None
 
-    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads']
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize']
 
     def __init__(self, pos, **kwds):
         super(ParallelRangeNode, self).__init__(pos, **kwds)
@@ -7439,6 +7454,21 @@ class ParallelRangeNode(ParallelStatNode):
             self.assignments[self.target.entry] = self.target.pos, None
 
         super(ParallelRangeNode, self).analyse_expressions(env)
+
+        if self.chunksize:
+            if not self.schedule:
+                error(self.chunksize.pos,
+                      "Must provide schedule with chunksize")
+            elif self.schedule == 'runtime':
+                error(self.chunksize.pos,
+                      "Chunksize not valid for the schedule runtime")
+            elif (self.chunksize.type.is_int and
+                  self.chunksize.is_literal and
+                  self.chunksize.compile_time_value(env) <= 0):
+                error(self.chunksize.pos, "Chunksize must not be negative")
+
+            self.chunksize = self.chunksize.coerce_to(
+                            PyrexTypes.c_int_type, env).coerce_to_temp(env)
 
         if self.nogil:
             env.nogil = was_nogil
@@ -7615,7 +7645,13 @@ class ParallelRangeNode(ParallelStatNode):
                     code.put(" %s(%s)" % (private, entry.cname))
 
         if self.schedule:
-            code.put(" schedule(%s)" % self.schedule)
+            if self.chunksize:
+                chunksize = ", %s" % self.evaluate_before_block(code,
+                                                                self.chunksize)
+            else:
+                chunksize = ""
+
+            code.put(" schedule(%s%s)" % (self.schedule, chunksize))
 
         self.put_num_threads(reduction_codepoint)
 
