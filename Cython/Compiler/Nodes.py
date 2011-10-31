@@ -2994,21 +2994,20 @@ class DefNode(FuncDefNode):
 
         if genv.is_closure_scope:
             rhs = self.py_cfunc_node = ExprNodes.InnerFunctionNode(
-                self.pos, pymethdef_cname = self.entry.pymethdef_cname,
-                code_object = ExprNodes.CodeObjectNode(self))
+                self.pos, def_node=self,
+                pymethdef_cname=self.entry.pymethdef_cname,
+                code_object=ExprNodes.CodeObjectNode(self))
         else:
             rhs = ExprNodes.PyCFunctionNode(
-                    self.pos,
-                    pymethdef_cname=self.entry.pymethdef_cname,
-                    binding=env.directives['binding'],
-                    specialized_cpdefs=self.specialized_cpdefs,
-                    code_object=ExprNodes.CodeObjectNode(self))
+                self.pos,
+                def_node=self,
+                pymethdef_cname=self.entry.pymethdef_cname,
+                binding=env.directives['binding'],
+                specialized_cpdefs=self.specialized_cpdefs,
+                code_object=ExprNodes.CodeObjectNode(self))
 
         if env.is_py_class_scope:
-            if not self.is_staticmethod and not self.is_classmethod:
-                rhs.binding = True
-            else:
-                rhs.binding = False
+            rhs.binding = True
 
         if self.decorators:
             for decorator in self.decorators[::-1]:

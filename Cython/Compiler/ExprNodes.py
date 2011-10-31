@@ -5832,6 +5832,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  pymethdef_cname   string             PyMethodDef structure
     #  self_object       ExprNode or None
     #  binding           bool
+    #  def_node          DefNode            the Python function node
     #  module_name       EncodedString      Name of defining module
     #  code_object       CodeObjectNode     the PyCodeObject creator node
 
@@ -5840,6 +5841,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     self_object = None
     code_object = None
     binding = False
+    def_node = None
 
     type = py_object_type
     is_temp = 1
@@ -5873,25 +5875,50 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     def generate_result_code(self, code):
         if self.binding:
-            if self.specialized_cpdefs:
-                constructor = "__pyx_FusedFunction_NewEx"
-            else:
-                constructor = "__Pyx_CyFunction_NewEx"
-
-            if self.code_object:
-                code_object_result = ', ' + self.code_object.py_result()
-            else:
-                code_object_result = ', NULL'
+            self.generate_cyfunction_code(code)
         else:
-            constructor = "PyCFunction_NewEx"
-            code_object_result = ''
+            self.generate_pycfunction_code(code)
+
+    def generate_pycfunction_code(self, code):
+        py_mod_name = self.get_py_mod_name(code)
+        code.putln(
+            '%s = PyCFunction_NewEx(&%s, %s, %s); %s' % (
+                self.result(),
+                self.pymethdef_cname,
+                self.self_result_code(),
+                py_mod_name,
+                code.error_goto_if_null(self.result(), self.pos)))
+
+        code.put_gotref(self.py_result())
+
+    def generate_cyfunction_code(self, code):
+        if self.specialized_cpdefs:
+            constructor = "__pyx_FusedFunction_NewEx"
+        else:
+            constructor = "__Pyx_CyFunction_NewEx"
+
+        if self.code_object:
+            code_object_result = self.code_object.py_result()
+        else:
+            code_object_result = 'NULL'
+
+        flags = []
+        if self.def_node.is_staticmethod:
+            flags.append('__Pyx_CYFUNCTION_STATICMETHOD')
+        elif self.def_node.is_classmethod:
+            flags.append('__Pyx_CYFUNCTION_CLASSMETHOD')
+        if flags:
+            flags = ' | '.join(flags)
+        else:
+            flags = '0'
 
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = %s(&%s, %s, %s%s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
+                flags,
                 self.self_result_code(),
                 py_mod_name,
                 code_object_result,
@@ -5900,9 +5927,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         code.put_gotref(self.py_result())
 
         if self.specialized_cpdefs:
-            self.generate_fused_cpdef(code, code_object_result)
+            self.generate_fused_cpdef(code, code_object_result, flags)
 
-    def generate_fused_cpdef(self, code, code_object_result):
+    def generate_fused_cpdef(self, code, code_object_result, flags):
         """
         Generate binding function objects for all specialized cpdefs, and the
         original fused one. The fused function gets a dict __signatures__
@@ -5924,6 +5951,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             py_mod_name=self.get_py_mod_name(code),
             self=self.self_result_code(),
             code=code_object_result,
+            flags=flags,
             func=code.funcstate.allocate_temp(py_object_type,
                                               manage_ref=True),
             signature=code.funcstate.allocate_temp(py_object_type,
@@ -5945,7 +5973,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                                     '"%(signature_string)s")')
 
             goto_err("%(func)s = __pyx_FusedFunction_NewEx("
-                            "&%(pymethdef_cname)s, %(self)s, %(py_mod_name)s %(code)s)")
+                            "&%(pymethdef_cname)s, %(flags)s, %(self)s, %(py_mod_name)s, %(code)s)")
 
             s = "PyDict_SetItem(%(sigdict)s, %(signature)s, %(func)s)"
             code.put_error_if_neg(self.pos, s % fmt_dict)
@@ -6040,7 +6068,6 @@ class LambdaNode(InnerFunctionNode):
 
     child_attrs = ['def_node']
 
-    def_node = None
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
