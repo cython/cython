@@ -1383,6 +1383,7 @@ if VALUE is not None:
     """)
 
     fused_function = None
+    in_lambda = 0
 
     def __call__(self, root):
         self.env_stack = [root.scope]
@@ -1403,8 +1404,10 @@ if VALUE is not None:
         return node
 
     def visit_LambdaNode(self, node):
+        self.in_lambda += 1
         node.analyse_declarations(self.env_stack[-1])
         self.visitchildren(node)
+        self.in_lambda -= 1
         return node
 
     def visit_ClassDefNode(self, node):
@@ -1458,9 +1461,12 @@ if VALUE is not None:
                                             body=Nodes.PassStatNode(node.pos))
 
         if node.has_fused_arguments:
-            if self.fused_function:
+            if self.fused_function or self.in_lambda:
                 if self.fused_function not in self.fused_error_funcs:
-                    error(node.pos, "Cannot nest fused functions")
+                    if self.in_lambda:
+                        error(node.pos, "Fused lambdas not allowed")
+                    else:
+                        error(node.pos, "Cannot nest fused functions")
 
                 self.fused_error_funcs.add(self.fused_function)
                 # env.declare_var(node.name, PyrexTypes.py_object_type, node.pos)

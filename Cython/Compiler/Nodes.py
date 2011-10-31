@@ -2540,7 +2540,7 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
         py_func.doc = orig_py_func.doc
 
         # ... and the symbol table
-        del env.entries['__pyx_fused_cpdef']
+        env.entries.pop('__pyx_fused_cpdef', None)
         if is_def:
             env.entries[e.name] = e
         else:

@@ -36,6 +36,8 @@ ctypedef fused memslice_dtype_t:
 def f(memslice_dtype_t[:, :] a):
     pass
 
+lambda cython.integral i: i
+
 # This is all valid
 dtype5 = fused_type(int, long, float)
 dtype6 = cython.fused_type(int, long)
@@ -61,4 +63,5 @@ fused_types.pyx:28:16: Call with wrong number of arguments (expected 2, got 1)
 fused_types.pyx:29:16: Call with wrong number of arguments (expected 2, got 3)
 fused_types.pyx:30:4: Keyword and starred arguments not allowed in cdef functions.
 fused_types.pyx:36:6: Invalid base type for memoryview slice: int *
+fused_types.pyx:39:0: Fused lambdas not allowed
 """

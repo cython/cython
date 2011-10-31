@@ -210,3 +210,13 @@ def test_opt_args():
     opt_args[int,  float](3, 4.0)
     opt_args[int, double](3, 4.0)
 
+class NormalClass(object):
+    def method(self, cython.integral i):
+        print cython.typeof(i), i
+
+def test_normal_class():
+    """
+    >>> test_normal_class()
+    short 10
+    """
+    NormalClass().method[pure_cython.short](10)

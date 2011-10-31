@@ -18,7 +18,7 @@ def generator(cython.integral i):
 
 _ERRORS = u"""
 e_fused_closure.pyx:6:4: Cannot nest fused functions
-e_fused_closure.pyx:10:11: Cannot nest fused functions
-e_fused_closure.pyx:14:15: Cannot nest fused functions
+e_fused_closure.pyx:10:11: Fused lambdas not allowed
+e_fused_closure.pyx:14:15: Fused lambdas not allowed
 e_fused_closure.pyx:16:0: Fused generators not supported
 """
