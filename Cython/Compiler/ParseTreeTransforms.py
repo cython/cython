@@ -2137,6 +2137,12 @@ class CreateClosureClasses(CythonTransform):
         class_scope = entry.type.scope
         class_scope.is_internal = True
 
+        if node.is_generator and node.requires_classobj:
+            class_scope.declare_var(pos=node.pos, name='classobj',
+                                    cname='classobj',
+                                    type=PyrexTypes.py_object_type,
+                                    is_cdef=True)
+
         if from_closure:
             assert cscope.is_closure_scope
             class_scope.declare_var(pos=node.pos,
@@ -2411,6 +2417,28 @@ class TransformBuiltinMethods(EnvTransform):
                     node.pos, self.current_scope_node(), lenv))
         return node
 
+    def _inject_super(self, node, func_name):
+        lenv = self.current_env()
+        entry = lenv.lookup_here(func_name)
+        if entry or node.args:
+            return node
+        # Inject no-args super
+        def_node = self.current_scope_node()
+        if (not isinstance(def_node, Nodes.DefNode) or
+            len(self.env_stack) < 2):
+            return node
+        class_node, class_scope = self.env_stack[-2]
+        if class_scope.is_py_class_scope and def_node.args:
+            def_node.requires_classobj = True
+            class_node.class_cell.is_active = True
+            node.args = [
+                ExprNodes.ClassCellNode(
+                    node.pos, is_generator=def_node.is_generator),
+                ExprNodes.NameNode(node.pos, name=def_node.args[0].name)
+                ]
+            return node
+        return node
+
     def visit_SimpleCallNode(self, node):
         # cython.foo
         function = node.function.as_cython_attribute()
@@ -2471,6 +2499,8 @@ class TransformBuiltinMethods(EnvTransform):
                 return self._inject_locals(node, func_name)
             if func_name == 'eval':
                 return self._inject_eval(node, func_name)
+            if func_name == 'super':
+                return self._inject_super(node, func_name)
         return node
 
 

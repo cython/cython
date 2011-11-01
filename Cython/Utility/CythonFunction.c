@@ -7,6 +7,12 @@
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
 
+#define __Pyx_CyFunction_GetClosure(f) \
+    (((__pyx_CyFunctionObject *) (f))->func_closure)
+#define __Pyx_CyFunction_GetClassObj(f) \
+    (((__pyx_CyFunctionObject *) (f))->func_classobj)
+
+
 typedef struct {
     PyCFunctionObject func;
     int flags;
@@ -15,6 +21,8 @@ typedef struct {
     PyObject *func_name;
     PyObject *func_doc;
     PyObject *func_code;
+    PyObject *func_closure;
+    PyObject *func_classobj; /* No-args super() class cell */
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -102,7 +110,7 @@ __Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, CYTHON_UNUSED void *closure
 {
     PyObject *self;
 
-    self = m->func.m_self;
+    self = m->func_closure;
     if (self == NULL)
         self = Py_None;
     Py_INCREF(self);
@@ -219,20 +227,22 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
 
 
 static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
-                                      PyObject *self, PyObject *module, PyObject* code) {
+                                      PyObject *closure, PyObject *module, PyObject* code) {
     __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, type);
     if (op == NULL)
         return NULL;
     op->flags = flags;
     op->func_weakreflist = NULL;
     op->func.m_ml = ml;
-    Py_XINCREF(self);
-    op->func.m_self = self;
+    op->func.m_self = (PyObject *) op;
+    Py_XINCREF(closure);
+    op->func_closure = closure;
     Py_XINCREF(module);
     op->func.m_module = module;
     op->func_dict = NULL;
     op->func_name = NULL;
     op->func_doc = NULL;
+    op->func_classobj = NULL;
     Py_XINCREF(code);
     op->func_code = code;
     PyObject_GC_Track(op);
@@ -242,12 +252,13 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
 static int
 __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
 {
-    Py_CLEAR(m->func.m_self);
+    Py_CLEAR(m->func_closure);
     Py_CLEAR(m->func.m_module);
     Py_CLEAR(m->func_dict);
     Py_CLEAR(m->func_name);
     Py_CLEAR(m->func_doc);
     Py_CLEAR(m->func_code);
+    Py_CLEAR(m->func_classobj);
     return 0;
 }
 
@@ -262,12 +273,13 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
 
 static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg)
 {
-    Py_VISIT(m->func.m_self);
+    Py_VISIT(m->func_closure);
     Py_VISIT(m->func.m_module);
     Py_VISIT(m->func_dict);
     Py_VISIT(m->func_name);
     Py_VISIT(m->func_doc);
     Py_VISIT(m->func_code);
+    Py_VISIT(m->func_classobj);
     return 0;
 }
 
@@ -371,7 +383,23 @@ static int __Pyx_CyFunction_init(void)
     return 0;
 }
 
+//////////////////// CyFunctionClassCell.proto ////////////////////
+static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
+                                                         PyObject *classobj);
 
+//////////////////// CyFunctionClassCell ////////////////////
+void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
+                                    PyObject *classobj)
+{
+    int i;
+
+    for (i = 0; i < PyList_GET_SIZE(cyfunctions); i++) {
+        __pyx_CyFunctionObject *m =
+            (__pyx_CyFunctionObject *) PyList_GET_ITEM(cyfunctions, i);
+        m->func_classobj = classobj;
+        Py_INCREF(classobj);
+    }
+}
 
 //////////////////// FusedFunction.proto ////////////////////
 typedef struct {
@@ -456,7 +484,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_NewEx(
                     ((PyCFunctionObject *) func)->m_ml,
                     ((__pyx_CyFunctionObject *) func)->flags,
-                    ((PyCFunctionObject *) func)->m_self,
+                    ((__pyx_CyFunctionObject *) func)->func_closure,
                     ((PyCFunctionObject *) func)->m_module,
                     ((__pyx_CyFunctionObject *) func)->func_code);
     if (!meth)
