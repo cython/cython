@@ -59,3 +59,17 @@ def test_class_cell_empty():
     class EmptyClassCell(metaclass=Base):
         def foo(self):
             super()
+
+
+cdef class CClassBase(object):
+    def method(self):
+        return 1
+
+cdef class CClassSuper(CClassBase):
+    """
+    >>> CClassSuper().method()
+    1
+    """
+
+    def method(self):
+        return super().method()
