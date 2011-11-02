@@ -472,7 +472,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     func = (__pyx_FusedFunctionObject *) self;
 
-    if (func->self) {
+    if (func->self || func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD) {
         /* Do not allow rebinding */
         Py_INCREF(self);
         return self;
@@ -490,11 +490,17 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     if (!meth)
         return NULL;
 
+    Py_XINCREF(func->func.func_classobj);
+    meth->func.func_classobj = func->func.func_classobj;
+
     Py_XINCREF(func->__signatures__);
     meth->__signatures__ = func->__signatures__;
 
     Py_XINCREF(type);
     meth->type = type;
+
+    if (func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD)
+        obj = type;
 
     Py_XINCREF(obj);
     meth->self = obj;
@@ -554,9 +560,16 @@ __pyx_err:
 
     unbound_result_func = PyObject_GetItem(self->__signatures__, signature);
 
-    if (unbound_result_func)
+    if (unbound_result_func) {
+        __pyx_FusedFunctionObject *unbound = (__pyx_FusedFunctionObject *) unbound_result_func;
+
+        Py_CLEAR(unbound->func.func_classobj);
+        Py_XINCREF(self->func.func_classobj);
+        unbound->func.func_classobj = self->func.func_classobj;
+
         result_func = __pyx_FusedFunction_descr_get(unbound_result_func,
-                                                  self->self, self->type);
+                                                    self->self, self->type);
+    }
 
     Py_DECREF(signature);
     Py_XDECREF(unbound_result_func);
@@ -576,11 +589,13 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     __pyx_FusedFunctionObject *binding_func = (__pyx_FusedFunctionObject *) func;
     Py_ssize_t argc = PyTuple_GET_SIZE(args);
     PyObject *new_args = NULL;
-    PyObject *new_func = NULL;
+    __pyx_FusedFunctionObject *new_func = NULL;
     PyObject *result = NULL;
     PyObject *self = NULL;
+    int is_staticmethod = binding_func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD;
+    int is_classmethod = binding_func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD;
 
-    if (binding_func->self) {
+    if (binding_func->self && !is_staticmethod) {
         /* Bound method call, put 'self' in the args tuple */
         Py_ssize_t i;
         new_args = PyTuple_New(argc + 1);
@@ -598,7 +613,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         }
 
         args = new_args;
-    } else if (binding_func->type) {
+    } else if (binding_func->type && !is_staticmethod) {
         /* Unbound method call */
         if (argc < 1) {
             PyErr_Format(PyExc_TypeError, "Need at least one argument, 0 given.");
@@ -607,7 +622,8 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         self = PyTuple_GET_ITEM(args, 0);
     }
 
-    if (self && !PyObject_IsInstance(self, binding_func->type)) {
+    if (self && !is_classmethod && !is_staticmethod &&
+            !PyObject_IsInstance(self, binding_func->type)) {
         PyErr_Format(PyExc_TypeError,
                      "First argument should be of type %s, got %s.",
                      ((PyTypeObject *) binding_func->type)->tp_name,
@@ -625,11 +641,17 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         if (!tup)
             goto __pyx_err;
 
-        func = new_func = PyCFunction_Call(func, tup, NULL);
+        new_func = (__pyx_FusedFunctionObject *) PyCFunction_Call(func, tup, NULL);
         Py_DECREF(tup);
 
         if (!new_func)
             goto __pyx_err;
+
+        Py_CLEAR(new_func->func.func_classobj);
+        Py_XINCREF(binding_func->func.func_classobj);
+        new_func->func.func_classobj = binding_func->func.func_classobj;
+
+        func = (PyObject *) new_func;
     }
 
     result = PyCFunction_Call(func, args, kw);

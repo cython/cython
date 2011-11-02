@@ -128,3 +128,98 @@ def args_kwargs(fused_t obj, cython.floating myf = 1.2, *args, **kwargs):
     """
     print cython.typeof(obj), cython.typeof(myf)
     print obj, "%.2f" % myf, "%.2f" % f, args, kwargs
+
+
+class BaseClass(object):
+    """
+    Test fused class/static/normal methods and super() without args
+    """
+
+    @staticmethod
+    def mystaticmethod(cython.integral arg1):
+        print cython.typeof(arg1), arg1
+
+    @classmethod
+    def myclassmethod(cls, cython.integral arg1):
+        print cls, cython.typeof(arg1), arg1
+
+    def normalmethod(self, cython.integral arg1):
+        print self, cython.typeof(arg1), arg1
+
+    def __repr__(self):
+        return "<%s.%s object>" % (__name__, type(self).__name__)
+
+class SubClass(BaseClass):
+
+    @staticmethod
+    def mystaticmethod(cython.integral arg1):
+        print cython.typeof(arg1), arg1
+        super().mystaticmethod(arg1 + 1)
+
+    @classmethod
+    def myclassmethod(cls, cython.integral arg1):
+        print cls, cython.typeof(arg1), arg1
+        super().myclassmethod(arg1 + 1)
+
+    def normalmethod(self, cython.integral arg1):
+        print self, cython.typeof(arg1), arg1
+        super().normalmethod(arg1 + 1)
+
+class SubSubClass(SubClass):
+    pass
+
+def test_fused_def_super():
+    """
+    >>> test_fused_def_super()
+    <class 'fused_def.SubClass'> long 14
+    <class 'fused_def.SubClass'> long 15
+    <class 'fused_def.SubClass'> long 15
+    <class 'fused_def.SubClass'> long 16
+    <class 'fused_def.SubClass'> short 16
+    <class 'fused_def.SubClass'> long 17
+    <class 'fused_def.SubClass'> short 17
+    <class 'fused_def.SubClass'> long 18
+    <fused_def.SubClass object> long 18
+    <fused_def.SubClass object> long 19
+    <fused_def.SubClass object> long 19
+    <fused_def.SubClass object> long 20
+    <fused_def.SubClass object> short 20
+    <fused_def.SubClass object> long 21
+    <fused_def.SubClass object> short 21
+    <fused_def.SubClass object> long 22
+    """
+    obj = SubClass()
+    cls = SubClass
+
+    #obj.mystaticmethod(10)
+    #cls.mystaticmethod(11)
+    #obj.mystaticmethod[cy.short](12)
+    #cls.mystaticmethod[cy.short](13)
+
+    obj.myclassmethod(14)
+    cls.myclassmethod(15)
+    obj.myclassmethod[cy.short](16)
+    cls.myclassmethod[cy.short](17)
+
+    obj.normalmethod(18)
+    cls.normalmethod(obj, 19)
+    obj.normalmethod[cy.short](20)
+    cls.normalmethod[cy.short](obj, 21)
+
+def test_fused_def_classmethod():
+    """
+    >>> test_fused_def_classmethod()
+    <class 'fused_def.SubSubClass'> long 10
+    <class 'fused_def.SubSubClass'> long 11
+    <class 'fused_def.SubSubClass'> long 11
+    <class 'fused_def.SubSubClass'> long 12
+    <class 'fused_def.SubSubClass'> short 12
+    <class 'fused_def.SubSubClass'> long 13
+    <class 'fused_def.SubSubClass'> short 13
+    <class 'fused_def.SubSubClass'> long 14
+    """
+    SubSubClass().myclassmethod(10)
+    SubSubClass.myclassmethod(11)
+
+    SubSubClass().myclassmethod[cy.short](12)
+    SubSubClass.myclassmethod[cy.short](13)

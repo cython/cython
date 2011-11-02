@@ -5947,8 +5947,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     def generate_cyfunction_code(self, code):
         if self.specialized_cpdefs:
             constructor = "__pyx_FusedFunction_NewEx"
+            def_node = self.specialized_cpdefs[0]
         else:
             constructor = "__Pyx_CyFunction_NewEx"
+            def_node = self.def_node
 
         if self.code_object:
             code_object_result = self.code_object.py_result()
@@ -5956,9 +5958,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             code_object_result = 'NULL'
 
         flags = []
-        if self.def_node.is_staticmethod:
+        if def_node.is_staticmethod:
             flags.append('__Pyx_CYFUNCTION_STATICMETHOD')
-        elif self.def_node.is_classmethod:
+        elif def_node.is_classmethod:
             flags.append('__Pyx_CYFUNCTION_CLASSMETHOD')
         if flags:
             flags = ' | '.join(flags)
@@ -5979,7 +5981,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
         code.put_gotref(self.py_result())
 
-        if self.def_node.requires_classobj:
+        if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
             class_node = code.pyclass_stack[-1]
             code.put_incref(self.py_result(), py_object_type)
