@@ -2840,6 +2840,15 @@ class DefNode(FuncDefNode):
             self.self_in_stararg = 1
             nfixed = 0
 
+        if self.is_staticmethod and env.is_c_class_scope:
+            nfixed = 0
+            self.self_in_stararg = True
+
+            self.entry.signature = sig = copy.copy(sig)
+            sig.fixed_arg_format = "*"
+            sig.is_staticmethod = True
+            sig.has_generic_args = True
+
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
@@ -2976,7 +2985,7 @@ class DefNode(FuncDefNode):
                 decorator.decorator.analyse_expressions(env)
 
     def needs_assignment_synthesis(self, env, code=None):
-        if self.specialized_cpdefs:
+        if self.specialized_cpdefs or self.is_staticmethod:
             return True
         if self.no_assignment_synthesis:
             return False

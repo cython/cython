@@ -657,7 +657,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     result = PyCFunction_Call(func, args, kw);
 __pyx_err:
     Py_XDECREF(new_args);
-    Py_XDECREF(new_func);
+    Py_XDECREF((PyObject *) new_func);
     return result;
 }
 

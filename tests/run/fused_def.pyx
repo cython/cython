@@ -152,7 +152,7 @@ class BaseClass(object):
 class SubClass(BaseClass):
 
     @staticmethod
-    def mystaticmethod(cython.integral arg1):
+    def mystaticmethod(self, cython.integral arg1):
         print cython.typeof(arg1), arg1
         super().mystaticmethod(arg1 + 1)
 
@@ -171,6 +171,14 @@ class SubSubClass(SubClass):
 def test_fused_def_super():
     """
     >>> test_fused_def_super()
+    long 10
+    long 11
+    long 11
+    long 12
+    short 12
+    long 13
+    short 13
+    long 14
     <class 'fused_def.SubClass'> long 14
     <class 'fused_def.SubClass'> long 15
     <class 'fused_def.SubClass'> long 15
@@ -191,10 +199,10 @@ def test_fused_def_super():
     obj = SubClass()
     cls = SubClass
 
-    #obj.mystaticmethod(10)
-    #cls.mystaticmethod(11)
-    #obj.mystaticmethod[cy.short](12)
-    #cls.mystaticmethod[cy.short](13)
+    obj.mystaticmethod(obj, 10)
+    cls.mystaticmethod(obj, 11)
+    obj.mystaticmethod[cy.short](obj, 12)
+    cls.mystaticmethod[cy.short](obj, 13)
 
     obj.myclassmethod(14)
     cls.myclassmethod(15)
