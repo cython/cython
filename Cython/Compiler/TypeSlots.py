@@ -68,6 +68,9 @@ class Signature(object):
         # and are not looked up in here
     }
 
+    type_to_format_map = dict([(type_, format_)
+                                   for format_, type_ in format_map.iteritems()])
+
     error_value_map = {
         'O': "NULL",
         'T': "NULL",
@@ -91,6 +94,7 @@ class Signature(object):
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
+        self.is_staticmethod = False
 
     def num_fixed_args(self):
         return len(self.fixed_arg_format)
@@ -108,6 +112,11 @@ class Signature(object):
 
     def return_type(self):
         return self.format_map[self.ret_format]
+
+    def format_from_type(self, arg_type):
+        if arg_type.is_pyobject:
+            arg_type = PyrexTypes.py_object_type
+        return self.type_to_format_map[arg_type]
 
     def exception_value(self):
         return self.error_value_map.get(self.ret_format)
@@ -141,6 +150,9 @@ class Signature(object):
                     return [method_noargs]
             elif full_args in ["OO", "TO"] and not self.has_generic_args:
                 return [method_onearg]
+
+            if self.is_staticmethod:
+                return [method_varargs, method_keywords]
         return None
 
 
