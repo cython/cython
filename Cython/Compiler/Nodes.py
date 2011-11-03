@@ -799,8 +799,11 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         else:
             if self.module_path:
                 scope = env.find_imported_module(self.module_path, self.pos)
+                if scope:
+                    scope.fused_to_specific = env.fused_to_specific
             else:
                 scope = env
+
             if scope:
                 if scope.is_c_class_scope:
                     scope = scope.global_scope()
@@ -2757,6 +2760,10 @@ class DefNode(FuncDefNode):
     def analyse_argument_types(self, env):
         directive_locals = self.directive_locals = env.directives['locals']
         allow_none_for_extension_args = env.directives['allow_none_for_extension_args']
+
+        f2s = env.fused_to_specific
+        env.fused_to_specific = None
+
         for arg in self.args:
             if hasattr(arg, 'name'):
                 name_declarator = None
@@ -2800,6 +2807,8 @@ class DefNode(FuncDefNode):
                     error(arg.pos, "Only Python type arguments can have 'not None'")
                 if arg.or_none:
                     error(arg.pos, "Only Python type arguments can have 'or None'")
+
+        env.fused_to_specific = f2s
 
     def analyse_signature(self, env):
         if self.entry.is_special:

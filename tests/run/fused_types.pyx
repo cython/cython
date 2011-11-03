@@ -1,6 +1,7 @@
 # mode: run
 
 cimport cython
+
 from cython cimport integral
 from cpython cimport Py_INCREF
 
@@ -220,3 +221,24 @@ def test_normal_class():
     short 10
     """
     NormalClass().method[pure_cython.short](10)
+
+def test_fused_declarations(cython.integral i, cython.floating f):
+    """
+    >>> test_fused_declarations[pure_cython.short, pure_cython.float](5, 6.6)
+    short
+    float
+    25 43.56
+    >>> test_fused_declarations[pure_cython.long, pure_cython.double](5, 6.6)
+    long
+    double
+    25 43.56
+    """
+    cdef cython.integral squared_int = i * i
+    cdef cython.floating squared_float = f * f
+
+    assert cython.typeof(squared_int) == cython.typeof(i)
+    assert cython.typeof(squared_float) == cython.typeof(f)
+
+    print cython.typeof(squared_int)
+    print cython.typeof(squared_float)
+    print '%d %.2f' % (squared_int, squared_float)

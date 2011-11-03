@@ -1108,7 +1108,7 @@ class CType(PyrexType):
             return 0
 
 
-class FusedType(PyrexType):
+class FusedType(CType):
     """
     Represents a Fused Type. All it needs to do is keep track of the types
     it aggregates, as it will be replaced with its specific version wherever
@@ -1121,6 +1121,7 @@ class FusedType(PyrexType):
     """
 
     is_fused = 1
+    exception_check = 0
 
     def __init__(self, types, name=None):
         self.types = types
