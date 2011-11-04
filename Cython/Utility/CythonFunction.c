@@ -4,19 +4,36 @@
 #define __Pyx_CyFunction_USED 1
 #include <structmember.h>
 
+#define __Pyx_CYFUNCTION_STATICMETHOD  0x01
+#define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
+
+#define __Pyx_CyFunction_GetClosure(f) \
+    (((__pyx_CyFunctionObject *) (f))->func_closure)
+#define __Pyx_CyFunction_GetClassObj(f) \
+    (((__pyx_CyFunctionObject *) (f))->func_classobj)
+
+
 typedef struct {
     PyCFunctionObject func;
+    int flags;
     PyObject *func_dict;
     PyObject *func_weakreflist;
     PyObject *func_name;
     PyObject *func_doc;
     PyObject *func_code;
+    PyObject *func_closure;
+    PyObject *func_classobj; /* No-args super() class cell */
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
 
-#define __Pyx_CyFunction_NewEx(ml, self, module, code) __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, self, module, code)
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *, PyMethodDef *ml, PyObject *self, PyObject *module, PyObject* code);
+#define __Pyx_CyFunction_NewEx(ml, flags, self, module, code) \
+    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, self, module, code)
+
+static PyObject *__Pyx_CyFunction_New(PyTypeObject *,
+                                      PyMethodDef *ml, int flags,
+                                      PyObject *self, PyObject *module,
+                                      PyObject* code);
 
 static int __Pyx_CyFunction_init(void);
 
@@ -93,7 +110,7 @@ __Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, CYTHON_UNUSED void *closure
 {
     PyObject *self;
 
-    self = m->func.m_self;
+    self = m->func_closure;
     if (self == NULL)
         self = Py_None;
     Py_INCREF(self);
@@ -209,19 +226,23 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
 };
 
 
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, PyObject *self, PyObject *module, PyObject* code) {
+static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
+                                      PyObject *closure, PyObject *module, PyObject* code) {
     __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, type);
     if (op == NULL)
         return NULL;
+    op->flags = flags;
     op->func_weakreflist = NULL;
     op->func.m_ml = ml;
-    Py_XINCREF(self);
-    op->func.m_self = self;
+    op->func.m_self = (PyObject *) op;
+    Py_XINCREF(closure);
+    op->func_closure = closure;
     Py_XINCREF(module);
     op->func.m_module = module;
     op->func_dict = NULL;
     op->func_name = NULL;
     op->func_doc = NULL;
+    op->func_classobj = NULL;
     Py_XINCREF(code);
     op->func_code = code;
     PyObject_GC_Track(op);
@@ -231,12 +252,13 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, PyObj
 static int
 __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
 {
-    Py_CLEAR(m->func.m_self);
+    Py_CLEAR(m->func_closure);
     Py_CLEAR(m->func.m_module);
     Py_CLEAR(m->func_dict);
     Py_CLEAR(m->func_name);
     Py_CLEAR(m->func_doc);
     Py_CLEAR(m->func_code);
+    Py_CLEAR(m->func_classobj);
     return 0;
 }
 
@@ -251,17 +273,32 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
 
 static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg)
 {
-    Py_VISIT(m->func.m_self);
+    Py_VISIT(m->func_closure);
     Py_VISIT(m->func.m_module);
     Py_VISIT(m->func_dict);
     Py_VISIT(m->func_name);
     Py_VISIT(m->func_doc);
     Py_VISIT(m->func_code);
+    Py_VISIT(m->func_classobj);
     return 0;
 }
 
 static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObject *type)
 {
+    __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
+
+    if (m->flags & __Pyx_CYFUNCTION_STATICMETHOD) {
+        Py_INCREF(func);
+        return func;
+    }
+
+    if (m->flags & __Pyx_CYFUNCTION_CLASSMETHOD) {
+        if (type == NULL)
+            type = (PyObject *)(Py_TYPE(obj));
+        return PyMethod_New(func,
+                            type, (PyObject *)(Py_TYPE(type)));
+    }
+
     if (obj == Py_None)
         obj = NULL;
     return PyMethod_New(func, obj, type);
@@ -346,7 +383,23 @@ static int __Pyx_CyFunction_init(void)
     return 0;
 }
 
+//////////////////// CyFunctionClassCell.proto ////////////////////
+static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
+                                                         PyObject *classobj);
 
+//////////////////// CyFunctionClassCell ////////////////////
+void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
+                                    PyObject *classobj)
+{
+    int i;
+
+    for (i = 0; i < PyList_GET_SIZE(cyfunctions); i++) {
+        __pyx_CyFunctionObject *m =
+            (__pyx_CyFunctionObject *) PyList_GET_ITEM(cyfunctions, i);
+        m->func_classobj = classobj;
+        Py_INCREF(classobj);
+    }
+}
 
 //////////////////// FusedFunction.proto ////////////////////
 typedef struct {
@@ -356,9 +409,10 @@ typedef struct {
     PyObject *self;
 } __pyx_FusedFunctionObject;
 
-#define __pyx_FusedFunction_NewEx(ml, self, module, code) \
-        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, self, module, code)
-static PyObject *__pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml,
+#define __pyx_FusedFunction_NewEx(ml, flags, self, module, code)         \
+        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, self, module, code)
+static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
+                                         PyMethodDef *ml, int flags,
                                          PyObject *self, PyObject *module,
                                          PyObject *code);
 
@@ -369,12 +423,12 @@ static int __pyx_FusedFunction_init(void);
 
 //////////////////// FusedFunction ////////////////////
 static PyObject *
-__pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, PyObject *self,
+__pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject *self,
                         PyObject *module, PyObject *code)
 {
-    __pyx_FusedFunctionObject *fusedfunc = \
-            (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, self,
-                                                               module, code);
+    __pyx_FusedFunctionObject *fusedfunc =
+        (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, flags,
+                                                           self, module, code);
     if (!fusedfunc)
         return NULL;
 
@@ -418,7 +472,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     func = (__pyx_FusedFunctionObject *) self;
 
-    if (func->self) {
+    if (func->self || func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD) {
         /* Do not allow rebinding */
         Py_INCREF(self);
         return self;
@@ -429,17 +483,24 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_NewEx(
                     ((PyCFunctionObject *) func)->m_ml,
-                    ((PyCFunctionObject *) func)->m_self,
+                    ((__pyx_CyFunctionObject *) func)->flags,
+                    ((__pyx_CyFunctionObject *) func)->func_closure,
                     ((PyCFunctionObject *) func)->m_module,
                     ((__pyx_CyFunctionObject *) func)->func_code);
     if (!meth)
         return NULL;
+
+    Py_XINCREF(func->func.func_classobj);
+    meth->func.func_classobj = func->func.func_classobj;
 
     Py_XINCREF(func->__signatures__);
     meth->__signatures__ = func->__signatures__;
 
     Py_XINCREF(type);
     meth->type = type;
+
+    if (func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD)
+        obj = type;
 
     Py_XINCREF(obj);
     meth->self = obj;
@@ -499,9 +560,16 @@ __pyx_err:
 
     unbound_result_func = PyObject_GetItem(self->__signatures__, signature);
 
-    if (unbound_result_func)
+    if (unbound_result_func) {
+        __pyx_FusedFunctionObject *unbound = (__pyx_FusedFunctionObject *) unbound_result_func;
+
+        Py_CLEAR(unbound->func.func_classobj);
+        Py_XINCREF(self->func.func_classobj);
+        unbound->func.func_classobj = self->func.func_classobj;
+
         result_func = __pyx_FusedFunction_descr_get(unbound_result_func,
-                                                  self->self, self->type);
+                                                    self->self, self->type);
+    }
 
     Py_DECREF(signature);
     Py_XDECREF(unbound_result_func);
@@ -521,11 +589,13 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     __pyx_FusedFunctionObject *binding_func = (__pyx_FusedFunctionObject *) func;
     Py_ssize_t argc = PyTuple_GET_SIZE(args);
     PyObject *new_args = NULL;
-    PyObject *new_func = NULL;
+    __pyx_FusedFunctionObject *new_func = NULL;
     PyObject *result = NULL;
     PyObject *self = NULL;
+    int is_staticmethod = binding_func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD;
+    int is_classmethod = binding_func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD;
 
-    if (binding_func->self) {
+    if (binding_func->self && !is_staticmethod) {
         /* Bound method call, put 'self' in the args tuple */
         Py_ssize_t i;
         new_args = PyTuple_New(argc + 1);
@@ -543,7 +613,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         }
 
         args = new_args;
-    } else if (binding_func->type) {
+    } else if (binding_func->type && !is_staticmethod) {
         /* Unbound method call */
         if (argc < 1) {
             PyErr_Format(PyExc_TypeError, "Need at least one argument, 0 given.");
@@ -552,7 +622,8 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         self = PyTuple_GET_ITEM(args, 0);
     }
 
-    if (self && !PyObject_IsInstance(self, binding_func->type)) {
+    if (self && !is_classmethod && !is_staticmethod &&
+            !PyObject_IsInstance(self, binding_func->type)) {
         PyErr_Format(PyExc_TypeError,
                      "First argument should be of type %s, got %s.",
                      ((PyTypeObject *) binding_func->type)->tp_name,
@@ -570,17 +641,23 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         if (!tup)
             goto __pyx_err;
 
-        func = new_func = PyCFunction_Call(func, tup, NULL);
+        new_func = (__pyx_FusedFunctionObject *) PyCFunction_Call(func, tup, NULL);
         Py_DECREF(tup);
 
         if (!new_func)
             goto __pyx_err;
+
+        Py_CLEAR(new_func->func.func_classobj);
+        Py_XINCREF(binding_func->func.func_classobj);
+        new_func->func.func_classobj = binding_func->func.func_classobj;
+
+        func = (PyObject *) new_func;
     }
 
     result = PyCFunction_Call(func, args, kw);
 __pyx_err:
     Py_XDECREF(new_args);
-    Py_XDECREF(new_func);
+    Py_XDECREF((PyObject *) new_func);
     return result;
 }
 

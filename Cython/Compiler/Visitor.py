@@ -334,6 +334,10 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
         return node
 
+    def visit_GeneratorBodyDefNode(self, node):
+        self.visitchildren(node)
+        return node
+
     def visit_ClassDefNode(self, node):
         self.env_stack.append((node, node.scope))
         self.visitchildren(node)
