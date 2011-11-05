@@ -125,7 +125,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from Visitor import PrintTree
     from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
     from ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
-    from ParseTreeTransforms import AnalyseExpressionsTransform
+    from ParseTreeTransforms import AnalyseExpressionsTransform, FindInvalidUseOfFusedTypes
     from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
     from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
@@ -187,6 +187,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         IntroduceBufferAuxiliaryVars(context),
         _check_c_declarations,
         AnalyseExpressionsTransform(context),
+        FindInvalidUseOfFusedTypes(context),
         CreateClosureClasses(context),  ## After all lookups and type inference
         ExpandInplaceOperators(context),
         OptimizeBuiltinCalls(context),  ## Necessary?

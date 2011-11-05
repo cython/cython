@@ -1726,6 +1726,28 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
 
+class FindInvalidUseOfFusedTypes(CythonTransform):
+
+    def visit_FuncDefNode(self, node):
+        # Errors related to use in functions with fused args will already
+        # have been detected
+        if not node.has_fused_arguments:
+            if not node.is_generator_body and node.return_type.is_fused:
+                error(node.pos, "Return type is not specified as argument type")
+            else:
+                self.visitchildren(node)
+
+        return node
+
+    def visit_ExprNode(self, node):
+        if node.type and node.type.is_fused:
+            error(node.pos, "Invalid use of fused types, type cannot be specialized")
+        else:
+            self.visitchildren(node)
+
+        return node
+
+
 class ExpandInplaceOperators(EnvTransform):
 
     def visit_InPlaceAssignmentNode(self, node):

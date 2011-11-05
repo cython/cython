@@ -50,18 +50,25 @@ class BaseType(object):
 
             for attr in subtypes:
                 list_or_subtype = getattr(self, attr)
-
-                if isinstance(list_or_subtype, BaseType):
-                    list_or_subtype.get_fused_types(result, seen)
-                else:
-                    for subtype in list_or_subtype:
-                        subtype.get_fused_types(result, seen)
+                if list_or_subtype:
+                    if isinstance(list_or_subtype, BaseType):
+                        list_or_subtype.get_fused_types(result, seen)
+                    else:
+                        for subtype in list_or_subtype:
+                            subtype.get_fused_types(result, seen)
 
             return result
 
         return None
 
-    is_fused = property(get_fused_types, doc="Whether this type or any of its "
+    def _get_fused_types(self):
+        """
+        Add this indirection for the is_fused property to allow overriding
+        get_fused_types in subclasses.
+        """
+        return self.get_fused_types()
+
+    is_fused = property(_get_fused_types, doc="Whether this type or any of its "
                                              "subtypes is a fused type")
 
     def __lt__(self, other):
@@ -2863,6 +2870,8 @@ class CppClassType(CType):
     has_attributes = 1
     exception_check = True
     namespace = None
+
+    subtypes = ['templates']
 
     def __init__(self, name, scope, cname, base_classes, templates = None, template_type = None):
         self.name = name

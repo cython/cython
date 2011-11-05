@@ -57,10 +57,13 @@ _ERRORS = u"""
 fused_types.pyx:10:15: fused_type does not take keyword arguments
 fused_types.pyx:15:38: Type specified multiple times
 fused_types.pyx:17:33: Cannot fuse a fused type
+fused_types.pyx:26:4: Invalid use of fused types, type cannot be specialized
 fused_types.pyx:26:4: Not enough types specified to specialize the function, int2_t is still fused
+fused_types.pyx:27:4: Invalid use of fused types, type cannot be specialized
 fused_types.pyx:27:4: Not enough types specified to specialize the function, int2_t is still fused
 fused_types.pyx:28:16: Call with wrong number of arguments (expected 2, got 1)
 fused_types.pyx:29:16: Call with wrong number of arguments (expected 2, got 3)
+fused_types.pyx:30:4: Invalid use of fused types, type cannot be specialized
 fused_types.pyx:30:4: Keyword and starred arguments not allowed in cdef functions.
 fused_types.pyx:36:6: Invalid base type for memoryview slice: int *
 fused_types.pyx:39:0: Fused lambdas not allowed
