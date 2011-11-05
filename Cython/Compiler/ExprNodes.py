@@ -5962,6 +5962,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             flags.append('__Pyx_CYFUNCTION_STATICMETHOD')
         elif def_node.is_classmethod:
             flags.append('__Pyx_CYFUNCTION_CLASSMETHOD')
+
+        if def_node.local_scope.parent_scope.is_c_class_scope:
+            flags.append('__Pyx_CYFUNCTION_CCLASS')
+
         if flags:
             flags = ' | '.join(flags)
         else:

@@ -6,6 +6,7 @@
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
+#define __Pyx_CYFUNCTION_CCLASS        0x04
 
 #define __Pyx_CyFunction_GetClosure(f) \
     (((__pyx_CyFunctionObject *) (f))->func_closure)
@@ -473,7 +474,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     func = (__pyx_FusedFunctionObject *) self;
 
     if (func->self || func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD) {
-        /* Do not allow rebinding */
+        /* Do not allow rebinding and don't do anything for static methods */
         Py_INCREF(self);
         return self;
     }
@@ -577,9 +578,49 @@ __pyx_err:
     return result_func;
 }
 
+static PyObject *
+__pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
+{
+     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
+    PyObject *result;
+    int static_specialized = (cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD &&
+                              !((__pyx_FusedFunctionObject *) func)->__signatures__);
+
+    //PyObject_Print(args, stdout, Py_PRINT_RAW);
+
+    if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS && !static_specialized) {
+        Py_ssize_t argc;
+        PyObject *new_args;
+        PyObject *self;
+        PyObject *m_self;
+
+        argc = PyTuple_GET_SIZE(args);
+        new_args = PyTuple_GetSlice(args, 1, argc);
+
+        if (!new_args)
+            return NULL;
+
+        self = PyTuple_GetItem(args, 0);
+
+        if (!self)
+            return NULL;
+
+        m_self = cyfunc->func.m_self;
+        cyfunc->func.m_self = self;
+        result = PyCFunction_Call(func, new_args, kw);
+        cyfunc->func.m_self = m_self;
+
+        Py_DECREF(new_args);
+    } else {
+        result = PyCFunction_Call(func, args, kw);
+    }
+
+    return result;
+}
+
 /* Note: the 'self' from method binding is passed in in the args tuple,
          whereas PyCFunctionObject's m_self is passed in as the first
-         argument to the C function. For extension methods we also need
+         argument to the C function. For extension methods we need
          to pass 'self' as 'm_self' and not as the first element of the
          args tuple.
 */
@@ -595,7 +636,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     int is_staticmethod = binding_func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD;
     int is_classmethod = binding_func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD;
 
-    if (binding_func->self && !is_staticmethod) {
+    if (binding_func->self) {
         /* Bound method call, put 'self' in the args tuple */
         Py_ssize_t i;
         new_args = PyTuple_New(argc + 1);
@@ -613,7 +654,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         }
 
         args = new_args;
-    } else if (binding_func->type && !is_staticmethod) {
+    } else if (binding_func->type) {
         /* Unbound method call */
         if (argc < 1) {
             PyErr_Format(PyExc_TypeError, "Need at least one argument, 0 given.");
@@ -632,16 +673,12 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     }
 
     if (binding_func->__signatures__) {
-        /*
-        binaryfunc meth = (binaryfunc) binding_func->func.m_ml->ml_meth;
-        func = new_func = meth(binding_func->__signatures__, args);
-        */
         PyObject *tup = PyTuple_Pack(3, binding_func->__signatures__, args,
-                                     kw == NULL ? Py_None : kw);
+                                        kw == NULL ? Py_None : kw);
         if (!tup)
             goto __pyx_err;
 
-        new_func = (__pyx_FusedFunctionObject *) PyCFunction_Call(func, tup, NULL);
+        new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);;
         Py_DECREF(tup);
 
         if (!new_func)
@@ -654,7 +691,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         func = (PyObject *) new_func;
     }
 
-    result = PyCFunction_Call(func, args, kw);
+    result = __pyx_FusedFunction_callfunction(func, args, kw);
 __pyx_err:
     Py_XDECREF(new_args);
     Py_XDECREF((PyObject *) new_func);

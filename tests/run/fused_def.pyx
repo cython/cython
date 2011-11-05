@@ -231,3 +231,66 @@ def test_fused_def_classmethod():
 
     SubSubClass().myclassmethod[cy.short](12)
     SubSubClass.myclassmethod[cy.short](13)
+
+cdef class CBaseClass(object):
+    """
+    Test fused def and cpdef methods in cdef classes.
+
+    >>> import cython as cy
+    >>> obj = CBaseClass()
+    >>> cls = CBaseClass
+
+    >>> obj.mystaticmethod(10)
+    long 10
+    >>> obj.mystaticmethod[cy.short](10)
+    short 10
+    >>> cls.mystaticmethod(10)
+    long 10
+    >>> cls.mystaticmethod[cy.short](10)
+    short 10
+
+    >>> obj.myclassmethod(10)
+    CBaseClass long 10
+    >>> obj.myclassmethod[cy.short](10)
+    CBaseClass short 10
+    >>> cls.myclassmethod(10)
+    CBaseClass long 10
+    >>> cls.myclassmethod[cy.short](10)
+    CBaseClass short 10
+
+    >>> obj.normalmethod(10, 11, 12)
+    <fused_def.CBaseClass object> long 10 11 12
+    >>> obj.normalmethod[cy.short](10, 11, 12)
+    <fused_def.CBaseClass object> short 10 11 12
+    >>> cls.normalmethod(obj, 10, 11, 12)
+    <fused_def.CBaseClass object> long 10 11 12
+    >>> cls.normalmethod[cy.short](obj, 10, 11, 12)
+    <fused_def.CBaseClass object> short 10 11 12
+
+    >>> obj.cpdefmethod(10)
+    <fused_def.CBaseClass object> long 10
+    >>> obj.cpdefmethod[cy.short](10)
+    <fused_def.CBaseClass object> short 10
+    >>> cls.cpdefmethod(obj, 10)
+    <fused_def.CBaseClass object> long 10
+    >>> cls.cpdefmethod[cy.short](obj, 10)
+    <fused_def.CBaseClass object> short 10
+    """
+
+    @staticmethod
+    def mystaticmethod(cython.integral arg1):
+        print cython.typeof(arg1), arg1
+
+    @classmethod
+    def myclassmethod(cls, cython.integral arg1):
+        print cls.__name__, cython.typeof(arg1), arg1
+
+    def normalmethod(self, cython.integral arg1, arg2, arg3):
+        print self, cython.typeof(arg1), arg1, arg2, arg3
+
+    cpdef cpdefmethod(self, cython.integral arg1):
+        print self, cython.typeof(arg1), arg1
+
+    def __repr__(self):
+        return "<%s.%s object>" % (__name__, type(self).__name__)
+

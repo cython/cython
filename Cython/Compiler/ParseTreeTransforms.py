@@ -1227,6 +1227,8 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     to the function/class name - except for cdef class methods.  For
     those, the reassignment is required as methods are originally
     defined in the PyMethodDef struct.
+
+    The IndirectionNode allows DefNode to override the decorator
     """
 
     def visit_DefNode(self, func_node):
@@ -1250,6 +1252,9 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             node.pos,
             lhs = name_node,
             rhs = decorator_result)
+
+        reassignment = Nodes.IndirectionNode([reassignment])
+        node.decorator_indirection = reassignment
         return [node, reassignment]
 
 class CnameDirectivesTransform(CythonTransform, SkipDeclarations):

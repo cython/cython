@@ -2627,6 +2627,8 @@ class DefNode(FuncDefNode):
     #                                   (in case this is a specialization)
     #  specialized_cpdefs   [DefNode]   list of specialized cpdef DefNodes
     #  py_cfunc_node  PyCFunctionNode/InnerFunctionNode   The PyCFunction to create and assign
+    #
+    # decorator_indirection IndirectionNode Used to remove __Pyx_Method_ClassMethod for fused functions
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
@@ -2857,6 +2859,9 @@ class DefNode(FuncDefNode):
             sig.fixed_arg_format = "*"
             sig.is_staticmethod = True
             sig.has_generic_args = True
+
+        if self.is_classmethod and self.has_fused_arguments and env.is_c_class_scope:
+            del self.decorator_indirection.stats[:]
 
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
@@ -4909,6 +4914,15 @@ class PassStatNode(StatNode):
     def generate_execution_code(self, code):
         pass
 
+
+class IndirectionNode(StatListNode):
+    """
+    This adds an indirection so that the node can be shared and a subtree can
+    be removed at any time by clearing self.stats.
+    """
+
+    def __init__(self, stats):
+        super(IndirectionNode, self).__init__(stats[0].pos, stats=stats)
 
 class BreakStatNode(StatNode):
 
