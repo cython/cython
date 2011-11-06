@@ -1474,12 +1474,12 @@ if VALUE is not None:
                         error(node.pos, "Cannot nest fused functions")
 
                 self.fused_error_funcs.add(self.fused_function)
-                # env.declare_var(node.name, PyrexTypes.py_object_type, node.pos)
-                node = Nodes.SingleAssignmentNode(
-                    node.pos,
-                    lhs=ExprNodes.NameNode(node.pos, name=node.name),
-                    rhs=ExprNodes.NoneNode(node.pos))
-                node.analyse_declarations(env)
+
+                node.body = Nodes.PassStatNode(node.pos)
+                for arg in node.args:
+                    if arg.type.is_fused:
+                        arg.type = arg.type.get_fused_types()[0]
+
                 return node
 
             node = Nodes.FusedCFuncDefNode(node, env)
