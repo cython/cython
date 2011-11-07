@@ -644,9 +644,16 @@ class StringConst(object):
             prefix = Naming.interned_str_prefix
         else:
             prefix = Naming.py_const_prefix
-        pystring_cname = "%s%s_%s" % (
+
+        if encoding_key:
+            encoding_prefix = '_%s' % encoding_key
+        else:
+            encoding_prefix = ''
+
+        pystring_cname = "%s%s%s_%s" % (
             prefix,
             (is_str and 's') or (is_unicode and 'u') or 'b',
+            encoding_prefix,
             self.cname[len(Naming.const_prefix):])
 
         py_string = PyStringConst(
