@@ -406,6 +406,27 @@ called, which allows one to do custom C++ to Python error "translations." If
 raise_py_error does not actually raise an exception a RuntimeError will be
 raised.
 
+Static member method
+--------------------
+
+If the Rectangle class has a static member:
+
+.. sourcecode:: c++
+
+    namespace shapes {
+        class Rectangle {
+        ...
+        public:
+            static void do_something();
+
+        };
+    }
+
+you can declare it as a function living in the class namespace, i.e.::
+
+    cdef extern from "Rectangle.h" namespace "shapes::Rectangle":
+        void do_something()
+
 
 Caveats and Limitations
 ========================
