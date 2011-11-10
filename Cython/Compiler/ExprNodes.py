@@ -237,6 +237,9 @@ class ExprNode(Node):
     def is_lvalue(self):
         return 0
 
+    def is_addressable(self):
+        return self.is_lvalue()
+
     def is_ephemeral(self):
         #  An ephemeral node is one whose result is in
         #  a Python temporary and we suspect there are no
@@ -1618,6 +1621,9 @@ class NameNode(AtomicExprNode):
         return self.entry.is_variable and \
             not self.entry.type.is_array and \
             not self.entry.is_readonly
+
+    def is_addressable(self):
+        return self.entry.is_variable
 
     def is_ephemeral(self):
         #  Name nodes are never ephemeral, even if the
@@ -6576,7 +6582,7 @@ class AmpersandNode(ExprNode):
     def analyse_types(self, env):
         self.operand.analyse_types(env)
         argtype = self.operand.type
-        if not (argtype.is_cfunction or self.operand.is_lvalue()):
+        if not (argtype.is_cfunction or self.operand.is_addressable()):
             self.error("Taking address of non-lvalue")
             return
         if argtype.is_pyobject:
