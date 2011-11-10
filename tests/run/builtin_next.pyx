@@ -28,9 +28,9 @@ StopIteration
 
 if IS_PY3:
     __doc__ += """
->>> next(123)
+>>> next(123)      # doctest: +ELLIPSIS
 Traceback (most recent call last):
-TypeError: int object is not an iterator
+TypeError: ...int... object is not an iterator
 """
 
 def test_next_not_iterable(it):
