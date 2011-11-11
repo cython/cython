@@ -104,11 +104,11 @@ def build(input_file, compiler_args=(), force=False):
     if (not force and os.path.exists(exe_file) and os.path.exists(input_file)
         and os.path.getmtime(input_file) <= os.path.getmtime(exe_file)):
         _debug("File is up to date, not regenerating %s", exe_file)
-        return
+        return exe_file
     cycompile(input_file, compiler_args)
     ccompile(basename)
     clink(basename)
-    return basename + EXE_EXT
+    return exe_file
 
 def build_and_run(args):
     """
