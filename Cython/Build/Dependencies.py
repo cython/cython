@@ -1,4 +1,4 @@
-from glob import glob
+from glob import iglob
 import re, os, sys
 
 
@@ -32,7 +32,25 @@ def cached_method(f):
         res = cache[args] = f(self, *args)
         return res
     return wrapper
-
+    
+def extended_iglob(pattern):
+    if '**/' in pattern:
+        seen = set()
+        first, rest = pattern.split('**/', 1)
+        if first == '':
+            first = '.'
+        for root in iglob(first + "/"):
+            for path in extended_iglob(os.path.join(root, rest)):
+                if path not in seen:
+                    seen.add(path)
+                    yield path
+            for path in extended_iglob(os.path.join(root, '*', '**', rest)):
+                if path not in seen:
+                    seen.add(path)
+                    yield path
+    else:
+        for path in iglob(pattern):
+            yield path
 
 def parse_list(s):
     """
@@ -411,7 +429,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
     if not isinstance(exclude, list):
         exclude = [exclude]
     for pattern in exclude:
-        to_exclude.update(glob(pattern))
+        to_exclude.update(extended_iglob(pattern))
     if not isinstance(patterns, list):
         patterns = [patterns]
     module_list = []
@@ -434,7 +452,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
             exn_type = template.__class__
         else:
             raise TypeError(pattern)
-        for file in glob(filepattern):
+        for file in extended_iglob(filepattern):
             if file in to_exclude:
                 continue
             pkg = deps.package(file)

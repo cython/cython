@@ -1,0 +1,38 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("**/a*.pyx", include_path=['subdir'], compiler_directives={'cdivision': True}),
+)
+
+######## a.pyx ########
+
+######## p1/__init__.py ########
+
+######## p1/a.pyx ########
+
+######## p1/ab.pyx ########
+
+######## p1/b.pyx ########
+
+######## p1/p2/__init__.py ########
+
+######## p1/p2/a.pyx ########
+
+######## runner.py ########
+
+import a
+import p1.a
+import p1.ab
+import p1.p2.a
+try:
+    import p1.b
+    assert False, "b should not be complied"
+except ImportError:
+    pass
