@@ -2440,6 +2440,8 @@ class IndexNode(ExprNode):
 
     def analyse_target_types(self, env):
         self.analyse_base_and_index_types(env, setting = 1)
+        if not self.is_lvalue():
+            error(self.pos, "Assignment to non-lvalue of type '%s'" % self.type)
 
     def analyse_base_and_index_types(self, env, getting = 0, setting = 0, analyse_base = True):
         # Note: This might be cleaned up by having IndexNode
@@ -2803,7 +2805,11 @@ class IndexNode(ExprNode):
         return self.base.check_const_addr() and self.index.check_const()
 
     def is_lvalue(self):
-        return 1
+        base_type = self.base.type
+        if self.type.is_ptr or self.type.is_array:
+            return not base_type.base_type.is_array
+        else:
+            return True
 
     def calculate_result_code(self):
         if self.is_buffer_access:
@@ -4091,6 +4097,8 @@ class AttributeNode(ExprNode):
 
     def analyse_target_types(self, env):
         self.analyse_types(env, target = 1)
+        if not self.is_lvalue():
+            error(self.pos, "Assignment to non-lvalue of type '%s'" % self.type)
 
     def analyse_types(self, env, target = 0):
         self.initialized_check = env.directives['initializedcheck']
@@ -4295,7 +4303,7 @@ class AttributeNode(ExprNode):
 
     def is_lvalue(self):
         if self.obj:
-            return 1
+            return not self.type.is_array
         else:
             return NameNode.is_lvalue(self)
 
