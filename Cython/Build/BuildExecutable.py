@@ -99,6 +99,8 @@ def build(input_file, compiler_args=(), force=False):
     """
     basename = os.path.splitext(input_file)[0]
     exe_file = basename + EXE_EXT
+    if not force and os.path.abspath(exe_file) == os.path.abspath(input_file):
+        raise ValueError("Input and output file names are the same, refusing to overwrite")
     if (not force and os.path.exists(exe_file) and os.path.exists(input_file)
         and os.path.getmtime(input_file) <= os.path.getmtime(exe_file)):
         _debug("File is up to date, not regenerating %s", exe_file)
