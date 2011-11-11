@@ -91,13 +91,18 @@ def cycompile(input_file, options=()):
 def exec_file(program_name, args=()):
     runcmd([os.path.abspath(program_name)] + list(args), shell=False)
 
-def build(input_file, compiler_args=()):
+def build(input_file, compiler_args=(), force=False):
     """
     Build an executable program from a Cython module.
 
     Returns the name of the executable file.
     """
     basename = os.path.splitext(input_file)[0]
+    exe_file = basename + EXE_EXT
+    if (not force and os.path.exists(exe_file) and os.path.exists(input_file)
+        and os.path.getmtime(input_file) <= os.path.getmtime(exe_file)):
+        _debug("File is up to date, not regenerating %s", exe_file)
+        return
     cycompile(input_file, compiler_args)
     ccompile(basename)
     clink(basename)
