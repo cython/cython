@@ -1372,6 +1372,8 @@ def main():
                       help="working directory")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'BUILD'),
                       help="working directory")
+    parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
+                      help="Cython installation directory (default: use local source version)")
     parser.add_option("--debug", dest="for_debugging", default=False, action="store_true",
                       help="configure for easier use with a debugger (e.g. gdb)")
     parser.add_option("--pyximport-py", dest="pyximport_py", default=False, action="store_true",
@@ -1385,6 +1387,7 @@ def main():
     if sys.version_info[0] >= 3:
         options.doctests = False
         if options.with_cython:
+            sys.path.insert(0, options.cython_dir)
             try:
                 # try if Cython is installed in a Py3 version
                 import Cython.Compiler.Main
