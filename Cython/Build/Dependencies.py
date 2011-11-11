@@ -1,4 +1,4 @@
-from glob import iglob
+from glob import glob
 import re, os, sys
 
 
@@ -39,7 +39,7 @@ def extended_iglob(pattern):
         first, rest = pattern.split('**/', 1)
         if first == '':
             first = '.'
-        for root in iglob(first + "/"):
+        for root in glob(first + "/"):
             for path in extended_iglob(os.path.join(root, rest)):
                 if path not in seen:
                     seen.add(path)
@@ -49,7 +49,7 @@ def extended_iglob(pattern):
                     seen.add(path)
                     yield path
     else:
-        for path in iglob(pattern):
+        for path in glob(pattern):
             yield path
 
 def parse_list(s):
