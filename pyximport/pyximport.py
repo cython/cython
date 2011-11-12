@@ -62,6 +62,18 @@ PYXBLD_EXT = ".pyxbld"
 
 DEBUG_IMPORT = False
 
+def _print(message, args):
+    if args:
+        message = message % args
+    print(message)
+
+def _debug(message, *args):
+    if DEBUG_IMPORT:
+        _print(message, args)
+
+def _info(message, *args):
+    _print(message, args)
+
 # Performance problem: for every PYX file that is imported, we will 
 # invoke the whole distutils infrastructure even if the module is 
 # already built. It might be more efficient to only do it when the 
@@ -142,7 +154,7 @@ def handle_dependencies(pyxfilename):
         for file in files:
             from distutils.dep_util import newer
             if newer(file, pyxfilename):
-                print("Rebuilding because of ", file)
+                _debug("Rebuilding %s because of %s", pyxfilename, file)
                 filetime = os.path.getmtime(file)
                 os.utime(pyxfilename, (filetime, filetime))
                 if testing:
@@ -174,13 +186,17 @@ def build_module(name, pyxfilename, pyxbuild_dir=None):
             try:
                 os.remove(path)
             except IOError:
-                print("Couldn't remove ", path)
+                _info("Couldn't remove %s", path)
 
     return so_path
 
-def load_module(name, pyxfilename, pyxbuild_dir=None):
+def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False):
     try:
-        so_path = build_module(name, pyxfilename, pyxbuild_dir)
+        if is_package:
+            module_name = name + '.__init__'
+        else:
+            module_name = name
+        so_path = build_module(module_name, pyxfilename, pyxbuild_dir)
         mod = imp.load_dynamic(name, so_path)
         assert mod.__file__ == so_path, (mod.__file__, so_path)
     except Exception:
@@ -190,8 +206,9 @@ def load_module(name, pyxfilename, pyxbuild_dir=None):
             assert mod.__file__ in (pyxfilename, pyxfilename+'c', pyxfilename+'o'), (mod.__file__, pyxfilename)
         else:
             import traceback
-            raise ImportError("Building module failed: %s" %
-                              traceback.format_exception_only(*sys.exc_info()[:2])),None,sys.exc_info()[2]
+            raise ImportError("Building module %s failed: %s" %
+                              (name,
+                               traceback.format_exception_only(*sys.exc_info()[:2]))), None, sys.exc_info()[2]
     return mod
 
 
@@ -210,6 +227,12 @@ class PyxImporter(object):
         try:
             fp, pathname, (ext,mode,ty) = imp.find_module(fullname,package_path)
             if fp: fp.close()  # Python should offer a Default-Loader to avoid this double find/open!
+            if pathname and ty == imp.PKG_DIRECTORY:
+                pkg_file = os.path.join(pathname, '__init__'+self.extension)
+                if os.path.isfile(pkg_file):
+                    return PyxLoader(fullname, pathname,
+                        init_path=pkg_file,
+                        pyxbuild_dir=self.pyxbuild_dir)
             if pathname and pathname.endswith(self.extension):
                 return PyxLoader(fullname, pathname,
                                  pyxbuild_dir=self.pyxbuild_dir)
@@ -224,12 +247,12 @@ class PyxImporter(object):
             
             # .so/.pyd's on PATH should not be remote from .pyx's
             # think no need to implement PyxArgs.importer_search_remote here?
-                
+
         except ImportError:
             pass
 
         # searching sys.path ...
-                
+
         #if DEBUG_IMPORT:  print "SEARCHING", fullname, package_path
         if '.' in fullname: # only when package_path anyway?
             mod_parts = fullname.split('.')
@@ -257,6 +280,7 @@ class PyxImporter(object):
                                  pyxbuild_dir=self.pyxbuild_dir)
                 
         # not found, normal package, not a .pyx file, none of our business
+        _debug("%s not found" % fullname)
         return None
 
 class PyImporter(PyxImporter):
@@ -277,8 +301,7 @@ class PyImporter(PyxImporter):
         if fullname in self.blocked_modules:
             # prevent infinite recursion
             return None
-        if DEBUG_IMPORT:
-            print("trying import of module '%s'" % fullname)
+        _debug("trying import of module '%s'", fullname)
         if fullname in self.uncompilable_modules:
             path, last_modified = self.uncompilable_modules[fullname]
             try:
@@ -297,11 +320,12 @@ class PyImporter(PyxImporter):
                 try:
                     if importer.init_path:
                         path = importer.init_path
+                        real_name = fullname + '.__init__'
                     else:
                         path = importer.path
-                    if DEBUG_IMPORT:
-                        print("importer found path %s" % path)
-                    build_module(fullname, path,
+                        real_name = fullname
+                    _debug("importer found path %s for module %s", path, real_name)
+                    build_module(real_name, path,
                                  pyxbuild_dir=self.pyxbuild_dir)
                 except Exception, e:
                     if DEBUG_IMPORT:
@@ -320,6 +344,7 @@ class PyImporter(PyxImporter):
 
 class PyxLoader(object):
     def __init__(self, fullname, path, init_path=None, pyxbuild_dir=None):
+        _debug("PyxLoader created for loading %s from %s (init path: %s)", fullname, path, init_path)
         self.fullname = fullname
         self.path, self.init_path = path, init_path
         self.pyxbuild_dir = pyxbuild_dir
@@ -332,7 +357,7 @@ class PyxLoader(object):
             # package
             #print "PACKAGE", fullname
             module = load_module(fullname, self.init_path,
-                                 self.pyxbuild_dir)
+                                 self.pyxbuild_dir, is_package=True)
             module.__path__ = [self.path]
         else:
             #print "MODULE", fullname
