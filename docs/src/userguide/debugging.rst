@@ -6,12 +6,12 @@
 Debugging your Cython program
 **********************************
 
-Cython comes with an extension for the GNU Debugger that helps users debug 
+Cython comes with an extension for the GNU Debugger that helps users debug
 Cython code. To use this functionality, you will need to install gdb 7.2 or
 higher, built with Python support (linked to Python 2.5 or higher).
 The debugger supports debuggees with versions 2.6 and higher. For Python 3,
 code should be built with Python 3 and the debugger should be run with
-Python 2 (or at least it should be able to find the Python 2 Cython 
+Python 2 (or at least it should be able to find the Python 2 Cython
 installation).
 
 The debugger will need debug information that the Cython compiler can export.
@@ -19,7 +19,7 @@ This can be achieved from within the setup
 script by passing ``pyrex_gdb=True`` to your Cython Extenion class::
 
     from Cython.Distutils import extension
-    
+
     ext = extension.Extension('source', 'source.pyx', pyrex_gdb=True)
     setup(..., ext_modules=[ext)]
 
@@ -38,15 +38,11 @@ debug information using the ``--gdb`` flag::
 
     cython --gdb myfile.pyx
 
-.. note:: The debugger is newly part of Cython 0.14 and as such is still 
-          experimental. CC markflorisson88@gmail.com in your TRAC tickets or
-          mailing list complaints.
-
 Running the Debugger
 =====================
 .. highlight:: bash
 
-To run the Cython debugger and have it import the debug information exported 
+To run the Cython debugger and have it import the debug information exported
 by Cython, run ``cygdb`` in the build directory::
 
     $ python setup.py build_ext --pyrex-gdb --inplace
@@ -57,7 +53,7 @@ by Cython, run ``cygdb`` in the build directory::
 
 When using the Cython debugger, it's preferable that you build and run your code
 with an interpreter that is compiled with debugging symbols (i.e. configured
-with ``--with-pydebug`` or compiled with the ``-g`` CFLAG). If your Python is 
+with ``--with-pydebug`` or compiled with the ``-g`` CFLAG). If your Python is
 installed and managed by your package manager you probably need to install debug
 support separately, e.g. for ubuntu::
 
