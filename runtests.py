@@ -5,7 +5,6 @@ import sys
 import re
 import gc
 import locale
-import codecs
 import shutil
 import time
 import unittest
@@ -975,7 +974,7 @@ def collect_doctests(path, module_prefix, suite, selectors):
                 '#' in filename and not
                 filename.startswith('.') and not
                 filename in blacklist)
-    import doctest, types
+    import doctest
     for dirpath, dirnames, filenames in os.walk(path):
         for dir in list(dirnames):
             if not package_matches(dir):
@@ -1269,8 +1268,8 @@ def get_version():
     full_version = cython_version
     top = os.path.dirname(os.path.abspath(__file__))
     if os.path.exists(os.path.join(top, '.git')):
+        old_dir = os.getcwd()
         try:
-            old_dir = os.getcwd()
             os.chdir(top)
             head_commit = subprocess_output(['git', 'rev-parse', 'HEAD']).strip()
             version_commit = subprocess_output(['git', 'rev-parse', cython_version]).strip()
@@ -1481,7 +1480,6 @@ def main():
             if selector.startswith('bugs'):
                 test_bugs = True
 
-    import re
     selectors = [ string_selector(r) for r in cmd_args ]
     if not selectors:
         selectors = [ lambda x, tags=None: True ]
