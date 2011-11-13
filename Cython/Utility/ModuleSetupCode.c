@@ -217,8 +217,28 @@
   #define __Pyx_DOCSTR(n)  (n)
 #endif
 
-/////////////// FindModuleFile ///////////////
 
-static PyObject* __pyx_find_module_file(PyObject* module_name) {
+/////////////// CheckBinaryVersion.proto ///////////////
 
+static int __Pyx_check_binary_version(void);
+
+/////////////// CheckBinaryVersion ///////////////
+
+static int __Pyx_check_binary_version(void) {
+    char ctversion[4], rtversion[4];
+    PyOS_snprintf(ctversion, 4, "%d.%d", PY_MAJOR_VERSION, PY_MINOR_VERSION);
+    PyOS_snprintf(rtversion, 4, "%s", Py_GetVersion());
+    if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
+        char message[200];
+        PyOS_snprintf(message, sizeof(message),
+                      "compiletime version %s of module '%.100s' "
+                      "does not match runtime version %s",
+                      ctversion, __Pyx_MODULE_NAME, rtversion);
+        #if PY_VERSION_HEX < 0x02050000
+        return PyErr_Warn(NULL, message);
+        #else
+        return PyErr_WarnEx(NULL, message, 1);
+        #endif
+    }
+    return 0;
 }

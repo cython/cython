@@ -1753,7 +1753,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.put_setup_refcount_context(header3)
 
-        env.use_utility_code(check_binary_version_utility_code)
+        env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
         code.putln("if ( __Pyx_check_binary_version() < 0) %s" % code.error_goto(self.pos))
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
@@ -3064,26 +3064,3 @@ packed_struct_utility_code = UtilityCode(proto="""
 #define __Pyx_PACKED
 #endif
 """, impl="", proto_block='utility_code_proto_before_types')
-
-check_binary_version_utility_code = UtilityCode(proto="""
-static int __Pyx_check_binary_version(void);
-""", impl="""
-static int __Pyx_check_binary_version(void) {
-    char ctversion[4], rtversion[4];
-    PyOS_snprintf(ctversion, 4, "%d.%d", PY_MAJOR_VERSION, PY_MINOR_VERSION);
-    PyOS_snprintf(rtversion, 4, "%s", Py_GetVersion());
-    if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
-        char message[200];
-        PyOS_snprintf(message, sizeof(message),
-                      "compiletime version %s of module '%.100s' "
-                      "does not match runtime version %s",
-                      ctversion, __Pyx_MODULE_NAME, rtversion);
-        #if PY_VERSION_HEX < 0x02050000
-        return PyErr_Warn(NULL, message);
-        #else
-        return PyErr_WarnEx(NULL, message, 1);
-        #endif
-    }
-    return 0;
-}
-""")
