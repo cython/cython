@@ -10,7 +10,6 @@ cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
 
 import os
 import re
-import codecs
 
 import glob
 import Naming
@@ -20,8 +19,6 @@ from Cython import Utils
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 import DebugFlags
-import Errors
-from Cython import Tempita as tempita
 
 try:
     from __builtin__ import basestring
@@ -215,7 +212,7 @@ class UtilityCodeBase(object):
 
 
 def sub_tempita(s, context, file, name):
-    "Run tempita on string s with context context."
+    "Run tempita on string s with given context."
     if not s:
         return None
 
@@ -224,7 +221,8 @@ def sub_tempita(s, context, file, name):
     elif name:
         context['__name'] = name
 
-    return tempita.sub(s, **context)
+    from Cython.Tempita import sub
+    return sub(s, **context)
 
 
 class UtilityCode(UtilityCodeBase):
