@@ -11,7 +11,6 @@ cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
 import os
 import re
 
-import glob
 import Naming
 import Options
 import StringEncoding
@@ -52,7 +51,7 @@ class UtilityCodeBase(object):
 
     _utility_cache = {}
 
-    # @classmethod
+    @classmethod
     def _add_utility(cls, utility, type, lines, begin_lineno):
         if utility:
             # Remember line numbers as least until after templating
@@ -63,9 +62,7 @@ class UtilityCodeBase(object):
             else:
                 utility[1] = code
 
-    _add_utility = classmethod(_add_utility)
-
-    # @classmethod
+    @classmethod
     def load_utilities_from_file(cls, path):
         utilities = cls._utility_cache.get(path)
         if utilities:
@@ -123,9 +120,7 @@ class UtilityCodeBase(object):
         cls._utility_cache[path] = utilities
         return utilities
 
-    load_utilities_from_file = classmethod(load_utilities_from_file)
-
-    # @classmethod
+    @classmethod
     def load(cls, util_code_name, from_file=None, context=None, **kwargs):
         """
         Load a utility code from a file specified by from_file (relative to
@@ -165,20 +160,22 @@ class UtilityCodeBase(object):
 
         return cls(**kwargs)
 
-    load = classmethod(load)
-
-    # @classmethod
+    @classmethod
     def load_as_string(cls, util_code_name, from_file=None, context=None):
         """
         Load a utility code as a string. Returns (proto, implementation)
         """
         if from_file is None:
-            files = glob.glob(os.path.join(get_utility_dir(),
-                                           util_code_name + '.*'))
-            if len(files) != 1:
-                raise ValueError("Need exactly one utility file")
-
-            from_file, = files
+            utility_dir = get_utility_dir()
+            prefix = util_code_name + '.'
+            files = [ os.path.join(utility_dir, filename)
+                      for filename in os.listdir(utility_dir)
+                      if filename.startswith(prefix) ]
+            if not files:
+                raise ValueError("No match found for utility code " + util_code_name)
+            if len(files) > 1:
+                raise ValueError("More than one filename match found for utility code " + util_code_name)
+            from_file = files[0]
 
         utilities = cls.load_utilities_from_file(from_file)
 
@@ -192,8 +189,6 @@ class UtilityCodeBase(object):
             return proto, impl
 
         return proto and proto.lstrip(), impl and impl.lstrip()
-
-    load_as_string = classmethod(load_as_string)
 
     def none_or_sub(self, s, context, tempita):
         """
