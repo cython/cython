@@ -1,8 +1,6 @@
 from TreeFragment import parse_from_strings, StringParseContext
-from Scanning import StringSourceDescriptor
 import Symtab
 import Naming
-from Cython.Compiler import Visitor
 import Code
 
 class NonManglingModuleScope(Symtab.ModuleScope):

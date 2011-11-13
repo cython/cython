@@ -1,11 +1,9 @@
 from Errors import CompileError, error
 import ExprNodes
-from ExprNodes import IntNode, NoneNode, IntBinopNode, NameNode, AttributeNode
-from Visitor import CythonTransform
+from ExprNodes import IntNode, NameNode, AttributeNode
 import Options
 from Code import UtilityCode
 from UtilityCode import CythonUtilityCode
-from PyrexTypes import py_object_type, cython_memoryview_ptr_type
 import Buffer
 import PyrexTypes
 

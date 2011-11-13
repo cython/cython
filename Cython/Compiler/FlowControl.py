@@ -8,10 +8,10 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
 import Builtin
 import ExprNodes
 import Nodes
-from PyrexTypes import py_object_type, unspecified_type
+from PyrexTypes import py_object_type
 
 from Visitor import TreeVisitor, CythonTransform
-from Errors import error, warning, CompileError, InternalError
+from Errors import error, warning, InternalError
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.

@@ -2,8 +2,6 @@
 #   Cython/Python language types
 #
 
-import cython
-
 from Code import UtilityCode, LazyUtilityCode, ContentHashingUtilityCode
 import StringEncoding
 import Naming

@@ -3,13 +3,11 @@
 #
 
 import re
-from Cython import Utils
 from Errors import warning, error, InternalError
 from StringEncoding import EncodedString
 import Options, Naming
 import PyrexTypes
 from PyrexTypes import py_object_type, unspecified_type
-import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature

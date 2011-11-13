@@ -16,10 +16,8 @@ import Code
 import Naming
 import Nodes
 import Options
-import PyrexTypes
 import TypeSlots
 import Version
-import DebugFlags
 import PyrexTypes
 
 from Errors import error, warning

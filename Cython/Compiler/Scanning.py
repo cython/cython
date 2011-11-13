@@ -3,7 +3,6 @@
 #   Cython Scanner
 #
 
-import sys
 import os
 import platform
 
@@ -11,10 +10,10 @@ import cython
 cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=unicode,
                print_function=object)
 
-from Cython import Plex, Utils
+from Cython import Utils
 from Cython.Plex.Scanners import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
-from Errors import CompileError, error
+from Errors import error
 from Lexicon import string_prefixes, raw_prefixes, make_lexicon, IDENT
 from Future import print_function
 

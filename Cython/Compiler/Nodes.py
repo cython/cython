@@ -5,12 +5,12 @@
 import cython
 cython.declare(sys=object, os=object, time=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
-               py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object, \
+               py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object, CClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                absolute_path_length=cython.Py_ssize_t)
 
-import sys, os, time, copy, textwrap
+import sys, os, time, copy
 
 import Builtin
 from Errors import error, warning, InternalError, CompileError

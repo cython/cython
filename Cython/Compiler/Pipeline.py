@@ -5,7 +5,7 @@ import Errors
 import DebugFlags
 import Options
 from Visitor import CythonTransform
-from Errors import PyrexError, CompileError, InternalError, AbortError, error
+from Errors import CompileError, InternalError, AbortError
 
 #
 # Really small pipeline stages

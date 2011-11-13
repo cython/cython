@@ -1,8 +1,7 @@
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
-               Options=object, UtilNodes=object, ModuleNode=object,
-               LetNode=object, LetRefNode=object, TreeFragment=object,
-               TemplateTransform=object, EncodedString=object,
+               Options=object, UtilNodes=object, LetNode=object,
+               LetRefNode=object, TreeFragment=object, EncodedString=object,
                error=object, warning=object, copy=object)
 
 import PyrexTypes
@@ -14,9 +13,8 @@ import Builtin
 
 from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
 from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
-from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.UtilNodes import LetNode, LetRefNode, ResultRefNode
-from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
+from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
 

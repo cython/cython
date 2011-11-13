@@ -7,9 +7,6 @@ if sys.version_info[:2] < (2, 3):
     sys.stderr.write("Sorry, Cython requires Python 2.3 or later\n")
     sys.exit(1)
 
-import itertools
-
-import Code
 import Errors
 # Do not import Parsing here, import it when needed, because Parsing imports
 # Nodes, which globally needs debug command line options initialized to set a
@@ -18,11 +15,9 @@ import Errors
 # import Parsing
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
-from Errors import PyrexError, CompileError, InternalError, AbortError, error, warning
+from Errors import PyrexError, CompileError, error, warning
 from Symtab import ModuleScope
 from Cython import Utils
-from Cython.Utils import open_new_file, replace_suffix
-import DebugFlags
 import Options
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")

@@ -6,7 +6,6 @@ For now this only covers parse tree to value conversion of
 compile-time values.
 """
 
-import sys
 from Nodes import *
 from ExprNodes import *
 from Errors import CompileError

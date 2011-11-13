@@ -7,9 +7,7 @@
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
 
-import os
 import re
-import sys
 
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
@@ -17,7 +15,7 @@ import ExprNodes
 import StringEncoding
 from StringEncoding import EncodedString, BytesLiteral, _unicode, _bytes
 from ModuleNode import ModuleNode
-from Errors import error, warning, InternalError
+from Errors import error, warning
 from Cython import Utils
 import Future
 import Options

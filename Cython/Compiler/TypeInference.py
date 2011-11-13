@@ -1,4 +1,4 @@
-from Errors import error, warning, message, warn_once, InternalError
+from Errors import error, message
 import ExprNodes
 import Nodes
 import Builtin

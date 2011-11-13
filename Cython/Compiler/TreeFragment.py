@@ -6,7 +6,6 @@ import re
 from StringIO import StringIO
 from Scanning import PyrexScanner, StringSourceDescriptor
 from Symtab import ModuleScope
-import Symtab
 import PyrexTypes
 from Visitor import VisitorTransform
 from Nodes import Node, StatListNode

@@ -1,6 +1,4 @@
 from Cython.Compiler.Visitor import CythonTransform
-from Cython.Compiler.Nodes import DefNode, CFuncDefNode
-from Cython.Compiler.Errors import CompileError
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler import Options
 from Cython.Compiler import PyrexTypes, ExprNodes

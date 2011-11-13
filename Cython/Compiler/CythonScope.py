@@ -3,8 +3,6 @@ from PyrexTypes import *
 from UtilityCode import CythonUtilityCode
 from Errors import error
 from Scanning import StringSourceDescriptor
-import Options
-import Buffer
 import MemoryView
 
 class CythonScope(ModuleScope):
