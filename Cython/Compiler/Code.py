@@ -1394,10 +1394,12 @@ class CCodeWriter(object):
             self.level += 1
 
     def putln_tempita(self, code, **context):
-        self.putln(tempita.sub(code, **context))
+        from Cython.Tempita import sub
+        self.putln(sub(code, **context))
 
     def put_tempita(self, code, **context):
-        self.put(tempita.sub(code, **context))
+        from Cython.Tempita import sub
+        self.put(sub(code, **context))
 
     def increase_indent(self):
         self.level = self.level + 1
