@@ -503,7 +503,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
-        code.put(UtilityCode.load_as_string("CModulePreamble")[1])
+        code.put(UtilityCode.load_as_string("CModulePreamble", "ModuleSetupCode.c")[1])
 
         code.put("""
 #if PY_MAJOR_VERSION >= 3

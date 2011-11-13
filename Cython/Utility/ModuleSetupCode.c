@@ -216,3 +216,9 @@
   #define __Pyx_NAMESTR(n) (n)
   #define __Pyx_DOCSTR(n)  (n)
 #endif
+
+/////////////// FindModuleFile ///////////////
+
+static PyObject* __pyx_find_module_file(PyObject* module_name) {
+
+}
