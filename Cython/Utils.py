@@ -4,7 +4,6 @@
 #
 
 import os, sys, re, codecs
-from Cython import Tempita
 
 def replace_suffix(path, newsuf):
     base, _ = os.path.splitext(path)
