@@ -1,4 +1,4 @@
-from Cython.Compiler.Visitor import ScopeTrackingTransform
+from Visitor import ScopeTrackingTransform
 from Nodes import StatListNode, SingleAssignmentNode, CFuncDefNode, DefNode
 from ExprNodes import DictNode, DictItemNode, NameNode, UnicodeNode
 from PyrexTypes import py_object_type
