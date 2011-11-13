@@ -4,12 +4,14 @@
 #
 
 import cython
-cython.declare(re=object, Naming=object, Options=object, StringEncoding=object,
+cython.declare(os=object, re=object, operator=object,
+               Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, none_or_sub=object, basestring=object)
 
 import os
 import re
+import operator
 
 import Naming
 import Options
@@ -1157,13 +1159,7 @@ class GlobalState(object):
 
 
 def funccontext_property(name):
-    try:
-        import operator
-        attribute_of = operator.attrgetter(name)
-    except:
-        def attribute_of(o):
-            return getattr(o, name)
-
+    attribute_of = operator.attrgetter(name)
     def get(self):
         return attribute_of(self.funcstate)
     def set(self, value):
