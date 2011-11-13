@@ -5,7 +5,6 @@
 #   for speed.
 #
 
-from copy import copy
 from sys import maxint as maxint
 
 class TransitionMap(object):

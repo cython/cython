@@ -6,7 +6,6 @@
 #
 #=======================================================================
 
-import array
 import types
 from sys import maxint as maxint
 

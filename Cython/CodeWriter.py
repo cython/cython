@@ -1,7 +1,3 @@
-from Cython.Compiler.Visitor import TreeVisitor
-from Cython.Compiler.Nodes import *
-from Cython.Compiler.ExprNodes import *
-
 """
 Serializes a Cython code tree to Cython code. This is primarily useful for
 debugging and testing purposes.
@@ -9,6 +5,9 @@ debugging and testing purposes.
 The output is in a strict format, no whitespace or comments from the input
 is preserved (and it could not be as it is not present in the code tree).
 """
+
+from Cython.Compiler.Visitor import TreeVisitor
+from Cython.Compiler.ExprNodes import *
 
 class LinesResult(object):
     def __init__(self):
