@@ -141,7 +141,6 @@ def create_pipeline(context, mode, exclude_classes=()):
     from Optimize import DropRefcountingTransform
     from Buffer import IntroduceBufferAuxiliaryVars
     from ModuleNode import check_c_declarations, check_c_declarations_pxd
-    from ModuleNode import check_c_declarations
 
 
     if mode == 'pxd':
