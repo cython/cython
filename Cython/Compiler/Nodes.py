@@ -3,26 +3,24 @@
 #
 
 import cython
-cython.declare(sys=object, os=object, time=object, copy=object,
+cython.declare(sys=object, os=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
-               StructOrUnionScope=object, PyClassScope=object, CClassScope=object,
+               StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                absolute_path_length=cython.Py_ssize_t)
 
-import sys, os, time, copy
+import sys, os, copy
 
 import Builtin
 from Errors import error, warning, InternalError, CompileError
 import Naming
 import PyrexTypes
 import TypeSlots
-from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType, cython_memoryview_ptr_type
+from PyrexTypes import py_object_type, error_type
 from Symtab import ModuleScope, LocalScope, ClosureScope, \
-    StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
-from Cython.Compiler import Symtab
-from Cython.Utils import open_new_file, replace_suffix
-from Code import UtilityCode, ClosureTempAllocator
+    StructOrUnionScope, PyClassScope, CppClassScope
+from Code import UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
 import DebugFlags

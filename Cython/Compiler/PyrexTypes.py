@@ -8,8 +8,6 @@ import Naming
 import copy
 from Errors import error
 
-import cython
-
 class BaseType(object):
     #
     #  Base class for all Cython types including pseudo-types.
