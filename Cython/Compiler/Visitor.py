@@ -3,11 +3,9 @@
 #
 #   Tree visitor and transform framework
 #
-import cython
 import inspect
 import Nodes
 import ExprNodes
-import Naming
 import Errors
 import DebugFlags
 
