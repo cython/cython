@@ -3770,19 +3770,22 @@ class GeneratorDefNode(DefNode):
 
     def generate_function_body(self, env, code):
         body_cname = self.gbody.entry.func_cname
-        generator_cname = '%s->%s' % (Naming.cur_scope_cname, Naming.obj_base_cname)
 
-        code.putln('%s.resume_label = 0;' % generator_cname)
-        code.putln('%s.body = (__pyx_generator_body_t) %s;' % (generator_cname, body_cname))
-        code.put_giveref(Naming.cur_scope_cname)
+        code.putln('{')
+        code.putln('__pyx_GeneratorObject *gen = __Pyx_Generator_New('
+                   '(__pyx_generator_body_t) %s, (PyObject *) %s); %s' % (
+                       body_cname, Naming.cur_scope_cname,
+                       code.error_goto_if_null('gen', self.pos)))
+        code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:
-            classobj_cname = '%s->classobj' % Naming.cur_scope_cname
+            classobj_cname = 'gen->classobj'
             code.putln('%s = __Pyx_CyFunction_GetClassObj(%s);' % (
                 classobj_cname, Naming.self_cname))
             code.put_incref(classobj_cname, py_object_type)
             code.put_giveref(classobj_cname)
         code.put_finish_refcount_context()
-        code.putln("return (PyObject *) %s;" % Naming.cur_scope_cname);
+        code.putln('return (PyObject *) gen;');
+        code.putln('}')
 
     def generate_function_definitions(self, env, code):
         from ExprNodes import generator_utility_code
@@ -3800,9 +3803,9 @@ class GeneratorBodyDefNode(DefNode):
     is_generator_body = True
 
     def __init__(self, pos=None, name=None, body=None):
-        super(GeneratorBodyDefNode, self).__init__(pos=pos, body=body, name=name, doc=None,
-                                                   args=[],
-                                                   star_arg=None, starstar_arg=None)
+        super(GeneratorBodyDefNode, self).__init__(
+            pos=pos, body=body, name=name, doc=None,
+            args=[], star_arg=None, starstar_arg=None)
 
     def declare_generator_body(self, env):
         prefix = env.next_id(env.scope_prefix)
@@ -3819,9 +3822,9 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(%s, PyObject *%s)" % (
+        header = "static PyObject *%s(__pyx_GeneratorObject *%s, PyObject *%s)" % (
             self.entry.func_cname,
-            self.local_scope.scope_class.type.declaration_code(Naming.cur_scope_cname),
+            Naming.generator_cname,
             Naming.sent_value_cname)
         if proto:
             code.putln('%s; /* proto */' % header)
@@ -3844,6 +3847,7 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Function header
         code.putln("")
         self.generate_function_header(code)
+        closure_init_code = code.insertion_point()
         # ----- Local variables
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
         tempvardecl_code = code.insertion_point()
@@ -3861,6 +3865,12 @@ class GeneratorBodyDefNode(DefNode):
 
         # ----- Function body
         self.generate_function_body(env, code)
+        # ----- Closure initialization
+        if lenv.scope_class.type.scope.entries:
+            closure_init_code.putln('%s = %s;' % (
+                lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
+                lenv.scope_class.type.cast_code('%s->closure' %
+                                                Naming.generator_cname)))
         code.putln('PyErr_SetNone(PyExc_StopIteration); %s' % code.error_goto(self.pos))
         # ----- Error cleanup
         if code.error_label in code.labels_used:
@@ -3873,7 +3883,7 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
         code.put_xdecref(Naming.retval_cname, py_object_type)
-        code.putln('%s->%s.resume_label = -1;' % (Naming.cur_scope_cname, Naming.obj_base_cname))
+        code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         code.put_finish_refcount_context()
         code.putln('return NULL;');
         code.putln("}")
@@ -3881,14 +3891,16 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Generator resume code
-        resume_code.putln("switch (%s->%s.resume_label) {" % (Naming.cur_scope_cname, Naming.obj_base_cname));
+        resume_code.putln("switch (%s->resume_label) {" % (
+                       Naming.generator_cname));
         resume_code.putln("case 0: goto %s;" % first_run_label)
 
         from ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
         collector.visitchildren(self)
         for yield_expr in collector.yields:
-            resume_code.putln("case %d: goto %s;" % (yield_expr.label_num, yield_expr.label_name));
+            resume_code.putln("case %d: goto %s;" % (
+                yield_expr.label_num, yield_expr.label_name));
         resume_code.putln("default: /* CPython raises the right error here */");
         resume_code.put_finish_refcount_context()
         resume_code.putln("return NULL;");
