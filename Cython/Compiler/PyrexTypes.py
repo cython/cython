@@ -2,7 +2,7 @@
 #   Cython/Python language types
 #
 
-from Code import UtilityCode, LazyUtilityCode, ContentHashingUtilityCode
+from Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 import StringEncoding
 import Naming
 import copy
@@ -610,14 +610,14 @@ class MemoryViewSliceType(PyrexType):
         return cname + '.memview'
 
     def create_from_py_utility_code(self, env):
-        import MemoryView, Buffer, Code
+        import MemoryView, Buffer
 
         # We don't have 'code', so use a LazyUtilityCode with a callback.
         def lazy_utility_callback(code):
             context['dtype_typeinfo'] = Buffer.get_type_information_cname(
                                                           code, self.dtype)
-            return ContentHashingUtilityCode.load(
-                        "ObjectToMemviewSlice", "MemoryView_C.c", context)
+            return TempitaUtilityCode.load(
+                        "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
         env.use_utility_code(Buffer.acquire_utility_code)
         env.use_utility_code(MemoryView.memviewslice_init_code)
@@ -693,7 +693,7 @@ class MemoryViewSliceType(PyrexType):
                 error_condition = error_condition,
             )
 
-        utility = ContentHashingUtilityCode.load(
+        utility = TempitaUtilityCode.load(
                         utility_name, "MemoryView_C.c", context=context)
         env.use_utility_code(utility)
         return get_function, set_function
@@ -2796,8 +2796,8 @@ class CStructOrUnionType(CType):
                 funcname = self.from_py_function,
                 init = '%s 0 %s' % ('{' * nesting_depth, '}' * nesting_depth)
             )
-            self._convert_from_py_code = ContentHashingUtilityCode.load(
-                      "FromPyStructUtility", "TypeConversion.c", context)
+            self._convert_from_py_code = TempitaUtilityCode.load(
+                      "FromPyStructUtility", "TypeConversion.c", context=context)
 
         env.use_utility_code(self._convert_from_py_code)
         return True

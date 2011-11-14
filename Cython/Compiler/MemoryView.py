@@ -2,7 +2,7 @@ from Errors import CompileError, error
 import ExprNodes
 from ExprNodes import IntNode, NameNode, AttributeNode
 import Options
-from Code import UtilityCode
+from Code import UtilityCode, TempitaUtilityCode
 from UtilityCode import CythonUtilityCode
 import Buffer
 import PyrexTypes
@@ -931,8 +931,11 @@ def load_memview_cy_utility(util_code_name, context=None, **kwargs):
                                   context=context, **kwargs)
 
 def load_memview_c_utility(util_code_name, context=None, **kwargs):
-    return UtilityCode.load(util_code_name, "MemoryView_C.c",
-                            context=context, **kwargs)
+    if context is None:
+        return UtilityCode.load(util_code_name, "MemoryView_C.c", **kwargs)
+    else:
+        return TempitaUtilityCode.load(util_code_name, "MemoryView_C.c",
+                                       context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
     env.global_scope().context.cython_scope.lookup('array_cwrapper').used = True

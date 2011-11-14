@@ -15,7 +15,7 @@ import Symtab
 import Options
 import Naming
 
-from Code import UtilityCode, ContentHashingUtilityCode
+from Code import UtilityCode
 from StringEncoding import EncodedString, BytesLiteral
 from Errors import error
 from ParseTreeTransforms import SkipDeclarations
@@ -32,11 +32,8 @@ try:
 except ImportError:
     basestring = str # Python 3
 
-_utility_cache = {}
 def load_c_utility(name):
-    if name not in _utility_cache:
-      _utility_cache[name] = ContentHashingUtilityCode.load(name, "Optimize.c")
-    return _utility_cache[name]
+    return UtilityCode.load_cached(name, "Optimize.c")
 
 class FakePythonEnv(object):
     "A fake environment for creating type test nodes etc."

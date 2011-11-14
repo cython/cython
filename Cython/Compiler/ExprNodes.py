@@ -4,7 +4,8 @@
 
 import cython
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
-               CompileError=object, UtilityCode=object, StringEncoding=object, operator=object,
+               CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
+               StringEncoding=object, operator=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object, \
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
@@ -15,7 +16,7 @@ import operator
 
 from Errors import error, warning, warn_once, InternalError, CompileError
 from Errors import hold_errors, release_errors, held_errors, report_error
-from Code import UtilityCode
+from Code import UtilityCode, TempitaUtilityCode
 import StringEncoding
 import Naming
 import Nodes
@@ -9967,9 +9968,9 @@ proto="""
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
 
-binding_cfunc_utility_code = UtilityCode.load("CythonFunction",
-                                              context=vars(Naming))
-fused_function_utility_code = UtilityCode.load(
+binding_cfunc_utility_code = TempitaUtilityCode.load(
+    "CythonFunction", context=vars(Naming))
+fused_function_utility_code = TempitaUtilityCode.load(
         "FusedFunction",
         "CythonFunction.c",
         context=vars(Naming),

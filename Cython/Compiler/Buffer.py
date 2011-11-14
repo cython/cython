@@ -748,8 +748,11 @@ def get_type_information_cname(code, dtype, maxdepth=None):
                         ), safe=True)
     return name
 
-def load_buffer_utility(util_code_name, **kwargs):
-    return UtilityCode.load(util_code_name, "Buffer.c", **kwargs)
+def load_buffer_utility(util_code_name, context=None, **kwargs):
+    if context is None:
+        return UtilityCode.load(util_code_name, "Buffer.c", **kwargs)
+    else:
+        return TempitaUtilityCode.load(util_code_name, "Buffer.c", context=context, **kwargs)
 
 context = dict(max_dims=str(Options.buffer_max_dims))
 buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare",

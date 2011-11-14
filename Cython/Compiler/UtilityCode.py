@@ -66,13 +66,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     is_cython_utility = True
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
-                 file=None, from_scope=None):
+                 file=None, from_scope=None, context=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
         #    while the generated node trees can be altered in the compilation of a
         #    single file.
         # Hence, delay any processing until later.
+        if context is not None:
+            impl = Code.sub_tempita(impl, context, file, name)
         self.impl = impl
         self.name = name
         self.file = file
@@ -127,6 +129,14 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     def put_code(self, output):
         pass
+
+    @classmethod
+    def load_as_string(cls, util_code_name, from_file=None, **kwargs):
+        """
+        Load a utility code as a string. Returns (proto, implementation)
+        """
+        util = cls.load(util_code_name, from_file, **kwargs)
+        return util.proto, util.impl # keep line numbers => no lstrip()
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None):
         """
