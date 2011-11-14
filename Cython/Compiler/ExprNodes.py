@@ -5694,7 +5694,8 @@ class KeywordArgsNode(ExprNode):
         if not self.keyword_args:
             return
 
-        code.globalstate.use_utility_code(Nodes.raise_double_keywords_utility_code)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
         for item in self.keyword_args:
             item.generate_evaluation_code(code)
             code.putln("if (unlikely(PyDict_GetItem(%s, %s))) {" % (
