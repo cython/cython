@@ -88,7 +88,7 @@ class UtilityCodeBase(object):
             utility[1] = code
         if tags:
             all_tags = utility[2]
-            for name, values in tags.iteritems():
+            for name, values in tags.items():
                 if KEYWORDS_MUST_BE_BYTES:
                     name = name.encode('ASCII')
                 all_tags.setdefault(name, set()).update(values)
@@ -181,7 +181,7 @@ class UtilityCodeBase(object):
 
         if tags:
             orig_kwargs = kwargs.copy()
-            for name, values in tags.iteritems():
+            for name, values in tags.items():
                 if name in kwargs:
                     continue
                 # only pass lists when we have to: most argument expect one value or None
@@ -302,7 +302,7 @@ class UtilityCode(UtilityCodeBase):
         if pyrex_type is not None:
             data['type'] = pyrex_type.declaration_code('')
             data['type_name'] = pyrex_type.specialization_name()
-        key = tuple(sorted(data.iteritems()))
+        key = tuple(sorted(data.items()))
         try:
             return self._cache[key]
         except KeyError:
