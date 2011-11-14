@@ -55,14 +55,16 @@ class UtilityCodeBase(object):
 
     @classmethod
     def _add_utility(cls, utility, type, lines, begin_lineno):
-        if utility:
-            # Remember line numbers as least until after templating
-            code = '\n' * begin_lineno + ''.join(lines)
+        if utility is None:
+            return
 
-            if type == 'Proto':
-                utility[0] = code
-            else:
-                utility[1] = code
+        # remember correct line numbers as least until after templating
+        code = '\n' * begin_lineno + '\n'.join(lines)
+
+        if type == 'Proto':
+            utility[0] = code
+        else:
+            utility[1] = code
 
     @classmethod
     def load_utilities_from_file(cls, path):
@@ -71,53 +73,49 @@ class UtilityCodeBase(object):
             return utilities
 
         filename = os.path.join(get_utility_dir(), path)
-
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
+            replace_comments = re.compile(r'^\s*#.*').sub
         else:
             comment = '/'
-
-        regex = r'%s{5,30}\s*((\w|\.)+)\s*%s{5,30}' % (comment, comment)
-        utilities = {}
-        lines = []
-
-        utility = type = None
-        begin_lineno = 0
+            replace_comments = re.compile(r'^\s*//.*|^\s*/\*[^*]*\*/').sub
+        match_header = re.compile(r'%s{5,30}\s*((\w|\.)+)\s*%s{5,30}' % (comment, comment)).match
 
         f = Utils.open_source_file(filename, encoding='UTF-8')
         try:
-            all_lines = f.readlines() # py23
+            all_lines = f.readlines()
         finally:
             f.close()
 
+        utilities = {}
+        lines = []
+        utility = type = None
+        begin_lineno = 0
+
         for lineno, line in enumerate(all_lines):
-            m = re.search(regex, line)
+            m = match_header(line)
             if m:
                 cls._add_utility(utility, type, lines, begin_lineno)
 
                 begin_lineno = lineno + 1
+                lines = []
+
                 name = m.group(1)
                 if name.endswith(".proto"):
                     name = name[:-6]
                     type = 'Proto'
                 else:
                     type = 'Code'
-
                 utility = utilities.setdefault(name, [None, None])
-                utilities[name] = utility
-
-                lines = []
             else:
-                lines.append(line)
+                lines.append(replace_comments('', line).rstrip())
 
-        if not utility:
+        if utility is None:
             raise ValueError("Empty utility code file")
 
         # Don't forget to add the last utility code
         cls._add_utility(utility, type, lines, begin_lineno)
-
-        f.close()
 
         cls._utility_cache[path] = utilities
         return utilities
@@ -204,6 +202,14 @@ class UtilityCodeBase(object):
 
         return s % context
 
+    def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
+        """
+        Format a code section for output.
+        """
+        if code_string:
+            code_string = replace_empty_lines('\n', code_string.strip()) + '\n\n'
+        return code_string
+
     def __str__(self):
         return "<%s(%s)" % (type(self).__name__, self.name)
 
@@ -288,19 +294,19 @@ class UtilityCode(UtilityCodeBase):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            output[self.proto_block].put(self.proto)
+            output[self.proto_block].put(self.format_code(self.proto))
         if self.impl:
-            output['utility_code_def'].put(self.impl)
+            output['utility_code_def'].put(self.format_code(self.impl))
         if self.init:
             writer = output['init_globals']
             if isinstance(self.init, basestring):
-                writer.put(self.init)
+                writer.put(self.format_code(self.init))
             else:
                 self.init(writer, output.module_pos)
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             if isinstance(self.cleanup, basestring):
-                writer.put(self.cleanup)
+                writer.put(self.format_code(self.cleanup))
             else:
                 self.cleanup(writer, output.module_pos)
 
