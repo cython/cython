@@ -1,19 +1,19 @@
 
 cimport cython
 
-cdef class UtilityCodeBase(object):
-    cdef public object name
-    cdef public object proto
-    cdef public object impl
-    cdef public object init
-    cdef public object cleanup
-    cdef public object requires
-    cdef public dict _cache
-    cdef public list specialize_list
-    cdef public object proto_block
-    cdef public object file
-
-    cpdef format_code(self, code_string, replace_empty_lines=*)
+#cdef class UtilityCodeBase(object):
+#    cdef public object name
+#    cdef public object proto
+#    cdef public object impl
+#    cdef public object init
+#    cdef public object cleanup
+#    cdef public object requires
+#    cdef public dict _cache
+#    cdef public list specialize_list
+#    cdef public object proto_block
+#    cdef public object file
+#
+#    cpdef format_code(self, code_string, replace_empty_lines=*)
 
 cdef class FunctionState:
     cdef public set names_taken
