@@ -11,6 +11,7 @@ cython.declare(os=object, re=object, operator=object,
 
 import os
 import re
+import sys
 import operator
 
 import Naming
@@ -25,6 +26,8 @@ try:
     from __builtin__ import basestring
 except ImportError:
     from builtins import str as basestring
+
+KEYWORDS_MUST_BE_BYTES = sys.version_info < (2,6)
 
 
 non_portable_builtins_map = {
@@ -86,6 +89,8 @@ class UtilityCodeBase(object):
         if tags:
             all_tags = utility[2]
             for name, values in tags.iteritems():
+                if KEYWORDS_MUST_BE_BYTES:
+                    name = name.encode('ASCII')
                 all_tags.setdefault(name, set()).update(values)
 
     @classmethod
