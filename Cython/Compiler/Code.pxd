@@ -3,8 +3,6 @@ cimport cython
 
 cdef class UtilityCodeBase(object):
     cdef public object name
-
-cdef class UtilityCode(UtilityCodeBase):
     cdef public object proto
     cdef public object impl
     cdef public object init
@@ -15,7 +13,7 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object proto_block
     cdef public object file
 
-    cpdef put_code(self, output)
+    cpdef format_code(self, code_string, replace_empty_lines=*)
 
 cdef class FunctionState:
     cdef public set names_taken
