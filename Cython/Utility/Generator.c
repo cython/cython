@@ -153,6 +153,18 @@ __Pyx_Generator_dealloc(PyObject *self)
 {
     __pyx_GeneratorObject *gen = (__pyx_GeneratorObject *) self;
 
+    PyObject_GC_UnTrack(gen);
+    if (gen->gi_weakreflist != NULL)
+        PyObject_ClearWeakRefs(self);
+    PyObject_GC_Track(self);
+
+    if (gen->resume_label > 0) {
+        /* Generator is paused, so we need to close */
+        Py_TYPE(gen)->tp_del(self);
+        if (self->ob_refcnt > 0)
+            return;                     /* resurrected.  :( */
+    }
+
     PyObject_GC_UnTrack(self);
     Py_CLEAR(gen->closure);
     Py_CLEAR(gen->classobj);
@@ -162,6 +174,65 @@ __Pyx_Generator_dealloc(PyObject *self)
     PyObject_GC_Del(gen);
 }
 
+static void
+__Pyx_Generator_del(PyObject *self)
+{
+    PyObject *res;
+    PyObject *error_type, *error_value, *error_traceback;
+    __pyx_GeneratorObject *gen = (__pyx_GeneratorObject *) self;
+
+    if (gen->resume_label <= 0)
+        return ;
+
+    /* Temporarily resurrect the object. */
+    assert(self->ob_refcnt == 0);
+    self->ob_refcnt = 1;
+
+    /* Save the current exception, if any. */
+    __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
+
+    res = __Pyx_Generator_Close(self);
+
+    if (res == NULL)
+        PyErr_WriteUnraisable(self);
+    else
+        Py_DECREF(res);
+
+    /* Restore the saved exception. */
+    __Pyx_ErrRestore(error_type, error_value, error_traceback);
+
+    /* Undo the temporary resurrection; can't use DECREF here, it would
+     * cause a recursive call.
+     */
+    assert(self->ob_refcnt > 0);
+    if (--self->ob_refcnt == 0)
+        return; /* this is the normal path out */
+
+    /* close() resurrected it!  Make it look like the original Py_DECREF
+     * never happened.
+     */
+    {
+        Py_ssize_t refcnt = self->ob_refcnt;
+        _Py_NewReference(self);
+        self->ob_refcnt = refcnt;
+    }
+    assert(PyType_IS_GC(self->ob_type) &&
+           _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
+
+    /* If Py_REF_DEBUG, _Py_NewReference bumped _Py_RefTotal, so
+     * we need to undo that. */
+    _Py_DEC_REFTOTAL;
+    /* If Py_TRACE_REFS, _Py_NewReference re-added self to the object
+     * chain, so no more to do there.
+     * If COUNT_ALLOCS, the original decref bumped tp_frees, and
+     * _Py_NewReference bumped tp_allocs:  both of those need to be
+     * undone.
+     */
+#ifdef COUNT_ALLOCS
+    --self->ob_type->tp_frees;
+    --self->ob_type->tp_allocs;
+#endif
+}
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
     {(char *) "gi_running",
@@ -228,7 +299,7 @@ static PyTypeObject __pyx_GeneratorType = {
     0,                                  /*tp_cache*/
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
-    0,                                  /*tp_del*/
+    __Pyx_Generator_del,                /*tp_del*/
 #if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
 #endif
