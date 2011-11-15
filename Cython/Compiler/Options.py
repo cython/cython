@@ -96,7 +96,7 @@ directive_defaults = {
     'autotestdict.all': False,
     'language_level': 2,
     'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
-    'py2_import': False, # For backward compatibility of Cython's source code
+    'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
 
     'warn': None,
     'warn.undeclared': False,

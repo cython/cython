@@ -1,4 +1,4 @@
-# cython: language_level = 2, py2_import=True
+# cython: language_level = 2
 #
 #   Code output module
 #
