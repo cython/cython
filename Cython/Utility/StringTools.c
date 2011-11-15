@@ -143,7 +143,8 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
-    if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
+    if (s1 == s2) {
+        /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
         if (PyBytes_GET_SIZE(s1) != PyBytes_GET_SIZE(s2)) {
