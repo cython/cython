@@ -320,3 +320,18 @@ def test_lambda(n):
     """
     for i in range(n):
         yield lambda : i
+
+def test_generator_cleanup():
+    """
+    >>> g = test_generator_cleanup()
+    >>> del g
+    >>> g = test_generator_cleanup()
+    >>> next(g)
+    1
+    >>> del g
+    cleanup
+    """
+    try:
+        yield 1
+    finally:
+        print('cleanup')

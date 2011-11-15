@@ -5830,7 +5830,7 @@ class ClassCellNode(ExprNode):
                 Naming.self_cname))
         else:
             code.putln('%s =  %s->classobj;' % (
-                self.result(), Naming.cur_scope_cname))
+                self.result(), Naming.generator_cname))
         code.putln(
             'if (!%s) { PyErr_SetString(PyExc_SystemError, '
             '"super(): empty __class__ cell"); %s }' % (
@@ -6252,7 +6252,8 @@ class YieldExprNode(ExprNode):
         code.put_xgiveref(Naming.retval_cname)
         code.put_finish_refcount_context()
         code.putln("/* return from generator, yielding value */")
-        code.putln("%s->%s.resume_label = %d;" % (Naming.cur_scope_cname, Naming.obj_base_cname, self.label_num))
+        code.putln("%s->resume_label = %d;" % (
+            Naming.generator_cname, self.label_num))
         code.putln("return %s;" % Naming.retval_cname);
         code.put_label(self.label_name)
         for cname, save_cname, type in saved:
@@ -9814,122 +9815,8 @@ cyfunction_class_cell_utility_code = UtilityCode.load(
     "CythonFunction.c",
     requires=[binding_cfunc_utility_code])
 
-generator_utility_code = UtilityCode(
-proto="""
-static PyObject *__Pyx_Generator_Next(PyObject *self);
-static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
-static PyObject *__Pyx_Generator_Close(PyObject *self);
-static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args, CYTHON_UNUSED PyObject *kwds);
-
-typedef PyObject *(*__pyx_generator_body_t)(PyObject *, PyObject *);
-""",
-impl="""
-static CYTHON_INLINE void __Pyx_Generator_ExceptionClear(struct __pyx_Generator_object *self)
-{
-    Py_XDECREF(self->exc_type);
-    Py_XDECREF(self->exc_value);
-    Py_XDECREF(self->exc_traceback);
-
-    self->exc_type = NULL;
-    self->exc_value = NULL;
-    self->exc_traceback = NULL;
-}
-
-static CYTHON_INLINE PyObject *__Pyx_Generator_SendEx(struct __pyx_Generator_object *self, PyObject *value)
-{
-    PyObject *retval;
-
-    if (self->is_running) {
-        PyErr_SetString(PyExc_ValueError,
-                        "generator already executing");
-        return NULL;
-    }
-
-    if (self->resume_label == 0) {
-        if (value && value != Py_None) {
-            PyErr_SetString(PyExc_TypeError,
-                            "can't send non-None value to a "
-                            "just-started generator");
-            return NULL;
-        }
-    }
-
-    if (self->resume_label == -1) {
-        PyErr_SetNone(PyExc_StopIteration);
-        return NULL;
-    }
-
-
-    if (value)
-        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
-    else
-        __Pyx_Generator_ExceptionClear(self);
-
-    self->is_running = 1;
-    retval = self->body((PyObject *) self, value);
-    self->is_running = 0;
-
-    if (retval)
-        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
-    else
-        __Pyx_Generator_ExceptionClear(self);
-
-    return retval;
-}
-
-static PyObject *__Pyx_Generator_Next(PyObject *self)
-{
-    return __Pyx_Generator_SendEx((struct __pyx_Generator_object *) self, Py_None);
-}
-
-static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value)
-{
-    return __Pyx_Generator_SendEx((struct __pyx_Generator_object *) self, value);
-}
-
-static PyObject *__Pyx_Generator_Close(PyObject *self)
-{
-    struct __pyx_Generator_object *generator = (struct __pyx_Generator_object *) self;
-    PyObject *retval;
-#if PY_VERSION_HEX < 0x02050000
-    PyErr_SetNone(PyExc_StopIteration);
-#else
-    PyErr_SetNone(PyExc_GeneratorExit);
-#endif
-    retval = __Pyx_Generator_SendEx(generator, NULL);
-    if (retval) {
-        Py_DECREF(retval);
-        PyErr_SetString(PyExc_RuntimeError,
-                        "generator ignored GeneratorExit");
-        return NULL;
-    }
-#if PY_VERSION_HEX < 0x02050000
-    if (PyErr_ExceptionMatches(PyExc_StopIteration))
-#else
-    if (PyErr_ExceptionMatches(PyExc_StopIteration)
-        || PyErr_ExceptionMatches(PyExc_GeneratorExit))
-#endif
-    {
-        PyErr_Clear();          /* ignore these errors */
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-    return NULL;
-}
-
-static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args, CYTHON_UNUSED PyObject *kwds)
-{
-    struct __pyx_Generator_object *generator = (struct __pyx_Generator_object *) self;
-    PyObject *typ;
-    PyObject *tb = NULL;
-    PyObject *val = NULL;
-
-    if (!PyArg_UnpackTuple(args, (char *)"throw", 1, 3, &typ, &val, &tb))
-        return NULL;
-    __Pyx_Raise(typ, val, tb, NULL);
-    return __Pyx_Generator_SendEx(generator, NULL);
-}
-""",
-proto_block='utility_code_proto_before_types',
-requires=[Nodes.raise_utility_code, Nodes.swap_exception_utility_code],
+generator_utility_code = UtilityCode.load(
+    "Generator",
+    "Generator.c",
+    requires=[Nodes.raise_utility_code, Nodes.swap_exception_utility_code],
 )
