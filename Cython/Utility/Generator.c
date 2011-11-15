@@ -162,6 +162,15 @@ __Pyx_Generator_dealloc(PyObject *self)
     PyObject_GC_Del(gen);
 }
 
+
+static PyMemberDef __pyx_Generator_memberlist[] = {
+    {(char *) "gi_running",
+     T_INT,
+     offsetof(__pyx_GeneratorObject, is_running),
+     READONLY,
+     NULL},
+};
+
 static PyMethodDef __pyx_Generator_methods[] = {
     {__Pyx_NAMESTR("send"), (PyCFunction) __Pyx_Generator_Send, METH_O, 0},
     {__Pyx_NAMESTR("throw"), (PyCFunction) __Pyx_Generator_Throw, METH_VARARGS, 0},
@@ -202,7 +211,7 @@ static PyTypeObject __pyx_GeneratorType = {
     PyObject_SelfIter,                  /*tp_iter*/
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
     __pyx_Generator_methods,            /*tp_methods*/
-    0,                                  /*tp_members*/
+    __pyx_Generator_memberlist,         /*tp_members*/
     0,                                  /*tp_getset*/
     0,                                  /*tp_base*/
     0,                                  /*tp_dict*/
