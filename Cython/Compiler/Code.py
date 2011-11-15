@@ -27,7 +27,7 @@ try:
 except ImportError:
     from builtins import str as basestring
 
-KEYWORDS_MUST_BE_BYTES = sys.version_info < (2,6)
+KEYWORDS_MUST_BE_BYTES = sys.version_info < (2,7)
 
 
 non_portable_builtins_map = {
@@ -142,7 +142,7 @@ class UtilityCodeBase(object):
                         type = 'Code'
                     utility = utilities.setdefault(name, [None, None, {}])
                 else:
-                    tags.setdefault(str(m.group(2)), set()).add(m.group(3))
+                    tags.setdefault(m.group(2), set()).add(m.group(3))
                     lines.append('') # keep line number correct
             else:
                 lines.append(replace_comments('', line).rstrip())
