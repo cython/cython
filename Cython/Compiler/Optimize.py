@@ -2063,7 +2063,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 node.pos, "strlen", self.Pyx_strlen_func_type,
                 args = [arg],
                 is_temp = node.is_temp,
-                utility_code = Builtin.include_string_h_utility_code)
+                utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
         elif arg.type.is_pyobject:
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:
@@ -2762,7 +2762,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 string_node.pos, "strlen", self.Pyx_strlen_func_type,
                     args = [string_node],
                     is_temp = False,
-                    utility_code = Builtin.include_string_h_utility_code,
+                    utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
                     ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
         elif start:
             stop = ExprNodes.SubNode(

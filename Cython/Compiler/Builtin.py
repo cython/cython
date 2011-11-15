@@ -17,12 +17,6 @@ proto = """
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 """)
 
-include_string_h_utility_code = UtilityCode(
-proto = """
-#include <string.h>
-"""
-)
-
 abs_int_utility_code = UtilityCode(
 proto = '''
 #if HAVE_LONG_LONG
