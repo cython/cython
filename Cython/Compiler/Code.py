@@ -142,7 +142,7 @@ class UtilityCodeBase(object):
                         type = 'Code'
                     utility = utilities.setdefault(name, [None, None, {}])
                 else:
-                    tags.setdefault(m.group(2), set()).add(m.group(3))
+                    tags.setdefault(str(m.group(2)), set()).add(m.group(3))
                     lines.append('') # keep line number correct
             else:
                 lines.append(replace_comments('', line).rstrip())
@@ -203,7 +203,6 @@ class UtilityCodeBase(object):
 
         if 'file' not in kwargs and from_file:
             kwargs['file'] = from_file
-
         return cls(**kwargs)
 
     @classmethod
