@@ -51,6 +51,7 @@ lambda_func_prefix = pyrex_prefix + "lambda_"
 module_is_main   = pyrex_prefix + "module_is_main_"
 
 args_cname       = pyrex_prefix + "args"
+generator_cname  = pyrex_prefix + "generator"
 sent_value_cname = pyrex_prefix + "sent_value"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
 obj_base_cname   = pyrex_prefix + "base"

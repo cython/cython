@@ -2043,62 +2043,11 @@ class CreateClosureClasses(CythonTransform):
         super(CreateClosureClasses, self).__init__(context)
         self.path = []
         self.in_lambda = False
-        self.generator_class = None
 
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.visitchildren(node)
         return node
-
-    def create_generator_class(self, target_module_scope, pos):
-        if self.generator_class:
-            return self.generator_class
-        # XXX: make generator class creation cleaner
-        entry = target_module_scope.declare_c_class(name='__pyx_Generator',
-                    objstruct_cname='__pyx_Generator_object',
-                    typeobj_cname='__pyx_Generator_type',
-                    pos=pos, defining=True, implementing=True)
-        entry.type.is_final_type = True
-        klass = entry.type.scope
-        klass.is_internal = True
-
-        body_type = PyrexTypes.create_typedef_type('generator_body',
-                                                   PyrexTypes.c_void_ptr_type,
-                                                   '__pyx_generator_body_t')
-        klass.declare_var(pos=pos, name='body', cname='body',
-                          type=body_type, is_cdef=True)
-        klass.declare_var(pos=pos, name='is_running', cname='is_running', type=PyrexTypes.c_int_type,
-                          is_cdef=True)
-        klass.declare_var(pos=pos, name='resume_label', cname='resume_label', type=PyrexTypes.c_int_type,
-                          is_cdef=True)
-        klass.declare_var(pos=pos, name='exc_type', cname='exc_type',
-                          type=PyrexTypes.py_object_type, is_cdef=True)
-        klass.declare_var(pos=pos, name='exc_value', cname='exc_value',
-                          type=PyrexTypes.py_object_type, is_cdef=True)
-        klass.declare_var(pos=pos, name='exc_traceback', cname='exc_traceback',
-                          type=PyrexTypes.py_object_type, is_cdef=True)
-
-        import TypeSlots
-        e = klass.declare_pyfunction('send', pos)
-        e.func_cname = '__Pyx_Generator_Send'
-        e.signature = TypeSlots.binaryfunc
-
-        e = klass.declare_pyfunction('close', pos)
-        e.func_cname = '__Pyx_Generator_Close'
-        e.signature = TypeSlots.unaryfunc
-
-        e = klass.declare_pyfunction('throw', pos)
-        e.func_cname = '__Pyx_Generator_Throw'
-        e.signature = TypeSlots.pyfunction_signature
-
-        e = klass.declare_var('__iter__', PyrexTypes.py_object_type, pos, visibility='public')
-        e.func_cname = 'PyObject_SelfIter'
-
-        e = klass.declare_var('__next__', PyrexTypes.py_object_type, pos, visibility='public')
-        e.func_cname = '__Pyx_Generator_Next'
-
-        self.generator_class = entry.type
-        return self.generator_class
 
     def find_entries_used_in_closures(self, node):
         from_closure = []
@@ -2140,9 +2089,8 @@ class CreateClosureClasses(CythonTransform):
             inner_node.needs_self_code = False
             node.needs_outer_scope = False
 
-        base_type = None
         if node.is_generator:
-            base_type = self.create_generator_class(target_module_scope, node.pos)
+            pass
         elif not in_closure and not from_closure:
             return
         elif not in_closure:
@@ -2151,22 +2099,18 @@ class CreateClosureClasses(CythonTransform):
             node.needs_outer_scope = True
             return
 
-        as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
+        as_name = '%s_%s' % (
+            target_module_scope.next_id(Naming.closure_class_prefix),
+            node.entry.cname)
 
         entry = target_module_scope.declare_c_class(
             name=as_name, pos=node.pos, defining=True,
-            implementing=True, base_type=base_type)
+            implementing=True)
         entry.type.is_final_type = True
 
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
-
-        if node.is_generator and node.requires_classobj:
-            class_scope.declare_var(pos=node.pos, name='classobj',
-                                    cname='classobj',
-                                    type=PyrexTypes.py_object_type,
-                                    is_cdef=True)
 
         if from_closure:
             assert cscope.is_closure_scope

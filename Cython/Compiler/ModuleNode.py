@@ -1767,6 +1767,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("if (__pyx_FusedFunction_init() < 0) %s" % code.error_goto(self.pos))
         code.putln("#endif")
 
+        code.putln("#ifdef __Pyx_Generator_USED")
+        code.putln("if (__pyx_Generator_init() < 0) %s" % code.error_goto(self.pos))
+        code.putln("#endif")
+
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
 
