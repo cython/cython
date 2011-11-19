@@ -2,6 +2,7 @@
 *.pyo
 __pycache__
 *.so
+*.o
 
 Cython/Compiler/*.c
 Cython/Plex/*.c

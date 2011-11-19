@@ -19,6 +19,7 @@ dist/
 *.dep
 *.swp
 *.so
+*.o
 *~
 
 tags
