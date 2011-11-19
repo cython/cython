@@ -102,7 +102,6 @@ directive_defaults = {
     'warn.undeclared': False,
     'warn.unreachable': True,
     'warn.maybe_uninitialized': False,
-    'warn.unreachable': True,
     'warn.unused': False,
     'warn.unused_arg': False,
     'warn.unused_result': False,
