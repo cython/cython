@@ -1535,7 +1535,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return last_result
 
     def _DISABLED_handle_simple_function_tuple(self, node, pos_args):
-        if len(pos_args) == 0:
+        if not pos_args:
             return ExprNodes.TupleNode(node.pos, args=[], constant_result=())
         # This is a bit special - for iterables (including genexps),
         # Python actually overallocates and resizes a newly created
@@ -1550,12 +1550,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
-        if len(pos_args) == 0:
+        if not pos_args:
             return ExprNodes.ListNode(node.pos, args=[], constant_result=[])
         return self._transform_list_set_genexpr(node, pos_args, ExprNodes.ListNode)
 
     def _handle_simple_function_set(self, node, pos_args):
-        if len(pos_args) == 0:
+        if not pos_args:
             return ExprNodes.SetNode(node.pos, args=[], constant_result=set())
         return self._transform_list_set_genexpr(node, pos_args, ExprNodes.SetNode)
 
