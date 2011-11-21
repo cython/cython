@@ -1,15 +1,13 @@
 __doc__ = u"""
-    >>> index_object(100, 100)
+    >>> index_object(100, 100)       # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: 'int' object is unsubscriptable
+    TypeError: 'int' object ...
 """
 
 import sys
-if sys.version_info >= (2,7):
-    __doc__ = __doc__.replace(u'is unsubscriptable', u'is not subscriptable')
-elif sys.version_info < (2,5):
-    __doc__ = __doc__.replace(u"'int' object is unsubscriptable", u'unsubscriptable object')
+if sys.version_info < (2,5):
+    __doc__ = __doc__.replace(u"'int' object ...", u'unsubscriptable object')
 
 import cython
 

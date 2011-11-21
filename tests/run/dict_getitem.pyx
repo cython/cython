@@ -21,7 +21,7 @@ def test(dict d, index):
 
     >>> test(None, 1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...subscriptable...
+    TypeError: ...object...
     """
     return d[index]
 
