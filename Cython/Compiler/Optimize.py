@@ -339,7 +339,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
         elif slice_node.type.is_array:
             if slice_node.type.size is None:
-                error(step.pos, "C array iteration requires known end index")
+                error(slice_node.pos, "C array iteration requires known end index")
                 return node
             slice_base = slice_node
             start = None
