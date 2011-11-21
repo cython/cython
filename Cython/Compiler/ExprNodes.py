@@ -4568,7 +4568,7 @@ class SequenceNode(ExprNode):
 
     def analyse_target_types(self, env):
         if self.mult_factor:
-            error(arg.pos, "can't assign to multiplied sequence")
+            error(self.pos, "can't assign to multiplied sequence")
         self.unpacked_items = []
         self.coerced_unpacked_items = []
         self.any_coerced_items = False

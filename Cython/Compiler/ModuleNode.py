@@ -2168,7 +2168,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
             if type.name in Code.non_portable_builtins_map:
-                condition, replacement = Code.non_portable_builtins_map[entry.name]
+                condition, replacement = Code.non_portable_builtins_map[type.name]
                 code.putln("#if %s" % condition)
                 code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), 1); %s' % (
                         type.typeptr_cname,
