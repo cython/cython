@@ -37,7 +37,7 @@ cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs
 #class AnalyseDeclarationsTransform(CythonTransform):
 
 cdef class AnalyseExpressionsTransform(CythonTransform):
-    pass
+    cdef list env_stack
 
 cdef class ExpandInplaceOperators(EnvTransform):
     pass
