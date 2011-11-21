@@ -9,6 +9,8 @@ import ExprNodes
 import Errors
 import DebugFlags
 
+import cython
+
 class TreeVisitor(object):
     """
     Base class for writing visitors for a Cython tree, contains utilities for
@@ -132,6 +134,7 @@ class TreeVisitor(object):
             getattr(last_node, 'pos', None), self.__class__.__name__,
             u'\n'.join(trace), e, stacktrace)
 
+    @cython.final
     def find_handler(self, obj):
         # to resolve, try entire hierarchy
         cls = type(obj)
@@ -152,6 +155,7 @@ class TreeVisitor(object):
     def visit(self, obj):
         return self._visit(obj)
 
+    @cython.final
     def _visit(self, obj):
         try:
             handler_method = self.dispatch_table[type(obj)]
@@ -160,6 +164,7 @@ class TreeVisitor(object):
             self.dispatch_table[type(obj)] = handler_method
         return handler_method(obj)
 
+    @cython.final
     def _visitchild(self, child, parent, attrname, idx):
         self.access_path.append((parent, attrname, idx))
         try:
@@ -183,6 +188,7 @@ class TreeVisitor(object):
     def visitchildren(self, parent, attrs=None):
         return self._visitchildren(parent, attrs)
 
+    @cython.final
     def _visitchildren(self, parent, attrs):
         """
         Visits the children of the given parent. If parent is None, returns
