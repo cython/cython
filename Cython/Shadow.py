@@ -28,6 +28,8 @@ class _EmptyDecoratorAndManager(object):
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
+final = internal = _empty_decorator
+
 def inline(f, *args, **kwds):
   if isinstance(f, basestring):
     from Cython.Build.Inline import cython_inline
