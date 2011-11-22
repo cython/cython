@@ -7789,6 +7789,7 @@ class CnameDecoratorNode(StatNode):
         if self.is_function:
             e.cname = self.cname
             e.func_cname = self.cname
+            e.used = True
         elif is_struct_or_enum:
             e.cname = e.type.cname = self.cname
         else:
