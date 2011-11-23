@@ -559,9 +559,10 @@ class CopyFuncUtilCode(object):
             copy_contents_name=copy_contents_name
         )
 
-        _, copy_code = UtilityCode.load_as_string("MemviewSliceCopyTemplate",
-                                                  from_file="MemoryView_C.c",
-                                                  context=C)
+        _, copy_code = TempitaUtilityCode.load_as_string(
+                    "MemviewSliceCopyTemplate",
+                    from_file="MemoryView_C.c",
+                    context=C)
         code.put(copy_code)
 
 
