@@ -1,8 +1,9 @@
 from libc.stdlib cimport malloc, free
 cimport cython
 
-cdef void callback(char *data):
+cdef void callback(void *data):
     print "callback called"
+    free(data)
 
 def create_array(shape, mode, use_callback=False):
     cdef cython.array result = cython.array(shape, itemsize=sizeof(int),

@@ -33,8 +33,9 @@ cdef class array:
         Py_ssize_t itemsize
         unicode mode
         bytes _format
-        void (*callback_free_data)(char *data)
+        void (*callback_free_data)(void *data)
         # cdef object _memview
+        cdef bint free_data
 
     def __cinit__(array self, tuple shape, Py_ssize_t itemsize, format,
                   mode=u"c", bint allocate_buffer=True):
@@ -95,6 +96,7 @@ cdef class array:
             mode = decode('ASCII')
         self.mode = mode
 
+        self.free_data = allocate_buffer
         if allocate_buffer:
             self.data = <char *>malloc(self.len)
             if not self.data:
@@ -127,7 +129,7 @@ cdef class array:
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
             self.callback_free_data(self.data)
-        else:
+        elif self.free_data:
             free(self.data)
 
         self.data = NULL

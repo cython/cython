@@ -215,7 +215,7 @@ cdef extern from "bufaccess.h":
     ctypedef unsigned int td_h_ushort # Defined as unsigned short
 ctypedef td_h_short td_h_cy_short
 
-cdef void dealloc_callback(char *data):
+cdef void dealloc_callback(void *data):
     print "deallocating..."
 
 def index(cython.array array):
