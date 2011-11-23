@@ -636,6 +636,9 @@ class ExprNode(Node):
             if not src.type.is_memoryviewslice:
                 if src.type.is_pyobject:
                     src = CoerceToMemViewSliceNode(src, dst_type, env)
+                elif src.type.is_array:
+                    src = CythonArrayNode.from_carray(src, env).coerce_to(
+                                                            dst_type, env)
                 else:
                     error(self.pos,
                           "Cannot convert '%s' to memoryviewslice" %
@@ -6763,7 +6766,7 @@ ERR_START = "Start may not be given"
 ERR_NOT_STOP = "Stop must be provided to indicate shape"
 ERR_STEPS = ("Strides may only be given to indicate contiguity. "
              "Consider slicing it after conversion")
-ERR_NOT_POINTER = "Can only create cython.array from pointer"
+ERR_NOT_POINTER = "Can only create cython.array from pointer or array"
 ERR_BASE_TYPE = "Pointer base type does not match cython.array base type"
 
 class CythonArrayNode(ExprNode):
@@ -6779,6 +6782,12 @@ class CythonArrayNode(ExprNode):
     and less work. Acquiring a memoryviewslice from this will be just as
     efficient. ExprNode.coerce_to() will do the additional typecheck on
     self.compile_time_type
+
+    This also handles <int[:, :]> my_c_array
+
+
+    operand             ExprNode                 the thing we're casting
+    base_type_node      MemoryViewSliceTypeNode  the cast expression node
     """
 
     subexprs = ['operand', 'shapes']
@@ -6786,21 +6795,62 @@ class CythonArrayNode(ExprNode):
     shapes = None
     is_temp = True
     mode = "c"
+    array_dtype = None
 
     shape_type = PyrexTypes.c_py_ssize_t_type
 
     def analyse_types(self, env):
         import MemoryView
 
+        self.operand.analyse_types(env)
+        if self.array_dtype:
+            array_dtype = self.array_dtype
+        else:
+            array_dtype = self.base_type_node.base_type_node.analyse(env)
+        axes = self.base_type_node.axes
+
+        MemoryView.validate_memslice_dtype(self.pos, array_dtype)
+
         self.type = error_type
         self.shapes = []
+        ndim = len(axes)
 
-        for axis_no, axis in enumerate(self.base_type_node.axes):
+        # Base type of the pointer or C array we are converting
+        base_type = self.operand.type
+
+        # Dimension sizes of C array
+        array_dimension_sizes = []
+        if base_type.is_array:
+            while base_type.is_array:
+                array_dimension_sizes.append(base_type.size)
+                base_type = base_type.base_type
+        else:
+            base_type = base_type.base_type
+
+        if not self.operand.type.is_ptr and not self.operand.type.is_array:
+            return error(self.operand.pos, ERR_NOT_POINTER)
+        elif not base_type.same_as(array_dtype):
+            return error(self.operand.pos, ERR_BASE_TYPE)
+        elif self.operand.type.is_array and len(array_dimension_sizes) != ndim:
+            return error(self.operand.pos,
+                         "Expected %d dimensions, array has %d dimensions" %
+                                            (ndim, len(array_dimension_sizes)))
+
+        # Verify the start, stop and step values
+        # In case of a C array, use the size of C array in each dimension to
+        # get an automatic cast
+        for axis_no, axis in enumerate(axes):
             if not axis.start.is_none:
                 return error(axis.start.pos, ERR_START)
 
             if axis.stop.is_none:
-                return error(axis.pos, ERR_NOT_STOP)
+                if array_dimension_sizes:
+                    dimsize = array_dimension_sizes[axis_no]
+                    axis.stop = IntNode(self.pos, value=dimsize,
+                                        constant_result=dimsize,
+                                        type=PyrexTypes.c_int_type)
+                else:
+                    return error(axis.pos, ERR_NOT_STOP)
 
             axis.stop.analyse_types(env)
             shape = axis.stop.coerce_to(self.shape_type, env)
@@ -6812,7 +6862,7 @@ class CythonArrayNode(ExprNode):
             if not axis.stop.type.is_int:
                 return error(axis.stop.pos, "Expected an integer type")
 
-            first_or_last = axis_no in (0, len(self.base_type_node.axes) - 1)
+            first_or_last = axis_no in (0, ndim - 1)
             if not axis.step.is_none and first_or_last:
                 axis.step.analyse_types(env)
                 if (not axis.step.type.is_int and axis.step.is_literal and not
@@ -6828,31 +6878,17 @@ class CythonArrayNode(ExprNode):
             elif axis.step and not first_or_last:
                 return error(axis.step.pos, ERR_STEPS)
 
-        self.operand.analyse_types(env)
-        array_dtype = self.base_type_node.base_type_node.analyse(env)
-
-        MemoryView.validate_memslice_dtype(self.pos, array_dtype)
-
-        if not self.operand.type.is_ptr:
-            return error(self.operand.pos, ERR_NOT_POINTER)
-
-        elif not self.operand.type.base_type.same_as(array_dtype):
-            return error(self.operand.pos, ERR_BASE_TYPE)
-
         if not self.operand.is_name:
             self.operand = self.operand.coerce_to_temp(env)
 
-        axes = [('direct', 'follow')] * len(self.base_type_node.axes)
+        axes = [('direct', 'follow')] * len(axes)
         if self.mode == "fortran":
             axes[0] = ('direct', 'contig')
         else:
             axes[-1] = ('direct', 'contig')
 
         self.coercion_type = PyrexTypes.MemoryViewSliceType(array_dtype, axes)
-        #self.type = py_object_type
         self.type = self.get_cython_array_type(env)
-        assert self.type
-
         MemoryView.use_cython_array_utility_code(env)
         env.use_utility_code(MemoryView.typeinfo_to_format_code)
 
@@ -6881,11 +6917,12 @@ class CythonArrayNode(ExprNode):
         itemsize = "sizeof(%s)" % dtype.declaration_code("")
         type_info = Buffer.get_type_information_cname(code, dtype)
 
-        code.putln("if (!%s) {" % self.operand.result())
-        code.putln(    'PyErr_SetString(PyExc_ValueError,'
-                            '"Cannot create cython.array from NULL pointer");')
-        code.putln(code.error_goto(self.operand.pos))
-        code.putln("}")
+        if self.operand.type.is_ptr:
+            code.putln("if (!%s) {" % self.operand.result())
+            code.putln(    'PyErr_SetString(PyExc_ValueError,'
+                                '"Cannot create cython.array from NULL pointer");')
+            code.putln(code.error_goto(self.operand.pos))
+            code.putln("}")
 
         code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
                                                 (format_temp, type_info))
@@ -6914,6 +6951,29 @@ class CythonArrayNode(ExprNode):
         dispose(shapes_temp)
         dispose(format_temp)
 
+    @classmethod
+    def from_carray(cls, src_node, env):
+        """
+        Given a C array type, return a CythonArrayNode
+        """
+        pos = src_node.pos
+        base_type = src_node.type
+
+        none_node = NoneNode(pos)
+        axes = []
+
+        while base_type.is_array:
+            axes.append(SliceNode(pos, start=none_node, stop=none_node,
+                                       step=none_node))
+            base_type = base_type.base_type
+        axes[-1].step = IntNode(pos, value="1", is_c_literal=True)
+
+        memslicenode = Nodes.MemoryViewSliceTypeNode(pos, axes=axes,
+                                                     base_type_node=base_type)
+        result = CythonArrayNode(pos, base_type_node=memslicenode,
+                                 operand=src_node, array_dtype=base_type)
+        result.analyse_types(env)
+        return result
 
 class SizeofNode(ExprNode):
     #  Abstract base class for sizeof(x) expression nodes.

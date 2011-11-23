@@ -193,11 +193,15 @@ It also takes an optional argument `mode` ('c' or 'fortran') and a boolean `allo
     # define a function that can deallocate the data (if needed)
     my_array.callback_free_data = free
 
-You can also cast pointers to arrays::
+You can also cast pointers to array, or C arrays to arrays::
 
     cdef cython.array my_array = <int[:10, :2]> my_data_pointer
+    cdef cython.array my_array = <int[:, :]> my_c_array
 
-Of course, you can also immidiately assign a cython.array to a typed memoryview slice.
+Of course, you can also immediately assign a cython.array to a typed memoryview slice. A C array
+may be assigned directly to a memoryview slice::
+
+    cdef int[:, ::1] myslice = my_2d_c_array
 
 The arrays are indexable and slicable from Python space just like memoryview objects, and have the same
 attributes as memoryview objects.

@@ -64,7 +64,6 @@ def dont_allocate_buffer():
     """
     cdef cy.array result = cy.array((10, 10), itemsize=sizeof(int), format='i', allocate_buffer=False)
     assert result.data == NULL
-    result.data = <char *> 1
     result.callback_free_data = callback
     result = None
 
@@ -115,7 +114,7 @@ cdef int *getp(int dim1=10, int dim2=10) except NULL:
 
     return p
 
-cdef void callback_free_data(char *p):
+cdef void callback_free_data(void *p):
     print 'callback free data called'
     free(p)
 
@@ -126,11 +125,14 @@ def test_array_from_pointer():
     69
     c
     getp()
+    callback free data called
     fortran
     getp()
     56
     getp()
     56
+    getp()
+    119
     callback free data called
     """
     cdef int *p = getp()
@@ -139,14 +141,38 @@ def test_array_from_pointer():
     print c_arr[6, 9]
     print c_arr.mode
 
-    print (<int[:10:1, :10]> getp()).mode
+    c_arr = (<int[:10:1, :10]> getp())
+    print c_arr.mode
+    c_arr.callback_free_data = free
 
-    cdef int[:, ::1] mslice = <int[:10, :10]> getp()
+    c_arr =  <int[:10, :10]> getp()
+    c_arr.callback_free_data = free
+    cdef int[:, ::1] mslice = c_arr
     print mslice[5, 6]
-    print (<int[:12, :10]> getp(12, 10))[5, 6]
 
-    # There is a reference cycle between the array object to its memoryview
-    # object that it keeps
-    del c_arr
-    import gc
-    gc.collect()
+    c_arr = <int[:12, :10]> getp(12, 10)
+    c_arr.callback_free_data = free
+    print c_arr[5, 6]
+
+    cdef int m = 12
+    cdef int n = 10
+    c_arr = <int[:m, :n]> getp(m, n)
+    c_arr.callback_free_data = callback_free_data
+    print c_arr[m - 1, n - 1]
+
+def test_cyarray_from_carray():
+    """
+    >>> test_cyarray_from_carray()
+    0 8 21
+    0 8 21
+    """
+    cdef int a[7][8]
+    for i in range(7):
+        for j in range(8):
+            a[i][j] = i * 8 + j
+
+    cdef int[:, :] mslice = <int[:, :]> a
+    print mslice[0, 0], mslice[1, 0], mslice[2, 5]
+
+    mslice = a
+    print mslice[0, 0], mslice[1, 0], mslice[2, 5]
