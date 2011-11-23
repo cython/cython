@@ -185,24 +185,18 @@ contiguous slice (or a strided slice). It can be used like::
     my_array = cython.array(shape=(10, 2), itemsize=sizeof(int), format="i")
     cdef int[:, :] my_slice = my_array
 
-It also takes an optional argument `mode` ('c' or 'fortran') and a boolean `allocate_buffer`, that indicates
-whether a buffer should be allocated::
+It also takes an optional argument `mode` ('c' or 'fortran') and a boolean `allocate_buffer`, that indicates whether a buffer should be allocated and freed when it goes out of scope::
 
     cdef cython.array my_array = cython.array(..., mode="fortran", allocate_buffer=False)
     my_array.data = <char *> my_data_pointer
 
-    # optionally, define a function that can deallocate the data, otherwise
-    # cython.array will call free() on it
-    cdef void my_callback(char *data):
-        ... free data if necessary
-
-    my_array.callback_free_data = my_callback
+    # define a function that can deallocate the data (if needed)
+    my_array.callback_free_data = free
 
 You can also cast pointers to arrays::
 
     cdef cython.array my_array = <int[:10, :2]> my_data_pointer
 
-Again, when the array will go out of scope, it will free the data, unless you register a callback like above.
 Of course, you can also immidiately assign a cython.array to a typed memoryview slice.
 
 The arrays are indexable and slicable from Python space just like memoryview objects, and have the same
