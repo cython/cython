@@ -86,9 +86,11 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 __Pyx_memviewslice *memviewslice) {
 
     __Pyx_RefNannyDeclarations
-    __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice");
     Py_buffer *buf = &memview->view;
     int stride, i, spec = 0, retval = -1;
+    __Pyx_BufFmt_Context ctx;
+
+    __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice");
 
     if (!buf) goto fail;
 
@@ -105,7 +107,6 @@ static int __Pyx_ValidateAndInit_memviewslice(
         goto fail;
     }
 
-    __Pyx_BufFmt_Context ctx;
     __Pyx_BufFmt_Init(&ctx, stack, dtype);
     if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
 
@@ -215,9 +216,9 @@ static int __Pyx_init_memviewslice(
                 __Pyx_memviewslice *memviewslice) {
 
     __Pyx_RefNannyDeclarations
-    __Pyx_RefNannySetupContext("init_memviewslice");
     int i, retval=-1;
     Py_buffer *buf = &memview->view;
+    __Pyx_RefNannySetupContext("init_memviewslice");
 
     if(!buf) {
         PyErr_SetString(PyExc_ValueError,
