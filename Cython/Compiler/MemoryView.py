@@ -12,6 +12,7 @@ STOP_ERR = "Axis specification only allowed in the 'step' slot."
 STEP_ERR = "Step must be omitted, 1, or a valid specifier."
 BOTH_CF_ERR = "Cannot specify an array that is both C and Fortran contiguous."
 INVALID_ERR = "Invalid axis specification."
+NOT_CIMPORTED_ERR = "Variable was not cimported from cython.view"
 EXPR_ERR = "no expressions allowed in axis spec, only names and literals."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
 ERR_UNINITIALIZED = ("Cannot check if memoryview %s is initialized without the "
@@ -897,8 +898,13 @@ def _resolve_NameNode(env, node):
         resolved_name = env.lookup(node.name).name
     except AttributeError:
         raise CompileError(node.pos, INVALID_ERR)
+
     viewscope = env.global_scope().context.cython_scope.viewscope
-    return viewscope.lookup(resolved_name)
+    entry = viewscope.lookup(resolved_name)
+    if entry is None:
+        raise CompileError(node.pos, NOT_CIMPORTED_ERR)
+
+    return entry
 
 def _resolve_AttributeNode(env, node):
     path = []
