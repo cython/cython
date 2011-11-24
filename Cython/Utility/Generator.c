@@ -240,6 +240,7 @@ static PyMemberDef __pyx_Generator_memberlist[] = {
      offsetof(__pyx_GeneratorObject, is_running),
      READONLY,
      NULL},
+    {0, 0, 0, 0, 0}
 };
 
 static PyMethodDef __pyx_Generator_methods[] = {
