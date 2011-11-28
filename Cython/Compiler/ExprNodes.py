@@ -639,7 +639,7 @@ class ExprNode(Node):
                 elif src.type.is_array:
                     src = CythonArrayNode.from_carray(src, env).coerce_to(
                                                             dst_type, env)
-                else:
+                elif not src_type.is_error:
                     error(self.pos,
                           "Cannot convert '%s' to memoryviewslice" %
                                                                 (src_type,))
@@ -6818,18 +6818,21 @@ class CythonArrayNode(ExprNode):
         # Base type of the pointer or C array we are converting
         base_type = self.operand.type
 
+        if not self.operand.type.is_ptr and not self.operand.type.is_array:
+            return error(self.operand.pos, ERR_NOT_POINTER)
+
         # Dimension sizes of C array
         array_dimension_sizes = []
         if base_type.is_array:
             while base_type.is_array:
                 array_dimension_sizes.append(base_type.size)
                 base_type = base_type.base_type
-        else:
+        elif base_type.is_ptr:
             base_type = base_type.base_type
+        else:
+            return error()
 
-        if not self.operand.type.is_ptr and not self.operand.type.is_array:
-            return error(self.operand.pos, ERR_NOT_POINTER)
-        elif not base_type.same_as(array_dtype):
+        if not base_type.same_as(array_dtype):
             return error(self.operand.pos, ERR_BASE_TYPE)
         elif self.operand.type.is_array and len(array_dimension_sizes) != ndim:
             return error(self.operand.pos,
@@ -6858,9 +6861,6 @@ class CythonArrayNode(ExprNode):
                 shape.coerce_to_temp(env)
 
             self.shapes.append(shape)
-
-            if not axis.stop.type.is_int:
-                return error(axis.stop.pos, "Expected an integer type")
 
             first_or_last = axis_no in (0, ndim - 1)
             if not axis.step.is_none and first_or_last:
