@@ -553,9 +553,7 @@ class AssignmentCollector(TreeVisitor):
             self.assignments.append((lhs, node.rhs))
 
 
-class CreateControlFlowGraph(CythonTransform):
-    """Create NameNode use and assignment graph."""
-
+class ControlFlowAnalysis(CythonTransform):
     in_inplace_assignment = False
 
     def visit_ModuleNode(self, node):

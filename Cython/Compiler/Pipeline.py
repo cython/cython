@@ -132,7 +132,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from TypeInference import MarkAssignments, MarkOverflowingArithmetic
     from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
     from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
-    from FlowControl import CreateControlFlowGraph
+    from FlowControl import ControlFlowAnalysis
     from AnalysedTreeTransforms import AutoTestDictTransform
     from AutoDocTransforms import EmbedSignature
     from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
@@ -179,7 +179,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),  ## Necessary?
         MarkAssignments(context),
-        CreateControlFlowGraph(context),
+        ControlFlowAnalysis(context),
         RemoveUnreachableCode(context),
         # MarkAssignments(context),
         MarkOverflowingArithmetic(context),
