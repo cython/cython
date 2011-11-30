@@ -102,11 +102,14 @@ cdef extern from "numpy/arrayobject.h":
         NPY_COMPLEX_SCALAR,
         NPY_OBJECT_SCALAR
 
-
     ctypedef enum NPY_SORTKIND:
         NPY_QUICKSORT
         NPY_HEAPSORT
         NPY_MERGESORT
+
+    ctypedef enum NPY_SEARCHSIDE:
+        NPY_SEARCHLEFT
+        NPY_SEARCHRIGHT
 
     enum:
         NPY_C_CONTIGUOUS
