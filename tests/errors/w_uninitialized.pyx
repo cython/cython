@@ -74,6 +74,44 @@ def raise_stat():
     exc = ValueError
     msg = 'dummy'
 
+def defnode_decorator():
+    @decorator
+    def foo():
+        pass
+    def decorator():
+        pass
+
+def defnode_default():
+    def foo(arg=default()):
+        pass
+    def default():
+        pass
+
+def class_bases():
+    class foo(bar):
+        pass
+    class bar(object):
+        pass
+
+def class_decorators():
+    @decorator
+    class foo(object):
+        pass
+    def decorator(cls):
+        return cls
+
+def class_py3k_metaclass():
+    class foo(metaclass=Meta):
+        pass
+    class Meta(object):
+        pass
+
+def class_py3k_args():
+    class foo(*args, **kwargs):
+        pass
+    args = []
+    kwargs = {}
+
 _ERRORS = """
 6:11: local variable 'a' referenced before assignment
 12:12: local variable 'a' might be referenced before assignment
@@ -85,4 +123,11 @@ _ERRORS = """
 66:13: local variable 'foo' referenced before assignment
 71:17: local variable 'exc' referenced before assignment
 71:22: local variable 'msg' referenced before assignment
+78:4: local variable 'decorator' referenced before assignment
+85:23: local variable 'default' referenced before assignment
+91:17: local variable 'bar' referenced before assignment
+97:4: local variable 'decorator' referenced before assignment
+104:28: local variable 'Meta' referenced before assignment
+110:19: local variable 'args' referenced before assignment
+110:29: local variable 'kwargs' referenced before assignment
 """
