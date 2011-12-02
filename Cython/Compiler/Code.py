@@ -167,8 +167,22 @@ class UtilityCodeBase(object):
         if from_file is None:
             utility_dir = get_utility_dir()
             prefix = util_code_name + '.'
+            try:
+                listing = os.listdir(utility_dir)
+            except OSError:
+                # XXX the code below assumes as 'zipimport.zipimporter' instance
+                # XXX should be easy to generalize, but too lazy right now to write it
+                import zipfile
+                global __loader__
+                loader = __loader__
+                archive = loader.archive
+                fileobj = zipfile.ZipFile(archive)
+                listing = [ os.path.basename(name)
+                            for name in fileobj.namelist()
+                            if os.path.join(archive, name).startswith(utility_dir)]
+                fileobj.close()
             files = [ os.path.join(utility_dir, filename)
-                      for filename in os.listdir(utility_dir)
+                      for filename in listing
                       if filename.startswith(prefix) ]
             if not files:
                 raise ValueError("No match found for utility code " + util_code_name)
