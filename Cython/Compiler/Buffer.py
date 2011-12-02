@@ -3,7 +3,7 @@ from ModuleNode import ModuleNode
 from ExprNodes import *
 from Errors import CompileError
 from UtilityCode import CythonUtilityCode
-from Code import UtilityCode
+from Code import UtilityCode, TempitaUtilityCode
 import Interpreter
 import PyrexTypes
 import Naming
