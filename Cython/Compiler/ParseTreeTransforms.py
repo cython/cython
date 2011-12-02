@@ -1099,7 +1099,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         if isinstance(newnode, Nodes.ParallelWithBlockNode):
             if self.state == 'parallel with':
                 error(node.manager.pos,
-                      "Closely nested parallel with blocks are disallowed")
+                      "Nested parallel with blocks are disallowed")
 
             self.state = 'parallel with'
             body = self.visit(node.body)

@@ -46,7 +46,6 @@ def test_descending_prange():
 
     return sum
 
-'''
 def test_propagation():
     """
     >>> test_propagation()
@@ -61,12 +60,10 @@ def test_propagation():
 
     with nogil, cython.parallel.parallel():
         for x in prange(10):
-            with cython.parallel.parallel():
-                for y in prange(10):
-                    sum2 += y
+            for y in prange(10):
+                sum2 += y
 
     return i, j, x, y, sum1, sum2
-'''
 
 def test_unsigned_operands():
     """
@@ -349,7 +346,6 @@ def test_prange_continue():
 
     free(p)
 
-'''
 def test_nested_break_continue():
     """
     >>> test_nested_break_continue()
@@ -371,16 +367,14 @@ def test_nested_break_continue():
 
     print i, j, result1, result2
 
-    with nogil, cython.parallel.parallel():
-        for i in prange(10, num_threads=2, schedule='static'):
-            with cython.parallel.parallel():
-                if i == 8:
-                    break
-                else:
-                    continue
+    with nogil, cython.parallel.parallel(num_threads=2):
+        for i in prange(10, schedule='static'):
+            if i == 8:
+                break
+            else:
+                continue
 
     print i
-'''
 
 cdef int parallel_return() nogil:
     cdef int i
@@ -400,11 +394,10 @@ def test_return():
     """
     print parallel_return()
 
-'''
 def test_parallel_exceptions():
     """
     >>> test_parallel_exceptions()
-    ('I am executed first', 0)
+    I am executed first
     ('propagate me',) 0
     """
     cdef int i, j, sum = 0
@@ -422,11 +415,10 @@ def test_parallel_exceptions():
                 sum += i
             finally:
                 with gil:
-                    mylist.append(("I am executed first", sum))
+                    mylist.append("I am executed first")
     except Exception, e:
         print mylist[0]
         print e.args, sum
-'''
 
 def test_parallel_exceptions_unnested():
     """
@@ -453,7 +445,6 @@ def test_parallel_exceptions_unnested():
         print mylist[0]
         print e.args, sum
 
-'''
 cdef int parallel_exc_cdef() except -3:
     cdef int i, j
     for i in prange(10, nogil=True):
@@ -462,7 +453,6 @@ cdef int parallel_exc_cdef() except -3:
                 raise Exception("propagate me")
 
     return 0
-'''
 
 cdef int parallel_exc_cdef_unnested() except -3:
     cdef int i
@@ -480,9 +470,8 @@ def test_parallel_exc_cdef():
     Exception: propagate me
     """
     parallel_exc_cdef_unnested()
-    #parallel_exc_cdef()
+    parallel_exc_cdef()
 
-'''
 cpdef int parallel_exc_cpdef() except -3:
     cdef int i, j
     for i in prange(10, nogil=True):
@@ -491,7 +480,6 @@ cpdef int parallel_exc_cpdef() except -3:
                 raise Exception("propagate me")
 
     return 0
-'''
 
 cpdef int parallel_exc_cpdef_unnested() except -3:
     cdef int i, j
@@ -510,9 +498,8 @@ def test_parallel_exc_cpdef():
     Exception: propagate me
     """
     parallel_exc_cpdef_unnested()
-    #parallel_exc_cpdef()
+    parallel_exc_cpdef()
 
-'''
 cdef int parallel_exc_nogil_swallow() except -1:
     cdef int i, j
     for i in prange(10, nogil=True):
@@ -524,7 +511,6 @@ cdef int parallel_exc_nogil_swallow() except -1:
             return i
 
     return 0
-'''
 
 cdef int parallel_exc_nogil_swallow_unnested() except -1:
     cdef int i
@@ -542,13 +528,13 @@ def test_parallel_exc_nogil_swallow():
     """
     >>> test_parallel_exc_nogil_swallow()
     execute me
+    execute me
     """
     parallel_exc_nogil_swallow_unnested()
     print 'execute me'
-    #parallel_exc_nogil_swallow()
-    #print 'execute me'
+    parallel_exc_nogil_swallow()
+    print 'execute me'
 
-'''
 def parallel_exc_replace():
     """
     >>> parallel_exc_replace()
@@ -569,7 +555,13 @@ def parallel_exc_replace():
     return 0
 
 
-def _parallel_exceptions2():
+def parallel_exceptions2():
+    """
+    >>> parallel_exceptions2()
+    Traceback (most recent call last):
+       ...
+    Exception: propagate me
+    """
     cdef int i, j, k
 
     for i in prange(10, nogil=True):
@@ -581,59 +573,6 @@ def _parallel_exceptions2():
                         break
                     continue
                     return
-
-def test_parallel_exceptions2():
-    """
-    DISABLED
-
-    test_parallel_exceptions2()
-    read: start
-    propagate me
-    exiting...
-    Exit status: 0
-    """
-    if not hasattr(os, 'fork'):
-        print 'start'
-        print 'propagate me'
-        print 'Exit status: 0'
-        return
-
-    r, w = os.pipe()
-    fr = os.fdopen(r, 'r')
-    fw = os.fdopen(w, 'w', 0)
-
-    pid = os.fork()
-    if pid == 0:
-        try:
-            fr.close()
-            os.dup2(w, 1)
-            os.dup2(w, 2)
-
-            print >>fw, 'start'
-
-            try:
-                _parallel_exceptions2()
-            except Exception, e:
-                print >>fw, e.args[0]
-            else:
-                print >>fw, 'No exception caught'
-        except:
-            import traceback
-            print >>fw, traceback.format_exc()
-        finally:
-            print >>fw, 'exiting...'
-            os._exit(0)
-    else:
-        fw.close()
-
-        print 'read:', fr.read(),
-
-        pid, status = os.waitpid(pid, 0)
-        if os.WIFSIGNALED(status):
-            print 'Got signal', os.WTERMSIG(status)
-
-        print 'Exit status:', os.WEXITSTATUS(status)
-'''
 
 def test_parallel_with_gil_return():
     """
@@ -653,25 +592,6 @@ def test_parallel_with_gil_return():
     with nogil, cython.parallel.parallel():
         with gil:
             return sum
-
-'''
-def test_parallel_with_gil_continue():
-    """
-    >>> test_parallel_with_gil_continue()
-    20
-    """
-    cdef int i, sum = 0
-
-    for i in prange(10, nogil=True):
-        with cython.parallel.parallel():
-            with gil:
-                if i % 2:
-                    continue
-
-        sum += i
-
-    print sum
-'''
 
 def test_parallel_with_gil_continue_unnested():
     """

@@ -145,6 +145,10 @@ cdef int chunksize():
 for i in prange(10, nogil=True, schedule='static', chunksize=chunksize()):
     pass
 
+with nogil, cython.parallel.parallel():
+    with cython.parallel.parallel():
+        pass
+
 _ERRORS = u"""
 e_cython_parallel.pyx:3:8: cython.parallel.parallel is not a module
 e_cython_parallel.pyx:4:0: No such directive: cython.parallel.something
@@ -157,7 +161,7 @@ c_cython_parallel.pyx:21:29: The parallel section may only be used without the G
 e_cython_parallel.pyx:27:10: target may not be a Python object as we don't have the GIL
 e_cython_parallel.pyx:30:9: Can only iterate over an iteration variable
 e_cython_parallel.pyx:33:10: Must be of numeric type, not int *
-e_cython_parallel.pyx:36:33: Closely nested parallel with blocks are disallowed
+e_cython_parallel.pyx:36:33: Nested parallel with blocks are disallowed
 e_cython_parallel.pyx:39:12: The parallel directive must be called
 e_cython_parallel.pyx:45:10: local variable 'y' referenced before assignment
 e_cython_parallel.pyx:55:9: local variable 'y' referenced before assignment
@@ -166,8 +170,6 @@ e_cython_parallel.pyx:62:36: cython.parallel.parallel() does not take positional
 e_cython_parallel.pyx:65:36: Invalid keyword argument: invalid
 e_cython_parallel.pyx:73:12: Yield not allowed in parallel sections
 e_cython_parallel.pyx:77:16: Yield not allowed in parallel sections
-e_cython_parallel.pyx:82:19: Parallel nesting not supported due to bugs in gcc 4.5
-e_cython_parallel.pyx:87:23: Parallel nesting not supported due to bugs in gcc 4.5
 e_cython_parallel.pyx:97:19: Cannot assign to private of outer parallel block
 e_cython_parallel.pyx:98:19: Cannot assign to private of outer parallel block
 e_cython_parallel.pyx:104:6: Reductions not allowed for parallel blocks
@@ -180,4 +182,5 @@ e_cython_parallel.pyx:133:42: Must provide schedule with chunksize
 e_cython_parallel.pyx:136:62: Chunksize must not be negative
 e_cython_parallel.pyx:139:62: Chunksize not valid for the schedule runtime
 e_cython_parallel.pyx:145:70: Calling gil-requiring function not allowed without gil
+e_cython_parallel.pyx:149:33: Nested parallel with blocks are disallowed
 """

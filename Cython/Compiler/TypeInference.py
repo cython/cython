@@ -196,10 +196,8 @@ class MarkAssignments(CythonTransform):
         self.parallel_block_stack.append(node)
 
         nested = nested or len(self.parallel_block_stack) > 2
-        if not self.parallel_errors and nested:
-
-            error(node.pos,
-                  "Parallel nesting not supported due to bugs in gcc 4.5")
+        if not self.parallel_errors and nested and not node.is_prange:
+            error(node.pos, "Only prange() may be nested")
             self.parallel_errors = True
 
         if node.is_prange:

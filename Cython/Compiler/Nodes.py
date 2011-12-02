@@ -6834,10 +6834,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.analyse_sharing_attributes(env)
 
         if self.num_threads is not None:
-            if self.parent and self.parent.num_threads is not None:
+            if (self.parent and self.parent.num_threads is not None and not
+                                                    self.parent.is_prange):
                 error(self.pos,
                       "num_threads already declared in outer section")
-            elif self.parent:
+            elif self.parent and not self.parent.is_prange:
                 error(self.pos,
                       "num_threads must be declared in the parent parallel section")
             elif (self.num_threads.type.is_int and
@@ -7113,11 +7114,15 @@ class ParallelStatNode(StatNode, ParallelNode):
             begin_code = self.begin_of_parallel_block
             end_code = code
 
+            begin_code.putln("#ifdef _OPENMP")
             begin_code.put_ensure_gil(declare_gilstate=True)
             begin_code.putln("Py_BEGIN_ALLOW_THREADS")
+            begin_code.putln("#endif /* _OPENMP */")
 
+            end_code.putln("#ifdef _OPENMP")
             end_code.putln("Py_END_ALLOW_THREADS")
             end_code.put_release_ensured_gil()
+            end_code.putln("#endif /* _OPENMP */")
 
     def trap_parallel_exit(self, code, should_flush=False):
         """
@@ -7216,8 +7221,13 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             temp_count += 1
 
+            invalid_value = entry.type.invalid_value()
+            if invalid_value:
+                init = ' = ' + invalid_value
+            else:
+                init = ''
             # Declare the parallel private in the outer block
-            c.putln("%s %s;" % (type_decl, temp_cname))
+            c.putln("%s %s%s;" % (type_decl, temp_cname, init))
 
             # Initialize before escaping
             code.putln("%s = %s;" % (temp_cname, private_cname))
@@ -7434,6 +7444,7 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
+    is_nested_prange = False
 
     nogil = None
     schedule = None
@@ -7543,6 +7554,16 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.nogil:
             env.nogil = was_nogil
+
+        self.is_nested_prange = self.parent and self.parent.is_prange
+        if self.is_nested_prange:
+            parent = self
+            while parent.parent and parent.parent.is_prange:
+                parent = parent.parent
+
+            parent.assignments.update(self.assignments)
+            parent.privates.update(self.privates)
+            parent.assigned_nodes.extend(self.assigned_nodes)
 
     def nogil_check(self, env):
         names = 'start', 'stop', 'step', 'target'
@@ -7670,7 +7691,10 @@ class ParallelRangeNode(ParallelStatNode):
         self.release_closure_privates(code)
 
     def generate_loop(self, code, fmt_dict):
-        code.putln("#ifdef _OPENMP")
+        if self.is_nested_prange:
+            code.putln("#if 0")
+        else:
+            code.putln("#ifdef _OPENMP")
 
         if not self.is_parallel:
             code.put("#pragma omp for")
@@ -7688,7 +7712,10 @@ class ParallelRangeNode(ParallelStatNode):
             # Initialize the GIL if needed for this thread
             self.begin_parallel_block(code)
 
-            code.putln("#ifdef _OPENMP")
+            if self.is_nested_prange:
+                code.putln("#if 0")
+            else:
+                code.putln("#ifdef _OPENMP")
             code.put("#pragma omp for")
 
         for entry, (op, lastprivate) in self.privates.iteritems():
