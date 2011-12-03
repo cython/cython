@@ -867,6 +867,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, str(args[0].value))
+        elif directivetype is type:
+            if kwds is not None or len(args) != 1:
+                raise PostParseError(pos,
+                    'The %s directive takes one type argument' % optname)
+            return (optname, args[0])
         elif directivetype is dict:
             if len(args) != 0:
                 raise PostParseError(pos,
@@ -1835,7 +1840,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
-                node = node.as_cfunction(overridable=False)
+                node = node.as_cfunction(overridable=False, returns=self.directives.get('returns'))
                 return self.visit(node)
         self.visitchildren(node)
         return node

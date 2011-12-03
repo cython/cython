@@ -136,6 +136,7 @@ directive_types = {
     'cfunc' : None, # decorators do not take directive value
     'ccall' : None,
     'cclass' : None,
+    'returns' : type,
     }
 
 for key, val in directive_defaults.items():

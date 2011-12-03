@@ -110,3 +110,16 @@ def test_ccall_method(x):
     1
     """
     return x.meth()
+
+@cython.cfunc
+@cython.returns(p_int)
+@cython.locals(xptr=p_int)
+def typed_return(xptr):
+    return xptr
+
+def test_typed_return():
+    """
+    >>> test_typed_return()
+    """
+    x = cython.declare(int, 5)
+    assert typed_return(cython.address(x)) == cython.address(x)

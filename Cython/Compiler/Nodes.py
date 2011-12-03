@@ -1280,7 +1280,8 @@ class FuncDefNode(StatNode, BlockNode):
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  pymethdef_required boolean     Force Python method struct generation
-    #  directive_locals { string : NameNode } locals defined by cython.locals(...)
+    #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
+    #  directive_returns [ExprNode] type defined by cython.returns(...)
     # star_arg      PyArgDeclNode or None  * argument
     # starstar_arg  PyArgDeclNode or None  ** argument
 
@@ -1872,6 +1873,7 @@ class CFuncDefNode(FuncDefNode):
     inline_in_pxd = False
     decorators = None
     directive_locals = None
+    directive_returns = None
     override = None
 
     def unqualified_name(self):
@@ -1881,7 +1883,13 @@ class CFuncDefNode(FuncDefNode):
         if self.directive_locals is None:
             self.directive_locals = {}
         self.directive_locals.update(env.directives['locals'])
-        base_type = self.base_type.analyse(env)
+        if self.directive_returns is not None:
+            base_type = self.directive_returns.analyse_as_type(env)
+            if base_type is None:
+                error(self.directive_returns.pos, "Not a type")
+                base_type = PyrexTypes.error_type
+        else:
+            base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names.
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, type = self.declarator.analyse(base_type, env,
@@ -2664,7 +2672,7 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None, overridable=True):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -2724,7 +2732,8 @@ class DefNode(FuncDefNode):
                             nogil = cfunc_type.nogil,
                             visibility = 'private',
                             api = False,
-                            directive_locals = getattr(cfunc, 'directive_locals', {}))
+                            directive_locals = getattr(cfunc, 'directive_locals', {}),
+                            directive_returns = returns)
 
     def is_cdef_func_compatible(self):
         """Determines if the function's signature is compatible with a
