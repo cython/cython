@@ -242,3 +242,10 @@ def test_fused_declarations(cython.integral i, cython.floating f):
     print cython.typeof(squared_int)
     print cython.typeof(squared_float)
     print '%d %.2f' % (squared_int, squared_float)
+
+def test_sizeof_fused_type(fused_type1 b):
+    """
+    >>> test_sizeof_fused_type[pure_cython.double](11.1)
+    """
+    t = sizeof(b), sizeof(fused_type1), sizeof(double)
+    assert t[0] == t[1] == t[2], t

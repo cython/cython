@@ -7049,6 +7049,8 @@ class SizeofVarNode(SizeofNode):
         operand_as_type = self.operand.analyse_as_type(env)
         if operand_as_type:
             self.arg_type = operand_as_type
+            if self.arg_type.is_fused:
+                self.arg_type = self.arg_type.specialize(env.fused_to_specific)
             self.__class__ = SizeofTypeNode
             self.check_type()
         else:
