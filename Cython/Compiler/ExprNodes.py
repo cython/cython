@@ -2548,7 +2548,6 @@ class IndexNode(ExprNode):
                         warning(index.pos, "Index should be typed for more "
                                            "efficient access", level=2)
                         IndexNode.warned_untyped_idx = True
-                elif index.type.is_int:
                     self.memslice_index = True
                     index = index.coerce_to(index_type, env)
                     indices[i] = index

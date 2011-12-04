@@ -341,11 +341,14 @@ cdef class memoryview(object):
         cdef bytes bytesitem
         # Do a manual and complete check here instead of this easy hack
         bytesitem = itemp[:self.view.itemsize]
-        result = struct.unpack(self.view.format, bytesitem)
-        if len(self.view.format) == 1:
-            return result[0]
-
-        return result
+        try:
+            result = struct.unpack(self.view.format, bytesitem)
+        except struct.error:
+            raise ValueError("Unable to convert item to object")
+        else:
+            if len(self.view.format) == 1:
+                return result[0]
+            return result
 
     cdef assign_item_from_object(self, char *itemp, object value):
         """Only used if instantiated manually by the user, or if Cython doesn't
