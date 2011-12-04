@@ -8,8 +8,6 @@ cimport cython
 from cython cimport view
 from cython.parallel cimport prange
 
-print cython.array
-
 import sys
 import re
 
@@ -1457,3 +1455,21 @@ def test_memslice_prange(arg):
         for j in range(src.shape[1]):
             for k in range(src.shape[2]):
                 assert src[i, j, k] == dst[i, j, k], (src[i, j, k] == dst[i, j, k])
+
+@testcase
+def test_object_indices():
+    """
+    >>> test_object_indices()
+    0
+    1
+    2
+    """
+    cdef int array[3]
+    cdef int[:] myslice = array
+    cdef int j
+
+    for i in range(3):
+        myslice[i] = i
+
+    for j in range(3):
+        print myslice[j]

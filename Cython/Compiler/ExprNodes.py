@@ -2339,6 +2339,7 @@ class IndexNode(ExprNode):
     # Whether we are indexing or slicing a memoryviewslice
     memslice_index = False
     memslice_slice = False
+    warned_untyped_idx = False
 
     def __init__(self, pos, index, *args, **kw):
         ExprNode.__init__(self, pos, index=index, *args, **kw)
@@ -2542,6 +2543,11 @@ class IndexNode(ExprNode):
                             setattr(index, attr, value)
                             new_indices.append(value)
 
+                elif index.type.is_int or index.type.is_pyobject:
+                    if index.type.is_pyobject and not self.warned_untyped_idx:
+                        warning(index.pos, "Index should be typed for more "
+                                           "efficient access", level=2)
+                        IndexNode.warned_untyped_idx = True
                 elif index.type.is_int:
                     self.memslice_index = True
                     index = index.coerce_to(index_type, env)
