@@ -3068,6 +3068,8 @@ class CUTF8CharArrayType(CStringType, CArrayType):
 class CCharArrayType(CStringType, CArrayType):
     #  C 'char []' type.
 
+    from_py_function = None
+
     def __init__(self, size):
         CArrayType.__init__(self, c_char_type, size)
 

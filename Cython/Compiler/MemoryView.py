@@ -160,17 +160,25 @@ def src_conforms_to_dst(src, dst):
 def valid_memslice_dtype(dtype):
     """
     Return whether type dtype can be used as the base type of a
-    memoryview slice
+    memoryview slice.
+
+    We support structs, numeric types and objects
     """
     if dtype.is_complex and dtype.real_type.is_int:
         return False
+
+    if dtype.is_struct and dtype.kind == 'struct':
+        for member in dtype.scope.var_entries:
+            if not valid_memslice_dtype(member.type):
+                return False
+
+        return True
 
     return (
         dtype.is_error or
         # Pointers are not valid (yet)
         # (dtype.is_ptr and valid_memslice_dtype(dtype.base_type)) or
         dtype.is_numeric or
-        dtype.is_struct or
         dtype.is_pyobject or
         dtype.is_fused or # accept this as it will be replaced by specializations later
         (dtype.is_typedef and valid_memslice_dtype(dtype.typedef_base_type))
