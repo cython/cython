@@ -649,7 +649,6 @@ class GetAndReleaseBufferUtilityCode(object):
         """))
 
 
-
 def mangle_dtype_name(dtype):
     # Use prefixes to seperate user defined types from builtins
     # (consider "typedef float unsigned_int")
@@ -662,7 +661,9 @@ def mangle_dtype_name(dtype):
             prefix = "nn_"
         else:
             prefix = ""
-        return prefix + dtype.declaration_code("").replace(" ", "_")
+        type_decl = dtype.declaration_code("")
+        type_decl = type_decl.replace(" ", "_")
+        return prefix + type_decl.replace("[", "_").replace("]", "_")
 
 def get_type_information_cname(code, dtype, maxdepth=None):
     # Output the run-time type information (__Pyx_TypeInfo) for given dtype,
@@ -687,6 +688,12 @@ def get_type_information_cname(code, dtype, maxdepth=None):
     if name not in code.globalstate.utility_codes:
         code.globalstate.utility_codes.add(name)
         typecode = code.globalstate['typeinfo']
+
+        arraysizes = []
+        if dtype.is_array:
+            while dtype.is_array:
+                arraysizes.append(dtype.size)
+                dtype = dtype.base_type
 
         complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
 
@@ -729,7 +736,6 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         elif dtype.is_pyobject:
             typegroup = 'O'
         else:
-            print dtype
             assert False
 
         if dtype.is_int:
@@ -737,15 +743,13 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         else:
             is_unsigned = "0"
 
-        typecode.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\', %s, %s };'
-                        ) % (name,
-                             rep,
-                             structinfo_name,
-                             declcode,
-                             typegroup,
-                             is_unsigned,
-                             flags,
-                        ), safe=True)
+        typeinfo = ('static __Pyx_TypeInfo %s = '
+                        '{ "%s", %s, sizeof(%s), { %s }, %s, \'%s\', %s, %s };')
+        tup = (name, rep, structinfo_name, declcode,
+               ', '.join([str(x) for x in arraysizes]), len(arraysizes),
+               typegroup, is_unsigned, flags)
+        typecode.putln(typeinfo % tup, safe=True)
+
     return name
 
 def load_buffer_utility(util_code_name, context=None, **kwargs):

@@ -48,6 +48,8 @@ typedef struct {
   const char* name; /* for error messages only */
   struct __Pyx_StructField_* fields;
   size_t size;     /* sizeof(type) */
+  size_t arraysize[8]; /* length of array in each dimension */
+  int ndim;
   char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject */
   char is_unsigned;
   int flags;
@@ -69,10 +71,12 @@ typedef struct {
   __Pyx_BufFmt_StackElem* head;
   size_t fmt_offset;
   size_t new_count, enc_count;
+  size_t struct_alignment;
   int is_complex;
   char enc_type;
   char new_packmode;
   char enc_packmode;
+  char is_valid_array;
 } __Pyx_BufFmt_Context;
 
 
@@ -118,6 +122,8 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
   ctx->enc_count = 0;
   ctx->enc_type = 0;
   ctx->is_complex = 0;
+  ctx->is_valid_array = 0;
+  ctx->struct_alignment = 0;
   while (type->typegroup == 'S') {
     ++ctx->head;
     ctx->head->field = type->fields;
@@ -141,6 +147,15 @@ static int __Pyx_BufFmt_ParseNumber(const char** ts) {
     *ts = t;
     return count;
 }
+
+static int __Pyx_BufFmt_ExpectNumber(const char **ts) {
+    int number = __Pyx_BufFmt_ParseNumber(ts);
+    if (number == -1) /* First char was not a digit */
+        PyErr_Format(PyExc_ValueError,\
+                     "Does not understand character buffer dtype format string ('%c')", **ts);
+    return number;
+}
+
 
 static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
   PyErr_Format(PyExc_ValueError,
@@ -239,6 +254,40 @@ static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
     }
 }
 
+/* These are for computing the padding at the end of the struct to align
+   on the first member of the struct. This will probably the same as above,
+   but we don't have any guarantees.
+ */
+typedef struct { short x; char c; } __Pyx_pad_short;
+typedef struct { int x; char c; } __Pyx_pad_int;
+typedef struct { long x; char c; } __Pyx_pad_long;
+typedef struct { float x; char c; } __Pyx_pad_float;
+typedef struct { double x; char c; } __Pyx_pad_double;
+typedef struct { long double x; char c; } __Pyx_pad_longdouble;
+typedef struct { void *x; char c; } __Pyx_pad_void_p;
+#ifdef HAVE_LONG_LONG
+typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
+#endif
+
+static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
+  switch (ch) {
+    case '?': case 'c': case 'b': case 'B': return 1;
+    case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
+    case 'i': case 'I': return sizeof(__Pyx_pad_int) - sizeof(int);
+    case 'l': case 'L': return sizeof(__Pyx_pad_long) - sizeof(long);
+#ifdef HAVE_LONG_LONG
+    case 'q': case 'Q': return sizeof(__Pyx_pad_longlong) - sizeof(PY_LONG_LONG);
+#endif
+    case 'f': return sizeof(__Pyx_pad_float) - sizeof(float);
+    case 'd': return sizeof(__Pyx_pad_double) - sizeof(double);
+    case 'g': return sizeof(__Pyx_pad_longdouble) - sizeof(long double);
+    case 'P': case 'O': return sizeof(__Pyx_pad_void_p) - sizeof(void*);
+    default:
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+}
+
 static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
   switch (ch) {
     case 'c': case 'b': case 'h': case 'i': case 'l': case 'q': return 'I';
@@ -281,8 +330,24 @@ static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
 
 static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   char group;
-  size_t size, offset;
+  size_t size, offset, arraysize = 1;
+
   if (ctx->enc_type == 0) return 0;
+
+  /* Validate array size */
+  if (ctx->head->field->type->arraysize[0]) {
+    int i;
+    if (!ctx->is_valid_array) {
+      PyErr_Format(PyExc_ValueError, "Expected %d dimensions, got 0",
+                   ctx->head->field->type->ndim);
+      return -1;
+    }
+    for (i = 0; i < ctx->head->field->type->ndim; i++) {
+      arraysize *= ctx->head->field->type->arraysize[i];
+    }
+    ctx->is_valid_array = 0;
+  }
+
   group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
   do {
     __Pyx_StructField* field = ctx->head->field;
@@ -293,12 +358,17 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     } else {
       size = __Pyx_BufFmt_TypeCharToStandardSize(ctx->enc_type, ctx->is_complex);
     }
+
     if (ctx->enc_packmode == '@') {
       size_t align_at = __Pyx_BufFmt_TypeCharToAlignment(ctx->enc_type, ctx->is_complex);
       size_t align_mod_offset;
       if (align_at == 0) return -1;
       align_mod_offset = ctx->fmt_offset % align_at;
       if (align_mod_offset > 0) ctx->fmt_offset += align_at - align_mod_offset;
+
+      if (ctx->struct_alignment == 0)
+          ctx->struct_alignment = __Pyx_BufFmt_TypeCharToPadding(ctx->enc_type,
+                                                                 ctx->is_complex);
     }
 
     if (type->size != size || type->typegroup != group) {
@@ -324,6 +394,8 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     }
 
     ctx->fmt_offset += size;
+    if (arraysize)
+      ctx->fmt_offset += (arraysize - 1) * size;
 
     --ctx->enc_count; /* Consume from buffer string */
 
@@ -360,6 +432,61 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   return 0;
 }
 
+/* Parse an array in the format string (e.g. (1,2,3)) */
+static CYTHON_INLINE PyObject *
+__pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
+{
+    const char *ts = *tsp;
+    int i = 0, number;
+    int ndim = ctx->head->field->type->ndim;
+;
+    ++ts;
+    if (ctx->new_count != 1) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Cannot handle repeated arrays in format string");
+        return NULL;
+    }
+
+    /* Process the previous element */
+    if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+
+    /* Parse all numbers in the format string */
+    while (*ts && *ts != ')') {
+        if (isspace(*ts))
+            continue;
+
+        number = __Pyx_BufFmt_ExpectNumber(&ts);
+        if (number == -1) return NULL;
+
+        if (i < ndim && (size_t) number != ctx->head->field->type->arraysize[i])
+            return PyErr_Format(PyExc_ValueError,
+                        "Expected a dimension of size %zu, got %d",
+                        ctx->head->field->type->arraysize[i], number);
+
+        if (*ts != ',' && *ts != ')')
+            return PyErr_Format(PyExc_ValueError,
+                                "Expected a comma in format string, got '%c'", *ts);
+
+        if (*ts == ',') ts++;
+        i++;
+    }
+
+    if (i != ndim)
+        return PyErr_Format(PyExc_ValueError, "Expected %d dimension(s), got %d",
+                            ctx->head->field->type->ndim, i);
+
+    if (!*ts) {
+        PyErr_SetString(PyExc_ValueError,
+                        "Unexpected end of format string, expected ')'");
+        return NULL;
+    }
+
+    ctx->is_valid_array = 1;
+    ctx->new_count = 1;
+    *tsp = ++ts;
+    return Py_None;
+}
+
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
   int got_Z = 0;
   while (1) {
@@ -374,7 +501,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           __Pyx_BufFmt_RaiseExpected(ctx);
           return NULL;
         }
-        return ts;
+                return ts;
       case ' ':
       case 10:
       case 13:
@@ -414,6 +541,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           }
           ++ts;
           ts_after_sub = ts;
+          ctx->struct_alignment = 0;
           for (i = 0; i != struct_count; ++i) {
             ts_after_sub = __Pyx_BufFmt_CheckString(ctx, ts);
             if (!ts_after_sub) return NULL;
@@ -422,7 +550,16 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         }
         break;
       case '}': /* end of substruct; either repeat or move on */
-        ++ts;
+        {
+          size_t alignment = ctx->struct_alignment;
+          ++ts;
+          if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+          ctx->enc_type = 0; /* Erase processed last struct element */
+          if (alignment && ctx->fmt_offset % alignment) {
+            /* Pad struct on size of the first member */
+            ctx->fmt_offset += alignment - (ctx->fmt_offset % alignment);
+          }
+        }
         return ts;
       case 'x':
         if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
@@ -465,14 +602,13 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         while(*ts != ':') ++ts;
         ++ts;
         break;
+      case '(':
+        if (!__pyx_buffmt_parse_array(ctx, &ts)) return NULL;
+        break;
       default:
         {
-          int number = __Pyx_BufFmt_ParseNumber(&ts);
-          if (number == -1) { /* First char was not a digit */
-            PyErr_Format(PyExc_ValueError,
-                         "Does not understand character buffer dtype format string ('%c')", *ts);
-            return NULL;
-          }
+          int number = __Pyx_BufFmt_ExpectNumber(&ts);
+          if (number == -1) return NULL;
           ctx->new_count = (size_t)number;
         }
     }

@@ -1456,6 +1456,108 @@ def test_memslice_prange(arg):
             for k in range(src.shape[2]):
                 assert src[i, j, k] == dst[i, j, k], (src[i, j, k] == dst[i, j, k])
 
+# Test arrays in structs
+cdef struct ArrayStruct:
+    int ints[10]
+    char chars[3]
+
+cdef packed struct PackedArrayStruct:
+    int ints[10]
+    char chars[3]
+
+cdef fused FusedStruct:
+    ArrayStruct
+    PackedArrayStruct
+
+@testcase
+def test_memslice_struct_with_arrays():
+    """
+    >>> test_memslice_struct_with_arrays()
+    abc
+    abc
+    """
+    cdef ArrayStruct a1[10]
+    cdef PackedArrayStruct a2[10]
+
+    test_structs_with_arr(a1)
+    test_structs_with_arr(a2)
+
+cdef test_structs_with_arr(FusedStruct array[10]):
+    cdef FusedStruct[:] myslice1, myslice2, myslice3, myslice4
+    cdef int i, j
+
+    myslice1 = <FusedStruct[:10]> array
+
+    for i in range(10):
+        for j in range(10):
+            myslice1[i].ints[j] = i
+        for j in range(3):
+            myslice1[i].chars[j] = 97 + j
+
+    if sys.version_info[:2] >= (2, 7):
+        if sys.version_info[0] < 3:
+            import __builtin__ as builtins
+        else:
+            import builtins
+
+        size1 = sizeof(FusedStruct)
+        size2 = len(builtins.memoryview(myslice1)[0])
+        assert size1 == size2, (size1, size2, builtins.memoryview(myslice1).format)
+
+        myslice2 = builtins.memoryview(myslice1)
+        for i in range(10):
+            assert myslice2[i].ints[i] == myslice1[i].ints[i]
+            assert myslice2[i].chars[i] == myslice1[i].chars[i]
+
+    myslice3 = <object> myslice1
+    myslice4 = myslice1
+    for i in range(10):
+        for j in range(10):
+            assert myslice3[i].ints[j] == myslice4[i].ints[j] == myslice1[i].ints[j]
+        for j in range(3):
+            assert myslice3[i].chars[j] == myslice4[i].chars[j] == myslice1[i].chars[j]
+
+    print myslice1[0].chars[:3].decode('ascii')
+
+# Test padding at the end of structs in the buffer support
+cdef struct PaddedAtEnd:
+    int a[3]
+    char b[3]
+
+cdef struct AlignedNested:
+    PaddedAtEnd a
+    char chars[1]
+
+cdef struct PaddedAtEndNormal:
+    int a
+    char b
+    char c
+    char d
+
+cdef struct AlignedNestedNormal:
+    PaddedAtEndNormal a
+    char chars
+
+cdef fused FusedPadded:
+    ArrayStruct
+    PackedArrayStruct
+    AlignedNested
+    AlignedNestedNormal
+
+@testcase
+def test_padded_structs():
+    """
+    >>> test_padded_structs()
+    """
+    cdef ArrayStruct a1[10]
+    _test_padded(a1)
+
+cdef _test_padded(FusedPadded myarray[10]):
+    # test that the buffer format parser accepts our format string...
+    cdef FusedPadded[:] myslice = <FusedPadded[:10]> myarray
+    obj = myslice
+    cdef FusedPadded[:] myotherslice = obj
+
 @testcase
 def test_object_indices():
     """

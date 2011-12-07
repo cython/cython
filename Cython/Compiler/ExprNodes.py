@@ -2548,6 +2548,7 @@ class IndexNode(ExprNode):
                         warning(index.pos, "Index should be typed for more "
                                            "efficient access", level=2)
                         IndexNode.warned_untyped_idx = True
+
                     self.memslice_index = True
                     index = index.coerce_to(index_type, env)
                     indices[i] = index
@@ -6935,8 +6936,9 @@ class CythonArrayNode(ExprNode):
                                                         "n" * len(shapes),
                                                         ", ".join(shapes)))
 
-        err = "!%s || !%s || !PyBytes_Check(%s)" % (format_temp, shapes_temp,
-                                                    format_temp)
+        err = "!%s || !%s || !PyBytes_AsString(%s)" % (format_temp,
+                                                       shapes_temp,
+                                                       format_temp)
         code.putln(code.error_goto_if(err, self.pos))
         code.put_gotref(format_temp)
         code.put_gotref(shapes_temp)
