@@ -85,12 +85,15 @@ if 'setuptools' in sys.modules:
 else:
     if os.name == "posix":
         scripts = ["bin/cython"]
-        if include_debugger:
-            scripts.append('bin/cygdb')
     else:
         scripts = ["cython.py"]
-        if include_debugger:
-            scripts.append('cygdb.py')
+
+if include_debugger:
+    if os.name == "posix":
+        scripts.append('bin/cygdb')
+    else:
+        scripts.append('cygdb.py')
+
 
 def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
