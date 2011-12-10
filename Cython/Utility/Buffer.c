@@ -489,6 +489,7 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
   int got_Z = 0;
+
   while (1) {
     switch(*ts) {
       case 0:
@@ -533,20 +534,24 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         {
           const char* ts_after_sub;
           size_t i, struct_count = ctx->new_count;
+          size_t struct_alignment = ctx->struct_alignment;
           ctx->new_count = 1;
           ++ts;
           if (*ts != '{') {
             PyErr_SetString(PyExc_ValueError, "Buffer acquisition: Expected '{' after 'T'");
             return NULL;
           }
+          if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+          ctx->enc_type = 0; /* Erase processed last struct element */
+          ctx->struct_alignment = 0;
           ++ts;
           ts_after_sub = ts;
-          ctx->struct_alignment = 0;
           for (i = 0; i != struct_count; ++i) {
             ts_after_sub = __Pyx_BufFmt_CheckString(ctx, ts);
             if (!ts_after_sub) return NULL;
           }
           ts = ts_after_sub;
+          if (struct_alignment) ctx->struct_alignment = struct_alignment;
         }
         break;
       case '}': /* end of substruct; either repeat or move on */

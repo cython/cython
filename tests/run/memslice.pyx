@@ -1538,11 +1538,37 @@ cdef struct AlignedNestedNormal:
     PaddedAtEndNormal a
     char chars
 
+# Test nested structs in a struct, make sure we compute padding each time
+# accordingly. If the first struct member is a struct, align on the first
+# member of that struct (recursively)
+cdef struct A:
+    double d
+    char c
+
+cdef struct B:
+    char c1
+    A a
+    char c2
+
+cdef struct C:
+    A a
+    char c1
+
+cdef struct D:
+    B b
+    C cstruct
+    int a[2]
+    char c
+
 cdef fused FusedPadded:
     ArrayStruct
     PackedArrayStruct
     AlignedNested
     AlignedNestedNormal
+    A
+    B
+    C
+    D
 
 @testcase
 def test_padded_structs():
