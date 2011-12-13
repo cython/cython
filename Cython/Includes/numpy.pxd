@@ -18,7 +18,7 @@ DEF _buffer_format_string_len = 255
 
 cimport cpython.buffer as pybuf
 from cpython.ref cimport Py_INCREF, Py_XDECREF
-from cpython.object cimport PyObject
+from cpython.object cimport PyObject, PyTypeObject
 cimport libc.stdlib as stdlib
 cimport libc.stdio as stdio
 
@@ -594,7 +594,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Dumps (object, int)
     int PyArray_ValidType (int)
     void PyArray_UpdateFlags (ndarray, int)
-    object PyArray_New (type, int, npy_intp *, int, npy_intp *, void *, int, int, object)
+    object PyArray_New (PyTypeObject*, int, npy_intp *, int, npy_intp *, void *, int, int, object)
     #object PyArray_NewFromDescr (type, dtype, int, npy_intp *, npy_intp *, void *, int, object)
     #dtype PyArray_DescrNew (dtype)
     dtype PyArray_DescrNewFromType (int)
