@@ -1576,7 +1576,24 @@ def test_padded_structs():
     >>> test_padded_structs()
     """
     cdef ArrayStruct a1[10]
+    cdef PackedArrayStruct a2[10]
+    cdef AlignedNested a3[10]
+    cdef AlignedNestedNormal a4[10]
+    cdef A a5[10]
+    cdef B a6[10]
+    cdef C a7[10]
+    cdef D a8[10]
+
     _test_padded(a1)
+    _test_padded(a2)
+    _test_padded(a3)
+    _test_padded(a4)
+    _test_padded(a5)
+    _test_padded(a6)
+    _test_padded(a7)
+    # There is a pre-existing bug that doesn't parse the format for this
+    # struct properly -- fix this
+    #_test_padded(a8)
 
 cdef _test_padded(FusedPadded myarray[10]):
     # test that the buffer format parser accepts our format string...

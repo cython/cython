@@ -666,13 +666,15 @@ def mangle_dtype_name(dtype):
         return prefix + type_decl.replace("[", "_").replace("]", "_")
 
 def get_type_information_cname(code, dtype, maxdepth=None):
-    # Output the run-time type information (__Pyx_TypeInfo) for given dtype,
-    # and return the name of the type info struct.
-    #
-    # Structs with two floats of the same size are encoded as complex numbers.
-    # One can seperate between complex numbers declared as struct or with native
-    # encoding by inspecting to see if the fields field of the type is
-    # filled in.
+    """
+    Output the run-time type information (__Pyx_TypeInfo) for given dtype,
+    and return the name of the type info struct.
+
+    Structs with two floats of the same size are encoded as complex numbers.
+    One can seperate between complex numbers declared as struct or with native
+    encoding by inspecting to see if the fields field of the type is
+    filled in.
+    """
     namesuffix = mangle_dtype_name(dtype)
     name = "__Pyx_TypeInfo_%s" % namesuffix
     structinfo_name = "__Pyx_StructFields_%s" % namesuffix

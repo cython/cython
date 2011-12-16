@@ -180,6 +180,7 @@ static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
     case 'T': return "a struct";
     case 'O': return "Python object";
     case 'P': return "a pointer";
+    case 's': case 'p': return "a string";
     case 0: return "end";
     default: return "unparseable format string";
   }
@@ -187,7 +188,7 @@ static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
 
 static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
   switch (ch) {
-    case '?': case 'c': case 'b': case 'B': return 1;
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return 2;
     case 'i': case 'I': case 'l': case 'L': return 4;
     case 'q': case 'Q': return 8;
@@ -206,7 +207,7 @@ static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
 
 static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
   switch (ch) {
-    case 'c': case 'b': case 'B': return 1;
+    case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(short);
     case 'i': case 'I': return sizeof(int);
     case 'l': case 'L': return sizeof(long);
@@ -237,7 +238,7 @@ typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
 
 static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
   switch (ch) {
-    case '?': case 'c': case 'b': case 'B': return 1;
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
@@ -271,7 +272,7 @@ typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
 
 static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
   switch (ch) {
-    case '?': case 'c': case 'b': case 'B': return 1;
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_pad_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_pad_long) - sizeof(long);
@@ -290,11 +291,17 @@ static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
 
 static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
   switch (ch) {
-    case 'c': case 'b': case 'h': case 'i': case 'l': case 'q': return 'I';
-    case 'B': case 'H': case 'I': case 'L': case 'Q': return 'U';
-    case 'f': case 'd': case 'g': return (is_complex ? 'C' : 'R');
-    case 'O': return 'O';
-    case 'P': return 'P';
+    case 'c': case 'b': case 'h': case 'i':
+    case 'l': case 'q': case 's': case 'p':
+        return 'I';
+    case 'B': case 'H': case 'I': case 'L': case 'Q':
+        return 'U';
+    case 'f': case 'd': case 'g':
+        return (is_complex ? 'C' : 'R');
+    case 'O':
+        return 'O';
+    case 'P':
+        return 'P';
     default: {
       __Pyx_BufFmt_RaiseUnexpectedChar(ch);
       return 0;
@@ -332,20 +339,36 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   char group;
   size_t size, offset, arraysize = 1;
 
+  /* printf("processing... %s\n", ctx->head->field->type->name); */
+
   if (ctx->enc_type == 0) return 0;
 
   /* Validate array size */
   if (ctx->head->field->type->arraysize[0]) {
-    int i;
+    int i, ndim = 0;
+
+    /* handle strings ('s' and 'p') */
+    if (ctx->enc_type == 's' || ctx->enc_type == 'p') {
+        ctx->is_valid_array = ctx->head->field->type->ndim == 1;
+        ndim = 1;
+        if (ctx->enc_count != ctx->head->field->type->arraysize[0]) {
+            PyErr_Format(PyExc_ValueError,
+                         "Expected a dimension of size %zu, got %zu",
+                         ctx->head->field->type->arraysize[0], ctx->enc_count);
+            return -1;
+        }
+    }
+
     if (!ctx->is_valid_array) {
-      PyErr_Format(PyExc_ValueError, "Expected %d dimensions, got 0",
-                   ctx->head->field->type->ndim);
+      PyErr_Format(PyExc_ValueError, "Expected %d dimensions, got %d",
+                   ctx->head->field->type->ndim, ndim);
       return -1;
     }
     for (i = 0; i < ctx->head->field->type->ndim; i++) {
       arraysize *= ctx->head->field->type->arraysize[i];
     }
     ctx->is_valid_array = 0;
+    ctx->enc_count = 1;
   }
 
   group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
@@ -492,6 +515,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
 
   while (1) {
     switch(*ts) {
+      /* puts(ts); */
       case 0:
         if (ctx->enc_type != 0 && ctx->head == NULL) {
           __Pyx_BufFmt_RaiseExpected(ctx);
@@ -543,6 +567,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           }
           if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
           ctx->enc_type = 0; /* Erase processed last struct element */
+          ctx->enc_count = 0;
           ctx->struct_alignment = 0;
           ++ts;
           ts_after_sub = ts;
@@ -585,7 +610,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
       case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
       case 'l': case 'L': case 'q': case 'Q':
       case 'f': case 'd': case 'g':
-      case 'O':
+      case 'O': case 's': case 'p':
         if (ctx->enc_type == *ts && got_Z == ctx->is_complex &&
             ctx->enc_packmode == ctx->new_packmode) {
           /* Continue pooling same type */
