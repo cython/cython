@@ -157,7 +157,7 @@ def src_conforms_to_dst(src, dst):
 
     return True
 
-def valid_memslice_dtype(dtype):
+def valid_memslice_dtype(dtype, i=0):
     """
     Return whether type dtype can be used as the base type of a
     memoryview slice.
@@ -178,6 +178,8 @@ def valid_memslice_dtype(dtype):
         dtype.is_error or
         # Pointers are not valid (yet)
         # (dtype.is_ptr and valid_memslice_dtype(dtype.base_type)) or
+        (dtype.is_array and i < 8 and
+         valid_memslice_dtype(dtype.base_type, i + 1)) or
         dtype.is_numeric or
         dtype.is_pyobject or
         dtype.is_fused or # accept this as it will be replaced by specializations later

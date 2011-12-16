@@ -394,7 +394,6 @@ cdef class memoryview(object):
         info.readonly = 0
         info.obj = self
 
-
     # Some properties that have the same sematics as in NumPy
     property T:
         @cname('__pyx_memoryview_transpose')
@@ -920,6 +919,8 @@ cdef extern from *:
       char* name
       __Pyx_StructField* fields
       size_t size
+      size_t arraysize[8]
+      int ndim
       char typegroup
       char is_unsigned
       int flags
@@ -945,6 +946,11 @@ cdef extern from *:
 
 @cname('__pyx_format_from_typeinfo')
 cdef format_from_typeinfo(__Pyx_TypeInfo *type):
+    """
+    We want to return bytes, but python 3 doesn't allow you to do anything
+    useful with bytes. So use str and convert back and forth to/from unicode.
+    Thank you python 3 for making bytes the most useless thing ever!
+    """
     cdef __Pyx_StructField *field
     cdef __pyx_typeinfo_string fmt
 
@@ -960,12 +966,16 @@ cdef format_from_typeinfo(__Pyx_TypeInfo *type):
         field = type.fields
 
         while field.type:
-            parts.append(format_from_typeinfo(field.type))
+            parts.append(format_from_typeinfo(field.type).decode('ascii'))
             field += 1
 
         result = alignment.join(parts) + '}'
     else:
         fmt = __Pyx_TypeInfoToFormat(type)
-        result = fmt.string
+        if type.arraysize[0]:
+            extents = [str(type.arraysize[i]) for i in range(type.ndim)]
+            result = "(%s)%s" % (','.join(extents), fmt.string.decode('ascii'))
+        else:
+            result = fmt.string.decode('ascii')
 
-    return result
+    return result.encode('ascii')

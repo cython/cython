@@ -391,3 +391,120 @@ def acquire_release_cycle(obj):
     del buf
 
     gc.collect()
+
+cdef packed struct StructArray:
+    int a[4]
+    char b[5]
+
+@testcase_numpy_1_5
+def test_memslice_structarray(data, dtype):
+    """
+    >>> data = [(range(4), 'spam\\0'), (range(4, 8), 'ham\\0\\0'), (range(8, 12), 'eggs\\0')]
+    >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
+    >>> test_memslice_structarray([(L, map(ord, s)) for L, s in data], dtype)
+    0
+    1
+    2
+    3
+    spam
+    4
+    5
+    6
+    7
+    ham
+    8
+    9
+    10
+    11
+    eggs
+
+    Test the same thing with the string format specifier
+
+    >>> dtype = np.dtype([('a', '4i'), ('b', 'S5')])
+    >>> test_memslice_structarray(data, dtype)
+    0
+    1
+    2
+    3
+    spam
+    4
+    5
+    6
+    7
+    ham
+    8
+    9
+    10
+    11
+    eggs
+    """
+    a = np.empty((3,), dtype=dtype)
+    a[:] = data
+    cdef StructArray[:] myslice = a
+    cdef int i, j
+    for i in range(3):
+        for j in range(4):
+            print myslice[i].a[j]
+        print myslice[i].b
+
+@testcase_numpy_1_5
+def test_structarray_errors(StructArray[:] a):
+    """
+    >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
+    >>> test_structarray_errors(np.empty((5,), dtype=dtype))
+
+    >>> dtype = np.dtype([('a', '6i'), ('b', '5b')])
+    >>> test_structarray_errors(np.empty((5,), dtype=dtype))
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected a dimension of size 4, got 6
+
+    >>> dtype = np.dtype([('a', '(4,4)i'), ('b', '5b')])
+    >>> test_structarray_errors(np.empty((5,), dtype=dtype))
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected 1 dimension(s), got 2
+
+    Test the same thing with the string format specifier
+
+    >>> dtype = np.dtype([('a', '4i'), ('b', 'S5')])
+    >>> test_structarray_errors(np.empty((5,), dtype=dtype))
+
+    >>> dtype = np.dtype([('a', '6i'), ('b', 'S5')])
+    >>> test_structarray_errors(np.empty((5,), dtype=dtype))
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected a dimension of size 4, got 6
+
+    >>> dtype = np.dtype([('a', '(4,4)i'), ('b', 'S5')])
+    >>> test_structarray_errors(np.empty((5,), dtype=dtype))
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected 1 dimension(s), got 2
+    """
+
+cdef struct StringStruct:
+    char c[4][4]
+
+ctypedef char String[4][4]
+
+def stringstructtest(StringStruct[:] view):
+    pass
+
+def stringtest(String[:] view):
+    pass
+
+@testcase_numpy_1_5
+def test_string_invalid_dims():
+    """
+    >>> dtype = np.dtype([('a', 'S4')])
+    >>> data = ['spam', 'eggs']
+    >>> stringstructtest(np.array(data, dtype=dtype))
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected 2 dimensions, got 1
+    >>> stringtest(np.array(data, dtype='S4'))
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected 2 dimensions, got 1
+    """
