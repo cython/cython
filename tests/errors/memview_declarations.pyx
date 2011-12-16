@@ -46,6 +46,14 @@ cdef intp[:, :] myarray
 cdef int[:] a10 = <int[:10]> object()
 cdef int[:] a11 = <int[:5.4]> <int *> 1
 
+cdef struct Valid:
+    int array[1][2][3][4][5][6][7][8]
+cdef struct Invalid:
+    int array[1][2][3][4][5][6][7][8][9]
+
+cdef Valid[:] validslice
+cdef Invalid[:] invalidslice
+
 # These are VALID
 cdef int[::view.indirect_contiguous, ::view.contiguous] a9
 
@@ -70,4 +78,5 @@ _ERRORS = u'''
 44:10: Invalid base type for memoryview slice: intp
 46:35: Can only create cython.array from pointer or array
 47:24: Cannot assign type 'double' to 'Py_ssize_t'
+55:13: Invalid base type for memoryview slice: Invalid
 '''
