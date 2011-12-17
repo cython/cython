@@ -396,85 +396,8 @@ def get_copy_contents_name(from_mvs, to_mvs):
     return '__Pyx_BufferCopyContents_%s_to_%s' % (from_mvs.specialization_suffix(),
                                                   to_mvs.specialization_suffix())
 
-
-class IsContigFuncUtilCode(object):
-
-    requires = None
-
-    def __init__(self, c_or_f):
-        self.c_or_f = c_or_f
-
-        self.is_contig_func_name = get_is_contig_func_name(self.c_or_f)
-
-    def __eq__(self, other):
-        if not isinstance(other, IsContigFuncUtilCode):
-            return False
-        return self.is_contig_func_name == other.is_contig_func_name
-
-    def __hash__(self):
-        return hash(self.is_contig_func_name)
-
-    def get_tree(self): pass
-
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
-
-        func_decl, func_impl = get_is_contiguous_func(self.c_or_f)
-
-        proto.put(func_decl)
-        code.put(func_impl)
-
 def get_is_contig_func_name(c_or_f):
-    return "__Pyx_Buffer_is_%s_contiguous" % c_or_f
-
-def get_is_contiguous_func(c_or_f):
-
-    func_name = get_is_contig_func_name(c_or_f)
-    decl = "static int %s(const __Pyx_memviewslice); /* proto */\n" % func_name
-
-    impl = """
-static int %s(const __Pyx_memviewslice mvs) {
-    /* returns 1 if mvs is the right contiguity, 0 otherwise */
-
-    int i, ndim = mvs.memview->view.ndim;
-    Py_ssize_t itemsize = mvs.memview->view.itemsize;
-    long size = 0;
-""" % func_name
-
-    if c_or_f == 'fortran':
-        for_loop = "for(i=0; i<ndim; i++)"
-    elif c_or_f == 'c':
-        for_loop = "for(i=ndim-1; i>-1; i--)"
-    else:
-        assert False
-
-    impl += """
-    size = 1;
-    %(for_loop)s {
-
-#ifdef DEBUG
-        printf("mvs.suboffsets[i] %%d\\n", mvs.suboffsets[i]);
-        printf("mvs.strides[i] %%d\\n", mvs.strides[i]);
-        printf("mvs.shape[i] %%d\\n", mvs.shape[i]);
-        printf("size %%d\\n", size);
-        printf("ndim %%d\\n", ndim);
-#endif
-#undef DEBUG
-
-        if(mvs.suboffsets[i] >= 0) {
-            return 0;
-        }
-        if(size * itemsize != mvs.strides[i]) {
-            return 0;
-        }
-        size *= mvs.shape[i];
-    }
-    return 1;
-
-}""" % {'for_loop' : for_loop}
-
-    return decl, impl
+    return "__pyx_memviewslice_is_%s_contig" % c_or_f
 
 copy_to_template = '''
 static int %(copy_to_name)s(const __Pyx_memviewslice from_mvs, __Pyx_memviewslice to_mvs) {
@@ -980,6 +903,12 @@ memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
 
 typeinfo_to_format_code = load_memview_cy_utility(
         "BufferFormatFromTypeInfo", requires=[Buffer._typeinfo_to_format_code])
+
+is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context)
+is_c_contig_utility = load_memview_c_utility("MemviewSliceIsCContig", context,
+                                             requires=[is_contig_utility])
+is_f_contig_utility = load_memview_c_utility("MemviewSliceIsFContig", context,
+                                             requires=[is_contig_utility])
 
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",

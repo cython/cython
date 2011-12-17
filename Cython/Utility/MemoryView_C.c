@@ -404,6 +404,55 @@ no_fail:
 
 }
 
+
+////////// MemviewSliceIsCContig.proto //////////
+//@requires MemviewSliceIsContig
+static int __pyx_memviewslice_is_c_contig(const {{memviewslice_name}});
+
+////////// MemviewSliceIsFContig.proto //////////
+//@requires MemviewSliceIsContig
+static int __pyx_memviewslice_is_fortran_contig(const {{memviewslice_name}});
+
+////////// MemviewSliceIsContig.proto //////////
+static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
+                                        char order);
+
+////////// MemviewSliceIsContig //////////
+static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
+                                        char order) {
+    int i, index, step, start;
+    int ndim = mvs->memview->view.ndim;
+    Py_ssize_t itemsize = mvs->memview->view.itemsize;
+
+    if (order == 'F') {
+        step = 1;
+        start = 0;
+    } else {
+        step = -1;
+        start = ndim - 1;
+    }
+
+    for (i = 0; i < ndim; i++) {
+        index = start + step * i;
+        if (mvs->suboffsets[index] >= 0 || mvs->strides[index] != itemsize)
+            return 0;
+
+        itemsize *= mvs->shape[index];
+    }
+
+    return 1;
+}
+
+////////// MemviewSliceIsCContig //////////
+static int __pyx_memviewslice_is_c_contig(const {{memviewslice_name}} mvs) {
+    return __pyx_memviewslice_is_contig(&mvs, 'C');
+}
+
+////////// MemviewSliceIsFContig //////////
+static int __pyx_memviewslice_is_fortran_contig(const {{memviewslice_name}} mvs) {
+    return __pyx_memviewslice_is_contig(&mvs, 'F');
+}
+
 /////////////// MemviewSliceIndex ///////////////
 
 static CYTHON_INLINE char *

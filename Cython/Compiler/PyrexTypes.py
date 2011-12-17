@@ -591,8 +591,10 @@ class MemoryViewSliceType(PyrexType):
                             defining = 1,
                             cname = is_contig_name)
 
-                entry.utility_code_definition = \
-                        MemoryView.IsContigFuncUtilCode(c_or_f)
+                if attribute == 'is_c_contig':
+                    entry.utility_code_definition = MemoryView.is_c_contig_utility
+                else:
+                    entry.utility_code_definition = MemoryView.is_f_contig_utility
 
         return True
 
