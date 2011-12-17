@@ -2651,7 +2651,7 @@ class DebugTransform(CythonTransform):
             pf_cname = node.py_func.entry.func_cname
 
         attrs = dict(
-            name=node.entry.name,
+            name=node.entry.name or getattr(node, 'name', '<unknown>'),
             cname=node.entry.func_cname,
             pf_cname=pf_cname,
             qualified_name=node.local_scope.qualified_name,
