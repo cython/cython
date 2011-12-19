@@ -508,3 +508,27 @@ def test_string_invalid_dims():
        ...
     ValueError: Expected 2 dimensions, got 1
     """
+
+ctypedef struct AttributesStruct:
+    int attrib1
+    float attrib2
+    StringStruct attrib3
+
+@testcase_numpy_1_5
+def test_struct_attributes():
+    """
+    >>> test_struct_attributes()
+    1
+    2.0
+    c
+    """
+    cdef AttributesStruct[10] a
+    cdef AttributesStruct[:] myslice = a
+    myslice[0].attrib1 = 1
+    myslice[0].attrib2 = 2.0
+    myslice[0].attrib3.c[0][0] = 'c'
+
+    array = np.asarray(myslice)
+    print array[0]['attrib1']
+    print array[0]['attrib2']
+    print chr(array[0]['attrib3']['c'][0][0])

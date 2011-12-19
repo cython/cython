@@ -966,7 +966,8 @@ cdef format_from_typeinfo(__Pyx_TypeInfo *type):
         field = type.fields
 
         while field.type:
-            parts.append(format_from_typeinfo(field.type).decode('ascii'))
+            part = format_from_typeinfo(field.type).decode('ascii')
+            parts.append('%s:%s:' % (part, field.name))
             field += 1
 
         result = alignment.join(parts) + '}'
