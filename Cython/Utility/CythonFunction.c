@@ -13,6 +13,9 @@
 #define __Pyx_CyFunction_GetClassObj(f) \
     (((__pyx_CyFunctionObject *) (f))->func_classobj)
 
+#define __Pyx_CyFunction_Defaults(type, f) \
+    ((type *)(((__pyx_CyFunctionObject *) (f))->defaults))
+
 
 typedef struct {
     PyCFunctionObject func;
@@ -24,6 +27,10 @@ typedef struct {
     PyObject *func_code;
     PyObject *func_closure;
     PyObject *func_classobj; /* No-args super() class cell */
+
+    /* Dynamic default args*/
+    void *defaults;
+    int defaults_pyobjects;
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -35,6 +42,11 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *,
                                       PyMethodDef *ml, int flags,
                                       PyObject *self, PyObject *module,
                                       PyObject* code);
+
+static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *m,
+                                                         size_t size,
+                                                         int pyobjects);
+
 
 static int __Pyx_CyFunction_init(void);
 
@@ -246,6 +258,9 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->func_classobj = NULL;
     Py_XINCREF(code);
     op->func_code = code;
+    /* Dynamic Default args */
+    op->defaults_pyobjects = 0;
+    op->defaults = NULL;
     PyObject_GC_Track(op);
     return (PyObject *) op;
 }
@@ -260,6 +275,18 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_doc);
     Py_CLEAR(m->func_code);
     Py_CLEAR(m->func_classobj);
+
+    if (m->defaults) {
+        PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
+        int i;
+
+        for (i = 0; i < m->defaults_pyobjects; i++)
+            Py_XDECREF(pydefaults[i]);
+
+        PyMem_Free(m->defaults);
+        m->defaults = NULL;
+    }
+
     return 0;
 }
 
@@ -281,6 +308,15 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_doc);
     Py_VISIT(m->func_code);
     Py_VISIT(m->func_classobj);
+
+    if (m->defaults) {
+        PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
+        int i;
+
+        for (i = 0; i < m->defaults_pyobjects; i++)
+            Py_VISIT(pydefaults[i]);
+    }
+
     return 0;
 }
 
@@ -384,6 +420,17 @@ static int __Pyx_CyFunction_init(void)
     return 0;
 }
 
+void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t size, int pyobjects)
+{
+    __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
+
+    m->defaults = PyMem_Malloc(size);
+    if (!m->defaults)
+        return PyErr_NoMemory();
+    memset(m->defaults, 0, sizeof(size));
+    m->defaults_pyobjects = pyobjects;
+    return m->defaults;
+}
 //////////////////// CyFunctionClassCell.proto ////////////////////
 static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
                                                          PyObject *classobj);
