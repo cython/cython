@@ -18,7 +18,6 @@ temp_sideeffects_T654
 class_scope_T671
 slice2_T636
 builtin_subtype_methods_T653
-default_args_T674
 
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals

@@ -5924,6 +5924,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     code_object = None
     binding = False
     def_node = None
+    defaults = None
+    defaults_struct = None
+    defaults_pyobjects = 0
 
     type = py_object_type
     is_temp = 1
@@ -5939,9 +5942,47 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 env.use_utility_code(fused_function_utility_code)
             else:
                 env.use_utility_code(binding_cfunc_utility_code)
+                self.analyse_default_args(env)
 
         #TODO(craig,haoyu) This should be moved to a better place
         self.set_mod_name(env)
+
+    def analyse_default_args(self, env):
+        """
+        Handle non-literal function's default arguments.
+        """
+        nonliteral_objects = []
+        nonliteral_other = []
+        for arg in self.def_node.args:
+            if arg.default and not arg.default.is_literal:
+                arg.is_dynamic = True
+                if arg.type.is_pyobject:
+                    nonliteral_objects.append(arg)
+                else:
+                    nonliteral_other.append(arg)
+        if nonliteral_objects or nonliteral_objects:
+            module_scope = env.global_scope()
+            cname = module_scope.next_id(Naming.defaults_struct_prefix)
+            scope = Symtab.StructOrUnionScope(cname)
+            self.defaults = []
+            for arg in nonliteral_objects:
+                entry = scope.declare_var(arg.name, arg.type, None,
+                                          Naming.arg_prefix + arg.name,
+                                          allow_pyobject=True)
+                self.defaults.append((arg, entry))
+            for arg in nonliteral_other:
+                entry = scope.declare_var(arg.name, arg.type, None,
+                                          Naming.arg_prefix + arg.name,
+                                          allow_pyobject=False)
+                self.defaults.append((arg, entry))
+            entry = module_scope.declare_struct_or_union(
+                None, 'struct', scope, 1, None, cname=cname)
+            self.defaults_struct = scope
+            self.defaults_pyobjects = len(nonliteral_objects)
+            for arg, entry in self.defaults:
+                arg.default_value = '%s->%s' % (
+                    Naming.dynamic_args_cname, entry.cname)
+            self.def_node.defaults_struct = self.defaults_struct.name
 
     def may_be_none(self):
         return False
@@ -6023,6 +6064,17 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     class_node.class_cell.result(),
                     self.result()))
             code.put_giveref(self.py_result())
+
+        if self.defaults:
+            code.putln(
+                'if (!__Pyx_CyFunction_InitDefaults(%s, sizeof(%s), %d)) %s' % (
+                    self.result(), self.defaults_struct.name,
+                    self.defaults_pyobjects, code.error_goto(self.pos)))
+            defaults = '__Pyx_CyFunction_Defaults(%s, %s)' % (
+                self.defaults_struct.name, self.result())
+            for arg, entry in self.defaults:
+                arg.generate_assignment_code(code, target='%s->%s' % (
+                    defaults, entry.cname))
 
         if self.specialized_cpdefs:
             self.generate_fused_cpdef(code, code_object_result, flags)

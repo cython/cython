@@ -677,6 +677,7 @@ class CArgDeclNode(Node):
     # is_self_arg    boolean            Is the "self" arg of an extension type method
     # is_type_arg    boolean            Is the "class" arg of an extension type classmethod
     # is_kw_only     boolean            Is a keyword-only argument
+    # is_dynamic     boolean            Non-literal arg stored inside CyFunction
 
     child_attrs = ["base_type", "declarator", "default"]
 
@@ -690,6 +691,7 @@ class CArgDeclNode(Node):
     name_declarator = None
     default_value = None
     annotation = None
+    is_dynamic = 0
 
     def analyse(self, env, nonempty = 0, is_self_arg = False):
         if is_self_arg:
@@ -737,6 +739,21 @@ class CArgDeclNode(Node):
     def annotate(self, code):
         if self.default:
             self.default.annotate(code)
+
+    def generate_assignment_code(self, code, target=None):
+        default = self.default
+        if default is None or default.is_literal:
+            return
+        if target is None:
+            target = self.calculate_default_value_code(code)
+        default.generate_evaluation_code(code)
+        default.make_owned_reference(code)
+        result = default.result_as(self.type)
+        code.putln("%s = %s;" % (target, result))
+        if self.type.is_pyobject:
+            code.put_giveref(default.result())
+        default.generate_post_assignment_code(code)
+        default.free_temps(code)
 
 
 class CBaseTypeNode(Node):
@@ -1801,20 +1818,8 @@ class FuncDefNode(StatNode, BlockNode):
     def generate_execution_code(self, code):
         # Evaluate and store argument default values
         for arg in self.args:
-            default = arg.default
-            if default:
-                if not default.is_literal:
-                    default.generate_evaluation_code(code)
-                    default.make_owned_reference(code)
-                    result = default.result_as(arg.type)
-                    code.putln(
-                        "%s = %s;" % (
-                            arg.calculate_default_value_code(code),
-                            result))
-                    if arg.type.is_pyobject:
-                        code.put_giveref(default.result())
-                    default.generate_post_assignment_code(code)
-                    default.free_temps(code)
+            if not arg.is_dynamic:
+                arg.generate_assignment_code(code)
         # For Python class methods, create and store function object
         if self.assmt:
             self.assmt.generate_execution_code(code)
@@ -2653,6 +2658,7 @@ class DefNode(FuncDefNode):
     self_in_stararg = 0
     py_cfunc_node = None
     requires_classobj = False
+    defaults_struct = None # Dynamic kwrds structure name
     doc = None
 
     fused_py_func = False
@@ -3520,6 +3526,11 @@ class DefNode(FuncDefNode):
         # before doing any type coercion etc.
         code.putln("PyObject* values[%d] = {%s};" % (
             max_args, ','.join('0'*max_args)))
+
+        if self.defaults_struct:
+            code.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
+                self.defaults_struct, Naming.dynamic_args_cname,
+                self.defaults_struct, Naming.self_cname))
 
         # assign borrowed Python default values to the values array,
         # so that they can be overwritten by received arguments below
