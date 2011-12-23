@@ -2954,13 +2954,14 @@ class IndexNode(ExprNode):
                 self.extra_index_params(),
                 code.error_goto(self.pos)))
 
-    def generate_memoryviewslice_copy_code(self, rhs, code, op=""):
-        assert isinstance(self.index, EllipsisNode)
+    def generate_memoryviewslice_copy_code(self, rhs, code):
         import MemoryView
-        util_code = MemoryView.CopyContentsFuncUtilCode(rhs.type, self.type)
-        func_name = util_code.copy_contents_name
-        code.putln(code.error_goto_if_neg("%s(&%s, &%s)" % (func_name, rhs.result(), self.base.result()), self.pos))
-        code.globalstate.use_utility_code(util_code)
+        code.putln(
+            code.error_goto_if_neg(
+                "%s(&%s, &%s, %d)" % (MemoryView.copy_src_to_dst_cname(),
+                                      rhs.result(), self.base.result(),
+                                      self.type.ndim),
+                self.pos))
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
@@ -4347,7 +4348,7 @@ class AttributeNode(ExprNode):
                         self.type = self.obj.type
                         return
                     else:
-                        obj_type.declare_attribute(self.attribute, env)
+                        obj_type.declare_attribute(self.attribute, env, self.pos)
                 entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None

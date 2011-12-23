@@ -37,7 +37,8 @@ static int __Pyx_init_memviewslice(
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
 
-
+static int CYTHON_INLINE __pyx_add_acquisition_count(struct {{memview_struct_name}} *memview);
+static int CYTHON_INLINE __pyx_del_acquisition_count(struct {{memview_struct_name}} *memview);
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
 #define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
@@ -210,11 +211,11 @@ no_fail:
     return retval;
 }
 
-static int __Pyx_init_memviewslice(
-                struct __pyx_memoryview_obj *memview,
-                int ndim,
-                __Pyx_memviewslice *memviewslice) {
-
+static int
+__Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
+                        int ndim,
+                        {{memviewslice_name}} *memviewslice)
+{
     __Pyx_RefNannyDeclarations
     int i, retval=-1;
     Py_buffer *buf = &memview->view;
@@ -242,7 +243,7 @@ static int __Pyx_init_memviewslice(
 
     memviewslice->memview = memview;
     memviewslice->data = (char *)buf->buf;
-    memview->acquisition_count++;
+    __pyx_add_acquisition_count(memview);
     retval = 0;
     goto no_fail;
 
@@ -275,6 +276,27 @@ static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
     va_end(vargs);
 }
 
+static int CYTHON_INLINE
+__pyx_add_acquisition_count(struct {{memview_struct_name}} *memview)
+{
+    int result;
+    PyThread_acquire_lock(memview->lock, 1);
+    result = memview->acquisition_count++;
+    PyThread_release_lock(memview->lock);
+    return result;
+}
+
+static int CYTHON_INLINE
+__pyx_del_acquisition_count(struct {{memview_struct_name}} *memview)
+{
+    int result;
+    PyThread_acquire_lock(memview->lock, 1);
+    result = memview->acquisition_count--;
+    PyThread_release_lock(memview->lock);
+    return result;
+}
+
+
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
                                             int have_gil, int lineno) {
     int first_time;
@@ -286,9 +308,7 @@ static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 
-    PyThread_acquire_lock(memview->lock, 1);
-    first_time = (memview->acquisition_count++ == 0);
-    PyThread_release_lock(memview->lock);
+    first_time = __pyx_add_acquisition_count(memview) == 0;
 
     if (first_time) {
         if (have_gil) {
@@ -313,10 +333,7 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 
-    PyThread_acquire_lock(memview->lock, 1);
-    last_time = (memview->acquisition_count-- == 1);
-    PyThread_release_lock(memview->lock);
-
+    last_time = __pyx_del_acquisition_count(memview) == 1;
     memslice->data = NULL;
     if (last_time) {
         if (have_gil) {
@@ -331,32 +348,39 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
     }
 }
 
+////////// MemviewSliceCopyTemplate.proto //////////
+static {{memviewslice_name}}
+__pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
+                                 const char *mode, int ndim,
+                                 size_t sizeof_dtype, int contig_flag);
+
 ////////// MemviewSliceCopyTemplate //////////
-
-static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
-
+static {{memviewslice_name}}
+__pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
+                                 const char *mode, int ndim,
+                                 size_t sizeof_dtype, int contig_flag)
+{
     __Pyx_RefNannyDeclarations
     int i;
     __Pyx_memviewslice new_mvs = {{memslice_init}};
-    struct __pyx_memoryview_obj *from_memview = from_mvs.memview;
+    struct __pyx_memoryview_obj *from_memview = from_mvs->memview;
     Py_buffer *buf = &from_memview->view;
-    PyObject *shape_tuple = 0;
-    PyObject *temp_int = 0;
-    struct __pyx_array_obj *array_obj = 0;
-    struct __pyx_memoryview_obj *memview_obj = 0;
-    char *mode = (char *) "{{mode}}";
+    PyObject *shape_tuple = NULL;
+    PyObject *temp_int = NULL;
+    struct __pyx_array_obj *array_obj = NULL;
+    struct __pyx_memoryview_obj *memview_obj = NULL;
 
-    __Pyx_RefNannySetupContext("{{copy_name}}");
+    __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig");
 
-    shape_tuple = PyTuple_New((Py_ssize_t)(buf->ndim));
+    shape_tuple = PyTuple_New(ndim);
     if(unlikely(!shape_tuple)) {
         goto fail;
     }
     __Pyx_GOTREF(shape_tuple);
 
 
-    for(i=0; i<buf->ndim; i++) {
-        temp_int = PyInt_FromLong(buf->shape[i]);
+    for(i = 0; i < ndim; i++) {
+        temp_int = PyInt_FromLong(from_mvs->shape[i]);
         if(unlikely(!temp_int)) {
             goto fail;
         } else {
@@ -364,36 +388,31 @@ static __Pyx_memviewslice {{copy_name}}(const __Pyx_memviewslice from_mvs) {
         }
     }
 
-    array_obj = __pyx_array_new(shape_tuple, {{sizeof_dtype}}, buf->format, mode, NULL);
+    array_obj = __pyx_array_new(shape_tuple, sizeof_dtype, buf->format, (char *) mode, NULL);
     if (unlikely(!array_obj)) {
         goto fail;
     }
     __Pyx_GOTREF(array_obj);
 
     memview_obj = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
-                                (PyObject *) array_obj, {{contig_flag}});
-    if (unlikely(!memview_obj)) {
+                                (PyObject *) array_obj, contig_flag);
+    if (unlikely(!memview_obj))
         goto fail;
-    }
 
     /* initialize new_mvs */
-    if (unlikely(-1 == __Pyx_init_memviewslice(memview_obj, buf->ndim, &new_mvs))) {
-        PyErr_SetString(PyExc_RuntimeError,
-            "Could not initialize new memoryviewslice object.");
+    if (unlikely(__Pyx_init_memviewslice(memview_obj, ndim, &new_mvs) < 0))
         goto fail;
-    }
 
-    if (unlikely(-1 == {{copy_contents_name}}(&from_mvs, &new_mvs))) {
-        /* PyErr_SetString(PyExc_RuntimeError,
-            "Could not copy contents of memoryview slice."); */
+    if (unlikely(__pyx_memoryview_copy_contents(
+                    ({{memviewslice_name}} *) from_mvs, &new_mvs, ndim) < 0))
         goto fail;
-    }
 
     goto no_fail;
 
 fail:
-    __Pyx_XDECREF(new_mvs.memview); new_mvs.memview = 0;
-    new_mvs.data = 0;
+    __Pyx_XDECREF(new_mvs.memview);
+    new_mvs.memview = NULL;
+    new_mvs.data = NULL;
 no_fail:
     __Pyx_XDECREF(shape_tuple); shape_tuple = 0;
     __Pyx_GOTREF(temp_int);
@@ -401,27 +420,84 @@ no_fail:
     __Pyx_XDECREF(array_obj); array_obj = 0;
     __Pyx_RefNannyFinishContext();
     return new_mvs;
-
 }
 
+////////// CopyContentsUtility.proto /////////
+#define {{func_cname}}(slice) \
+        __pyx_memoryview_copy_new_contig(&slice, "{{mode}}", {{ndim}}, \
+                                         sizeof({{dtype_decl}}), {{contig_flag}})
+
+////////// OverlappingSlices.proto //////////
+static int __pyx_slices_overlap({{memviewslice_name}} *slice1,
+                                {{memviewslice_name}} *slice2,
+                                int ndim, size_t itemsize);
+
+////////// OverlappingSlices //////////
+/* Based on numpy's core/src/multiarray/array_assign.c */
+
+/* Gets a half-open range [start, end) which contains the array data */
+static void
+__pyx_get_array_memory_extents({{memviewslice_name}} *slice,
+                               void **out_start, void **out_end,
+                               int ndim, size_t itemsize)
+{
+    char *start, *end;
+    int i;
+
+    start = end = slice->data;
+
+    for (i = 0; i < ndim; i++) {
+        Py_ssize_t stride = slice->strides[i];
+        Py_ssize_t extent = slice->shape[i];
+
+        if (extent == 0) {
+            *out_start = *out_end = start;
+            return;
+        } else {
+            if (stride > 0)
+                end += stride * (extent - 1);
+            else
+                start += stride * (extent - 1);
+        }
+    }
+
+    /* Return a half-open range */
+    *out_start = start;
+    *out_end = end + itemsize;
+}
+
+/* Returns 1 if the arrays have overlapping data, 0 otherwise */
+static int
+__pyx_slices_overlap({{memviewslice_name}} *slice1,
+                     {{memviewslice_name}} *slice2,
+                     int ndim, size_t itemsize)
+{
+    void *start1, *end1, *start2, *end2;
+
+    __pyx_get_array_memory_extents(slice1, &start1, &end1, ndim, itemsize);
+    __pyx_get_array_memory_extents(slice2, &start2, &end2, ndim, itemsize);
+
+    return (start1 < end2) && (start2 < end1);
+}
 
 ////////// MemviewSliceIsCContig.proto //////////
-//@requires MemviewSliceIsContig
-static int __pyx_memviewslice_is_c_contig(const {{memviewslice_name}});
+#define __pyx_memviewslice_is_c_contig{{ndim}}(slice) \
+        __pyx_memviewslice_is_contig(&slice, 'C', {{ndim}})
 
 ////////// MemviewSliceIsFContig.proto //////////
-//@requires MemviewSliceIsContig
-static int __pyx_memviewslice_is_fortran_contig(const {{memviewslice_name}});
+#define __pyx_memviewslice_is_f_contig{{ndim}}(slice) \
+        __pyx_memviewslice_is_contig(&slice, 'F', {{ndim}})
 
 ////////// MemviewSliceIsContig.proto //////////
 static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
-                                        char order);
+                                        char order, int ndim);
 
 ////////// MemviewSliceIsContig //////////
-static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
-                                        char order) {
+static int
+__pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
+                             char order, int ndim)
+{
     int i, index, step, start;
-    int ndim = mvs->memview->view.ndim;
     Py_ssize_t itemsize = mvs->memview->view.itemsize;
 
     if (order == 'F') {
@@ -441,16 +517,6 @@ static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
     }
 
     return 1;
-}
-
-////////// MemviewSliceIsCContig //////////
-static int __pyx_memviewslice_is_c_contig(const {{memviewslice_name}} mvs) {
-    return __pyx_memviewslice_is_contig(&mvs, 'C');
-}
-
-////////// MemviewSliceIsFContig //////////
-static int __pyx_memviewslice_is_fortran_contig(const {{memviewslice_name}} mvs) {
-    return __pyx_memviewslice_is_contig(&mvs, 'F');
 }
 
 /////////////// MemviewSliceIndex ///////////////

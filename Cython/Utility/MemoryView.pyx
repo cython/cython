@@ -237,6 +237,11 @@ cdef extern from *:
         PyBUF_STRIDES
         PyBUF_INDIRECT
 
+cdef extern from "stdlib.h":
+    void *malloc(size_t) nogil
+    void free(void *) nogil
+    void *memcpy(void *dest, void *src, size_t n) nogil
+
 @cname('__pyx_MemviewEnum')
 cdef class Enum(object):
     cdef object name
@@ -891,6 +896,7 @@ cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst):
 
 @cname('__pyx_memoryview_copy')
 cdef memoryview_copy(memoryview memview):
+    "Create a new memoryview object"
     cdef {{memviewslice_name}} memviewslice
     cdef object (*to_object_func)(char *)
     cdef int (*to_dtype_func)(char *, object) except 0
@@ -906,6 +912,226 @@ cdef memoryview_copy(memoryview memview):
 
     return memoryview_fromslice(&memviewslice, memview.view.ndim,
                                 to_object_func, to_dtype_func)
+
+#
+### Copy the contents of a memoryview slices
+#
+cdef extern from *:
+    int slice_is_contig "__pyx_memviewslice_is_contig" (
+                            {{memviewslice_name}} *mvs, char order, int ndim) nogil
+    int slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
+                                               {{memviewslice_name}} *slice2,
+                                               int ndim, size_t itemsize) nogil
+
+cdef Py_ssize_t abs_py_ssize_t(Py_ssize_t arg) nogil:
+    if arg < 0:
+        return -arg
+    else:
+        return arg
+
+@cname('__pyx_get_best_slice_order')
+cdef char get_best_order({{memviewslice_name}} *mslice, int ndim) nogil:
+    """
+    Figure out the best memory access order for a given slice.
+    """
+    cdef int i
+    cdef Py_ssize_t c_stride = 0
+    cdef Py_ssize_t f_stride = 0
+
+    for i in range(ndim -1, -1, -1):
+        if mslice.shape[i] > 1:
+            c_stride = mslice.strides[i]
+
+    for i in range(ndim):
+        if mslice.shape[i] > 1:
+            f_stride = mslice.strides[i]
+
+    if abs_py_ssize_t(c_stride) <= abs_py_ssize_t(f_stride):
+        return 'C'
+    else:
+        return 'F'
+
+cdef void _copy_strided_to_strided(char *src_data, Py_ssize_t *strides1,
+                                   char *dst_data, Py_ssize_t *strides2,
+                                   Py_ssize_t *shape, int ndim, size_t itemsize) nogil:
+    cdef Py_ssize_t i, extent, stride1, stride2
+    extent = shape[0]
+    stride1 = strides1[0]
+    stride2 = strides2[0]
+
+    if ndim == 1:
+        if stride1 > 0 and stride2 > 0 and <size_t> stride1 == itemsize == <size_t> stride2:
+            memcpy(dst_data, src_data, itemsize * extent)
+        else:
+            for i in range(extent):
+                memcpy(dst_data, src_data, itemsize)
+                src_data += stride1
+                dst_data += stride2
+    else:
+        for i in range(extent):
+            _copy_strided_to_strided(src_data, strides1 + 1,
+                                     dst_data, strides2 + 1,
+                                     shape + 1, ndim - 1, itemsize)
+            src_data += stride1
+            dst_data += stride2
+
+cdef void copy_strided_to_strided({{memviewslice_name}} *src,
+                                  {{memviewslice_name}} *dst,
+                                  int ndim, size_t itemsize) nogil:
+    _copy_strided_to_strided(src.data, src.strides, dst.data, dst.strides,
+                             src.shape, ndim, itemsize)
+
+{{for strided_to_contig in (True, False)}}
+    {{if strided_to_contig}}
+        {{py: func_name = "copy_strided_to_contig"}}
+    {{else}}
+        {{py: func_name = "copy_contig_to_strided"}}
+    {{endif}}
+
+@cname('__pyx_{{func_name}}')
+cdef char *{{func_name}}(char *strided, char *contig, Py_ssize_t *shape,
+                         Py_ssize_t *strides, int ndim, size_t itemsize) nogil:
+    """
+    Copy contiguous data to strided memory, or strided memory to contiguous data.
+    The shape and strides are given only for the strided data.
+    """
+    cdef Py_ssize_t i, extent, stride
+    cdef void *src, *dst
+
+    stride = strides[0]
+    extent = shape[0]
+
+{{if strided_to_contig}}
+    src = strided
+    dst = contig
+{{else}}
+    src = contig
+    dst = strided
+{{endif}}
+
+    if ndim == 1:
+        # inner dimension, copy data
+        if stride > 0 and <size_t> stride == itemsize:
+            memcpy(dst, src, itemsize * extent)
+            contig += itemsize * extent
+        else:
+            for i in range(extent):
+{{if strided_to_contig}}
+                memcpy(contig, strided, itemsize)
+{{else}}
+                memcpy(strided, contig, itemsize)
+{{endif}}
+                contig += itemsize
+                strided += stride
+    else:
+        for i in range(extent):
+            contig = {{func_name}}(strided, contig, shape + 1, strides + 1,
+                                   ndim - 1, itemsize)
+            strided += stride
+
+    return contig
+{{endfor}}
+
+@cname('__pyx_memoryview_slice_get_size')
+cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
+    "Return the size of the memory occupied by the slice in number of bytes"
+    cdef int i
+    cdef Py_ssize_t size = src.memview.view.itemsize
+
+    for i in range(ndim):
+        size *= src.shape[i]
+
+    return size
+
+@cname('__pyx_memoryview_copy_data_to_temp')
+cdef void *copy_data_to_temp({{memviewslice_name}} *src, char order, int ndim) nogil except NULL:
+    """
+    Copy a direct slice to temporary contiguous memory. The caller should free
+    the result when done.
+    """
+    cdef int i
+    cdef void *result
+
+    cdef size_t itemsize = src.memview.view.itemsize
+    cdef size_t size = slice_get_size(src, ndim)
+
+    result = malloc(size)
+    if not result:
+        with gil:
+            raise MemoryError
+
+    if slice_is_contig(src, order, ndim):
+        memcpy(result, src.data, size)
+    else:
+        copy_strided_to_contig(src.data, <char *> result, src.shape, src.strides,
+                               ndim, itemsize)
+    return result
+
+@cname('__pyx_memoryview_copy_contents')
+cdef int memoryview_copy_contents({{memviewslice_name}} *src,
+                                  {{memviewslice_name}} *dst,
+                                  int ndim) nogil except -1:
+    """
+    Copy memory from slice src to slice dst.
+    Check for overlapping memory and verify the shapes.
+
+    This function DOES NOT verify ndim and itemsize (either the compiler
+    or the caller should do that)
+    """
+    cdef void *tmpdata
+    cdef size_t itemsize = src.memview.view.itemsize
+    cdef int i, direct_copy
+    cdef char order = get_best_order(src, ndim)
+    cdef {{memviewslice_name}} src_copy, dst_copy
+
+    for i in range(ndim):
+        if src.shape[i] != dst.shape[i]:
+            with gil:
+                raise ValueError(
+                    "memoryview shapes are not the same in dimension %d, "
+                    "got %d and %d" % (i, src.shape[i], dst.shape[i]))
+
+    if slices_overlap(src, dst, ndim, itemsize):
+        # slices overlap, copy to temp, copy temp to dst
+        if not slice_is_contig(src, order, ndim):
+            order = get_best_order(dst, ndim)
+
+        tmpdata = copy_data_to_temp(src, order, ndim)
+        copy_contig_to_strided(dst.data, <char *> tmpdata, dst.shape,
+                               dst.strides, ndim, itemsize)
+        free(tmpdata)
+        return 0
+
+    # See if both slices have equal contiguity
+    if slice_is_contig(src, 'C', ndim):
+        direct_copy = slice_is_contig(dst, 'C', ndim)
+    elif slice_is_contig(src, 'F', ndim):
+        direct_copy = slice_is_contig(dst, 'F', ndim)
+    else:
+        direct_copy = False
+
+    if direct_copy:
+        # Contiguous slices with same order
+        memcpy(dst.data, src.data, slice_get_size(src, ndim))
+        return 0
+
+    # Slices are not overlapping and not contiguous
+    if order == 'F' == get_best_order(dst, ndim):
+        # see if both slices have Fortran order, transpose them to match our
+        # C-style indexing order
+        if src != &src_copy:
+            src_copy = src[0]
+            src = &src_copy
+
+        if dst != &dst_copy:
+            dst_copy = dst[0]
+            dst = &dst_copy
+
+        transpose_memslice(src)
+        transpose_memslice(dst)
+
+    copy_strided_to_strided(src, dst, ndim, itemsize)
+    return 0
 
 ############### BufferFormatFromTypeInfo ###############
 cdef extern from *:

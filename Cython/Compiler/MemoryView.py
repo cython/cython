@@ -384,235 +384,66 @@ def get_memoryview_flag(access, packing):
         assert (access, packing) == ('direct', 'contig'), (access, packing)
         return 'contiguous'
 
-def get_copy_func_name(to_memview):
-    base = "__Pyx_BufferNew_%s_From_%s"
-    if to_memview.is_c_contig:
-        return base % ('C', to_memview.specialization_suffix())
+def get_is_contig_func_name(c_or_f, ndim):
+    return "__pyx_memviewslice_is_%s_contig%d" % (c_or_f, ndim)
+
+def get_is_contig_utility(c_contig, ndim):
+    C = dict(context, ndim=ndim)
+    if c_contig:
+        utility = load_memview_c_utility("MemviewSliceIsCContig", C,
+                                         requires=[is_contig_utility])
     else:
-        return base % ('F', to_memview.specialization_suffix())
+        utility = load_memview_c_utility("MemviewSliceIsFContig", C,
+                                         requires=[is_contig_utility])
 
-def get_copy_contents_name(from_mvs, to_mvs):
-    assert from_mvs.dtype == to_mvs.dtype
-    return '__Pyx_BufferCopyContents_%s_to_%s' % (from_mvs.specialization_suffix(),
-                                                  to_mvs.specialization_suffix())
+    return utility
 
-def get_is_contig_func_name(c_or_f):
-    return "__pyx_memviewslice_is_%s_contig" % c_or_f
+def copy_src_to_dst_cname():
+    return "__pyx_memoryview_copy_contents"
 
-copy_to_template = '''
-static int %(copy_to_name)s(const __Pyx_memviewslice from_mvs, __Pyx_memviewslice to_mvs) {
+def copy_c_or_fortran_cname(memview):
+    if memview.is_c_contig:
+        c_or_f = 'c'
+    else:
+        c_or_f = 'f'
 
-    /* ensure from_mvs & to_mvs have the same shape & dtype */
+    return "__pyx_memoryview_copy_slice_%s_%s" % (
+            memview.specialization_suffix(), c_or_f)
 
-}
-'''
+def get_copy_new_utility(pos, from_memview, to_memview):
+    if from_memview.dtype != to_memview.dtype:
+        return error(pos, "dtypes must be the same!")
+    if len(from_memview.axes) != len(to_memview.axes):
+        return error(pos, "number of dimensions must be same")
+    if not (to_memview.is_c_contig or to_memview.is_f_contig):
+        return error(pos, "to_memview must be c or f contiguous.")
 
-class CopyContentsFuncUtilCode(object):
-
-    requires = None
-
-    def __init__(self, from_memview, to_memview):
-        self.from_memview = from_memview
-        self.to_memview = to_memview
-        self.copy_contents_name = get_copy_contents_name(from_memview, to_memview)
-
-    def __eq__(self, other):
-        if not isinstance(other, CopyContentsFuncUtilCode):
-            return False
-        return other.copy_contents_name == self.copy_contents_name
-
-    def __hash__(self):
-        return hash(self.copy_contents_name)
-
-    def get_tree(self): pass
-
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
-
-        func_decl, func_impl = \
-                get_copy_contents_func(self.from_memview, self.to_memview, self.copy_contents_name)
-
-        proto.put(func_decl)
-        code.put(func_impl)
-
-class CopyFuncUtilCode(object):
-
-    requires = None
-
-    def __init__(self, from_memview, to_memview):
-        if from_memview.dtype != to_memview.dtype:
-            raise ValueError("dtypes must be the same!")
-        if len(from_memview.axes) != len(to_memview.axes):
-            raise ValueError("number of dimensions must be same")
-        if not (to_memview.is_c_contig or to_memview.is_f_contig):
-            raise ValueError("to_memview must be c or f contiguous.")
-        for (access, packing) in from_memview.axes:
-            if access != 'direct':
-                raise NotImplementedError("cannot handle 'full' or 'ptr' access at this time.")
-
-        self.from_memview = from_memview
-        self.to_memview = to_memview
-        self.copy_func_name = get_copy_func_name(to_memview)
-
-        self.requires = [CopyContentsFuncUtilCode(from_memview, to_memview)]
-
-    def __eq__(self, other):
-        if not isinstance(other, CopyFuncUtilCode):
-            return False
-        return other.copy_func_name == self.copy_func_name
-
-    def __hash__(self):
-        return hash(self.copy_func_name)
-
-    def get_tree(self): pass
-
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
-
-        proto.put(Buffer.dedent("""\
-                static __Pyx_memviewslice %s(const __Pyx_memviewslice from_mvs); /* proto */
-        """ % self.copy_func_name))
-
-        copy_contents_name = get_copy_contents_name(self.from_memview, self.to_memview)
-
-        if self.to_memview.is_c_contig:
-            mode = 'c'
-            contig_flag = memview_c_contiguous
-        elif self.to_memview.is_f_contig:
-            mode = 'fortran'
-            contig_flag = memview_f_contiguous
-
-        C = dict(
-            context,
-            copy_name=self.copy_func_name,
-            mode=mode,
-            sizeof_dtype="sizeof(%s)" % self.from_memview.dtype.declaration_code(''),
-            contig_flag=contig_flag,
-            copy_contents_name=copy_contents_name
-        )
-
-        _, copy_code = TempitaUtilityCode.load_as_string(
-                    "MemviewSliceCopyTemplate",
-                    from_file="MemoryView_C.c",
-                    context=C)
-        code.put(copy_code)
-
-
-def get_copy_contents_func(from_mvs, to_mvs, cfunc_name):
-    assert from_mvs.dtype == to_mvs.dtype
-    assert len(from_mvs.axes) == len(to_mvs.axes)
-
-    ndim = len(from_mvs.axes)
-
-    # XXX: we only support direct access for now.
-    for (access, packing) in from_mvs.axes:
+    for (access, packing) in from_memview.axes:
         if access != 'direct':
-            raise NotImplementedError("currently only direct access is supported.")
+            return error(
+                    pos, "cannot handle 'full' or 'ptr' access at this time.")
 
-    code_decl = ("static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs,"
-                "__Pyx_memviewslice *to_mvs); /* proto */" % {'cfunc_name' : cfunc_name})
+    if to_memview.is_c_contig:
+        mode = 'c'
+        contig_flag = memview_c_contiguous
+    elif to_memview.is_f_contig:
+        mode = 'fortran'
+        contig_flag = memview_f_contiguous
 
-    code_impl = '''
-
-static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice *to_mvs) {
-
-    char *to_buf = (char *)to_mvs->data;
-    char *from_buf = (char *)from_mvs->data;
-    struct __pyx_memoryview_obj *temp_memview = 0;
-    char *temp_data = 0;
-
-    int ndim_idx = 0;
-
-    for(ndim_idx=0; ndim_idx<%(ndim)d; ndim_idx++) {
-        if(from_mvs->shape[ndim_idx] != to_mvs->shape[ndim_idx]) {
-            PyErr_Format(PyExc_ValueError,
-                "memoryview shapes not the same in dimension %%d", ndim_idx);
-            return -1;
-        }
-    }
-
-''' % {'cfunc_name' : cfunc_name, 'ndim' : ndim}
-
-    # raise NotImplementedError("put in shape checking code here!!!")
-
-    INDENT = "    "
-    dtype_decl = from_mvs.dtype.declaration_code("")
-    last_idx = ndim-1
-
-    if to_mvs.is_c_contig or to_mvs.is_f_contig:
-        if to_mvs.is_c_contig:
-            start, stop, step = 0, ndim, 1
-        elif to_mvs.is_f_contig:
-            start, stop, step = ndim-1, -1, -1
-
-
-        for i, idx in enumerate(range(start, stop, step)):
-            # the crazy indexing is to account for the fortran indexing.
-            # 'i' always goes up from zero to ndim-1.
-            # 'idx' is the same as 'i' for c_contig, and goes from ndim-1 to 0 for f_contig.
-            # this makes the loop code below identical in both cases.
-            code_impl += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
-            code_impl += INDENT+"Py_ssize_t stride%(i)d = from_mvs->strides[%(idx)d];\n" % {'i':i, 'idx':idx}
-            code_impl += INDENT+"Py_ssize_t shape%(i)d = from_mvs->shape[%(idx)d];\n" % {'i':i, 'idx':idx}
-
-        code_impl += "\n"
-
-        # put down the nested for-loop.
-        for k in range(ndim):
-
-            code_impl += INDENT*(k+1) + "for(i%(k)d=0; i%(k)d<shape%(k)d; i%(k)d++) {\n" % {'k' : k}
-            if k >= 1:
-                code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d + idx%(km1)d;\n" % {'k' : k, 'km1' : k-1}
-            else:
-                code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d;\n" % {'k' : k}
-
-        # the inner part of the loop.
-        code_impl += INDENT*(ndim+1)+"memcpy(to_buf, from_buf+idx%(last_idx)d, sizeof(%(dtype_decl)s));\n" % locals()
-        code_impl += INDENT*(ndim+1)+"to_buf += sizeof(%(dtype_decl)s);\n" % locals()
-
-
-    else:
-
-        code_impl += INDENT+"/* 'f' prefix is for the 'from' memview, 't' prefix is for the 'to' memview */\n"
-        for i in range(ndim):
-            code_impl += INDENT+"char *fi%d = 0, *ti%d = 0, *end%d = 0;\n" % (i,i,i)
-            code_impl += INDENT+"Py_ssize_t fstride%(i)d = from_mvs->strides[%(i)d];\n" % {'i':i}
-            code_impl += INDENT+"Py_ssize_t fshape%(i)d = from_mvs->shape[%(i)d];\n" % {'i':i}
-            code_impl += INDENT+"Py_ssize_t tstride%(i)d = to_mvs->strides[%(i)d];\n" % {'i':i}
-            # code_impl += INDENT+"Py_ssize_t tshape%(i)d = to_mvs->shape[%(i)d];\n" % {'i':i}
-
-        code_impl += INDENT+"end0 = fshape0 * fstride0 + from_mvs->data;\n"
-        code_impl += INDENT+"for(fi0=from_buf, ti0=to_buf; fi0 < end0; fi0 += fstride0, ti0 += tstride0) {\n"
-        for i in range(1, ndim):
-            code_impl += INDENT*(i+1)+"end%(i)d = fshape%(i)d * fstride%(i)d + fi%(im1)d;\n" % {'i' : i, 'im1' : i-1}
-            code_impl += INDENT*(i+1)+"for(fi%(i)d=fi%(im1)d, ti%(i)d=ti%(im1)d; fi%(i)d < end%(i)d; fi%(i)d += fstride%(i)d, ti%(i)d += tstride%(i)d) {\n" % {'i':i, 'im1':i-1}
-
-        code_impl += INDENT*(ndim+1)+"*(%(dtype_decl)s*)(ti%(last_idx)d) = *(%(dtype_decl)s*)(fi%(last_idx)d);\n" % locals()
-
-    # for-loop closing braces
-    for k in range(ndim-1, -1, -1):
-        code_impl += INDENT*(k+1)+"}\n"
-
-    # init to_mvs->data and to_mvs shape/strides/suboffsets arrays.
-    code_impl += INDENT+"temp_memview = to_mvs->memview;\n"
-    code_impl += INDENT+"temp_data = to_mvs->data;\n"
-    code_impl += INDENT+"to_mvs->memview = 0; to_mvs->data = 0;\n"
-    code_impl += INDENT+"if(unlikely(-1 == __Pyx_init_memviewslice(temp_memview, %d, to_mvs))) {\n" % (ndim,)
-    code_impl += INDENT*2+"return -1;\n"
-    code_impl +=   INDENT+"}\n"
-
-    code_impl += INDENT + "return 0;\n"
-
-    code_impl += '}\n'
-
-    return code_decl, code_impl
+    return load_memview_c_utility(
+        "CopyContentsUtility",
+        context=dict(
+            context,
+            mode=mode,
+            dtype_decl=to_memview.dtype.declaration_code(''),
+            contig_flag=contig_flag,
+            ndim=to_memview.ndim,
+            func_cname=copy_c_or_fortran_cname(to_memview)),
+        requires=[copy_contents_new_utility])
 
 def get_axes_specs(env, axes):
     '''
     get_axes_specs(env, axes) -> list of (access, packing) specs for each axis.
-
     access is one of 'full', 'ptr' or 'direct'
     packing is one of 'contig', 'strided' or 'follow'
     '''
@@ -905,10 +736,8 @@ typeinfo_to_format_code = load_memview_cy_utility(
         "BufferFormatFromTypeInfo", requires=[Buffer._typeinfo_to_format_code])
 
 is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context)
-is_c_contig_utility = load_memview_c_utility("MemviewSliceIsCContig", context,
-                                             requires=[is_contig_utility])
-is_f_contig_utility = load_memview_c_utility("MemviewSliceIsFContig", context,
-                                             requires=[is_contig_utility])
+overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
+copy_contents_new_utility = load_memview_c_utility("MemviewSliceCopyTemplate", context)
 
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",
@@ -916,7 +745,10 @@ view_utility_code = load_memview_cy_utility(
         requires=[Buffer.GetAndReleaseBufferUtilityCode(),
                   Buffer.buffer_struct_declare_code,
                   Buffer.empty_bufstruct_utility,
-                  memviewslice_init_code],
+                  memviewslice_init_code,
+                  is_contig_utility,
+                  overlapping_utility,
+                  copy_contents_new_utility],
 )
 
 cython_array_utility_code = load_memview_cy_utility(
