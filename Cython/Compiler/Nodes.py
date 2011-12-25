@@ -5168,7 +5168,6 @@ class ReturnStatNode(StatNode):
                         lhs_pos=self.value.pos,
                         rhs=self.value,
                         code=code,
-                        incref_rhs=self.value.is_name,
                         have_gil=self.in_nogil_context)
             else:
                 self.value.make_owned_reference(code)

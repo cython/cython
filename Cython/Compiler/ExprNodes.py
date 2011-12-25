@@ -1811,7 +1811,6 @@ class NameNode(AtomicExprNode):
             lhs_pos=self.pos,
             rhs=rhs,
             code=code,
-            incref_rhs=rhs.is_name,
             have_gil=not self.in_nogil_context)
 
     def generate_acquire_buffer(self, rhs, code):
@@ -2571,7 +2570,6 @@ class IndexNode(ExprNode):
             # All indices with all start/stop/step for slices.
             # We need to keep this around
             self.indices = new_indices
-
             self.env = env
 
         elif self.base.type.is_buffer:
@@ -4525,8 +4523,7 @@ class AttributeNode(ExprNode):
             elif self.type.is_memoryviewslice:
                 import MemoryView
                 MemoryView.put_assign_to_memviewslice(
-                        select_code, rhs.result(), self.type, code,
-                        incref_rhs=rhs.is_name)
+                        select_code, rhs, rhs.result(), self.type, code)
 
             if not self.type.is_memoryviewslice:
                 code.putln(

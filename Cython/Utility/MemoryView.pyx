@@ -583,7 +583,7 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 
     for dim, index in enumerate(indices):
         if PyIndex_Check(index):
-            slice_memviewslice(p_src, p_dst, True, dim, new_ndim, p_suboffset_dim,
+            slice_memviewslice(p_src, p_dst, dim, new_ndim, p_suboffset_dim,
                                index, 0, 0, 0, 0, 0, False)
         else:
             start = index.start or 0
@@ -594,7 +594,7 @@ cdef memoryview memview_slice(memoryview memview, object indices):
             have_stop = index.stop is not None
             have_step = index.step is not None
 
-            slice_memviewslice(p_src, p_dst, True, dim, new_ndim, p_suboffset_dim,
+            slice_memviewslice(p_src, p_dst, dim, new_ndim, p_suboffset_dim,
                                start, stop, step, have_start, have_stop, have_step,
                                True)
             new_ndim += 1
@@ -628,9 +628,8 @@ cdef extern from "pystate.h":
     PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
 
 @cname('__pyx_memoryview_slice_memviewslice')
-cdef char *slice_memviewslice({{memviewslice_name}} *src,
+cdef int slice_memviewslice({{memviewslice_name}} *src,
                               {{memviewslice_name}} *dst,
-                              bint have_gil,
                               int dim,
                               int new_ndim,
                               int *suboffset_dim,
@@ -640,11 +639,10 @@ cdef char *slice_memviewslice({{memviewslice_name}} *src,
                               int have_start,
                               int have_stop,
                               int have_step,
-                              bint is_slice) nogil except *:
+                              bint is_slice) nogil except -1:
     """
     Create a new slice dst given slice src.
 
-    have_gil        - if true, the GIL must be held and exceptions may be raised
     dim             - the current src dimension (indexing will make dimensions
                                                  disappear)
     new_dim         - the new dst dimension
@@ -657,19 +655,6 @@ cdef char *slice_memviewslice({{memviewslice_name}} *src,
         Py_ssize_t new_shape
         bint negative_step
 
-        # Somehow these pointers are NULL when set as globals... this needs investigation
-        char *ERR_OOB = "Index out of bounds (axis %d)"
-        char *ERR_STEP = "Step must not be zero (axis %d)"
-        char *ERR_INDIRECT_GIL = ("Cannot make indirect dimension %d disappear "
-                              "through indexing, consider slicing with %d:%d")
-        char *ERR_INDIRECT_NOGIL = ("Cannot make indirect dimension %d disappear "
-                                "through indexing")
-        PyObject *exc = <PyObject *> IndexError
-
-    if have_gil:
-        # Assert the GIL
-        PyThreadState_Get()
-
     shape = src.shape[dim]
     stride = src.strides[dim]
     suboffset = src.suboffsets[dim]
@@ -679,19 +664,15 @@ cdef char *slice_memviewslice({{memviewslice_name}} *src,
         if start < 0:
             start += shape
         if not 0 <= start < shape:
-            if have_gil:
-                PyErr_Format(exc, ERR_OOB, dim)
-            return ERR_OOB
+            with gil:
+                raise IndexError("Index out of bounds (axis %d)")
     else:
         # index is a slice
         negative_step = have_step != 0 and step < 0
 
         if have_step and step == 0:
-            if have_gil:
-                # ValueError might be more appropriate, but this will make it consistent
-                # with nogil slicing
-                PyErr_SetString(exc, ERR_STEP)
-            return ERR_STEP
+            with gil:
+                raise ValueError("Step may not be zero (axis %d)" % dim)
 
         # check our bounds and set defaults
         if have_start:
@@ -749,13 +730,16 @@ cdef char *slice_memviewslice({{memviewslice_name}} *src,
 
     if suboffset >= 0:
         if not is_slice:
-            if have_gil:
-                PyErr_Format(exc, ERR_INDIRECT_GIL, dim, start, start + 1)
-            return ERR_INDIRECT_NOGIL
+            with gil:
+                raise IndexError(
+                    "Cannot make indirect dimension %d disappear "
+                    "through indexing, consider slicing with %d:%d" %
+                                                (dim, start, start + 1))
+
         else:
             suboffset_dim[0] = new_ndim
 
-    return NULL
+    return 0
 
 #
 ### Index a memoryview

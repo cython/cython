@@ -688,3 +688,70 @@ int {{set_function}}(const char *itemp, PyObject *obj) {
     *(PyObject **) itemp = obj;
     return 1;
 }
+
+/////////// ToughSlice //////////
+/* Dimension is indexed with 'start:stop:step' */
+
+if (unlikely(__pyx_memoryview_slice_memviewslice(
+    &{{src}},
+    &{{dst}},
+    {{dim}},
+    {{new_ndim}},
+    &{{suboffset_dim}},
+    {{start}},
+    {{stop}},
+    {{step}},
+    {{int(have_start)}},
+    {{int(have_stop)}},
+    {{int(have_step)}},
+    1) < 0))
+{
+    {{error_goto}}
+}
+
+////////// SimpleSlice //////////
+/* Dimension is indexed with ':' only */
+
+{{dst}}.shape[{{new_ndim}}] = {{src}}.shape[{{dim}}];
+{{dst}}.strides[{{new_ndim}}] = {{src}}.strides[{{dim}}];
+
+{{if access == 'direct'}}
+    {{dst}}.suboffsets[{{new_ndim}}] = -1;
+{{else}}
+    {{dst}}.suboffsets[{{new_ndim}}] = {{src}}.suboffsets[{{dim}}];
+    if ({{src}}.suboffsets[{{dim}}] >= 0)
+        {{suboffset_dim}} = {{new_ndim}};
+{{endif}}
+
+////////// SliceIndex //////////
+/* Dimension is indexed with an integer, we could use the ToughSlice */
+/* approach, but this is faster */
+
+{
+    Py_ssize_t __pyx_tmp_idx = {{idx}};
+
+    if (__pyx_tmp_idx < 0)
+        __pyx_tmp_idx += {{src}}.shape[{{dim}}];
+
+    if (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= {{src}}.shape[{{dim}}]) {
+    {{if not have_gil}}
+        #ifdef WITH_THREAD
+        PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
+        #endif
+    {{endif}}
+        PyErr_SetString(PyExc_IndexError, "Index out of bounds (axis {{dim}})");
+    {{if not have_gil}}
+        #ifdef WITH_THREAD
+        PyGILState_Release(__pyx_gilstate_save);
+        #endif
+    {{endif}}
+        {{error_goto}}
+    }
+
+    {{if all_dimensions_direct}}
+        {{dst}}.data += __pyx_tmp_idx * {{src}}.strides[{{dim}}];
+    {{else}}
+        if ({{suboffset_dim}} < 0) {{dst}}.data += __pyx_tmp_idx * {{src}}.strides[{{dim}}];
+        else {{dst}}.suboffsets[{{suboffset_dim}}] = __pyx_tmp_idx * {{src}}.strides[{{dim}}];
+    {{endif}}
+}

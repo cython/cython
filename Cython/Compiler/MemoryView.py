@@ -79,7 +79,7 @@ def mangle_dtype_name(dtype):
 #    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
 def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
-                                incref_rhs=False, have_gil=False):
+                                have_gil=False):
     assert rhs.type.is_memoryviewslice
 
     pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
@@ -91,16 +91,16 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
     # Allow uninitialized assignment
     #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
-    put_assign_to_memviewslice(lhs_cname, rhstmp, lhs_type, code, incref_rhs,
+    put_assign_to_memviewslice(lhs_cname, rhs, rhstmp, lhs_type, code,
                                have_gil=have_gil)
 
     if not pretty_rhs:
         code.funcstate.release_temp(rhstmp)
 
-def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, code,
-                               incref_rhs=False, have_gil=False):
+def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
+                               have_gil=False):
     code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
-    if incref_rhs:
+    if rhs.is_name:
         code.put_incref_memoryviewslice(rhs_cname, have_gil=have_gil)
 
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
@@ -269,59 +269,52 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         Simply call __pyx_memoryview_slice_memviewslice with the right
         arguments.
         """
-        slicefunc = "__pyx_memoryview_slice_memviewslice"
         new_ndim = 0
-        cname = self.cname
+        src = self.cname
 
-        suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type,
-                                                     False)
+        def load_slice_util(name, dict):
+            proto, impl = TempitaUtilityCode.load_as_string(
+                        name, "MemoryView_C.c", context=dict)
+            return impl
 
-        index_code = ("%(slicefunc)s(&%(cname)s, &%(dst)s, %(have_gil)d, "
-                                    "%(dim)d, %(new_ndim)d, &%(suboffset_dim)s, "
-                                    "%(idx)s, 0, 0, 0, 0, 0, 0)")
+        all_dimensions_direct = True
+        for access, packing in self.type.axes:
+            if access != 'direct':
+                all_dimensions_direct = False
+                break
 
-        slice_code = ("%(slicefunc)s(&%(cname)s, &%(dst)s, %(have_gil)d, "
-                                    "/* dim */ %(dim)d, "
-                                    "/* new_ndim */ %(new_ndim)d, "
-                                    "/* suboffset_dim */ &%(suboffset_dim)s, "
-                                    "/* start */ %(start)s, "
-                                    "/* stop */ %(stop)s, "
-                                    "/* step */ %(step)s, "
-                                    "/* have_start */ %(have_start)d, "
-                                    "/* have_stop */ %(have_stop)d, "
-                                    "/* have_step */ %(have_step)d, "
-                                    "/* is_slice */ 1)")
+        have_slices = False
+        for index in indices:
+            if isinstance(index, ExprNodes.SliceNode):
+                have_slices = True
+                break
 
-        def generate_slice_call(expr):
-            pos = index.pos
+        no_suboffset_dim = all_dimensions_direct and not have_slices
+        if not no_suboffset_dim:
+            suboffset_dim = code.funcstate.allocate_temp(
+                             PyrexTypes.c_int_type, False)
+            code.putln("%s = -1;" % suboffset_dim)
 
-            if have_gil:
-                code.putln(code.error_goto_if(expr, pos))
-            else:
-                code.putln("{")
-                code.putln(    "const char *__pyx_t_result = %s;" % expr)
-
-                code.putln(    "if (unlikely(__pyx_t_result)) {")
-                code.put_ensure_gil()
-                code.putln(        "PyErr_Format(PyExc_IndexError, "
-                                                "__pyx_t_result, %d);" % dim)
-                code.put_release_ensured_gil()
-                code.putln(code.error_goto(pos))
-                code.putln(    "}")
-
-                code.putln("}")
-
-        code.putln("%s = -1;" % suboffset_dim)
-        code.putln("%(dst)s.data = %(cname)s.data;" % locals())
-        code.putln("%(dst)s.memview = %(cname)s.memview;" % locals())
+        code.putln("%(dst)s.data = %(src)s.data;" % locals())
+        code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
         code.put_incref_memoryviewslice(dst)
 
         for dim, index in enumerate(indices):
+            error_goto = code.error_goto(index.pos)
+
             if not isinstance(index, ExprNodes.SliceNode):
+                # normal index
                 idx = index.result()
-                generate_slice_call(index_code % locals())
+                d = locals()
+                access, packing = self.type.axes[dim]
+                if access != 'direct':
+                    return error(index.pos,
+                                 "Dimension cannot be indexed away, "
+                                 "must be direct")
+                code.put(load_slice_util("SliceIndex", d))
             else:
-                d = {}
+                # slice, unspecified dimension, or part of ellipsis
+                d = locals()
                 for s in "start stop step".split():
                     idx = getattr(index, s)
                     have_idx = d['have_' + s] = not idx.is_none
@@ -330,11 +323,21 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     else:
                         d[s] = "0"
 
-                d.update(locals())
-                generate_slice_call(slice_code % d)
+                if (not d['have_start'] and
+                    not d['have_stop'] and
+                    not d['have_step']):
+                    # full slice (:), simply copy over the extent, stride
+                    # and suboffset. Also update suboffset_dim if needed
+                    access, packing = self.type.axes[dim]
+                    d['access'] = access
+                    code.put(load_slice_util("SimpleSlice", d))
+                else:
+                    code.put(load_slice_util("ToughSlice", d))
+
                 new_ndim += 1
 
-        code.funcstate.release_temp(suboffset_dim)
+        if not no_suboffset_dim:
+            code.funcstate.release_temp(suboffset_dim)
 
 
 def empty_slice(pos):
