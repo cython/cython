@@ -237,6 +237,9 @@ cdef extern from *:
         PyBUF_STRIDES
         PyBUF_INDIRECT
 
+cdef extern from *:
+    ctypedef int __pyx_atomic_int
+
 cdef extern from "stdlib.h":
     void *malloc(size_t) nogil
     void free(void *) nogil
@@ -283,7 +286,7 @@ cdef class memoryview(object):
     cdef object _size
     cdef object _array_interface
     cdef PyThread_type_lock lock
-    cdef int acquisition_count
+    cdef __pyx_atomic_int acquisition_count
     cdef Py_buffer view
     cdef int flags
 

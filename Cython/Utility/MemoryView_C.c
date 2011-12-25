@@ -11,6 +11,113 @@ typedef struct {
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
 
+/////////// Atomics.proto /////////////
+#include <pythread.h>
+
+#ifndef CYTHON_ATOMICS
+    #define CYTHON_ATOMICS 1
+#endif
+
+/* todo: Portland pgcc, maybe OS X's OSAtomicIncrement32,
+   libatomic + autotools-like distutils support? Such a pain... */
+#if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 || \
+                    (__GNUC_MINOR__ == 1 && __GNUC_PATHLEVEL >= 2))
+    /* gcc >= 4.1.2 */
+    typedef volatile int __pyx_atomic_int;
+    #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add(value, 1)
+    #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub(value, 1)
+
+    #ifdef __PYX_DEBUG_ATOMICS
+        #warning "Using GNU atomics"
+    #endif
+#elif CYTHON_ATOMICS && MSC_VER
+    /* msvc */
+    #include <Windows.h>
+    typedef volatile LONG __pyx_atomic_int;
+    #define __pyx_atomic_incr_aligned(value, lock) InterlockedIncrement(value)
+    #define __pyx_atomic_decr_aligned(value, lock) InterlockedDecrement(value)
+
+    #ifdef __PYX_DEBUG_ATOMICS
+        #warning "Using MSVC atomics"
+    #endif
+#elif CYTHON_ATOMICS && (defined(__ICC) || defined(__INTEL_COMPILER))
+    typedef volatile int __pyx_atomic_int;
+    #define __pyx_atomic_incr_aligned(value, lock) _InterlockedIncrement(value)
+    #define __pyx_atomic_decr_aligned(value, lock) _InterlockedDecrement(value)
+
+    #ifdef __PYX_DEBUG_ATOMICS
+        #warning "Using Intel atomics"
+    #endif
+#else
+    typedef volatile int __pyx_atomic_int;
+    #define CYTHON_ATOMICS 0
+
+    #ifdef __PYX_DEBUG_ATOMICS
+        #warning "Not using atomics"
+    #endif
+
+#endif
+
+#if CYTHON_ATOMICS
+    __pyx_atomic_int CYTHON_INLINE
+    __pyx_atomic_incr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock);
+
+    __pyx_atomic_int CYTHON_INLINE
+    __pyx_atomic_decr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock);
+
+    #define __pyx_add_acquisition_count(memview) \
+            __pyx_atomic_incr_maybealigned(&memview->acquisition_count, memview->lock)
+    #define __pyx_sub_acquisition_count(memview) \
+            __pyx_atomic_decr_maybealigned(&memview->acquisition_count, memview->lock)
+#else
+    #define __pyx_add_acquisition_count(memview) \
+            __pyx_add_acquisition_count_locked(&memview->acquisition_count, memview->lock)
+    #define __pyx_sub_acquisition_count(memview) \
+            __pyx_sub_acquisition_count_locked(&memview->acquisition_count, memview->lock)
+#endif
+
+////////// Atomics //////////
+#if CYTHON_ATOMICS
+
+#define __pyx_check_unaligned(type, pointer) \
+                (((type) pointer) & (sizeof(pointer) - 1))
+
+int CYTHON_INLINE
+__pyx_atomic_unaligned(__pyx_atomic_int *p)
+{
+    /* uintptr_t is optional in C99, try other stuff */
+
+    if (sizeof(unsigned long) >= sizeof(p))
+        return __pyx_check_unaligned(unsigned long, p);
+    else if (sizeof(size_t) >= sizeof(p))
+        return __pyx_check_unaligned(size_t, p);
+
+#if __STDC_VERSION__ >= 199901L
+    if (sizeof(unsigned long long) >= sizeof(p))
+        return __pyx_check_unaligned(unsigned long long, p);
+#endif
+
+    return 1;
+}
+__pyx_atomic_int CYTHON_INLINE
+__pyx_atomic_incr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock)
+{
+    if (unlikely(__pyx_atomic_unaligned(value)))
+        return __pyx_add_acquisition_count_locked(value, lock);
+    else
+        return __pyx_atomic_incr_aligned(value, lock);
+}
+
+__pyx_atomic_int CYTHON_INLINE
+__pyx_atomic_decr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock)
+{
+    if (unlikely(__pyx_atomic_unaligned(value)))
+        return __pyx_sub_acquisition_count_locked(value, lock);
+    else
+        return __pyx_atomic_decr_aligned(value, lock);
+}
+#endif
+
 /////////////// ObjectToMemviewSlice.proto ///////////////
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
 
@@ -37,8 +144,10 @@ static int __Pyx_init_memviewslice(
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
 
-static int CYTHON_INLINE __pyx_add_acquisition_count(struct {{memview_struct_name}} *memview);
-static int CYTHON_INLINE __pyx_del_acquisition_count(struct {{memview_struct_name}} *memview);
+static int CYTHON_INLINE __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+                                                            PyThread_type_lock lock);
+static int CYTHON_INLINE __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+                                                            PyThread_type_lock lock);
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
 #define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
@@ -277,22 +386,24 @@ static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
 }
 
 static int CYTHON_INLINE
-__pyx_add_acquisition_count(struct {{memview_struct_name}} *memview)
+__pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+                                   PyThread_type_lock lock)
 {
     int result;
-    PyThread_acquire_lock(memview->lock, 1);
-    result = memview->acquisition_count++;
-    PyThread_release_lock(memview->lock);
+    PyThread_acquire_lock(lock, 1);
+    result = (*acquisition_count)++;
+    PyThread_release_lock(lock);
     return result;
 }
 
 static int CYTHON_INLINE
-__pyx_del_acquisition_count(struct {{memview_struct_name}} *memview)
+__pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+                                   PyThread_type_lock lock)
 {
     int result;
-    PyThread_acquire_lock(memview->lock, 1);
-    result = memview->acquisition_count--;
-    PyThread_release_lock(memview->lock);
+    PyThread_acquire_lock(lock, 1);
+    result = (*acquisition_count)--;
+    PyThread_release_lock(lock);
     return result;
 }
 
@@ -333,7 +444,7 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          memview->acquisition_count, lineno);
 
-    last_time = __pyx_del_acquisition_count(memview) == 1;
+    last_time = __pyx_sub_acquisition_count(memview) == 1;
     memslice->data = NULL;
     if (last_time) {
         if (have_gil) {

@@ -723,11 +723,15 @@ memviewslice_declare_code = load_memview_c_utility(
         proto_block='utility_code_proto_before_types',
         context=context)
 
+atomic_utility = load_memview_c_utility("Atomics", context,
+              proto_block='utility_code_proto_before_types')
+
 memviewslice_init_code = load_memview_c_utility(
     "MemviewSliceInit",
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code,
-              Buffer.acquire_utility_code],
+              Buffer.acquire_utility_code,
+              atomic_utility],
 )
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
@@ -737,7 +741,11 @@ typeinfo_to_format_code = load_memview_cy_utility(
 
 is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context)
 overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
-copy_contents_new_utility = load_memview_c_utility("MemviewSliceCopyTemplate", context)
+copy_contents_new_utility = load_memview_c_utility(
+    "MemviewSliceCopyTemplate",
+    context,
+    requires=[], # require cython_array_utility_code
+)
 
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",
@@ -755,6 +763,8 @@ cython_array_utility_code = load_memview_cy_utility(
         "CythonArray",
         context=context,
         requires=[view_utility_code])
+
+copy_contents_new_utility.requires.append(cython_array_utility_code)
 
 # memview_fromslice_utility_code = load_memview_cy_utility(
         # "MemviewFromSlice",
