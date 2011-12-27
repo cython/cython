@@ -729,29 +729,59 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
 
 {
     Py_ssize_t __pyx_tmp_idx = {{idx}};
-
+    Py_ssize_t __pyx_tmp_shape = {{src}}.shape[{{dim}}];
+    Py_ssize_t __pyx_tmp_stride = {{src}}.strides[{{dim}}];
     if (__pyx_tmp_idx < 0)
-        __pyx_tmp_idx += {{src}}.shape[{{dim}}];
+        __pyx_tmp_idx += __pyx_tmp_shape;
 
-    if (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= {{src}}.shape[{{dim}}]) {
-    {{if not have_gil}}
-        #ifdef WITH_THREAD
-        PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
-        #endif
-    {{endif}}
+    if (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= __pyx_tmp_shape) {
+        {{if not have_gil}}
+            #ifdef WITH_THREAD
+            PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
+            #endif
+        {{endif}}
+
         PyErr_SetString(PyExc_IndexError, "Index out of bounds (axis {{dim}})");
-    {{if not have_gil}}
-        #ifdef WITH_THREAD
-        PyGILState_Release(__pyx_gilstate_save);
-        #endif
-    {{endif}}
+
+        {{if not have_gil}}
+            #ifdef WITH_THREAD
+            PyGILState_Release(__pyx_gilstate_save);
+            #endif
+        {{endif}}
+
         {{error_goto}}
     }
 
     {{if all_dimensions_direct}}
-        {{dst}}.data += __pyx_tmp_idx * {{src}}.strides[{{dim}}];
+        {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;
     {{else}}
-        if ({{suboffset_dim}} < 0) {{dst}}.data += __pyx_tmp_idx * {{src}}.strides[{{dim}}];
-        else {{dst}}.suboffsets[{{suboffset_dim}}] = __pyx_tmp_idx * {{src}}.strides[{{dim}}];
+        if ({{suboffset_dim}} < 0) {
+            {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;
+
+            /* This dimension is the first dimension, or is preceded by    */
+            /* direct or indirect dimensions that are indexed away.        */
+            /* Hence suboffset_dim must be less than zero, and we can have */
+            /* our data pointer refer to another block by dereferencing.   */
+            /*   slice.data -> B -> C     becomes     slice.data -> C      */
+
+            {{if indirect}}
+              {
+                Py_ssize_t __pyx_tmp_suboffset = {{src}}.suboffsets[{{dim}}];
+
+                {{if generic}}
+                    if (__pyx_tmp_suboffset >= 0)
+                {{endif}}
+
+                    {{dst}}.data = *((char **) {{dst}}.data) + __pyx_tmp_suboffset;
+              }
+            {{endif}}
+
+        } else {
+            {{dst}}.suboffsets[{{suboffset_dim}}] += __pyx_tmp_idx * __pyx_tmp_stride;
+
+            /* Note: dimension can not be indirect, the compiler will have */
+            /*       issued an error */
+        }
+
     {{endif}}
 }

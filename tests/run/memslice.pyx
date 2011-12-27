@@ -1240,6 +1240,13 @@ def test_indirect_slicing(arg):
     0 0 -1
     58
     56
+    58
+    index away indirect
+    58
+    58
+    index away generic
+    58
+    58
     released A
 
     >>> test_indirect_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)))
@@ -1248,11 +1255,26 @@ def test_indirect_slicing(arg):
     0 16 -1
     2412
     2410
+    2412
+    index away indirect
+    2412
+    2412
+    index away generic
+    2412
+    2412
     released A
     """
     cdef int[::view.indirect, ::view.indirect, :] a = arg
     cdef int[::view.indirect, ::view.indirect, :] b = a[-5:, ..., -5:100:2]
+    cdef int[::view.generic , :: view.generic, :] generic_b = a[-5:, ..., -5:100:2]
     cdef int[::view.indirect, ::view.indirect] c = b[..., 0]
+
+    # try indexing away leading indirect dimensions
+    cdef int[::view.indirect, :] d = b[4]
+    cdef int[:] e = b[4, 2]
+
+    cdef int[::view.generic, :] generic_d = generic_b[4]
+    cdef int[:] generic_e = generic_b[4, 2]
 
     print b.shape[0], b.shape[1], b.shape[2]
     print b.suboffsets[0] // sizeof(int *),
@@ -1261,6 +1283,90 @@ def test_indirect_slicing(arg):
 
     print b[4, 2, 1]
     print c[4, 2]
+    # test adding offset from last dimension to suboffset
+    print b[..., 1][4, 2]
+
+    print "index away indirect"
+    print d[2, 1]
+    print e[1]
+
+    print "index away generic"
+    print generic_d[2, 1]
+    print generic_e[1]
+
+cdef class TestIndexSlicingDirectIndirectDims(object):
+    "Test a int[:, ::view.indirect, :] slice"
+
+    cdef Py_ssize_t[3] shape, strides, suboffsets
+
+    cdef int c_array[5]
+    cdef int *myarray[5][5]
+    cdef bytes format
+
+    def __init__(self):
+        cdef int i
+        self.c_array[3] = 20
+        self.myarray[1][2] = self.c_array
+
+        for i in range(3):
+            self.shape[i] = 5
+
+        self.strides[0] = sizeof(int *) * 5
+        self.strides[1] = sizeof(int *)
+        self.strides[2] = sizeof(int)
+
+        self.suboffsets[0] = -1
+        self.suboffsets[1] = 0
+        self.suboffsets[2] = -1
+
+        self.format = b"i"
+
+    def __getbuffer__(self, Py_buffer *info, int flags):
+        info.buf = <void *> self.myarray
+        info.len = 5 * 5 * 5
+        info.ndim = 3
+        info.shape = self.shape
+        info.strides = self.strides
+        info.suboffsets = self.suboffsets
+        info.itemsize = sizeof(int)
+        info.readonly = 0
+        info.obj = self
+        info.format = self.format
+
+@testcase
+def test_index_slicing_away_direct_indirect():
+    """
+    >>> test_index_slicing_away_direct_indirect()
+    20
+    20
+    20
+    20
+    <BLANKLINE>
+    20
+    20
+    20
+    20
+    All dimensions preceding dimension 1 must be indexed and not sliced
+    """
+    cdef int[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
+    a_obj = a
+
+    print a[1][2][3]
+    print a[1, 2, 3]
+    print a[1, 2][3]
+    print a[..., 3][1, 2]
+
+    print
+
+    print a_obj[1][2][3]
+    print a_obj[1, 2, 3]
+    print a_obj[1, 2][3]
+    print a_obj[..., 3][1, 2]
+
+    try:
+        print a_obj[1:, 2][3]
+    except IndexError, e:
+        print e.args[0]
 
 @testcase
 def test_direct_slicing(arg):

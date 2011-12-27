@@ -305,14 +305,22 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
             if not isinstance(index, ExprNodes.SliceNode):
                 # normal index
                 idx = index.result()
-                d = locals()
+
                 access, packing = self.type.axes[dim]
-                if access != 'direct':
-                    return error(index.pos,
-                                 "Dimension cannot be indexed away, "
-                                 "must be direct")
+                if access == 'direct':
+                    indirect = False
+                else:
+                    indirect = True
+                    generic = (access == 'full')
+                    if new_ndim != 0:
+                        return error(index.pos,
+                                     "All preceding dimensions must be "
+                                     "indexed and not sliced")
+
+                d = locals()
                 code.put(load_slice_util("SliceIndex", d))
             else:
+
                 # slice, unspecified dimension, or part of ellipsis
                 d = locals()
                 for s in "start stop step".split():

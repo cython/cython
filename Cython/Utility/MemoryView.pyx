@@ -730,12 +730,12 @@ cdef int slice_memviewslice({{memviewslice_name}} *src,
 
     if suboffset >= 0:
         if not is_slice:
-            with gil:
-                raise IndexError(
-                    "Cannot make indirect dimension %d disappear "
-                    "through indexing, consider slicing with %d:%d" %
-                                                (dim, start, start + 1))
-
+            if new_ndim == 0:
+                dst.data = (<char **> dst.data)[0] + suboffset
+            else:
+                with gil:
+                    raise IndexError("All dimensions preceding dimension %d "
+                                     "must be indexed and not sliced" % dim)
         else:
             suboffset_dim[0] = new_ndim
 

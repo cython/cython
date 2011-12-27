@@ -2554,13 +2554,6 @@ class IndexNode(ExprNode):
                     indices[i] = index
                     new_indices.append(index)
 
-                    if access in ('ptr', 'generic') and i != 0 and have_slices:
-                        self.type = error_type
-                        return error(index.pos,
-                                     "Indexing of non-leading indirect or generic "
-                                     "dimensions not supported yet, "
-                                     "try slicing with i:i+1")
-
                 else:
                     self.type = error_type
                     return error(index.pos, "Invalid index for memoryview specified")
