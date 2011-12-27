@@ -207,6 +207,25 @@ def test_numpy_like_attributes(cyarray):
     cdef int[:, :] mslice = numarray
     assert (<object> mslice).base is numarray
 
+@testcase_numpy_1_5
+def test_copy_and_contig_attributes(a):
+    """
+    >>> a = np.arange(20, dtype=np.int32).reshape(5, 4)
+    >>> test_copy_and_contig_attributes(a)
+    """
+    cdef np.int32_t[:, :] mslice = a
+    m = mslice
+
+    # Test object copy attributes
+    assert np.all(a == np.array(m.copy()))
+    assert a.strides == m.strides == m.copy().strides
+
+    assert np.all(a == np.array(m.copy_fortran()))
+    assert m.copy_fortran().strides == (4, 20)
+
+    # Test object is_*_contig attributes
+    assert m.is_c_contig() and m.copy().is_c_contig()
+    assert m.copy_fortran().is_f_contig() and not m.is_f_contig()
 
 ctypedef int td_cy_int
 cdef extern from "bufaccess.h":

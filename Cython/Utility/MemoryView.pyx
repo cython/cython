@@ -236,9 +236,20 @@ cdef extern from *:
         PyBUF_WRITABLE
         PyBUF_STRIDES
         PyBUF_INDIRECT
+        PyBUF_RECORDS
 
 cdef extern from *:
     ctypedef int __pyx_atomic_int
+    {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
+                                 __Pyx_memviewslice *from_mvs,
+                                 char *mode, int ndim,
+                                 size_t sizeof_dtype, int contig_flag) nogil
+    bint slice_is_contig "__pyx_memviewslice_is_contig" (
+                            {{memviewslice_name}} *mvs, char order, int ndim) nogil
+    bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
+                                                {{memviewslice_name}} *slice2,
+                                                int ndim, size_t itemsize) nogil
+
 
 cdef extern from "stdlib.h":
     void *malloc(size_t) nogil
@@ -292,7 +303,7 @@ cdef class memoryview(object):
 
     def __cinit__(memoryview self, object obj, int flags):
         self.obj = obj
-
+        self.flags = flags
         if type(self) is memoryview or obj is not None:
             __Pyx_GetBuffer(obj, &self.view, flags)
             if <PyObject *> self.view.obj == NULL:
@@ -465,30 +476,6 @@ cdef class memoryview(object):
 
             return self._size
 
-    # The __array_interface__ is broken as it does not properly convert PEP 3118 format
-    # strings into NumPy typestrs. NumPy 1.5 support the new buffer interface though.
-    '''
-    property __array_interface__:
-        @cname('__pyx_numpy_array_interface')
-        def __get__(self):
-            "Interface for NumPy to obtain a ndarray from this object"
-            # Note: we always request writable buffers, so we set readonly to
-            # False in the data tuple
-            if self._array_interface is None:
-                for suboffset in self.suboffsets:
-                    if suboffset >= 0:
-                        raise ValueError("Cannot convert indirect buffer to numpy object")
-
-                self._array_interface = dict(
-                    data = (PyLong_FromVoidPtr(self.view.buf), False),
-                    shape = self.shape,
-                    strides = self.strides,
-                    typestr = "%s%d" % (self.view.format, self.view.itemsize),
-                    version = 3)
-
-            return self._array_interface
-    '''
-
     def __len__(self):
         if self.view.ndim >= 1:
             return self.view.shape[0]
@@ -496,10 +483,40 @@ cdef class memoryview(object):
         return 0
 
     def __repr__(self):
-        return "<MemoryView of %r at 0x%x>" % (self.base.__class__.__name__, id(self))
+        return "<MemoryView of %r at 0x%x>" % (self.base.__class__.__name__,
+                                               id(self))
 
     def __str__(self):
         return "<MemoryView of %r object>" % (self.base.__class__.__name__,)
+
+    # Support the same attributes as memoryview slices
+    def is_c_contig(self):
+        cdef {{memviewslice_name}} *mslice, tmp
+        mslice = get_slice_from_memview(self, &tmp)
+        return slice_is_contig(mslice, 'C', self.view.ndim)
+
+    def is_f_contig(self):
+        cdef {{memviewslice_name}} *mslice, tmp
+        mslice = get_slice_from_memview(self, &tmp)
+        return slice_is_contig(mslice, 'F', self.view.ndim)
+
+    def copy(self):
+        cdef {{memviewslice_name}} mslice
+        cdef int flags = self.flags & ~PyBUF_F_CONTIGUOUS
+        slice_copy(self, &mslice)
+        mslice = slice_copy_contig(&mslice, "c", self.view.ndim,
+                                   self.view.itemsize,
+                                   flags|PyBUF_C_CONTIGUOUS)
+        return memoryview_copy_from_slice(self, &mslice)
+
+    def copy_fortran(self):
+        cdef {{memviewslice_name}} src, dst
+        cdef int flags = self.flags & ~PyBUF_C_CONTIGUOUS
+        slice_copy(self, &src)
+        dst = slice_copy_contig(&src, "fortran", self.view.ndim,
+                                self.view.itemsize,
+                                flags|PyBUF_F_CONTIGUOUS)
+        return memoryview_copy_from_slice(self, &dst)
 
 
 @cname('__pyx_memoryview_new')
@@ -841,7 +858,8 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
     cdef _memoryviewslice result
     cdef int i
 
-    assert 0 < ndim <= memviewslice.memview.view.ndim, (ndim, memviewslice.memview.view.ndim)
+    # assert 0 < ndim <= memviewslice.memview.view.ndim, (
+    #                 ndim, memviewslice.memview.view.ndim)
 
     result = _memoryviewslice(None, 0)
 
@@ -856,6 +874,8 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
     (<__pyx_buffer *> &result.view).obj = Py_None
     Py_INCREF(None)
 
+    result.flags = PyBUF_RECORDS
+
     result.view.shape = <Py_ssize_t *> result.from_slice.shape
     result.view.strides = <Py_ssize_t *> result.from_slice.strides
     result.view.suboffsets = <Py_ssize_t *> result.from_slice.suboffsets
@@ -869,6 +889,17 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
 
     return result
 
+@cname('__pyx_memoryview_get_slice_from_memoryview')
+cdef {{memviewslice_name}} *get_slice_from_memview(memoryview memview,
+                                                   {{memviewslice_name}} *mslice):
+    cdef _memoryviewslice obj
+    if isinstance(memview, _memoryviewslice):
+        obj = memview
+        return &obj.from_slice
+    else:
+        slice_copy(memview, mslice)
+        return mslice
+
 @cname('__pyx_memoryview_slice_copy')
 cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst):
     cdef int dim
@@ -881,14 +912,20 @@ cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst):
         dst.strides[dim] = memview.view.strides[dim]
         dst.suboffsets[dim] = memview.view.suboffsets[dim]
 
-@cname('__pyx_memoryview_copy')
+@cname('__pyx_memoryview_copy_object')
 cdef memoryview_copy(memoryview memview):
     "Create a new memoryview object"
     cdef {{memviewslice_name}} memviewslice
+    slice_copy(memview, &memviewslice)
+    return memoryview_copy_from_slice(memview, &memviewslice)
+
+@cname('__pyx_memoryview_copy_object_from_slice')
+cdef memoryview_copy_from_slice(memoryview memview, {{memviewslice_name}} *memviewslice):
+    """
+    Create a new memoryview object from a given memoryview object and slice.
+    """
     cdef object (*to_object_func)(char *)
     cdef int (*to_dtype_func)(char *, object) except 0
-
-    slice_copy(memview, &memviewslice)
 
     if isinstance(memview, _memoryviewslice):
         to_object_func = (<_memoryviewslice> memview).to_object_func
@@ -897,19 +934,13 @@ cdef memoryview_copy(memoryview memview):
         to_object_func = NULL
         to_dtype_func = NULL
 
-    return memoryview_fromslice(&memviewslice, memview.view.ndim,
+    return memoryview_fromslice(memviewslice, memview.view.ndim,
                                 to_object_func, to_dtype_func)
+
 
 #
 ### Copy the contents of a memoryview slices
 #
-cdef extern from *:
-    int slice_is_contig "__pyx_memviewslice_is_contig" (
-                            {{memviewslice_name}} *mvs, char order, int ndim) nogil
-    int slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
-                                               {{memviewslice_name}} *slice2,
-                                               int ndim, size_t itemsize) nogil
-
 cdef Py_ssize_t abs_py_ssize_t(Py_ssize_t arg) nogil:
     if arg < 0:
         return -arg
