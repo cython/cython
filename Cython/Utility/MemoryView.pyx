@@ -66,9 +66,9 @@ cdef class array:
         cdef int idx
         # cdef Py_ssize_t dim, stride
         idx = 0
-        for dim in shape:
+        for idx, dim in enumerate(shape):
             if dim <= 0:
-                raise ValueError("Invalid shape.")
+                raise ValueError("Invalid shape in axis %d: %d." % (idx, dim))
 
             self._shape[idx] = dim
             idx += 1
@@ -243,7 +243,7 @@ cdef extern from *:
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
                                  __Pyx_memviewslice *from_mvs,
                                  char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag) nogil
+                                 size_t sizeof_dtype, int contig_flag) nogil except *
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
                             {{memviewslice_name}} *mvs, char order, int ndim) nogil
     bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
@@ -347,9 +347,43 @@ cdef class memoryview(object):
     @cname('__pyx_memoryview_setitem')
     def __setitem__(memoryview self, object index, object value):
         have_slices, index = _unellipsify(index, self.view.ndim)
-        if have_slices:
-            raise NotImplementedError("Slice assignment not supported yet")
 
+        if have_slices:
+            obj = self.is_slice(value)
+            if obj:
+                self.setitem_slice_assignment(index, obj)
+            else:
+                self.setitem_slice_assign_scalar(index, value)
+        else:
+            self.setitem_indexed(index, value)
+
+    cdef is_slice(self, obj):
+        if not isinstance(obj, memoryview):
+            try:
+                obj = memoryview(obj, self.flags|PyBUF_ANY_CONTIGUOUS)
+            except TypeError:
+                return None
+
+        return obj
+
+    cdef setitem_slice_assignment(self, index, src):
+        cdef {{memviewslice_name}} dst_slice
+        cdef {{memviewslice_name}} src_slice
+
+        dst = self[index]
+        get_slice_from_memview(dst, &dst_slice)
+        slice_copy(src, &src_slice)
+
+        if dst.ndim != src.ndim:
+            broadcast_inplace(&src_slice, &dst_slice, src.ndim, dst.ndim)
+
+        memoryview_copy_contents(&src_slice, &dst_slice,
+                                 max(src.ndim, dst.ndim))
+
+    cdef setitem_slice_assign_scalar(self, index, value):
+        raise ValueError("Scalar assignment currently unsupported")
+
+    cdef setitem_indexed(self, index, value):
         cdef char *itemp = self.get_item_pointer(index)
         self.assign_item_from_object(itemp, value)
 
@@ -1106,8 +1140,8 @@ cdef int memoryview_copy_contents({{memviewslice_name}} *src,
         if src.shape[i] != dst.shape[i]:
             with gil:
                 raise ValueError(
-                    "memoryview shapes are not the same in dimension %d, "
-                    "got %d and %d" % (i, src.shape[i], dst.shape[i]))
+                    "memoryview shapes are not the same in dimension %d "
+                    "(got %d and %d)" % (i, dst.shape[i], src.shape[i]))
 
     if slices_overlap(src, dst, ndim, itemsize):
         # slices overlap, copy to temp, copy temp to dst
@@ -1150,6 +1184,38 @@ cdef int memoryview_copy_contents({{memviewslice_name}} *src,
 
     copy_strided_to_strided(src, dst, ndim, itemsize)
     return 0
+
+@cname('__pyx_memoryview_broadcast_inplace')
+cdef void broadcast_inplace({{memviewslice_name}} *slice1,
+                            {{memviewslice_name}} *slice2,
+                            int ndim1,
+                            int ndim2) nogil:
+    """
+    Broadcast the slice with the least dimensions to prepend empty
+    dimensions.
+    """
+    cdef int i
+    cdef int offset = ndim1 - ndim2
+    cdef int ndim
+    cdef {{memviewslice_name}} *slice
+
+    if offset < 0:
+        slice = slice1
+        offset = -offset
+        ndim = ndim1
+    else:
+        slice = slice2
+        ndim = ndim2
+
+    for i in range(ndim - 1, -1, -1):
+        slice.shape[i + offset] = slice.shape[i]
+        slice.strides[i + offset] = slice.strides[i]
+        slice.suboffsets[i + offset] = slice.suboffsets[i]
+
+    for i in range(offset):
+        slice.shape[i] = 1
+        slice.strides[i] = slice.strides[0]
+        slice.suboffsets[i] = -1
 
 ############### BufferFormatFromTypeInfo ###############
 cdef extern from *:

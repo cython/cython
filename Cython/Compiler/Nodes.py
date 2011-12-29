@@ -4727,6 +4727,11 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
+
+        if self.lhs.memslice_broadcast or self.rhs.memslice_broadcast:
+            self.lhs.memslice_broadcast = True
+            self.rhs.memslice_broadcast = True
+
         self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)

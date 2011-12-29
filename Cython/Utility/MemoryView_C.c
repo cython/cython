@@ -483,8 +483,16 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
 
     __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig");
 
+    for (i = 0; i < ndim; i++) {
+        if (from_mvs->suboffsets[i] >= 0) {
+            PyErr_Format(PyExc_ValueError, "Cannot copy memoryview slice with "
+                                           "indirect dimensions (axis %d)", i);
+            goto fail;
+        }
+    }
+
     shape_tuple = PyTuple_New(ndim);
-    if(unlikely(!shape_tuple)) {
+    if (unlikely(!shape_tuple)) {
         goto fail;
     }
     __Pyx_GOTREF(shape_tuple);

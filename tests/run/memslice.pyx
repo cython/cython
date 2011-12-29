@@ -1724,3 +1724,60 @@ def test_object_indices():
 
     for j in range(3):
         print myslice[j]
+
+@testcase
+def test_ellipsis_expr():
+    """
+    >>> test_ellipsis_expr()
+    8
+    """
+    cdef int[10] a
+    cdef int[:] m = a
+    m[4] = 8
+    m[...] = m[...]
+    print m[4]
+
+@testcase
+def test_slice_assignment():
+    """
+    >>> test_slice_assignment()
+    """
+    cdef int carray[10][100]
+    cdef int i, j
+
+    for i in range(10):
+        for j in range(100):
+            carray[i][j] = i * 10 + j
+
+    cdef int[:, :] m = carray
+    cdef int[:, :] copy = m[-6:-1, 60:65].copy()
+
+    m[...] = m[::-1, ::-1]
+    m[:, :] = m[::-1, ::-1]
+    m[-5:, -5:] = m[-6:-1, 60:65]
+
+    for i in range(5):
+        for j in range(5):
+            assert copy[i, j] == m[-5 + i, -5 + j]
+
+@testcase
+def test_slice_assignment_broadcast_leading_dimensions():
+    """
+    >>> test_slice_assignment_broadcast_leading_dimensions()
+    """
+    cdef int array1[1][10]
+    cdef int array2[10]
+    cdef int i
+
+    for i in range(10):
+        array1[0][i] = i
+
+    cdef int[:, :] a = array1
+    cdef int[:] b = array2
+
+    b[:] = a[:, :]
+    b = b[::-1]
+    a[:, :] = b[:]
+
+    for i in range(10):
+        assert a[0, i] == b[i] == 10 - 1 - i

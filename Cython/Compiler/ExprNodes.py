@@ -220,6 +220,9 @@ class ExprNode(Node):
 
     constant_result = constant_value_not_set
 
+    # whether this node with a memoryview type should be broadcast
+    memslice_broadcast = False
+
     try:
         _get_child_attrs = operator.attrgetter('subexprs')
     except AttributeError:
@@ -643,7 +646,8 @@ class ExprNode(Node):
                     error(self.pos,
                           "Cannot convert '%s' to memoryviewslice" %
                                                                 (src_type,))
-            elif not MemoryView.src_conforms_to_dst(src.type, dst_type):
+            elif not MemoryView.src_conforms_to_dst(
+                        src.type, dst_type, broadcast=self.memslice_broadcast):
                 if src.type.dtype.same_as(dst_type.dtype):
                     msg = "Memoryview '%s' not conformable to memoryview '%s'."
                     tup = src.type, dst_type
@@ -2339,6 +2343,8 @@ class IndexNode(ExprNode):
     # Whether we are indexing or slicing a memoryviewslice
     memslice_index = False
     memslice_slice = False
+    is_memslice_copy = False
+    memslice_ellipsis_noop = False
     warned_untyped_idx = False
 
     def __init__(self, pos, index, *args, **kw):
@@ -2610,7 +2616,10 @@ class IndexNode(ExprNode):
             self.type = self.base.type
             self.is_memoryviewslice_access = True
             if getting:
-                error(self.pos, "memoryviews currently support setting only.")
+                self.memslice_ellipsis_noop = True
+            else:
+                self.is_memslice_copy = True
+                self.memslice_broadcast = True
 
         elif self.memslice_slice:
             self.index = None
@@ -2618,6 +2627,8 @@ class IndexNode(ExprNode):
             self.use_managed_ref = True
             self.type = PyrexTypes.MemoryViewSliceType(
                             self.base.type.dtype, axes)
+            if setting:
+                self.memslice_broadcast = True
 
         else:
             base_type = self.base.type
@@ -2816,6 +2827,8 @@ class IndexNode(ExprNode):
     def calculate_result_code(self):
         if self.is_buffer_access:
             return "(*%s)" % self.buffer_ptr_code
+        elif self.is_memslice_copy:
+            return self.base.result()
         elif self.base.type is list_type:
             return "PyList_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is tuple_type:
@@ -2840,7 +2853,7 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
-        if not self.indices:
+        if self.indices is None:
             self.index.generate_evaluation_code(code)
         else:
             for i in self.indices:
@@ -2848,7 +2861,7 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
-        if not self.indices:
+        if self.indices is None:
             self.index.generate_disposal_code(code)
         else:
             for i in self.indices:
@@ -2856,7 +2869,7 @@ class IndexNode(ExprNode):
 
     def free_subexpr_temps(self, code):
         self.base.free_temps(code)
-        if not self.indices:
+        if self.indices is None:
             self.index.free_temps(code)
         else:
             for i in self.indices:
@@ -2945,15 +2958,6 @@ class IndexNode(ExprNode):
                 self.extra_index_params(),
                 code.error_goto(self.pos)))
 
-    def generate_memoryviewslice_copy_code(self, rhs, code):
-        import MemoryView
-        code.putln(
-            code.error_goto_if_neg(
-                "%s(&%s, &%s, %d)" % (MemoryView.copy_src_to_dst_cname(),
-                                      rhs.result(), self.base.result(),
-                                      self.type.ndim),
-                self.pos))
-
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
         if code.globalstate.directives['nonecheck'] and not self.memslice_index:
@@ -2984,8 +2988,7 @@ class IndexNode(ExprNode):
         if self.is_buffer_access or self.memslice_index:
             self.generate_buffer_setitem_code(rhs, code)
         elif self.memslice_slice:
-            error(rhs.pos, "Slice assignment not supported yet")
-            #self.generate_memoryviewslice_setslice_code(rhs, code)
+            self.generate_memoryviewslice_setslice_code(rhs, code)
         elif self.is_memoryviewslice_access:
             self.generate_memoryviewslice_copy_code(rhs, code)
         elif self.type.is_pyobject:
@@ -3040,6 +3043,7 @@ class IndexNode(ExprNode):
         return buffer_entry
 
     def buffer_lookup_code(self, code):
+        "ndarray[1, 2, 3] and memslice[1, 2, 3]"
         # Assign indices to temps
         index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
                            for i in self.indices]
@@ -3066,12 +3070,24 @@ class IndexNode(ExprNode):
                negative_indices=negative_indices)
 
     def put_memoryviewslice_slice_code(self, code):
+        "memslice[:]"
         buffer_entry = self.buffer_entry()
         have_gil = not self.in_nogil_context
         buffer_entry.generate_buffer_slice_code(code,
                                                 self.original_indices,
                                                 self.result(),
                                                 have_gil=have_gil)
+
+    def generate_memoryviewslice_setslice_code(self, rhs, code):
+        "memslice1[:] = memslice2"
+        import MemoryView
+        self.generate_evaluation_code(code)
+        MemoryView.copy_broadcast_memview_src_to_dst(rhs, self, code)
+
+    def generate_memoryviewslice_copy_code(self, rhs, code):
+        "memslice1[...] = memslice2"
+        import MemoryView
+        MemoryView.copy_broadcast_memview_src_to_dst(rhs, self, code)
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)

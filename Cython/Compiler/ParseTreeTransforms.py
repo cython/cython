@@ -1779,6 +1779,10 @@ class AnalyseExpressionsTransform(CythonTransform):
         if node.is_fused_index and node.type is not PyrexTypes.error_type:
             node = node.base
 
+        if node.memslice_ellipsis_noop:
+            # memoryviewslice[...] expression, drop the IndexNode
+            node = node.base
+
         return node
 
 
