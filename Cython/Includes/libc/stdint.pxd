@@ -41,52 +41,52 @@ cdef extern from "stdint.h" nogil:
 
     # 7.18.2 Limits of specified-width integer types
     # 7.18.2.1 Limits of exact-width integer types
-    enum:   INT8_T_MIN
-    enum:  INT16_T_MIN
-    enum:  INT32_T_MIN
-    enum:  INT64_T_MIN
-    enum:   INT8_T_MAX
-    enum:  INT16_T_MAX
-    enum:  INT32_T_MAX
-    enum:  INT64_T_MAX
-    enum:  UINT8_T_MAX
-    enum: UINT16_T_MAX
-    enum: UINT32_T_MAX
-    enum: UINT64_T_MAX
+    enum:   INT8_MIN
+    enum:  INT16_MIN
+    enum:  INT32_MIN
+    enum:  INT64_MIN
+    enum:   INT8_MAX
+    enum:  INT16_MAX
+    enum:  INT32_MAX
+    enum:  INT64_MAX
+    enum:  UINT8_MAX
+    enum: UINT16_MAX
+    enum: UINT32_MAX
+    enum: UINT64_MAX
     #7.18.2.2 Limits of minimum-width integer types
-    enum:   INT_LEAST8_T_MIN
-    enum:  INT_LEAST16_T_MIN
-    enum:  INT_LEAST32_T_MIN
-    enum:  INT_LEAST64_T_MIN
-    enum:   INT_LEAST8_T_MAX
-    enum:  INT_LEAST16_T_MAX
-    enum:  INT_LEAST32_T_MAX
-    enum:  INT_LEAST64_T_MAX
-    enum:  UINT_LEAST8_T_MAX
-    enum: UINT_LEAST16_T_MAX
-    enum: UINT_LEAST32_T_MAX
-    enum: UINT_LEAST64_T_MAX
+    enum:   INT_LEAST8_MIN
+    enum:  INT_LEAST16_MIN
+    enum:  INT_LEAST32_MIN
+    enum:  INT_LEAST64_MIN
+    enum:   INT_LEAST8_MAX
+    enum:  INT_LEAST16_MAX
+    enum:  INT_LEAST32_MAX
+    enum:  INT_LEAST64_MAX
+    enum:  UINT_LEAST8_MAX
+    enum: UINT_LEAST16_MAX
+    enum: UINT_LEAST32_MAX
+    enum: UINT_LEAST64_MAX
     #7.18.2.3 Limits of fastest minimum-width integer types
-    enum:   INT_FAST8_T_MIN
-    enum:  INT_FAST16_T_MIN
-    enum:  INT_FAST32_T_MIN
-    enum:  INT_FAST64_T_MIN
-    enum:   INT_FAST8_T_MAX
-    enum:  INT_FAST16_T_MAX
-    enum:  INT_FAST32_T_MAX
-    enum:  INT_FAST64_T_MAX
-    enum:  UINT_FAST8_T_MAX
-    enum: UINT_FAST16_T_MAX
-    enum: UINT_FAST32_T_MAX
-    enum: UINT_FAST64_T_MAX
+    enum:   INT_FAST8_MIN
+    enum:  INT_FAST16_MIN
+    enum:  INT_FAST32_MIN
+    enum:  INT_FAST64_MIN
+    enum:   INT_FAST8_MAX
+    enum:  INT_FAST16_MAX
+    enum:  INT_FAST32_MAX
+    enum:  INT_FAST64_MAX
+    enum:  UINT_FAST8_MAX
+    enum: UINT_FAST16_MAX
+    enum: UINT_FAST32_MAX
+    enum: UINT_FAST64_MAX
     #7.18.2.4 Limits of integer types capable of holding object pointers
     enum:  INTPTR_MIN
     enum:  INTPTR_MAX
     enum: UINTPTR_MAX
     # 7.18.2.5 Limits of greatest-width integer types
-    enum:  INTMAX_T_MAX
-    enum:  INTMAX_T_MIN
-    enum: UINTMAX_T_MAX
+    enum:  INTMAX_MAX
+    enum:  INTMAX_MIN
+    enum: UINTMAX_MAX
 
     # 7.18.3 Limits of other integer types
     # ptrdiff_t
