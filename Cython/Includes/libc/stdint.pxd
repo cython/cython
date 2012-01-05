@@ -41,44 +41,44 @@ cdef extern from "stdint.h" nogil:
 
     # 7.18.2 Limits of specified-width integer types
     # 7.18.2.1 Limits of exact-width integer types
-    enum:   INT8_MIN
-    enum:  INT16_MIN
-    enum:  INT32_MIN
-    enum:  INT64_MIN
-    enum:   INT8_MAX
-    enum:  INT16_MAX
-    enum:  INT32_MAX
-    enum:  INT64_MAX
-    enum:  UINT8_MAX
-    enum: UINT16_MAX
-    enum: UINT32_MAX
-    enum: UINT64_MAX
+    int8_t   INT8_MIN
+    int16_t  INT16_MIN
+    int32_t  INT32_MIN
+    int64_t  INT64_MIN
+    int8_t   INT8_MAX
+    int16_t  INT16_MAX
+    int32_t  INT32_MAX
+    int64_t  INT64_MAX
+    uint8_t  UINT8_MAX
+    uint16_t UINT16_MAX
+    uint32_t UINT32_MAX
+    uint64_t UINT64_MAX
     #7.18.2.2 Limits of minimum-width integer types
-    enum:   INT_LEAST8_MIN
-    enum:  INT_LEAST16_MIN
-    enum:  INT_LEAST32_MIN
-    enum:  INT_LEAST64_MIN
-    enum:   INT_LEAST8_MAX
-    enum:  INT_LEAST16_MAX
-    enum:  INT_LEAST32_MAX
-    enum:  INT_LEAST64_MAX
-    enum:  UINT_LEAST8_MAX
-    enum: UINT_LEAST16_MAX
-    enum: UINT_LEAST32_MAX
-    enum: UINT_LEAST64_MAX
+    int_least8_t     INT_LEAST8_MIN
+    int_least16_t   INT_LEAST16_MIN
+    int_least32_t   INT_LEAST32_MIN
+    int_least64_t   INT_LEAST64_MIN
+    int_least8_t     INT_LEAST8_MAX
+    int_least16_t   INT_LEAST16_MAX
+    int_least32_t   INT_LEAST32_MAX
+    int_least64_t   INT_LEAST64_MAX
+    uint_least8_t   UINT_LEAST8_MAX
+    uint_least16_t UINT_LEAST16_MAX
+    uint_least32_t UINT_LEAST32_MAX
+    uint_least64_t UINT_LEAST64_MAX
     #7.18.2.3 Limits of fastest minimum-width integer types
-    enum:   INT_FAST8_MIN
-    enum:  INT_FAST16_MIN
-    enum:  INT_FAST32_MIN
-    enum:  INT_FAST64_MIN
-    enum:   INT_FAST8_MAX
-    enum:  INT_FAST16_MAX
-    enum:  INT_FAST32_MAX
-    enum:  INT_FAST64_MAX
-    enum:  UINT_FAST8_MAX
-    enum: UINT_FAST16_MAX
-    enum: UINT_FAST32_MAX
-    enum: UINT_FAST64_MAX
+    int_fast8_t     INT_FAST8_MIN
+    int_fast16_t   INT_FAST16_MIN
+    int_fast32_t   INT_FAST32_MIN
+    int_fast64_t   INT_FAST64_MIN
+    int_fast8_t     INT_FAST8_MAX
+    int_fast16_t   INT_FAST16_MAX
+    int_fast32_t   INT_FAST32_MAX
+    int_fast64_t   INT_FAST64_MAX
+    uint_fast8_t   UINT_FAST8_MAX
+    uint_fast16_t UINT_FAST16_MAX
+    uint_fast32_t UINT_FAST32_MAX
+    uint_fast64_t UINT_FAST64_MAX
     #7.18.2.4 Limits of integer types capable of holding object pointers
     enum:  INTPTR_MIN
     enum:  INTPTR_MAX
@@ -96,7 +96,7 @@ cdef extern from "stdint.h" nogil:
     enum: SIG_ATOMIC_MIN
     enum: SIG_ATOMIC_MAX
     # size_t
-    enum: SIZE_MAX
+    size_t SIZE_MAX
     # wchar_t
     enum: WCHAR_MIN
     enum: WCHAR_MAX
