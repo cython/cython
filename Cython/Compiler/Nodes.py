@@ -1405,14 +1405,7 @@ class FuncDefNode(StatNode, BlockNode):
             if 'cython_unused' not in self.modifiers:
                 self.modifiers = self.modifiers + ['cython_unused']
 
-        preprocessor_guard = None
-        if self.entry.is_special and not is_buffer_slot:
-            slot = TypeSlots.method_name_to_slot.get(self.entry.name)
-            if slot:
-                preprocessor_guard = slot.preprocessor_guard_code()
-                if (self.entry.name == '__long__' and
-                    not self.entry.scope.lookup_here('__int__')):
-                    preprocessor_guard = None
+        preprocessor_guard = self.get_preprocessor_guard()
 
         profile = code.globalstate.directives['profile']
         if profile and lenv.nogil:
@@ -1459,7 +1452,7 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_argument_declarations(lenv, code)
 
         for entry in lenv.var_entries:
-            if not entry.in_closure:
+            if not (entry.in_closure or entry.is_arg):
                 code.put_var_declaration(entry)
 
         # Initialize the return variable __pyx_r
@@ -1555,7 +1548,8 @@ class FuncDefNode(StatNode, BlockNode):
         is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if (acquire_gil or entry.assignments) and not entry.in_closure:
+                if ((acquire_gil or len(entry.cf_assignments) > 1) and
+                    not entry.in_closure):
                     code.put_var_incref(entry)
 
             # Note: defaults are always increffed. For def functions, we
@@ -1565,6 +1559,9 @@ class FuncDefNode(StatNode, BlockNode):
             if is_cdef and entry.type.is_memoryviewslice:
                 code.put_incref_memoryviewslice(entry.cname,
                                                 have_gil=not lenv.nogil)
+        for entry in lenv.var_entries:
+            if entry.is_arg and len(entry.cf_assignments) > 1:
+                code.put_var_incref(entry)
 
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
@@ -1709,14 +1706,15 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_memoryviewslice:
                 code.put_xdecref_memoryviewslice(entry.cname,
                                                  have_gil=not lenv.nogil)
-
             elif entry.type.is_pyobject:
-                code.put_var_decref(entry)
+                if not entry.is_arg or len(entry.cf_assignments) > 1:
+                    code.put_var_decref(entry)
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if (acquire_gil or entry.assignments) and not entry.in_closure:
+                if ((acquire_gil or len(entry.cf_assignments) > 1) and
+                    not entry.in_closure):
                     code.put_var_decref(entry)
             if entry.type.is_memoryviewslice:
                 code.put_xdecref_memoryviewslice(entry.cname,
@@ -1852,6 +1850,21 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_gotref("Py_None")
         code.putln("__Pyx_DECREF(Py_None); %s->obj = NULL;" % info)
         code.putln("}")
+
+    def get_preprocessor_guard(self):
+        is_buffer_slot = ((self.entry.name == "__getbuffer__" and
+                           self.entry.scope.is_c_class_scope) or
+                          (self.entry.name == "__releasebuffer__" and
+                           self.entry.scope.is_c_class_scope))
+        if self.entry.is_special and not is_buffer_slot:
+            slot = TypeSlots.method_name_to_slot.get(self.entry.name)
+            if slot:
+                preprocessor_guard = slot.preprocessor_guard_code()
+                if (self.entry.name == '__long__' and
+                    not self.entry.scope.lookup_here('__int__')):
+                    preprocessor_guard = None
+                return preprocessor_guard
+
 
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
@@ -2607,6 +2620,8 @@ class PyArgDeclNode(Node):
     # entry       Symtab.Entry
     # annotation  ExprNode or None   Py3 argument annotation
     child_attrs = []
+    is_self_arg = False
+    is_type_arg = False
 
     def generate_function_definitions(self, env, code):
         self.entry.generate_function_definitions(env, code)
@@ -2646,8 +2661,6 @@ class DefNode(FuncDefNode):
 
     lambda_name = None
     assmt = None
-    num_kwonly_args = 0
-    num_required_kw_args = 0
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
     no_assignment_synthesis = 0
@@ -2663,6 +2676,9 @@ class DefNode(FuncDefNode):
 
     fused_py_func = False
     specialized_cpdefs = None
+    py_wrapper = None
+    py_wrapper_required = True
+    func_cname = None
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -2780,6 +2796,16 @@ class DefNode(FuncDefNode):
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
         self.create_local_scope(env)
+
+        self.py_wrapper = DefNodeWrapper(
+            self.pos,
+            target=self,
+            name=self.entry.name,
+            args=self.args,
+            star_arg=self.star_arg,
+            starstar_arg=self.starstar_arg,
+            return_type=self.return_type)
+        self.py_wrapper.analyse_declarations(env)
 
     def analyse_argument_types(self, env):
         directive_locals = self.directive_locals = env.directives['locals']
@@ -2926,17 +2952,6 @@ class DefNode(FuncDefNode):
             "(%d declared, %s expected)" % (
                 desc, self.name, len(self.args), expected_str))
 
-    def signature_has_nongeneric_args(self):
-        argcount = len(self.args)
-        if argcount == 0 or (
-                argcount == 1 and (self.args[0].is_self_arg or
-                                   self.args[0].is_type_arg)):
-            return 0
-        return 1
-
-    def signature_has_generic_args(self):
-        return self.entry.signature.has_generic_args
-
     def declare_pyfunction(self, env):
         #print "DefNode.declare_pyfunction:", self.name, "in", env ###
         name = self.name
@@ -2950,8 +2965,7 @@ class DefNode(FuncDefNode):
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
         prefix = env.next_id(env.scope_prefix)
-        entry.func_cname = Naming.pyfunc_prefix + prefix + name
-        entry.pymethdef_cname = Naming.pymethdef_prefix + prefix + name
+        self.entry.pyfunc_cname = Naming.pyfunc_prefix + prefix + name
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = Naming.funcdoc_prefix + prefix + name
@@ -2967,6 +2981,7 @@ class DefNode(FuncDefNode):
         entry = env.declare_lambda_function(self.lambda_name, self.pos)
         entry.doc = None
         self.entry = entry
+        self.entry.pyfunc_cname = entry.cname
 
     def declare_arguments(self, env):
         for arg in self.args:
@@ -3069,80 +3084,272 @@ class DefNode(FuncDefNode):
         self.assmt.analyse_declarations(env)
         self.assmt.analyse_expressions(env)
 
+    def error_value(self):
+        return self.entry.signature.error_value
+
+    def caller_will_check_exceptions(self):
+        return 1
+
+    def generate_function_definitions(self, env, code):
+        # Before closure cnames are mangled
+        if self.py_wrapper_required:
+            # func_cname might be modified by @cname
+            self.py_wrapper.func_cname = self.entry.func_cname
+            self.py_wrapper.generate_function_definitions(env, code)
+        FuncDefNode.generate_function_definitions(self, env, code)
+
+    def generate_function_header(self, code, with_pymethdef, proto_only=0):
+        if proto_only:
+            if self.py_wrapper_required:
+                self.py_wrapper.generate_function_header(
+                    code, with_pymethdef, True)
+            return
+        arg_code_list = []
+        if self.entry.signature.has_dummy_arg:
+            if self.needs_outer_scope or self.defaults_struct:
+                self_arg = 'PyObject *%s' % Naming.self_cname
+            else:
+                self_arg = 'CYTHON_UNUSED PyObject *%s' % Naming.self_cname
+            arg_code_list.append(self_arg)
+
+        def arg_decl_code(arg):
+            entry = arg.entry
+            if entry.in_closure:
+                cname = entry.original_cname
+            else:
+                cname = entry.cname
+            if arg.is_self_arg or arg.is_type_arg or entry.is_declared_generic:
+                decl = "PyObject *%s" % cname
+            else:
+                decl = entry.type.declaration_code(cname)
+            if entry.cf_used:
+                return decl
+            return 'CYTHON_UNUSED ' + decl
+
+        for arg in self.args:
+            arg_code_list.append(arg_decl_code(arg))
+        if self.star_arg:
+            arg_code_list.append(arg_decl_code(self.star_arg))
+        if self.starstar_arg:
+            arg_code_list.append(arg_decl_code(self.starstar_arg))
+        arg_code = ', '.join(arg_code_list)
+        dc = self.return_type.declaration_code(self.entry.pyfunc_cname)
+
+        decls_code = code.globalstate['decls']
+        preprocessor_guard = self.get_preprocessor_guard()
+        if preprocessor_guard:
+            decls_code.putln(preprocessor_guard)
+        decls_code.putln(
+            "static %s(%s); /* proto */" % (dc, arg_code))
+        if preprocessor_guard:
+            decls_code.putln("#endif")
+        code.putln("static %s(%s) {" % (dc, arg_code))
+
+    def generate_argument_declarations(self, env, code):
+        pass
+
+    def generate_keyword_list(self, code):
+        pass
+
+    def generate_argument_parsing_code(self, env, code):
+        # Move arguments into closure if required
+        def put_into_closure(entry):
+            if entry.in_closure:
+                code.putln('%s = %s;' % (entry.cname, entry.original_cname))
+                code.put_var_incref(entry)
+                code.put_var_giveref(entry)
+        for arg in self.args:
+            put_into_closure(arg.entry)
+        for arg in self.star_arg, self.starstar_arg:
+            if arg:
+                put_into_closure(arg.entry)
+
+    def generate_argument_type_tests(self, code):
+        pass
+
+
+class DefNodeWrapper(FuncDefNode):
+    # DefNode python wrapper code generator
+
+    defnode = None
+    target = None # Target DefNode
+
+    def __init__(self, *args, **kwargs):
+        FuncDefNode.__init__(self, *args, **kwargs)
+        self.num_kwonly_args = self.target.num_kwonly_args
+        self.num_required_kw_args = self.target.num_required_kw_args
+        self.num_required_args = self.target.num_required_args
+        self.self_in_stararg = self.target.self_in_stararg
+        self.signature = None
+
+    def analyse_declarations(self, env):
+        target_entry = self.target.entry
+        name = self.name
+        prefix = env.next_id(env.scope_prefix)
+        target_entry.func_cname = Naming.pywrap_prefix + prefix + name
+        target_entry.pymethdef_cname = Naming.pymethdef_prefix + prefix + name
+
+        self.signature = target_entry.signature
+
+    def signature_has_nongeneric_args(self):
+        argcount = len(self.args)
+        if argcount == 0 or (
+                argcount == 1 and (self.args[0].is_self_arg or
+                                   self.args[0].is_type_arg)):
+            return 0
+        return 1
+
+    def signature_has_generic_args(self):
+        return self.signature.has_generic_args
+
+    def generate_function_body(self, code):
+        args = []
+        if self.signature.has_dummy_arg:
+            args.append(Naming.self_cname)
+        for arg in self.args:
+            args.append(arg.entry.cname)
+        if self.star_arg:
+            args.append(self.star_arg.entry.cname)
+        if self.starstar_arg:
+            args.append(self.starstar_arg.entry.cname)
+        args = ', '.join(args)
+        if not self.return_type.is_void:
+            code.put('%s = ' % Naming.retval_cname)
+        code.putln('%s(%s);' % (
+            self.target.entry.pyfunc_cname, args))
+
+    def generate_function_definitions(self, env, code):
+        lenv = self.target.local_scope
+        # Generate C code for header and body of function
+        code.putln("")
+        code.putln("/* Python wrapper */")
+        preprocessor_guard = self.target.get_preprocessor_guard()
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
+
+        code.enter_cfunc_scope()
+        code.return_from_error_cleanup_label = code.new_label()
+
+        with_pymethdef = (self.target.needs_assignment_synthesis(lenv, code) or
+                          self.target.pymethdef_required)
+        self.generate_function_header(code, with_pymethdef)
+        self.generate_argument_declarations(lenv, code)
+        self.generate_keyword_list(code)
+        tempvardecl_code = code.insertion_point()
+
+        if self.return_type.is_pyobject:
+            retval_init = ' = 0'
+        else:
+            retval_init = ''
+        if not self.return_type.is_void:
+            code.putln('%s%s;' % (
+                self.return_type.declaration_code(Naming.retval_cname),
+                retval_init))
+        code.put_declare_refcount_context()
+        code.put_setup_refcount_context('%s (wrapper)' % self.name)
+
+        self.generate_argument_parsing_code(lenv, code)
+        self.generate_argument_type_tests(code)
+        self.generate_function_body(code)
+
+        # ----- Go back and insert temp variable declarations
+        tempvardecl_code.put_temp_declarations(code.funcstate)
+
+        # ----- Error cleanup
+        if code.error_label in code.labels_used:
+            code.put_goto(code.return_label)
+            code.put_label(code.error_label)
+            for cname, type in code.funcstate.all_managed_temps():
+                code.put_xdecref(cname, type)
+
+        # ----- Non-error return cleanup
+        code.put_label(code.return_label)
+        for entry in lenv.var_entries:
+            if entry.is_arg and entry.type.is_pyobject:
+                code.put_var_decref(entry)
+
+        code.put_finish_refcount_context()
+        if not self.return_type.is_void:
+            code.putln("return %s;" % Naming.retval_cname)
+        code.putln('}')
+        code.exit_cfunc_scope()
+        if preprocessor_guard:
+            code.putln("#endif /*!(%s)*/" % preprocessor_guard)
+
     def generate_function_header(self, code, with_pymethdef, proto_only=0):
         arg_code_list = []
-        sig = self.entry.signature
+        sig = self.signature
+
         if sig.has_dummy_arg or self.self_in_stararg:
             arg_code_list.append(
                 "PyObject *%s" % Naming.self_cname)
+
         for arg in self.args:
             if not arg.is_generic:
                 if arg.is_self_arg or arg.is_type_arg:
                     arg_code_list.append("PyObject *%s" % arg.hdr_cname)
                 else:
-                    decl = arg.hdr_type.declaration_code(arg.hdr_cname)
-                    entry = self.local_scope.lookup(arg.name)
-                    if not entry.cf_used:
-                        arg_code_list.append('CYTHON_UNUSED ' + decl)
-                    else:
-                        arg_code_list.append(decl)
-        if not self.entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
+                    arg_code_list.append(
+                        arg.hdr_type.declaration_code(arg.hdr_cname))
+        entry = self.target.entry
+        if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
-        if (self.entry.scope.is_c_class_scope and self.entry.name == "__ipow__"):
+        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
             arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             arg_code_list.append(
                 "PyObject *%s, PyObject *%s"
                     % (Naming.args_cname, Naming.kwds_cname))
         arg_code = ", ".join(arg_code_list)
-        dc = self.return_type.declaration_code(self.entry.func_cname)
-        mf = " ".join(self.modifiers).upper()
-        if mf: mf += " "
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        dc = self.return_type.declaration_code(entry.func_cname)
+        header = "static %s(%s)" % (dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
-            if self.fused_py_func:
+            if self.target.fused_py_func:
                 # If we are the specialized version of the cpdef, we still
                 # want the prototype for the "fused cpdef", in case we're
                 # checking to see if our method was overridden in Python
-                self.fused_py_func.generate_function_header(
+                self.target.fused_py_func.generate_function_header(
                                     code, with_pymethdef, proto_only=True)
             return
 
-        if (Options.docstrings and self.entry.doc and
-                not self.fused_py_func and
-                not self.entry.scope.is_property_scope and
-                (not self.entry.is_special or self.entry.wrapperbase_cname)):
+        if (Options.docstrings and entry.doc and
+                not self.target.fused_py_func and
+                not entry.scope.is_property_scope and
+                (not entry.is_special or entry.wrapperbase_cname)):
             # h_code = code.globalstate['h_code']
-            docstr = self.entry.doc
+            docstr = entry.doc
 
             if docstr.is_unicode:
                 docstr = docstr.utf8encode()
 
             code.putln(
                 'static char %s[] = "%s";' % (
-                    self.entry.doc_cname,
+                    entry.doc_cname,
                     split_string_literal(escape_byte_string(docstr))))
 
-            if self.entry.is_special:
+            if entry.is_special:
                 code.putln(
-                    "struct wrapperbase %s;" % self.entry.wrapperbase_cname)
+                    "struct wrapperbase %s;" % entry.wrapperbase_cname)
 
-        if with_pymethdef or self.fused_py_func:
+        if with_pymethdef or self.target.fused_py_func:
             code.put(
                 "static PyMethodDef %s = " %
-                    self.entry.pymethdef_cname)
-            code.put_pymethoddef(self.entry, ";", allow_skip=False)
+                    entry.pymethdef_cname)
+            code.put_pymethoddef(self.target.entry, ";", allow_skip=False)
         code.putln("%s {" % header)
 
     def generate_argument_declarations(self, env, code):
         for arg in self.args:
-            if arg.is_generic: # or arg.needs_conversion:
+            if arg.is_generic:
                 if arg.needs_conversion:
                     code.putln("PyObject *%s = 0;" % arg.hdr_cname)
-                elif not arg.entry.in_closure:
+                else:
                     code.put_var_declaration(arg.entry)
+        for entry in env.var_entries:
+            if entry.is_arg:
+                code.put_var_declaration(entry)
 
     def generate_keyword_list(self, code):
         if self.signature_has_generic_args() and \
@@ -3159,7 +3366,7 @@ class DefNode(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
         # generic arguments, if any, including args/kwargs
-        if self.entry.signature.has_dummy_arg and not self.self_in_stararg:
+        if self.signature.has_dummy_arg and not self.self_in_stararg:
             # get rid of unused argument warning
             code.putln("%s = %s;" % (Naming.self_cname, Naming.self_cname))
 
@@ -3175,9 +3382,6 @@ class DefNode(FuncDefNode):
             if not arg.type.is_pyobject:
                 if not arg.type.create_from_py_utility_code(env):
                     pass # will fail later
-            elif arg.is_self_arg and arg.entry.in_closure:
-                # must store 'self' in the closure explicitly for extension types
-                self.generate_arg_assignment(arg, arg.hdr_cname, code)
 
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
@@ -3220,41 +3424,17 @@ class DefNode(FuncDefNode):
                         code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
                         code.put_var_decref_clear(self.starstar_arg.entry)
-            code.put_add_traceback(self.entry.qualified_name)
-            # The arguments are put into the closure one after the
-            # other, so when type errors are found, all references in
-            # the closure instance must be properly ref-counted to
-            # facilitate generic closure instance deallocation.  In
-            # the case of an argument type error, it's best to just
-            # DECREF+clear the already handled references, as this
-            # frees their references as early as possible.
-            for arg in self.args:
-                if arg.type.is_pyobject and arg.entry.in_closure:
-                    code.put_var_xdecref_clear(arg.entry)
-            if self.needs_closure:
-                code.put_decref(Naming.cur_scope_cname, self.local_scope.scope_class.type)
+            code.put_add_traceback(self.target.entry.qualified_name)
             code.put_finish_refcount_context()
             code.putln("return %s;" % self.error_value())
         if code.label_used(end_label):
             code.put_label(end_label)
-
-        # fix refnanny view on closure variables here, instead of
-        # doing it separately for each arg parsing special case
-        if self.star_arg and self.star_arg.entry.in_closure:
-            code.put_var_giveref(self.star_arg.entry)
-        if self.starstar_arg and self.starstar_arg.entry.in_closure:
-            code.put_var_giveref(self.starstar_arg.entry)
-        for arg in self.args:
-            if arg.type.is_pyobject and arg.entry.in_closure:
-                code.put_var_giveref(arg.entry)
 
     def generate_arg_assignment(self, arg, item, code, incref_closure=True):
         if arg.type.is_pyobject:
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
             entry = arg.entry
-            if incref_closure and entry.in_closure:
-                code.put_incref(item, PyrexTypes.py_object_type)
             code.putln("%s = %s;" % (entry.cname, item))
         else:
             func = arg.type.from_py_function
@@ -3509,8 +3689,6 @@ class DefNode(FuncDefNode):
             code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
             if self.starstar_arg:
                 code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
-            if self.needs_closure:
-                code.put_decref(Naming.cur_scope_cname, self.local_scope.scope_class.type)
             code.put_finish_refcount_context()
             code.putln('return %s;' % self.error_value())
             code.putln('}')
@@ -3527,10 +3705,10 @@ class DefNode(FuncDefNode):
         code.putln("PyObject* values[%d] = {%s};" % (
             max_args, ','.join('0'*max_args)))
 
-        if self.defaults_struct:
+        if self.target.defaults_struct:
             code.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
-                self.defaults_struct, Naming.dynamic_args_cname,
-                self.defaults_struct, Naming.self_cname))
+                self.target.defaults_struct, Naming.dynamic_args_cname,
+                self.target.defaults_struct, Naming.self_cname))
 
         # assign borrowed Python default values to the values array,
         # so that they can be overwritten by received arguments below
@@ -3697,10 +3875,6 @@ class DefNode(FuncDefNode):
         for arg in self.args:
             if arg.needs_conversion:
                 self.generate_arg_conversion(arg, code)
-            elif not arg.is_self_arg and arg.entry.in_closure:
-                if arg.type.is_pyobject:
-                    code.put_incref(arg.hdr_cname, py_object_type)
-                code.putln('%s = %s;' % (arg.entry.cname, arg.hdr_cname))
 
     def generate_arg_conversion(self, arg, code):
         # Generate conversion code for one argument.
@@ -3768,10 +3942,7 @@ class DefNode(FuncDefNode):
                 self.generate_arg_none_check(arg, code)
 
     def error_value(self):
-        return self.entry.signature.error_value
-
-    def caller_will_check_exceptions(self):
-        return 1
+        return self.signature.error_value
 
 
 class GeneratorDefNode(DefNode):
@@ -7837,6 +8008,8 @@ class CnameDecoratorNode(StatNode):
             e.cname = self.cname
             e.func_cname = self.cname
             e.used = True
+            if e.pyfunc_cname and '.' in e.pyfunc_cname:
+                e.pyfunc_cname = self.mangle(e.pyfunc_cname)
         elif is_struct_or_enum:
             e.cname = e.type.cname = self.cname
         else:
@@ -7853,12 +8026,16 @@ class CnameDecoratorNode(StatNode):
 
             for name, entry in scope.entries.iteritems():
                 if entry.func_cname:
-                    cname = entry.cname
-                    if '.' in cname:
-                        # remove __pyx_base from func_cname
-                        cname = cname.split('.')[-1]
+                    entry.func_cname = self.mangle(entry.cname)
+                if entry.pyfunc_cname:
+                    old = entry.pyfunc_cname
+                    entry.pyfunc_cname = self.mangle(entry.pyfunc_cname)
 
-                    entry.func_cname = '%s_%s' % (self.cname, cname)
+    def mangle(self, cname):
+        if '.' in cname:
+            # remove __pyx_base from func_cname
+            cname = cname.split('.')[-1]
+        return '%s_%s' % (self.cname, cname)
 
     def analyse_expressions(self, env):
         self.node.analyse_expressions(env)

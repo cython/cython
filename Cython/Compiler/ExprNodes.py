@@ -6252,15 +6252,16 @@ class GeneratorExpressionNode(LambdaNode):
         super(GeneratorExpressionNode, self).analyse_declarations(env)
         # No pymethdef required
         self.def_node.pymethdef_required = False
+        self.def_node.py_wrapper_required = False
         self.def_node.is_cyfunction = False
         # Force genexpr signature
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
 
     def generate_result_code(self, code):
         code.putln(
-            '%s = %s(%s, NULL); %s' % (
+            '%s = %s(%s); %s' % (
                 self.result(),
-                self.def_node.entry.func_cname,
+                self.def_node.entry.pyfunc_cname,
                 self.self_result_code(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())

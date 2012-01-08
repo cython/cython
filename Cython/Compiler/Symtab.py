@@ -156,6 +156,7 @@ class Entry(object):
     from_closure = 0
     is_declared_generic = 0
     is_readonly = 0
+    pyfunc_cname = None
     func_cname = None
     func_modifiers = []
     final_func_cname = None
