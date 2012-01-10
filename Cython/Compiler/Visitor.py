@@ -273,6 +273,8 @@ class CythonTransform(VisitorTransform):
         import ModuleNode
         if isinstance(node, ModuleNode.ModuleNode):
             self.current_directives = node.directives
+        else: # XXX: is default directives better?
+            self.current_directives = {}
         return super(CythonTransform, self).__call__(node)
 
     def visit_CompilerDirectivesNode(self, node):

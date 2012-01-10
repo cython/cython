@@ -1308,7 +1308,6 @@ class FuncDefNode(StatNode, BlockNode):
     #       with fused argument types with a FusedCFuncDefNode
 
     py_func = None
-    assmt = None
     needs_closure = False
     needs_outer_scope = False
     pymethdef_required = False
@@ -1818,9 +1817,6 @@ class FuncDefNode(StatNode, BlockNode):
         for arg in self.args:
             if not arg.is_dynamic:
                 arg.generate_assignment_code(code)
-        # For Python class methods, create and store function object
-        if self.assmt:
-            self.assmt.generate_execution_code(code)
 
     #
     # Special code for the __getbuffer__ function
@@ -2648,8 +2644,6 @@ class DefNode(FuncDefNode):
     #  The following subnode is constructed internally
     #  when the def statement is inside a Python class definition.
     #
-    #  assmt   AssignmentNode   Function construction/assignment
-    #
     #  fused_py_func        DefNode     The original fused cpdef DefNode
     #                                   (in case this is a specialization)
     #  specialized_cpdefs   [DefNode]   list of specialized cpdef DefNodes
@@ -2660,7 +2654,6 @@ class DefNode(FuncDefNode):
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
     lambda_name = None
-    assmt = None
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
     no_assignment_synthesis = 0
@@ -3020,14 +3013,13 @@ class DefNode(FuncDefNode):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
 
-        if self.needs_assignment_synthesis(env):
-            # Shouldn't we be doing this at the module level too?
-            self.synthesize_assignment_node(env)
-        elif self.decorators:
+        if not self.needs_assignment_synthesis(env) and self.decorators:
             for decorator in self.decorators[::-1]:
                 decorator.decorator.analyse_expressions(env)
 
     def needs_assignment_synthesis(self, env, code=None):
+        if self.is_wrapper:
+            return False
         if self.specialized_cpdefs or self.is_staticmethod:
             return True
         if self.no_assignment_synthesis:
@@ -3041,48 +3033,6 @@ class DefNode(FuncDefNode):
             else:
                 return code.globalstate.directives['binding']
         return env.is_py_class_scope or env.is_closure_scope
-
-    def synthesize_assignment_node(self, env):
-        import ExprNodes
-
-        if self.fused_py_func:
-            return
-
-        genv = env
-        while genv.is_py_class_scope or genv.is_c_class_scope:
-            genv = genv.outer_scope
-
-        if genv.is_closure_scope:
-            rhs = self.py_cfunc_node = ExprNodes.InnerFunctionNode(
-                self.pos, def_node=self,
-                pymethdef_cname=self.entry.pymethdef_cname,
-                code_object=ExprNodes.CodeObjectNode(self))
-        else:
-            rhs = ExprNodes.PyCFunctionNode(
-                self.pos,
-                def_node=self,
-                pymethdef_cname=self.entry.pymethdef_cname,
-                binding=env.directives['binding'],
-                specialized_cpdefs=self.specialized_cpdefs,
-                code_object=ExprNodes.CodeObjectNode(self))
-
-        if env.is_py_class_scope:
-            rhs.binding = True
-
-        self.is_cyfunction = rhs.binding
-
-        if self.decorators:
-            for decorator in self.decorators[::-1]:
-                rhs = ExprNodes.SimpleCallNode(
-                    decorator.pos,
-                    function = decorator.decorator,
-                    args = [rhs])
-
-        self.assmt = SingleAssignmentNode(self.pos,
-            lhs = ExprNodes.NameNode(self.pos, name = self.name),
-            rhs = rhs)
-        self.assmt.analyse_declarations(env)
-        self.assmt.analyse_expressions(env)
 
     def error_value(self):
         return self.entry.signature.error_value

@@ -632,13 +632,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_DefNode(self, node):
-        ## XXX: no target name node here
         node.used = True
-        entry = node.entry
-        if entry.is_anonymous:
-            entry = self.env.lookup(node.name)
-        if entry:
-            self.flow.mark_assignment(node, object_expr_not_none, entry)
         return self.visit_FuncDefNode(node)
 
     def visit_GeneratorBodyDefNode(self, node):
