@@ -137,6 +137,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from AutoDocTransforms import EmbedSignature
     from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
     from Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
+    from Optimize import InlineDefNodeCalls
     from Optimize import ConstantFolding, FinalOptimizePhase
     from Optimize import DropRefcountingTransform
     from Buffer import IntroduceBufferAuxiliaryVars
@@ -185,6 +186,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         MarkOverflowingArithmetic(context),
         IntroduceBufferAuxiliaryVars(context),
         _check_c_declarations,
+        InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
         FindInvalidUseOfFusedTypes(context),
         CreateClosureClasses(context),  ## After all lookups and type inference

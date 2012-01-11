@@ -1643,6 +1643,28 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         return kwargs
 
+class InlineDefNodeCalls(Visitor.CythonTransform):
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        if not self.current_directives.get('optimize.inline_defnode_calls'):
+            return node
+        function_name = node.function
+        if not function_name.is_name:
+            return node
+        if len(function_name.cf_state) != 1:
+            return node
+        function = list(function_name.cf_state)[0].rhs
+        if not isinstance(function, ExprNodes.PyCFunctionNode):
+            return node
+        inlined = ExprNodes.InlinedDefNodeCallNode(
+            node.pos, function_name=function_name,
+            function=function, args=node.args)
+        if inlined.can_be_inlined():
+            return inlined
+        return node
+
 
 class OptimizeBuiltinCalls(Visitor.EnvTransform):
     """Optimize some common methods calls and instantiation patterns
