@@ -2989,10 +2989,6 @@ class DefNode(FuncDefNode):
             arg.entry.is_arg = 1
             arg.entry.used = 1
             arg.entry.is_self_arg = arg.is_self_arg
-            if arg.hdr_type:
-                if arg.is_self_arg or arg.is_type_arg or \
-                    (arg.type.is_extension_type and not arg.hdr_type.is_extension_type):
-                        arg.entry.is_declared_generic = 1
         self.declare_python_arg(env, self.star_arg)
         self.declare_python_arg(env, self.starstar_arg)
 
@@ -3068,10 +3064,7 @@ class DefNode(FuncDefNode):
                 cname = entry.original_cname
             else:
                 cname = entry.cname
-            if arg.is_self_arg or arg.is_type_arg or entry.is_declared_generic:
-                decl = "PyObject *%s" % cname
-            else:
-                decl = entry.type.declaration_code(cname)
+            decl = entry.type.declaration_code(cname)
             if entry.cf_used:
                 return decl
             return 'CYTHON_UNUSED ' + decl
@@ -3157,7 +3150,10 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature.has_dummy_arg:
             args.append(Naming.self_cname)
         for arg in self.args:
-            args.append(arg.entry.cname)
+            if arg.hdr_type:
+                args.append(arg.type.cast_code(arg.entry.cname))
+            else:
+                args.append(arg.entry.cname)
         if self.star_arg:
             args.append(self.star_arg.entry.cname)
         if self.starstar_arg:

@@ -3948,10 +3948,7 @@ class InlinedDefNodeCallNode(CallNode):
         func_type = self.function.def_node
         for arg, proto_arg in zip(self.args, func_type.args):
             if arg.type.is_pyobject:
-                if proto_arg.hdr_type:
-                    arg_code.append(arg.result_as(proto_arg.hdr_type))
-                else:
-                    arg_code.append(arg.result_as(proto_arg.type))
+                arg_code.append(arg.result_as(proto_arg.type))
             else:
                 arg_code.append(arg.result())
         arg_code = ', '.join(arg_code)
