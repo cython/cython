@@ -3864,6 +3864,103 @@ class SimpleCallNode(CallNode):
                 code.funcstate.release_temp(self.opt_arg_struct)
 
 
+class InlinedDefNodeCallNode(CallNode):
+    #  Inline call to defnode
+    #
+    #  function       PyCFunctionNode
+    #  function_name  NameNode
+    #  args           [ExprNode]
+
+    subexprs = ['args', 'function_name']
+    is_temp = 1
+    type = py_object_type
+    function = None
+    function_name = None
+
+    def can_be_inlined(self):
+        func_type= self.function.def_node
+        if func_type.star_arg or func_type.starstar_arg:
+            return False
+        if len(func_type.args) != len(self.args):
+            return False
+        return True
+
+    def analyse_types(self, env):
+        self.function_name.analyse_types(env)
+
+        for arg in self.args:
+            arg.analyse_types(env)
+
+        func_type = self.function.def_node
+        actual_nargs = len(self.args)
+
+        # Coerce arguments
+        some_args_in_temps = False
+        for i in xrange(actual_nargs):
+            formal_type = func_type.args[i].type
+            arg = self.args[i].coerce_to(formal_type, env)
+            if arg.is_temp:
+                if i > 0:
+                    # first argument in temp doesn't impact subsequent arguments
+                    some_args_in_temps = True
+            elif arg.type.is_pyobject and not env.nogil:
+                if arg.nonlocally_immutable():
+                    # plain local variables are ok
+                    pass
+                else:
+                    # we do not safely own the argument's reference,
+                    # but we must make sure it cannot be collected
+                    # before we return from the function, so we create
+                    # an owned temp reference to it
+                    if i > 0: # first argument doesn't matter
+                        some_args_in_temps = True
+                    arg = arg.coerce_to_temp(env)
+            self.args[i] = arg
+
+        if some_args_in_temps:
+            # if some args are temps and others are not, they may get
+            # constructed in the wrong order (temps first) => make
+            # sure they are either all temps or all not temps (except
+            # for the last argument, which is evaluated last in any
+            # case)
+            for i in xrange(actual_nargs-1):
+                arg = self.args[i]
+                if arg.nonlocally_immutable():
+                    # locals, C functions, unassignable types are safe.
+                    pass
+                elif arg.type.is_cpp_class:
+                    # Assignment has side effects, avoid.
+                    pass
+                elif env.nogil and arg.type.is_pyobject:
+                    # can't copy a Python reference into a temp in nogil
+                    # env (this is safe: a construction would fail in
+                    # nogil anyway)
+                    pass
+                else:
+                    #self.args[i] = arg.coerce_to_temp(env)
+                    # instead: issue a warning
+                    if i > 0:
+                        warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
+                        break
+
+    def generate_result_code(self, code):
+        arg_code = [self.function_name.py_result()]
+        func_type = self.function.def_node
+        for arg, proto_arg in zip(self.args, func_type.args):
+            if arg.type.is_pyobject:
+                arg_code.append(arg.result_as(proto_arg.type))
+            else:
+                arg_code.append(arg.result())
+        arg_code = ', '.join(arg_code)
+        code.putln(
+            "%s = %s(%s); %s" % (
+                self.result(),
+                self.function.def_node.entry.pyfunc_cname,
+                arg_code,
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+
 class PythonCapiFunctionNode(ExprNode):
     subexprs = []
     def __init__(self, pos, py_name, cname, func_type, utility_code = None):
@@ -6252,15 +6349,16 @@ class GeneratorExpressionNode(LambdaNode):
         super(GeneratorExpressionNode, self).analyse_declarations(env)
         # No pymethdef required
         self.def_node.pymethdef_required = False
+        self.def_node.py_wrapper_required = False
         self.def_node.is_cyfunction = False
         # Force genexpr signature
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
 
     def generate_result_code(self, code):
         code.putln(
-            '%s = %s(%s, NULL); %s' % (
+            '%s = %s(%s); %s' % (
                 self.result(),
-                self.def_node.entry.func_cname,
+                self.def_node.entry.pyfunc_cname,
                 self.self_result_code(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())

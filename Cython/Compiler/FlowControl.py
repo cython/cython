@@ -327,6 +327,32 @@ class NameReference(object):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
 
 
+class ControlFlowState(list):
+    # Keeps track of Node's entry assignments
+    #
+    # cf_is_null        [boolean] It is uninitialized
+    # cf_maybe_null     [boolean] May be uninitialized
+    # is_single         [boolean] Has only one assignment at this point
+
+    cf_maybe_null = False
+    cf_is_null = False
+    is_single = False
+
+    def __init__(self, state):
+        if Uninitialized in state:
+            state.discard(Uninitialized)
+            self.cf_maybe_null = True
+            if not state:
+                self.cf_is_null = True
+        else:
+            if len(state) == 1:
+                self.is_single = True
+        super(ControlFlowState, self).__init__(state)
+
+    def one(self):
+        return self[0]
+
+
 class GVContext(object):
     """Graphviz subgraph object."""
 
@@ -530,11 +556,10 @@ def check_definitions(flow, compiler_directives):
 
     messages.report()
 
-    # Remove Uninitialized from cf_state
     for node in assmt_nodes:
-        node.cf_state.discard(Uninitialized)
+        node.cf_state = ControlFlowState(node.cf_state)
     for node in references:
-        node.cf_state.discard(Uninitialized)
+        node.cf_state = ControlFlowState(node.cf_state)
 
 
 class AssignmentCollector(TreeVisitor):
@@ -632,13 +657,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_DefNode(self, node):
-        ## XXX: no target name node here
         node.used = True
-        entry = node.entry
-        if entry.is_anonymous:
-            entry = self.env.lookup(node.name)
-        if entry:
-            self.flow.mark_assignment(node, object_expr_not_none, entry)
         return self.visit_FuncDefNode(node)
 
     def visit_GeneratorBodyDefNode(self, node):
