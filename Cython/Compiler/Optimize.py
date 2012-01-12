@@ -1653,9 +1653,9 @@ class InlineDefNodeCalls(Visitor.CythonTransform):
         function_name = node.function
         if not function_name.is_name:
             return node
-        if len(function_name.cf_state) != 1:
+        if not function_name.cf_state.is_single:
             return node
-        function = list(function_name.cf_state)[0].rhs
+        function = function_name.cf_state.one().rhs
         if not isinstance(function, ExprNodes.PyCFunctionNode):
             return node
         inlined = ExprNodes.InlinedDefNodeCallNode(
