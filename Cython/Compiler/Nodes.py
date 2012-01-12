@@ -2557,7 +2557,9 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
         py_func.analyse_declarations(env)
         # ... and its body
         py_func.scope = env
-        ParseTreeTransforms.AnalyseDeclarationsTransform(None)(py_func)
+
+        # Will be analysed later by underlying AnalyseDeclarationsTransform
+        #ParseTreeTransforms.AnalyseDeclarationsTransform(None)(py_func)
 
         e, orig_e = py_func.entry, orig_py_func.entry
 

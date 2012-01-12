@@ -1493,9 +1493,9 @@ if VALUE is not None:
 
             if node.py_func:
                 node.stats.insert(0, node.py_func)
-
-            if node.py_func and node.py_func.needs_assignment_synthesis(env):
-                node = [node, self._synthesize_assignment(node.py_func, env)]
+                self.visit(node.py_func)
+                if node.py_func.needs_assignment_synthesis(env):
+                    node = [node, self._synthesize_assignment(node.py_func, env)]
         else:
             node.body.analyse_declarations(lenv)
 
