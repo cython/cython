@@ -106,6 +106,9 @@ directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
 
+# optimizations
+    'optimize.inline_defnode_calls': False,
+
 # remove unreachable code
     'remove_unreachable': True,
 

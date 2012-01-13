@@ -1493,6 +1493,9 @@ if VALUE is not None:
 
             if node.py_func:
                 node.stats.insert(0, node.py_func)
+                self.visit(node.py_func)
+                if node.py_func.needs_assignment_synthesis(env):
+                    node = [node, self._synthesize_assignment(node.py_func, env)]
         else:
             node.body.analyse_declarations(lenv)
 
@@ -1513,6 +1516,54 @@ if VALUE is not None:
 
         self.seen_vars_stack.pop()
         return node
+
+    def visit_DefNode(self, node):
+        node = self.visit_FuncDefNode(node)
+        env = self.env_stack[-1]
+        if (not isinstance(node, Nodes.DefNode) or
+            node.fused_py_func or node.is_generator_body or
+            not node.needs_assignment_synthesis(env)):
+            return node
+        return [node, self._synthesize_assignment(node, env)]
+
+    def _synthesize_assignment(self, node, env):
+        # Synthesize assignment node and put it right after defnode
+        genv = env
+        while genv.is_py_class_scope or genv.is_c_class_scope:
+            genv = genv.outer_scope
+
+        if genv.is_closure_scope:
+            rhs = node.py_cfunc_node = ExprNodes.InnerFunctionNode(
+                node.pos, def_node=node,
+                pymethdef_cname=node.entry.pymethdef_cname,
+                code_object=ExprNodes.CodeObjectNode(node))
+        else:
+            rhs = ExprNodes.PyCFunctionNode(
+                node.pos,
+                def_node=node,
+                pymethdef_cname=node.entry.pymethdef_cname,
+                binding=self.current_directives.get('binding'),
+                specialized_cpdefs=node.specialized_cpdefs,
+                code_object=ExprNodes.CodeObjectNode(node))
+
+        if env.is_py_class_scope:
+            rhs.binding = True
+
+        node.is_cyfunction = rhs.binding
+
+        if node.decorators:
+            for decorator in node.decorators[::-1]:
+                rhs = ExprNodes.SimpleCallNode(
+                    decorator.pos,
+                    function = decorator.decorator,
+                    args = [rhs])
+
+        assmt = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs=ExprNodes.NameNode(node.pos,name=node.name),
+            rhs=rhs)
+        assmt.analyse_declarations(env)
+        return assmt
 
     def visit_ScopedExprNode(self, node):
         env = self.env_stack[-1]
@@ -1645,11 +1696,13 @@ if VALUE is not None:
         return None
 
     def visit_CnameDecoratorNode(self, node):
-        self.visitchildren(node)
-
-        if not node.node:
+        child_node = self.visit(node.node)
+        if not child_node:
             return None
-
+        if type(child_node) is list: # Assignment synthesized
+            node.child_node = child_node[0]
+            return [node] + child_node[1:]
+        node.node = child_node
         return node
 
     def create_Property(self, entry):
@@ -2065,9 +2118,6 @@ class CreateClosureClasses(CythonTransform):
         return from_closure, in_closure
 
     def create_class_from_scope(self, node, target_module_scope, inner_node=None):
-        # skip generator body
-        if node.is_generator_body:
-            return
         # move local variables into closure
         if node.is_generator:
             for entry in node.local_scope.entries.values():
@@ -2158,6 +2208,10 @@ class CreateClosureClasses(CythonTransform):
             self.path.append(node)
             self.visitchildren(node)
             self.path.pop()
+        return node
+
+    def visit_GeneratorBodyDefNode(self, node):
+        self.visitchildren(node)
         return node
 
     def visit_CFuncDefNode(self, node):
