@@ -3178,7 +3178,7 @@ class DefNodeWrapper(FuncDefNode):
         code.enter_cfunc_scope()
         code.return_from_error_cleanup_label = code.new_label()
 
-        with_pymethdef = (self.target.needs_assignment_synthesis(lenv, code) or
+        with_pymethdef = (self.target.needs_assignment_synthesis(env, code) or
                           self.target.pymethdef_required)
         self.generate_function_header(code, with_pymethdef)
         self.generate_argument_declarations(lenv, code)
