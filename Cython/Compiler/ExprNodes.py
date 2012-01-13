@@ -8003,7 +8003,7 @@ class CondExprNode(ExprNode):
     def eval_and_get(self, code, expr):
         expr.generate_evaluation_code(code)
         expr.make_owned_reference(code)
-        code.putln("%s = %s;" % (self.result(), expr.result()))
+        code.putln('%s = %s;' % (self.result(), expr.result_as(self.ctype())))
         expr.generate_post_assignment_code(code)
         expr.free_temps(code)
 
