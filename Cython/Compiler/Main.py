@@ -686,4 +686,5 @@ default_options = dict(
     c_line_in_traceback = True,
     language_level = 2,
     gdb_debug = False,
+    compile_time_env = None,
 )

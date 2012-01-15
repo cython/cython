@@ -83,6 +83,8 @@ class build_ext(_build_ext.build_ext):
             "compiler directive overrides"),
         ('pyrex-gdb', None,
          "generate debug information for cygdb"),
+        ('pyrex-compile-time-env', None,
+            "pyrex compile time environment"),
         ])
 
     boolean_options.extend([
@@ -101,6 +103,7 @@ class build_ext(_build_ext.build_ext):
         self.pyrex_gen_pxi = 0
         self.pyrex_gdb = False
         self.no_c_in_traceback = 0
+        self.pyrex_compile_time_env = None
 
     def finalize_options (self):
         _build_ext.build_ext.finalize_options(self)
@@ -182,6 +185,9 @@ class build_ext(_build_ext.build_ext):
                 (extension.language and extension.language.lower() == 'c++')
         pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
         pyrex_gdb = self.pyrex_gdb or getattr(extension, 'pyrex_gdb', False)
+        pyrex_compile_time_env = self.pyrex_compile_time_env or \
+            getattr(extension, 'pyrex_compile_time_env', None)
+
         # Set up the include_path for the Cython compiler:
         #    1.    Start with the command line option.
         #    2.    Add in any (unique) paths from the extension
@@ -270,7 +276,8 @@ class build_ext(_build_ext.build_ext):
                     c_line_in_traceback = not no_c_in_traceback,
                     generate_pxi = pyrex_gen_pxi,
                     output_dir = output_dir,
-                    gdb_debug = pyrex_gdb)
+                    gdb_debug = pyrex_gdb,
+                    compile_time_env = pyrex_compile_time_env)
                 result = cython_compile(source, options=options,
                                         full_module_name=module_name)
             else:

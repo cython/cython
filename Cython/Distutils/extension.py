@@ -63,6 +63,7 @@ class Extension(_Extension.Extension):
             pyrex_gen_pxi = 0,
             pyrex_gdb = False,
             no_c_in_traceback = False,
+            pyrex_compile_time_env = None,
             **kw):
 
         _Extension.Extension.__init__(self, name, sources,
@@ -90,6 +91,7 @@ class Extension(_Extension.Extension):
         self.pyrex_gen_pxi = pyrex_gen_pxi
         self.pyrex_gdb = pyrex_gdb
         self.no_c_in_traceback = no_c_in_traceback
+        self.pyrex_compile_time_env = pyrex_compile_time_env
 
 # class Extension
 

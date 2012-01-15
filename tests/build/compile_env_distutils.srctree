@@ -1,0 +1,23 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; import sys; sys.exit(a.compile_env_test())"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Distutils.extension import Extension
+from Cython.Distutils import build_ext
+
+setup(
+  cmdclass = {'build_ext': build_ext},
+  ext_modules = [Extension(
+    "a", ["a.pyx"],
+    pyrex_compile_time_env = {'TEST': True},
+  )],
+)
+
+######## a.pyx ########
+def compile_env_test():
+    IF TEST:
+        return 0
+    ELSE:
+        return 1
