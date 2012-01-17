@@ -1479,19 +1479,46 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
 
-        # See if we need to acquire the GIL for variable declarations and
-        acquire_gil_for_var_decls_only = (lenv.nogil and
-                                          lenv.has_with_gil_block)
+        # See if we need to acquire the GIL for variable declarations, or for
+        # refnanny only
 
-        use_refnanny = not lenv.nogil or acquire_gil_for_var_decls_only
+        # Profiling or closures are not currently possible for cdef nogil
+        # functions, but check them anyway
+        have_object_args = (self.needs_closure or self.needs_outer_scope or
+                            profile)
+        for arg in lenv.arg_entries:
+            if arg.type.is_pyobject:
+                have_object_args = True
+                break
+
+        acquire_gil_for_var_decls_only = (
+                lenv.nogil and lenv.has_with_gil_block and
+                (have_object_args or lenv.buffer_entries))
+
+        acquire_gil_for_refnanny_only = (
+                lenv.nogil and lenv.has_with_gil_block and not
+                acquire_gil_for_var_decls_only)
+
+        use_refnanny = not lenv.nogil or lenv.has_with_gil_block
 
         if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_ensure_gil()
 
         # ----- set up refnanny
         if use_refnanny:
+            if acquire_gil_for_refnanny_only:
+                code.declare_gilstate()
+                code.putln("#if CYTHON_REFNANNY")
+                code.put_ensure_gil(declare_gilstate=False)
+                code.putln("#endif /* CYTHON_REFNANNY */")
+
             tempvardecl_code.put_declare_refcount_context()
             code.put_setup_refcount_context(self.entry.name)
+
+            if acquire_gil_for_refnanny_only:
+                code.putln("#if CYTHON_REFNANNY")
+                code.put_release_ensured_gil()
+                code.putln("#endif /* CYTHON_REFNANNY */")
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -1510,7 +1537,7 @@ class FuncDefNode(StatNode, BlockNode):
 
             if use_refnanny:
                 code.put_finish_refcount_context()
-                if acquire_gil_for_var_decls_only:
+                if acquire_gil or acquire_gil_for_var_decls_only:
                     code.put_release_ensured_gil()
 
             # FIXME: what if the error return value is a Python value?
@@ -1555,7 +1582,8 @@ class FuncDefNode(StatNode, BlockNode):
             #       we aquire arguments from object converstion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
+            elif (is_cdef and entry.type.is_memoryviewslice and
+                  len(entry.cf_assignments) > 1):
                 code.put_incref_memoryviewslice(entry.cname,
                                                 have_gil=not lenv.nogil)
         for entry in lenv.var_entries:
@@ -1566,10 +1594,6 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
                 Buffer.put_init_vars(entry, code)
-        # ----- Initialise local memoryviewslices
-        for entry in lenv.var_entries:
-            if entry.visibility == "private" and not entry.used:
-                continue
 
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
@@ -1631,13 +1655,13 @@ class FuncDefNode(StatNode, BlockNode):
                 # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
                 # code.put_trace_exception()
 
-                if lenv.nogil:
+                if lenv.nogil and not lenv.has_with_gil_block:
                     code.putln("{")
                     code.put_ensure_gil()
 
                 code.put_add_traceback(self.entry.qualified_name)
 
-                if lenv.nogil:
+                if lenv.nogil and not lenv.has_with_gil_block:
                     code.put_release_ensured_gil()
                     code.putln("}")
             else:
@@ -1750,7 +1774,8 @@ class FuncDefNode(StatNode, BlockNode):
             # GIL holding funcion
             code.put_finish_refcount_context()
 
-        if acquire_gil or acquire_gil_for_var_decls_only:
+        if (acquire_gil or acquire_gil_for_var_decls_only or
+                                acquire_gil_for_refnanny_only):
             code.put_release_ensured_gil()
 
         if not self.return_type.is_void:
