@@ -1551,11 +1551,11 @@ class FuncDefNode(StatNode, BlockNode):
                     not entry.in_closure):
                     code.put_var_incref(entry)
 
-            # Note: defaults are always increffed. For def functions, we
+            # Note: defaults are always incref-ed. For def functions, we
             #       we aquire arguments from object converstion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            if is_cdef and entry.type.is_memoryviewslice:
+            elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
                 code.put_incref_memoryviewslice(entry.cname,
                                                 have_gil=not lenv.nogil)
         for entry in lenv.var_entries:
@@ -1715,7 +1715,10 @@ class FuncDefNode(StatNode, BlockNode):
                 if ((acquire_gil or len(entry.cf_assignments) > 1) and
                     not entry.in_closure):
                     code.put_var_decref(entry)
-            if entry.type.is_memoryviewslice:
+            elif (entry.type.is_memoryviewslice and
+                  (not is_cdef or len(entry.cf_assignments) > 1)):
+                # decref slices of def functions and acquired slices from cdef
+                # functions, but not borrowed slices from cdef functions.
                 code.put_xdecref_memoryviewslice(entry.cname,
                                                  have_gil=not lenv.nogil)
         if self.needs_closure:

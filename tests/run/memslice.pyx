@@ -1849,3 +1849,34 @@ cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_
         for j in range(1, 3):
             assert dst[i, j] == dst_f[i, j] == j - 1, (dst[i, j], dst_f[i, j], j - 1)
 
+@testcase
+def test_borrowed_slice():
+    """
+    Test the difference between borrowed an non-borrowed slices. If you delete or assign
+    to a slice in a cdef function, it is not borrowed.
+
+    >>> test_borrowed_slice()
+    5
+    5
+    5
+    """
+    cdef int i, carray[10]
+    for i in range(10):
+        carray[i] = i
+    _borrowed(carray)
+    _not_borrowed(carray)
+    _not_borrowed2(carray)
+
+cdef _borrowed(int[:] m):
+    print m[5]
+
+cdef _not_borrowed(int[:] m):
+    print m[5]
+    if object():
+        del m
+
+cdef _not_borrowed2(int[:] m):
+    cdef int[10] carray
+    print m[5]
+    if object():
+        m = carray
