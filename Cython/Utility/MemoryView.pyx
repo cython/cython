@@ -709,15 +709,13 @@ cdef int slice_memviewslice({{memviewslice_name}} *src,
         if start < 0:
             start += shape
         if not 0 <= start < shape:
-            with gil:
-                raise IndexError("Index out of bounds (axis %d)")
+            _err_dim(IndexError, "Index out of bounds (axis %d)", dim)
     else:
         # index is a slice
         negative_step = have_step != 0 and step < 0
 
         if have_step and step == 0:
-            with gil:
-                raise ValueError("Step may not be zero (axis %d)" % dim)
+            _err_dim(ValueError, "Step may not be zero (axis %d)", dim)
 
         # check our bounds and set defaults
         if have_start:
@@ -778,9 +776,8 @@ cdef int slice_memviewslice({{memviewslice_name}} *src,
             if new_ndim == 0:
                 dst.data = (<char **> dst.data)[0] + suboffset
             else:
-                with gil:
-                    raise IndexError("All dimensions preceding dimension %d "
-                                     "must be indexed and not sliced" % dim)
+                _err_dim(IndexError, "All dimensions preceding dimension %d "
+                                     "must be indexed and not sliced", dim)
         else:
             suboffset_dim[0] = new_ndim
 
@@ -837,8 +834,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except 0:
         shape[i], shape[j] = shape[j], shape[i]
 
         if memslice.suboffsets[i] >= 0 or memslice.suboffsets[j] >= 0:
-            with gil:
-                raise ValueError("Cannot transpose memoryview with indirect dimensions")
+            _err(ValueError, "Cannot transpose memoryview with indirect dimensions")
 
     return 1
 
@@ -1082,8 +1078,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
 
     result = malloc(size)
     if not result:
-        with gil:
-            raise MemoryError
+        _err(MemoryError, NULL)
 
     # tmpslice[0] = src
     tmpslice.data = <char *> result
@@ -1106,6 +1101,25 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
         copy_strided_to_strided(src, tmpslice, ndim, itemsize)
 
     return result
+
+# Use 'with gil' functions and avoid 'with gil' blocks, as the code within the blocks
+# has temporaries that need the GIL to clean up
+@cname('__pyx_memoryview_err_extents')
+cdef int _err_extents(int i, Py_ssize_t extent1,
+                             Py_ssize_t extent2) except -1 with gil:
+    raise ValueError("got differing extents in dimension %d (got %d and %d)" %
+                                                        (i, extent1, extent2))
+
+@cname('__pyx_memoryview_err_dim')
+cdef int _err_dim(object error, char *msg, int dim) except -1 with gil:
+    raise error(msg % dim)
+
+@cname('__pyx_memoryview_err')
+cdef int _err(object error, char *msg) except -1 with gil:
+    if msg != NULL:
+        raise error(msg)
+    else:
+        raise error
 
 @cname('__pyx_memoryview_copy_contents')
 cdef int memoryview_copy_contents({{memviewslice_name}} src,
@@ -1136,14 +1150,10 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
                 broadcasting = True
                 src.strides[i] = 0
             else:
-                with gil:
-                    raise ValueError(
-                        "got differing extents in dimension %d "
-                        "(got %d and %d)" % (i, dst.shape[i], src.shape[i]))
+                _err_extents(i, dst.shape[i], src.shape[i])
 
         if src.suboffsets[i] >= 0:
-            with gil:
-                raise ValueError("Dimension %d is not direct" % i)
+            _err_dim(ValueError, "Dimension %d is not direct", i)
 
     if slices_overlap(&src, &dst, ndim, itemsize):
         # slices overlap, copy to temp, copy temp to dst
