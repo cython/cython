@@ -1747,7 +1747,7 @@ def test_slice_assignment():
 
     for i in range(10):
         for j in range(100):
-            carray[i][j] = i * 10 + j
+            carray[i][j] = i * 100 + j
 
     cdef int[:, :] m = carray
     cdef int[:, :] copy = m[-6:-1, 60:65].copy()
@@ -1758,12 +1758,12 @@ def test_slice_assignment():
 
     for i in range(5):
         for j in range(5):
-            assert copy[i, j] == m[-5 + i, -5 + j]
+            assert copy[i, j] == m[-5 + i, -5 + j], (copy[i, j], m[-5 + i, -5 + j])
 
 @testcase
-def test_slice_assignment_broadcast_leading_dimensions():
+def test_slice_assignment_broadcast_leading():
     """
-    >>> test_slice_assignment_broadcast_leading_dimensions()
+    >>> test_slice_assignment_broadcast_leading()
     """
     cdef int array1[1][10]
     cdef int array2[10]
@@ -1780,4 +1780,36 @@ def test_slice_assignment_broadcast_leading_dimensions():
     a[:, :] = b[:]
 
     for i in range(10):
-        assert a[0, i] == b[i] == 10 - 1 - i
+        assert a[0, i] == b[i] == 10 - 1 - i, (b[i], a[0, i])
+
+@testcase
+def test_slice_assignment_broadcast_strides():
+    """
+    >>> test_slice_assignment_broadcast_strides()
+    """
+    cdef int src_array[10]
+    cdef int dst_array[10][5]
+    cdef int i, j
+
+    for i in range(10):
+        src_array[i] = 10 - 1 - i
+
+    cdef int[:] src = src_array
+    cdef int[:, :] dst = dst_array
+    cdef int[:, :] dst_f = dst.copy_fortran()
+
+    dst[1:] = src[-1:-6:-1]
+    dst_f[1:] = src[-1:-6:-1]
+
+    for i in range(1, 10):
+        for j in range(1, 5):
+            assert dst[i, j] == dst_f[i, j] == j, (dst[i, j], dst_f[i, j], j)
+
+    # test overlapping memory with broadcasting
+    dst[:, 1:4] = dst[1, :3]
+    dst_f[:, 1:4] = dst[1, 1:4]
+
+    for i in range(10):
+        for j in range(1, 3):
+            assert dst[i, j] == dst_f[i, j] == j - 1, (dst[i, j], dst_f[i, j], j - 1)
+

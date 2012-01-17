@@ -1694,7 +1694,7 @@ class NameNode(AtomicExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
-        elif entry.is_local or entry.in_closure or entry.from_closure:
+        elif entry.is_local or entry.in_closure or entry.from_closure or entry.type.is_memoryviewslice:
             # Raise UnboundLocalError for objects and memoryviewslices
             raise_unbound = (
                 (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)

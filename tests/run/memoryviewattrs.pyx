@@ -171,10 +171,10 @@ def test_copy_mismatch():
     >>> test_copy_mismatch()
     Traceback (most recent call last):
        ...
-    ValueError: memoryview shapes are not the same in dimension 0 (got 2 and 1)
+    ValueError: got differing extents in dimension 0 (got 2 and 3)
     '''
     cdef int[:,:,::1] mv1  = array((2,2,3), sizeof(int), 'i')
-    cdef int[:,:,::1] mv2  = array((1,2,3), sizeof(int), 'i')
+    cdef int[:,:,::1] mv2  = array((3,2,3), sizeof(int), 'i')
 
     mv1[...] = mv2
 

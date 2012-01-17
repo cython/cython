@@ -431,57 +431,20 @@ def verify_direct_dimensions(node):
     for access, packing in node.type.axes:
         if access != 'direct':
             error(self.pos, "All dimensions must be direct")
-            return False
-
-    return True
-
-def broadcast(src, dst, src_temp, dst_temp, code):
-    "Perform an in-place broadcast of slices src and dst"
-    if src.type.ndim != dst.type.ndim:
-        code.putln("__pyx_memoryview_broadcast_inplace(&%s, &%s, %d, %d);" % (
-                            src_temp, dst_temp, src.type.ndim, dst.type.ndim))
-
-        return max(src.type.ndim, dst.type.ndim)
-    return src.type.ndim
-
-def copy_broadcast_memview_src_to_dst_inplace(src, dst, src_temp, dst_temp, code):
-    """
-    It is hard to check for overlapping memory with indirect slices,
-    so we currently don't support them.
-    """
-    if not verify_direct_dimensions(src): return
-    if not verify_direct_dimensions(dst): return
-
-    ndim = broadcast(src, dst, src_temp, dst_temp, code)
-    call = "%s(&%s, &%s, %d)" % (copy_src_to_dst_cname(),
-                                 src_temp, dst_temp, ndim)
-    code.putln(code.error_goto_if_neg(call, dst.pos))
 
 def copy_broadcast_memview_src_to_dst(src, dst, code):
-    # Note: do not use code.funcstate.allocate_temp to allocate temps, as
-    #       temps will be acquisition counted (so we would need new
-    #       references, as any sudden exception would cause a jump leading to
-    #       a decref before we can nullify our slice)
+    """
+    Copy the contents of slice src to slice dst. Does not support indirect
+    slices.
+    """
+    verify_direct_dimensions(src)
+    verify_direct_dimensions(dst)
 
-    src_tmp = None
-    dst_tmp = None
-
-    code.begin_block()
-
-    if src.type.ndim < dst.type.ndim and not src.result_in_temp():
-        src_tmp = '__pyx_slice_tmp1'
-        code.putln("%s %s = %s;" % (memviewslice_cname, src_tmp, src.result()))
-
-    if dst.type.ndim < src.type.ndim and not dst.result_in_temp():
-        dst_tmp = '__pyx+_slice_tmp2'
-        code.putln("%s %s = %s;" % (memviewslice_cname, dst_tmp, dst.result()))
-
-    copy_broadcast_memview_src_to_dst_inplace(src, dst,
-                                              src_tmp or src.result(),
-                                              dst_tmp or dst.result(),
-                                              code)
-
-    code.end_block()
+    code.putln(code.error_goto_if_neg(
+            "%s(%s, %s, %d, %d)" % (copy_src_to_dst_cname(),
+                                      src.result(), dst.result(),
+                                      src.type.ndim, dst.type.ndim),
+            dst.pos))
 
 def copy_c_or_fortran_cname(memview):
     if memview.is_c_contig:
@@ -791,7 +754,8 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    env.global_scope().context.cython_scope.lookup('array_cwrapper').used = True
+    scope = env.global_scope().context.cython_scope
+    scope.lookup('array_cwrapper').used = True
     env.use_utility_code(cython_array_utility_code)
 
 context = {

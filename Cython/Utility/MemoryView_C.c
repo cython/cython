@@ -18,12 +18,12 @@ typedef struct {
     #define CYTHON_ATOMICS 1
 #endif
 
+#define __pyx_atomic_int_type int
 /* todo: Portland pgcc, maybe OS X's OSAtomicIncrement32,
    libatomic + autotools-like distutils support? Such a pain... */
 #if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 || \
                     (__GNUC_MINOR__ == 1 && __GNUC_PATHLEVEL >= 2))
     /* gcc >= 4.1.2 */
-    typedef volatile int __pyx_atomic_int;
     #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub(value, 1)
 
@@ -33,7 +33,7 @@ typedef struct {
 #elif CYTHON_ATOMICS && MSC_VER
     /* msvc */
     #include <Windows.h>
-    typedef volatile LONG __pyx_atomic_int;
+    #define __pyx_atomic_int_type LONG
     #define __pyx_atomic_incr_aligned(value, lock) InterlockedIncrement(value)
     #define __pyx_atomic_decr_aligned(value, lock) InterlockedDecrement(value)
 
@@ -41,7 +41,6 @@ typedef struct {
         #warning "Using MSVC atomics"
     #endif
 #elif CYTHON_ATOMICS && (defined(__ICC) || defined(__INTEL_COMPILER))
-    typedef volatile int __pyx_atomic_int;
     #define __pyx_atomic_incr_aligned(value, lock) _InterlockedIncrement(value)
     #define __pyx_atomic_decr_aligned(value, lock) _InterlockedDecrement(value)
 
@@ -49,20 +48,20 @@ typedef struct {
         #warning "Using Intel atomics"
     #endif
 #else
-    typedef volatile int __pyx_atomic_int;
     #define CYTHON_ATOMICS 0
 
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Not using atomics"
     #endif
-
 #endif
 
+typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
+
 #if CYTHON_ATOMICS
-    __pyx_atomic_int CYTHON_INLINE
+    static CYTHON_INLINE __pyx_atomic_int_type
     __pyx_atomic_incr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock);
 
-    __pyx_atomic_int CYTHON_INLINE
+    static CYTHON_INLINE __pyx_atomic_int_type
     __pyx_atomic_decr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock);
 
     #define __pyx_add_acquisition_count(memview) \
@@ -82,7 +81,7 @@ typedef struct {
 #define __pyx_check_unaligned(type, pointer) \
                 (((type) pointer) & (sizeof(pointer) - 1))
 
-int CYTHON_INLINE
+static CYTHON_INLINE int
 __pyx_atomic_unaligned(__pyx_atomic_int *p)
 {
     /* uintptr_t is optional in C99, try other stuff */
@@ -99,7 +98,8 @@ __pyx_atomic_unaligned(__pyx_atomic_int *p)
 
     return 1;
 }
-__pyx_atomic_int CYTHON_INLINE
+
+static CYTHON_INLINE __pyx_atomic_int_type
 __pyx_atomic_incr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock)
 {
     if (unlikely(__pyx_atomic_unaligned(value)))
@@ -108,7 +108,7 @@ __pyx_atomic_incr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock)
         return __pyx_atomic_incr_aligned(value, lock);
 }
 
-__pyx_atomic_int CYTHON_INLINE
+static CYTHON_INLINE __pyx_atomic_int_type
 __pyx_atomic_decr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock)
 {
     if (unlikely(__pyx_atomic_unaligned(value)))
@@ -522,8 +522,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     if (unlikely(__Pyx_init_memviewslice(memview_obj, ndim, &new_mvs) < 0))
         goto fail;
 
-    if (unlikely(__pyx_memoryview_copy_contents(
-                    ({{memviewslice_name}} *) from_mvs, &new_mvs, ndim) < 0))
+    if (unlikely(__pyx_memoryview_copy_contents(*from_mvs, new_mvs, ndim, ndim) < 0))
         goto fail;
 
     goto no_fail;
