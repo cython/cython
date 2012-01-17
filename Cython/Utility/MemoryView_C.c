@@ -222,8 +222,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
     if ((unsigned)buf->itemsize != dtype->size) {
         PyErr_Format(PyExc_ValueError,
-                     "Item size of buffer (%" PY_FORMAT_SIZE_T "d byte%s) "
-                     "does not match size of '%s' (%" PY_FORMAT_SIZE_T "d byte%s)",
+                     "Item size of buffer (%" PY_FORMAT_SIZE_T "u byte%s) "
+                     "does not match size of '%s' (%" PY_FORMAT_SIZE_T "u byte%s)",
                      buf->itemsize,
                      (buf->itemsize > 1) ? "s" : "",
                      dtype->name,

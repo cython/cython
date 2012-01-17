@@ -1047,7 +1047,10 @@ cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
 cdef Py_ssize_t fill_contig_strides_array(
                 Py_ssize_t *shape, Py_ssize_t *strides, Py_ssize_t stride,
                 int ndim, char order) nogil:
-    "Fill the strides array for a slice with C or F contiguous strides"
+    """
+    Fill the strides array for a slice with C or F contiguous strides.
+    This is like PyBuffer_FillContiguousStrides, but compatible with py < 2.6
+    """
     cdef int idx
 
     if order == 'F':
