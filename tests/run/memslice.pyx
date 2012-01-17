@@ -1725,14 +1725,28 @@ def test_object_indices():
     for j in range(3):
         print myslice[j]
 
+cdef fused slice_1d:
+    object
+    int[:]
+
+cdef fused slice_2d:
+    object
+    int[:, :]
+
 @testcase
 def test_ellipsis_expr():
     """
     >>> test_ellipsis_expr()
     8
+    8
     """
     cdef int[10] a
     cdef int[:] m = a
+
+    _test_ellipsis_expr(m)
+    _test_ellipsis_expr(<object> m)
+
+cdef _test_ellipsis_expr(slice_1d m):
     m[4] = 8
     m[...] = m[...]
     print m[4]
@@ -1751,6 +1765,12 @@ def test_slice_assignment():
 
     cdef int[:, :] m = carray
     cdef int[:, :] copy = m[-6:-1, 60:65].copy()
+
+    _test_slice_assignment(m, copy)
+    _test_slice_assignment(<object> m, <object> copy)
+
+cdef _test_slice_assignment(slice_2d m, slice_2d copy):
+    cdef int i, j
 
     m[...] = m[::-1, ::-1]
     m[:, :] = m[::-1, ::-1]
@@ -1775,12 +1795,22 @@ def test_slice_assignment_broadcast_leading():
     cdef int[:, :] a = array1
     cdef int[:] b = array2
 
+    _test_slice_assignment_broadcast_leading(a, b)
+
+    for i in range(10):
+        array1[0][i] = i
+
+    _test_slice_assignment_broadcast_leading(<object> a, <object> b)
+
+cdef _test_slice_assignment_broadcast_leading(slice_2d a, slice_1d b):
+    cdef int i
+
     b[:] = a[:, :]
     b = b[::-1]
     a[:, :] = b[:]
 
     for i in range(10):
-        assert a[0, i] == b[i] == 10 - 1 - i, (b[i], a[0, i])
+        assert a[0, i] == b[i] == 10 - 1 - i, (a[0, i], b[i], 10 - 1 - i)
 
 @testcase
 def test_slice_assignment_broadcast_strides():
@@ -1797,6 +1827,12 @@ def test_slice_assignment_broadcast_strides():
     cdef int[:] src = src_array
     cdef int[:, :] dst = dst_array
     cdef int[:, :] dst_f = dst.copy_fortran()
+
+    _test_slice_assignment_broadcast_strides(src, dst, dst_f)
+    _test_slice_assignment_broadcast_strides(<object> src, <object> dst, <object> dst_f)
+
+cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_2d dst_f):
+    cdef int i, j
 
     dst[1:] = src[-1:-6:-1]
     dst_f[1:] = src[-1:-6:-1]
