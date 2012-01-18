@@ -1880,3 +1880,64 @@ cdef _not_borrowed2(int[:] m):
     print m[5]
     if object():
         m = carray
+
+class SingleObject(object):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
+
+@testcase
+def test_object_dtype_copying():
+    """
+    >>> test_object_dtype_copying()
+    True
+    0
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    3 5
+    2 5
+    """
+    cdef int i
+
+    none_refcount = get_refcount(None)
+
+    cdef cython.array a1 = cython.array((10,), sizeof(PyObject *), 'O')
+    cdef cython.array a2 = cython.array((10,), sizeof(PyObject *), 'O')
+
+    print a1.dtype_is_object
+
+    cdef object[:] m1 = a1
+    cdef object[:] m2 = a2
+
+    for i in range(10):
+        # Initialize to None first
+        (<PyObject **> a1.data)[i] = <PyObject *> None
+        Py_INCREF(None)
+        (<PyObject **> a2.data)[i] = <PyObject *> None
+        Py_INCREF(None)
+
+        # now set a unique object
+        m1[i] = SingleObject(i)
+
+    m2[...] = m1
+    del a1, a2, m1
+
+    for i in range(10):
+        print m2[i]
+
+    obj = m2[5]
+    print get_refcount(obj), obj
+
+    del m2
+    print get_refcount(obj), obj
+
+    assert none_refcount == get_refcount(None)

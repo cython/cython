@@ -162,7 +162,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     {{memviewslice_name}} result = {{memslice_init}};
 
     struct __pyx_memoryview_obj *memview =  \
-        (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}});
+        (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}}, 0);
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
     int retcode;
@@ -464,13 +464,15 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
 static {{memviewslice_name}}
 __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
                                  const char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag);
+                                 size_t sizeof_dtype, int contig_flag,
+                                 int dtype_is_object);
 
 ////////// MemviewSliceCopyTemplate //////////
 static {{memviewslice_name}}
 __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
                                  const char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag)
+                                 size_t sizeof_dtype, int contig_flag,
+                                 int dtype_is_object)
 {
     __Pyx_RefNannyDeclarations
     int i;
@@ -515,7 +517,8 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     __Pyx_GOTREF(array_obj);
 
     memview_obj = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
-                                (PyObject *) array_obj, contig_flag);
+                                    (PyObject *) array_obj, contig_flag,
+                                    dtype_is_object);
     if (unlikely(!memview_obj))
         goto fail;
 
@@ -523,7 +526,8 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     if (unlikely(__Pyx_init_memviewslice(memview_obj, ndim, &new_mvs) < 0))
         goto fail;
 
-    if (unlikely(__pyx_memoryview_copy_contents(*from_mvs, new_mvs, ndim, ndim) < 0))
+    if (unlikely(__pyx_memoryview_copy_contents(*from_mvs, new_mvs, ndim, ndim,
+                                                dtype_is_object) < 0))
         goto fail;
 
     goto no_fail;
@@ -543,8 +547,9 @@ no_fail:
 
 ////////// CopyContentsUtility.proto /////////
 #define {{func_cname}}(slice) \
-        __pyx_memoryview_copy_new_contig(&slice, "{{mode}}", {{ndim}}, \
-                                         sizeof({{dtype_decl}}), {{contig_flag}})
+        __pyx_memoryview_copy_new_contig(&slice, "{{mode}}", {{ndim}},            \
+                                         sizeof({{dtype_decl}}), {{contig_flag}}, \
+                                         {{dtype_is_object}})
 
 ////////// OverlappingSlices.proto //////////
 static int __pyx_slices_overlap({{memviewslice_name}} *slice1,

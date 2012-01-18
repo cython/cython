@@ -441,9 +441,10 @@ def copy_broadcast_memview_src_to_dst(src, dst, code):
     verify_direct_dimensions(dst)
 
     code.putln(code.error_goto_if_neg(
-            "%s(%s, %s, %d, %d)" % (copy_src_to_dst_cname(),
-                                      src.result(), dst.result(),
-                                      src.type.ndim, dst.type.ndim),
+            "%s(%s, %s, %d, %d, %d)" % (copy_src_to_dst_cname(),
+                                        src.result(), dst.result(),
+                                        src.type.ndim, dst.type.ndim,
+                                        dst.type.dtype.is_pyobject),
             dst.pos))
 
 def copy_c_or_fortran_cname(memview):
@@ -483,7 +484,8 @@ def get_copy_new_utility(pos, from_memview, to_memview):
             dtype_decl=to_memview.dtype.declaration_code(''),
             contig_flag=contig_flag,
             ndim=to_memview.ndim,
-            func_cname=copy_c_or_fortran_cname(to_memview)),
+            func_cname=copy_c_or_fortran_cname(to_memview),
+            dtype_is_object=int(to_memview.dtype.is_pyobject)),
         requires=[copy_contents_new_utility])
 
 def get_axes_specs(env, axes):
