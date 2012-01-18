@@ -101,7 +101,7 @@ cdef class array:
             if not self.data:
                 raise MemoryError("unable to allocate array data.")
 
-        self.dtype_is_object = format == 'O'
+        self.dtype_is_object = format == b'O'
 
     def __getbuffer__(self, Py_buffer *info, int flags):
         cdef int bufmode = -1
@@ -355,9 +355,9 @@ cdef class memoryview(object):
         if have_slices:
             obj = self.is_slice(value)
             if obj:
-                self.setitem_slice_assignment(index, obj)
+                self.setitem_slice_assignment(self[index], obj)
             else:
-                self.setitem_slice_assign_scalar(index, value)
+                self.setitem_slice_assign_scalar(self[index], value)
         else:
             self.setitem_indexed(index, value)
 
@@ -371,17 +371,42 @@ cdef class memoryview(object):
 
         return obj
 
-    cdef setitem_slice_assignment(self, index, src):
+    cdef setitem_slice_assignment(self, dst, src):
         cdef {{memviewslice_name}} dst_slice
         cdef {{memviewslice_name}} src_slice
 
-        dst = self[index]
         memoryview_copy_contents(get_slice_from_memview(src, &src_slice)[0],
                                  get_slice_from_memview(dst, &dst_slice)[0],
                                  src.ndim, dst.ndim, self.dtype_is_object)
 
-    cdef setitem_slice_assign_scalar(self, index, value):
-        raise ValueError("Scalar assignment currently unsupported")
+    cdef setitem_slice_assign_scalar(self, dst, value):
+        cdef int array[128]
+        cdef void *tmp = NULL
+        cdef void *item
+
+        cdef {{memviewslice_name}} tmp_slice, *dst_slice
+        dst_slice = get_slice_from_memview(dst, &tmp_slice)
+
+        if self.view.itemsize > sizeof(array):
+            tmp = malloc(self.view.itemsize)
+            if tmp == NULL:
+                raise MemoryError
+            item = tmp
+        else:
+            item = <void *> array
+
+        try:
+            self.assign_item_from_object(<char *> item, value)
+        except:
+            free(tmp)
+            raise
+
+        # It would be easy to support indirect dimensions, but it's easier
+        # to disallow :)
+        assert_direct_dimensions(self.view.suboffsets, self.view.ndim)
+        slice_assign_scalar(dst_slice, self.view.ndim, self.view.itemsize,
+                            item, self.dtype_is_object)
+        free(tmp)
 
     cdef setitem_indexed(self, index, value):
         cdef char *itemp = self.get_item_pointer(index)
@@ -596,6 +621,12 @@ cdef tuple _unellipsify(object index, int ndim):
         result.extend([slice(None)] * nslices)
 
     return have_slices or nslices, tuple(result)
+
+cdef assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim):
+    cdef int i
+    for i in range(ndim):
+        if suboffsets[i] >= 0:
+            raise ValueError("Indirect dimensions not supported")
 
 #
 ### Slicing a memoryview
@@ -1228,6 +1259,11 @@ cdef void broadcast_leading({{memviewslice_name}} *slice,
         slice.strides[i] = slice.strides[0]
         slice.suboffsets[i] = -1
 
+#
+### Take care of refcounting the objects in slices. Do this seperately from any copying,
+### to minimize acquiring the GIL
+#
+
 @cname('__pyx_memoryview_refcount_copying')
 cdef void refcount_copying({{memviewslice_name}} *dst, bint dtype_is_object,
                            int ndim, bint inc) nogil:
@@ -1257,6 +1293,33 @@ cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
         else:
             refcount_objects_in_slice(data, shape + 1, strides + 1,
                                       ndim - 1, inc)
+
+        data += strides[0]
+
+#
+### Scalar to slice assignment
+#
+
+@cname('__pyx_memoryview_slice_assign_scalar')
+cdef void slice_assign_scalar({{memviewslice_name}} *dst, int ndim,
+                              size_t itemsize, void *item,
+                              bint dtype_is_object) nogil:
+    refcount_copying(dst, dtype_is_object, ndim, False)
+    _slice_assign_scalar(dst.data, dst.shape, dst.strides, ndim, itemsize, item)
+    refcount_copying(dst, dtype_is_object, ndim, True)
+
+@cname('__pyx_memoryview__slice_assign_scalar')
+cdef void _slice_assign_scalar(char *data, Py_ssize_t *shape,
+                              Py_ssize_t *strides, int ndim,
+                              size_t itemsize, void *item) nogil:
+    cdef Py_ssize_t i
+
+    for i in range(shape[0]):
+        if ndim == 1:
+            memcpy(data, item, itemsize)
+        else:
+            _slice_assign_scalar(data, shape + 1, strides + 1,
+                                ndim - 1, itemsize, item)
 
         data += strides[0]
 

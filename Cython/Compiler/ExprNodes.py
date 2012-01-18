@@ -2346,6 +2346,8 @@ class IndexNode(ExprNode):
     is_memslice_copy = False
     memslice_ellipsis_noop = False
     warned_untyped_idx = False
+    # set by SingleAssignmentNode after analyse_types()
+    is_memslice_scalar_assignment = False
 
     def __init__(self, pos, index, *args, **kw):
         ExprNode.__init__(self, pos, index=index, *args, **kw)
@@ -2987,6 +2989,8 @@ class IndexNode(ExprNode):
         self.generate_subexpr_evaluation_code(code)
         if self.is_buffer_access or self.memslice_index:
             self.generate_buffer_setitem_code(rhs, code)
+        elif self.is_memslice_scalar_assignment:
+            self.generate_memoryviewslice_assign_scalar_code(rhs, code)
         elif self.memslice_slice:
             self.generate_memoryviewslice_setslice_code(rhs, code)
         elif self.is_memoryviewslice_access:
@@ -3088,6 +3092,12 @@ class IndexNode(ExprNode):
         "memslice1[...] = memslice2"
         import MemoryView
         MemoryView.copy_broadcast_memview_src_to_dst(rhs, self, code)
+
+    def generate_memoryviewslice_assign_scalar_code(self, rhs, code):
+        "memslice1[...] = 0.0 or memslice1[:] = 0.0"
+        import MemoryView
+        self.generate_evaluation_code(code)
+        MemoryView.assign_scalar(self, rhs, code)
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneindex_error_utility_code)

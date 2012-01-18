@@ -1888,11 +1888,20 @@ class SingleObject(object):
     def __str__(self):
         return str(self.value)
 
+cdef _get_empty_object_slice(fill=None):
+    cdef cython.array a = cython.array((10,), sizeof(PyObject *), 'O')
+    cdef int i
+    for i in range(10):
+        (<PyObject **> a.data)[i] = <PyObject *> fill
+        Py_INCREF(fill)
+
+    assert a.dtype_is_object
+    return a
+
 @testcase
 def test_object_dtype_copying():
     """
     >>> test_object_dtype_copying()
-    True
     0
     1
     2
@@ -1908,28 +1917,17 @@ def test_object_dtype_copying():
     """
     cdef int i
 
-    none_refcount = get_refcount(None)
+    unique = object()
+    unique_refcount = get_refcount(unique)
 
-    cdef cython.array a1 = cython.array((10,), sizeof(PyObject *), 'O')
-    cdef cython.array a2 = cython.array((10,), sizeof(PyObject *), 'O')
-
-    print a1.dtype_is_object
-
-    cdef object[:] m1 = a1
-    cdef object[:] m2 = a2
+    cdef object[:] m1 = _get_empty_object_slice()
+    cdef object[:] m2 = _get_empty_object_slice()
 
     for i in range(10):
-        # Initialize to None first
-        (<PyObject **> a1.data)[i] = <PyObject *> None
-        Py_INCREF(None)
-        (<PyObject **> a2.data)[i] = <PyObject *> None
-        Py_INCREF(None)
-
-        # now set a unique object
         m1[i] = SingleObject(i)
 
     m2[...] = m1
-    del a1, a2, m1
+    del m1
 
     for i in range(10):
         print m2[i]
@@ -1940,4 +1938,48 @@ def test_object_dtype_copying():
     del m2
     print get_refcount(obj), obj
 
-    assert none_refcount == get_refcount(None)
+    assert unique_refcount == get_refcount(unique), (unique_refcount, get_refcount(unique))
+
+@testcase
+def test_scalar_slice_assignment():
+    """
+    >>> test_scalar_slice_assignment()
+    0
+    1
+    6
+    3
+    6
+    5
+    6
+    7
+    6
+    9
+    <BLANKLINE>
+    0
+    1
+    6
+    3
+    6
+    5
+    6
+    7
+    6
+    9
+    """
+    cdef int[10] a
+    cdef int[:] m = a
+
+    _test_scalar_slice_assignment(m)
+    print
+    _test_scalar_slice_assignment(<object> m)
+
+
+cdef _test_scalar_slice_assignment(slice_1d m):
+    cdef int i
+    for i in range(10):
+        m[i] = i
+
+    m[-2:0:-2] = 6
+
+    for i in range(10):
+        print m[i]

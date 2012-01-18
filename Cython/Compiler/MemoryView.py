@@ -447,6 +447,17 @@ def copy_broadcast_memview_src_to_dst(src, dst, code):
                                         dst.type.dtype.is_pyobject),
             dst.pos))
 
+def assign_scalar(dst, scalar, code):
+    "Assign a scalar to a slice. Both nodes must be temps."
+    verify_direct_dimensions(dst)
+    dtype = scalar.type
+    assert scalar.type.same_as(dst.type.dtype)
+
+    t = (dst.result(), dst.type.ndim,
+         dtype.declaration_code(""), scalar.result(), dtype.is_pyobject)
+    code.putln("__pyx_memoryview_slice_assign_scalar("
+                                "&%s, %d, sizeof(%s), &%s, %d);" % t)
+
 def copy_c_or_fortran_cname(memview):
     if memview.is_c_contig:
         c_or_f = 'c'

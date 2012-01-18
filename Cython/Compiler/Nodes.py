@@ -4753,6 +4753,8 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp = 0):
+        import ExprNodes
+
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
@@ -4761,7 +4763,21 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.memslice_broadcast = True
             self.rhs.memslice_broadcast = True
 
-        self.rhs = self.rhs.coerce_to(self.lhs.type, env)
+        is_index_node = isinstance(self.lhs, ExprNodes.IndexNode)
+        if (is_index_node and not self.rhs.type.is_memoryviewslice and
+            (self.lhs.memslice_slice or self.lhs.is_memslice_copy) and
+            (self.lhs.type.dtype.assignable_from(self.rhs.type) or
+             self.rhs.type.is_pyobject)):
+            # scalar slice assignment
+            self.lhs.is_memslice_scalar_assignment = True
+            #self.lhs = self.lhs.coerce_to_temp(env)
+            self.lhs.is_temp = True
+            dtype = self.lhs.type.dtype
+            use_temp = True
+        else:
+            dtype = self.lhs.type
+
+        self.rhs = self.rhs.coerce_to(dtype, env)
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)
 
