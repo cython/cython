@@ -1460,7 +1460,8 @@ class FuncDefNode(StatNode, BlockNode):
             if self.return_type.is_pyobject:
                 init = " = NULL"
             elif self.return_type.is_memoryviewslice:
-                init = "= {0, 0}"
+                import MemoryView
+                init = ' = ' + MemoryView.memslice_entry_init
 
             code.putln(
                 "%s%s;" %

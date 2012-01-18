@@ -1115,12 +1115,12 @@ cdef int _err_extents(int i, Py_ssize_t extent1,
 
 @cname('__pyx_memoryview_err_dim')
 cdef int _err_dim(object error, char *msg, int dim) except -1 with gil:
-    raise error(msg % dim)
+    raise error(msg.decode('ascii') % dim)
 
 @cname('__pyx_memoryview_err')
 cdef int _err(object error, char *msg) except -1 with gil:
     if msg != NULL:
-        raise error(msg)
+        raise error(msg.decode('ascii'))
     else:
         raise error
 

@@ -385,7 +385,7 @@ static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
     va_end(vargs);
 }
 
-static int CYTHON_INLINE
+static CYTHON_INLINE int
 __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
                                    PyThread_type_lock lock)
 {
@@ -396,7 +396,7 @@ __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
     return result;
 }
 
-static int CYTHON_INLINE
+static CYTHON_INLINE int
 __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
                                    PyThread_type_lock lock)
 {
@@ -408,8 +408,9 @@ __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 }
 
 
-static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice,
-                                            int have_gil, int lineno) {
+static CYTHON_INLINE void
+__Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
+{
     int first_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
     if (!memview)
