@@ -40,7 +40,7 @@ typedef struct {
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using MSVC atomics"
     #endif
-#elif CYTHON_ATOMICS && (defined(__ICC) || defined(__INTEL_COMPILER))
+#elif CYTHON_ATOMICS && (defined(__ICC) || defined(__INTEL_COMPILER)) && 0
     #define __pyx_atomic_incr_aligned(value, lock) _InterlockedIncrement(value)
     #define __pyx_atomic_decr_aligned(value, lock) _InterlockedDecrement(value)
 
