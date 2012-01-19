@@ -3,6 +3,8 @@
 
 /* memoryview slice struct */
 
+struct {{memview_struct_name}};
+
 typedef struct {
   struct {{memview_struct_name}} *memview;
   char *data;
@@ -48,6 +50,7 @@ typedef struct {
         #warning "Using Intel atomics"
     #endif
 #else
+    #undef CYTHON_ATOMICS
     #define CYTHON_ATOMICS 0
 
     #ifdef __PYX_DEBUG_ATOMICS

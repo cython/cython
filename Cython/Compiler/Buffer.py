@@ -748,7 +748,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         typeinfo = ('static __Pyx_TypeInfo %s = '
                         '{ "%s", %s, sizeof(%s), { %s }, %s, \'%s\', %s, %s };')
         tup = (name, rep, structinfo_name, declcode,
-               ', '.join([str(x) for x in arraysizes]), len(arraysizes),
+               ', '.join([str(x) for x in arraysizes]) or '0', len(arraysizes),
                typegroup, is_unsigned, flags)
         typecode.putln(typeinfo % tup, safe=True)
 
