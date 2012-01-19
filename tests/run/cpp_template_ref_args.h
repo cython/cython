@@ -3,11 +3,13 @@
 
 template <typename T>
 struct Bar {
+    Bar & ref() { return *this; }
+    T value;
 };
 
 template <typename T>
 struct Foo {
-    void set_bar(const Bar[size_t] & bar) {}
+    int bar_value(const Bar<int> & bar) { return bar.value; }
 };
 
 #endif

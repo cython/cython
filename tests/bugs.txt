@@ -8,7 +8,6 @@ missing_baseclass_in_predecl_T262
 cfunc_call_tuple_args_T408
 compile.cpp_operators
 cpp_templated_ctypedef
-cpp_template_args
 cpp_structs
 function_as_method_T494
 closure_inside_cdef_T554

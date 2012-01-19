@@ -600,7 +600,7 @@ class ExprNode(Node):
         if self.check_for_coercion_error(dst_type):
             return self
 
-        if dst_type.is_reference:
+        if dst_type.is_reference and not src_type.is_reference:
             dst_type = dst_type.ref_base_type
 
         if src_type.is_fused or dst_type.is_fused:
