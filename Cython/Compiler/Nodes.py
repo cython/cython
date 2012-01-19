@@ -3181,7 +3181,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature.has_dummy_arg:
             args.append(Naming.self_cname)
         for arg in self.args:
-            if arg.hdr_type:
+            if arg.hdr_type and not (arg.type.is_memoryviewslice or arg.type.is_struct):
                 args.append(arg.type.cast_code(arg.entry.cname))
             else:
                 args.append(arg.entry.cname)
