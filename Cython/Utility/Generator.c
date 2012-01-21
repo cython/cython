@@ -48,14 +48,14 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value)
 {
     PyObject *retval;
 
-    if (self->is_running) {
+    if (unlikely(self->is_running)) {
         PyErr_SetString(PyExc_ValueError,
                         "generator already executing");
         return NULL;
     }
 
-    if (self->resume_label == 0) {
-        if (value && value != Py_None) {
+    if (unlikely(self->resume_label == 0)) {
+        if (unlikely(value && value != Py_None)) {
             PyErr_SetString(PyExc_TypeError,
                             "can't send non-None value to a "
                             "just-started generator");
@@ -63,7 +63,7 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value)
         }
     }
 
-    if (self->resume_label == -1) {
+    if (unlikely(self->resume_label == -1)) {
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
