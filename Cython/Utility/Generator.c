@@ -30,13 +30,17 @@ static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args);
 static CYTHON_INLINE
 void __Pyx_Generator_ExceptionClear(__pyx_GeneratorObject *self)
 {
-    Py_XDECREF(self->exc_type);
-    Py_XDECREF(self->exc_value);
-    Py_XDECREF(self->exc_traceback);
+    PyObject *exc_type = self->exc_type;
+    PyObject *exc_value = self->exc_value;
+    PyObject *exc_traceback = self->exc_traceback;
 
     self->exc_type = NULL;
     self->exc_value = NULL;
     self->exc_traceback = NULL;
+
+    Py_XDECREF(exc_type);
+    Py_XDECREF(exc_value);
+    Py_XDECREF(exc_traceback);
 }
 
 static CYTHON_INLINE
