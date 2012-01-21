@@ -1969,17 +1969,68 @@ def test_scalar_slice_assignment():
     cdef int[10] a
     cdef int[:] m = a
 
-    _test_scalar_slice_assignment(m)
+    cdef int a2[5][10]
+    cdef int[:, ::1] m2 = a2
+
+    _test_scalar_slice_assignment(m, m2)
     print
-    _test_scalar_slice_assignment(<object> m)
+    _test_scalar_slice_assignment(<object> m, <object> m2)
 
 
-cdef _test_scalar_slice_assignment(slice_1d m):
-    cdef int i
+cdef _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
+    cdef int i, j
     for i in range(10):
         m[i] = i
 
     m[-2:0:-2] = 6
-
     for i in range(10):
         print m[i]
+
+    for i in range(m2.shape[0]):
+        for j in range(m2.shape[1]):
+            m2[i, j] = i * m2.shape[1] + j
+
+    cdef int x = 2, y = -2
+    cdef long value = 1
+    m2[::2,    ::-1] = value
+    m2[-2::-2, ::-1] = 2
+    m2[::2,    -2::-2] = 0
+    m2[-2::-2, -2::-2] = 0
+
+
+    cdef int[:, :] s = m2[..., 1::2]
+    for i in range(s.shape[0]):
+        for j in range(s.shape[1]):
+            assert s[i, j] == i % 2 + 1, (s[i, j], i)
+
+    s = m2[::2, 1::2]
+    for i in range(s.shape[0]):
+        for j in range(s.shape[1]):
+            assert s[i, j] == 1, s[i, j]
+
+    s = m2[1::2, ::2]
+    for i in range(s.shape[0]):
+        for j in range(s.shape[1]):
+            assert s[i, j] == 0, s[i, j]
+
+
+    m2[...] = 3
+    for i in range(m2.shape[0]):
+        for j in range(m2.shape[1]):
+            assert m2[i, j] == 3, s[i, j]
+
+@testcase
+def test_contig_scalar_to_slice_assignment():
+    """
+    >>> test_contig_scalar_to_slice_assignment()
+    14 14 14 14
+    20 20 20 20
+    """
+    cdef int a[5][10]
+    cdef int[:, ::1] m = a
+
+    m[...] = 14
+    print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+    m[:, :] = 20
+    print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]

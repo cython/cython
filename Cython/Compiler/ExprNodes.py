@@ -3077,10 +3077,28 @@ class IndexNode(ExprNode):
         "memslice[:]"
         buffer_entry = self.buffer_entry()
         have_gil = not self.in_nogil_context
-        buffer_entry.generate_buffer_slice_code(code,
-                                                self.original_indices,
+
+        have_slices = False
+        it = iter(self.indices)
+        for index in self.original_indices:
+            is_slice = isinstance(index, SliceNode)
+            have_slices = have_slices or is_slice
+            if is_slice:
+                if not index.start.is_none:
+                    index.start = it.next()
+                if not index.stop.is_none:
+                    index.stop = it.next()
+                if not index.step.is_none:
+                    index.step = it.next()
+            else:
+                it.next()
+
+        assert not list(it)
+
+        buffer_entry.generate_buffer_slice_code(code, self.original_indices,
                                                 self.result(),
-                                                have_gil=have_gil)
+                                                have_gil=have_gil,
+                                                have_slices=have_slices)
 
     def generate_memoryviewslice_setslice_code(self, rhs, code):
         "memslice1[:] = memslice2"

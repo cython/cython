@@ -4770,10 +4770,7 @@ class SingleAssignmentNode(AssignmentNode):
              self.rhs.type.is_pyobject)):
             # scalar slice assignment
             self.lhs.is_memslice_scalar_assignment = True
-            #self.lhs = self.lhs.coerce_to_temp(env)
-            self.lhs.is_temp = True
             dtype = self.lhs.type.dtype
-            use_temp = True
         else:
             dtype = self.lhs.type
 

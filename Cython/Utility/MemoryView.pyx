@@ -1299,29 +1299,33 @@ cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
 #
 ### Scalar to slice assignment
 #
-
 @cname('__pyx_memoryview_slice_assign_scalar')
 cdef void slice_assign_scalar({{memviewslice_name}} *dst, int ndim,
                               size_t itemsize, void *item,
                               bint dtype_is_object) nogil:
     refcount_copying(dst, dtype_is_object, ndim, False)
-    _slice_assign_scalar(dst.data, dst.shape, dst.strides, ndim, itemsize, item)
+    _slice_assign_scalar(dst.data, dst.shape, dst.strides, ndim,
+                         itemsize, item)
     refcount_copying(dst, dtype_is_object, ndim, True)
+
 
 @cname('__pyx_memoryview__slice_assign_scalar')
 cdef void _slice_assign_scalar(char *data, Py_ssize_t *shape,
                               Py_ssize_t *strides, int ndim,
                               size_t itemsize, void *item) nogil:
     cdef Py_ssize_t i
+    cdef Py_ssize_t stride = strides[0]
+    cdef Py_ssize_t extent = shape[0]
 
-    for i in range(shape[0]):
-        if ndim == 1:
+    if ndim == 1:
+        for i in range(extent):
             memcpy(data, item, itemsize)
-        else:
+            data += stride
+    else:
+        for i in range(extent):
             _slice_assign_scalar(data, shape + 1, strides + 1,
                                 ndim - 1, itemsize, item)
-
-        data += strides[0]
+            data += stride
 
 
 ############### BufferFormatFromTypeInfo ###############

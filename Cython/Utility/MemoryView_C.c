@@ -259,7 +259,10 @@ static int __Pyx_ValidateAndInit_memviewslice(
         }
 
         if (spec & (__Pyx_MEMVIEW_STRIDED | __Pyx_MEMVIEW_FOLLOW)) {
-            if (buf->strides[i] < buf->itemsize) {
+            Py_ssize_t stride = buf->strides[i];
+            if (stride < 0)
+                stride = -stride;
+            if (stride < buf->itemsize) {
                 PyErr_SetString(PyExc_ValueError,
                     "Buffer and memoryview are not contiguous in the same dimension.");
                 goto fail;
@@ -800,4 +803,28 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
         }
 
     {{endif}}
+}
+
+////////// FillStrided1DScalar.proto //////////
+static void
+__pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t stride,
+                                size_t itemsize, void *itemp);
+
+////////// FillStrided1DScalar //////////
+/* Fill a slice with a scalar value. The dimension is direct and strided or contiguous */
+static void
+__pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t stride,
+                                size_t itemsize, void *itemp)
+{
+    Py_ssize_t i;
+    {{type_decl}} item = *(({{type_decl}} *) itemp);
+    {{type_decl}} *endp;
+
+    stride /= sizeof({{type_decl}});
+    endp = p + stride * extent;
+
+    while (p < endp) {
+        *p = item;
+        p += stride;
+    }
 }

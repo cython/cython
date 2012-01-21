@@ -274,7 +274,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         return bufp
 
-    def generate_buffer_slice_code(self, code, indices, dst, have_gil):
+    def generate_buffer_slice_code(self, code, indices, dst, have_gil,
+                                   have_slices):
         """
         Slice a memoryviewslice.
 
@@ -296,12 +297,6 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         for access, packing in self.type.axes:
             if access != 'direct':
                 all_dimensions_direct = False
-                break
-
-        have_slices = False
-        for index in indices:
-            if isinstance(index, ExprNodes.SliceNode):
-                have_slices = True
                 break
 
         no_suboffset_dim = all_dimensions_direct and not have_slices
@@ -447,16 +442,115 @@ def copy_broadcast_memview_src_to_dst(src, dst, code):
                                         dst.type.dtype.is_pyobject),
             dst.pos))
 
-def assign_scalar(dst, scalar, code):
-    "Assign a scalar to a slice. Both nodes must be temps."
-    verify_direct_dimensions(dst)
-    dtype = scalar.type
-    assert scalar.type.same_as(dst.type.dtype)
+def get_1d_fill_scalar_func(type, code):
+    dtype = type.dtype
+    type_decl = dtype.declaration_code("")
 
-    t = (dst.result(), dst.type.ndim,
-         dtype.declaration_code(""), scalar.result(), dtype.is_pyobject)
-    code.putln("__pyx_memoryview_slice_assign_scalar("
-                                "&%s, %d, sizeof(%s), &%s, %d);" % t)
+    dtype_name = mangle_dtype_name(dtype)
+    context = dict(dtype_name=dtype_name, type_decl=type_decl)
+    utility = load_memview_c_utility("FillStrided1DScalar", context)
+    code.globalstate.use_utility_code(utility)
+    return '__pyx_fill_slice_%s' % dtype_name
+
+def assign_scalar(dst, scalar, code):
+    """
+    Assign a scalar to a slice. dst must be a temp, scalar will be assigned
+    to a correct type and not just something assignable.
+    """
+    verify_direct_dimensions(dst)
+    dtype = dst.type.dtype
+    type_decl = dtype.declaration_code("")
+    slice_decl = dst.type.declaration_code("")
+
+    code.begin_block()
+    code.putln("%s __pyx_temp_scalar = %s;" % (type_decl, scalar.result()))
+    if dst.result_in_temp() or (dst.base.is_name and
+                                isinstance(dst.index, ExprNodes.EllipsisNode)):
+        dst_temp = dst.result()
+    else:
+        code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, dst.result()))
+        dst_temp = "__pyx_temp_slice"
+
+    with slice_iter(dst.type, dst_temp, dst.type.ndim, code) as p:
+        if dtype.is_pyobject:
+            code.putln("Py_DECREF((PyObject *) %s);" % p)
+
+        code.putln("*((%s *) %s) = __pyx_temp_scalar;" % (type_decl, p))
+
+        if dtype.is_pyobject:
+            code.putln("Py_INCREF(__pyx_temp_scalar);")
+
+    code.end_block()
+
+def slice_iter(slice_type, slice_temp, ndim, code):
+    if slice_type.is_c_contig or slice_type.is_f_contig:
+        return ContigSliceIter(slice_type, slice_temp, ndim, code)
+    else:
+        return StridedSliceIter(slice_type, slice_temp, ndim, code)
+
+class SliceIter(object):
+    def __init__(self, slice_type, slice_temp, ndim, code):
+        self.slice_type = slice_type
+        self.slice_temp = slice_temp
+        self.code = code
+        self.ndim = ndim
+
+class ContigSliceIter(SliceIter):
+    def __enter__(self):
+        code = self.code
+        code.begin_block()
+
+        type_decl = self.slice_type.dtype.declaration_code("")
+
+        total_size = ' * '.join("%s.shape[%d]" % (self.slice_temp, i)
+                                    for i in range(self.ndim))
+        code.putln("Py_ssize_t __pyx_temp_extent = %s;" % total_size)
+        code.putln("Py_ssize_t __pyx_temp_idx;")
+        code.putln("%s *__pyx_temp_pointer = %s.data;" % (type_decl,
+                                                          self.slice_temp))
+        code.putln("for (__pyx_temp_idx = 0; "
+                        "__pyx_temp_idx < __pyx_temp_extent; "
+                        "__pyx_temp_idx++) {")
+
+        return "__pyx_temp_pointer"
+
+    def __exit__(self, *args):
+        self.code.putln("__pyx_temp_pointer += 1;")
+        self.code.putln("}")
+        self.code.end_block()
+
+class StridedSliceIter(SliceIter):
+    def __enter__(self):
+        code = self.code
+        code.begin_block()
+
+        for i in range(self.ndim):
+            t = i, self.slice_temp, i
+            code.putln("Py_ssize_t __pyx_temp_extent_%d = %s.shape[%d];" % t)
+            code.putln("Py_ssize_t __pyx_temp_stride_%d = %s.strides[%d];" % t)
+            code.putln("char *__pyx_temp_pointer_%d;" % i)
+            code.putln("Py_ssize_t __pyx_temp_idx_%d;" % i)
+
+        code.putln("__pyx_temp_pointer_0 = %s.data;" % self.slice_temp)
+
+        for i in range(self.ndim):
+            if i > 0:
+                code.putln("__pyx_temp_pointer_%d = __pyx_temp_pointer_%d;" % (i, i - 1))
+
+            code.putln("for (__pyx_temp_idx_%d = 0; "
+                            "__pyx_temp_idx_%d < __pyx_temp_extent_%d; "
+                            "__pyx_temp_idx_%d++) {" % (i, i, i, i))
+
+        return "__pyx_temp_pointer_%d" % (self.ndim - 1)
+
+    def __exit__(self, *args):
+        code = self.code
+        for i in range(self.ndim - 1, -1, -1):
+            code.putln("__pyx_temp_pointer_%d += __pyx_temp_stride_%d;" % (i, i))
+            code.putln("}")
+
+        code.end_block()
+
 
 def copy_c_or_fortran_cname(memview):
     if memview.is_c_contig:
