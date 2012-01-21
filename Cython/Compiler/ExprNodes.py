@@ -2067,7 +2067,8 @@ class IteratorNode(ExprNode):
 
         if self.may_be_a_sequence:
             for test_name in ('List', 'Tuple'):
-                code.putln("if (Py%s_CheckExact(%s)) {" % (test_name, self.py_result()))
+                code.putln("if (!%s && Py%s_CheckExact(%s)) {" % (
+                    self.iter_func_ptr, test_name, self.py_result()))
                 self.generate_next_sequence_item(test_name, result_name, code)
                 code.put("} else ")
 
