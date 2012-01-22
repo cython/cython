@@ -510,8 +510,8 @@ class ContigSliceIter(SliceIter):
                                     for i in range(self.ndim))
         code.putln("Py_ssize_t __pyx_temp_extent = %s;" % total_size)
         code.putln("Py_ssize_t __pyx_temp_idx;")
-        code.putln("%s *__pyx_temp_pointer = %s.data;" % (type_decl,
-                                                          self.slice_temp))
+        code.putln("%s *__pyx_temp_pointer = (%s *) %s.data;" % (
+                            type_decl, type_decl, self.slice_temp))
         code.putln("for (__pyx_temp_idx = 0; "
                         "__pyx_temp_idx < __pyx_temp_extent; "
                         "__pyx_temp_idx++) {")

@@ -12,6 +12,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object)
 
+import sys
 import operator
 
 from Errors import error, warning, warn_once, InternalError, CompileError
@@ -3078,6 +3079,12 @@ class IndexNode(ExprNode):
         buffer_entry = self.buffer_entry()
         have_gil = not self.in_nogil_context
 
+        if sys.version_info < (3,):
+            def next_(it):
+                return it.next()
+        else:
+            next_ = next
+
         have_slices = False
         it = iter(self.indices)
         for index in self.original_indices:
@@ -3085,13 +3092,13 @@ class IndexNode(ExprNode):
             have_slices = have_slices or is_slice
             if is_slice:
                 if not index.start.is_none:
-                    index.start = it.next()
+                    index.start = next_(it)
                 if not index.stop.is_none:
-                    index.stop = it.next()
+                    index.stop = next_(it)
                 if not index.step.is_none:
-                    index.step = it.next()
+                    index.step = next_(it)
             else:
-                it.next()
+                next_(it)
 
         assert not list(it)
 

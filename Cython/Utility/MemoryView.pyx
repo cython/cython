@@ -407,11 +407,14 @@ cdef class memoryview(object):
         else:
             item = <void *> array
 
-        try:
-            self.assign_item_from_object(<char *> item, value)
-        except:
-            free(tmp)
-            raise
+        if self.dtype_is_object:
+            (<PyObject **> item)[0] = <PyObject *> value
+        else:
+            try:
+                self.assign_item_from_object(<char *> item, value)
+            except:
+                free(tmp)
+                raise
 
         # It would be easy to support indirect dimensions, but it's easier
         # to disallow :)
