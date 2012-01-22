@@ -103,8 +103,6 @@ class build_ext(_build_ext.build_ext):
             "compiler directive overrides"),
         ('pyrex-gdb', None,
          "generate debug information for cygdb"),
-        ('pyrex-compile-time-env', None,
-            "cython compile time environment"),
         ])
 
     boolean_options.extend([
@@ -128,6 +126,19 @@ class build_ext(_build_ext.build_ext):
         self.cython_gdb = False
         self.no_c_in_traceback = 0
         self.cython_compile_time_env = None
+    
+    def __getattr__(self, name):
+        if name[:6] == 'pyrex_':
+            return getattr(self, 'cython_' + name[6:])
+        else:
+            return _build_ext.build_ext.__getattr__(self, name)
+
+    def __setattr__(self, name, value):
+        if name[:6] == 'pyrex_':
+            return setattr(self, 'cython_' + name[6:], value)
+        else:
+            # _build_ext.build_ext.__setattr__(self, name, value)
+            self.__dict__[name] = value
 
     def finalize_options (self):
         _build_ext.build_ext.finalize_options(self)

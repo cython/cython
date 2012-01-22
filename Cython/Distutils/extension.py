@@ -40,7 +40,7 @@ class Extension(_Extension.Extension):
 
     # When adding arguments to this constructor, be sure to update
     # user_options.extend in build_ext.py.
-    def __init__ (self, name, sources,
+    def __init__(self, name, sources,
             include_dirs = None,
             define_macros = None,
             undef_macros = None,
@@ -65,6 +65,31 @@ class Extension(_Extension.Extension):
             no_c_in_traceback = False,
             cython_compile_time_env = None,
             **kw):
+        
+        # Translate pyrex_X to cython_X for backwards compatibility.
+        had_pyrex_options = False
+        for key in kw.keys():
+            if key.startswith('pyrex_'):
+                had_pyrex_options = True
+                kw['cython' + key[5:]] = kw.pop(key)
+        if had_pyrex_options:
+            Extension.__init__(self, name, sources,
+                include_dirs = include_dirs,
+                define_macros = define_macros,
+                undef_macros = undef_macros,
+                library_dirs = library_dirs,
+                libraries = libraries,
+                runtime_library_dirs = runtime_library_dirs,
+                extra_objects = extra_objects,
+                extra_compile_args = extra_compile_args,
+                extra_link_args = extra_link_args,
+                export_symbols = export_symbols,
+                #swig_opts = swig_opts,
+                depends = depends,
+                language = language,
+                no_c_in_traceback = no_c_in_traceback,
+                **kw)
+            return
 
         _Extension.Extension.__init__(self, name, sources,
             include_dirs = include_dirs,
