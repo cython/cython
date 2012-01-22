@@ -476,7 +476,7 @@ def assign_scalar(dst, scalar, code):
     p = slice_iter_obj.start_loops()
 
     if dtype.is_pyobject:
-        code.putln("Py_DECREF((PyObject *) %s);" % p)
+        code.putln("Py_DECREF(*(PyObject **) %s);" % p)
 
     code.putln("*((%s *) %s) = __pyx_temp_scalar;" % (type_decl, p))
 

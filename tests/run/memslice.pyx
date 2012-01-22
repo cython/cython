@@ -1888,13 +1888,11 @@ class SingleObject(object):
     def __str__(self):
         return str(self.value)
 
+    def __eq__(self, other):
+        return self.value == getattr(other, 'value', None) or self.value == other
+
 cdef _get_empty_object_slice(fill=None):
     cdef cython.array a = cython.array((10,), sizeof(PyObject *), 'O')
-    cdef int i
-    for i in range(10):
-        (<PyObject **> a.data)[i] = <PyObject *> fill
-        Py_INCREF(fill)
-
     assert a.dtype_is_object
     return a
 
@@ -1976,7 +1974,6 @@ def test_scalar_slice_assignment():
     print
     _test_scalar_slice_assignment(<object> m, <object> m2)
 
-
 cdef _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
     cdef int i, j
     for i in range(10):
@@ -2034,3 +2031,15 @@ def test_contig_scalar_to_slice_assignment():
 
     m[:, :] = 20
     print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+@testcase
+def test_dtype_object_scalar_assignment():
+    """
+    >>> test_dtype_object_scalar_assignment()
+    """
+    cdef object[:] m = cython.array((10,), sizeof(PyObject *), 'O')
+    m[:] = SingleObject(2)
+    assert m[0] == m[4] == m[-1] == 2
+
+    (<object> m)[:] = SingleObject(3)
+    assert m[0] == m[4] == m[-1] == 3

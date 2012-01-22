@@ -13,6 +13,10 @@ cdef extern from "Python.h":
         PyBUF_FORMAT
         PyBUF_WRITABLE
 
+    ctypedef struct PyObject
+    PyObject *Py_None
+    void Py_INCREF(PyObject *)
+
 
 cdef extern from *:
     object __pyx_memoryview_new(object obj, int flags, bint dtype_is_object)
@@ -45,6 +49,10 @@ cdef class array:
     def __cinit__(array self, tuple shape, Py_ssize_t itemsize, format not None,
                   mode=u"c", bint allocate_buffer=True):
 
+        cdef int idx
+        cdef Py_ssize_t i
+        cdef PyObject **p
+
         self.ndim = len(shape)
         self.itemsize = itemsize
 
@@ -68,7 +76,6 @@ cdef class array:
             free(self._strides)
             raise MemoryError("unable to allocate shape or strides.")
 
-        cdef int idx
         # cdef Py_ssize_t dim, stride
         idx = 0
         for idx, dim in enumerate(shape):
@@ -96,12 +103,17 @@ cdef class array:
         self.mode = mode
 
         self.free_data = allocate_buffer
+        self.dtype_is_object = format == b'O'
         if allocate_buffer:
             self.data = <char *>malloc(self.len)
             if not self.data:
                 raise MemoryError("unable to allocate array data.")
 
-        self.dtype_is_object = format == b'O'
+            if self.dtype_is_object:
+                p = <PyObject **> self.data
+                for i in range(self.len / itemsize):
+                    p[i] = Py_None
+                    Py_INCREF(Py_None)
 
     def __getbuffer__(self, Py_buffer *info, int flags):
         cdef int bufmode = -1
