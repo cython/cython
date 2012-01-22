@@ -17,22 +17,22 @@ except ImportError:
 
 class Extension(_Extension.Extension):
     _Extension.Extension.__doc__ + \
-    """pyrex_include_dirs : [string]
+    """cython_include_dirs : [string]
         list of directories to search for Pyrex header files (.pxd) (in
         Unix form for portability)
-    pyrex_directives : {string:value}
+    cython_directives : {string:value}
         dict of compiler directives
-    pyrex_create_listing_file : boolean
+    cython_create_listing_file : boolean
         write pyrex error messages to a listing (.lis) file.
-    pyrex_line_directives : boolean
+    cython_line_directives : boolean
         emit pyx line numbers for debugging/profiling
-    pyrex_cplus : boolean
+    cython_cplus : boolean
         use the C++ compiler for compiling and linking.
-    pyrex_c_in_temp : boolean
+    cython_c_in_temp : boolean
         put generated C files in temp directory.
-    pyrex_gen_pxi : boolean
+    cython_gen_pxi : boolean
         generate .pxi file for public declarations
-    pyrex_gdb : boolean
+    cython_gdb : boolean
         generate Cython debug information for this extension for cygdb
     no_c_in_traceback : boolean
         emit the c file and line number from the traceback for exceptions
@@ -54,16 +54,16 @@ class Extension(_Extension.Extension):
             #swig_opts = None,
             depends = None,
             language = None,
-            pyrex_include_dirs = None,
-            pyrex_directives = None,
-            pyrex_create_listing = 0,
-            pyrex_line_directives = 0,
-            pyrex_cplus = 0,
-            pyrex_c_in_temp = 0,
-            pyrex_gen_pxi = 0,
-            pyrex_gdb = False,
+            cython_include_dirs = None,
+            cython_directives = None,
+            cython_create_listing = 0,
+            cython_line_directives = 0,
+            cython_cplus = 0,
+            cython_c_in_temp = 0,
+            cython_gen_pxi = 0,
+            cython_gdb = False,
             no_c_in_traceback = False,
-            pyrex_compile_time_env = None,
+            cython_compile_time_env = None,
             **kw):
 
         _Extension.Extension.__init__(self, name, sources,
@@ -82,16 +82,16 @@ class Extension(_Extension.Extension):
             language = language,
             **kw)
 
-        self.pyrex_include_dirs = pyrex_include_dirs or []
-        self.pyrex_directives = pyrex_directives or {}
-        self.pyrex_create_listing = pyrex_create_listing
-        self.pyrex_line_directives = pyrex_line_directives
-        self.pyrex_cplus = pyrex_cplus
-        self.pyrex_c_in_temp = pyrex_c_in_temp
-        self.pyrex_gen_pxi = pyrex_gen_pxi
-        self.pyrex_gdb = pyrex_gdb
+        self.cython_include_dirs = cython_include_dirs or []
+        self.cython_directives = cython_directives or {}
+        self.cython_create_listing = cython_create_listing
+        self.cython_line_directives = cython_line_directives
+        self.cython_cplus = cython_cplus
+        self.cython_c_in_temp = cython_c_in_temp
+        self.cython_gen_pxi = cython_gen_pxi
+        self.cython_gdb = cython_gdb
         self.no_c_in_traceback = no_c_in_traceback
-        self.pyrex_compile_time_env = pyrex_compile_time_env
+        self.cython_compile_time_env = cython_compile_time_env
 
 # class Extension
 

@@ -67,6 +67,26 @@ class build_ext(_build_ext.build_ext):
 
     # Add the pyrex specific data.
     user_options.extend([
+        ('cython-cplus', None,
+         "generate C++ source files"),
+        ('cython-create-listing', None,
+         "write errors to a listing file"),
+        ('cython-line-directives', None,
+         "emit source line directives"),
+        ('cython-include-dirs=', None,
+         "path to the Cython include files" + sep_by),
+        ('cython-c-in-temp', None,
+         "put generated C files in temp directory"),
+        ('cython-gen-pxi', None,
+            "generate .pxi file for public declarations"),
+        ('cython-directives=', None,
+            "compiler directive overrides"),
+        ('cython-gdb', None,
+         "generate debug information for cygdb"),
+        ('cython-compile-time-env', None,
+            "cython compile time environment"),
+            
+        # For backwards compatibility.
         ('pyrex-cplus', None,
          "generate C++ source files"),
         ('pyrex-create-listing', None,
@@ -84,36 +104,40 @@ class build_ext(_build_ext.build_ext):
         ('pyrex-gdb', None,
          "generate debug information for cygdb"),
         ('pyrex-compile-time-env', None,
-            "pyrex compile time environment"),
+            "cython compile time environment"),
         ])
 
     boolean_options.extend([
+        'cython-cplus', 'cython-create-listing', 'cython-line-directives',
+        'cython-c-in-temp', 'cython-gdb',
+        
+        # For backwards compatibility.
         'pyrex-cplus', 'pyrex-create-listing', 'pyrex-line-directives',
         'pyrex-c-in-temp', 'pyrex-gdb',
     ])
 
     def initialize_options(self):
         _build_ext.build_ext.initialize_options(self)
-        self.pyrex_cplus = 0
-        self.pyrex_create_listing = 0
-        self.pyrex_line_directives = 0
-        self.pyrex_include_dirs = None
-        self.pyrex_directives = None
-        self.pyrex_c_in_temp = 0
-        self.pyrex_gen_pxi = 0
-        self.pyrex_gdb = False
+        self.cython_cplus = 0
+        self.cython_create_listing = 0
+        self.cython_line_directives = 0
+        self.cython_include_dirs = None
+        self.cython_directives = None
+        self.cython_c_in_temp = 0
+        self.cython_gen_pxi = 0
+        self.cython_gdb = False
         self.no_c_in_traceback = 0
-        self.pyrex_compile_time_env = None
+        self.cython_compile_time_env = None
 
     def finalize_options (self):
         _build_ext.build_ext.finalize_options(self)
-        if self.pyrex_include_dirs is None:
-            self.pyrex_include_dirs = []
-        elif isinstance(self.pyrex_include_dirs, basestring):
-            self.pyrex_include_dirs = \
-                self.pyrex_include_dirs.split(os.pathsep)
-        if self.pyrex_directives is None:
-            self.pyrex_directives = {}
+        if self.cython_include_dirs is None:
+            self.cython_include_dirs = []
+        elif isinstance(self.cython_include_dirs, basestring):
+            self.cython_include_dirs = \
+                self.cython_include_dirs.split(os.pathsep)
+        if self.cython_directives is None:
+            self.cython_directives = {}
     # finalize_options ()
 
     def run(self):
@@ -121,8 +145,8 @@ class build_ext(_build_ext.build_ext):
         # If --pyrex-gdb is in effect as a command line option or as option
         # of any Extension module, disable optimization for the C or C++
         # compiler.
-        if self.pyrex_gdb or [1 for ext in self.extensions
-                                     if getattr(ext, 'pyrex_gdb', False)]:
+        if self.cython_gdb or [1 for ext in self.extensions
+                                     if getattr(ext, 'cython_gdb', False)]:
             optimization.disable_optimization()
 
         _build_ext.build_ext.run(self)
@@ -145,7 +169,7 @@ class build_ext(_build_ext.build_ext):
         try:
             from Cython.Compiler.Main \
                 import CompilationOptions, \
-                       default_options as pyrex_default_options, \
+                       default_options as cython_default_options, \
                        compile as cython_compile
             from Cython.Compiler.Errors import PyrexError
         except ImportError:
@@ -154,8 +178,8 @@ class build_ext(_build_ext.build_ext):
             raise DistutilsPlatformError("Cython does not appear to be installed")
 
         new_sources = []
-        pyrex_sources = []
-        pyrex_targets = {}
+        cython_sources = []
+        cython_targets = {}
 
         # Setup create_list and cplus from the extension options if
         # Cython.Distutils.extension.Extension is used, otherwise just
@@ -163,39 +187,39 @@ class build_ext(_build_ext.build_ext):
         # cplus will also be set to true is extension.language is equal to
         # 'C++' or 'c++'.
         #try:
-        #    create_listing = self.pyrex_create_listing or \
-        #                        extension.pyrex_create_listing
-        #    cplus = self.pyrex_cplus or \
-        #                extension.pyrex_cplus or \
+        #    create_listing = self.cython_create_listing or \
+        #                        extension.cython_create_listing
+        #    cplus = self.cython_cplus or \
+        #                extension.cython_cplus or \
         #                (extension.language != None and \
         #                    extension.language.lower() == 'c++')
         #except AttributeError:
-        #    create_listing = self.pyrex_create_listing
-        #    cplus = self.pyrex_cplus or \
+        #    create_listing = self.cython_create_listing
+        #    cplus = self.cython_cplus or \
         #                (extension.language != None and \
         #                    extension.language.lower() == 'c++')
 
-        create_listing = self.pyrex_create_listing or \
-            getattr(extension, 'pyrex_create_listing', 0)
-        line_directives = self.pyrex_line_directives or \
-            getattr(extension, 'pyrex_line_directives', 0)
+        create_listing = self.cython_create_listing or \
+            getattr(extension, 'cython_create_listing', 0)
+        line_directives = self.cython_line_directives or \
+            getattr(extension, 'cython_line_directives', 0)
         no_c_in_traceback = self.no_c_in_traceback or \
             getattr(extension, 'no_c_in_traceback', 0)
-        cplus = self.pyrex_cplus or getattr(extension, 'pyrex_cplus', 0) or \
+        cplus = self.cython_cplus or getattr(extension, 'cython_cplus', 0) or \
                 (extension.language and extension.language.lower() == 'c++')
-        pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
-        pyrex_gdb = self.pyrex_gdb or getattr(extension, 'pyrex_gdb', False)
-        pyrex_compile_time_env = self.pyrex_compile_time_env or \
-            getattr(extension, 'pyrex_compile_time_env', None)
+        cython_gen_pxi = self.cython_gen_pxi or getattr(extension, 'cython_gen_pxi', 0)
+        cython_gdb = self.cython_gdb or getattr(extension, 'cython_gdb', False)
+        cython_compile_time_env = self.cython_compile_time_env or \
+            getattr(extension, 'cython_compile_time_env', None)
 
         # Set up the include_path for the Cython compiler:
         #    1.    Start with the command line option.
         #    2.    Add in any (unique) paths from the extension
-        #        pyrex_include_dirs (if Cython.Distutils.extension is used).
+        #        cython_include_dirs (if Cython.Distutils.extension is used).
         #    3.    Add in any (unique) paths from the extension include_dirs
-        includes = self.pyrex_include_dirs
+        includes = self.cython_include_dirs
         try:
-            for i in extension.pyrex_include_dirs:
+            for i in extension.cython_include_dirs:
                 if not i in includes:
                     includes.append(i)
         except AttributeError:
@@ -207,10 +231,10 @@ class build_ext(_build_ext.build_ext):
         # Set up Cython compiler directives:
         #    1. Start with the command line option.
         #    2. Add in any (unique) entries from the extension
-        #         pyrex_directives (if Cython.Distutils.extension is used).
-        directives = self.pyrex_directives
-        if hasattr(extension, "pyrex_directives"):
-            directives.update(extension.pyrex_directives)
+        #         cython_directives (if Cython.Distutils.extension is used).
+        directives = self.cython_directives
+        if hasattr(extension, "cython_directives"):
+            directives.update(extension.cython_directives)
 
         # Set the target_ext to '.c'.  Cython will change this to '.cpp' if
         # needed.
@@ -222,8 +246,8 @@ class build_ext(_build_ext.build_ext):
         # Decide whether to drop the generated C files into the temp dir
         # or the source tree.
 
-        if not self.inplace and (self.pyrex_c_in_temp
-                or getattr(extension, 'pyrex_c_in_temp', 0)):
+        if not self.inplace and (self.cython_c_in_temp
+                or getattr(extension, 'cython_c_in_temp', 0)):
             target_dir = os.path.join(self.build_temp, "pyrex")
             for package_name in extension.name.split('.')[:-1]:
                 target_dir = os.path.join(target_dir, package_name)
@@ -239,8 +263,8 @@ class build_ext(_build_ext.build_ext):
             if ext == ".pyx":              # Cython source file
                 output_dir = target_dir or os.path.dirname(source)
                 new_sources.append(os.path.join(output_dir, base + target_ext))
-                pyrex_sources.append(source)
-                pyrex_targets[source] = new_sources[-1]
+                cython_sources.append(source)
+                cython_targets[source] = new_sources[-1]
             elif ext == '.pxi' or ext == '.pxd':
                 if newest_dependency is None \
                         or newer(source, newest_dependency):
@@ -248,13 +272,13 @@ class build_ext(_build_ext.build_ext):
             else:
                 new_sources.append(source)
 
-        if not pyrex_sources:
+        if not cython_sources:
             return new_sources
 
         module_name = extension.name
 
-        for source in pyrex_sources:
-            target = pyrex_targets[source]
+        for source in cython_sources:
+            target = cython_targets[source]
             depends = [source] + list(extension.depends or ())
             rebuild = self.force or newer_group(depends, target, 'newer')
             if not rebuild and newest_dependency is not None:
@@ -266,7 +290,7 @@ class build_ext(_build_ext.build_ext):
                     output_dir = os.curdir
                 else:
                     output_dir = self.build_lib
-                options = CompilationOptions(pyrex_default_options,
+                options = CompilationOptions(cython_default_options,
                     use_listing_file = create_listing,
                     include_path = includes,
                     compiler_directives = directives,
@@ -274,10 +298,10 @@ class build_ext(_build_ext.build_ext):
                     cplus = cplus,
                     emit_linenums = line_directives,
                     c_line_in_traceback = not no_c_in_traceback,
-                    generate_pxi = pyrex_gen_pxi,
+                    generate_pxi = cython_gen_pxi,
                     output_dir = output_dir,
-                    gdb_debug = pyrex_gdb,
-                    compile_time_env = pyrex_compile_time_env)
+                    gdb_debug = cython_gdb,
+                    compile_time_env = cython_compile_time_env)
                 result = cython_compile(source, options=options,
                                         full_module_name=module_name)
             else:
