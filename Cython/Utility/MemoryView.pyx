@@ -403,7 +403,8 @@ cdef class memoryview(object):
 
         # It would be easy to support indirect dimensions, but it's easier
         # to disallow :)
-        assert_direct_dimensions(self.view.suboffsets, self.view.ndim)
+        if self.view.suboffsets != NULL:
+            assert_direct_dimensions(self.view.suboffsets, self.view.ndim)
         slice_assign_scalar(dst_slice, self.view.ndim, self.view.itemsize,
                             item, self.dtype_is_object)
         free(tmp)
@@ -973,14 +974,22 @@ cdef {{memviewslice_name}} *get_slice_from_memview(memoryview memview,
 @cname('__pyx_memoryview_slice_copy')
 cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst):
     cdef int dim
+    cdef Py_ssize_t *shape, *strides, *suboffsets
+
+    shape = memview.view.shape
+    strides = memview.view.strides
+    suboffsets = memview.view.suboffsets
 
     dst.memview = <__pyx_memoryview *> memview
     dst.data = <char *> memview.view.buf
 
     for dim in range(memview.view.ndim):
-        dst.shape[dim] = memview.view.shape[dim]
-        dst.strides[dim] = memview.view.strides[dim]
-        dst.suboffsets[dim] = memview.view.suboffsets[dim]
+        dst.shape[dim] = shape[dim]
+        dst.strides[dim] = strides[dim]
+        if suboffsets == NULL:
+            dst.suboffsets[dim] = -1
+        else:
+            dst.suboffsets[dim] = suboffsets[dim]
 
 @cname('__pyx_memoryview_copy_object')
 cdef memoryview_copy(memoryview memview):

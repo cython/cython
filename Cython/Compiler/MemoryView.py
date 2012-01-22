@@ -471,15 +471,19 @@ def assign_scalar(dst, scalar, code):
         code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, dst.result()))
         dst_temp = "__pyx_temp_slice"
 
-    with slice_iter(dst.type, dst_temp, dst.type.ndim, code) as p:
-        if dtype.is_pyobject:
-            code.putln("Py_DECREF((PyObject *) %s);" % p)
+    # with slice_iter(dst.type, dst_temp, dst.type.ndim, code) as p:
+    slice_iter_obj = slice_iter(dst.type, dst_temp, dst.type.ndim, code)
+    p = slice_iter_obj.start_loops()
 
-        code.putln("*((%s *) %s) = __pyx_temp_scalar;" % (type_decl, p))
+    if dtype.is_pyobject:
+        code.putln("Py_DECREF((PyObject *) %s);" % p)
 
-        if dtype.is_pyobject:
-            code.putln("Py_INCREF(__pyx_temp_scalar);")
+    code.putln("*((%s *) %s) = __pyx_temp_scalar;" % (type_decl, p))
 
+    if dtype.is_pyobject:
+        code.putln("Py_INCREF(__pyx_temp_scalar);")
+
+    slice_iter_obj.end_loops()
     code.end_block()
 
 def slice_iter(slice_type, slice_temp, ndim, code):
@@ -496,7 +500,7 @@ class SliceIter(object):
         self.ndim = ndim
 
 class ContigSliceIter(SliceIter):
-    def __enter__(self):
+    def start_loops(self):
         code = self.code
         code.begin_block()
 
@@ -514,13 +518,13 @@ class ContigSliceIter(SliceIter):
 
         return "__pyx_temp_pointer"
 
-    def __exit__(self, *args):
+    def end_loops(self):
         self.code.putln("__pyx_temp_pointer += 1;")
         self.code.putln("}")
         self.code.end_block()
 
 class StridedSliceIter(SliceIter):
-    def __enter__(self):
+    def start_loops(self):
         code = self.code
         code.begin_block()
 
@@ -543,7 +547,7 @@ class StridedSliceIter(SliceIter):
 
         return "__pyx_temp_pointer_%d" % (self.ndim - 1)
 
-    def __exit__(self, *args):
+    def end_loops(self):
         code = self.code
         for i in range(self.ndim - 1, -1, -1):
             code.putln("__pyx_temp_pointer_%d += __pyx_temp_stride_%d;" % (i, i))
