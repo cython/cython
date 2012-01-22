@@ -1240,6 +1240,13 @@ def test_indirect_slicing(arg):
     0 0 -1
     58
     56
+    58
+    index away indirect
+    58
+    58
+    index away generic
+    58
+    58
     released A
 
     >>> test_indirect_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)))
@@ -1248,11 +1255,26 @@ def test_indirect_slicing(arg):
     0 16 -1
     2412
     2410
+    2412
+    index away indirect
+    2412
+    2412
+    index away generic
+    2412
+    2412
     released A
     """
     cdef int[::view.indirect, ::view.indirect, :] a = arg
     cdef int[::view.indirect, ::view.indirect, :] b = a[-5:, ..., -5:100:2]
+    cdef int[::view.generic , :: view.generic, :] generic_b = a[-5:, ..., -5:100:2]
     cdef int[::view.indirect, ::view.indirect] c = b[..., 0]
+
+    # try indexing away leading indirect dimensions
+    cdef int[::view.indirect, :] d = b[4]
+    cdef int[:] e = b[4, 2]
+
+    cdef int[::view.generic, :] generic_d = generic_b[4]
+    cdef int[:] generic_e = generic_b[4, 2]
 
     print b.shape[0], b.shape[1], b.shape[2]
     print b.suboffsets[0] // sizeof(int *),
@@ -1261,6 +1283,90 @@ def test_indirect_slicing(arg):
 
     print b[4, 2, 1]
     print c[4, 2]
+    # test adding offset from last dimension to suboffset
+    print b[..., 1][4, 2]
+
+    print "index away indirect"
+    print d[2, 1]
+    print e[1]
+
+    print "index away generic"
+    print generic_d[2, 1]
+    print generic_e[1]
+
+cdef class TestIndexSlicingDirectIndirectDims(object):
+    "Test a int[:, ::view.indirect, :] slice"
+
+    cdef Py_ssize_t[3] shape, strides, suboffsets
+
+    cdef int c_array[5]
+    cdef int *myarray[5][5]
+    cdef bytes format
+
+    def __init__(self):
+        cdef int i
+        self.c_array[3] = 20
+        self.myarray[1][2] = self.c_array
+
+        for i in range(3):
+            self.shape[i] = 5
+
+        self.strides[0] = sizeof(int *) * 5
+        self.strides[1] = sizeof(int *)
+        self.strides[2] = sizeof(int)
+
+        self.suboffsets[0] = -1
+        self.suboffsets[1] = 0
+        self.suboffsets[2] = -1
+
+        self.format = b"i"
+
+    def __getbuffer__(self, Py_buffer *info, int flags):
+        info.buf = <void *> self.myarray
+        info.len = 5 * 5 * 5
+        info.ndim = 3
+        info.shape = self.shape
+        info.strides = self.strides
+        info.suboffsets = self.suboffsets
+        info.itemsize = sizeof(int)
+        info.readonly = 0
+        info.obj = self
+        info.format = self.format
+
+@testcase
+def test_index_slicing_away_direct_indirect():
+    """
+    >>> test_index_slicing_away_direct_indirect()
+    20
+    20
+    20
+    20
+    <BLANKLINE>
+    20
+    20
+    20
+    20
+    All dimensions preceding dimension 1 must be indexed and not sliced
+    """
+    cdef int[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
+    a_obj = a
+
+    print a[1][2][3]
+    print a[1, 2, 3]
+    print a[1, 2][3]
+    print a[..., 3][1, 2]
+
+    print
+
+    print a_obj[1][2][3]
+    print a_obj[1, 2, 3]
+    print a_obj[1, 2][3]
+    print a_obj[..., 3][1, 2]
+
+    try:
+        print a_obj[1:, 2][3]
+    except IndexError, e:
+        print e.args[0]
 
 @testcase
 def test_direct_slicing(arg):
@@ -1618,3 +1724,322 @@ def test_object_indices():
 
     for j in range(3):
         print myslice[j]
+
+cdef fused slice_1d:
+    object
+    int[:]
+
+cdef fused slice_2d:
+    object
+    int[:, :]
+
+@testcase
+def test_ellipsis_expr():
+    """
+    >>> test_ellipsis_expr()
+    8
+    8
+    """
+    cdef int[10] a
+    cdef int[:] m = a
+
+    _test_ellipsis_expr(m)
+    _test_ellipsis_expr(<object> m)
+
+cdef _test_ellipsis_expr(slice_1d m):
+    m[4] = 8
+    m[...] = m[...]
+    print m[4]
+
+@testcase
+def test_slice_assignment():
+    """
+    >>> test_slice_assignment()
+    """
+    cdef int carray[10][100]
+    cdef int i, j
+
+    for i in range(10):
+        for j in range(100):
+            carray[i][j] = i * 100 + j
+
+    cdef int[:, :] m = carray
+    cdef int[:, :] copy = m[-6:-1, 60:65].copy()
+
+    _test_slice_assignment(m, copy)
+    _test_slice_assignment(<object> m, <object> copy)
+
+cdef _test_slice_assignment(slice_2d m, slice_2d copy):
+    cdef int i, j
+
+    m[...] = m[::-1, ::-1]
+    m[:, :] = m[::-1, ::-1]
+    m[-5:, -5:] = m[-6:-1, 60:65]
+
+    for i in range(5):
+        for j in range(5):
+            assert copy[i, j] == m[-5 + i, -5 + j], (copy[i, j], m[-5 + i, -5 + j])
+
+@testcase
+def test_slice_assignment_broadcast_leading():
+    """
+    >>> test_slice_assignment_broadcast_leading()
+    """
+    cdef int array1[1][10]
+    cdef int array2[10]
+    cdef int i
+
+    for i in range(10):
+        array1[0][i] = i
+
+    cdef int[:, :] a = array1
+    cdef int[:] b = array2
+
+    _test_slice_assignment_broadcast_leading(a, b)
+
+    for i in range(10):
+        array1[0][i] = i
+
+    _test_slice_assignment_broadcast_leading(<object> a, <object> b)
+
+cdef _test_slice_assignment_broadcast_leading(slice_2d a, slice_1d b):
+    cdef int i
+
+    b[:] = a[:, :]
+    b = b[::-1]
+    a[:, :] = b[:]
+
+    for i in range(10):
+        assert a[0, i] == b[i] == 10 - 1 - i, (a[0, i], b[i], 10 - 1 - i)
+
+@testcase
+def test_slice_assignment_broadcast_strides():
+    """
+    >>> test_slice_assignment_broadcast_strides()
+    """
+    cdef int src_array[10]
+    cdef int dst_array[10][5]
+    cdef int i, j
+
+    for i in range(10):
+        src_array[i] = 10 - 1 - i
+
+    cdef int[:] src = src_array
+    cdef int[:, :] dst = dst_array
+    cdef int[:, :] dst_f = dst.copy_fortran()
+
+    _test_slice_assignment_broadcast_strides(src, dst, dst_f)
+    _test_slice_assignment_broadcast_strides(<object> src, <object> dst, <object> dst_f)
+
+cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_2d dst_f):
+    cdef int i, j
+
+    dst[1:] = src[-1:-6:-1]
+    dst_f[1:] = src[-1:-6:-1]
+
+    for i in range(1, 10):
+        for j in range(1, 5):
+            assert dst[i, j] == dst_f[i, j] == j, (dst[i, j], dst_f[i, j], j)
+
+    # test overlapping memory with broadcasting
+    dst[:, 1:4] = dst[1, :3]
+    dst_f[:, 1:4] = dst[1, 1:4]
+
+    for i in range(10):
+        for j in range(1, 3):
+            assert dst[i, j] == dst_f[i, j] == j - 1, (dst[i, j], dst_f[i, j], j - 1)
+
+@testcase
+def test_borrowed_slice():
+    """
+    Test the difference between borrowed an non-borrowed slices. If you delete or assign
+    to a slice in a cdef function, it is not borrowed.
+
+    >>> test_borrowed_slice()
+    5
+    5
+    5
+    """
+    cdef int i, carray[10]
+    for i in range(10):
+        carray[i] = i
+    _borrowed(carray)
+    _not_borrowed(carray)
+    _not_borrowed2(carray)
+
+cdef _borrowed(int[:] m):
+    print m[5]
+
+cdef _not_borrowed(int[:] m):
+    print m[5]
+    if object():
+        del m
+
+cdef _not_borrowed2(int[:] m):
+    cdef int[10] carray
+    print m[5]
+    if object():
+        m = carray
+
+class SingleObject(object):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
+
+    def __eq__(self, other):
+        return self.value == getattr(other, 'value', None) or self.value == other
+
+cdef _get_empty_object_slice(fill=None):
+    cdef cython.array a = cython.array((10,), sizeof(PyObject *), 'O')
+    assert a.dtype_is_object
+    return a
+
+@testcase
+def test_object_dtype_copying():
+    """
+    >>> test_object_dtype_copying()
+    0
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    3 5
+    2 5
+    """
+    cdef int i
+
+    unique = object()
+    unique_refcount = get_refcount(unique)
+
+    cdef object[:] m1 = _get_empty_object_slice()
+    cdef object[:] m2 = _get_empty_object_slice()
+
+    for i in range(10):
+        m1[i] = SingleObject(i)
+
+    m2[...] = m1
+    del m1
+
+    for i in range(10):
+        print m2[i]
+
+    obj = m2[5]
+    print get_refcount(obj), obj
+
+    del m2
+    print get_refcount(obj), obj
+
+    assert unique_refcount == get_refcount(unique), (unique_refcount, get_refcount(unique))
+
+@testcase
+def test_scalar_slice_assignment():
+    """
+    >>> test_scalar_slice_assignment()
+    0
+    1
+    6
+    3
+    6
+    5
+    6
+    7
+    6
+    9
+    <BLANKLINE>
+    0
+    1
+    6
+    3
+    6
+    5
+    6
+    7
+    6
+    9
+    """
+    cdef int[10] a
+    cdef int[:] m = a
+
+    cdef int a2[5][10]
+    cdef int[:, ::1] m2 = a2
+
+    _test_scalar_slice_assignment(m, m2)
+    print
+    _test_scalar_slice_assignment(<object> m, <object> m2)
+
+cdef _test_scalar_slice_assignment(slice_1d m, slice_2d m2):
+    cdef int i, j
+    for i in range(10):
+        m[i] = i
+
+    m[-2:0:-2] = 6
+    for i in range(10):
+        print m[i]
+
+    for i in range(m2.shape[0]):
+        for j in range(m2.shape[1]):
+            m2[i, j] = i * m2.shape[1] + j
+
+    cdef int x = 2, y = -2
+    cdef long value = 1
+    m2[::2,    ::-1] = value
+    m2[-2::-2, ::-1] = 2
+    m2[::2,    -2::-2] = 0
+    m2[-2::-2, -2::-2] = 0
+
+
+    cdef int[:, :] s = m2[..., 1::2]
+    for i in range(s.shape[0]):
+        for j in range(s.shape[1]):
+            assert s[i, j] == i % 2 + 1, (s[i, j], i)
+
+    s = m2[::2, 1::2]
+    for i in range(s.shape[0]):
+        for j in range(s.shape[1]):
+            assert s[i, j] == 1, s[i, j]
+
+    s = m2[1::2, ::2]
+    for i in range(s.shape[0]):
+        for j in range(s.shape[1]):
+            assert s[i, j] == 0, s[i, j]
+
+
+    m2[...] = 3
+    for i in range(m2.shape[0]):
+        for j in range(m2.shape[1]):
+            assert m2[i, j] == 3, s[i, j]
+
+@testcase
+def test_contig_scalar_to_slice_assignment():
+    """
+    >>> test_contig_scalar_to_slice_assignment()
+    14 14 14 14
+    20 20 20 20
+    """
+    cdef int a[5][10]
+    cdef int[:, ::1] m = a
+
+    m[...] = 14
+    print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+    m[:, :] = 20
+    print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+@testcase
+def test_dtype_object_scalar_assignment():
+    """
+    >>> test_dtype_object_scalar_assignment()
+    """
+    cdef object[:] m = cython.array((10,), sizeof(PyObject *), 'O')
+    m[:] = SingleObject(2)
+    assert m[0] == m[4] == m[-1] == 2
+
+    (<object> m)[:] = SingleObject(3)
+    assert m[0] == m[4] == m[-1] == 3

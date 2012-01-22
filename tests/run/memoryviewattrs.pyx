@@ -75,6 +75,37 @@ def test_copy_to():
     print
 
 @testcase
+def test_overlapping_copy():
+    """
+    >>> test_overlapping_copy()
+    """
+    cdef int i, array[10]
+    for i in range(10):
+        array[i] = i
+
+    cdef int[:] slice = array
+    slice[...] = slice[::-1]
+
+    for i in range(10):
+        assert slice[i] == 10 - 1 - i
+
+@testcase
+def test_partly_overlapping():
+    """
+    >>> test_partly_overlapping()
+    """
+    cdef int i, array[10]
+    for i in range(10):
+        array[i] = i
+
+    cdef int[:] slice = array
+    cdef int[:] slice2 = slice[:5]
+    slice2[...] = slice[4:9]
+
+    for i in range(5):
+        assert slice2[i] == i + 4
+
+@testcase
 @cython.nonecheck(True)
 def test_nonecheck1():
     u'''
@@ -139,11 +170,11 @@ def test_copy_mismatch():
     u'''
     >>> test_copy_mismatch()
     Traceback (most recent call last):
-      ...
-    ValueError: memoryview shapes not the same in dimension 0
+       ...
+    ValueError: got differing extents in dimension 0 (got 2 and 3)
     '''
     cdef int[:,:,::1] mv1  = array((2,2,3), sizeof(int), 'i')
-    cdef int[:,:,::1] mv2  = array((1,2,3), sizeof(int), 'i')
+    cdef int[:,:,::1] mv2  = array((3,2,3), sizeof(int), 'i')
 
     mv1[...] = mv2
 

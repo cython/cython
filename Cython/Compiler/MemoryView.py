@@ -79,7 +79,7 @@ def mangle_dtype_name(dtype):
 #    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
 def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
-                                incref_rhs=False, have_gil=False):
+                                have_gil=False):
     assert rhs.type.is_memoryviewslice
 
     pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
@@ -91,16 +91,16 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
     # Allow uninitialized assignment
     #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
-    put_assign_to_memviewslice(lhs_cname, rhstmp, lhs_type, code, incref_rhs,
+    put_assign_to_memviewslice(lhs_cname, rhs, rhstmp, lhs_type, code,
                                have_gil=have_gil)
 
     if not pretty_rhs:
         code.funcstate.release_temp(rhstmp)
 
-def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, code,
-                               incref_rhs=False, have_gil=False):
+def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
+                               have_gil=False):
     code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
-    if incref_rhs:
+    if rhs.is_name:
         code.put_incref_memoryviewslice(rhs_cname, have_gil=have_gil)
 
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
@@ -128,8 +128,19 @@ def get_buf_flags(specs):
     else:
         return memview_strided_access
 
+def insert_newaxes(memoryviewtype, n):
+    axes = [('direct', 'strided')] * n
+    axes.extend(memoryviewtype.axes)
+    return PyrexTypes.MemoryViewSliceType(memoryviewtype.dtype, axes)
 
-def src_conforms_to_dst(src, dst):
+def broadcast_types(src, dst):
+    n = abs(src.ndim - dst.ndim)
+    if src.ndim < dst.ndim:
+        return insert_newaxes(src, n), dst
+    else:
+        return src, insert_newaxes(dst, n)
+
+def src_conforms_to_dst(src, dst, broadcast=False):
     '''
     returns True if src conforms to dst, False otherwise.
 
@@ -144,8 +155,12 @@ def src_conforms_to_dst(src, dst):
 
     if src.dtype != dst.dtype:
         return False
-    if len(src.axes) != len(dst.axes):
-        return False
+
+    if src.ndim != dst.ndim:
+        if broadcast:
+            src, dst = broadcast_types(src, dst)
+        else:
+            return False
 
     for src_spec, dst_spec in zip(src.axes, dst.axes):
         src_access, src_packing = src_spec
@@ -259,7 +274,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         return bufp
 
-    def generate_buffer_slice_code(self, code, indices, dst, have_gil):
+    def generate_buffer_slice_code(self, code, indices, dst, have_gil,
+                                   have_slices):
         """
         Slice a memoryviewslice.
 
@@ -269,59 +285,54 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         Simply call __pyx_memoryview_slice_memviewslice with the right
         arguments.
         """
-        slicefunc = "__pyx_memoryview_slice_memviewslice"
         new_ndim = 0
-        cname = self.cname
+        src = self.cname
 
-        suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type,
-                                                     False)
+        def load_slice_util(name, dict):
+            proto, impl = TempitaUtilityCode.load_as_string(
+                        name, "MemoryView_C.c", context=dict)
+            return impl
 
-        index_code = ("%(slicefunc)s(&%(cname)s, &%(dst)s, %(have_gil)d, "
-                                    "%(dim)d, %(new_ndim)d, &%(suboffset_dim)s, "
-                                    "%(idx)s, 0, 0, 0, 0, 0, 0)")
+        all_dimensions_direct = True
+        for access, packing in self.type.axes:
+            if access != 'direct':
+                all_dimensions_direct = False
+                break
 
-        slice_code = ("%(slicefunc)s(&%(cname)s, &%(dst)s, %(have_gil)d, "
-                                    "/* dim */ %(dim)d, "
-                                    "/* new_ndim */ %(new_ndim)d, "
-                                    "/* suboffset_dim */ &%(suboffset_dim)s, "
-                                    "/* start */ %(start)s, "
-                                    "/* stop */ %(stop)s, "
-                                    "/* step */ %(step)s, "
-                                    "/* have_start */ %(have_start)d, "
-                                    "/* have_stop */ %(have_stop)d, "
-                                    "/* have_step */ %(have_step)d, "
-                                    "/* is_slice */ 1)")
+        no_suboffset_dim = all_dimensions_direct and not have_slices
+        if not no_suboffset_dim:
+            suboffset_dim = code.funcstate.allocate_temp(
+                             PyrexTypes.c_int_type, False)
+            code.putln("%s = -1;" % suboffset_dim)
 
-        def generate_slice_call(expr):
-            pos = index.pos
-
-            if have_gil:
-                code.putln(code.error_goto_if(expr, pos))
-            else:
-                code.putln("{")
-                code.putln(    "const char *__pyx_t_result = %s;" % expr)
-
-                code.putln(    "if (unlikely(__pyx_t_result)) {")
-                code.put_ensure_gil()
-                code.putln(        "PyErr_Format(PyExc_IndexError, "
-                                                "__pyx_t_result, %d);" % dim)
-                code.put_release_ensured_gil()
-                code.putln(code.error_goto(pos))
-                code.putln(    "}")
-
-                code.putln("}")
-
-        code.putln("%s = -1;" % suboffset_dim)
-        code.putln("%(dst)s.data = %(cname)s.data;" % locals())
-        code.putln("%(dst)s.memview = %(cname)s.memview;" % locals())
+        code.putln("%(dst)s.data = %(src)s.data;" % locals())
+        code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
         code.put_incref_memoryviewslice(dst)
 
         for dim, index in enumerate(indices):
+            error_goto = code.error_goto(index.pos)
+
             if not isinstance(index, ExprNodes.SliceNode):
+                # normal index
                 idx = index.result()
-                generate_slice_call(index_code % locals())
+
+                access, packing = self.type.axes[dim]
+                if access == 'direct':
+                    indirect = False
+                else:
+                    indirect = True
+                    generic = (access == 'full')
+                    if new_ndim != 0:
+                        return error(index.pos,
+                                     "All preceding dimensions must be "
+                                     "indexed and not sliced")
+
+                d = locals()
+                code.put(load_slice_util("SliceIndex", d))
             else:
-                d = {}
+
+                # slice, unspecified dimension, or part of ellipsis
+                d = locals()
                 for s in "start stop step".split():
                     idx = getattr(index, s)
                     have_idx = d['have_' + s] = not idx.is_none
@@ -330,11 +341,21 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     else:
                         d[s] = "0"
 
-                d.update(locals())
-                generate_slice_call(slice_code % d)
+                if (not d['have_start'] and
+                    not d['have_stop'] and
+                    not d['have_step']):
+                    # full slice (:), simply copy over the extent, stride
+                    # and suboffset. Also update suboffset_dim if needed
+                    access, packing = self.type.axes[dim]
+                    d['access'] = access
+                    code.put(load_slice_util("SimpleSlice", d))
+                else:
+                    code.put(load_slice_util("ToughSlice", d))
+
                 new_ndim += 1
 
-        code.funcstate.release_temp(suboffset_dim)
+        if not no_suboffset_dim:
+            code.funcstate.release_temp(suboffset_dim)
 
 
 def empty_slice(pos):
@@ -384,235 +405,201 @@ def get_memoryview_flag(access, packing):
         assert (access, packing) == ('direct', 'contig'), (access, packing)
         return 'contiguous'
 
-def get_copy_func_name(to_memview):
-    base = "__Pyx_BufferNew_%s_From_%s"
-    if to_memview.is_c_contig:
-        return base % ('C', to_memview.specialization_suffix())
+def get_is_contig_func_name(c_or_f, ndim):
+    return "__pyx_memviewslice_is_%s_contig%d" % (c_or_f, ndim)
+
+def get_is_contig_utility(c_contig, ndim):
+    C = dict(context, ndim=ndim)
+    if c_contig:
+        utility = load_memview_c_utility("MemviewSliceIsCContig", C,
+                                         requires=[is_contig_utility])
     else:
-        return base % ('F', to_memview.specialization_suffix())
+        utility = load_memview_c_utility("MemviewSliceIsFContig", C,
+                                         requires=[is_contig_utility])
 
-def get_copy_contents_name(from_mvs, to_mvs):
-    assert from_mvs.dtype == to_mvs.dtype
-    return '__Pyx_BufferCopyContents_%s_to_%s' % (from_mvs.specialization_suffix(),
-                                                  to_mvs.specialization_suffix())
+    return utility
 
-def get_is_contig_func_name(c_or_f):
-    return "__pyx_memviewslice_is_%s_contig" % c_or_f
+def copy_src_to_dst_cname():
+    return "__pyx_memoryview_copy_contents"
 
-copy_to_template = '''
-static int %(copy_to_name)s(const __Pyx_memviewslice from_mvs, __Pyx_memviewslice to_mvs) {
-
-    /* ensure from_mvs & to_mvs have the same shape & dtype */
-
-}
-'''
-
-class CopyContentsFuncUtilCode(object):
-
-    requires = None
-
-    def __init__(self, from_memview, to_memview):
-        self.from_memview = from_memview
-        self.to_memview = to_memview
-        self.copy_contents_name = get_copy_contents_name(from_memview, to_memview)
-
-    def __eq__(self, other):
-        if not isinstance(other, CopyContentsFuncUtilCode):
-            return False
-        return other.copy_contents_name == self.copy_contents_name
-
-    def __hash__(self):
-        return hash(self.copy_contents_name)
-
-    def get_tree(self): pass
-
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
-
-        func_decl, func_impl = \
-                get_copy_contents_func(self.from_memview, self.to_memview, self.copy_contents_name)
-
-        proto.put(func_decl)
-        code.put(func_impl)
-
-class CopyFuncUtilCode(object):
-
-    requires = None
-
-    def __init__(self, from_memview, to_memview):
-        if from_memview.dtype != to_memview.dtype:
-            raise ValueError("dtypes must be the same!")
-        if len(from_memview.axes) != len(to_memview.axes):
-            raise ValueError("number of dimensions must be same")
-        if not (to_memview.is_c_contig or to_memview.is_f_contig):
-            raise ValueError("to_memview must be c or f contiguous.")
-        for (access, packing) in from_memview.axes:
-            if access != 'direct':
-                raise NotImplementedError("cannot handle 'full' or 'ptr' access at this time.")
-
-        self.from_memview = from_memview
-        self.to_memview = to_memview
-        self.copy_func_name = get_copy_func_name(to_memview)
-
-        self.requires = [CopyContentsFuncUtilCode(from_memview, to_memview)]
-
-    def __eq__(self, other):
-        if not isinstance(other, CopyFuncUtilCode):
-            return False
-        return other.copy_func_name == self.copy_func_name
-
-    def __hash__(self):
-        return hash(self.copy_func_name)
-
-    def get_tree(self): pass
-
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto = output['utility_code_proto']
-
-        proto.put(Buffer.dedent("""\
-                static __Pyx_memviewslice %s(const __Pyx_memviewslice from_mvs); /* proto */
-        """ % self.copy_func_name))
-
-        copy_contents_name = get_copy_contents_name(self.from_memview, self.to_memview)
-
-        if self.to_memview.is_c_contig:
-            mode = 'c'
-            contig_flag = memview_c_contiguous
-        elif self.to_memview.is_f_contig:
-            mode = 'fortran'
-            contig_flag = memview_f_contiguous
-
-        C = dict(
-            context,
-            copy_name=self.copy_func_name,
-            mode=mode,
-            sizeof_dtype="sizeof(%s)" % self.from_memview.dtype.declaration_code(''),
-            contig_flag=contig_flag,
-            copy_contents_name=copy_contents_name
-        )
-
-        _, copy_code = TempitaUtilityCode.load_as_string(
-                    "MemviewSliceCopyTemplate",
-                    from_file="MemoryView_C.c",
-                    context=C)
-        code.put(copy_code)
-
-
-def get_copy_contents_func(from_mvs, to_mvs, cfunc_name):
-    assert from_mvs.dtype == to_mvs.dtype
-    assert len(from_mvs.axes) == len(to_mvs.axes)
-
-    ndim = len(from_mvs.axes)
-
-    # XXX: we only support direct access for now.
-    for (access, packing) in from_mvs.axes:
+def verify_direct_dimensions(node):
+    for access, packing in node.type.axes:
         if access != 'direct':
-            raise NotImplementedError("currently only direct access is supported.")
+            error(self.pos, "All dimensions must be direct")
 
-    code_decl = ("static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs,"
-                "__Pyx_memviewslice *to_mvs); /* proto */" % {'cfunc_name' : cfunc_name})
+def copy_broadcast_memview_src_to_dst(src, dst, code):
+    """
+    Copy the contents of slice src to slice dst. Does not support indirect
+    slices.
+    """
+    verify_direct_dimensions(src)
+    verify_direct_dimensions(dst)
 
-    code_impl = '''
+    code.putln(code.error_goto_if_neg(
+            "%s(%s, %s, %d, %d, %d)" % (copy_src_to_dst_cname(),
+                                        src.result(), dst.result(),
+                                        src.type.ndim, dst.type.ndim,
+                                        dst.type.dtype.is_pyobject),
+            dst.pos))
 
-static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice *to_mvs) {
+def get_1d_fill_scalar_func(type, code):
+    dtype = type.dtype
+    type_decl = dtype.declaration_code("")
 
-    char *to_buf = (char *)to_mvs->data;
-    char *from_buf = (char *)from_mvs->data;
-    struct __pyx_memoryview_obj *temp_memview = 0;
-    char *temp_data = 0;
+    dtype_name = mangle_dtype_name(dtype)
+    context = dict(dtype_name=dtype_name, type_decl=type_decl)
+    utility = load_memview_c_utility("FillStrided1DScalar", context)
+    code.globalstate.use_utility_code(utility)
+    return '__pyx_fill_slice_%s' % dtype_name
 
-    int ndim_idx = 0;
+def assign_scalar(dst, scalar, code):
+    """
+    Assign a scalar to a slice. dst must be a temp, scalar will be assigned
+    to a correct type and not just something assignable.
+    """
+    verify_direct_dimensions(dst)
+    dtype = dst.type.dtype
+    type_decl = dtype.declaration_code("")
+    slice_decl = dst.type.declaration_code("")
 
-    for(ndim_idx=0; ndim_idx<%(ndim)d; ndim_idx++) {
-        if(from_mvs->shape[ndim_idx] != to_mvs->shape[ndim_idx]) {
-            PyErr_Format(PyExc_ValueError,
-                "memoryview shapes not the same in dimension %%d", ndim_idx);
-            return -1;
-        }
-    }
-
-''' % {'cfunc_name' : cfunc_name, 'ndim' : ndim}
-
-    # raise NotImplementedError("put in shape checking code here!!!")
-
-    INDENT = "    "
-    dtype_decl = from_mvs.dtype.declaration_code("")
-    last_idx = ndim-1
-
-    if to_mvs.is_c_contig or to_mvs.is_f_contig:
-        if to_mvs.is_c_contig:
-            start, stop, step = 0, ndim, 1
-        elif to_mvs.is_f_contig:
-            start, stop, step = ndim-1, -1, -1
-
-
-        for i, idx in enumerate(range(start, stop, step)):
-            # the crazy indexing is to account for the fortran indexing.
-            # 'i' always goes up from zero to ndim-1.
-            # 'idx' is the same as 'i' for c_contig, and goes from ndim-1 to 0 for f_contig.
-            # this makes the loop code below identical in both cases.
-            code_impl += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
-            code_impl += INDENT+"Py_ssize_t stride%(i)d = from_mvs->strides[%(idx)d];\n" % {'i':i, 'idx':idx}
-            code_impl += INDENT+"Py_ssize_t shape%(i)d = from_mvs->shape[%(idx)d];\n" % {'i':i, 'idx':idx}
-
-        code_impl += "\n"
-
-        # put down the nested for-loop.
-        for k in range(ndim):
-
-            code_impl += INDENT*(k+1) + "for(i%(k)d=0; i%(k)d<shape%(k)d; i%(k)d++) {\n" % {'k' : k}
-            if k >= 1:
-                code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d + idx%(km1)d;\n" % {'k' : k, 'km1' : k-1}
-            else:
-                code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d;\n" % {'k' : k}
-
-        # the inner part of the loop.
-        code_impl += INDENT*(ndim+1)+"memcpy(to_buf, from_buf+idx%(last_idx)d, sizeof(%(dtype_decl)s));\n" % locals()
-        code_impl += INDENT*(ndim+1)+"to_buf += sizeof(%(dtype_decl)s);\n" % locals()
-
-
+    code.begin_block()
+    code.putln("%s __pyx_temp_scalar = %s;" % (type_decl, scalar.result()))
+    if dst.result_in_temp() or (dst.base.is_name and
+                                isinstance(dst.index, ExprNodes.EllipsisNode)):
+        dst_temp = dst.result()
     else:
+        code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, dst.result()))
+        dst_temp = "__pyx_temp_slice"
 
-        code_impl += INDENT+"/* 'f' prefix is for the 'from' memview, 't' prefix is for the 'to' memview */\n"
-        for i in range(ndim):
-            code_impl += INDENT+"char *fi%d = 0, *ti%d = 0, *end%d = 0;\n" % (i,i,i)
-            code_impl += INDENT+"Py_ssize_t fstride%(i)d = from_mvs->strides[%(i)d];\n" % {'i':i}
-            code_impl += INDENT+"Py_ssize_t fshape%(i)d = from_mvs->shape[%(i)d];\n" % {'i':i}
-            code_impl += INDENT+"Py_ssize_t tstride%(i)d = to_mvs->strides[%(i)d];\n" % {'i':i}
-            # code_impl += INDENT+"Py_ssize_t tshape%(i)d = to_mvs->shape[%(i)d];\n" % {'i':i}
+    # with slice_iter(dst.type, dst_temp, dst.type.ndim, code) as p:
+    slice_iter_obj = slice_iter(dst.type, dst_temp, dst.type.ndim, code)
+    p = slice_iter_obj.start_loops()
 
-        code_impl += INDENT+"end0 = fshape0 * fstride0 + from_mvs->data;\n"
-        code_impl += INDENT+"for(fi0=from_buf, ti0=to_buf; fi0 < end0; fi0 += fstride0, ti0 += tstride0) {\n"
-        for i in range(1, ndim):
-            code_impl += INDENT*(i+1)+"end%(i)d = fshape%(i)d * fstride%(i)d + fi%(im1)d;\n" % {'i' : i, 'im1' : i-1}
-            code_impl += INDENT*(i+1)+"for(fi%(i)d=fi%(im1)d, ti%(i)d=ti%(im1)d; fi%(i)d < end%(i)d; fi%(i)d += fstride%(i)d, ti%(i)d += tstride%(i)d) {\n" % {'i':i, 'im1':i-1}
+    if dtype.is_pyobject:
+        code.putln("Py_DECREF(*(PyObject **) %s);" % p)
 
-        code_impl += INDENT*(ndim+1)+"*(%(dtype_decl)s*)(ti%(last_idx)d) = *(%(dtype_decl)s*)(fi%(last_idx)d);\n" % locals()
+    code.putln("*((%s *) %s) = __pyx_temp_scalar;" % (type_decl, p))
 
-    # for-loop closing braces
-    for k in range(ndim-1, -1, -1):
-        code_impl += INDENT*(k+1)+"}\n"
+    if dtype.is_pyobject:
+        code.putln("Py_INCREF(__pyx_temp_scalar);")
 
-    # init to_mvs->data and to_mvs shape/strides/suboffsets arrays.
-    code_impl += INDENT+"temp_memview = to_mvs->memview;\n"
-    code_impl += INDENT+"temp_data = to_mvs->data;\n"
-    code_impl += INDENT+"to_mvs->memview = 0; to_mvs->data = 0;\n"
-    code_impl += INDENT+"if(unlikely(-1 == __Pyx_init_memviewslice(temp_memview, %d, to_mvs))) {\n" % (ndim,)
-    code_impl += INDENT*2+"return -1;\n"
-    code_impl +=   INDENT+"}\n"
+    slice_iter_obj.end_loops()
+    code.end_block()
 
-    code_impl += INDENT + "return 0;\n"
+def slice_iter(slice_type, slice_temp, ndim, code):
+    if slice_type.is_c_contig or slice_type.is_f_contig:
+        return ContigSliceIter(slice_type, slice_temp, ndim, code)
+    else:
+        return StridedSliceIter(slice_type, slice_temp, ndim, code)
 
-    code_impl += '}\n'
+class SliceIter(object):
+    def __init__(self, slice_type, slice_temp, ndim, code):
+        self.slice_type = slice_type
+        self.slice_temp = slice_temp
+        self.code = code
+        self.ndim = ndim
 
-    return code_decl, code_impl
+class ContigSliceIter(SliceIter):
+    def start_loops(self):
+        code = self.code
+        code.begin_block()
+
+        type_decl = self.slice_type.dtype.declaration_code("")
+
+        total_size = ' * '.join("%s.shape[%d]" % (self.slice_temp, i)
+                                    for i in range(self.ndim))
+        code.putln("Py_ssize_t __pyx_temp_extent = %s;" % total_size)
+        code.putln("Py_ssize_t __pyx_temp_idx;")
+        code.putln("%s *__pyx_temp_pointer = (%s *) %s.data;" % (
+                            type_decl, type_decl, self.slice_temp))
+        code.putln("for (__pyx_temp_idx = 0; "
+                        "__pyx_temp_idx < __pyx_temp_extent; "
+                        "__pyx_temp_idx++) {")
+
+        return "__pyx_temp_pointer"
+
+    def end_loops(self):
+        self.code.putln("__pyx_temp_pointer += 1;")
+        self.code.putln("}")
+        self.code.end_block()
+
+class StridedSliceIter(SliceIter):
+    def start_loops(self):
+        code = self.code
+        code.begin_block()
+
+        for i in range(self.ndim):
+            t = i, self.slice_temp, i
+            code.putln("Py_ssize_t __pyx_temp_extent_%d = %s.shape[%d];" % t)
+            code.putln("Py_ssize_t __pyx_temp_stride_%d = %s.strides[%d];" % t)
+            code.putln("char *__pyx_temp_pointer_%d;" % i)
+            code.putln("Py_ssize_t __pyx_temp_idx_%d;" % i)
+
+        code.putln("__pyx_temp_pointer_0 = %s.data;" % self.slice_temp)
+
+        for i in range(self.ndim):
+            if i > 0:
+                code.putln("__pyx_temp_pointer_%d = __pyx_temp_pointer_%d;" % (i, i - 1))
+
+            code.putln("for (__pyx_temp_idx_%d = 0; "
+                            "__pyx_temp_idx_%d < __pyx_temp_extent_%d; "
+                            "__pyx_temp_idx_%d++) {" % (i, i, i, i))
+
+        return "__pyx_temp_pointer_%d" % (self.ndim - 1)
+
+    def end_loops(self):
+        code = self.code
+        for i in range(self.ndim - 1, -1, -1):
+            code.putln("__pyx_temp_pointer_%d += __pyx_temp_stride_%d;" % (i, i))
+            code.putln("}")
+
+        code.end_block()
+
+
+def copy_c_or_fortran_cname(memview):
+    if memview.is_c_contig:
+        c_or_f = 'c'
+    else:
+        c_or_f = 'f'
+
+    return "__pyx_memoryview_copy_slice_%s_%s" % (
+            memview.specialization_suffix(), c_or_f)
+
+def get_copy_new_utility(pos, from_memview, to_memview):
+    if from_memview.dtype != to_memview.dtype:
+        return error(pos, "dtypes must be the same!")
+    if len(from_memview.axes) != len(to_memview.axes):
+        return error(pos, "number of dimensions must be same")
+    if not (to_memview.is_c_contig or to_memview.is_f_contig):
+        return error(pos, "to_memview must be c or f contiguous.")
+
+    for (access, packing) in from_memview.axes:
+        if access != 'direct':
+            return error(
+                    pos, "cannot handle 'full' or 'ptr' access at this time.")
+
+    if to_memview.is_c_contig:
+        mode = 'c'
+        contig_flag = memview_c_contiguous
+    elif to_memview.is_f_contig:
+        mode = 'fortran'
+        contig_flag = memview_f_contiguous
+
+    return load_memview_c_utility(
+        "CopyContentsUtility",
+        context=dict(
+            context,
+            mode=mode,
+            dtype_decl=to_memview.dtype.declaration_code(''),
+            contig_flag=contig_flag,
+            ndim=to_memview.ndim,
+            func_cname=copy_c_or_fortran_cname(to_memview),
+            dtype_is_object=int(to_memview.dtype.is_pyobject)),
+        requires=[copy_contents_new_utility])
 
 def get_axes_specs(env, axes):
     '''
     get_axes_specs(env, axes) -> list of (access, packing) specs for each axis.
-
     access is one of 'full', 'ptr' or 'direct'
     packing is one of 'contig', 'strided' or 'follow'
     '''
@@ -878,7 +865,8 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    env.global_scope().context.cython_scope.lookup('array_cwrapper').used = True
+    scope = env.global_scope().context.cython_scope
+    scope.lookup('array_cwrapper').used = True
     env.use_utility_code(cython_array_utility_code)
 
 context = {
@@ -892,11 +880,15 @@ memviewslice_declare_code = load_memview_c_utility(
         proto_block='utility_code_proto_before_types',
         context=context)
 
+atomic_utility = load_memview_c_utility("Atomics", context,
+              proto_block='utility_code_proto_before_types')
+
 memviewslice_init_code = load_memview_c_utility(
     "MemviewSliceInit",
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code,
-              Buffer.acquire_utility_code],
+              Buffer.acquire_utility_code,
+              atomic_utility],
 )
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
@@ -905,10 +897,12 @@ typeinfo_to_format_code = load_memview_cy_utility(
         "BufferFormatFromTypeInfo", requires=[Buffer._typeinfo_to_format_code])
 
 is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context)
-is_c_contig_utility = load_memview_c_utility("MemviewSliceIsCContig", context,
-                                             requires=[is_contig_utility])
-is_f_contig_utility = load_memview_c_utility("MemviewSliceIsFContig", context,
-                                             requires=[is_contig_utility])
+overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
+copy_contents_new_utility = load_memview_c_utility(
+    "MemviewSliceCopyTemplate",
+    context,
+    requires=[], # require cython_array_utility_code
+)
 
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",
@@ -916,13 +910,18 @@ view_utility_code = load_memview_cy_utility(
         requires=[Buffer.GetAndReleaseBufferUtilityCode(),
                   Buffer.buffer_struct_declare_code,
                   Buffer.empty_bufstruct_utility,
-                  memviewslice_init_code],
+                  memviewslice_init_code,
+                  is_contig_utility,
+                  overlapping_utility,
+                  copy_contents_new_utility],
 )
 
 cython_array_utility_code = load_memview_cy_utility(
         "CythonArray",
         context=context,
         requires=[view_utility_code])
+
+copy_contents_new_utility.requires.append(cython_array_utility_code)
 
 # memview_fromslice_utility_code = load_memview_cy_utility(
         # "MemviewFromSlice",
