@@ -226,7 +226,7 @@ and another module which uses it.::
 
     cdef Shrubbing.Shrubbery sh
     sh = Shrubbing.standard_shrubbery()
-    print "Shrubbery size is %d x %d" % (sh.width, sh.height)
+    print "Shrubbery size is %d x %d" % (sh.width, sh.length)
  
 Some things to note about this example:
 
