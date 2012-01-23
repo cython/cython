@@ -1661,6 +1661,8 @@ class CFloatType(CNumericType):
     def __init__(self, rank, math_h_modifier = ''):
         CNumericType.__init__(self, rank, 1)
         self.math_h_modifier = math_h_modifier
+        if rank == RANK_FLOAT:
+            self.from_py_function = "__pyx_PyFloat_AsFloat"
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
@@ -3130,8 +3132,10 @@ rank_to_type_name = (
     "long double",  # 7
 )
 
-RANK_INT  = list(rank_to_type_name).index('int')
-RANK_LONG = list(rank_to_type_name).index('long')
+_rank_to_type_name = list(rank_to_type_name)
+RANK_INT  = _rank_to_type_name.index('int')
+RANK_LONG = _rank_to_type_name.index('long')
+RANK_FLOAT = _rank_to_type_name.index('float')
 UNSIGNED = 0
 SIGNED = 2
 
@@ -3644,7 +3648,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
 
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
-
+#define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
 """ + type_conversion_predeclarations
 
 # Note: __Pyx_PyObject_IsTrue is written to minimize branching.
