@@ -1460,7 +1460,8 @@ class FuncDefNode(StatNode, BlockNode):
             if self.return_type.is_pyobject:
                 init = " = NULL"
             elif self.return_type.is_memoryviewslice:
-                init = "= {0, 0}"
+                import MemoryView
+                init = ' = ' + MemoryView.memslice_entry_init
 
             code.putln(
                 "%s%s;" %
@@ -1479,19 +1480,46 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
 
-        # See if we need to acquire the GIL for variable declarations and
-        acquire_gil_for_var_decls_only = (lenv.nogil and
-                                          lenv.has_with_gil_block)
+        # See if we need to acquire the GIL for variable declarations, or for
+        # refnanny only
 
-        use_refnanny = not lenv.nogil or acquire_gil_for_var_decls_only
+        # Profiling or closures are not currently possible for cdef nogil
+        # functions, but check them anyway
+        have_object_args = (self.needs_closure or self.needs_outer_scope or
+                            profile)
+        for arg in lenv.arg_entries:
+            if arg.type.is_pyobject:
+                have_object_args = True
+                break
+
+        acquire_gil_for_var_decls_only = (
+                lenv.nogil and lenv.has_with_gil_block and
+                (have_object_args or lenv.buffer_entries))
+
+        acquire_gil_for_refnanny_only = (
+                lenv.nogil and lenv.has_with_gil_block and not
+                acquire_gil_for_var_decls_only)
+
+        use_refnanny = not lenv.nogil or lenv.has_with_gil_block
 
         if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_ensure_gil()
 
         # ----- set up refnanny
         if use_refnanny:
+            if acquire_gil_for_refnanny_only:
+                code.declare_gilstate()
+                code.putln("#if CYTHON_REFNANNY")
+                code.put_ensure_gil(declare_gilstate=False)
+                code.putln("#endif /* CYTHON_REFNANNY */")
+
             tempvardecl_code.put_declare_refcount_context()
             code.put_setup_refcount_context(self.entry.name)
+
+            if acquire_gil_for_refnanny_only:
+                code.putln("#if CYTHON_REFNANNY")
+                code.put_release_ensured_gil()
+                code.putln("#endif /* CYTHON_REFNANNY */")
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -1510,7 +1538,7 @@ class FuncDefNode(StatNode, BlockNode):
 
             if use_refnanny:
                 code.put_finish_refcount_context()
-                if acquire_gil_for_var_decls_only:
+                if acquire_gil or acquire_gil_for_var_decls_only:
                     code.put_release_ensured_gil()
 
             # FIXME: what if the error return value is a Python value?
@@ -1551,11 +1579,12 @@ class FuncDefNode(StatNode, BlockNode):
                     not entry.in_closure):
                     code.put_var_incref(entry)
 
-            # Note: defaults are always increffed. For def functions, we
+            # Note: defaults are always incref-ed. For def functions, we
             #       we aquire arguments from object converstion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            if is_cdef and entry.type.is_memoryviewslice:
+            elif (is_cdef and entry.type.is_memoryviewslice and
+                  len(entry.cf_assignments) > 1):
                 code.put_incref_memoryviewslice(entry.cname,
                                                 have_gil=not lenv.nogil)
         for entry in lenv.var_entries:
@@ -1566,10 +1595,6 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
                 Buffer.put_init_vars(entry, code)
-        # ----- Initialise local memoryviewslices
-        for entry in lenv.var_entries:
-            if entry.visibility == "private" and not entry.used:
-                continue
 
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
@@ -1631,13 +1656,13 @@ class FuncDefNode(StatNode, BlockNode):
                 # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
                 # code.put_trace_exception()
 
-                if lenv.nogil:
+                if lenv.nogil and not lenv.has_with_gil_block:
                     code.putln("{")
                     code.put_ensure_gil()
 
                 code.put_add_traceback(self.entry.qualified_name)
 
-                if lenv.nogil:
+                if lenv.nogil and not lenv.has_with_gil_block:
                     code.put_release_ensured_gil()
                     code.putln("}")
             else:
@@ -1715,7 +1740,10 @@ class FuncDefNode(StatNode, BlockNode):
                 if ((acquire_gil or len(entry.cf_assignments) > 1) and
                     not entry.in_closure):
                     code.put_var_decref(entry)
-            if entry.type.is_memoryviewslice:
+            elif (entry.type.is_memoryviewslice and
+                  (not is_cdef or len(entry.cf_assignments) > 1)):
+                # decref slices of def functions and acquired slices from cdef
+                # functions, but not borrowed slices from cdef functions.
                 code.put_xdecref_memoryviewslice(entry.cname,
                                                  have_gil=not lenv.nogil)
         if self.needs_closure:
@@ -1747,7 +1775,8 @@ class FuncDefNode(StatNode, BlockNode):
             # GIL holding funcion
             code.put_finish_refcount_context()
 
-        if acquire_gil or acquire_gil_for_var_decls_only:
+        if (acquire_gil or acquire_gil_for_var_decls_only or
+                                acquire_gil_for_refnanny_only):
             code.put_release_ensured_gil()
 
         if not self.return_type.is_void:
@@ -3152,7 +3181,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature.has_dummy_arg:
             args.append(Naming.self_cname)
         for arg in self.args:
-            if arg.hdr_type:
+            if arg.hdr_type and not (arg.type.is_memoryviewslice or arg.type.is_struct):
                 args.append(arg.type.cast_code(arg.entry.cname))
             else:
                 args.append(arg.entry.cname)
@@ -4724,10 +4753,28 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp = 0):
+        import ExprNodes
+
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
-        self.rhs = self.rhs.coerce_to(self.lhs.type, env)
+
+        if self.lhs.memslice_broadcast or self.rhs.memslice_broadcast:
+            self.lhs.memslice_broadcast = True
+            self.rhs.memslice_broadcast = True
+
+        is_index_node = isinstance(self.lhs, ExprNodes.IndexNode)
+        if (is_index_node and not self.rhs.type.is_memoryviewslice and
+            (self.lhs.memslice_slice or self.lhs.is_memslice_copy) and
+            (self.lhs.type.dtype.assignable_from(self.rhs.type) or
+             self.rhs.type.is_pyobject)):
+            # scalar slice assignment
+            self.lhs.is_memslice_scalar_assignment = True
+            dtype = self.lhs.type.dtype
+        else:
+            dtype = self.lhs.type
+
+        self.rhs = self.rhs.coerce_to(dtype, env)
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)
 
@@ -5168,7 +5215,6 @@ class ReturnStatNode(StatNode):
                         lhs_pos=self.value.pos,
                         rhs=self.value,
                         code=code,
-                        incref_rhs=self.value.is_name,
                         have_gil=self.in_nogil_context)
             else:
                 self.value.make_owned_reference(code)

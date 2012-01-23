@@ -652,12 +652,22 @@ def test_indirect_slicing(arg):
     (5, 3, 2)
     0 0 -1
     58
+    56
+    58
+    58
+    58
+    58
     released A
 
     >>> test_indirect_slicing(IntMockBuffer("A", shape_9_14_21_list, shape=(9, 14, 21)))
     acquired A
     (5, 14, 3)
     0 16 -1
+    2412
+    2410
+    2412
+    2412
+    2412
     2412
     released A
     """
@@ -669,6 +679,11 @@ def test_indirect_slicing(arg):
     print_int_offsets(*b.suboffsets)
 
     print b[4, 2, 1]
+    print b[..., 0][4, 2]
+    print b[..., 1][4, 2]
+    print b[..., 1][4][2]
+    print b[4][2][1]
+    print b[4, 2][1]
 
 def test_direct_slicing(arg):
     """

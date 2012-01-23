@@ -510,7 +510,7 @@ class MemoryViewSliceType(PyrexType):
 
         return True
 
-    def declare_attribute(self, attribute, env):
+    def declare_attribute(self, attribute, env, pos):
         import MemoryView, Options
 
         scope = self.scope
@@ -518,24 +518,24 @@ class MemoryViewSliceType(PyrexType):
         if attribute == 'shape':
             scope.declare_var('shape',
                     c_array_type(c_py_ssize_t_type,
-                        Options.buffer_max_dims),
-                    None,
+                                 Options.buffer_max_dims),
+                    pos,
                     cname='shape',
                     is_cdef=1)
 
         elif attribute == 'strides':
             scope.declare_var('strides',
                     c_array_type(c_py_ssize_t_type,
-                        Options.buffer_max_dims),
-                    None,
+                                 Options.buffer_max_dims),
+                    pos,
                     cname='strides',
                     is_cdef=1)
 
         elif attribute == 'suboffsets':
             scope.declare_var('suboffsets',
                     c_array_type(c_py_ssize_t_type,
-                        Options.buffer_max_dims),
-                    None,
+                                 Options.buffer_max_dims),
+                    pos,
                     cname='suboffsets',
                     is_cdef=1)
 
@@ -544,40 +544,32 @@ class MemoryViewSliceType(PyrexType):
 
             to_axes_c = [('direct', 'contig')]
             to_axes_f = [('direct', 'contig')]
-            if ndim-1:
+            if ndim - 1:
                 to_axes_c = [('direct', 'follow')]*(ndim-1) + to_axes_c
                 to_axes_f = to_axes_f + [('direct', 'follow')]*(ndim-1)
 
             to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
             to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
 
-            cython_name_c, cython_name_f = "copy", "copy_fortran"
-            copy_name_c, copy_name_f = (
-                    MemoryView.get_copy_func_name(to_memview_c),
-                    MemoryView.get_copy_func_name(to_memview_f))
-
-
-            for (to_memview, cython_name, copy_name) in ((to_memview_c, cython_name_c, copy_name_c),
-                                                         (to_memview_f, cython_name_f, copy_name_f)):
-
+            for to_memview, cython_name in [(to_memview_c, "copy"),
+                                            (to_memview_f, "copy_fortran")]:
                 entry = scope.declare_cfunction(cython_name,
-                            CFuncType(self,
-                                [CFuncTypeArg("memviewslice", self, None)]),
-                            pos = None,
-                            defining = 1,
-                            cname = copy_name)
+                            CFuncType(self, [CFuncTypeArg("memviewslice", self, None)]),
+                            pos=pos,
+                            defining=1,
+                            cname=MemoryView.copy_c_or_fortran_cname(to_memview))
 
-                entry.utility_code_definition = \
-                        MemoryView.CopyFuncUtilCode(self, to_memview)
+                #entry.utility_code_definition = \
+                env.use_utility_code(MemoryView.get_copy_new_utility(pos, self, to_memview))
 
             MemoryView.use_cython_array_utility_code(env)
 
         elif attribute in ("is_c_contig", "is_f_contig"):
             # is_c_contig and is_f_contig functions
-            for (c_or_f, cython_name) in (('c', 'is_c_contig'), ('fortran', 'is_f_contig')):
+            for (c_or_f, cython_name) in (('c', 'is_c_contig'), ('f', 'is_f_contig')):
 
                 is_contig_name = \
-                        MemoryView.get_is_contig_func_name(c_or_f)
+                        MemoryView.get_is_contig_func_name(c_or_f, self.ndim)
 
                 cfunctype = CFuncType(
                         return_type=c_int_type,
@@ -587,14 +579,12 @@ class MemoryViewSliceType(PyrexType):
 
                 entry = scope.declare_cfunction(cython_name,
                             cfunctype,
-                            pos = None,
-                            defining = 1,
-                            cname = is_contig_name)
+                            pos=pos,
+                            defining=1,
+                            cname=is_contig_name)
 
-                if attribute == 'is_c_contig':
-                    entry.utility_code_definition = MemoryView.is_c_contig_utility
-                else:
-                    entry.utility_code_definition = MemoryView.is_f_contig_utility
+                entry.utility_code_definition = MemoryView.get_is_contig_utility(
+                                            attribute == 'is_c_contig', self.ndim)
 
         return True
 
@@ -603,10 +593,6 @@ class MemoryViewSliceType(PyrexType):
 
     def can_coerce_to_pyobject(self, env):
         return True
-
-    #def global_init_code(self, entry, code):
-    #    code.putln("%s.data = NULL;" % entry.cname)
-    #    code.putln("%s.memview = NULL;" % entry.cname)
 
     def check_for_null_code(self, cname):
         return cname + '.memview'
@@ -657,8 +643,9 @@ class MemoryViewSliceType(PyrexType):
         to_py_func = "(PyObject *(*)(char *)) " + to_py_func
         from_py_func = "(int (*)(char *, PyObject *)) " + from_py_func
 
-        tup = (obj.result(), self.ndim, to_py_func, from_py_func)
-        return "__pyx_memoryview_fromslice(&%s, %s, %s, %s);" % tup
+        tup = (obj.result(), self.ndim, to_py_func, from_py_func,
+               self.dtype.is_pyobject)
+        return "__pyx_memoryview_fromslice(&%s, %s, %s, %s, %d);" % tup
 
     def dtype_object_conversion_funcs(self, env):
         import MemoryView, Code
