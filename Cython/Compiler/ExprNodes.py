@@ -2468,7 +2468,7 @@ class IndexNode(ExprNode):
         self.is_buffer_access = False
 
         # a[...] = b
-        self.is_memoryviewslice_access = False
+        self.is_memslice_copy = False
         # incomplete indexing, Ellipsis indexing or slicing
         self.memslice_slice = False
         # integer indexing
@@ -2498,7 +2498,6 @@ class IndexNode(ExprNode):
 
         skip_child_analysis = False
         buffer_access = False
-        memoryviewslice_access = False
 
         if self.indices:
             indices = self.indices
@@ -2510,7 +2509,7 @@ class IndexNode(ExprNode):
         if (is_memslice and not self.indices and
                 isinstance(self.index, EllipsisNode)):
             # Memoryviewslice copying
-            memoryviewslice_access = True
+            self.is_memslice_copy = True
 
         elif is_memslice:
             # memoryviewslice indexing or slicing
@@ -2615,13 +2614,11 @@ class IndexNode(ExprNode):
                     if self.base.type.is_buffer:
                         self.base.entry.buffer_aux.writable_needed = True
 
-        elif memoryviewslice_access:
+        elif self.is_memslice_copy:
             self.type = self.base.type
-            self.is_memoryviewslice_access = True
             if getting:
                 self.memslice_ellipsis_noop = True
             else:
-                self.is_memslice_copy = True
                 self.memslice_broadcast = True
 
         elif self.memslice_slice:
@@ -2630,6 +2627,12 @@ class IndexNode(ExprNode):
             self.use_managed_ref = True
             self.type = PyrexTypes.MemoryViewSliceType(
                             self.base.type.dtype, axes)
+
+            if (self.base.type.is_memoryviewslice and not
+                    self.base.is_name and not
+                    self.base.result_in_temp()):
+                self.base = self.base.coerce_to_temp(env)
+
             if setting:
                 self.memslice_broadcast = True
 
@@ -2987,23 +2990,32 @@ class IndexNode(ExprNode):
             code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result()))
 
     def generate_assignment_code(self, rhs, code):
-        self.generate_subexpr_evaluation_code(code)
+        generate_evaluation_code = (self.is_memslice_scalar_assignment or
+                                    self.memslice_slice)
+        if generate_evaluation_code:
+            self.generate_evaluation_code(code)
+        else:
+            self.generate_subexpr_evaluation_code(code)
+
         if self.is_buffer_access or self.memslice_index:
             self.generate_buffer_setitem_code(rhs, code)
         elif self.is_memslice_scalar_assignment:
             self.generate_memoryviewslice_assign_scalar_code(rhs, code)
-        elif self.memslice_slice:
+        elif self.memslice_slice or self.is_memslice_copy:
             self.generate_memoryviewslice_setslice_code(rhs, code)
-        elif self.is_memoryviewslice_access:
-            self.generate_memoryviewslice_copy_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
             code.putln(
                 "%s = %s;" % (
                     self.result(), rhs.result()))
-        self.generate_subexpr_disposal_code(code)
-        self.free_subexpr_temps(code)
+
+        if generate_evaluation_code:
+            self.generate_disposal_code(code)
+        else:
+            self.generate_subexpr_disposal_code(code)
+            self.free_subexpr_temps(code)
+
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
@@ -3108,20 +3120,13 @@ class IndexNode(ExprNode):
                                                 have_slices=have_slices)
 
     def generate_memoryviewslice_setslice_code(self, rhs, code):
-        "memslice1[:] = memslice2"
-        import MemoryView
-        self.generate_evaluation_code(code)
-        MemoryView.copy_broadcast_memview_src_to_dst(rhs, self, code)
-
-    def generate_memoryviewslice_copy_code(self, rhs, code):
-        "memslice1[...] = memslice2"
+        "memslice1[...] = memslice2 or memslice1[:] = memslice2"
         import MemoryView
         MemoryView.copy_broadcast_memview_src_to_dst(rhs, self, code)
 
     def generate_memoryviewslice_assign_scalar_code(self, rhs, code):
         "memslice1[...] = 0.0 or memslice1[:] = 0.0"
         import MemoryView
-        self.generate_evaluation_code(code)
         MemoryView.assign_scalar(self, rhs, code)
 
     def put_nonecheck(self, code):
@@ -4515,7 +4520,8 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                if self.obj.is_name or self.obj.is_attribute and self.obj.is_memslice_transpose:
+                if self.obj.is_name or (self.obj.is_attribute and
+                                        self.obj.is_memslice_transpose):
                     code.put_incref_memoryviewslice(self.result(), have_gil=True)
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
@@ -9107,8 +9113,12 @@ class CoerceToTempNode(CoercionNode):
         # by generic generate_subexpr_evaluation_code!
         code.putln("%s = %s;" % (
             self.result(), self.arg.result_as(self.ctype())))
-        if self.type.is_pyobject and self.use_managed_ref:
-            code.put_incref(self.result(), self.ctype())
+        if self.use_managed_ref:
+            if self.type.is_pyobject:
+                code.put_incref(self.result(), self.ctype())
+            elif self.type.is_memoryviewslice:
+                code.put_incref_memoryviewslice(self.result(),
+                                                not self.in_nogil_context)
 
 
 class CloneNode(CoercionNode):

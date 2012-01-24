@@ -60,6 +60,73 @@ cdef cdg():
     cdef double[::1] dmv = array((10,), itemsize=sizeof(double), format='d')
     dmv = array((10,), itemsize=sizeof(double), format='d')
 
+cdef class TestExcClassExternalDtype(object):
+    cdef ext_dtype[:, :] arr_float
+    cdef td_h_double[:, :] arr_double
+
+    def __init__(self):
+        self.arr_float = cython.array((10, 10), itemsize=sizeof(ext_dtype), format='f')
+        self.arr_float[:] = 0.0
+        self.arr_float[4, 4] = 2.0
+
+        self.arr_double = cython.array((10, 10), itemsize=sizeof(td_h_double), format='d')
+        self.arr_double[:] = 0.0
+        self.arr_double[4, 4] = 2.0
+
+def test_external_dtype():
+    """
+    >>> test_external_dtype()
+    2.0
+    2.0
+    """
+    cdef TestExcClassExternalDtype obj = TestExcClassExternalDtype()
+    print obj.arr_float[4, 4]
+    print obj.arr_double[4, 4]
+
+
+cdef class ExtClassMockedAttr(object):
+    cdef int[:, :] arr
+
+    def __init__(self):
+        self.arr = IntMockBuffer("self.arr", range(100), (10, 8))
+        self.arr[:] = 0
+        self.arr[4, 4] = 2
+
+cdef int[:, :] _coerce_to_temp():
+    cdef ExtClassMockedAttr obj = ExtClassMockedAttr()
+    return obj.arr
+
+def test_coerce_to_temp():
+    """
+    >>> test_coerce_to_temp()
+    acquired self.arr
+    released self.arr
+    <BLANKLINE>
+    acquired self.arr
+    released self.arr
+    <BLANKLINE>
+    acquired self.arr
+    released self.arr
+    2
+    <BLANKLINE>
+    acquired self.arr
+    released self.arr
+    2
+    <BLANKLINE>
+    acquired self.arr
+    released self.arr
+    2
+    """
+    _coerce_to_temp()[:] = 0
+    print
+    _coerce_to_temp()[...] = 0
+    print
+    print _coerce_to_temp()[4, 4]
+    print
+    print _coerce_to_temp()[..., 4][4]
+    print
+    print _coerce_to_temp()[4][4]
+
 cdef float[:,::1] global_mv = array((10,10), itemsize=sizeof(float), format='f')
 global_mv = array((10,10), itemsize=sizeof(float), format='f')
 cdef object global_obj
