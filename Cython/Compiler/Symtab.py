@@ -290,11 +290,13 @@ class Scope(object):
     def __deepcopy__(self, memo):
         return self
 
-    def merge_in(self, other, merge_unused=True):
+    def merge_in(self, other, merge_unused=True, whitelist=None):
         # Use with care...
-        entries = [(name, entry)
-                       for name, entry in other.entries.iteritems()
-                           if entry.used or merge_unused]
+        entries = []
+        for name, entry in other.entries.iteritems():
+            if not whitelist or name in whitelist:
+                if entry.used or merge_unused:
+                    entries.append((name, entry))
 
         self.entries.update(entries)
 

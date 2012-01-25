@@ -919,5 +919,8 @@ view_utility_code = load_memview_cy_utility(
                   overlapping_utility,
                   copy_contents_new_utility],
 )
+view_utility_whitelist = ('array', 'memoryview', 'array_cwrapper',
+                          'generic', 'strided', 'indirect', 'contiguous',
+                          'indirect_contiguous')
 
 copy_contents_new_utility.requires.append(view_utility_code)

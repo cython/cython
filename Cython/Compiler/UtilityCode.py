@@ -138,7 +138,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         util = cls.load(util_code_name, from_file, **kwargs)
         return util.proto, util.impl # keep line numbers => no lstrip()
 
-    def declare_in_scope(self, dest_scope, used=False, cython_scope=None):
+    def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
+                         whitelist=None):
         """
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries. If module_name is given, declare the
@@ -157,7 +158,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             entry.used = used
 
         original_scope = tree.scope
-        dest_scope.merge_in(original_scope, merge_unused=True)
+        dest_scope.merge_in(original_scope, merge_unused=True,
+                            whitelist=whitelist)
         tree.scope = dest_scope
 
         for dep in self.requires:

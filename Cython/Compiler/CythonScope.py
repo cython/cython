@@ -115,9 +115,10 @@ class CythonScope(ModuleScope):
                                             viewscope, cython_scope=self)
 
         view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
-                                            self.viewscope, cython_scope=self)
+                                            self.viewscope, cython_scope=self,
+                                            whitelist=MemoryView.view_utility_whitelist)
 
-        self.entries["array"] = view_utility_scope.lookup("array")
+        self.entries["array"] = view_utility_scope.entries.pop("array")
 
 
 def create_cython_scope(context):
