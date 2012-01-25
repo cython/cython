@@ -8,8 +8,11 @@ u'''
 '''
 
 from cython.view cimport memoryview
-from cython cimport array, PyBUF_C_CONTIGUOUS
+from cython cimport array
 from cython cimport view
+
+cdef extern from "Python.h":
+    cdef int PyBUF_C_CONTIGUOUS
 
 include "mockbuffers.pxi"
 

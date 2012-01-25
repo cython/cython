@@ -1,10 +1,51 @@
-########## CythonArray ##########
+#################### View.MemoryView ####################
 
-cdef extern from "stdlib.h":
-    void *malloc(size_t)
-    void free(void *)
+# This utility provides cython.array and cython.view.memoryview
 
+import cython
+
+# from cpython cimport ...
 cdef extern from "Python.h":
+    int PyIndex_Check(object)
+    object PyLong_FromVoidPtr(void *)
+
+cdef extern from "pythread.h":
+    ctypedef void *PyThread_type_lock
+
+    PyThread_type_lock PyThread_allocate_lock()
+    void PyThread_free_lock(PyThread_type_lock)
+    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
+    void PyThread_release_lock(PyThread_type_lock) nogil
+
+cdef extern from "string.h":
+    void *memset(void *b, int c, size_t len)
+
+cdef extern from *:
+    int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
+    void __Pyx_ReleaseBuffer(Py_buffer *)
+
+    ctypedef struct PyObject
+    void Py_INCREF(PyObject *)
+    void Py_DECREF(PyObject *)
+
+    cdef struct __pyx_memoryview "__pyx_memoryview_obj":
+        Py_buffer view
+        PyObject *obj
+
+    ctypedef struct {{memviewslice_name}}:
+        __pyx_memoryview *memview
+        char *data
+        Py_ssize_t shape[{{max_dims}}]
+        Py_ssize_t strides[{{max_dims}}]
+        Py_ssize_t suboffsets[{{max_dims}}]
+
+    void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+    void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+
+    ctypedef struct __pyx_buffer "Py_buffer":
+        PyObject *obj
+
+    PyObject *Py_None
 
     cdef enum:
         PyBUF_C_CONTIGUOUS,
@@ -12,21 +53,35 @@ cdef extern from "Python.h":
         PyBUF_ANY_CONTIGUOUS
         PyBUF_FORMAT
         PyBUF_WRITABLE
-
-    ctypedef struct PyObject
-    PyObject *Py_None
-    void Py_INCREF(PyObject *)
-
+        PyBUF_STRIDES
+        PyBUF_INDIRECT
+        PyBUF_RECORDS
 
 cdef extern from *:
-    object __pyx_memoryview_new(object obj, int flags, bint dtype_is_object)
-    Py_ssize_t fill_contig_strides_array "__pyx_fill_contig_strides_array" (
-                Py_ssize_t *shape, Py_ssize_t *strides, Py_ssize_t stride,
-                int ndim, char order) nogil
+    ctypedef int __pyx_atomic_int
+    {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
+                                 __Pyx_memviewslice *from_mvs,
+                                 char *mode, int ndim,
+                                 size_t sizeof_dtype, int contig_flag,
+                                 bint dtype_is_object) nogil except *
+    bint slice_is_contig "__pyx_memviewslice_is_contig" (
+                            {{memviewslice_name}} *mvs, char order, int ndim) nogil
+    bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
+                                                {{memviewslice_name}} *slice2,
+                                                int ndim, size_t itemsize) nogil
 
-    cdef void refcount_objects_in_slice "__pyx_memoryview_refcount_objects_in_slice" (
-                char *data, Py_ssize_t *shape, Py_ssize_t *strides, int ndim, bint inc)
 
+cdef extern from "stdlib.h":
+    void *malloc(size_t) nogil
+    void free(void *) nogil
+    void *memcpy(void *dest, void *src, size_t n) nogil
+
+
+
+
+#
+### cython.array class
+#
 
 @cname("__pyx_array")
 cdef class array:
@@ -154,14 +209,9 @@ cdef class array:
     property memview:
         @cname('__pyx_cython_array_get_memview')
         def __get__(self):
-            # Make this a property as 'data' may be set after instantiation
-            #if self._memview is None:
-            #    flags = PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
-            #    self._memview = __pyx_memoryview_new(self, flags)
-
-            #return self._memview
+            # Make this a property as 'self.data' may be set after instantiation
             flags =  PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
-            return  __pyx_memoryview_new(self, flags, self.dtype_is_object)
+            return  memoryview(self, flags, self.dtype_is_object)
 
 
     def __getattr__(self, attr):
@@ -189,90 +239,9 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format,
     return result
 
 
-#################### View.MemoryView ####################
-
-import cython
-
-# from cpython cimport ...
-cdef extern from "Python.h":
-    int PyIndex_Check(object)
-    object PyLong_FromVoidPtr(void *)
-
-cdef extern from "pythread.h":
-    ctypedef void *PyThread_type_lock
-
-    PyThread_type_lock PyThread_allocate_lock()
-    void PyThread_free_lock(PyThread_type_lock)
-    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
-    void PyThread_release_lock(PyThread_type_lock) nogil
-
-cdef extern from "string.h":
-    void *memset(void *b, int c, size_t len)
-
-cdef extern from *:
-    int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
-    void __Pyx_ReleaseBuffer(Py_buffer *)
-
-    ctypedef struct PyObject
-    void Py_INCREF(PyObject *)
-    void Py_DECREF(PyObject *)
-
-    cdef struct __pyx_memoryview "__pyx_memoryview_obj":
-        Py_buffer view
-        PyObject *obj
-
-    ctypedef struct {{memviewslice_name}}:
-        __pyx_memoryview *memview
-        char *data
-        Py_ssize_t shape[{{max_dims}}]
-        Py_ssize_t strides[{{max_dims}}]
-        Py_ssize_t suboffsets[{{max_dims}}]
-
-    void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
-    void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
-
-    ctypedef struct __pyx_buffer "Py_buffer":
-        PyObject *obj
-
-    PyObject *Py_None
-
-    cdef enum:
-        PyBUF_C_CONTIGUOUS,
-        PyBUF_F_CONTIGUOUS,
-        PyBUF_ANY_CONTIGUOUS
-        PyBUF_FORMAT
-        PyBUF_WRITABLE
-        PyBUF_STRIDES
-        PyBUF_INDIRECT
-        PyBUF_RECORDS
-
-cdef extern from *:
-    ctypedef int __pyx_atomic_int
-    {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
-                                 __Pyx_memviewslice *from_mvs,
-                                 char *mode, int ndim,
-                                 size_t sizeof_dtype, int contig_flag,
-                                 bint dtype_is_object) nogil except *
-    bint slice_is_contig "__pyx_memviewslice_is_contig" (
-                            {{memviewslice_name}} *mvs, char order, int ndim) nogil
-    bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
-                                                {{memviewslice_name}} *slice2,
-                                                int ndim, size_t itemsize) nogil
-
-
-
-cdef extern from "stdlib.h":
-    void *malloc(size_t) nogil
-    void free(void *) nogil
-    void *memcpy(void *dest, void *src, size_t n) nogil
-
-@cname('__pyx_MemviewEnum')
-cdef class Enum(object):
-    cdef object name
-    def __init__(self, name):
-        self.name = name
-    def __repr__(self):
-        return self.name
+#
+### Memoryview constants and cython.view.memoryview class
+#
 
 # Disable generic_contiguous, as it makes trouble verifying contiguity:
 #   - 'contiguous' or '::1' means the dimension is contiguous with dtype
@@ -289,6 +258,14 @@ cdef class Enum(object):
 #
 #   would mean you'd have assert dimension 0 to be indirect (and pointer contiguous) at runtime.
 #   So it doesn't bring any performance benefit, and it's only confusing.
+
+@cname('__pyx_MemviewEnum')
+cdef class Enum(object):
+    cdef object name
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self):
+        return self.name
 
 cdef generic = Enum("<strided and direct or indirect>")
 cdef strided = Enum("<strided and direct>") # default

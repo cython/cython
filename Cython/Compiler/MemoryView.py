@@ -853,6 +853,10 @@ def _resolve_AttributeNode(env, node):
 
     return entry
 
+#
+### Utility loading
+#
+
 def load_memview_cy_utility(util_code_name, context=None, **kwargs):
     return CythonUtilityCode.load(util_code_name, "MemoryView.pyx",
                                   context=context, **kwargs)
@@ -865,9 +869,9 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    scope = env.global_scope().context.cython_scope
-    scope.lookup('array_cwrapper').used = True
-    env.use_utility_code(cython_array_utility_code)
+    cython_scope = env.global_scope().context.cython_scope
+    cython_scope.load_cythonscope()
+    cython_scope.viewscope.lookup('array_cwrapper').used = True
 
 context = {
     'memview_struct_name': memview_objstruct_cname,
@@ -916,15 +920,4 @@ view_utility_code = load_memview_cy_utility(
                   copy_contents_new_utility],
 )
 
-cython_array_utility_code = load_memview_cy_utility(
-        "CythonArray",
-        context=context,
-        requires=[view_utility_code])
-
-copy_contents_new_utility.requires.append(cython_array_utility_code)
-
-# memview_fromslice_utility_code = load_memview_cy_utility(
-        # "MemviewFromSlice",
-        # context=context,
-        # requires=[view_utility_code],
-# )
+copy_contents_new_utility.requires.append(view_utility_code)
