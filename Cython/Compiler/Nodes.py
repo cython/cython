@@ -8647,13 +8647,12 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
 #include "frameobject.h"
 #include "traceback.h"
 
-static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
-                               int %(LINENO)s, const char *%(FILENAME)s) {
+static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
+            const char *funcname, int %(CLINENO)s,
+            int %(LINENO)s, const char *%(FILENAME)s) {
+    PyCodeObject *py_code = 0;
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
-    PyObject *py_globals = 0;
-    PyCodeObject *py_code = 0;
-    PyFrameObject *py_frame = 0;
 
     #if PY_MAJOR_VERSION < 3
     py_srcfile = PyString_FromString(%(FILENAME)s);
@@ -8676,8 +8675,6 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
         #endif
     }
     if (!py_funcname) goto bad;
-    py_globals = PyModule_GetDict(%(GLOBALS)s);
-    if (!py_globals) goto bad;
     py_code = __Pyx_PyCode_New(
         0,            /*int argcount,*/
         0,            /*int kwonlyargcount,*/
@@ -8695,7 +8692,26 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
         %(LINENO)s,   /*int firstlineno,*/
         %(EMPTY_BYTES)s  /*PyObject *lnotab*/
     );
+    Py_DECREF(py_srcfile);
+    Py_DECREF(py_funcname);
+    return py_code;
+bad:
+    Py_XDECREF(py_srcfile);
+    Py_XDECREF(py_funcname);
+    return NULL;
+}
+
+static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
+                               int %(LINENO)s, const char *%(FILENAME)s) {
+    PyCodeObject *py_code = 0;
+    PyObject *py_globals = 0;
+    PyFrameObject *py_frame = 0;
+
+    py_code = __Pyx_CreateCodeObjectForTraceback(
+        funcname, %(CLINENO)s, %(LINENO)s, %(FILENAME)s);
     if (!py_code) goto bad;
+    py_globals = PyModule_GetDict(%(GLOBALS)s);
+    if (!py_globals) goto bad;
     py_frame = PyFrame_New(
         PyThreadState_GET(), /*PyThreadState *tstate,*/
         py_code,             /*PyCodeObject *code,*/
@@ -8706,8 +8722,6 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
     py_frame->f_lineno = %(LINENO)s;
     PyTraceBack_Here(py_frame);
 bad:
-    Py_XDECREF(py_srcfile);
-    Py_XDECREF(py_funcname);
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
 }
