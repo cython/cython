@@ -89,7 +89,7 @@ def parse_command_line(args):
             elif option == "--embed":
                 Options.embed = "main"
             elif option.startswith("--embed="):
-                Options.embed = options[8:]
+                Options.embed = option[8:]
             elif option.startswith("-I"):
                 options.include_path.append(get_param(option))
             elif option == "--include-dir":
