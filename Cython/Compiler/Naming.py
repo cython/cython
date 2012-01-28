@@ -99,6 +99,10 @@ binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
 quick_temp_cname = pyrex_prefix + "temp" # temp variable for quick'n'dirty temping
 
+global_code_object_cache_find = pyrex_prefix + 'find_code_object'
+global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'
+global_code_object_cache_clear = pyrex_prefix + 'clear_code_object_cache'
+
 genexpr_id_ref = 'genexpr'
 
 line_c_macro = "__LINE__"

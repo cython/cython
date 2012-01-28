@@ -8634,6 +8634,8 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 
 #------------------------------------------------------------------------------------
 
+code_object_cache_utility_code = UtilityCode.load_cached("CodeObjectCache", "ModuleSetupCode.c")
+
 traceback_utility_code = UtilityCode(
     proto = """
 static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
@@ -8709,9 +8711,13 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
     PyObject *py_globals = 0;
     PyFrameObject *py_frame = 0;
 
-    py_code = __Pyx_CreateCodeObjectForTraceback(
-        funcname, %(CLINENO)s, %(LINENO)s, %(FILENAME)s);
-    if (!py_code) goto bad;
+    py_code = %(FINDCODEOBJECT)s(%(CLINENO)s);
+    if (!py_code) {
+        py_code = __Pyx_CreateCodeObjectForTraceback(
+            funcname, %(CLINENO)s, %(LINENO)s, %(FILENAME)s);
+        if (!py_code) goto bad;
+        %(INSERTCODEOBJECT)s(%(CLINENO)s, py_code);
+    }
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
     py_frame = PyFrame_New(
@@ -8733,9 +8739,12 @@ bad:
     'CFILENAME': Naming.cfilenm_cname,
     'CLINENO':  Naming.clineno_cname,
     'GLOBALS': Naming.module_cname,
+    'FINDCODEOBJECT' : Naming.global_code_object_cache_find,
+    'INSERTCODEOBJECT' : Naming.global_code_object_cache_insert,
     'EMPTY_TUPLE' : Naming.empty_tuple,
     'EMPTY_BYTES' : Naming.empty_bytes,
-})
+},
+requires=[code_object_cache_utility_code])
 
 #------------------------------------------------------------------------------------
 
