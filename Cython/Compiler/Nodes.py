@@ -4046,7 +4046,8 @@ class GeneratorBodyDefNode(DefNode):
                 lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
                 lenv.scope_class.type.cast_code('%s->closure' %
                                                 Naming.generator_cname)))
-        # Normal generator termination no traceback info is required
+        # on normal generator termination, we do not take the exception propagation
+        # path: no traceback info is required and not creating it is much faster
         code.putln('PyErr_SetNone(PyExc_StopIteration);')
         # ----- Error cleanup
         if code.error_label in code.labels_used:
@@ -4061,14 +4062,14 @@ class GeneratorBodyDefNode(DefNode):
         code.put_xdecref(Naming.retval_cname, py_object_type)
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         code.put_finish_refcount_context()
-        code.putln('return NULL;');
+        code.putln('return NULL;')
         code.putln("}")
 
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Generator resume code
         resume_code.putln("switch (%s->resume_label) {" % (
-                       Naming.generator_cname));
+                       Naming.generator_cname))
         resume_code.putln("case 0: goto %s;" % first_run_label)
 
         from ParseTreeTransforms import YieldNodeCollector
@@ -4076,11 +4077,11 @@ class GeneratorBodyDefNode(DefNode):
         collector.visitchildren(self)
         for yield_expr in collector.yields:
             resume_code.putln("case %d: goto %s;" % (
-                yield_expr.label_num, yield_expr.label_name));
-        resume_code.putln("default: /* CPython raises the right error here */");
+                yield_expr.label_num, yield_expr.label_name))
+        resume_code.putln("default: /* CPython raises the right error here */")
         resume_code.put_finish_refcount_context()
-        resume_code.putln("return NULL;");
-        resume_code.putln("}");
+        resume_code.putln("return NULL;")
+        resume_code.putln("}")
 
         code.exit_cfunc_scope()
 
