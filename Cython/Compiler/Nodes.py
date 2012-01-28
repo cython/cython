@@ -8711,12 +8711,12 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
     PyObject *py_globals = 0;
     PyFrameObject *py_frame = 0;
 
-    py_code = %(FINDCODEOBJECT)s(%(CLINENO)s);
+    py_code = %(FINDCODEOBJECT)s(%(CLINENO)s ? %(CLINENO)s : %(LINENO)s);
     if (!py_code) {
         py_code = __Pyx_CreateCodeObjectForTraceback(
             funcname, %(CLINENO)s, %(LINENO)s, %(FILENAME)s);
         if (!py_code) goto bad;
-        %(INSERTCODEOBJECT)s(%(CLINENO)s, py_code);
+        %(INSERTCODEOBJECT)s(%(CLINENO)s ? %(CLINENO)s : %(LINENO)s, py_code);
     }
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;

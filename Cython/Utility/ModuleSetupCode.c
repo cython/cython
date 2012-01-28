@@ -234,6 +234,7 @@ struct __Pyx_CodeObjectCache {
 
 static struct __Pyx_CodeObjectCache __pyx_code_cache = {0,0,NULL};
 
+static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line);
 static void __pyx_clear_code_object_cache(void);
 static PyCodeObject *__pyx_find_code_object(int code_line);
 static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object);
@@ -258,25 +259,25 @@ static void __pyx_clear_code_object_cache(void) {
     PyMem_Free(entries);
 }
 
-static int __pyx_bisect_code_objects(int code_line) {
-    int start, end, mid;
-    __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
-    start = 0;
-    end = __pyx_code_cache.count - 1;
+static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line) {
+    int start = 0, mid = 0, end = count - 1;
+    if (end >= 0 && code_line > entries[end].code_line) {
+        return count;
+    }
     while (start < end) {
         mid = (start + end) / 2;
         if (code_line < entries[mid].code_line) {
-            end = mid - 1;
+            end = mid;
         } else if (code_line > entries[mid].code_line) {
              start = mid + 1;
         } else {
             return mid;
         }
     }
-    if (start == end || code_line <= entries[start].code_line) {
-        return start;
+    if (code_line <= entries[mid].code_line) {
+        return mid;
     } else {
-        return end;
+        return mid + 1;
     }
 }
 
@@ -286,7 +287,7 @@ static PyCodeObject *__pyx_find_code_object(int code_line) {
     if (unlikely(!code_line) || unlikely(!__pyx_code_cache.entries)) {
         return NULL;
     }
-    pos = __pyx_bisect_code_objects(code_line);
+    pos = __pyx_bisect_code_objects(__pyx_code_cache.entries, __pyx_code_cache.count, code_line);
     if (unlikely(pos >= __pyx_code_cache.count) || unlikely(__pyx_code_cache.entries[pos].code_line != code_line)) {
         return NULL;
     }
@@ -313,7 +314,7 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
         }
         return;
     }
-    pos = __pyx_bisect_code_objects(code_line);
+    pos = __pyx_bisect_code_objects(__pyx_code_cache.entries, __pyx_code_cache.count, code_line);
     if ((pos < __pyx_code_cache.count) && unlikely(__pyx_code_cache.entries[pos].code_line == code_line)) {
         PyCodeObject* tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
