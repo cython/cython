@@ -504,12 +504,12 @@ class CompilationOptions(object):
 
     def __init__(self, defaults = None, **kw):
         self.include_path = []
-        if defaults:
-            if isinstance(defaults, CompilationOptions):
-                defaults = defaults.__dict__
+        if isinstance(defaults, CompilationOptions):
+            options = defaults.__dict__
         else:
-            defaults = default_options
-        self.__dict__.update(defaults)
+            options = default_options
+
+        self.__dict__.update(options)
         self.__dict__.update(kw)
 
     def create_context(self):
@@ -639,14 +639,14 @@ def main(command_line = 0):
     any_failures = 0
     if command_line:
         from CmdLine import parse_command_line
-        options, sources = parse_command_line(args)
+        flags, sources = parse_command_line(args)
     else:
-        options = CompilationOptions(default_options)
+        flags = {}
         sources = args
 
-    if options.show_version:
-        sys.stderr.write("Cython version %s\n" % Version.version)
-    if options.working_path!="":
+    options = CompilationOptions(default_options, **flags)
+
+    if options.working_path:
         os.chdir(options.working_path)
     try:
         result = compile(sources, options)
