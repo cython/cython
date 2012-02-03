@@ -197,6 +197,17 @@ def test_cdef_attribute():
 
     print ExtClass().mview
 
+@cython.boundscheck(False)
+def test_nogil_unbound_localerror():
+    """
+    >>> test_nogil_unbound_localerror()
+    Traceback (most recent call last):
+        ...
+    UnboundLocalError: local variable 'm' referenced before assignment
+    """
+    cdef int[:] m
+    with nogil:
+        m[0] = 10
 
 def basic_struct(MyStruct[:] mslice):
     """

@@ -2043,3 +2043,4 @@ def test_dtype_object_scalar_assignment():
 
     (<object> m)[:] = SingleObject(3)
     assert m[0] == m[4] == m[-1] == 3
+

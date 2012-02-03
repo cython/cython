@@ -1704,7 +1704,7 @@ class NameNode(AtomicExprNode):
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
 
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
-                code.put_error_if_unbound(self.pos, entry)
+                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -9669,6 +9669,24 @@ static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
     PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
 }
 """)
+
+# Don't inline the function, it should really never be called in production
+raise_unbound_memoryview_utility_code_nogil = UtilityCode(
+proto = """
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);
+""",
+impl = """
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
+    #ifdef WITH_THREAD
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    #endif
+    __Pyx_RaiseUnboundLocalError(varname);
+    #ifdef WITH_THREAD")
+    PyGILState_Release(gilstate);
+    #endif
+}
+""",
+requires = [raise_unbound_local_error_utility_code])
 
 #------------------------------------------------------------------------------------
 

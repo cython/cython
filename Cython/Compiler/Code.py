@@ -1784,12 +1784,16 @@ class CCodeWriter(object):
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
-    def put_error_if_unbound(self, pos, entry):
+    def put_error_if_unbound(self, pos, entry, in_nogil_context=False):
         import ExprNodes
         if entry.from_closure:
             func = '__Pyx_RaiseClosureNameError'
             self.globalstate.use_utility_code(
                 ExprNodes.raise_closure_name_error_utility_code)
+        elif entry.type.is_memoryviewslice and in_nogil_context:
+            func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
+            self.globalstate.use_utility_code(
+                ExprNodes.raise_unbound_memoryview_utility_code_nogil)
         else:
             func = '__Pyx_RaiseUnboundLocalError'
             self.globalstate.use_utility_code(
