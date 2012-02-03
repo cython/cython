@@ -412,7 +412,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
     code.putln("}") # Release stack
 
 def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
-                           pos, code, negative_indices):
+                           pos, code, negative_indices, in_nogil_context):
     """
     Generates code to process indices and calculate an offset into
     a buffer. Returns a C string which gives a pointer which can be
@@ -455,9 +455,16 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
             code.putln("if (%s) %s = %d;" % (
                 code.unlikely("%s >= %s%s" % (cname, cast, shape)),
                               tmp_cname, dim))
-        code.globalstate.use_utility_code(raise_indexerror_code)
+
+        if in_nogil_context:
+            code.globalstate.use_utility_code(raise_indexerror_nogil)
+            func = '__Pyx_RaiseBufferIndexErrorNogil'
+        else:
+            code.globalstate.use_utility_code(raise_indexerror_code)
+            func = '__Pyx_RaiseBufferIndexError'
+
         code.putln("if (%s) {" % code.unlikely("%s != -1" % tmp_cname))
-        code.putln('__Pyx_RaiseBufferIndexError(%s);' % tmp_cname)
+        code.putln('%s(%s);' % (func, tmp_cname))
         code.putln(code.error_goto(pos))
         code.putln('}')
         code.funcstate.release_temp(tmp_cname)
@@ -768,6 +775,7 @@ buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare",
 # Utility function to set the right exception
 # The caller should immediately goto_error
 raise_indexerror_code = load_buffer_utility("BufferIndexError")
+raise_indexerror_nogil = load_buffer_utility("BufferIndexErrorNogil")
 
 parse_typestring_repeat_code = UtilityCode(
 proto = """

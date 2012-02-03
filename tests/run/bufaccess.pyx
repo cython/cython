@@ -1114,3 +1114,16 @@ def buffer_nogil():
     with nogil:
         buf[1] = 10
     return buf[1]
+
+@testcase
+def buffer_nogil_oob():
+    """
+    >>> buffer_nogil_oob()
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    cdef object[int] buf = IntMockBuffer(None, [1,2,3])
+    with nogil:
+        buf[5] = 10
+    return buf[1]

@@ -2812,9 +2812,11 @@ class IndexNode(ExprNode):
     def nogil_check(self, env):
         if self.is_buffer_access or self.memslice_index or self.memslice_slice:
             if not self.memslice_slice and env.directives['boundscheck']:
-                error(self.pos, "Cannot check buffer index bounds without gil; use boundscheck(False) directive")
-                return
-            elif self.type.is_pyobject:
+                # error(self.pos, "Cannot check buffer index bounds without gil; "
+                #                 "use boundscheck(False) directive")
+                warning(self.pos, "Use boundscheck(False) for faster access",
+                        level=1)
+            if self.type.is_pyobject:
                 error(self.pos, "Cannot access buffer with object dtype without gil")
                 return
         super(IndexNode, self).nogil_check(env)
@@ -3084,7 +3086,8 @@ class IndexNode(ExprNode):
                index_cnames=index_temps,
                directives=code.globalstate.directives,
                pos=self.pos, code=code,
-               negative_indices=negative_indices)
+               negative_indices=negative_indices,
+               in_nogil_context=self.in_nogil_context)
 
     def put_memoryviewslice_slice_code(self, code):
         "memslice[:]"
@@ -9681,7 +9684,7 @@ static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
     PyGILState_STATE gilstate = PyGILState_Ensure();
     #endif
     __Pyx_RaiseUnboundLocalError(varname);
-    #ifdef WITH_THREAD")
+    #ifdef WITH_THREAD
     PyGILState_Release(gilstate);
     #endif
 }

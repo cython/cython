@@ -209,6 +209,18 @@ def test_nogil_unbound_localerror():
     with nogil:
         m[0] = 10
 
+def test_nogil_oob():
+    """
+    >>> test_nogil_oob()
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    cdef int[5] a
+    cdef int[:] m = a
+    with nogil:
+        m[5] = 1
+
 def basic_struct(MyStruct[:] mslice):
     """
     See also buffmt.pyx
