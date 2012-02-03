@@ -5061,6 +5061,8 @@ class TupleNode(SequenceNode):
                     self.is_temp = False
                     self.is_literal = True
                 else:
+                    if not self.mult_factor.type.is_pyobject:
+                        self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
                     self.is_temp = True
                     self.is_partly_literal = True
 

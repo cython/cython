@@ -225,6 +225,14 @@ def multiplied_nonconst_tuple_arg(x):
     return (1,2) * x
 
 @cython.test_fail_if_path_exists("//MulNode")
+def multiplied_nonconst_tuple_int_arg(int x):
+    """
+    >>> multiplied_nonconst_tuple_int_arg(5) == (1,2) * 5
+    True
+    """
+    return (1,2) * x
+
+@cython.test_fail_if_path_exists("//MulNode")
 def multiplied_nonconst_tuple(x):
     """
     >>> multiplied_nonconst_tuple(5) == (1,2) * (5+1)
