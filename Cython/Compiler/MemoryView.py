@@ -19,8 +19,10 @@ ERR_UNINITIALIZED = ("Cannot check if memoryview %s is initialized without the "
                      "GIL, consider using initializedcheck(False)")
 
 def err_if_nogil_initialized_check(pos, env, name='variable'):
-    if env.nogil and env.directives['initializedcheck']:
-        error(pos, ERR_UNINITIALIZED % name)
+    "This raises an exception at runtime now"
+    pass
+    #if env.nogil and env.directives['initializedcheck']:
+        #error(pos, ERR_UNINITIALIZED % name)
 
 def concat_flags(*flags):
     return "(%s)" % "|".join(flags)
