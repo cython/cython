@@ -1,0 +1,42 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import counting_atomic"
+PYTHON -c "import counting_locked"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Distutils import build_ext
+from Cython.Distutils.extension import Extension
+
+setup(
+    ext_modules = [
+        Extension("counting_atomic", ["counting_atomic.pyx"]),
+        Extension("counting_locked", ["counting_locked.pyx"],
+                  define_macros=[('CYTHON_ATOMICS', '0')])
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## counting_atomic.pyx ########
+include "counting.pxi"
+
+######## counting_locked.pyx ########
+include "counting.pxi"
+
+######## counting.pxi ########
+cimport cython
+from cython.parallel cimport prange
+
+cdef int[100] a
+cdef int[:] m = a
+
+
+cdef Py_ssize_t i
+for i in prange(1000000, nogil=True, num_threads=16):
+    use_slice(m[::2])
+
+cdef int use_slice(int[:] m) nogil except -1:
+    cdef int[:] m2 = m[1:]
+    m = m2[:-1]
+    del m, m2
+    return 0
