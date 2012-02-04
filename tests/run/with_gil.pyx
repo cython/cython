@@ -438,3 +438,21 @@ def test_nogil_try_finally_return():
     """
     with nogil:
         nogil_try_finally_return()
+
+cdef int error_func() except -1 with gil:
+    raise Exception("propagate this")
+
+def test_nogil_try_finally_error_label():
+    """
+    >>> test_nogil_try_finally_error_label()
+    print me first
+    propagate this
+    """
+    try:
+        with nogil:
+            try:
+                error_func()
+            finally:
+                with gil: print "print me first"
+    except Exception, e:
+        print e.args[0]

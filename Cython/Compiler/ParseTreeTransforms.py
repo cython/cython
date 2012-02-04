@@ -2281,9 +2281,6 @@ class GilCheck(VisitorTransform):
             # which is wrapped in a StatListNode. Just unpack that.
             node.finally_clause, = node.finally_clause.stats
 
-        if node.state == 'gil':
-            self.seen_with_gil_statement = True
-
         self.visitchildren(node)
         self.nogil = was_nogil
         return node
@@ -2319,24 +2316,14 @@ class GilCheck(VisitorTransform):
 
     def visit_TryFinallyStatNode(self, node):
         """
-        Take care of try/finally statements in nogil code sections. The
-        'try' must contain a 'with gil:' statement somewhere.
+        Take care of try/finally statements in nogil code sections.
         """
         if not self.nogil or isinstance(node, Nodes.GILStatNode):
             return self.visit_Node(node)
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
-
-        # First, visit the body and check for errors
-        self.seen_with_gil_statement = False
-        self.visitchildren(node.body)
-
-        if not self.seen_with_gil_statement:
-            error(node.pos, "Cannot use try/finally in nogil sections unless "
-                            "it contains a 'with gil' statement.")
-
-        self.visitchildren(node.finally_clause)
+        self.visitchildren(node)
         return node
 
     def visit_Node(self, node):
