@@ -147,9 +147,9 @@ static int __Pyx_init_memviewslice(
                 int ndim,
                 __Pyx_memviewslice *memviewslice);
 
-static int CYTHON_INLINE __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+static CYTHON_INLINE int __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
                                                             PyThread_type_lock lock);
-static int CYTHON_INLINE __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
+static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
                                                             PyThread_type_lock lock);
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
 #define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
