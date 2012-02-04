@@ -7136,9 +7136,10 @@ class CythonArrayNode(ExprNode):
 
         code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
                                                 (format_temp, type_info))
-        code.putln('%s = Py_BuildValue("(%s)", %s);' % (shapes_temp,
-                                                        "n" * len(shapes),
-                                                        ", ".join(shapes)))
+        buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
+        code.putln('%s = Py_BuildValue("(" %s ")", %s);' % (shapes_temp,
+                                                            buildvalue_fmt,
+                                                            ", ".join(shapes)))
 
         err = "!%s || !%s || !PyBytes_AsString(%s)" % (format_temp,
                                                        shapes_temp,

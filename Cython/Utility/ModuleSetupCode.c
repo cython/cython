@@ -38,6 +38,9 @@
   #define PyNumber_Index(o)    PyNumber_Int(o)
   #define PyIndex_Check(o)     PyNumber_Check(o)
   #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)
+  #define __PYX_BUILD_PY_SSIZE_T "i"
+#else
+  #define __PYX_BUILD_PY_SSIZE_T "n"
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
