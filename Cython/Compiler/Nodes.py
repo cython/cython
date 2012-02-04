@@ -7229,10 +7229,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.is_parallel:
             c = self.privatization_insertion_point
 
-            temps = code.funcstate.stop_collecting_temps()
+            self.temps = temps = code.funcstate.stop_collecting_temps()
             privates, firstprivates = [], []
             for temp, type in temps:
-                if type.is_pyobject:
+                if type.is_pyobject or type.is_memoryviewslice:
                     firstprivates.append(temp)
                 else:
                     privates.append(temp)
@@ -7249,6 +7249,16 @@ class ParallelStatNode(StatNode, ParallelNode):
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
+
+    def cleanup_slice_temps(self, code):
+        # Now clean up any memoryview slice temporaries
+        first = True
+        for temp, type in self.temps:
+            if type.is_memoryviewslice:
+                if first:
+                    first = False
+                    code.putln("/* Clean up any temporary slices */")
+                code.put_xdecref_memoryviewslice(temp, have_gil=False)
 
     def setup_parallel_control_flow_block(self, code):
         """
@@ -7310,6 +7320,8 @@ class ParallelStatNode(StatNode, ParallelNode):
             end_code.putln("Py_END_ALLOW_THREADS")
             end_code.put_release_ensured_gil()
             end_code.putln("#endif /* _OPENMP */")
+
+        self.cleanup_slice_temps(code)
 
     def trap_parallel_exit(self, code, should_flush=False):
         """

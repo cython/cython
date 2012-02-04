@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 
 cimport cython
 from cython cimport view
-from cython.parallel cimport prange
+from cython.parallel cimport prange, parallel
 
 import sys
 import re
@@ -1561,6 +1561,48 @@ def test_memslice_prange(arg):
         for j in range(src.shape[1]):
             for k in range(src.shape[2]):
                 assert src[i, j, k] == dst[i, j, k], (src[i, j, k] == dst[i, j, k])
+
+@testcase
+def test_clean_temps_prange(int[:, :] buf):
+    """
+    Try to access a buffer out of bounds in a parallel section, and make sure any
+    temps used by the slicing processes are correctly counted.
+
+    >>> A = IntMockBuffer("A", range(100), (10, 10))
+    >>> test_clean_temps_prange(A)
+    acquired A
+    released A
+    """
+    cdef int i
+    try:
+        for i in prange(buf.shape[0], nogil=True):
+            buf[1:10, 20] = 0
+    except IndexError:
+        pass
+
+@testcase
+def test_clean_temps_parallel(int[:, :] buf):
+    """
+    Try to access a buffer out of bounds in a parallel section, and make sure any
+    temps used by the slicing processes are correctly counted.
+
+    >>> A = IntMockBuffer("A", range(100), (10, 10))
+    >>> test_clean_temps_parallel(A)
+    acquired A
+    released A
+    """
+    cdef int i
+    try:
+        with nogil, parallel():
+            try:
+                with gil: pass
+                for i in prange(buf.shape[0]):
+                    buf[1:10, 20] = 0
+            finally:
+                buf[1:10, 20] = 0
+    except IndexError:
+        pass
+
 
 # Test arrays in structs
 cdef struct ArrayStruct:
