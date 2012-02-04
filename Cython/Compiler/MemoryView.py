@@ -81,7 +81,8 @@ def mangle_dtype_name(dtype):
 #    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
 def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
-                                have_gil=False):
+                                have_gil=False, first_assignment=True):
+    "We can avoid decreffing the lhs if we know it is the first assignment"
     assert rhs.type.is_memoryviewslice
 
     pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
@@ -94,14 +95,16 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
     # Allow uninitialized assignment
     #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
     put_assign_to_memviewslice(lhs_cname, rhs, rhstmp, lhs_type, code,
-                               have_gil=have_gil)
+                               have_gil=have_gil, first_assignment=first_assignment)
 
     if not pretty_rhs:
         code.funcstate.release_temp(rhstmp)
 
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
-                               have_gil=False):
-    code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
+                               have_gil=False, first_assignment=False):
+    if not first_assignment:
+        code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
+
     if rhs.is_name:
         code.put_incref_memoryviewslice(rhs_cname, have_gil=have_gil)
 

@@ -1816,7 +1816,8 @@ class NameNode(AtomicExprNode):
             lhs_pos=self.pos,
             rhs=rhs,
             code=code,
-            have_gil=not self.in_nogil_context)
+            have_gil=not self.in_nogil_context,
+            first_assignment=self.cf_is_null)
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
