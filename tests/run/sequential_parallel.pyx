@@ -681,3 +681,26 @@ def test_chunksize():
             sum += i
     print sum
 
+
+cdef class PrintOnDealloc(object):
+    def __dealloc__(self):
+        print "deallocating..."
+
+def error():
+    raise Exception("propagate me")
+
+def test_clean_temps():
+    """
+    >>> test_clean_temps()
+    deallocating...
+    propagate me
+    """
+    cdef Py_ssize_t i
+
+    try:
+        for i in prange(100, nogil=True, num_threads=1):
+            with gil:
+                x = PrintOnDealloc() + error()
+    except Exception, e:
+        print e.args[0]
+

@@ -6935,6 +6935,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     body = None
 
     is_prange = False
+    is_nested_prange = False
 
     error_label_used = False
 
@@ -7250,15 +7251,16 @@ class ParallelStatNode(StatNode, ParallelNode):
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
 
-    def cleanup_slice_temps(self, code):
-        # Now clean up any memoryview slice temporaries
-        first = True
-        for temp, type in self.temps:
-            if type.is_memoryviewslice:
-                if first:
-                    first = False
-                    code.putln("/* Clean up any temporary slices */")
-                code.put_xdecref_memoryviewslice(temp, have_gil=False)
+    def cleanup_temps(self, code):
+        # Now clean up any memoryview slice and object temporaries
+        if self.is_parallel and not self.is_nested_prange:
+            code.putln("/* Clean up any temporaries */")
+            for temp, type in self.temps:
+                if type.is_memoryviewslice:
+                    code.put_xdecref_memoryviewslice(temp, have_gil=False)
+                elif type.is_pyobject:
+                    code.put_xdecref(temp, type)
+                    code.putln("%s = NULL;" % temp)
 
     def setup_parallel_control_flow_block(self, code):
         """
@@ -7306,7 +7308,15 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.begin_of_parallel_block = code.insertion_point()
 
     def end_parallel_block(self, code):
-        "Acquire the GIL, deallocate threadstate, release"
+        """
+        To ensure all OpenMP threads have thread states, we ensure the GIL
+        in each thread (which creates a thread state if it doesn't exist),
+        after which we release the GIL.
+        On exit, reacquire the GIL and release the thread state.
+
+        If compiled without OpenMP support (at the C level), then we still have
+        to acquire the GIL to decref any object temporaries.
+        """
         if self.error_label_used:
             begin_code = self.begin_of_parallel_block
             end_code = code
@@ -7318,10 +7328,15 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             end_code.putln("#ifdef _OPENMP")
             end_code.putln("Py_END_ALLOW_THREADS")
-            end_code.put_release_ensured_gil()
+            end_code.putln("#else")
+            end_code.put_safe("{\n")
+            end_code.put_ensure_gil()
             end_code.putln("#endif /* _OPENMP */")
-
-        self.cleanup_slice_temps(code)
+            self.cleanup_temps(end_code)
+            end_code.put_release_ensured_gil()
+            end_code.putln("#ifndef _OPENMP")
+            end_code.put_safe("}\n")
+            end_code.putln("#endif /* _OPENMP */")
 
     def trap_parallel_exit(self, code, should_flush=False):
         """
@@ -7643,7 +7658,6 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
-    is_nested_prange = False
 
     nogil = None
     schedule = None
