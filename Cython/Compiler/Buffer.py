@@ -617,20 +617,21 @@ class GetAndReleaseBufferUtilityCode(object):
               #endif
             """))
         
+        code.level = 1
+        code.bol = 1
         if len(types) > 0:
             clause = "if"
             for t, get, release in types:
-                code.putln("  %s (PyObject_TypeCheck(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
+                code.putln("%s (PyObject_TypeCheck(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
                 clause = "else if"
-            code.putln("  else {")
-        code.put(dedent("""\
-            PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
-            return -1;
-            """, 2))
+            code.putln("else {")
+        code.putln("""PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);""")
+        code.putln("return -1;")
         if len(types) > 0:
-            code.putln("  }")
+            code.putln("}")
+        code.level = 0
         code.put(dedent("""\
-             }
+            }
 
             static void __Pyx_ReleaseBuffer(Py_buffer *view) {
               PyObject* obj = view->obj;
