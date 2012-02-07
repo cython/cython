@@ -163,9 +163,15 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ss
 
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     {{memviewslice_name}} result = {{memslice_init}};
+    struct __pyx_memoryview_obj *memview;
 
-    struct __pyx_memoryview_obj *memview =  \
-        (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}}, 0);
+    if (obj == Py_None) {
+        /* We don't bother to refcount None */
+        result.memview = (struct __pyx_memoryview_obj *) Py_None;
+        return result;
+    }
+
+    memview = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}}, 0);
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
     int retcode;
@@ -419,7 +425,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
     int first_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
-    if (!memview)
+    if (!memview || (PyObject *) memview == Py_None)
         return; /* allow uninitialized memoryview assignment */
 
     if (memview->acquisition_count < 0)
@@ -444,7 +450,7 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
     int last_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
-    if (!memview)
+    if (!memview || (PyObject *) memview == Py_None)
         return;
 
     if (memview->acquisition_count <= 0)

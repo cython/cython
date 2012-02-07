@@ -2886,8 +2886,7 @@ class IndexNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_buffer_access or self.memslice_index:
-            if code.globalstate.directives['nonecheck']:
-                self.put_nonecheck(code)
+            self.nonecheck(code)
             buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
             if self.type.is_pyobject:
                 # is_temp is True, so must pull out value and incref it.
@@ -2895,6 +2894,7 @@ class IndexNode(ExprNode):
                 code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
 
         elif self.memslice_slice:
+            self.nonecheck(code)
             self.put_memoryviewslice_slice_code(code)
 
         elif self.is_temp:
@@ -2969,9 +2969,7 @@ class IndexNode(ExprNode):
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
-        if code.globalstate.directives['nonecheck'] and not self.memslice_index:
-            self.put_nonecheck(code)
-
+        self.nonecheck(code)
         buffer_entry, ptrexpr = self.buffer_lookup_code(code)
 
         if self.buffer_type.dtype.is_pyobject:
@@ -3133,10 +3131,23 @@ class IndexNode(ExprNode):
         import MemoryView
         MemoryView.assign_scalar(self, rhs, code)
 
+    def nonecheck(self, code):
+        if code.globalstate.directives['nonecheck']:
+            self.put_nonecheck(code)
+
     def put_nonecheck(self, code):
-        code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
-        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.base.result_as(PyrexTypes.py_object_type))
-        code.putln("__Pyx_RaiseNoneIndexingError();")
+        if self.base.type.is_memoryviewslice:
+            code.globalstate.use_utility_code(
+                raise_noneindex_memview_error_utility_code)
+            code.putln("if (unlikely((PyObject *) %s.memview == Py_None)) {" %
+                                                         self.base.result())
+            code.putln("__Pyx_RaiseNoneMemviewIndexingError();")
+        else:
+            code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
+            code.putln("if (%s) {" % code.unlikely("%s == Py_None") %
+                            self.base.result_as(PyrexTypes.py_object_type))
+            code.putln("__Pyx_RaiseNoneIndexingError();")
+
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
@@ -4515,6 +4526,9 @@ class AttributeNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         elif self.type.is_memoryviewslice:
+            if code.globalstate.directives['nonecheck']:
+                self.put_nonecheck(code)
+
             if self.is_memslice_transpose:
                 # transpose the slice
                 for access, packing in self.type.axes:
@@ -4537,6 +4551,9 @@ class AttributeNode(ExprNode):
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
+        elif (self.obj.type.is_memoryviewslice and
+                code.globalstate.directives['nonecheck']):
+            self.put_nonecheck(code)
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
@@ -4614,7 +4631,7 @@ class AttributeNode(ExprNode):
         if self.obj.type.is_extension_type:
             test = "%s == Py_None" % self.obj.result_as(PyrexTypes.py_object_type)
         elif self.obj.type.is_memoryviewslice:
-            test = "!%s.memview" % self.obj.result()
+            test = "(PyObject *) %s.memview == Py_None" % self.obj.result()
         else:
             assert False
         code.putln("if (%s) {" % code.unlikely(test))
@@ -9644,6 +9661,16 @@ static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
 impl = '''
 static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
+}
+''')
+
+raise_noneindex_memview_error_utility_code = UtilityCode(
+    proto = """
+static CYTHON_INLINE void __Pyx_RaiseNoneMemviewIndexingError(void);
+""",
+    impl = '''
+static CYTHON_INLINE void __Pyx_RaiseNoneMemviewIndexingError(void) {
+    PyErr_SetString(PyExc_TypeError, "Cannot index None memoryview slice");
 }
 ''')
 

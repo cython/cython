@@ -921,6 +921,9 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
     cdef _memoryviewslice result
     cdef int i
 
+    if <PyObject *> memviewslice.memview == Py_None:
+        return None
+
     # assert 0 < ndim <= memviewslice.memview.view.ndim, (
     #                 ndim, memviewslice.memview.view.ndim)
 

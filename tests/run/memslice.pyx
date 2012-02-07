@@ -52,9 +52,8 @@ def acquire_release(o1, o2):
     released A
     released B
     >>> acquire_release(None, B)
-    Traceback (most recent call last):
-       ...
-    TypeError: 'NoneType' does not have the buffer interface
+    acquired B
+    released B
     """
     cdef int[:] buf
     buf = o1
@@ -148,7 +147,7 @@ def acquire_nonbuffer1(first, second=None):
     >>> acquire_nonbuffer1(None, 2)
     Traceback (most recent call last):
       ...
-    TypeError: 'NoneType' does not have the buffer interface
+    TypeError: 'int' does not have the buffer interface
     >>> acquire_nonbuffer1(4, object())
     Traceback (most recent call last):
       ...
@@ -2086,3 +2085,95 @@ def test_dtype_object_scalar_assignment():
     (<object> m)[:] = SingleObject(3)
     assert m[0] == m[4] == m[-1] == 3
 
+#
+### Test slices that are set to None
+#
+@testcase
+def test_coerce_to_from_None(double[:] m1, double[:] m2 = None):
+    """
+    >>> test_coerce_to_from_None(None)
+    (None, None)
+    >>> test_coerce_to_from_None(None, None)
+    (None, None)
+    """
+    return m1, m2
+
+@testcase
+def test_noneslice_attrib(double[:] m):
+    """
+    >>> test_noneslice_attrib(None)
+    'NoneType' object has no attribute 'copy'
+    'NoneType' object has no attribute 'T'
+    """
+    cdef double[:] m2
+
+    with cython.nonecheck(True):
+        try:
+            m2 = m.copy()
+        except Exception, e:
+            print e.args[0]
+
+        try:
+            m2 = m.T
+        except Exception, e:
+            print e.args[0]
+
+@testcase
+def test_noneslice_index(double[:] m):
+    """
+    >>> test_noneslice_index(None)
+    Cannot index None memoryview slice
+    Cannot index None memoryview slice
+    Cannot index None memoryview slice
+    Cannot index None memoryview slice
+    """
+    with cython.nonecheck(True):
+        try:
+            m[10]
+        except Exception, e:
+            print e.args[0]
+
+        try:
+            m[:]
+        except Exception, e:
+            print e.args[0]
+
+        try:
+            m[10] = 2
+        except Exception, e:
+            print e.args[0]
+
+        try:
+            m[:] = 2
+        except Exception, e:
+            print e.args[0]
+
+@testcase
+def test_noneslice_compare(double[:] m):
+    """
+    >>> test_noneslice_compare(None)
+    (True, True)
+    """
+    with cython.nonecheck(True):
+        result = m is None
+
+    return result, m is None
+
+cdef class NoneSliceAttr(object):
+    cdef double[:] m
+
+@testcase
+def test_noneslice_ext_attr():
+    """
+    >>> test_noneslice_ext_attr()
+    AttributeError Memoryview is not initialized
+    None
+    """
+    cdef NoneSliceAttr obj = NoneSliceAttr()
+
+    with cython.nonecheck(True):
+        try: print obj.m
+        except Exception, e: print type(e).__name__, e.args[0]
+
+        obj.m = None
+        print obj.m

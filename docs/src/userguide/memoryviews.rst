@@ -218,11 +218,15 @@ e.g. do::
 
 Of course, you are not restricted to using NumPy's type (such as ``np.int32_t`` here), you can use any usable type.
 
-The future
-==========
-In the future some functionality may be added for convenience, like
+None Slices
+===========
+Although memoryview slices are not objects they can be set to None and they can be be
+checked for being None as well::
 
-1. A numpy-like `.flat` attribute (that allows efficient iteration)
-2. Indexing with newaxis or None to introduce a new axis
+    def func(double[:] myarray = None):
+        print myarray is None
+
+Unlike object attributes of extension classes, memoryview slices are not initialized
+to None.
 
 .. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
