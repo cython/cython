@@ -484,8 +484,8 @@ def use_bufstruct_declare_code(env):
 
 def get_empty_bufstruct_code(max_ndim):
     code = dedent("""
-        Py_ssize_t __Pyx_zeros[] = {%s};
-        Py_ssize_t __Pyx_minusones[] = {%s};
+        static Py_ssize_t __Pyx_zeros[] = {%s};
+        static Py_ssize_t __Pyx_minusones[] = {%s};
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
     return UtilityCode(proto=code)
 
