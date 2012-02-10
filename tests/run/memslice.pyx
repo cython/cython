@@ -8,6 +8,7 @@ cimport cython
 from cython cimport view
 from cython.parallel cimport prange, parallel
 
+import gc
 import sys
 import re
 
@@ -25,7 +26,14 @@ def testcase(func):
     if not isinstance(doctest, _u):
         doctest = doctest.decode('UTF-8')
     __test__[func.__name__] = doctest
-    return func
+
+    def wrapper(*args, **kwargs):
+        gc.collect()
+        result = func(*args, **kwargs)
+        gc.collect()
+        return result
+
+    return wrapper
 
 
 include "mockbuffers.pxi"
