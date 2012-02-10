@@ -3833,7 +3833,6 @@ class DefNodeWrapper(FuncDefNode):
         for i, arg in enumerate(all_args):
             if arg.default and not arg.type.is_pyobject:
                 code.putln("if (values[%d]) {" % i)
-            self.generate_arg_assignment(arg, "values[%d]" % i, code, incref_closure=False)
             if arg.default and not arg.type.is_pyobject:
                 code.putln('} else {')
                 code.putln(
