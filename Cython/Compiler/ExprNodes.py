@@ -9144,6 +9144,42 @@ class CoerceToTempNode(CoercionNode):
                 code.put_incref_memoryviewslice(self.result(),
                                                 not self.in_nogil_context)
 
+class ProxyNode(CoercionNode):
+    """
+    A node that should not be replaced by transforms or other means,
+    and hence can be useful to wrap the argument to a clone node
+
+    MyNode    -> ProxyNode -> ArgNode
+    CloneNode -^
+    """
+
+    def __init__(self, arg):
+        super(ProxyNode, self).__init__(arg)
+        self.type = arg.type
+
+    def generate_result_code(self, code):
+        self.arg.generate_result_code(code)
+
+    def result(self):
+        return self.arg.result()
+
+    def is_simple(self):
+        return self.arg.is_simple()
+
+    def may_be_none(self):
+        return self.arg.may_be_none()
+
+    def generate_evaluation_code(self, code):
+        self.arg.generate_evaluation_code(code)
+
+    def generate_result_code(self, code):
+        self.arg.generate_result_code(code)
+
+    def generate_disposal_code(self, code):
+        self.arg.generate_disposal_code(code)
+
+    def free_temps(self, code):
+        self.arg.free_temps(code)
 
 class CloneNode(CoercionNode):
     #  This node is employed when the result of another node needs

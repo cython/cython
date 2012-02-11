@@ -4813,13 +4813,16 @@ class CascadedAssignmentNode(AssignmentNode):
             lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp = 0):
+        from ExprNodes import CloneNode, ProxyNode
+
         self.rhs.analyse_types(env)
         if not self.rhs.is_simple():
             if use_temp:
                 self.rhs = self.rhs.coerce_to_temp(env)
             else:
                 self.rhs = self.rhs.coerce_to_simple(env)
-        from ExprNodes import CloneNode
+
+        self.rhs = ProxyNode(self.rhs)
         self.coerced_rhs_list = []
         for lhs in self.lhs_list:
             lhs.analyse_target_types(env)
