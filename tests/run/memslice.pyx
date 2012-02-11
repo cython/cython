@@ -2185,3 +2185,20 @@ def test_noneslice_ext_attr():
 
         obj.m = None
         print obj.m
+
+@testcase
+def test_noneslice_del():
+    """
+    >>> test_noneslice_del()
+    Traceback (most recent call last):
+       ...
+    UnboundLocalError: local variable 'm' referenced before assignment
+    """
+    cdef int[10] a
+    cdef int[:] m = a
+
+    with cython.nonecheck(True):
+        m = None
+        del m
+        print m
+

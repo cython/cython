@@ -450,8 +450,12 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
     int last_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
-    if (!memview || (PyObject *) memview == Py_None)
+    if (!memview ) {
         return;
+    } else if ((PyObject *) memview == Py_None) {
+        memslice->memview = NULL;
+        return;
+    }
 
     if (memview->acquisition_count <= 0)
         __pyx_fatalerror("Acquisition count is %d (line %d)",
