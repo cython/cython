@@ -15,6 +15,8 @@
 
 #define __Pyx_CyFunction_Defaults(type, f) \
     ((type *)(((__pyx_CyFunctionObject *) (f))->defaults))
+#define __Pyx_CyFunction_SetDefaultsGetter(f, g) \
+    ((__pyx_CyFunctionObject *) (f))->defaults_getter = (g)
 
 
 typedef struct {
@@ -34,6 +36,7 @@ typedef struct {
 
     /* Defaults info */
     PyObject *defaults_tuple; /* Const defaults tuple */
+    PyObject *(*defaults_getter)(PyObject *);
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -210,6 +213,17 @@ __Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op)
         return op->defaults_tuple;
     }
 
+    if (op->defaults_getter) {
+        PyObject *res = op->defaults_getter((PyObject *) op);
+
+        /* Cache result */
+        if (res) {
+            Py_INCREF(res);
+            op->defaults_tuple = res;
+        }
+        return res;
+    }
+
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -281,6 +295,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->defaults_pyobjects = 0;
     op->defaults = NULL;
     op->defaults_tuple = NULL;
+    op->defaults_getter = NULL;
     PyObject_GC_Track(op);
     return (PyObject *) op;
 }

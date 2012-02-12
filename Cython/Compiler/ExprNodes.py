@@ -6162,6 +6162,22 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.defaults_tuple = TupleNode(self.pos, args=[
                     arg.default for arg in default_args])
                 self.defaults_tuple.analyse_types(env)
+            else:
+                defaults_getter = Nodes.DefNode(
+                    self.pos, args=[], star_arg=None, starstar_arg=None,
+                    body=Nodes.ReturnStatNode(
+                        self.pos, return_type=py_object_type,
+                        value=DefaultsTupleNode(
+                            self.pos, default_args,
+                            self.defaults_struct)),
+                    decorators=None, name="__defaults__")
+                defaults_getter.analyse_declarations(env)
+                defaults_getter.analyse_expressions(env)
+                defaults_getter.body.analyse_expressions(
+                    defaults_getter.local_scope)
+                defaults_getter.py_wrapper_required = False
+                defaults_getter.pymethdef_required = False
+                self.def_node.defaults_getter = defaults_getter
 
     def may_be_none(self):
         return False
@@ -6258,6 +6274,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.defaults_tuple:
             code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
                 self.result(), self.defaults_tuple.py_result()))
+        if def_node.defaults_getter:
+            code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
+                self.result(), def_node.defaults_getter.entry.pyfunc_cname))
 
         if self.specialized_cpdefs:
             self.generate_fused_cpdef(code, code_object_result, flags)
@@ -6387,6 +6406,43 @@ class CodeObjectNode(ExprNode):
             Naming.empty_bytes,        # lnotab
             code.error_goto_if_null(self.result_code, self.pos),
             ))
+
+
+class DefaultArgNode(ExprNode):
+    # CyFunction's non-literal argument default value
+
+    subexprs = []
+
+    def __init__(self, pos, arg, defaults_struct):
+        super(DefaultArgNode, self).__init__(pos)
+        self.arg = arg
+        self.defaults_struct = defaults_struct
+
+    def analyse_types(self, env):
+        self.type = self.arg.type
+        self.is_temp = False
+
+    def generate_result_code(self, code):
+        pass
+
+    def result(self):
+        return '__Pyx_CyFunction_Defaults(%s, %s)->%s' % (
+            self.defaults_struct.name, Naming.self_cname,
+            self.defaults_struct.lookup(self.arg.name).cname)
+
+
+class DefaultsTupleNode(TupleNode):
+    # CyFunction's __defaults__ tuple
+
+    def __init__(self, pos, defaults, defaults_struct):
+        args = []
+        for arg in defaults:
+            if not arg.default.is_literal:
+                arg = DefaultArgNode(pos, arg, defaults_struct)
+            else:
+                arg = arg.default
+            args.append(arg)
+        super(DefaultsTupleNode, self).__init__(pos, args=args)
 
 
 class LambdaNode(InnerFunctionNode):

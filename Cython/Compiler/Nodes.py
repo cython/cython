@@ -2704,6 +2704,8 @@ class DefNode(FuncDefNode):
     py_wrapper_required = True
     func_cname = None
 
+    defaults_getter = None
+
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
         k = rk = r = 0
@@ -3068,6 +3070,9 @@ class DefNode(FuncDefNode):
         return 1
 
     def generate_function_definitions(self, env, code):
+        if self.defaults_getter:
+            self.defaults_getter.generate_function_definitions(env, code)
+
         # Before closure cnames are mangled
         if self.py_wrapper_required:
             # func_cname might be modified by @cname
