@@ -3083,7 +3083,7 @@ class DefNode(FuncDefNode):
             return
         arg_code_list = []
         if self.entry.signature.has_dummy_arg:
-            if self.needs_outer_scope or self.defaults_struct:
+            if self.needs_outer_scope:
                 self_arg = 'PyObject *%s' % Naming.self_cname
             else:
                 self_arg = 'CYTHON_UNUSED PyObject *%s' % Naming.self_cname
