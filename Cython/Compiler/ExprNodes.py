@@ -6087,7 +6087,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  module_name       EncodedString      Name of defining module
     #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = ['code_object']
+    subexprs = ['code_object', 'defaults_tuple']
 
     self_object = None
     code_object = None
@@ -6096,6 +6096,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     defaults = None
     defaults_struct = None
     defaults_pyobjects = 0
+    defaults_tuple = None
 
     type = py_object_type
     is_temp = 1
@@ -6122,13 +6123,16 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         """
         nonliteral_objects = []
         nonliteral_other = []
+        default_args = []
         for arg in self.def_node.args:
-            if arg.default and not arg.default.is_literal:
-                arg.is_dynamic = True
-                if arg.type.is_pyobject:
-                    nonliteral_objects.append(arg)
-                else:
-                    nonliteral_other.append(arg)
+            if arg.default:
+                if not arg.default.is_literal:
+                    arg.is_dynamic = True
+                    if arg.type.is_pyobject:
+                        nonliteral_objects.append(arg)
+                    else:
+                        nonliteral_other.append(arg)
+                default_args.append(arg)
         if nonliteral_objects or nonliteral_objects:
             module_scope = env.global_scope()
             cname = module_scope.next_id(Naming.defaults_struct_prefix)
@@ -6152,6 +6156,12 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 arg.default_value = '%s->%s' % (
                     Naming.dynamic_args_cname, entry.cname)
             self.def_node.defaults_struct = self.defaults_struct.name
+
+        if default_args:
+            if self.defaults_struct is None:
+                self.defaults_tuple = TupleNode(self.pos, args=[
+                    arg.default for arg in default_args])
+                self.defaults_tuple.analyse_types(env)
 
     def may_be_none(self):
         return False
@@ -6244,6 +6254,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             for arg, entry in self.defaults:
                 arg.generate_assignment_code(code, target='%s->%s' % (
                     defaults, entry.cname))
+
+        if self.defaults_tuple:
+            code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
+                self.result(), self.defaults_tuple.py_result()))
 
         if self.specialized_cpdefs:
             self.generate_fused_cpdef(code, code_object_result, flags)

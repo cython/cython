@@ -31,6 +31,9 @@ typedef struct {
     /* Dynamic default args*/
     void *defaults;
     int defaults_pyobjects;
+
+    /* Defaults info */
+    PyObject *defaults_tuple; /* Const defaults tuple */
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -46,6 +49,8 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *,
 static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *m,
                                                          size_t size,
                                                          int pyobjects);
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *m,
+                                                            PyObject *tuple);
 
 
 static int __Pyx_CyFunction_init(void);
@@ -197,6 +202,18 @@ __Pyx_CyFunction_get_code(__pyx_CyFunctionObject *op)
     return result;
 }
 
+static PyObject *
+__Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op)
+{
+    if (op->defaults_tuple) {
+        Py_INCREF(op->defaults_tuple);
+        return op->defaults_tuple;
+    }
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "func_doc", (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
     {(char *) "__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
@@ -211,6 +228,8 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__closure__", (getter)__Pyx_CyFunction_get_closure, 0, 0, 0},
     {(char *) "func_code", (getter)__Pyx_CyFunction_get_code, 0, 0, 0},
     {(char *) "__code__", (getter)__Pyx_CyFunction_get_code, 0, 0, 0},
+    {(char *) "func_defaults", (getter)__Pyx_CyFunction_get_defaults, 0, 0, 0},
+    {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, 0, 0, 0},
     {0, 0, 0, 0, 0}
 };
 
@@ -261,6 +280,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     /* Dynamic Default args */
     op->defaults_pyobjects = 0;
     op->defaults = NULL;
+    op->defaults_tuple = NULL;
     PyObject_GC_Track(op);
     return (PyObject *) op;
 }
@@ -275,6 +295,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_doc);
     Py_CLEAR(m->func_code);
     Py_CLEAR(m->func_classobj);
+    Py_CLEAR(m->defaults_tuple);
 
     if (m->defaults) {
         PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
@@ -308,6 +329,7 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_doc);
     Py_VISIT(m->func_code);
     Py_VISIT(m->func_classobj);
+    Py_VISIT(m->defaults_tuple);
 
     if (m->defaults) {
         PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
@@ -430,6 +452,13 @@ void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t size, int pyobjects)
     memset(m->defaults, 0, sizeof(size));
     m->defaults_pyobjects = pyobjects;
     return m->defaults;
+}
+
+static void __Pyx_CyFunction_SetDefaultsTuple(PyObject *func, PyObject *tuple)
+{
+    __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
+    m->defaults_tuple = tuple;
+    Py_INCREF(tuple);
 }
 //////////////////// CyFunctionClassCell.proto ////////////////////
 static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
