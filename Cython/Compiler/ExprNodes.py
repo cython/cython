@@ -9157,7 +9157,11 @@ class ProxyNode(CoercionNode):
 
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
-        self.type = arg.type
+        if hasattr(arg, 'type'):
+            self.type = arg.type
+            self.result_ctype = arg.result_ctype
+        if hasattr(arg, 'entry'):
+            self.entry = arg.entry
 
     def generate_result_code(self, code):
         self.arg.generate_result_code(code)
