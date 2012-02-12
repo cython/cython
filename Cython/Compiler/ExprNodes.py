@@ -9153,6 +9153,8 @@ class ProxyNode(CoercionNode):
     CloneNode -^
     """
 
+    nogil_check = None
+
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
         self.type = arg.type
