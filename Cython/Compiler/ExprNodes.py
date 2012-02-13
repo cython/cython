@@ -6132,6 +6132,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                         nonliteral_objects.append(arg)
                     else:
                         nonliteral_other.append(arg)
+                else:
+                    arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
                 default_args.append(arg)
         if nonliteral_objects or nonliteral_objects:
             module_scope = env.global_scope()
@@ -6408,13 +6410,43 @@ class CodeObjectNode(ExprNode):
             ))
 
 
-class DefaultArgNode(ExprNode):
+class DefaultLiteralArgNode(ExprNode):
+    # CyFunction's literal argument default value
+    #
+    # Evaluate literal only once.
+
+    subexprs = []
+    is_literal = True
+    is_temp = False
+
+    def __init__(self, pos, arg):
+        super(DefaultLiteralArgNode, self).__init__(pos)
+        self.arg = arg
+        self.type = self.arg.type
+        self.evaluated = False
+
+    def analyse_types(self, env):
+        pass
+
+    def generate_result_code(self, code):
+        pass
+
+    def generate_evaluation_code(self, code):
+        if not self.evaluated:
+            self.arg.generate_evaluation_code(code)
+            self.evaluated = True
+
+    def result(self):
+        return self.type.cast_code(self.arg.result())
+
+
+class DefaultNonLiteralArgNode(ExprNode):
     # CyFunction's non-literal argument default value
 
     subexprs = []
 
     def __init__(self, pos, arg, defaults_struct):
-        super(DefaultArgNode, self).__init__(pos)
+        super(DefaultNonLiteralArgNode, self).__init__(pos)
         self.arg = arg
         self.defaults_struct = defaults_struct
 
@@ -6438,7 +6470,7 @@ class DefaultsTupleNode(TupleNode):
         args = []
         for arg in defaults:
             if not arg.default.is_literal:
-                arg = DefaultArgNode(pos, arg, defaults_struct)
+                arg = DefaultNonLiteralArgNode(pos, arg, defaults_struct)
             else:
                 arg = arg.default
             args.append(arg)
