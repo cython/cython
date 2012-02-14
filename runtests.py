@@ -598,7 +598,12 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.finalize_options()
             if COMPILER:
                 build_extension.compiler = COMPILER
+
             ext_compile_flags = CFLAGS[:]
+            compiler = COMPILER or sysconfig.get_config_var('CC')
+
+            if self.language == 'c' and compiler == 'gcc':
+                ext_compile_flags.extend(['-std=c89', '-pedantic'])
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
