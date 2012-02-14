@@ -7037,7 +7037,8 @@ class ParallelStatNode(StatNode, ParallelNode):
                 error(self.pos,
                       "argument to num_threads must be greater than 0")
 
-            self.num_threads = self.num_threads.coerce_to(
+            if not self.num_threads.is_simple():
+                self.num_threads = self.num_threads.coerce_to(
                                 PyrexTypes.c_int_type, env).coerce_to_temp(env)
 
     def analyse_sharing_attributes(self, env):
@@ -7180,7 +7181,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                                              entry.type.cast_code(invalid_value)))
 
     def evaluate_before_block(self, code, expr):
-        c = self.begin_of_parallel_control_block_point
+        c = self.begin_of_parallel_control_block_point_after_decls
         # we need to set the owner to ourselves temporarily, as
         # allocate_temp may generate a comment in the middle of our pragma
         # otherwise when DebugFlags.debug_temp_code_comments is in effect
@@ -7297,6 +7298,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
         code.begin_block() # parallel control flow block
         self.begin_of_parallel_control_block_point = code.insertion_point()
+        self.begin_of_parallel_control_block_point_after_decls = code.insertion_point()
 
     def begin_parallel_block(self, code):
         """
@@ -7537,11 +7539,11 @@ class ParallelStatNode(StatNode, ParallelNode):
 
         # Firstly, always prefer errors over returning, continue or break
         if self.error_label_used:
-            c.putln("const char *%s; int %s, %s;" % self.parallel_pos_info)
-            c.putln("%s = NULL; %s = %s = 0;" % self.parallel_pos_info)
+            c.putln("const char *%s = NULL; int %s = 0, %s = 0;" %
+                                                self.parallel_pos_info)
 
             c.putln("PyObject *%s = NULL, *%s = NULL, *%s = NULL;" %
-                                                self.parallel_exc)
+                                                        self.parallel_exc)
 
             code.putln(
                 "if (%s) {" % Naming.parallel_exc_type)
