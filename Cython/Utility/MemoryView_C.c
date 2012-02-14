@@ -164,6 +164,9 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ss
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     {{memviewslice_name}} result = {{memslice_init}};
     struct __pyx_memoryview_obj *memview;
+    __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
+    int axes_specs[] = { {{axes_specs}} };
+    int retcode;
 
     if (obj == Py_None) {
         /* We don't bother to refcount None */
@@ -172,10 +175,6 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     }
 
     memview = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}}, 0);
-    __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
-    int axes_specs[] = { {{axes_specs}} };
-    int retcode;
-
     if (unlikely(!memview))
         goto __pyx_fail;
 
