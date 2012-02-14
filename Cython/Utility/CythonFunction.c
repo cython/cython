@@ -751,6 +751,7 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
      offsetof(__pyx_FusedFunctionObject, __signatures__),
      READONLY,
      __Pyx_DOCSTR(0)},
+    {0},
 };
 
 static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
