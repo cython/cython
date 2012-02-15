@@ -59,3 +59,29 @@ def test_defaults_nonliteral():
             return c, d
         ret.append(foo)
     return ret
+
+_counter = 0
+def counter():
+    global _counter
+    _counter += 1
+    return _counter
+
+def test_defaults_nonliteral_func_call(f):
+    """
+    >>> f = test_defaults_nonliteral_func_call(counter)
+    >>> f()
+    1
+    >>> get_defaults(f)
+    (1,)
+    >>> f = test_defaults_nonliteral_func_call(lambda: list())
+    >>> f()
+    []
+    >>> get_defaults(f)
+    ([],)
+    >>> get_defaults(f)[0] is f()
+    True
+    """
+    def func(a=f()):
+        return a
+    return func
+
