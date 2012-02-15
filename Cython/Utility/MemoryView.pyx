@@ -25,6 +25,7 @@ cdef extern from *:
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
     ctypedef struct PyObject
+    ctypedef Py_ssize_t Py_intptr_t
     void Py_INCREF(PyObject *)
     void Py_DECREF(PyObject *)
 
@@ -277,6 +278,21 @@ cdef indirect_contiguous = Enum("<contiguous and indirect>")
 
 # 'follow' is implied when the first or last axis is ::1
 
+
+@cname('__pyx_align_pointer')
+cdef void *align_pointer(void *memory, size_t alignment) nogil:
+    "Align pointer memory on a given boundary"
+    cdef Py_intptr_t aligned_p = <Py_intptr_t> memory
+    cdef size_t offset
+
+    with cython.cdivision(True):
+        offset = aligned_p % alignment
+
+    if offset > 0:
+        aligned_p += alignment - offset
+
+    return <void *> aligned_p
+
 @cname('__pyx_memoryview')
 cdef class memoryview(object):
 
@@ -284,7 +300,10 @@ cdef class memoryview(object):
     cdef object _size
     cdef object _array_interface
     cdef PyThread_type_lock lock
-    cdef __pyx_atomic_int acquisition_count
+    # the following array will contain a single __pyx_atomic int with
+    # suitable alignment
+    cdef __pyx_atomic_int acquisition_count[2]
+    cdef __pyx_atomic_int *acquisition_count_aligned_p
     cdef Py_buffer view
     cdef int flags
     cdef bint dtype_is_object
@@ -306,6 +325,10 @@ cdef class memoryview(object):
             self.dtype_is_object = self.view.format == b'O'
         else:
             self.dtype_is_object = dtype_is_object
+
+        self.acquisition_count_aligned_p = <__pyx_atomic_int *> align_pointer(
+                  <void *> &self.acquisition_count[0], sizeof(__pyx_atomic_int))
+
 
     def __dealloc__(memoryview self):
         if self.obj is not None:
