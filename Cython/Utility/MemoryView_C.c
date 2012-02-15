@@ -81,26 +81,8 @@ typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
 ////////// Atomics //////////
 #if CYTHON_ATOMICS
 
-#define __pyx_check_unaligned(type, pointer) \
-                (((type) pointer) & (sizeof(pointer) - 1))
-
-static CYTHON_INLINE int
-__pyx_atomic_unaligned(__pyx_atomic_int *p)
-{
-    /* uintptr_t is optional in C99, try other stuff */
-
-    if (sizeof(unsigned long) >= sizeof(p))
-        return __pyx_check_unaligned(unsigned long, p);
-    else if (sizeof(size_t) >= sizeof(p))
-        return __pyx_check_unaligned(size_t, p);
-
-#if __STDC_VERSION__ >= 199901L
-    if (sizeof(unsigned long long) >= sizeof(p))
-        return __pyx_check_unaligned(unsigned long long, p);
-#endif
-
-    return 1;
-}
+#define __pyx_atomic_unaligned(pointer) \
+                (((Py_intptr_t) pointer) & (sizeof(pointer) - 1))
 
 static CYTHON_INLINE __pyx_atomic_int_type
 __pyx_atomic_incr_maybealigned(__pyx_atomic_int *value, PyThread_type_lock lock)
