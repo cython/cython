@@ -710,6 +710,63 @@ static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   __Pyx_ReleaseBuffer(info);
 }
 
+/////////////// TypeInfoCompare.proto ///////////////
+static int __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b);
+
+/////////////// TypeInfoCompare ///////////////
+/* See if two dtypes are equal */
+static int
+__pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
+{
+    int i;
+
+    if (!a || !b)
+        return 0;
+
+    if (a == b)
+        return 1;
+
+    if (a->size != b->size || a->typegroup != b->typegroup ||
+            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim)
+        return 0;
+
+    if (a->ndim) {
+        /* Verify multidimensional C arrays */
+        for (i = 0; i < a->ndim; i++)
+            if (a->arraysize[i] != b->arraysize[i])
+                return 0;
+    }
+
+    if (a->typegroup == 'S') {
+        /* Check for packed struct */
+        if (a->flags != b->flags)
+            return 0;
+
+        /* compare all struct fields */
+        if (a->fields || b->fields) {
+            /* Check if both have fields */
+            if (!(a->fields && b->fields))
+                return 0;
+
+            /* compare */
+            for (i = 0; a->fields[i].type && b->fields[i].type; i++) {
+                __Pyx_StructField *field_a = a->fields + i;
+                __Pyx_StructField *field_b = b->fields + i;
+
+                if (field_a->offset != field_b->offset ||
+                    !__pyx_typeinfo_cmp(field_a->type, field_b->type))
+                    return 0;
+            }
+
+            /* If all fields are processed, we have a match */
+            return !a->fields[i].type && !b->fields[i].type;
+        }
+    }
+
+    return 1;
+}
+
+
 
 /////////////// TypeInfoToFormat.proto ///////////////
 struct __pyx_typeinfo_string {

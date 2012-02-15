@@ -32,6 +32,7 @@ cdef extern from *:
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
         PyObject *obj
+        __Pyx_TypeInfo *typeinfo
 
     ctypedef struct {{memviewslice_name}}:
         __pyx_memoryview *memview
@@ -57,6 +58,10 @@ cdef extern from *:
         PyBUF_STRIDES
         PyBUF_INDIRECT
         PyBUF_RECORDS
+
+    ctypedef struct __Pyx_TypeInfo:
+        pass
+
 
 cdef extern from *:
     ctypedef int __pyx_atomic_int
@@ -307,6 +312,7 @@ cdef class memoryview(object):
     cdef Py_buffer view
     cdef int flags
     cdef bint dtype_is_object
+    cdef __Pyx_TypeInfo *typeinfo
 
     def __cinit__(memoryview self, object obj, int flags, bint dtype_is_object=False):
         self.obj = obj
@@ -328,7 +334,7 @@ cdef class memoryview(object):
 
         self.acquisition_count_aligned_p = <__pyx_atomic_int *> align_pointer(
                   <void *> &self.acquisition_count[0], sizeof(__pyx_atomic_int))
-
+        self.typeinfo = NULL
 
     def __dealloc__(memoryview self):
         if self.obj is not None:
@@ -601,8 +607,14 @@ cdef class memoryview(object):
 
 
 @cname('__pyx_memoryview_new')
-cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object):
-    return memoryview(o, flags, dtype_is_object)
+cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, __Pyx_TypeInfo *typeinfo):
+    cdef memoryview result = memoryview(o, flags, dtype_is_object)
+    result.typeinfo = typeinfo
+    return result
+
+@cname('__pyx_memoryview_check')
+cdef bint memoryview_check(object o):
+    return isinstance(o, memoryview)
 
 cdef tuple _unellipsify(object index, int ndim):
     """
@@ -956,6 +968,7 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
     __PYX_INC_MEMVIEW(memviewslice, 1)
 
     result.from_object = <object> memviewslice.memview.obj
+    result.typeinfo = memviewslice.memview.typeinfo
 
     result.view = memviewslice.memview.view
     result.view.buf = <void *> memviewslice.data

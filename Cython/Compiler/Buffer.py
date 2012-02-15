@@ -784,11 +784,14 @@ impl = """
 """)
 
 raise_buffer_fallback_code = load_buffer_utility("BufferFallbackError")
-buffer_structs_code = load_buffer_utility("BufferFormatStructs")
+buffer_structs_code = load_buffer_utility(
+        "BufferFormatStructs", proto_block='utility_code_proto_before_types')
 acquire_utility_code = load_buffer_utility("BufferFormatCheck",
                                            context=context,
                                            requires=[buffer_structs_code])
 
 # See utility code BufferFormatFromTypeInfo
-_typeinfo_to_format_code = load_buffer_utility(
-        "TypeInfoToFormat", context={}, requires=[buffer_structs_code])
+_typeinfo_to_format_code = load_buffer_utility("TypeInfoToFormat", context={},
+                                               requires=[buffer_structs_code])
+typeinfo_compare_code = load_buffer_utility("TypeInfoCompare", context={},
+                                            requires=[buffer_structs_code])
