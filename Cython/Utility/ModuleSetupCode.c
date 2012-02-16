@@ -77,6 +77,8 @@
   #define PyBUF_RECORDS (PyBUF_STRIDES | PyBUF_FORMAT | PyBUF_WRITABLE)
   #define PyBUF_FULL (PyBUF_INDIRECT | PyBUF_FORMAT | PyBUF_WRITABLE)
 
+  typedef int (*getbufferproc)(PyObject *, Py_buffer *, int);
+  typedef void (*releasebufferproc)(PyObject *, Py_buffer *);
 #endif
 
 #if PY_MAJOR_VERSION < 3

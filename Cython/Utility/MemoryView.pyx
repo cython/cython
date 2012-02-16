@@ -62,6 +62,9 @@ cdef extern from *:
     ctypedef struct __Pyx_TypeInfo:
         pass
 
+    cdef object capsule "__pyx_capsule_create" (void *p, char *sig)
+    cdef int __pyx_array_getbuffer(PyObject *obj, Py_buffer view, int flags)
+    cdef int __pyx_memoryview_getbuffer(PyObject *obj, Py_buffer view, int flags)
 
 cdef extern from *:
     ctypedef int __pyx_atomic_int
@@ -176,6 +179,7 @@ cdef class array:
                     p[i] = Py_None
                     Py_INCREF(Py_None)
 
+    @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
         cdef int bufmode = -1
         if self.mode == b"c":
@@ -200,6 +204,8 @@ cdef class array:
 
         info.obj = self
 
+    __pyx_getbuffer = capsule(<void *> &__pyx_array_getbuffer, "getbuffer(obj, view, flags)")
+
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
             self.callback_free_data(self.data)
@@ -213,7 +219,7 @@ cdef class array:
         free(self._shape)
 
     property memview:
-        @cname('__pyx_cython_array_get_memview')
+        @cname('get_memview')
         def __get__(self):
             # Make this a property as 'self.data' may be set after instantiation
             flags =  PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
@@ -352,7 +358,7 @@ cdef class memoryview(object):
 
         return itemp
 
-    @cname('__pyx_memoryview_getitem')
+    #@cname('__pyx_memoryview_getitem')
     def __getitem__(memoryview self, object index):
         if index is Ellipsis:
             return self
@@ -366,7 +372,6 @@ cdef class memoryview(object):
             itemp = self.get_item_pointer(indices)
             return self.convert_item_to_object(itemp)
 
-    @cname('__pyx_memoryview_setitem')
     def __setitem__(memoryview self, object index, object value):
         have_slices, index = _unellipsify(index, self.view.ndim)
 
@@ -466,6 +471,7 @@ cdef class memoryview(object):
         for i, c in enumerate(bytesvalue):
             itemp[i] = c
 
+    @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
         if flags & PyBUF_STRIDES:
             info.shape = self.view.shape
@@ -493,6 +499,8 @@ cdef class memoryview(object):
         info.len = self.view.len
         info.readonly = 0
         info.obj = self
+
+    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
     # Some properties that have the same sematics as in NumPy
     property T:
@@ -945,6 +953,9 @@ cdef class _memoryviewslice(memoryview):
         @cname('__pyx_memoryviewslice__get__base')
         def __get__(self):
             return self.from_object
+
+    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
+
 
 @cname('__pyx_memoryview_fromslice')
 cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,

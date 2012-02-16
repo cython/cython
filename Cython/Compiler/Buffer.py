@@ -570,19 +570,9 @@ class GetAndReleaseBufferUtilityCode(object):
 
     def put_code(self, output):
         code = output['utility_code_def']
-        proto = output['utility_code_proto']
+        proto_code = output['utility_code_proto']
         env = output.module_node.scope
         cython_scope = env.context.cython_scope
-
-        proto.put(dedent("""\
-            #if PY_MAJOR_VERSION < 3
-            static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-            static void __Pyx_ReleaseBuffer(Py_buffer *view);
-            #else
-            #define __Pyx_GetBuffer PyObject_GetBuffer
-            #define __Pyx_ReleaseBuffer PyBuffer_Release
-            #endif
-        """))
         
         # Search all types for __getbuffer__ overloads
         types = []
@@ -609,51 +599,12 @@ class GetAndReleaseBufferUtilityCode(object):
 
         find_buffer_types(env)
 
-        code.put(dedent("""
-            #if PY_MAJOR_VERSION < 3
-            static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-              #if PY_VERSION_HEX >= 0x02060000
-              if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
-              #endif
-            """))
-        
-        if len(types) > 0:
-            clause = "if"
-            for t, get, release in types:
-                code.putln("  %s (PyObject_TypeCheck(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
-                clause = "else if"
-            code.putln("  else {")
-        code.put(dedent("""\
-            PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
-            return -1;
-            """, 2))
-        if len(types) > 0:
-            code.putln("  }")
-        code.put(dedent("""\
-             }
+        proto, impl = TempitaUtilityCode.load_as_string(
+            "GetAndReleaseBuffer", from_file="Buffer.c",
+            context=dict(types=types))
 
-            static void __Pyx_ReleaseBuffer(Py_buffer *view) {
-              PyObject* obj = view->obj;
-              if (obj) {
-                #if PY_VERSION_HEX >= 0x02060000
-                if (PyObject_CheckBuffer(obj)) {PyBuffer_Release(view); return;}
-                #endif
-        """))
-                 
-        if len(types) > 0:
-            clause = "if"
-            for t, get, release in types:
-                if release:
-                    code.putln("%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release))
-                    clause = "else if"
-        code.put(dedent("""
-                Py_DECREF(obj);
-                view->obj = NULL;
-              }
-            }
-
-            #endif
-        """))
+        proto_code.putln(proto)
+        code.putln(impl)
 
 
 def mangle_dtype_name(dtype):
