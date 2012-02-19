@@ -5,7 +5,7 @@
 import sys
 
 def get_defaults(func):
-    if sys.version_info >= (2, 5, 0):
+    if sys.version_info >= (2, 6, 0):
         return func.__defaults__
     return func.func_defaults
 
