@@ -1942,9 +1942,11 @@ static %(type)s __Pyx_PyComplex_As_%(type_name)s(PyObject*);
 impl="""
 static %(type)s __Pyx_PyComplex_As_%(type_name)s(PyObject* o) {
     Py_complex cval;
+#if CYTHON_COMPILING_IN_CPYTHON
     if (PyComplex_CheckExact(o))
         cval = ((PyComplexObject *)o)->cval;
     else
+#endif
         cval = PyComplex_AsCComplex(o);
     return %(type_name)s_from_parts(
                (%(real_type)s)cval.real,
