@@ -3429,8 +3429,10 @@ class DefNodeWrapper(FuncDefNode):
                     split_string_literal(escape_byte_string(docstr))))
 
             if entry.is_special:
+                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                 code.putln(
                     "struct wrapperbase %s;" % entry.wrapperbase_cname)
+                code.putln('#endif')
 
         if with_pymethdef or self.target.fused_py_func:
             code.put(

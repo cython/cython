@@ -2208,6 +2208,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # a significant performance hit. (See trac #561.)
                 for func in entry.type.scope.pyfunc_entries:
                     if func.is_special and Options.docstrings and func.wrapperbase_cname:
+                        code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                         code.putln("{")
                         code.putln(
                             'PyObject *wrapper = __Pyx_GetAttrString((PyObject *)&%s, "%s"); %s' % (
@@ -2226,6 +2227,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 func.wrapperbase_cname))
                         code.putln("}")
                         code.putln("}")
+                        code.putln('#endif')
                 if type.vtable_cname:
                     code.putln(
                         "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
