@@ -2237,7 +2237,21 @@ class FusedCFuncDefNode(StatListNode):
     nodes   [FuncDefNode]  list of copies of node with different specific types
     py_func DefNode        the fused python function subscriptable from
                            Python space
+    __signatures__         A DictNode mapping signature specialization strings
+                           to PyCFunction nodes
+    resulting_fused_function  PyCFunction for the fused DefNode that delegates
+                              to specializations
+    fused_func_assignment   Assignment of the fused function to the function name
+    defaults_tuple          TupleNode of defaults (letting PyCFunctionNode build
+                            defaults would result in many different tuples)
+    specialized_pycfuncs    List of synthesized pycfunction nodes for the
+                            specializations
     """
+
+    __signatures__ = None
+    resulting_fused_function = None
+    fused_func_assignment = None
+    defaults_tuple = None
 
     def __init__(self, node, env):
         super(FusedCFuncDefNode, self).__init__(node.pos)
@@ -2277,13 +2291,18 @@ class FusedCFuncDefNode(StatListNode):
         # CFuncDefNodes in self.nodes
         self.stats = self.nodes[:]
 
+        if self.py_func:
+            self.synthesize_defnodes()
+            self.stats.append(self.__signatures__)
+
     def copy_def(self, env):
         """
         Create a copy of the original def or lambda function for specialized
         versions.
         """
-        fused_types = [arg.type for arg in self.node.args if arg.type.is_fused]
-        permutations = PyrexTypes.get_all_specific_permutations(fused_types)
+        fused_types = PyrexTypes.unique(
+            [arg.type for arg in self.node.args if arg.type.is_fused])
+        permutations = PyrexTypes.get_all_specialized_permutations(fused_types)
 
         if self.node.entry in env.pyfunc_entries:
             env.pyfunc_entries.remove(self.node.entry)
@@ -2314,7 +2333,7 @@ class FusedCFuncDefNode(StatListNode):
         Create a copy of the original c(p)def function for all specialized
         versions.
         """
-        permutations = self.node.type.get_all_specific_permutations()
+        permutations = self.node.type.get_all_specialized_permutations()
         # print 'Node %s has %d specializations:' % (self.node.entry.name,
         #                                            len(permutations))
         # import pprint; pprint.pprint([d for cname, d in permutations])
@@ -2385,7 +2404,6 @@ class FusedCFuncDefNode(StatListNode):
                 arg.type = arg.type.specialize(fused_to_specific)
                 if arg.type.is_memoryviewslice:
                     MemoryView.validate_memslice_dtype(arg.pos, arg.type.dtype)
-
 
     def create_new_local_scope(self, node, env, f2s):
         """
@@ -2617,26 +2635,120 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
 
         return py_func
 
+    def analyse_expressions(self, env):
+        """
+        Analyse the expressions. Take care to only evaluate default arguments
+        once and clone the result for all specializations
+        """
+        from ExprNodes import CloneNode, ProxyNode, TupleNode
+
+        if self.py_func:
+            self.__signatures__.analyse_expressions(env)
+            self.py_func.analyse_expressions(env)
+            self.resulting_fused_function.analyse_expressions(env)
+            self.fused_func_assignment.analyse_expressions(env)
+
+        self.defaults = defaults = []
+
+        for arg in self.node.args:
+            if arg.default:
+                arg.default.analyse_expressions(env)
+                defaults.append(ProxyNode(arg.default))
+            else:
+                defaults.append(None)
+
+        for node in self.stats:
+            node.analyse_expressions(env)
+            if isinstance(node, FuncDefNode):
+                for arg, default in zip(node.args, defaults):
+                    if default is not None:
+                        arg.default = CloneNode(default).coerce_to(arg.type, env)
+
+        if self.py_func:
+            args = [CloneNode(default) for default in defaults if default]
+            defaults_tuple = TupleNode(self.pos, args=args)
+            defaults_tuple.analyse_types(env, skip_children=True)
+            self.defaults_tuple = ProxyNode(defaults_tuple)
+
+            self.resulting_fused_function.arg.defaults_tuple = CloneNode(
+                                                        self.defaults_tuple)
+            for pycfunc in self.specialized_pycfuncs:
+                pycfunc.defaults_tuple = CloneNode(self.defaults_tuple)
+
+    def synthesize_defnodes(self):
+        """
+        Create the __signatures__ dict of PyCFunctionNode specializations.
+        """
+        import ExprNodes, StringEncoding
+
+        if isinstance(self.nodes[0], CFuncDefNode):
+            nodes = [node.py_func for node in self.nodes]
+        else:
+            nodes = self.nodes
+
+        signatures = [
+            StringEncoding.EncodedString(node.specialized_signature_string)
+                for node in nodes]
+        keys = [ExprNodes.StringNode(node.pos, value=sig)
+                    for node, sig in zip(nodes, signatures)]
+        values = [ExprNodes.PyCFunctionNode.from_defnode(node, True)
+                              for node in nodes]
+        self.__signatures__ = ExprNodes.DictNode.from_pairs(self.pos,
+                                                            zip(keys, values))
+
+        self.specialized_pycfuncs = values
+        for pycfuncnode in values:
+            pycfuncnode.is_specialization = True
+
     def generate_function_definitions(self, env, code):
-        # Ensure the indexable fused function is generated first, so we can
-        # use its docstring
-        # self.stats.insert(0, self.stats.pop())
+        if self.py_func:
+            self.py_func.pymethdef_required = True
+            self.fused_func_assignment.generate_function_definitions(env, code)
+
         for stat in self.stats:
-            # print stat.entry, stat.entry.used
-            if stat.entry.used:
+            if isinstance(stat, FuncDefNode) and stat.entry.used:
                 code.mark_pos(stat.pos)
                 stat.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
+        import ExprNodes
+
+        for default in self.defaults:
+            if default is not None:
+                default.generate_evaluation_code(code)
+
+        if self.py_func:
+            self.defaults_tuple.generate_evaluation_code(code)
+
         for stat in self.stats:
-            if stat.entry.used:
-                code.mark_pos(stat.pos)
+            code.mark_pos(stat.pos)
+            if isinstance(stat, ExprNodes.ExprNode):
+                stat.generate_evaluation_code(code)
+            elif not isinstance(stat, FuncDefNode) or stat.entry.used:
                 stat.generate_execution_code(code)
+
+        if self.__signatures__:
+            self.resulting_fused_function.generate_evaluation_code(code)
+
+            code.putln(
+                "((__pyx_FusedFunctionObject *) %s)->__signatures__ = %s;" %
+                                    (self.resulting_fused_function.result(),
+                                     self.__signatures__.result()))
+            code.put_giveref(self.__signatures__.result())
+
+            self.fused_func_assignment.generate_execution_code(code)
+
+            # Dispose of results
+            self.resulting_fused_function.generate_disposal_code(code)
+            self.defaults_tuple.generate_disposal_code(code)
+
+        for default in self.defaults:
+            if default is not None:
+                default.generate_disposal_code(code)
 
     def annotate(self, code):
         for stat in self.stats:
-            if stat.entry.used:
-                stat.annotate(code)
+            stat.annotate(code)
 
 
 class PyArgDeclNode(Node):
@@ -3047,9 +3159,9 @@ class DefNode(FuncDefNode):
                 decorator.decorator.analyse_expressions(env)
 
     def needs_assignment_synthesis(self, env, code=None):
-        if self.is_wrapper:
+        if self.is_wrapper or self.specialized_cpdefs:
             return False
-        if self.specialized_cpdefs or self.is_staticmethod:
+        if self.is_staticmethod:
             return True
         if self.no_assignment_synthesis:
             return False

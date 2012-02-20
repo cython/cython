@@ -2058,7 +2058,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in pxd_env.cfunc_entries[:]:
             if entry.type.is_fused:
                 # This call modifies the cfunc_entries in-place
-                entry.type.get_all_specific_function_types()
+                entry.type.get_all_specialized_function_types()
 
     def generate_c_variable_import_code_for_module(self, module, env, code):
         # Generate import code for all exported C functions in a cimported module.

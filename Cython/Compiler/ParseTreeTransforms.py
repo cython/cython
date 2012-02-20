@@ -1493,9 +1493,13 @@ if VALUE is not None:
 
             if node.py_func:
                 node.stats.insert(0, node.py_func)
-                self.visit(node.py_func)
-                if node.py_func.needs_assignment_synthesis(env):
-                    node = [node, self._synthesize_assignment(node.py_func, env)]
+                node.py_func = self.visit(node.py_func)
+                pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func,
+                                                                 True)
+                pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
+                node.resulting_fused_function = pycfunc
+                node.fused_func_assignment = self._create_assignment(
+                              node.py_func, ExprNodes.CloneNode(pycfunc), env)
         else:
             node.body.analyse_declarations(lenv)
 
@@ -1538,29 +1542,26 @@ if VALUE is not None:
                 pymethdef_cname=node.entry.pymethdef_cname,
                 code_object=ExprNodes.CodeObjectNode(node))
         else:
-            rhs = ExprNodes.PyCFunctionNode(
-                node.pos,
-                def_node=node,
-                pymethdef_cname=node.entry.pymethdef_cname,
-                binding=self.current_directives.get('binding'),
-                specialized_cpdefs=node.specialized_cpdefs,
-                code_object=ExprNodes.CodeObjectNode(node))
+            binding = self.current_directives.get('binding')
+            rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
 
         if env.is_py_class_scope:
             rhs.binding = True
 
         node.is_cyfunction = rhs.binding
+        return self._create_assignment(node, rhs, env)
 
-        if node.decorators:
-            for decorator in node.decorators[::-1]:
+    def _create_assignment(self, def_node, rhs, env):
+        if def_node.decorators:
+            for decorator in def_node.decorators[::-1]:
                 rhs = ExprNodes.SimpleCallNode(
                     decorator.pos,
                     function = decorator.decorator,
                     args = [rhs])
 
         assmt = Nodes.SingleAssignmentNode(
-            node.pos,
-            lhs=ExprNodes.NameNode(node.pos,name=node.name),
+            def_node.pos,
+            lhs=ExprNodes.NameNode(def_node.pos, name=def_node.name),
             rhs=rhs)
         assmt.analyse_declarations(env)
         return assmt

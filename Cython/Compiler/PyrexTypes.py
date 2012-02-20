@@ -2501,7 +2501,7 @@ class CFuncType(CType):
     # All but map_with_specific_entries should be called only on functions
     # with fused types (and not on their corresponding specific versions).
 
-    def get_all_specific_permutations(self, fused_types=None):
+    def get_all_specialized_permutations(self, fused_types=None):
         """
         Permute all the types. For every specific instance of a fused type, we
         want all other specific instances of all other fused types.
@@ -2515,9 +2515,9 @@ class CFuncType(CType):
         if fused_types is None:
             fused_types = self.get_fused_types()
 
-        return get_all_specific_permutations(fused_types)
+        return get_all_specialized_permutations(fused_types)
 
-    def get_all_specific_function_types(self):
+    def get_all_specialized_function_types(self):
         """
         Get all the specific function types of this one.
         """
@@ -2532,7 +2532,7 @@ class CFuncType(CType):
         cfunc_entries.remove(self.entry)
 
         result = []
-        permutations = self.get_all_specific_permutations()
+        permutations = self.get_all_specialized_permutations()
 
         for cname, fused_to_specific in permutations:
             new_func_type = self.entry.type.specialize(fused_to_specific)
@@ -2589,7 +2589,20 @@ def get_fused_cname(fused_cname, orig_cname):
     return StringEncoding.EncodedString('%s%s%s' % (Naming.fused_func_prefix,
                                                     fused_cname, orig_cname))
 
-def get_all_specific_permutations(fused_types, id="", f2s=()):
+def unique(somelist):
+    seen = set()
+    result = []
+    for obj in somelist:
+        if obj not in seen:
+            result.append(obj)
+            seen.add(obj)
+
+    return result
+
+def get_all_specialized_permutations(fused_types):
+    return _get_all_specialized_permutations(unique(fused_types))
+
+def _get_all_specialized_permutations(fused_types, id="", f2s=()):
     fused_type, = fused_types[0].get_fused_types()
     result = []
 
@@ -2604,7 +2617,7 @@ def get_all_specific_permutations(fused_types, id="", f2s=()):
             cname = str(newid)
 
         if len(fused_types) > 1:
-            result.extend(get_all_specific_permutations(
+            result.extend(_get_all_specialized_permutations(
                                             fused_types[1:], cname, f2s))
         else:
             result.append((cname, f2s))
@@ -2622,7 +2635,7 @@ def get_specialized_types(type):
         result = type.types
     else:
         result = []
-        for cname, f2s in get_all_specific_permutations(type.get_fused_types()):
+        for cname, f2s in get_all_specialized_permutations(type.get_fused_types()):
             result.append(type.specialize(f2s))
 
     return sorted(result)

@@ -2,6 +2,7 @@
 # mode: run
 # tag: cyfunction
 
+cimport cython
 import sys
 
 def get_defaults(func):
@@ -85,3 +86,24 @@ def test_defaults_nonliteral_func_call(f):
         return a
     return func
 
+_counter2 = 1.0
+def counter2():
+    global _counter2
+    _counter2 += 1.0
+    return _counter2
+
+def test_defaults_fused(cython.floating arg1, cython.floating arg2 = counter2()):
+    """
+    >>> test_defaults_fused(1.0)
+    1.0 2.0
+    >>> test_defaults_fused(1.0, 3.0)
+    1.0 3.0
+    >>> _counter2
+    2.0
+
+    >>> get_defaults(test_defaults_fused)
+    (2.0,)
+    >>> get_defaults(test_defaults_fused[float])
+    (2.0,)
+    """
+    print arg1, arg2

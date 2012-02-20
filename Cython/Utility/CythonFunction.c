@@ -591,6 +591,9 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     Py_XINCREF(type);
     meth->type = type;
 
+    Py_XINCREF(func->func.defaults_tuple);
+    meth->func.defaults_tuple = func->func.defaults_tuple;
+
     if (func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD)
         obj = type;
 
@@ -598,6 +601,15 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     meth->self = obj;
 
     return (PyObject *) meth;
+}
+
+static PyObject *
+_obj_to_str(PyObject *obj)
+{
+    if (PyType_Check(obj))
+        return PyObject_GetAttrString(obj, "__name__");
+    else
+        return PyObject_Str(obj);
 }
 
 static PyObject *
@@ -625,11 +637,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
         for (i = 0; i < n; i++) {
             PyObject *item = PyTuple_GET_ITEM(idx, i);
 
-            if (PyType_Check(item))
-                string = PyObject_GetAttrString(item, "__name__");
-            else
-                string = PyObject_Str(item);
-
+            string = _obj_to_str(item);
             if (!string || PyList_Append(list, string) < 0)
                 goto __pyx_err;
 
@@ -644,7 +652,7 @@ __pyx_err:
         Py_DECREF(list);
         Py_XDECREF(sep);
     } else {
-        signature = PyObject_Str(idx);
+        signature = _obj_to_str(idx);
     }
 
     if (!signature)
@@ -653,14 +661,20 @@ __pyx_err:
     unbound_result_func = PyObject_GetItem(self->__signatures__, signature);
 
     if (unbound_result_func) {
-        __pyx_FusedFunctionObject *unbound = (__pyx_FusedFunctionObject *) unbound_result_func;
+        if (self->self || self->type) {
+            __pyx_FusedFunctionObject *unbound = (__pyx_FusedFunctionObject *) unbound_result_func;
 
-        Py_CLEAR(unbound->func.func_classobj);
-        Py_XINCREF(self->func.func_classobj);
-        unbound->func.func_classobj = self->func.func_classobj;
+            /* Todo: move this to InitClassCell */
+            Py_CLEAR(unbound->func.func_classobj);
+            Py_XINCREF(self->func.func_classobj);
+            unbound->func.func_classobj = self->func.func_classobj;
 
-        result_func = __pyx_FusedFunction_descr_get(unbound_result_func,
-                                                    self->self, self->type);
+            result_func = __pyx_FusedFunction_descr_get(unbound_result_func,
+                                                        self->self, self->type);
+        } else {
+            result_func = unbound_result_func;
+            Py_INCREF(result_func);
+        }
     }
 
     Py_DECREF(signature);

@@ -615,7 +615,7 @@ class ExprNode(Node):
 
                 dst_type = dst_type.base_type
 
-                for signature in src_type.get_all_specific_function_types():
+                for signature in src_type.get_all_specialized_function_types():
                     if signature.same_as(dst_type):
                         src.type = signature
                         src.entry = src.type.entry
@@ -2788,7 +2788,7 @@ class IndexNode(ExprNode):
                   "Index operation makes function only partially specific")
         else:
             # Fully specific, find the signature with the specialized entry
-            for signature in self.base.type.get_all_specific_function_types():
+            for signature in self.base.type.get_all_specialized_function_types():
                 if type.same_as(signature):
                     self.type = signature
 
@@ -3683,7 +3683,7 @@ class SimpleCallNode(CallNode):
 
         if overloaded_entry:
             if self.function.type.is_fused:
-                functypes = self.function.type.get_all_specific_function_types()
+                functypes = self.function.type.get_all_specialized_function_types()
                 alternatives = [f.entry for f in functypes]
             else:
                 alternatives = overloaded_entry.all_alternatives()
@@ -5554,6 +5554,11 @@ class DictNode(ExprNode):
 
     obj_conversion_errors = []
 
+    @classmethod
+    def from_pairs(cls, pos, pairs):
+        return cls(pos, key_value_pairs=[
+                DictItemNode(pos, key=k, value=v) for k, v in pairs])
+
     def calculate_constant_result(self):
         self.constant_result = dict([
                 item.constant_result for item in self.key_value_pairs])
@@ -6102,13 +6107,20 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     is_temp = 1
 
     specialized_cpdefs = None
+    is_specialization = False
+
+    @classmethod
+    def from_defnode(cls, node, binding):
+        return cls(node.pos,
+                   def_node=node,
+                   pymethdef_cname=node.entry.pymethdef_cname,
+                   binding=binding or node.specialized_cpdefs,
+                   specialized_cpdefs=node.specialized_cpdefs,
+                   code_object=CodeObjectNode(node))
 
     def analyse_types(self, env):
-        if self.specialized_cpdefs:
-            self.binding = True
-
         if self.binding:
-            if self.specialized_cpdefs:
+            if self.specialized_cpdefs or self.is_specialization:
                 env.use_utility_code(fused_function_utility_code)
             else:
                 env.use_utility_code(binding_cfunc_utility_code)
@@ -6212,12 +6224,15 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         code.put_gotref(self.py_result())
 
     def generate_cyfunction_code(self, code):
+        def_node = self.def_node
+
         if self.specialized_cpdefs:
             constructor = "__pyx_FusedFunction_NewEx"
             def_node = self.specialized_cpdefs[0]
+        elif self.is_specialization:
+            constructor = "__pyx_FusedFunction_NewEx"
         else:
             constructor = "__Pyx_CyFunction_NewEx"
-            def_node = self.def_node
 
         if self.code_object:
             code_object_result = self.code_object.py_result()
@@ -6279,64 +6294,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if def_node.defaults_getter:
             code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
                 self.result(), def_node.defaults_getter.entry.pyfunc_cname))
-
-        if self.specialized_cpdefs:
-            self.generate_fused_cpdef(code, code_object_result, flags)
-
-    def generate_fused_cpdef(self, code, code_object_result, flags):
-        """
-        Generate binding function objects for all specialized cpdefs, and the
-        original fused one. The fused function gets a dict __signatures__
-        mapping the specialized signature to the specialized binding function.
-        In Python space, the specialized versions can be obtained by indexing
-        the fused function.
-
-        For unsubscripted dispatch, we also need to remember the positions of
-        the arguments with fused types.
-        """
-        def goto_err(string):
-            string = "(%s)" % string
-            code.putln(code.error_goto_if_null(string % fmt_dict, self.pos))
-
-        # Set up an interpolation dict
-        fmt_dict = dict(
-            vars(Naming),
-            result=self.result(),
-            py_mod_name=self.get_py_mod_name(code),
-            self=self.self_result_code(),
-            code=code_object_result,
-            flags=flags,
-            func=code.funcstate.allocate_temp(py_object_type,
-                                              manage_ref=True),
-            signature=code.funcstate.allocate_temp(py_object_type,
-                                                   manage_ref=True),
-        )
-
-        fmt_dict['sigdict'] = \
-            "((__pyx_FusedFunctionObject *) %(result)s)->__signatures__" % fmt_dict
-
-        # Initialize __signatures__
-        goto_err("%(sigdict)s = PyDict_New()")
-
-        # Now put all specialized cpdefs in __signatures__
-        for cpdef in self.specialized_cpdefs:
-            fmt_dict['signature_string'] = cpdef.specialized_signature_string
-            fmt_dict['pymethdef_cname'] = cpdef.entry.pymethdef_cname
-
-            goto_err('%(signature)s = PyUnicode_FromString('
-                                    '"%(signature_string)s")')
-
-            goto_err("%(func)s = __pyx_FusedFunction_NewEx("
-                            "&%(pymethdef_cname)s, %(flags)s, %(self)s, %(py_mod_name)s, %(code)s)")
-
-            s = "PyDict_SetItem(%(sigdict)s, %(signature)s, %(func)s)"
-            code.put_error_if_neg(self.pos, s % fmt_dict)
-
-            code.putln("Py_DECREF(%(signature)s); %(signature)s = NULL;" % fmt_dict)
-            code.putln("Py_DECREF(%(func)s); %(func)s = NULL;" % fmt_dict)
-
-        code.funcstate.release_temp(fmt_dict['func'])
-        code.funcstate.release_temp(fmt_dict['signature'])
 
 
 class InnerFunctionNode(PyCFunctionNode):
@@ -9259,11 +9216,18 @@ class ProxyNode(CoercionNode):
 
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
-        if hasattr(arg, 'type'):
-            self.type = arg.type
-            self.result_ctype = arg.result_ctype
-        if hasattr(arg, 'entry'):
-            self.entry = arg.entry
+        self._proxy_type()
+
+    def analyse_expressions(self, env):
+        self.arg.analyse_expressions(env)
+        self._proxy_type()
+
+    def _proxy_type(self):
+        if hasattr(self.arg, 'type'):
+            self.type = self.arg.type
+            self.result_ctype = self.arg.result_ctype
+        if hasattr(self.arg, 'entry'):
+            self.entry = self.arg.entry
 
     def generate_result_code(self, code):
         self.arg.generate_result_code(code)
