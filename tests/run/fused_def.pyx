@@ -294,3 +294,13 @@ cdef class CBaseClass(object):
     def __repr__(self):
         return "<%s.%s object>" % (__name__, type(self).__name__)
 
+def getcode(func):
+    return getattr(func, '__code__', None) or func.func_code
+
+def test_code_object(cython.floating dummy = 2.0):
+    """
+    A test for default arguments is in cyfunction_defaults
+
+    >>> getcode(test_code_object) is getcode(test_code_object[float])
+    True
+    """

@@ -5,6 +5,8 @@
 
 ### low level tests
 
+cimport cython
+
 cdef extern from *:
     # evil hack to access the internal utility function
     ctypedef struct PyCodeObject
@@ -90,6 +92,34 @@ def assert_multi_step_code_object_reuse(recursions=0):
     ...     try: assert_multi_step_code_object_reuse(depth)
     ...     except KeyError: t1 = tb()
     ...     try: assert_multi_step_code_object_reuse(depth)
+    ...     except KeyError: t2 = tb()
+    ...     check_code_object_identity_recursively(t1.tb_next, t2.tb_next)
+    """
+    if recursions:
+        assert_multi_step_code_object_reuse(recursions-1)
+    else:
+        raise_keyerror()
+
+def assert_simple_code_object_reuse_fused(cython.floating dummy):
+    """
+    DISABLED: searching for code objects based on C lineno breaks for specializations
+
+    >> try: assert_simple_code_object_reuse_fused["float"](1.0)
+    ... except KeyError: t1 = tb()
+    >> try: assert_simple_code_object_reuse_fused["double"](1.0)
+    ... except KeyError: t2 = tb()
+    >> check_code_object_identity_recursively(t1.tb_next, t2.tb_next)
+    """
+    raise KeyError
+
+def assert_multi_step_code_object_reuse_fused(recursions=0, cython.floating dummy = 2.0):
+    """
+    DISABLED: searching for code objects based on C lineno breaks for specializations
+
+    >> for depth in range(5):
+    ...     try: assert_multi_step_code_object_reuse_fused(depth, 1.0)
+    ...     except KeyError: t1 = tb()
+    ...     try: assert_multi_step_code_object_reuse_fused(depth, 1.0)
     ...     except KeyError: t2 = tb()
     ...     check_code_object_identity_recursively(t1.tb_next, t2.tb_next)
     """

@@ -2246,6 +2246,8 @@ class FusedCFuncDefNode(StatListNode):
                             defaults would result in many different tuples)
     specialized_pycfuncs    List of synthesized pycfunction nodes for the
                             specializations
+    code_object             CodeObjectNode shared by all specializations and the
+                            fused function
     """
 
     __signatures__ = None
@@ -2669,11 +2671,15 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
             defaults_tuple = TupleNode(self.pos, args=args)
             defaults_tuple.analyse_types(env, skip_children=True)
             self.defaults_tuple = ProxyNode(defaults_tuple)
+            self.code_object = ProxyNode(self.specialized_pycfuncs[0].code_object)
 
-            self.resulting_fused_function.arg.defaults_tuple = CloneNode(
-                                                        self.defaults_tuple)
+            fused_func = self.resulting_fused_function.arg
+            fused_func.defaults_tuple = CloneNode(self.defaults_tuple)
+            fused_func.code_object = CloneNode(self.code_object)
+
             for pycfunc in self.specialized_pycfuncs:
                 pycfunc.defaults_tuple = CloneNode(self.defaults_tuple)
+                pycfunc.code_object = CloneNode(self.code_object)
 
     def synthesize_defnodes(self):
         """
@@ -2719,6 +2725,7 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
 
         if self.py_func:
             self.defaults_tuple.generate_evaluation_code(code)
+            self.code_object.generate_evaluation_code(code)
 
         for stat in self.stats:
             code.mark_pos(stat.pos)
@@ -2741,6 +2748,7 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
             # Dispose of results
             self.resulting_fused_function.generate_disposal_code(code)
             self.defaults_tuple.generate_disposal_code(code)
+            self.code_object.generate_disposal_code(code)
 
         for default in self.defaults:
             if default is not None:
