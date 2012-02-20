@@ -119,6 +119,23 @@
 #
 #################################################################
 
+
+
+#################################################################
+# BIG FAT DEPRECATION WARNING
+#################################################################
+# Do NOT cimport any names directly from the cpython package,
+# despite of the star-imports below.  They will be removed at
+# some point.
+# Instead, use the correct sub-module to draw your cimports from.
+#
+# A direct cimport from the package will make your code depend on
+# all of the existing declarations. This may have side-effects
+# and reduces the portability of your code.
+#################################################################
+# START OF DEPRECATED SECTION
+#################################################################
+
 from cpython.version cimport *
 from cpython.ref cimport *
 from cpython.exc cimport *
@@ -161,3 +178,7 @@ from cpython.bytes cimport *
 
 # Python >= 3.0
 from cpython.pycapsule cimport *
+
+#################################################################
+# END OF DEPRECATED SECTION
+#################################################################
