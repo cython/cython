@@ -9,10 +9,14 @@
 
 from __future__ import unicode_literals
 
+from cpython.object cimport PyObject
+from cpython.ref cimport Py_INCREF, Py_DECREF
+cimport cython
+
 __test__ = {}
 
 import sys
-import re
+#import re
 exclude = []#re.compile('object').search]
 
 def testcase(func):

@@ -4,6 +4,9 @@
 
 from __future__ import unicode_literals
 
+from cpython.object cimport PyObject
+from cpython.ref cimport Py_INCREF, Py_DECREF
+
 cimport cython
 from cython cimport view
 from cython.view cimport array

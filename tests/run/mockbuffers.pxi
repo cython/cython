@@ -1,9 +1,6 @@
 from libc cimport stdlib
 from libc cimport stdio
 cimport cpython.buffer
-cimport cython
-
-from cpython cimport PyObject, Py_INCREF, Py_DECREF
 
 import sys
 
@@ -231,16 +228,6 @@ cdef class ObjectMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(void*)
     cdef get_default_format(self): return b"@O"
 
-cdef extern from "Python.h":
-    ctypedef struct PyObject:
-        pass
-
-    ctypedef int (*visitproc)(PyObject *obj, void *arg)
-    ctypedef int (*inquiry)(PyObject *self)
-
-    void Py_VISIT(object)
-    void Py_CLEAR(object)
-
 cdef class IntStridedMockBuffer(IntMockBuffer):
     cdef __cythonbufferdefaults__ = {"mode" : "strided"}
 
@@ -288,7 +275,7 @@ cdef struct NestedPackedStruct:
 cdef class MyStructMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         cdef MyStruct* s
-        s = <MyStruct*>buf;
+        s = <MyStruct*>buf
         s.a, s.b, s.c, s.d, s.e = value
         return 0
 
@@ -298,7 +285,7 @@ cdef class MyStructMockBuffer(MockBuffer):
 cdef class NestedStructMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         cdef NestedStruct* s
-        s = <NestedStruct*>buf;
+        s = <NestedStruct*>buf
         s.x.a, s.x.b, s.y.a, s.y.b, s.z = value
         return 0
 
@@ -308,7 +295,7 @@ cdef class NestedStructMockBuffer(MockBuffer):
 cdef class PackedStructMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         cdef PackedStruct* s
-        s = <PackedStruct*>buf;
+        s = <PackedStruct*>buf
         s.a, s.b = value
         return 0
 
@@ -318,7 +305,7 @@ cdef class PackedStructMockBuffer(MockBuffer):
 cdef class NestedPackedStructMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         cdef NestedPackedStruct* s
-        s = <NestedPackedStruct*>buf;
+        s = <NestedPackedStruct*>buf
         s.a, s.b, s.sub.a, s.sub.b, s.c = value
         return 0
 
@@ -332,7 +319,7 @@ cdef struct LongComplex:
 cdef class LongComplexMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         cdef LongComplex* s
-        s = <LongComplex*>buf;
+        s = <LongComplex*>buf
         s.real, s.imag = value
         return 0
 

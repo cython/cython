@@ -7,6 +7,7 @@ Test slicing for memoryviews and memoryviewslices
 
 cimport numpy as np
 import numpy as np
+cimport cython
 
 include "cythonarrayutil.pxi"
 include "mockbuffers.pxi"

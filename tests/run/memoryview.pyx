@@ -10,6 +10,10 @@ u'''
 from cython.view cimport memoryview, array
 from cython cimport view
 
+from cpython.object cimport PyObject
+from cpython.ref cimport Py_INCREF, Py_DECREF
+cimport cython
+
 cdef extern from "Python.h":
     cdef int PyBUF_C_CONTIGUOUS
 
