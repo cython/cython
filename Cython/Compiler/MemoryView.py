@@ -6,6 +6,7 @@ from Code import UtilityCode, TempitaUtilityCode
 from UtilityCode import CythonUtilityCode
 import Buffer
 import PyrexTypes
+import ModuleNode
 
 START_ERR = "Start must not be given."
 STOP_ERR = "Axis specification only allowed in the 'step' slot."
@@ -897,7 +898,8 @@ memviewslice_init_code = load_memview_c_utility(
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code,
               Buffer.acquire_utility_code,
-              atomic_utility],
+              atomic_utility,
+              Buffer.typeinfo_compare_code],
 )
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
@@ -922,7 +924,8 @@ view_utility_code = load_memview_cy_utility(
                   memviewslice_init_code,
                   is_contig_utility,
                   overlapping_utility,
-                  copy_contents_new_utility],
+                  copy_contents_new_utility,
+                  ModuleNode.capsule_utility_code],
 )
 view_utility_whitelist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',

@@ -8170,6 +8170,7 @@ class CnameDecoratorNode(StatNode):
             e.type.objstruct_cname = self.cname + '_obj'
             e.type.typeobj_cname = Naming.typeobj_prefix + self.cname
             e.type.typeptr_cname = self.cname + '_type'
+            e.type.scope.namespace_cname = e.type.typeptr_cname
 
             e.as_variable.cname = py_object_type.cast_code(e.type.typeptr_cname)
 

@@ -1,0 +1,79 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import test_compare_type_pointers"
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## test_compare_type_pointers.pyx ########
+include "types.pxi"
+
+import other_module
+
+def test_foo_view(Foo[:] m):
+    return m[0].f
+
+assert test_foo_view(other_module.fooview_obj) == 5.0
+assert test_foo_view(other_module.otherfooview_obj) == 4.0
+
+# Test for type comparison where the memoryview instance check succeeds
+cdef OtherFoo[10] otherfooarray
+cdef OtherFoo[:] otherfooview = otherfooarray
+otherfooview_obj = otherfooview
+otherfooview[0].f = 4.0
+assert test_foo_view(otherfooview_obj) == 4.0
+
+# Test a simple dtype now
+def test_double_view(double[:] m):
+    return m[0]
+
+assert test_double_view(other_module.doubleview_obj) == 6.0
+
+######## other_module.pyx ########
+include "types.pxi"
+
+cdef Foo[10] fooarray
+cdef Foo[:] fooview = fooarray
+fooview_obj = fooview
+
+fooview[0].f = 5.0
+
+cdef OtherFoo[10] otherfooarray
+cdef OtherFoo[:] otherfooview = otherfooarray
+otherfooview_obj = otherfooview
+
+otherfooview[0].f = 4.0
+
+cdef double[10] doublearray
+cdef double[:] doubleview = doublearray
+doubleview_obj = doubleview
+
+doubleview[0] = 6.0
+
+######## types.pxi ########
+ctypedef packed struct Baz:
+    double d
+
+ctypedef struct Bar:
+    int i
+
+ctypedef struct Foo:
+    float f
+    double complex dc
+    char c
+    int i
+    Bar b
+    char s[20]
+
+ctypedef struct OtherFoo:
+    float f
+    double complex dc
+    char c
+    int i
+    Bar b
+    char s[20]

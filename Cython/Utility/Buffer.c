@@ -95,6 +95,110 @@ typedef struct {
   char is_valid_array;
 } __Pyx_BufFmt_Context;
 
+/////////////// GetAndReleaseBuffer.proto ///////////////
+#if PY_MAJOR_VERSION < 3
+    static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
+    static void __Pyx_ReleaseBuffer(Py_buffer *view);
+#else
+    #define __Pyx_GetBuffer PyObject_GetBuffer
+    #define __Pyx_ReleaseBuffer PyBuffer_Release
+#endif
+
+/////////////// GetAndReleaseBuffer ///////////////
+#if PY_MAJOR_VERSION < 3
+static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+    PyObject *getbuffer_cobj = NULL;
+
+  #if PY_VERSION_HEX >= 0x02060000
+    if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
+  #endif
+
+    {{for type_ptr, getbuffer, releasebuffer in types}}
+      {{if getbuffer}}
+        if (PyObject_TypeCheck(obj, {{type_ptr}})) return {{getbuffer}}(obj, view, flags);
+      {{endif}}
+    {{endfor}}
+
+  #if PY_VERSION_HEX < 0x02060000
+    if (obj->ob_type->tp_dict &&
+        (getbuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
+                                             "__pyx_getbuffer"))) {
+        getbufferproc func;
+
+      #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
+        func = (getbufferproc) PyCapsule_GetPointer(getbuffer_cobj, "getbuffer(obj, view, flags)");
+      #else
+        func = (getbufferproc) PyCObject_AsVoidPtr(getbuffer_cobj);
+      #endif
+        if (!func)
+            goto fail;
+
+        return func(obj, view, flags);
+    }
+  #endif
+
+    PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
+
+#if PY_VERSION_HEX < 0x02060000
+fail:
+#endif
+    Py_XDECREF(getbuffer_cobj);
+    return -1;
+}
+
+static void __Pyx_ReleaseBuffer(Py_buffer *view) {
+    PyObject* obj = view->obj;
+    PyObject *releasebuffer_cobj = NULL;
+
+    if (!obj) return;
+
+  #if PY_VERSION_HEX >= 0x02060000
+    if (PyObject_CheckBuffer(obj)) {
+        PyBuffer_Release(view);
+        return;
+    }
+  #endif
+
+    {{for type_ptr, getbuffer, releasebuffer in types}}
+      {{if releasebuffer}}
+        if (PyObject_TypeCheck(obj, {{type_ptr}})) return {{releasebuffer}}(obj, view);
+      {{endif}}
+    {{endfor}}
+
+  #if PY_VERSION_HEX < 0x02060000
+    if (obj->ob_type->tp_dict &&
+        (releasebuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
+                                                      "__pyx_releasebuffer"))) {
+        releasebufferproc func;
+
+      #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
+        func = (releasebufferproc) PyCapsule_GetPointer(releasebuffer_cobj, "releasebuffer(obj, view)");
+      #else
+        func = (releasebufferproc) PyCObject_AsVoidPtr(releasebuffer_cobj);
+      #endif
+
+        if (!func)
+            goto fail;
+
+        func(obj, view);
+        return;
+    }
+  #endif
+
+    goto nofail;
+
+#if PY_VERSION_HEX < 0x02060000
+fail:
+#endif
+    PyErr_WriteUnraisable(obj);
+
+nofail:
+    Py_XDECREF(releasebuffer_cobj);
+    Py_DECREF(obj);
+    view->obj = NULL;
+}
+
+#endif /*  PY_MAJOR_VERSION < 3 */
 
 /////////////// BufferFormatCheck.proto ///////////////
 {{#
@@ -709,6 +813,63 @@ static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
   __Pyx_ReleaseBuffer(info);
 }
+
+/////////////// TypeInfoCompare.proto ///////////////
+static int __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b);
+
+/////////////// TypeInfoCompare ///////////////
+/* See if two dtypes are equal */
+static int
+__pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
+{
+    int i;
+
+    if (!a || !b)
+        return 0;
+
+    if (a == b)
+        return 1;
+
+    if (a->size != b->size || a->typegroup != b->typegroup ||
+            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim)
+        return 0;
+
+    if (a->ndim) {
+        /* Verify multidimensional C arrays */
+        for (i = 0; i < a->ndim; i++)
+            if (a->arraysize[i] != b->arraysize[i])
+                return 0;
+    }
+
+    if (a->typegroup == 'S') {
+        /* Check for packed struct */
+        if (a->flags != b->flags)
+            return 0;
+
+        /* compare all struct fields */
+        if (a->fields || b->fields) {
+            /* Check if both have fields */
+            if (!(a->fields && b->fields))
+                return 0;
+
+            /* compare */
+            for (i = 0; a->fields[i].type && b->fields[i].type; i++) {
+                __Pyx_StructField *field_a = a->fields + i;
+                __Pyx_StructField *field_b = b->fields + i;
+
+                if (field_a->offset != field_b->offset ||
+                    !__pyx_typeinfo_cmp(field_a->type, field_b->type))
+                    return 0;
+            }
+
+            /* If all fields are processed, we have a match */
+            return !a->fields[i].type && !b->fields[i].type;
+        }
+    }
+
+    return 1;
+}
+
 
 
 /////////////// TypeInfoToFormat.proto ///////////////

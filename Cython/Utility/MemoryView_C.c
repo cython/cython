@@ -89,14 +89,21 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
-static int __Pyx_ValidateAndInit_memviewslice(struct __pyx_memoryview_obj *memview,
-                                int *axes_specs, int c_or_f_flag,  int ndim, __Pyx_TypeInfo *dtype,
-                                __Pyx_BufFmt_StackElem stack[], __Pyx_memviewslice *memviewslice);
+static int __Pyx_ValidateAndInit_memviewslice(
+                int *axes_specs,
+                int c_or_f_flag,
+                int buf_flags,
+                int ndim,
+                __Pyx_TypeInfo *dtype,
+                __Pyx_BufFmt_StackElem stack[],
+                __Pyx_memviewslice *memviewslice,
+                PyObject *original_obj);
 
 static int __Pyx_init_memviewslice(
                 struct __pyx_memoryview_obj *memview,
                 int ndim,
-                __Pyx_memviewslice *memviewslice);
+                __Pyx_memviewslice *memviewslice,
+                int memview_is_new_reference);
 
 static CYTHON_INLINE int __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
                                                             PyThread_type_lock lock);
@@ -116,7 +123,6 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ss
 
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     {{memviewslice_name}} result = {{memslice_init}};
-    struct __pyx_memoryview_obj *memview;
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
     int retcode;
@@ -127,19 +133,16 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
         return result;
     }
 
-    memview = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(obj, {{buf_flag}}, 0);
-    if (unlikely(!memview))
-        goto __pyx_fail;
-
-    retcode = __Pyx_ValidateAndInit_memviewslice(memview, axes_specs,
-            {{c_or_f_flag}}, {{ndim}}, &{{dtype_typeinfo}}, stack, &result);
+    retcode = __Pyx_ValidateAndInit_memviewslice(axes_specs, {{c_or_f_flag}},
+                                                 {{buf_flag}}, {{ndim}},
+                                                 &{{dtype_typeinfo}}, stack,
+                                                 &result, obj);
 
     if (unlikely(retcode == -1))
         goto __pyx_fail;
 
     return result;
 __pyx_fail:
-    Py_XDECREF(memview);
     result.memview = NULL;
     result.data = NULL;
     return result;
@@ -148,29 +151,38 @@ __pyx_fail:
 ////////// MemviewSliceInit //////////
 
 static int __Pyx_ValidateAndInit_memviewslice(
-                struct __pyx_memoryview_obj *memview,
                 int *axes_specs,
                 int c_or_f_flag,
+                int buf_flags,
                 int ndim,
                 __Pyx_TypeInfo *dtype,
                 __Pyx_BufFmt_StackElem stack[],
-                __Pyx_memviewslice *memviewslice) {
-
+                __Pyx_memviewslice *memviewslice,
+                PyObject *original_obj)
+{
+    struct __pyx_memoryview_obj *memview, *new_memview;
     __Pyx_RefNannyDeclarations
-    Py_buffer *buf = &memview->view;
+    Py_buffer *buf;
     int stride, i, spec = 0, retval = -1;
     __Pyx_BufFmt_Context ctx;
+    int from_memoryview = __pyx_memoryview_check(original_obj);
 
     __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice");
 
-    if (!buf) goto fail;
-
-    if(memviewslice->data || memviewslice->memview) {
-        PyErr_SetString(PyExc_ValueError,
-            "memoryviewslice struct must be initialized to NULL.");
-        goto fail;
+    if (from_memoryview && __pyx_typeinfo_cmp(dtype, ((struct __pyx_memoryview_obj *)
+                                                            original_obj)->typeinfo)) {
+        /* We have a matching dtype, skip format parsing */
+        memview = (struct __pyx_memoryview_obj *) original_obj;
+        new_memview = NULL;
+    } else {
+        memview = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
+                                            original_obj, buf_flags, 0, dtype);
+        new_memview = memview;
+        if (unlikely(!memview))
+            goto fail;
     }
 
+    buf = &memview->view;
     if (buf->ndim != ndim) {
         PyErr_Format(PyExc_ValueError,
                 "Buffer has wrong number of dimensions (expected %d, got %d)",
@@ -178,8 +190,10 @@ static int __Pyx_ValidateAndInit_memviewslice(
         goto fail;
     }
 
-    __Pyx_BufFmt_Init(&ctx, stack, dtype);
-    if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
+    if (new_memview) {
+        __Pyx_BufFmt_Init(&ctx, stack, dtype);
+        if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
+    }
 
     if ((unsigned)buf->itemsize != dtype->size) {
         PyErr_Format(PyExc_ValueError,
@@ -267,16 +281,16 @@ static int __Pyx_ValidateAndInit_memviewslice(
         }
     }
 
-    if(unlikely(__Pyx_init_memviewslice(memview, ndim, memviewslice) == -1)) {
+    if (unlikely(__Pyx_init_memviewslice(memview, ndim, memviewslice,
+                                         new_memview != NULL) == -1)) {
         goto fail;
     }
 
     retval = 0;
     goto no_fail;
+
 fail:
-    __Pyx_XDECREF(memviewslice->memview);
-    memviewslice->memview = 0;
-    memviewslice->data = 0;
+    Py_XDECREF(new_memview);
     retval = -1;
 
 no_fail:
@@ -287,14 +301,15 @@ no_fail:
 static int
 __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
                         int ndim,
-                        {{memviewslice_name}} *memviewslice)
+                        {{memviewslice_name}} *memviewslice,
+                        int memview_is_new_reference)
 {
     __Pyx_RefNannyDeclarations
     int i, retval=-1;
     Py_buffer *buf = &memview->view;
     __Pyx_RefNannySetupContext("init_memviewslice");
 
-    if(!buf) {
+    if (!buf) {
         PyErr_SetString(PyExc_ValueError,
             "buf is NULL.");
         goto fail;
@@ -316,12 +331,15 @@ __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
 
     memviewslice->memview = memview;
     memviewslice->data = (char *)buf->buf;
-    __pyx_add_acquisition_count(memview);
+    if (__pyx_add_acquisition_count(memview) == 0 && !memview_is_new_reference) {
+        Py_INCREF(memview);
+    }
     retval = 0;
     goto no_fail;
 
 fail:
-    __Pyx_XDECREF(memviewslice->memview);
+    /* Don't decref, the memoryview may be borrowed. Let the caller do the cleanup */
+    /* __Pyx_XDECREF(memviewslice->memview); */
     memviewslice->memview = 0;
     memviewslice->data = 0;
     retval = -1;
@@ -486,12 +504,13 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
 
     memview_obj = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
                                     (PyObject *) array_obj, contig_flag,
-                                    dtype_is_object);
+                                    dtype_is_object,
+                                    from_mvs->memview->typeinfo);
     if (unlikely(!memview_obj))
         goto fail;
 
     /* initialize new_mvs */
-    if (unlikely(__Pyx_init_memviewslice(memview_obj, ndim, &new_mvs) < 0))
+    if (unlikely(__Pyx_init_memviewslice(memview_obj, ndim, &new_mvs, 1) < 0))
         goto fail;
 
     if (unlikely(__pyx_memoryview_copy_contents(*from_mvs, new_mvs, ndim, ndim,
