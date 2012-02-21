@@ -346,9 +346,9 @@ class DependencyTree(object):
             self_pxd = [filename[:-4] + '.pxd']
         else:
             self_pxd = []
-        a = self.cimports(filename)
+        a = list(x for x in self.cimports(filename) if x.split('.')[0] != 'cython')
         b = filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)])
-        if len(a) - int('cython' in a) != len(b):
+        if len(a) != len(b):
             print("missing cimport", filename)
             print("\n\t".join(a))
             print("\n\t".join(b))
