@@ -1287,6 +1287,14 @@ def get_version():
             os.chdir(old_dir)
     return full_version
 
+_orig_stdout, _orig_stderr = sys.stdout, sys.stderr
+def flush_and_terminate(status):
+    try:
+        _orig_stdout.flush()
+        _orig_stderr.flush()
+    finally:
+        os._exit(status)
+
 def main():
 
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
@@ -1604,7 +1612,7 @@ def main():
         sys.exit(return_code)
     except PendingThreadsError:
         # normal program exit won't kill the threads, do it the hard way here
-        os._exit(return_code)
+        flush_and_terminate(return_code)
 
 if __name__ == '__main__':
     try:
@@ -1617,4 +1625,4 @@ if __name__ == '__main__':
             check_thread_termination(ignore_seen=False)
         except PendingThreadsError:
             # normal program exit won't kill the threads, do it the hard way here
-            os._exit(1)
+            flush_and_terminate(1)
