@@ -97,6 +97,7 @@ class _XMLTestResult(_TextTestResult):
         self.successes = []
         self.callback = None
         self.elapsed_times = elapsed_times
+        self.output_patched = False
 
     def _prepare_callback(self, test_info, target_list, verbose_str,
         short_str):
@@ -124,13 +125,16 @@ class _XMLTestResult(_TextTestResult):
         """Replace the stdout and stderr streams with string-based streams
         in order to capture the tests' output.
         """
-        (self.old_stdout, self.old_stderr) = (sys.stdout, sys.stderr)
+        if not self.output_patched:
+            (self.old_stdout, self.old_stderr) = (sys.stdout, sys.stderr)
+            self.output_patched = True
         (sys.stdout, sys.stderr) = (self.stdout, self.stderr) = \
             (StringIO(), StringIO())
 
     def _restore_standard_output(self):
         "Restore the stdout and stderr streams."
         (sys.stdout, sys.stderr) = (self.old_stdout, self.old_stderr)
+        self.output_patched = False
 
     def startTest(self, test):
         "Called before execute each test method."
