@@ -28,6 +28,10 @@
   #define PY_LONG_LONG LONG_LONG
 #endif
 
+#ifndef Py_HUGE_VAL
+  #define Py_HUGE_VAL HUGE_VAL
+#endif
+
 #ifdef PYPY_VERSION
 #define CYTHON_COMPILING_IN_PYPY 1
 #define CYTHON_COMPILING_IN_CPYTHON 0
