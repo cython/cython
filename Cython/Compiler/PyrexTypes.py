@@ -732,6 +732,8 @@ class MemoryViewSliceType(PyrexType):
         if dtype is not self.dtype:
             return MemoryViewSliceType(dtype, self.axes)
 
+    def cast_code(self, expr_code):
+        return expr_code
 
 
 class BufferType(BaseType):
@@ -1822,6 +1824,9 @@ class CComplexType(CNumericType):
     def py_type_name(self):
         return "complex"
 
+    def cast_code(self, expr_code):
+        return expr_code
+
 complex_ops = {
     (1, '-'): 'neg',
     (1, 'zero'): 'is_zero',
@@ -2859,6 +2864,11 @@ class CStructOrUnionType(CType):
         child_depths = [x.type.struct_nesting_depth()
                         for x in self.scope.var_entries]
         return max(child_depths) + 1
+
+    def cast_code(self, expr_code):
+        if self.is_struct:
+            return expr_code
+        return super(CStructOrUnionType, self).cast_code(expr_code)
 
 class CppClassType(CType):
     #  name          string
