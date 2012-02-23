@@ -1,0 +1,96 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import declarations"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Distutils import build_ext
+from Cython.Distutils.extension import Extension
+
+setup(
+    ext_modules = [
+        Extension("declarations", ["declarations.pyx", "external_declarations.c"]),
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## declarations.pyx ########
+# mode: compile
+
+cdef extern from "external_declarations.h":
+    pass
+
+cdef extern char *cp
+cdef extern char *cpa[5]
+cdef extern int (*ifnpa[5])()
+cdef extern char *(*cpfnpa[5])()
+cdef extern int (*ifnp)()
+cdef extern int (*iap)[5]
+
+cdef extern int ifn()
+cdef extern char *cpfn()
+cdef extern int (*iapfn())[5]
+cdef extern char *(*cpapfn())[5]
+cdef extern int fnargfn(int ())
+
+cdef extern int ia[]
+cdef extern int iaa[][3]
+cdef extern int a(int[][3], int[][3][5])
+
+cdef void f():
+    cdef void *p=NULL
+    global ifnp, cpa
+    ifnp = <int (*)()>p
+
+cdef char *g():
+    pass
+
+f()
+g()
+
+######## external_declarations.h ########
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern DL_IMPORT(char) *cp;
+extern DL_IMPORT(char) *cpa[5];
+extern DL_IMPORT(int) (*ifnpa[5])(void);
+extern DL_IMPORT(char) *(*cpfnpa[5])(void);
+extern DL_IMPORT(int) (*ifnp)(void);
+extern DL_IMPORT(int) (*iap)[5];
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern DL_IMPORT(int) ifn(void);
+extern DL_IMPORT(char *) cpfn(void);
+extern DL_IMPORT(int) fnargfn(int (void));
+extern DL_IMPORT(int) (*iapfn(void))[5];
+extern DL_IMPORT(char *)(*cpapfn(void))[5];
+extern DL_IMPORT(int) ia[];
+extern DL_IMPORT(int) iaa[][3];
+extern DL_IMPORT(int) a(int[][3], int[][3][5]);
+#ifdef __cplusplus
+}
+#endif
+
+######## external_declarations.c ########
+#include <Python.h>
+
+DL_EXPORT(char) *cp;
+DL_EXPORT(char) *cpa[5];
+DL_EXPORT(int) (*ifnpa[5])(void);
+DL_EXPORT(char) *(*cpfnpa[5])(void);
+DL_EXPORT(int) (*ifnp)(void);
+DL_EXPORT(int) (*iap)[5];
+
+DL_EXPORT(int) ifn(void) {return 0;}
+DL_EXPORT(char) *cpfn(void) {return 0;}
+DL_EXPORT(int) fnargfn(int f(void)) {return 0;}
+
+DL_EXPORT(int) ia[1];
+DL_EXPORT(int) iaa[1][3];
+DL_EXPORT(int) a(int a[][3], int b[][3][5]) {return 0;}
