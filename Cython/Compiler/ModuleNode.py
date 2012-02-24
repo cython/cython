@@ -236,6 +236,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname = env.mangle(Naming.varptr_prefix, entry.name)
                     h_code.putln("static %s = 0;" %  type.declaration_code(cname))
                     h_code.putln("#define %s (*%s)" % (entry.name, cname))
+            h_code.put(UtilityCode.load_cached("PyIdentifierFromString", "ModuleSetupCode.c").proto)
             h_code.put(import_module_utility_code.impl)
             if api_vars:
                 h_code.put(voidptr_import_utility_code.impl)
@@ -2374,7 +2375,8 @@ bad:
     return 0;
 }
 #endif
-""")
+""",
+requires=[UtilityCode.load_cached("PyIdentifierFromString", "ModuleSetupCode.c")])
 
 #------------------------------------------------------------------------------------
 
@@ -2435,7 +2437,8 @@ bad:
     return NULL;
 }
 #endif
-""")
+""",
+requires=[UtilityCode.load_cached("PyIdentifierFromString", "ModuleSetupCode.c")])
 
 #------------------------------------------------------------------------------------
 
