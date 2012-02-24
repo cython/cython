@@ -2202,3 +2202,17 @@ def test_noneslice_del():
         del m
         print m
 
+def get_int():
+    return 10
+
+@testcase
+def test_inplace_assignment():
+    """
+    >>> test_inplace_assignment()
+    10
+    """
+    cdef int[10] a
+    cdef int[:] m = a
+
+    m[0] = get_int()
+    print m[0]

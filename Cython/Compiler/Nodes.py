@@ -5050,8 +5050,15 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env):
+        import ExprNodes
+
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
+
+        # When assigning to a fully indexed buffer or memoryview, coerce the rhs
+        if (isinstance(self.lhs, ExprNodes.IndexNode) and
+                (self.lhs.memslice_index or self.lhs.is_buffer_access)):
+            self.rhs = self.rhs.coerce_to(self.lhs.type, env)
 
     def generate_execution_code(self, code):
         import ExprNodes

@@ -1127,3 +1127,17 @@ def buffer_nogil_oob():
     with nogil:
         buf[5] = 10
     return buf[1]
+
+def get_int():
+    return 10
+
+@testcase
+def test_inplace_assignment():
+    """
+    >>> test_inplace_assignment()
+    10
+    """
+    cdef object[int, ndim=1] buf = IntMockBuffer(None, [1, 2, 3])
+
+    buf[0] = get_int()
+    print buf[0]
