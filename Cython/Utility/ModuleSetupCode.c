@@ -378,3 +378,87 @@ static int __Pyx_check_binary_version(void) {
 #endif
 #endif
 
+/////////////// TypeImport.proto ///////////////
+
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
+
+/////////////// TypeImport ///////////////
+//@requires: PyIdentifierFromString
+
+#ifndef __PYX_HAVE_RT_ImportType
+#define __PYX_HAVE_RT_ImportType
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
+    size_t size, int strict)
+{
+    PyObject *py_module = 0;
+    PyObject *result = 0;
+    PyObject *py_name = 0;
+    char warning[200];
+
+    py_module = __Pyx_ImportModule(module_name);
+    if (!py_module)
+        goto bad;
+    py_name = __Pyx_PyIdentifier_FromString(class_name);
+    if (!py_name)
+        goto bad;
+    result = PyObject_GetAttr(py_module, py_name);
+    Py_DECREF(py_name);
+    py_name = 0;
+    Py_DECREF(py_module);
+    py_module = 0;
+    if (!result)
+        goto bad;
+    if (!PyType_Check(result)) {
+        PyErr_Format(PyExc_TypeError,
+            "%s.%s is not a type object",
+            module_name, class_name);
+        goto bad;
+    }
+    if (!strict && ((PyTypeObject *)result)->tp_basicsize > (Py_ssize_t)size) {
+        PyOS_snprintf(warning, sizeof(warning),
+            "%s.%s size changed, may indicate binary incompatibility",
+            module_name, class_name);
+        #if PY_VERSION_HEX < 0x02050000
+        if (PyErr_Warn(NULL, warning) < 0) goto bad;
+        #else
+        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
+        #endif
+    }
+    else if (((PyTypeObject *)result)->tp_basicsize != (Py_ssize_t)size) {
+        PyErr_Format(PyExc_ValueError,
+            "%s.%s has the wrong size, try recompiling",
+            module_name, class_name);
+        goto bad;
+    }
+    return (PyTypeObject *)result;
+bad:
+    Py_XDECREF(py_module);
+    Py_XDECREF(result);
+    return NULL;
+}
+#endif
+
+/////////////// ModuleImport.proto ///////////////
+
+static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
+
+/////////////// ModuleImport ///////////////
+//@requires: PyIdentifierFromString
+
+#ifndef __PYX_HAVE_RT_ImportModule
+#define __PYX_HAVE_RT_ImportModule
+static PyObject *__Pyx_ImportModule(const char *name) {
+    PyObject *py_name = 0;
+    PyObject *py_module = 0;
+
+    py_name = __Pyx_PyIdentifier_FromString(name);
+    if (!py_name)
+        goto bad;
+    py_module = PyImport_Import(py_name);
+    Py_DECREF(py_name);
+    return py_module;
+bad:
+    Py_XDECREF(py_name);
+    return 0;
+}
+#endif
