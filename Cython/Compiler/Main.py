@@ -357,10 +357,28 @@ class Context(object):
                 tree = Parsing.p_module(s, pxd, full_module_name)
             finally:
                 f.close()
-        except UnicodeDecodeError, msg:
+        except UnicodeDecodeError, e:
             #import traceback
             #traceback.print_exc()
-            error((source_desc, 0, 0), "Decoding error, missing or incorrect coding=<encoding-name> at top of source (%s)" % msg)
+            line = 1
+            column = 0
+            msg = e.args[-1]
+            position = e.args[2]
+            encoding = e.args[0]
+
+            for idx, c in enumerate(open(source_filename, "rb").read()):
+                if c in (ord('\n'), '\n'):
+                    line += 1
+                    column = 0
+                if idx == position:
+                    break
+
+                column += 1
+
+            error((source_desc, line, column),
+                  "Decoding error, missing or incorrect coding=<encoding-name> "
+                  "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg))
+
         if Errors.num_errors > 0:
             raise CompileError
         return tree
