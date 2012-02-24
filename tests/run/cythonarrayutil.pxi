@@ -1,13 +1,14 @@
 from libc.stdlib cimport malloc, free
 cimport cython
+from cython.view cimport array
 
 cdef void callback(void *data):
     print "callback called"
     free(data)
 
 def create_array(shape, mode, use_callback=False):
-    cdef cython.array result = cython.array(shape, itemsize=sizeof(int),
-                                            format='i', mode=mode)
+    cdef array result = array(shape, itemsize=sizeof(int),
+                              format='i', mode=mode)
     cdef int *data = <int *> result.data
     cdef int i, j, cidx, fidx
 

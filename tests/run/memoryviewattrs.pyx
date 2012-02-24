@@ -9,7 +9,7 @@ def testcase(func):
 
 
 cimport cython
-from cython cimport array
+from cython.view cimport array
 
 import numpy as np
 cimport numpy as np

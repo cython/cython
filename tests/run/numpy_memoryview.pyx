@@ -240,7 +240,7 @@ ctypedef td_h_short td_h_cy_short
 cdef void dealloc_callback(void *data):
     print "deallocating..."
 
-def index(cython.array array):
+def index(array array):
     array.callback_free_data = dealloc_callback
     print np.asarray(array)[3, 2]
 

@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 
 cimport cython
 from cython cimport view
+from cython.view cimport array
 from cython.parallel cimport prange, parallel
 
 import gc
@@ -1555,7 +1556,7 @@ def test_memslice_prange(arg):
 
     src = arg
 
-    dst = cython.array((<object> src).shape, sizeof(int), format="i")
+    dst = array((<object> src).shape, sizeof(int), format="i")
 
     cdef int i, j, k
 
@@ -1941,7 +1942,7 @@ class SingleObject(object):
         return self.value == getattr(other, 'value', None) or self.value == other
 
 cdef _get_empty_object_slice(fill=None):
-    cdef cython.array a = cython.array((10,), sizeof(PyObject *), 'O')
+    cdef array a = array((10,), sizeof(PyObject *), 'O')
     assert a.dtype_is_object
     return a
 
@@ -2086,7 +2087,7 @@ def test_dtype_object_scalar_assignment():
     """
     >>> test_dtype_object_scalar_assignment()
     """
-    cdef object[:] m = cython.array((10,), sizeof(PyObject *), 'O')
+    cdef object[:] m = array((10,), sizeof(PyObject *), 'O')
     m[:] = SingleObject(2)
     assert m[0] == m[4] == m[-1] == 2
 

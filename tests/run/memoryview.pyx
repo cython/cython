@@ -7,8 +7,7 @@ u'''
 >>> assignmvs()
 '''
 
-from cython.view cimport memoryview
-from cython cimport array
+from cython.view cimport memoryview, array
 from cython cimport view
 
 cdef extern from "Python.h":
@@ -68,11 +67,11 @@ cdef class TestExcClassExternalDtype(object):
     cdef td_h_double[:, :] arr_double
 
     def __init__(self):
-        self.arr_float = cython.array((10, 10), itemsize=sizeof(ext_dtype), format='f')
+        self.arr_float = array((10, 10), itemsize=sizeof(ext_dtype), format='f')
         self.arr_float[:] = 0.0
         self.arr_float[4, 4] = 2.0
 
-        self.arr_double = cython.array((10, 10), itemsize=sizeof(td_h_double), format='d')
+        self.arr_double = array((10, 10), itemsize=sizeof(td_h_double), format='d')
         self.arr_double[:] = 0.0
         self.arr_double[4, 4] = 2.0
 

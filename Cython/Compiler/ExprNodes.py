@@ -7189,7 +7189,7 @@ class CythonArrayNode(ExprNode):
         return self.get_cython_array_type(env)
 
     def get_cython_array_type(self, env):
-        return env.global_scope().context.cython_scope.lookup("array").type
+        return env.global_scope().context.cython_scope.viewscope.lookup("array").type
 
     def generate_result_code(self, code):
         import Buffer
