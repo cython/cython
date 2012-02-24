@@ -83,6 +83,7 @@ def update_numpy_extension(ext):
     ext.include_dirs.append(numpy.get_include())
 
 def update_openmp_extension(ext):
+    ext.openmp = True
     language = ext.language
 
     if language == 'cpp':
@@ -95,6 +96,8 @@ def update_openmp_extension(ext):
 
         ext.extra_compile_args.extend(compile_flags.split())
         ext.extra_link_args.extend(link_flags.split())
+        return ext
+    elif sys.platform == 'win32':
         return ext
 
     return EXCLUDE_EXT
@@ -110,7 +113,9 @@ def get_openmp_compiler_flags(language):
         cc = sysconfig.get_config_var('CXX')
     else:
         cc = sysconfig.get_config_var('CC')
-    if not cc: return None # Windows?
+
+    if not cc:
+        return None # Windows?
 
     # For some reason, cc can be e.g. 'gcc -pthread'
     cc = cc.split()[0]
@@ -254,6 +259,8 @@ class build_ext(_build_ext):
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             if CCACHE:
                 compiler_obj.compiler_so = CCACHE + compiler_obj.compiler_so
+            if getattr(ext, 'openmp', None) and compiler_obj.compiler_type == 'msvc':
+                ext.extra_compile_args.append('/openmp')
         except Exception:
             pass
         _build_ext.build_extension(self, ext)
