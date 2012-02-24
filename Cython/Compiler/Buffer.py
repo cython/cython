@@ -50,6 +50,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                    in scope.entries.iteritems()
                    if entry.type.is_buffer]
         if len(bufvars) > 0:
+            bufvars.sort(key=lambda entry: entry.name)
             self.buffers_exists = True
 
         memviewslicevars = [entry for name, entry
