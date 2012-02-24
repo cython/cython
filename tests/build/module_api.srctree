@@ -29,6 +29,25 @@ cdef api float flt1
 cdef public api int int2
 cdef public api flt flt2
 
+cdef class A0:
+     pass
+
+ctypedef api class A1 [
+     type A1_Type, 
+     object A1Object
+     ]:
+     pass
+
+ctypedef public api class A2 [
+     type A2_Type, 
+     object A2Object
+     ]:
+     pass
+
+cdef A0 a0
+cdef api A1 a1
+cdef public api A2 a2
+
 ######## a.pyx ########
 
 cdef int   int0 = 1, int1 = 1, int2 = 1
@@ -46,6 +65,13 @@ def get_int():
 def get_flt():
     return (flt0, flt1, flt2, flt3, flt4)
 
+cdef class A0: pass
+cdef class A1: pass
+cdef class A2: pass
+
+cdef A0 a0 = A0()
+cdef api A1 a1 = A1()
+cdef public api A2 a2 = A2()
 
 ######## b.pyx ########
 
