@@ -414,7 +414,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
             module_name, class_name);
         goto bad;
     }
-    if (!strict && ((PyTypeObject *)result)->tp_basicsize > (Py_ssize_t)size) {
+    if (!strict && (size_t)((PyTypeObject *)result)->tp_basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
@@ -424,7 +424,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
         #endif
     }
-    else if (((PyTypeObject *)result)->tp_basicsize != (Py_ssize_t)size) {
+    else if ((size_t)((PyTypeObject *)result)->tp_basicsize != size) {
         PyErr_Format(PyExc_ValueError,
             "%s.%s has the wrong size, try recompiling",
             module_name, class_name);
