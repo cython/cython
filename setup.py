@@ -3,6 +3,12 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
+try:
+    import platform
+    is_cpython = not hasattr(platform, 'python_implementation') or platform.python_implementation() == 'CPython'
+except (ImportError, NameError):
+    is_cpython = True # CPython < 2.6
+
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -259,7 +265,7 @@ try:
 except ValueError:
     compile_cython_itself = True
 
-if compile_cython_itself:
+if compile_cython_itself and (is_cpython or cython_compile_more):
     compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
 
 setup_args.update(setuptools_extra_args)
