@@ -16,16 +16,16 @@ def keyvalue(key, value):
 
 def keyvalues(key1, value1, key2, value2):
     """
-    >>> keyvalues(1, 2, 3, 4)
-    {1: 2, 3: 4}
+    >>> sorted(keyvalues(1, 2, 3, 4).items())
+    [(1, 2), (3, 4)]
     """
     d = {key1:value1, key2:value2}
     return d
 
 def keyvalues2(key1, value1, key2, value2):
     """
-    >>> keyvalues2(1, 2, 3, 4)
-    {1: 2, 3: 4}
+    >>> sorted(keyvalues2(1, 2, 3, 4).items())
+    [(1, 2), (3, 4)]
     """
     d = {key1:value1, key2:value2,}
     return d

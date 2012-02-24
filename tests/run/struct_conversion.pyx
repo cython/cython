@@ -5,8 +5,8 @@ cdef struct Point:
 
 def test_constructor(x, y, color):
     """
-    >>> test_constructor(1,2,255)
-    {'y': 2.0, 'x': 1.0, 'color': 255}
+    >>> sorted(test_constructor(1,2,255).items())
+    [('color', 255), ('x', 1.0), ('y', 2.0)]
     >>> test_constructor(1,None,255)
     Traceback (most recent call last):
     ...
@@ -17,8 +17,8 @@ def test_constructor(x, y, color):
 
 def test_constructor_kwds(x, y, color):
     """
-    >>> test_constructor_kwds(1.25, 2.5, 128)
-    {'y': 2.5, 'x': 1.25, 'color': 128}
+    >>> sorted(test_constructor_kwds(1.25, 2.5, 128).items())
+    [('color', 128), ('x', 1.25), ('y', 2.5)]
     >>> test_constructor_kwds(1.25, 2.5, None)
     Traceback (most recent call last):
     ...
@@ -29,8 +29,8 @@ def test_constructor_kwds(x, y, color):
 
 def test_dict_construction(x, y, color):
     """
-    >>> test_dict_construction(4, 5, 64)
-    {'y': 5.0, 'x': 4.0, 'color': 64}
+    >>> sorted(test_dict_construction(4, 5, 64).items())
+    [('color', 64), ('x', 4.0), ('y', 5.0)]
     >>> test_dict_construction("foo", 5, 64)
     Traceback (most recent call last):
     ...

@@ -11,8 +11,8 @@ def exec_module_scope():
 
 def exec_func_scope():
     """
-    >>> exec_func_scope()
-    {'a': 'b', 'G': 1234}
+    >>> sorted(exec_func_scope().items())
+    [('G', 1234), ('a', 'b')]
     """
     d = {}
     exec "d['a'] = 'b'; d['G'] = GLOBAL"

@@ -120,6 +120,6 @@ kwargs = {'c': 0}
 @cython.test_assert_path_exists("//PyClassMetaclassNode", "//Py3ClassNode")
 class Foo3(metaclass=Base3, a=0, b=0, **kwargs):
     """
-    >>> Foo3.kwargs
-    {'a': 0, 'c': 0, 'b': 0}
+    >>> sorted(Foo3.kwargs.items())
+    [('a', 0), ('b', 0), ('c', 0)]
     """
