@@ -7847,6 +7847,10 @@ class ParallelRangeNode(ParallelStatNode):
             self.index_type = PyrexTypes.c_py_ssize_t_type
         else:
             self.index_type = self.target.type
+            if not self.index_type.signed:
+                warning(self.target.pos,
+                        "Unsigned index type not allowed before OpenMP 3.0",
+                        level=2)
 
         # Setup start, stop and step, allocating temps if needed
         self.names = 'start', 'stop', 'step'

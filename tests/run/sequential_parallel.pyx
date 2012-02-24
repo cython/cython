@@ -65,25 +65,26 @@ def test_propagation():
 
     return i, j, x, y, sum1, sum2
 
-def test_unsigned_operands():
-    """
-    >>> test_unsigned_operands()
-    10
-    """
-    cdef int i
-    cdef int start = -5
-    cdef unsigned int stop = 5
-    cdef int step = 1
-
-    cdef int steps_taken = 0
-    cdef int *steps_takenp = &steps_taken
-
-    for i in prange(start, stop, step, nogil=True):
-        steps_taken += 1
-        if steps_takenp[0] > 10:
-            abort()
-
-    return steps_taken
+# DISABLED, not allowed in OpenMP 3.0 (fails on Windows)
+#def test_unsigned_operands():
+#    """
+#    >>> test_unsigned_operands()
+#    10
+#    """
+#    cdef int i
+#    cdef int start = -5
+#    cdef unsigned int stop = 5
+#    cdef int step = 1
+#
+#    cdef int steps_taken = 0
+#    cdef int *steps_takenp = &steps_taken
+#
+#    for i in prange(start, stop, step, nogil=True):
+#        steps_taken += 1
+#        if steps_takenp[0] > 10:
+#            abort()
+#
+#    return steps_taken
 
 def test_reassign_start_stop_step():
     """
