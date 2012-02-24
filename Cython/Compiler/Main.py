@@ -182,7 +182,7 @@ class Context(object):
         # the directory containing the source file is searched first
         # for a dotted filename, and its containing package root
         # directory is searched first for a non-dotted filename.
-        pxd = self.search_include_directories(qualified_name, ".pxd", pos)
+        pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=True)
         if pxd is None: # XXX Keep this until Includes/Deprecated is removed
             if (qualified_name.startswith('python') or
                 qualified_name in ('stdlib', 'stdio', 'stl')):
@@ -221,13 +221,16 @@ class Context(object):
         return path
 
     def search_include_directories(self, qualified_name, suffix, pos,
-                                   include=False):
+                                   include=False, sys_path=False):
         # Search the list of include directories for the given
         # file name. If a source file position is given, first
         # searches the directory containing that file. Returns
         # None if not found, but does not report an error.
         # The 'include' option will disable package dereferencing.
+        # If 'sys_path' is True, also search sys.path.
         dirs = self.include_directories
+        if sys_path:
+            dirs = dirs + sys.path
         if pos:
             file_desc = pos[0]
             if not isinstance(file_desc, FileSourceDescriptor):

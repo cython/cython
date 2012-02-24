@@ -1,0 +1,31 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+# Add ./site-packages to sys.path
+from os.path import realpath
+import sys
+sys.path.append(realpath('site-packages'))
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## site-packages/b/__init__.py ########
+
+######## site-packages/b/other.pxd ########
+
+cdef inline foo(int a):
+     return a**2
+
+######## a.pyx ########
+
+from b.other cimport foo
+print foo(10)
+
+cimport b.other
+print b.other.foo(10)
