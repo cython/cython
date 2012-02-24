@@ -45,14 +45,16 @@ def py_enumerate_dict(dict d):
     >>> py_enumerate_dict({})
     :: 55 99
     >>> py_enumerate_dict(dict(a=1, b=2, c=3))
-    0 a
-    1 c
-    2 b
-    :: 2 b
+    0 True
+    1 True
+    2 True
+    :: 2 True
     """
     cdef int i = 55
     k = 99
+    keys = d.keys()
     for i,k in enumerate(d):
+        k = keys[i] == k
         print i, k
     print u"::", i, k
 
