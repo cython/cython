@@ -22,8 +22,8 @@ cdef extern from "<string>" namespace "std":
         void clear()
         bint empty()
 
-        char at(size_t)
-        char operator[](size_t)
+        char& at(size_t)
+        char& operator[](size_t)
         int compare(string&)
 
         string& append(string&)
