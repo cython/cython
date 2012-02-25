@@ -152,9 +152,6 @@ def call():
     f = ExtClass()
     pf = PyClass()
 
-cdef int[:] func():
-    pass
-
 cdef ExtClass get_ext_obj():
     print 'get_ext_obj called'
     return ExtClass.__new__(ExtClass)
