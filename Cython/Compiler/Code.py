@@ -113,7 +113,7 @@ class UtilityCodeBase(object):
             replace_comments = re.compile(r'^\s*//.*|^\s*/\*[^*]*\*/').sub
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*((?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(requires)\s*:\s*((?:\w|\.)+)' # add more tag names here at need
+             r'^%(C)s+@(requires)\s*:\s*((?:\w|[.:])+)' # add more tag names here at need
                 ) % {'C':comment}).match
 
         f = Utils.open_source_file(filename, encoding='UTF-8')
@@ -171,7 +171,9 @@ class UtilityCodeBase(object):
         load it from the file util_code_name.*.  There should be only one
         file matched by this pattern.
         """
-        if from_file is None:
+        if '::' in util_code_name:
+            from_file, util_code_name = util_code_name.rsplit('::', 1)
+        if not from_file:
             utility_dir = get_utility_dir()
             prefix = util_code_name + '.'
             try:
