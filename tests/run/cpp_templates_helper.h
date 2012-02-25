@@ -20,3 +20,13 @@ public:
     bool operator==(Pair<T1,T2> other) { return _first == other._first && _second == other._second; }
     bool operator!=(Pair<T1,T2> other) { return _first != other._first || _second != other._second; }
 };
+
+template <class T1, class T2>
+class SuperClass {
+public:
+    SuperClass() {}
+};
+
+template <class T2, class T3>
+class SubClass : public SuperClass<T2, T3> {
+};

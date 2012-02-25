@@ -16,6 +16,12 @@ cdef extern from "cpp_templates_helper.h":
         bint operator==(Pair[T1,T2])
         bint operator!=(Pair[T1,T2])
 
+    cdef cppclass SuperClass[T1, T2]:
+        pass
+
+    cdef cppclass SubClass[T2, T3]:
+        pass
+
 def test_int(int x, int y):
     """
     >>> test_int(3, 4)
@@ -88,3 +94,13 @@ def test_func_ptr(double x):
         return w.get()(x)
     finally:
         del w
+
+def test_cast_template_pointer():
+    """
+    >>> test_cast_template_pointer()
+    """
+    cdef SubClass[int, float] *sub = new SubClass[int, float]()
+    cdef SuperClass[int, float] *sup
+
+    sup = sub
+    sup = <SubClass[int, float] *> sub
