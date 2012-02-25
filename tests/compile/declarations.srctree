@@ -49,6 +49,11 @@ f()
 g()
 
 ######## external_declarations.h ########
+
+#ifndef DL_IMPORT
+  #define DL_IMPORT(t) t
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -79,6 +84,10 @@ extern DL_IMPORT(int) a(int[][3], int[][3][5]);
 
 ######## external_declarations.c ########
 #include <Python.h>
+
+#ifndef DL_EXPORT
+  #define DL_EXPORT(t) t
+#endif
 
 DL_EXPORT(char) *cp;
 DL_EXPORT(char) *cpa[5];

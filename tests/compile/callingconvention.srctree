@@ -36,6 +36,11 @@ p3 = f3
 p4 = f4
 
 ######## external_callingconvention.h ########
+
+#ifndef DL_IMPORT
+  #define DL_IMPORT(t) t
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,6 +58,11 @@ extern DL_IMPORT(int) (__fastcall *p4)(void);
 
 ######## external_callingconvention.c ########
 #include <Python.h>
+
+#ifndef DL_EXPORT
+  #define DL_EXPORT(t) t
+#endif
+
 
 #if !defined(WIN32) && !defined(MS_WINDOWS)
   #ifndef __stdcall
