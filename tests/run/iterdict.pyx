@@ -56,6 +56,15 @@ def iteritems_int(dict d):
     [(10, 0), (11, 1), (12, 2), (13, 3)]
     >>> iteritems_int({})
     []
+    >>> iteritems_int({'a': 1})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> iteritems_int({1: 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> iteritems_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int k,v
     l = []
@@ -113,6 +122,9 @@ def iterkeys_int(dict d):
     [10, 11, 12, 13]
     >>> iterkeys_int({})
     []
+    >>> iterkeys_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int k
     l = []
@@ -146,6 +158,9 @@ def iterdict_int(dict d):
     [10, 11, 12, 13]
     >>> iterdict_int({})
     []
+    >>> iterdict_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int k
     l = []
@@ -211,6 +226,9 @@ def itervalues_int(dict d):
     [0, 1, 2, 3]
     >>> itervalues_int({})
     []
+    >>> itervalues_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int v
     l = []

@@ -9752,25 +9752,9 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
 
 #------------------------------------------------------------------------------------
 
-raise_noneattr_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
-    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
-}
-''')
-
-raise_noneindex_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
-}
-''')
+raise_noneattr_error_utility_code = UtilityCode.load_cached("RaiseNoneAttrError", "ObjectHandling.c")
+raise_noneindex_error_utility_code = UtilityCode.load_cached("RaiseNoneIndexingError", "ObjectHandling.c")
+raise_none_iter_error_utility_code = UtilityCode.load_cached("RaiseNoneIterError", "ObjectHandling.c")
 
 raise_noneindex_memview_error_utility_code = UtilityCode(
     proto = """
@@ -9779,16 +9763,6 @@ static CYTHON_INLINE void __Pyx_RaiseNoneMemviewIndexingError(void);
     impl = '''
 static CYTHON_INLINE void __Pyx_RaiseNoneMemviewIndexingError(void) {
     PyErr_SetString(PyExc_TypeError, "Cannot index None memoryview slice");
-}
-''')
-
-raise_none_iter_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
 }
 ''')
 
@@ -10029,92 +10003,14 @@ impl = """
 
 #------------------------------------------------------------------------------------
 
-raise_too_many_values_to_unpack = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected) {
-    PyErr_Format(PyExc_ValueError,
-                 "too many values to unpack (expected %"PY_FORMAT_SIZE_T"d)", expected);
-}
-''')
-
-raise_need_more_values_to_unpack = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
-    PyErr_Format(PyExc_ValueError,
-                 "need more than %"PY_FORMAT_SIZE_T"d value%s to unpack",
-                 index, (index == 1) ? "" : "s");
-}
-''')
+raise_too_many_values_to_unpack = UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c")
+raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c")
 
 #------------------------------------------------------------------------------------
 
-tuple_unpacking_error_code = UtilityCode(
-proto = """
-static void __Pyx_UnpackTupleError(PyObject *, Py_ssize_t index); /*proto*/
-""",
-impl = """
-static void __Pyx_UnpackTupleError(PyObject *t, Py_ssize_t index) {
-    if (t == Py_None) {
-      __Pyx_RaiseNoneNotIterableError();
-    } else if (PyTuple_GET_SIZE(t) < index) {
-      __Pyx_RaiseNeedMoreValuesError(PyTuple_GET_SIZE(t));
-    } else {
-      __Pyx_RaiseTooManyValuesError(index);
-    }
-}
-""",
-requires = [raise_none_iter_error_utility_code,
-            raise_need_more_values_to_unpack,
-            raise_too_many_values_to_unpack]
-)
-
-unpacking_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
-    PyObject *item;
-    if (!(item = PyIter_Next(iter))) {
-        if (!PyErr_Occurred()) {
-            __Pyx_RaiseNeedMoreValuesError(index);
-        }
-    }
-    return item;
-}
-""",
-requires = [raise_need_more_values_to_unpack]
-)
-
-iternext_unpacking_end_utility_code = UtilityCode(
-proto = """
-static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected); /*proto*/
-""",
-impl = """
-static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected) {
-    if (unlikely(retval)) {
-        Py_DECREF(retval);
-        __Pyx_RaiseTooManyValuesError(expected);
-        return -1;
-    } else if (PyErr_Occurred()) {
-        if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) {
-            PyErr_Clear();
-            return 0;
-        } else {
-            return -1;
-        }
-    }
-    return 0;
-}
-""",
-requires = [raise_too_many_values_to_unpack]
-)
+tuple_unpacking_error_code = UtilityCode.load_cached("UnpackTupleError", "ObjectHandling.c")
+unpacking_utility_code = UtilityCode.load_cached("UnpackItem", "ObjectHandling.c")
+iternext_unpacking_end_utility_code = UtilityCode.load_cached("UnpackItemEndCheck", "ObjectHandling.c")
 
 #------------------------------------------------------------------------------------
 
