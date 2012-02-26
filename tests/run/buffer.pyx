@@ -12,13 +12,17 @@ b'abcdefg'
 
 >>> m1 = memoryview(b1)
 __getbuffer__ called
->>> m1.tobytes()
+
+Semantics changed in python 3.3
+>> m1.tobytes()
 __getbuffer__ called
 b'abcdefg'
 
 >>> m2 = memoryview(b2)
 __getbuffer__ called
->>> m2.tobytes()
+
+Semantics changed in python 3.3
+>> m2.tobytes()
 __getbuffer__ called
 releasing!
 b'abcdefg'

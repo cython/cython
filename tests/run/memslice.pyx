@@ -13,6 +13,12 @@ import gc
 import sys
 import re
 
+if sys.version_info[0] < 3:
+    import __builtin__ as builtins
+else:
+    import builtins
+
+
 __test__ = {}
 
 def testcase(func):
@@ -1650,12 +1656,7 @@ cdef test_structs_with_arr(FusedStruct array[10]):
         for j in range(3):
             myslice1[i].chars[j] = 97 + j
 
-    if sys.version_info[:2] >= (2, 7):
-        if sys.version_info[0] < 3:
-            import __builtin__ as builtins
-        else:
-            import builtins
-
+    if sys.version_info[:2] >= (2, 7) and sys.version_info[:2] < (3, 3):
         size1 = sizeof(FusedStruct)
         size2 = len(builtins.memoryview(myslice1)[0])
         assert size1 == size2, (size1, size2, builtins.memoryview(myslice1).format)
@@ -1674,6 +1675,25 @@ cdef test_structs_with_arr(FusedStruct array[10]):
             assert myslice3[i].chars[j] == myslice4[i].chars[j] == myslice1[i].chars[j]
 
     print myslice1[0].chars[:3].decode('ascii')
+
+cdef struct TestAttrs:
+    int int_attrib
+    char char_attrib
+
+@testcase
+def test_struct_attributes_format():
+    """
+    >>> test_struct_attributes_format()
+    T{i:int_attrib:b:char_attrib:}
+    """
+    cdef TestAttrs[10] array
+    cdef TestAttrs[:] struct_memview = array
+
+    if sys.version_info[:2] >= (2, 7):
+        print builtins.memoryview(struct_memview).format
+    else:
+        print "T{i:int_attrib:b:char_attrib:}"
+
 
 # Test padding at the end of structs in the buffer support
 cdef struct PaddedAtEnd:
