@@ -1,17 +1,17 @@
 cdef extern from "<list>" namespace "std":
     cdef cppclass list[T]:
         cppclass iterator:
-            T& operator*()
-            iterator operator++()
-            iterator operator--()
-            bint operator==(iterator)
-            bint operator!=(iterator)
+            T& operator*() nogil
+            iterator operator++() nogil
+            iterator operator--() nogil
+            bint operator==(iterator) nogil
+            bint operator!=(iterator) nogil
         cppclass reverse_iterator:
-            T& operator*()
-            iterator operator++()
-            iterator operator--()
-            bint operator==(reverse_iterator)
-            bint operator!=(reverse_iterator)
+            T& operator*() nogil
+            iterator operator++() nogil
+            iterator operator--() nogil
+            bint operator==(reverse_iterator) nogil
+            bint operator!=(reverse_iterator) nogil
         #cppclass const_iterator(iterator):
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
@@ -20,46 +20,46 @@ cdef extern from "<list>" namespace "std":
         list(list&)
         list(size_t, T&)
         #list operator=(list&)
-        bint operator==(list&, list&)
-        bint operator!=(list&, list&)
-        bint operator<(list&, list&)
-        bint operator>(list&, list&)
-        bint operator<=(list&, list&)
-        bint operator>=(list&, list&)
-        void assign(size_t, T&)
-        T& back()
-        iterator begin()
+        bint operator==(list&, list&) nogil
+        bint operator!=(list&, list&) nogil
+        bint operator<(list&, list&) nogil
+        bint operator>(list&, list&) nogil
+        bint operator<=(list&, list&) nogil
+        bint operator>=(list&, list&) nogil
+        void assign(size_t, T&) nogil
+        T& back() nogil
+        iterator begin() nogil
         #const_iterator begin()
-        void clear()
-        bint empty()
-        iterator end()
+        void clear() nogil
+        bint empty() nogil
+        iterator end() nogil
         #const_iterator end()
-        iterator erase(iterator)
-        iterator erase(iterator, iterator)
-        T& front()
-        iterator insert(iterator, T&)
-        void insert(iterator, size_t, T&)
-        size_t max_size()
-        void merge(list&)
+        iterator erase(iterator) nogil
+        iterator erase(iterator, iterator) nogil
+        T& front() nogil
+        iterator insert(iterator, T&) nogil
+        void insert(iterator, size_t, T&) nogil
+        size_t max_size() nogil
+        void merge(list&) nogil
         #void merge(list&, BinPred)
-        void pop_back()
-        void pop_front()
-        void push_back(T&)
-        void push_front(T&)
-        reverse_iterator rbegin()
+        void pop_back() nogil
+        void pop_front() nogil
+        void push_back(T&) nogil
+        void push_front(T&) nogil
+        reverse_iterator rbegin() nogil
         #const_reverse_iterator rbegin()
-        void remove(T&)
+        void remove(T&) nogil
         #void remove_if(UnPred)
-        reverse_iterator rend()
+        reverse_iterator rend() nogil
         #const_reverse_iterator rend()
-        void resize(size_t, T&)
-        void reverse()
-        size_t size()
-        void sort()
+        void resize(size_t, T&) nogil
+        void reverse() nogil
+        size_t size() nogil
+        void sort() nogil
         #void sort(BinPred)
-        void splice(iterator, list&)
-        void splice(iterator, list&, iterator)
-        void splice(iterator, list&, iterator, iterator)
-        void swap(list&)
-        void unique()
+        void splice(iterator, list&) nogil
+        void splice(iterator, list&, iterator) nogil
+        void splice(iterator, list&, iterator, iterator) nogil
+        void swap(list&) nogil
+        void unique() nogil
         #void unique(BinPred)
