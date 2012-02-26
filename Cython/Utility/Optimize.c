@@ -308,6 +308,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 
 /////////////// dict_iter ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
+//@requires: ObjectHandling.c::IterFinish
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_is_dict) {
@@ -366,7 +367,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
     {
         PyObject* next_item = PyIter_Next(dict_or_iter);
         if (unlikely(!next_item)) {
-            return PyErr_Occurred() ? -1 : 0;
+            return __Pyx_IterFinish();
         }
         if (pitem) {
             *pitem = next_item;
