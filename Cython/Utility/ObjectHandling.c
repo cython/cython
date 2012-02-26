@@ -94,19 +94,15 @@ static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected); 
 
 /////////////// UnpackItemEndCheck ///////////////
 //@requires: RaiseTooManyValuesToUnpack
+//@requires: IterFinish
 
 static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected) {
     if (unlikely(retval)) {
         Py_DECREF(retval);
         __Pyx_RaiseTooManyValuesError(expected);
         return -1;
-    } else if (PyErr_Occurred()) {
-        if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) {
-            PyErr_Clear();
-            return 0;
-        } else {
-            return -1;
-        }
+    } else {
+        return __Pyx_IterFinish();
     }
     return 0;
 }
@@ -156,4 +152,26 @@ bad:
     Py_XDECREF(value2);
     if (decref_tuple) Py_DECREF(tuple);
     return -1;
+}
+
+/////////////// IterFinish.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_IterFinish(); /*proto*/
+
+/////////////// IterFinish ///////////////
+
+// When PyIter_Next(iter) has returned NULL in order to signal termination,
+// this function does the right cleanup and returns 0 on success.  If it
+// detects an error that occurred in the iterator, it returns -1.
+
+static CYTHON_INLINE int __Pyx_IterFinish() {
+    if (unlikely(PyErr_Occurred())) {
+        if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) {
+            PyErr_Clear();
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+    return 0;
 }
