@@ -2742,8 +2742,19 @@ proto="""
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNanny = NULL;
   static __Pyx_RefNannyAPIStruct *__Pyx_RefNannyImportAPI(const char *modname); /*proto*/
   #define __Pyx_RefNannyDeclarations void *__pyx_refnanny = NULL;
-  #define __Pyx_RefNannySetupContext(name) \
+#ifdef WITH_THREAD
+  #define __Pyx_RefNannySetupContext(name, acquire_gil) \
+          if (acquire_gil) { \
+              PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure(); \
+              __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__); \
+              PyGILState_Release(__pyx_gilstate_save); \
+          } else { \
+              __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__); \
+          }
+#else
+  #define __Pyx_RefNannySetupContext(name, acquire_gil) \
           __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
+#endif
   #define __Pyx_RefNannyFinishContext() \
           __Pyx_RefNanny->FinishContext(&__pyx_refnanny)
   #define __Pyx_INCREF(r)  __Pyx_RefNanny->INCREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
@@ -2756,7 +2767,7 @@ proto="""
   #define __Pyx_XGIVEREF(r) do { if((r) != NULL) {__Pyx_GIVEREF(r);}} while(0)
 #else
   #define __Pyx_RefNannyDeclarations
-  #define __Pyx_RefNannySetupContext(name)
+  #define __Pyx_RefNannySetupContext(name, acquire_gil)
   #define __Pyx_RefNannyFinishContext()
   #define __Pyx_INCREF(r) Py_INCREF(r)
   #define __Pyx_DECREF(r) Py_DECREF(r)

@@ -1504,22 +1504,14 @@ class FuncDefNode(StatNode, BlockNode):
 
         if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_ensure_gil()
+        elif lenv.nogil and lenv.has_with_gil_block:
+            code.declare_gilstate()
 
         # ----- set up refnanny
         if use_refnanny:
-            if acquire_gil_for_refnanny_only:
-                code.declare_gilstate()
-                code.putln("#if CYTHON_REFNANNY")
-                code.put_ensure_gil(declare_gilstate=False)
-                code.putln("#endif /* CYTHON_REFNANNY */")
-
             tempvardecl_code.put_declare_refcount_context()
-            code.put_setup_refcount_context(self.entry.name)
-
-            if acquire_gil_for_refnanny_only:
-                code.putln("#if CYTHON_REFNANNY")
-                code.put_release_ensured_gil()
-                code.putln("#endif /* CYTHON_REFNANNY */")
+            code.put_setup_refcount_context(
+                self.entry.name, acquire_gil=acquire_gil_for_refnanny_only)
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -1775,8 +1767,8 @@ class FuncDefNode(StatNode, BlockNode):
             # GIL holding funcion
             code.put_finish_refcount_context()
 
-        if (acquire_gil or acquire_gil_for_var_decls_only or
-                                acquire_gil_for_refnanny_only):
+        if acquire_gil or (lenv.nogil and lenv.has_with_gil_block):
+            # release the GIL (note that with-gil blocks acquire it on exit in their EnsureGILNode)
             code.put_release_ensured_gil()
 
         if not self.return_type.is_void:

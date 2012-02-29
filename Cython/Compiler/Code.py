@@ -1845,8 +1845,11 @@ class CCodeWriter(object):
     def put_declare_refcount_context(self):
         self.putln('__Pyx_RefNannyDeclarations')
 
-    def put_setup_refcount_context(self, name):
-        self.putln('__Pyx_RefNannySetupContext("%s");' % name)
+    def put_setup_refcount_context(self, name, acquire_gil=False):
+        if acquire_gil:
+            from Cython.Compiler import Nodes
+            self.globalstate.use_utility_code(Nodes.force_init_threads_utility_code)
+        self.putln('__Pyx_RefNannySetupContext("%s", %d);' % (name, acquire_gil and 1 or 0))
 
     def put_finish_refcount_context(self):
         self.putln("__Pyx_RefNannyFinishContext();")
