@@ -167,7 +167,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     __Pyx_BufFmt_Context ctx;
     int from_memoryview = __pyx_memoryview_check(original_obj);
 
-    __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice");
+    __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice", 0);
 
     if (from_memoryview && __pyx_typeinfo_cmp(dtype, ((struct __pyx_memoryview_obj *)
                                                             original_obj)->typeinfo)) {
@@ -307,7 +307,7 @@ __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
     __Pyx_RefNannyDeclarations
     int i, retval=-1;
     Py_buffer *buf = &memview->view;
-    __Pyx_RefNannySetupContext("init_memviewslice");
+    __Pyx_RefNannySetupContext("init_memviewslice", 0);
 
     if (!buf) {
         PyErr_SetString(PyExc_ValueError,
@@ -470,7 +470,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     struct __pyx_array_obj *array_obj = NULL;
     struct __pyx_memoryview_obj *memview_obj = NULL;
 
-    __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig");
+    __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig", 0);
 
     for (i = 0; i < ndim; i++) {
         if (from_mvs->suboffsets[i] >= 0) {
