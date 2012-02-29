@@ -101,7 +101,6 @@ quick_temp_cname = pyrex_prefix + "temp" # temp variable for quick'n'dirty tempi
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'
-global_code_object_cache_clear = pyrex_prefix + 'clear_code_object_cache'
 
 genexpr_id_ref = 'genexpr'
 

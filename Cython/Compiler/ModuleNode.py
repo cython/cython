@@ -1899,7 +1899,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Code object cache cleanup code ---*/")
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("CodeObjectCache", "ModuleSetupCode.c"))
-        code.putln('%s();' % Naming.global_code_object_cache_clear)
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,
 #                                  PyrexTypes.py_object_type,

@@ -84,8 +84,12 @@ class UtilityCodeBase(object):
 
         if type == 'Proto':
             utility[0] = code
-        else:
+        elif type == 'Code':
             utility[1] = code
+        else:
+            all_tags = utility[2]
+            all_tags[type.lower()] = code
+
         if tags:
             all_tags = utility[2]
             for name, values in tags.items():
@@ -138,6 +142,9 @@ class UtilityCodeBase(object):
                     if name.endswith(".proto"):
                         name = name[:-6]
                         type = 'Proto'
+                    elif name.endswith(".cleanup"):
+                        name = name[:-8]
+                        type = 'cleanup'
                     else:
                         type = 'Code'
                     utility = utilities.setdefault(name, [None, None, {}])

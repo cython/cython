@@ -238,29 +238,12 @@ struct __Pyx_CodeObjectCache {
 static struct __Pyx_CodeObjectCache __pyx_code_cache = {0,0,NULL};
 
 static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line);
-static void __pyx_clear_code_object_cache(void);
 static PyCodeObject *__pyx_find_code_object(int code_line);
 static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object);
 
 /////////////// CodeObjectCache ///////////////
 // Note that errors are simply ignored in the code below.
 // This is just a cache, if a lookup or insertion fails - so what?
-
-static void __pyx_clear_code_object_cache(void) {
-    __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
-    int count = __pyx_code_cache.count;
-    int i;
-    if (entries == NULL) {
-        return;
-    }
-    __pyx_code_cache.count = 0;
-    __pyx_code_cache.max_count = 0;
-    __pyx_code_cache.entries = NULL;
-    for (i=0; i<count; i++) {
-        Py_DECREF(entries[i].code_object);
-    }
-    PyMem_Free(entries);
-}
 
 static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line) {
     int start = 0, mid = 0, end = count - 1;
@@ -342,6 +325,20 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
     __pyx_code_cache.count++;
     Py_INCREF(code_object);
 }
+
+/////////////// CodeObjectCache.cleanup ///////////////
+
+  if (__pyx_code_cache.entries) {
+      __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
+      int i, count = __pyx_code_cache.count;
+      __pyx_code_cache.count = 0;
+      __pyx_code_cache.max_count = 0;
+      __pyx_code_cache.entries = NULL;
+      for (i=0; i<count; i++) {
+          Py_DECREF(entries[i].code_object);
+      }
+      PyMem_Free(entries);
+  }
 
 /////////////// CheckBinaryVersion.proto ///////////////
 
