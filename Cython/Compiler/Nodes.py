@@ -1381,7 +1381,9 @@ class FuncDefNode(StatNode, BlockNode):
         self.body.generate_execution_code(code)
 
     def generate_function_definitions(self, env, code):
-        import Buffer, MemoryView
+        import Buffer
+        if self.return_type.is_memoryviewslice:
+            import MemoryView
 
         lenv = self.local_scope
         if lenv.is_closure_scope and not lenv.is_passthrough:
@@ -1460,7 +1462,6 @@ class FuncDefNode(StatNode, BlockNode):
             if self.return_type.is_pyobject:
                 init = " = NULL"
             elif self.return_type.is_memoryviewslice:
-                import MemoryView
                 init = ' = ' + MemoryView.memslice_entry_init
 
             code.putln(
