@@ -1870,17 +1870,17 @@ class FuncDefNode(StatNode, BlockNode):
         code.putln("}")
 
     def get_preprocessor_guard(self):
-        entry = self.entry
-        is_buffer_slot = (entry.name in ("__getbuffer__", "__releasebuffer__") and
-                          entry.scope.is_c_class_scope)
-        if entry.is_special and not is_buffer_slot:
-            slot = TypeSlots.method_name_to_slot.get(entry.name)
-            if slot:
-                preprocessor_guard = slot.preprocessor_guard_code()
-                if (entry.name == '__long__' and
-                    not entry.scope.lookup_here('__int__')):
-                    preprocessor_guard = None
-                return preprocessor_guard
+        if not self.entry.is_special:
+            return None
+        name = self.entry.name
+        slot = TypeSlots.method_name_to_slot.get(name)
+        if not slot:
+            return None
+        if name == '__long__' and not self.entry.scope.lookup_here('__int__'):
+            return None
+        if name in ("__getbuffer__", "__releasebuffer__") and self.entry.scope.is_c_class_scope:
+            return None
+        return slot.preprocessor_guard_code()
 
 
 class CFuncDefNode(FuncDefNode):
