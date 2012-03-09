@@ -1885,7 +1885,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
             for type, _ in env.types_imported.items():
-                code.putln("Py_DECREF((PyObject *)%s);" % type.typeptr_cname)
+                code.putln("Py_DECREF((PyObject *)%s); %s = 0;" % (
+                        type.typeptr_cname, type.typeptr_cname))
         if Options.cache_builtins:
             code.putln("/*--- Builtin cleanup code ---*/")
             for entry in env.cached_builtins:
