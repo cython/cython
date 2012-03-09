@@ -385,10 +385,10 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 
 #if PY_MAJOR_VERSION >= 3
     return PyUnicode_FromFormat("<cyfunction %U at %p>",
-                               func_name, op);
+                                func_name, (void *)op);
 #else
     return PyString_FromFormat("<cyfunction %s at %p>",
-                               PyString_AsString(func_name), op);
+                               PyString_AsString(func_name), (void *)op);
 #endif
 }
 

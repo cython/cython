@@ -811,8 +811,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not method_entry.is_inherited and method_entry.final_func_cname:
                 declaration = method_entry.type.declaration_code(
                     method_entry.final_func_cname)
-                if entry.func_modifiers:
-                    modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
+                if method_entry.func_modifiers:
+                    modifiers = "%s " % ' '.join(method_entry.func_modifiers).upper()
                 else:
                     modifiers = ''
                 code.putln("static %s%s;" % (modifiers, declaration))
