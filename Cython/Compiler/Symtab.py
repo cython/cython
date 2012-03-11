@@ -367,7 +367,7 @@ class Scope(object):
         # name is not None. Reports a warning if already
         # declared.
         if type.is_buffer and not isinstance(self, LocalScope):
-            error(pos, ERR_BUF_LOCALONLY)
+            error(pos, 'Buffer types only allowed as function local variables')
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
@@ -2090,7 +2090,3 @@ class PropertyScope(Scope):
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
                 "in a property declaration")
             return None
-
-#------------------------------------------------------------------------------------
-
-ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
