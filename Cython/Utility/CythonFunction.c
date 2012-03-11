@@ -411,7 +411,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_as_sequence*/
     0,                                  /*tp_as_mapping*/
     0,                                  /*tp_hash*/
-    PyCFunction_Call,                   /*tp_call*/
+    __Pyx_PyCFunction_Call,             /*tp_call*/
     0,                                  /*tp_str*/
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
@@ -712,12 +712,12 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
 
         m_self = cyfunc->func.m_self;
         cyfunc->func.m_self = self;
-        result = PyCFunction_Call(func, new_args, kw);
+        result = __Pyx_PyCFunction_Call(func, new_args, kw);
         cyfunc->func.m_self = m_self;
 
         Py_DECREF(new_args);
     } else {
-        result = PyCFunction_Call(func, args, kw);
+        result = __Pyx_PyCFunction_Call(func, args, kw);
     }
 
     return result;

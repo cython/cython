@@ -20,7 +20,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
 /////////////// pop.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
-#if PY_VERSION_HEX >= 0x02040000
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))
         /* Check that both the size is positive and no reallocation shrinking needs to be done. */
         && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
@@ -41,7 +41,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     PyObject *r, *m, *t, *py_ix;
-#if PY_VERSION_HEX >= 0x02040000
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {

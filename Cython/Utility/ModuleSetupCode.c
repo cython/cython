@@ -28,6 +28,20 @@
   #define PY_LONG_LONG LONG_LONG
 #endif
 
+#ifdef PYPY_VERSION
+#define CYTHON_COMPILING_IN_PYPY 1
+#define CYTHON_COMPILING_IN_CPYTHON 0
+#else
+#define CYTHON_COMPILING_IN_PYPY 0
+#define CYTHON_COMPILING_IN_CPYTHON 1
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY
+  #define __Pyx_PyCFunction_Call PyObject_Call
+#else
+  #define __Pyx_PyCFunction_Call PyCFunction_Call
+#endif
+
 #if PY_VERSION_HEX < 0x02050000
   typedef int Py_ssize_t;
   #define PY_SSIZE_T_MAX INT_MAX
