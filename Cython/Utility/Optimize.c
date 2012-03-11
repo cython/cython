@@ -320,11 +320,12 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int keys, int
     }
 #endif
     *p_is_dict = 0;
-    if (!method_name) {
-        return PyObject_GetIter(dict);
-    } else {
-        return PyObject_CallMethodObjArgs(dict, method_name, NULL);
+    if (method_name) {
+        dict = PyObject_CallMethodObjArgs(dict, method_name, NULL);
+        if (!dict)
+            return NULL;
     }
+    return PyObject_GetIter(dict);
 }
 
 static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t orig_length, Py_ssize_t* ppos,
