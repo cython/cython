@@ -120,7 +120,7 @@ class PointerType(CythonType):
             self._items = [cast(self._basetype, a) for a in value._items]
         elif isinstance(value, list):
             self._items = [cast(self._basetype, a) for a in value]
-        elif value is None or value is 0:
+        elif value is None or value == 0:
             self._items = []
         else:
             raise ValueError
