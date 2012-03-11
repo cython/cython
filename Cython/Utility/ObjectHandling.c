@@ -142,16 +142,8 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** pvalue1
         }
         value1 = PyTuple_GET_ITEM(tuple, 0);
         value2 = PyTuple_GET_ITEM(tuple, 1);
-#if CYTHON_COMPILING_IN_CPYTHON
-        if (decref_tuple) {
-            PyTuple_SET_ITEM(tuple, 0, NULL);
-            PyTuple_SET_ITEM(tuple, 1, NULL);
-        } else
-#endif
-        {
-            Py_INCREF(value1);
-            Py_INCREF(value2);
-        }
+        Py_INCREF(value1);
+        Py_INCREF(value2);
         if (decref_tuple)
             Py_DECREF(tuple);
     }
