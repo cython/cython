@@ -36,9 +36,29 @@ def iteritems(dict d):
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
-def iteritems_dict(dict d):
+def optimistic_iteritems(d):
     """
-    >>> iteritems_dict(d)
+    >>> optimistic_iteritems(d)
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems({})
+    []
+    >>> class mydict(object):
+    ...     def iteritems(self): return d.items()
+    >>> optimistic_iteritems(mydict())
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    """
+    l = []
+    for k,v in d.iteritems():
+        l.append((k,v))
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iteritems_dict():
+    """
+    >>> iteritems_dict()
     [(11, 1), (12, 2), (13, 3)]
     """
     l = []
@@ -63,6 +83,37 @@ def iteritems_int(dict d):
     Traceback (most recent call last):
     TypeError: an integer is required
     >>> iteritems_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    """
+    cdef int k,v
+    l = []
+    for k,v in d.iteritems():
+        l.append((k,v))
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def optimistic_iteritems_int(d):
+    """
+    >>> optimistic_iteritems_int(d)
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems_int({})
+    []
+    >>> class mydict(object):
+    ...     def iteritems(self): return d.items()
+    >>> optimistic_iteritems_int(mydict())
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+
+    >>> optimistic_iteritems_int({'a': 1})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> optimistic_iteritems_int({1: 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> optimistic_iteritems_int({'a': 'b'})
     Traceback (most recent call last):
     TypeError: an integer is required
     """
@@ -106,6 +157,26 @@ def iterkeys(dict d):
     [10, 11, 12, 13]
     >>> iterkeys({})
     []
+    """
+    l = []
+    for k in d.iterkeys():
+        l.append(k)
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def optimistic_iterkeys(d):
+    """
+    >>> optimistic_iterkeys(d)
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys({})
+    []
+    >>> class mydict(object):
+    ...     def iterkeys(self): return d
+    >>> optimistic_iterkeys(mydict())
+    [10, 11, 12, 13]
     """
     l = []
     for k in d.iterkeys():
@@ -220,6 +291,26 @@ def itervalues(dict d):
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
+def optimistic_itervalues(d):
+    """
+    >>> optimistic_itervalues(d)
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues({})
+    []
+    >>> class mydict(object):
+    ...     def itervalues(self): return d.values()
+    >>> optimistic_itervalues(mydict())
+    [0, 1, 2, 3]
+    """
+    l = []
+    for v in d.itervalues():
+        l.append(v)
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
 def itervalues_int(dict d):
     """
     >>> itervalues_int(d)
@@ -289,6 +380,43 @@ def iterdict_change_size(dict d):
     cdef int count = 0
     i = -1
     for i in d:
+        d[i+1] = 5
+        count += 1
+        if count > 5:
+            break # safety
+    return "DONE"
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def optimistic_iterdict_change_size(d):
+    """
+    >>> count, i = 0, -1
+    >>> d = {1:2, 10:20}
+    >>> for i in d:
+    ...     d[i+1] = 5
+    ...     count += 1
+    ...     if count > 5:
+    ...         break # safety
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+
+    >>> optimistic_iterdict_change_size({1:2, 10:20})
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+    >>> print( optimistic_iterdict_change_size({}) )
+    DONE
+    >>> class mydict(object):
+    ...     _d = {1:2, 10:20}
+    ...     def iterkeys(self): return self._d
+    ...     def __setitem__(self, key, value): self._d[key] = value
+    >>> optimistic_iterdict_change_size(mydict())
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+    """
+    cdef int count = 0
+    i = -1
+    for i in d.iterkeys():
         d[i+1] = 5
         count += 1
         if count > 5:

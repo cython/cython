@@ -166,12 +166,8 @@ class IterationTransform(Visitor.VisitorTransform):
 
         function = iterator.function
         # dict iteration?
-        if isinstance(function, ExprNodes.AttributeNode) and \
-                function.obj.type == Builtin.dict_type:
-            if reversed:
-                # CPython raises an error here: not a sequence
-                return node
-            dict_obj = iterator.self or function.obj
+        if function.is_attribute and not reversed:
+            base_obj = iterator.self or function.obj
             method = function.attribute
 
             is_py3 = self.module_scope.context.language_level >= 3
@@ -182,10 +178,10 @@ class IterationTransform(Visitor.VisitorTransform):
                 values = True
             elif method == 'iteritems' or (is_py3 and method == 'items'):
                 keys = values = True
-            else:
-                return node
-            return self._transform_dict_iteration(
-                node, dict_obj, method, keys, values)
+
+            if keys or values:
+                return self._transform_dict_iteration(
+                    node, base_obj, method, keys, values)
 
         # enumerate/reversed ?
         if iterator.self is None and function.is_name and \
