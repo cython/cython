@@ -2102,6 +2102,11 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 """,
 impl = """
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
+#if CYTHON_COMPILING_IN_PYPY
+    if (PyObject_TypeCheck(method, &PyWrapperDescr_Type)) { /* cdef classes */
+        return PyClassMethod_New(method);
+    }
+#else
     /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
     static PyTypeObject *methoddescr_type = NULL;
     if (methoddescr_type == NULL) {
@@ -2119,6 +2124,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         #endif
         return PyDescr_NewClassMethod(d_type, descr->d_method);
     }
+#endif
     else if (PyMethod_Check(method)) { /* python classes */
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
