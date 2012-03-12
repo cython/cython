@@ -686,8 +686,7 @@ class IterationTransform(Visitor.VisitorTransform):
                     "__Pyx_dict_iterator",
                     self.PyDict_Iterator_func_type,
                     utility_code = UtilityCode.load_cached("dict_iter", "Optimize.c"),
-                    args = [dict_obj, flag_node(keys), flag_node(values),
-                            flag_node(dict_obj.type is Builtin.dict_type),
+                    args = [dict_obj, flag_node(dict_obj.type is Builtin.dict_type),
                             method_node, dict_len_temp_addr, is_dict_temp_addr,
                             ],
                     is_temp=True,
@@ -710,8 +709,6 @@ class IterationTransform(Visitor.VisitorTransform):
     PyDict_Iterator_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("dict",  PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("keys",  PyrexTypes.c_int_type, None),
-            PyrexTypes.CFuncTypeArg("values",  PyrexTypes.c_int_type, None),
             PyrexTypes.CFuncTypeArg("is_dict",  PyrexTypes.c_int_type, None),
             PyrexTypes.CFuncTypeArg("method_name",  PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("p_orig_length",  PyrexTypes.c_py_ssize_t_ptr_type, None),
