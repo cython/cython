@@ -123,8 +123,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** pvalue1
     if (!is_tuple && unlikely(!PyTuple_Check(tuple))) {
         iter = PyObject_GetIter(tuple);
         if (unlikely(!iter)) goto bad;
-        if (decref_tuple)
-            Py_DECREF(tuple);
+        if (decref_tuple) { Py_DECREF(tuple); tuple = NULL; }
         value1 = __Pyx_UnpackItem(iter, 0);
         if (unlikely(!value1)) goto bad;
         value2 = __Pyx_UnpackItem(iter, 1);
@@ -140,8 +139,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** pvalue1
         value2 = PyTuple_GET_ITEM(tuple, 1);
         Py_INCREF(value1);
         Py_INCREF(value2);
-        if (decref_tuple)
-            Py_DECREF(tuple);
+        if (decref_tuple) { Py_DECREF(tuple); }
     }
     *pvalue1 = value1;
     *pvalue2 = value2;
@@ -150,7 +148,7 @@ bad:
     Py_XDECREF(iter);
     Py_XDECREF(value1);
     Py_XDECREF(value2);
-    if (decref_tuple) Py_DECREF(tuple);
+    if (decref_tuple) { Py_XDECREF(tuple); }
     return -1;
 }
 
