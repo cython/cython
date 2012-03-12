@@ -321,6 +321,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, 
     }
 #endif
     *p_is_dict = 0;
+    *p_orig_length = 0;
     if (method_name) {
         dict = PyObject_CallMethodObjArgs(dict, method_name, NULL);
         if (!dict)
