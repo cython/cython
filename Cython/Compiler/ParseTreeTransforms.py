@@ -1495,12 +1495,15 @@ if VALUE is not None:
             self.fused_function = None
 
             if node.py_func:
+                # Create PyCFunction nodes for each specialization
                 node.stats.insert(0, node.py_func)
                 node.py_func = self.visit(node.py_func)
                 pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func,
                                                                  True)
                 pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
                 node.resulting_fused_function = pycfunc
+
+                # Create assignment node for our def function
                 node.fused_func_assignment = self._create_assignment(
                               node.py_func, ExprNodes.CloneNode(pycfunc), env)
         else:
