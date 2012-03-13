@@ -767,6 +767,13 @@ class BufferType(BaseType):
     def as_argument_type(self):
         return self
 
+    def specialize(self, values):
+        dtype = self.dtype.specialize(values)
+        if dtype is not self.dtype:
+            return BufferType(self.base, dtype, self.ndim, self.mode,
+                              self.negative_indices, self.cast)
+        return self
+
     def __getattr__(self, name):
         return getattr(self.base, name)
 

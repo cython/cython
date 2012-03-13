@@ -963,6 +963,8 @@ class TemplatedTypeNode(CBaseTypeNode):
                                  for name, value in options.items() ])
 
             self.type = PyrexTypes.BufferType(base_type, **options)
+            if self.type.is_fused and env.fused_to_specific:
+                self.type = self.type.specialize(env.fused_to_specific)
 
         else:
             # Array

@@ -623,7 +623,7 @@ class ExprNode(Node):
                         return self
 
             if src_type.is_fused:
-                error(self.pos, "Type is not specific")
+                error(self.pos, "Type is not specialized")
             else:
                 error(self.pos, "Cannot coerce to a type that is not specialized")
 
