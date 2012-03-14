@@ -6184,7 +6184,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                         value=DefaultsTupleNode(
                             self.pos, default_args,
                             self.defaults_struct)),
-                    decorators=None, name="__defaults__")
+                    decorators=None, name=StringEncoding.EncodedString("__defaults__"))
                 defaults_getter.analyse_declarations(env)
                 defaults_getter.analyse_expressions(env)
                 defaults_getter.body.analyse_expressions(
