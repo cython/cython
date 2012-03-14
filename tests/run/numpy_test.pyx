@@ -2,6 +2,7 @@
 # cannot be named "numpy" in order to not clash with the numpy module!
 
 cimport numpy as np
+cimport cython
 
 def little_endian():
     cdef int endian_detector = 1
@@ -35,7 +36,7 @@ try:
      [[ 16.  17.  18.  19.]
       [ 20.  21.  22.  23.]]]
     6.0 0.0 13.0 8.0
-    
+
     >>> obj_array()
     [a 1 {}]
     a 1 {}
@@ -501,5 +502,18 @@ def test_point_record():
         test[i].x = i
         test[i].y = -i
     print repr(test).replace('<', '!').replace('>', '!')
+
+def test_fused_ndarray_dtype(np.ndarray[cython.floating, ndim=1] a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_ndarray_dtype.__signatures__)
+    ['double', 'float']
+    >>> test_fused_ndarray_dtype[cython.double](np.arange(10, dtype=np.float64))
+    ndarray[double, ndim=1] ndarray[double, ndim=1] 5.0 6.0
+    >>> test_fused_ndarray_dtype[cython.float](np.arange(10, dtype=np.float32))
+    ndarray[float, ndim=1] ndarray[float, ndim=1] 5.0 6.0
+    """
+    cdef np.ndarray[cython.floating, ndim=1] b = a
+    print cython.typeof(a), cython.typeof(b), a[5], b[6]
 
 include "numpy_common.pxi"

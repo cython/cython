@@ -1,12 +1,12 @@
 # mode: run
 
 cimport cython
+from cython.view cimport array
 
 from cython cimport integral
 from cpython cimport Py_INCREF
 
 from Cython import Shadow as pure_cython
-
 ctypedef char * string_t
 
 # floating = cython.fused_type(float, double) floating
@@ -249,3 +249,40 @@ def test_sizeof_fused_type(fused_type1 b):
     """
     t = sizeof(b), sizeof(fused_type1), sizeof(double)
     assert t[0] == t[1] == t[2], t
+
+def get_array(itemsize, format):
+    result = array((10,), itemsize, format)
+    result[5] = 5.0
+    result[6] = 6.0
+    return result
+
+def test_fused_memslice_dtype(cython.floating[:] array):
+    """
+    Note: the np.ndarray dtype test is in numpy_test
+
+    >>> import cython
+    >>> sorted(test_fused_memslice_dtype.__signatures__)
+    ['double', 'float']
+
+    >>> test_fused_memslice_dtype[cython.double](get_array(8, 'd'))
+    double[:] double[:] 5.0 6.0
+    >>> test_fused_memslice_dtype[cython.float](get_array(4, 'f'))
+    float[:] float[:] 5.0 6.0
+    """
+    cdef cython.floating[:] otherarray = array[0:100:1]
+    print cython.typeof(array), cython.typeof(otherarray), \
+          array[5], otherarray[6]
+
+# FIXME: broken
+#from libcpp.vector cimport vector
+#def test_cpp_specialization(cython.floating element):
+#    """
+#    >>> import cython
+#    >>> test_cpp_specialization[cython.float](10.0)
+#    vector<float> * float 10.0
+#    >>> test_cpp_specialization[cython.double](10.0)
+#    vector<double> * double 10.0
+#    """
+#    cdef vector[cython.floating] *v = new vector[cython.floating]()
+#    v.push_back(element)
+#    print cython.typeof(v), cython.typeof(element), v.at(0)

@@ -2296,9 +2296,12 @@ class FusedCFuncDefNode(StatListNode):
         Create a copy of the original def or lambda function for specialized
         versions.
         """
-        fused_types = PyrexTypes.unique(
+        fused_compound_types = PyrexTypes.unique(
             [arg.type for arg in self.node.args if arg.type.is_fused])
-        permutations = PyrexTypes.get_all_specialized_permutations(fused_types)
+        permutations = PyrexTypes.get_all_specialized_permutations(fused_compound_types)
+        fused_types = [fused_type
+                           for fused_compound_type in fused_compound_types
+                               for fused_type in fused_compound_type.get_fused_types()]
 
         if self.node.entry in env.pyfunc_entries:
             env.pyfunc_entries.remove(self.node.entry)

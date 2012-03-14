@@ -780,6 +780,10 @@ class BufferType(BaseType):
     def __repr__(self):
         return "<BufferType %r>" % self.base
 
+    def __str__(self):
+        cast_str = ', cast=True' if self.cast else ''
+        return "%s[%s, ndim=%d%s]" % (self.base, self.dtype, self.ndim,
+                                      cast_str)
 
 class PyObjectType(PyrexType):
     #
