@@ -149,7 +149,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
-    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+    from .ParseTreeTransforms import RemoveUnreachableCode, CreateLineNumberMaps, GilCheck
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -221,6 +221,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+        CreateLineNumberMaps(context),
         ]
     filtered_stages = []
     for s in stages:

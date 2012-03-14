@@ -9469,10 +9469,13 @@ class CodeObjectNode(ExprNode):
     #
     # def_node   DefNode    the Python function node
     # varnames   TupleNode  a tuple with all local variable names
+    # lno_tab    BytesNode  a bytes string containing compressed line number offsets
+    #                       (see CPython's Objects/lnotab_notes.txt)
 
-    subexprs = ['varnames']
+    subexprs = ['varnames', 'lno_tab']
     is_temp = False
     result_code = None
+    lno_tab = None
 
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
@@ -9501,6 +9504,13 @@ class CodeObjectNode(ExprNode):
         code = code.get_cached_constants_writer(self.result_code)
         if code is None:
             return  # already initialised
+
+        if self.lno_tab:
+            self.lno_tab.generate_evaluation_code(code)
+            lno_tab = self.lno_tab.result()
+        else:
+            lno_tab = Naming.empty_bytes
+
         code.mark_pos(self.pos)
         func = self.def_node
         func_name = code.get_py_string_const(
@@ -9533,9 +9543,12 @@ class CodeObjectNode(ExprNode):
             file_path_const,           # filename
             func_name,                 # name
             self.pos[1],               # firstlineno
-            Naming.empty_bytes,        # lnotab
+            lno_tab,                   # lnotab
             code.error_goto_if_null(self.result_code, self.pos),
             ))
+
+        if self.lno_tab:
+            self.lno_tab.generate_disposal_code(code)
 
 
 class DefaultLiteralArgNode(ExprNode):

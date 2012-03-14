@@ -21,7 +21,7 @@ from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
-from .StringEncoding import EncodedString, _unicode
+from .StringEncoding import EncodedString, BytesLiteral, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
 
@@ -2873,6 +2873,60 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
         return node
 
     visit_Node = VisitorTransform.recurse_to_children
+
+
+class CreateLineNumberMaps(EnvTransform):
+    """
+    Create line number maps for code objects as specified
+    by CPython's Objects/lnotab_notes.txt.  This is a simplified
+    implementation because we don't have byte code, so we use
+    the line numbers also as byte code offsets, thus making the
+    runtime lookup straight forward as well.
+    """
+    line_numbers = None
+
+    def visit_CodeObjectNode(self, node):
+        outer_context = self.line_numbers
+        def_node = node.def_node
+        self.line_numbers = set()
+        self.visitchildren(def_node)
+        if self.line_numbers:
+            node.lno_tab = self.build_lnotab(def_node.pos, self.line_numbers)
+        self.line_numbers = outer_context
+        return node
+
+    def visit_Node(self, node):
+        """
+        Collect line numbers of all non-nogil nodes within functions
+        (where Python code line numbers are relevant).
+        """
+        if self.line_numbers is not None and not self.current_env().nogil:
+            self.line_numbers.add(node.pos[1])
+        self.visitchildren(node)
+        return node
+
+    def build_lnotab(self, node_pos, line_numbers):
+        line_numbers = sorted(line_numbers)
+
+        chr255 = chr(255)
+        lnotab = []
+        last_line = node_pos[1]
+        for line in line_numbers:
+            offset = line - last_line
+            if offset > 255:
+                lnotab.append(chr255 * ((offset // 255) * 2))
+                offset %= 255
+            if not offset:
+                continue
+            lnotab.append(chr(offset)*2)
+            last_line = line
+
+        lnotab_string = ''.join(lnotab)
+        if isinstance(lnotab_string, _unicode):  # Py3
+            lnotab_string = lnotab_string.encode('iso8859-1')
+        string_literal = BytesLiteral(lnotab_string)
+        string_literal.encoding = 'iso8859-1'
+        return ExprNodes.BytesNode(node_pos, value=string_literal)
 
 
 class GilCheck(VisitorTransform):
