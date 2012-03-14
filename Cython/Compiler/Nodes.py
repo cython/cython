@@ -8802,37 +8802,32 @@ code_object_cache_utility_code = UtilityCode.load_cached("CodeObjectCache", "Mod
 
 traceback_utility_code = UtilityCode(
     proto = """
-static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
-                               int %(LINENO)s, const char *%(FILENAME)s); /*proto*/
-""" % {
-    'FILENAME': Naming.filename_cname,
-    'LINENO':  Naming.lineno_cname,
-    'CLINENO':  Naming.clineno_cname,
-},
-
+static void __Pyx_AddTraceback(const char *funcname, int c_line,
+                               int py_line, const char *filename); /*proto*/
+""",
     impl = """
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
-            const char *funcname, int %(CLINENO)s,
-            int %(LINENO)s, const char *%(FILENAME)s) {
+            const char *funcname, int c_line,
+            int py_line, const char *filename) {
     PyCodeObject *py_code = 0;
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
 
     #if PY_MAJOR_VERSION < 3
-    py_srcfile = PyString_FromString(%(FILENAME)s);
+    py_srcfile = PyString_FromString(filename);
     #else
-    py_srcfile = PyUnicode_FromString(%(FILENAME)s);
+    py_srcfile = PyUnicode_FromString(filename);
     #endif
     if (!py_srcfile) goto bad;
-    if (%(CLINENO)s) {
+    if (c_line) {
         #if PY_MAJOR_VERSION < 3
-        py_funcname = PyString_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        py_funcname = PyString_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, c_line);
         #else
-        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, c_line);
         #endif
     }
     else {
@@ -8857,7 +8852,7 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
         %(EMPTY_TUPLE)s,  /*PyObject *cellvars,*/
         py_srcfile,   /*PyObject *filename,*/
         py_funcname,  /*PyObject *name,*/
-        %(LINENO)s,   /*int firstlineno,*/
+        py_line,      /*int firstlineno,*/
         %(EMPTY_BYTES)s  /*PyObject *lnotab*/
     );
     Py_DECREF(py_srcfile);
@@ -8869,18 +8864,18 @@ bad:
     return NULL;
 }
 
-static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
-                               int %(LINENO)s, const char *%(FILENAME)s) {
+static void __Pyx_AddTraceback(const char *funcname, int c_line,
+                               int py_line, const char *filename) {
     PyCodeObject *py_code = 0;
     PyObject *py_globals = 0;
     PyFrameObject *py_frame = 0;
 
-    py_code = %(FINDCODEOBJECT)s(%(CLINENO)s ? %(CLINENO)s : %(LINENO)s);
+    py_code = %(FINDCODEOBJECT)s(c_line ? c_line : py_line);
     if (!py_code) {
         py_code = __Pyx_CreateCodeObjectForTraceback(
-            funcname, %(CLINENO)s, %(LINENO)s, %(FILENAME)s);
+            funcname, c_line, py_line, filename);
         if (!py_code) goto bad;
-        %(INSERTCODEOBJECT)s(%(CLINENO)s ? %(CLINENO)s : %(LINENO)s, py_code);
+        %(INSERTCODEOBJECT)s(c_line ? c_line : py_line, py_code);
     }
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
@@ -8891,17 +8886,14 @@ static void __Pyx_AddTraceback(const char *funcname, int %(CLINENO)s,
         0                    /*PyObject *locals*/
     );
     if (!py_frame) goto bad;
-    py_frame->f_lineno = %(LINENO)s;
+    py_frame->f_lineno = py_line;
     PyTraceBack_Here(py_frame);
 bad:
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
 }
 """ % {
-    'FILENAME': Naming.filename_cname,
-    'LINENO':  Naming.lineno_cname,
     'CFILENAME': Naming.cfilenm_cname,
-    'CLINENO':  Naming.clineno_cname,
     'GLOBALS': Naming.module_cname,
     'FINDCODEOBJECT' : Naming.global_code_object_cache_find,
     'INSERTCODEOBJECT' : Naming.global_code_object_cache_insert,
