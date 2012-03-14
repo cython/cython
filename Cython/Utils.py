@@ -5,6 +5,8 @@
 
 import os, sys, re, codecs
 
+modification_time = os.path.getmtime
+
 def replace_suffix(path, newsuf):
     base, _ = os.path.splitext(path)
     return base + newsuf
@@ -36,10 +38,6 @@ def castrate_file(path, st):
         f.close()
         if st:
             os.utime(path, (st.st_atime, st.st_mtime-1))
-
-def modification_time(path):
-    st = os.stat(path)
-    return st.st_mtime
 
 def file_newer_than(path, time):
     ftime = modification_time(path)
