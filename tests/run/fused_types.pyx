@@ -272,17 +272,3 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
-
-# FIXME: broken
-#from libcpp.vector cimport vector
-#def test_cpp_specialization(cython.floating element):
-#    """
-#    >>> import cython
-#    >>> test_cpp_specialization[cython.float](10.0)
-#    vector<float> * float 10.0
-#    >>> test_cpp_specialization[cython.double](10.0)
-#    vector<double> * double 10.0
-#    """
-#    cdef vector[cython.floating] *v = new vector[cython.floating]()
-#    v.push_back(element)
-#    print cython.typeof(v), cython.typeof(element), v.at(0)

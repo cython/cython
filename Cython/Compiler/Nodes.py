@@ -439,6 +439,10 @@ class CNameDeclaratorNode(CDeclaratorNode):
             else:
                 self.name = base_type.declaration_code("", for_display=1, pyrex=1)
                 base_type = py_object_type
+
+        if base_type.is_fused and env.fused_to_specific:
+            base_type = base_type.specialize(env.fused_to_specific)
+
         self.type = base_type
         return self, base_type
 
@@ -963,8 +967,6 @@ class TemplatedTypeNode(CBaseTypeNode):
                                  for name, value in options.items() ])
 
             self.type = PyrexTypes.BufferType(base_type, **options)
-            if self.type.is_fused and env.fused_to_specific:
-                self.type = self.type.specialize(env.fused_to_specific)
 
         else:
             # Array
@@ -983,6 +985,9 @@ class TemplatedTypeNode(CBaseTypeNode):
                     base = empty_declarator,
                     dimension = dimension)
                 self.type = self.array_declarator.analyse(base_type, env)[1]
+
+        if self.type.is_fused and env.fused_to_specific:
+            self.type = self.type.specialize(env.fused_to_specific)
 
         return self.type
 
