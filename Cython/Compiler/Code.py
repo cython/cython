@@ -88,6 +88,8 @@ class UtilityCodeBase(object):
             utility[1] = code
         else:
             all_tags = utility[2]
+            if KEYWORDS_MUST_BE_BYTES:
+                type = type.encode('ASCII')
             all_tags[type] = code
 
         if tags:
