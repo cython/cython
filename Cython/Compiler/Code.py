@@ -82,13 +82,13 @@ class UtilityCodeBase(object):
         # remember correct line numbers as least until after templating
         code = '\n' * begin_lineno + '\n'.join(lines)
 
-        if type == 'Proto':
+        if type == 'proto':
             utility[0] = code
-        elif type == 'Code':
+        elif type == 'impl':
             utility[1] = code
         else:
             all_tags = utility[2]
-            all_tags[type.lower()] = code
+            all_tags[type] = code
 
         if tags:
             all_tags = utility[2]
@@ -112,9 +112,10 @@ class UtilityCodeBase(object):
             comment = '/'
             replace_comments = re.compile(r'^\s*//.*|^\s*/\*[^*]*\*/').sub
         match_special = re.compile(
-            (r'^%(C)s{5,30}\s*((?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(requires)\s*:\s*((?:\w|[.:])+)' # add more tag names here at need
+            (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
+             r'^%(C)s+@(?P<tag>requires)\s*:\s*(?P<value>(?:\w|[.:])+)' # add more tag names here at need
                 ) % {'C':comment}).match
+        match_type = re.compile('(.+)[.](proto|impl|init|cleanup)$').match
 
         f = Utils.open_source_file(filename, encoding='UTF-8')
         try:
@@ -131,25 +132,22 @@ class UtilityCodeBase(object):
         for lineno, line in enumerate(all_lines):
             m = match_special(line)
             if m:
-                if m.group(1):
-                    name = m.group(1)
+                if m.group('name'):
                     cls._add_utility(utility, type, lines, begin_lineno, tags)
 
                     begin_lineno = lineno + 1
                     del lines[:]
                     tags.clear()
 
-                    if name.endswith(".proto"):
-                        name = name[:-6]
-                        type = 'Proto'
-                    elif name.endswith(".cleanup"):
-                        name = name[:-8]
-                        type = 'cleanup'
+                    name = m.group('name')
+                    mtype = match_type(name)
+                    if mtype:
+                        name, type = mtype.groups()
                     else:
-                        type = 'Code'
+                        type = 'impl'
                     utility = utilities.setdefault(name, [None, None, {}])
                 else:
-                    tags.setdefault(m.group(2), set()).add(m.group(3))
+                    tags.setdefault(m.group('tag'), set()).add(m.group('value'))
                     lines.append('') # keep line number correct
             else:
                 lines.append(replace_comments('', line).rstrip())
