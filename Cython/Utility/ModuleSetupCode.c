@@ -222,6 +222,16 @@
   #define __Pyx_DOCSTR(n)  (n)
 #endif
 
+/////////////// ForceInitThreads.proto ///////////////
+
+#ifndef __PYX_FORCE_INIT_THREADS
+  #define __PYX_FORCE_INIT_THREADS 0
+#endif
+
+/////////////// InitThreads.init ///////////////
+
+PyEval_InitThreads();
+
 /////////////// CodeObjectCache.proto ///////////////
 
 typedef struct {

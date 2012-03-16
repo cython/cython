@@ -6778,7 +6778,8 @@ class GILStatNode(NogilTryFinallyStatNode):
         return super(GILStatNode, self).analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        env.use_utility_code(force_init_threads_utility_code)
+        env.use_utility_code(
+            UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         was_nogil = env.nogil
         env.nogil = self.state == 'nogil'
         TryFinallyStatNode.analyse_expressions(self, env)
@@ -9020,19 +9021,6 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     return 0;
 }
 """)
-
-#------------------------------------------------------------------------------------
-
-force_init_threads_utility_code = UtilityCode(
-proto="""
-#ifndef __PYX_FORCE_INIT_THREADS
-  #define __PYX_FORCE_INIT_THREADS 0
-#endif
-""")
-
-init_threads = UtilityCode(
-    init="PyEval_InitThreads();\n",
-)
 
 #------------------------------------------------------------------------------------
 
