@@ -12,6 +12,7 @@ cython.declare(os=object, re=object, operator=object,
 import os
 import re
 import sys
+from string import Template
 import operator
 
 import Naming
@@ -60,6 +61,7 @@ class UtilityCodeBase(object):
 
         ##### MyUtility #####
         #@requires: MyOtherUtility
+        #@substitute: naming
 
     for prototypes and implementation respectively.  For non-python or
     -cython files backslashes should be used instead.  5 to 30 comment
@@ -79,8 +81,17 @@ class UtilityCodeBase(object):
         if utility is None:
             return
 
-        # remember correct line numbers as least until after templating
-        code = '\n' * begin_lineno + '\n'.join(lines)
+        code = '\n'.join(lines)
+        if tags and 'substitute' in tags and tags['substitute'] == set(['naming']):
+            del tags['substitute']
+            try:
+                code = Template(code).substitute(vars(Naming))
+            except (KeyError, ValueError), e:
+                raise RuntimeError("Error parsing templated utility code of type '%s' at line %d: %s" % (
+                    type, begin_lineno, e))
+
+        # remember correct line numbers at least until after templating
+        code = '\n' * begin_lineno + code
 
         if type == 'proto':
             utility[0] = code
@@ -115,7 +126,7 @@ class UtilityCodeBase(object):
             replace_comments = re.compile(r'^\s*//.*|^\s*/\*[^*]*\*/').sub
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>requires)\s*:\s*(?P<value>(?:\w|[.:])+)' # add more tag names here at need
+             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)' # add more tag names here at need
                 ) % {'C':comment}).match
         match_type = re.compile('(.+)[.](proto|impl|init|cleanup)$').match
 
