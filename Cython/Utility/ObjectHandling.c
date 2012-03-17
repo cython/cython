@@ -154,7 +154,7 @@ bad:
 
 /////////////// IterFinish.proto ///////////////
 
-static CYTHON_INLINE int __Pyx_IterFinish(); /*proto*/
+static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
 
 /////////////// IterFinish ///////////////
 
@@ -162,7 +162,7 @@ static CYTHON_INLINE int __Pyx_IterFinish(); /*proto*/
 // this function does the right cleanup and returns 0 on success.  If it
 // detects an error that occurred in the iterator, it returns -1.
 
-static CYTHON_INLINE int __Pyx_IterFinish() {
+static CYTHON_INLINE int __Pyx_IterFinish(void) {
 #if CYTHON_COMPILING_IN_CPYTHON
     PyThreadState *tstate = PyThreadState_GET();
     PyObject* exc_type = tstate->curexc_type;
