@@ -323,3 +323,99 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
         Py_DECREF(ctx);
     }
 }
+
+/////////////// AddTraceback.proto ///////////////
+
+static void __Pyx_AddTraceback(const char *funcname, int c_line,
+                               int py_line, const char *filename); /*proto*/
+
+/////////////// AddTraceback ///////////////
+//@requires: ModuleSetupCode.c::CodeObjectCache
+//@substitute: naming
+
+#include "compile.h"
+#include "frameobject.h"
+#include "traceback.h"
+
+static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
+            const char *funcname, int c_line,
+            int py_line, const char *filename) {
+    PyCodeObject *py_code = 0;
+    PyObject *py_srcfile = 0;
+    PyObject *py_funcname = 0;
+
+    #if PY_MAJOR_VERSION < 3
+    py_srcfile = PyString_FromString(filename);
+    #else
+    py_srcfile = PyUnicode_FromString(filename);
+    #endif
+    if (!py_srcfile) goto bad;
+    if (c_line) {
+        #if PY_MAJOR_VERSION < 3
+        py_funcname = PyString_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
+        #else
+        py_funcname = PyUnicode_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
+        #endif
+    }
+    else {
+        #if PY_MAJOR_VERSION < 3
+        py_funcname = PyString_FromString(funcname);
+        #else
+        py_funcname = PyUnicode_FromString(funcname);
+        #endif
+    }
+    if (!py_funcname) goto bad;
+    py_code = __Pyx_PyCode_New(
+        0,            /*int argcount,*/
+        0,            /*int kwonlyargcount,*/
+        0,            /*int nlocals,*/
+        0,            /*int stacksize,*/
+        0,            /*int flags,*/
+        $empty_bytes, /*PyObject *code,*/
+        $empty_tuple, /*PyObject *consts,*/
+        $empty_tuple, /*PyObject *names,*/
+        $empty_tuple, /*PyObject *varnames,*/
+        $empty_tuple, /*PyObject *freevars,*/
+        $empty_tuple, /*PyObject *cellvars,*/
+        py_srcfile,   /*PyObject *filename,*/
+        py_funcname,  /*PyObject *name,*/
+        py_line,      /*int firstlineno,*/
+        $empty_bytes  /*PyObject *lnotab*/
+    );
+    Py_DECREF(py_srcfile);
+    Py_DECREF(py_funcname);
+    return py_code;
+bad:
+    Py_XDECREF(py_srcfile);
+    Py_XDECREF(py_funcname);
+    return NULL;
+}
+
+static void __Pyx_AddTraceback(const char *funcname, int c_line,
+                               int py_line, const char *filename) {
+    PyCodeObject *py_code = 0;
+    PyObject *py_globals = 0;
+    PyFrameObject *py_frame = 0;
+
+    py_code = $global_code_object_cache_find(c_line ? c_line : py_line);
+    if (!py_code) {
+        py_code = __Pyx_CreateCodeObjectForTraceback(
+            funcname, c_line, py_line, filename);
+        if (!py_code) goto bad;
+        $global_code_object_cache_insert(c_line ? c_line : py_line, py_code);
+    }
+    py_globals = PyModule_GetDict($module_cname);
+    if (!py_globals) goto bad;
+    py_frame = PyFrame_New(
+        PyThreadState_GET(), /*PyThreadState *tstate,*/
+        py_code,             /*PyCodeObject *code,*/
+        py_globals,          /*PyObject *globals,*/
+        0                    /*PyObject *locals*/
+    );
+    if (!py_frame) goto bad;
+    py_frame->f_lineno = py_line;
+    PyTraceBack_Here(py_frame);
+bad:
+    Py_XDECREF(py_code);
+    Py_XDECREF(py_frame);
+}

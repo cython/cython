@@ -8482,6 +8482,7 @@ get_exception_utility_code = UtilityCode.load_cached("GetException", "Exceptions
 swap_exception_utility_code = UtilityCode.load_cached("SwapException", "Exceptions.c")
 unraisable_exception_utility_code = UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c")
 reset_exception_utility_code = UtilityCode.load_cached("SaveResetException", "Exceptions.c")
+traceback_utility_code = UtilityCode.load_cached("AddTraceback", "Exceptions.c")
 
 #------------------------------------------------------------------------------------
 
@@ -8510,112 +8511,6 @@ static PyObject *__Pyx_GetExceptionTuple(void) {
 }
 """,
 requires=[get_exception_utility_code])
-
-#------------------------------------------------------------------------------------
-
-code_object_cache_utility_code = UtilityCode.load_cached("CodeObjectCache", "ModuleSetupCode.c")
-
-traceback_utility_code = UtilityCode(
-    proto = """
-static void __Pyx_AddTraceback(const char *funcname, int c_line,
-                               int py_line, const char *filename); /*proto*/
-""",
-    impl = """
-#include "compile.h"
-#include "frameobject.h"
-#include "traceback.h"
-
-static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
-            const char *funcname, int c_line,
-            int py_line, const char *filename) {
-    PyCodeObject *py_code = 0;
-    PyObject *py_srcfile = 0;
-    PyObject *py_funcname = 0;
-
-    #if PY_MAJOR_VERSION < 3
-    py_srcfile = PyString_FromString(filename);
-    #else
-    py_srcfile = PyUnicode_FromString(filename);
-    #endif
-    if (!py_srcfile) goto bad;
-    if (c_line) {
-        #if PY_MAJOR_VERSION < 3
-        py_funcname = PyString_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, c_line);
-        #else
-        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, c_line);
-        #endif
-    }
-    else {
-        #if PY_MAJOR_VERSION < 3
-        py_funcname = PyString_FromString(funcname);
-        #else
-        py_funcname = PyUnicode_FromString(funcname);
-        #endif
-    }
-    if (!py_funcname) goto bad;
-    py_code = __Pyx_PyCode_New(
-        0,            /*int argcount,*/
-        0,            /*int kwonlyargcount,*/
-        0,            /*int nlocals,*/
-        0,            /*int stacksize,*/
-        0,            /*int flags,*/
-        %(EMPTY_BYTES)s, /*PyObject *code,*/
-        %(EMPTY_TUPLE)s,  /*PyObject *consts,*/
-        %(EMPTY_TUPLE)s,  /*PyObject *names,*/
-        %(EMPTY_TUPLE)s,  /*PyObject *varnames,*/
-        %(EMPTY_TUPLE)s,  /*PyObject *freevars,*/
-        %(EMPTY_TUPLE)s,  /*PyObject *cellvars,*/
-        py_srcfile,   /*PyObject *filename,*/
-        py_funcname,  /*PyObject *name,*/
-        py_line,      /*int firstlineno,*/
-        %(EMPTY_BYTES)s  /*PyObject *lnotab*/
-    );
-    Py_DECREF(py_srcfile);
-    Py_DECREF(py_funcname);
-    return py_code;
-bad:
-    Py_XDECREF(py_srcfile);
-    Py_XDECREF(py_funcname);
-    return NULL;
-}
-
-static void __Pyx_AddTraceback(const char *funcname, int c_line,
-                               int py_line, const char *filename) {
-    PyCodeObject *py_code = 0;
-    PyObject *py_globals = 0;
-    PyFrameObject *py_frame = 0;
-
-    py_code = %(FINDCODEOBJECT)s(c_line ? c_line : py_line);
-    if (!py_code) {
-        py_code = __Pyx_CreateCodeObjectForTraceback(
-            funcname, c_line, py_line, filename);
-        if (!py_code) goto bad;
-        %(INSERTCODEOBJECT)s(c_line ? c_line : py_line, py_code);
-    }
-    py_globals = PyModule_GetDict(%(GLOBALS)s);
-    if (!py_globals) goto bad;
-    py_frame = PyFrame_New(
-        PyThreadState_GET(), /*PyThreadState *tstate,*/
-        py_code,             /*PyCodeObject *code,*/
-        py_globals,          /*PyObject *globals,*/
-        0                    /*PyObject *locals*/
-    );
-    if (!py_frame) goto bad;
-    py_frame->f_lineno = py_line;
-    PyTraceBack_Here(py_frame);
-bad:
-    Py_XDECREF(py_code);
-    Py_XDECREF(py_frame);
-}
-""" % {
-    'CFILENAME': Naming.cfilenm_cname,
-    'GLOBALS': Naming.module_cname,
-    'FINDCODEOBJECT' : Naming.global_code_object_cache_find,
-    'INSERTCODEOBJECT' : Naming.global_code_object_cache_insert,
-    'EMPTY_TUPLE' : Naming.empty_tuple,
-    'EMPTY_BYTES' : Naming.empty_bytes,
-},
-requires=[code_object_cache_utility_code])
 
 #------------------------------------------------------------------------------------
 
