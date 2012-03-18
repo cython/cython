@@ -5297,9 +5297,11 @@ class ReturnStatNode(StatNode):
     #
     #  value         ExprNode or None
     #  return_type   PyrexType
+    #  in_generator  return inside of generator => raise StopIteration
 
     child_attrs = ["value"]
     is_terminator = True
+    in_generator = False
 
     # Whether we are in a parallel section
     in_parallel = False
@@ -5349,6 +5351,13 @@ class ReturnStatNode(StatNode):
                         rhs=self.value,
                         code=code,
                         have_gil=self.in_nogil_context)
+            elif self.in_generator:
+                # return value == raise StopIteration(value), but uncatchable
+                code.putln(
+                    "%s = NULL; PyErr_SetObject(PyExc_StopIteration, %s);" % (
+                        Naming.retval_cname,
+                        self.value.result_as(self.return_type)))
+                self.value.generate_disposal_code(code)
             else:
                 self.value.make_owned_reference(code)
                 code.putln(

@@ -340,11 +340,20 @@ def p_yield_expression(s):
     # s.sy == "yield"
     pos = s.position()
     s.next()
+    is_yield_from = False
+    if s.sy == 'from':
+        is_yield_from = True
+        s.next()
     if s.sy != ')' and s.sy not in statement_terminators:
         arg = p_testlist(s)
     else:
+        if is_yield_from:
+            s.error("'yield from' requires a source argument", pos=pos)
         arg = None
-    return ExprNodes.YieldExprNode(pos, arg=arg)
+    if is_yield_from:
+        return ExprNodes.YieldFromExprNode(pos, arg=arg)
+    else:
+        return ExprNodes.YieldExprNode(pos, arg=arg)
 
 def p_yield_statement(s):
     # s.sy == "yield"

@@ -6501,10 +6501,12 @@ class YieldExprNode(ExprNode):
     # arg         ExprNode   the value to return from the generator
     # label_name  string     name of the C label used for this yield
     # label_num   integer    yield label number
+    # is_yield_from  boolean is a YieldFromExprNode to delegate to another generator
 
     subexprs = ['arg']
     type = py_object_type
     label_num = 0
+    is_yield_from = False
 
     def analyse_types(self, env):
         if not self.label_num:
@@ -6513,11 +6515,12 @@ class YieldExprNode(ExprNode):
         if self.arg is not None:
             self.arg.analyse_types(env)
             if not self.arg.type.is_pyobject:
-                self.arg = self.arg.coerce_to_pyobject(env)
+                self.coerce_yield_argument(env)
+
+    def coerce_yield_argument(self, env):
+        self.arg = self.arg.coerce_to_pyobject(env)
 
     def generate_evaluation_code(self, code):
-        self.label_name = code.new_label('resume_from_yield')
-        code.use_label(self.label_name)
         if self.arg:
             self.arg.generate_evaluation_code(code)
             self.arg.make_owned_reference(code)
@@ -6526,10 +6529,19 @@ class YieldExprNode(ExprNode):
                     Naming.retval_cname,
                     self.arg.result_as(py_object_type)))
             self.arg.generate_post_assignment_code(code)
-            #self.arg.generate_disposal_code(code)
             self.arg.free_temps(code)
         else:
             code.put_init_to_py_none(Naming.retval_cname, py_object_type)
+        self.generate_yield_code(code)
+
+    def generate_yield_code(self, code):
+        """
+        Generate the code to return the argument in 'Naming.retval_cname'
+        and to continue at the yield label.
+        """
+        self.label_name = code.new_label('resume_from_yield')
+        code.use_label(self.label_name)
+
         saved = []
         code.funcstate.closure_temps.reset()
         for cname, type, manage_ref in code.funcstate.temps_in_use():
@@ -6545,6 +6557,7 @@ class YieldExprNode(ExprNode):
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, self.label_num))
         code.putln("return %s;" % Naming.retval_cname);
+
         code.put_label(self.label_name)
         for cname, save_cname, type in saved:
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
@@ -6561,6 +6574,48 @@ class YieldExprNode(ExprNode):
         else:
             code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
 
+
+class YieldFromExprNode(YieldExprNode):
+    # "yield from GEN" expression
+    is_yield_from = True
+
+    def coerce_yield_argument(self, env):
+        if not self.arg.type.is_string:
+            # FIXME: support C arrays and C++ iterators?
+            error(self.pos, "yielding from non-Python object not supported")
+        self.arg = self.arg.coerce_to_pyobject(env)
+
+    def generate_evaluation_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("YieldFrom", "Generator.c"))
+
+        self.arg.generate_evaluation_code(code)
+        self.arg.make_owned_reference(code)
+        code.put_xgiveref(self.arg.result())
+        code.putln("%s = __Pyx_Generator_Yield_From(%s, %s);" % (
+            Naming.retval_cname,
+            Naming.generator_cname,
+            self.arg.result_as(py_object_type)))
+        self.arg.generate_post_assignment_code(code) # reference was stolen
+        self.arg.free_temps(code)
+        code.put_xgotref(Naming.retval_cname)
+
+        code.putln("if (likely(%s)) {" % Naming.retval_cname)
+        self.generate_yield_code(code)
+        code.putln("} else {")
+        # either error or sub-generator has normally terminated: return value => node result
+        if self.result_is_used:
+            # YieldExprNode has allocated the result temp for us
+            code.putln("if (__Pyx_PyGen_FetchStopIterationValue(&%s) < 0) %s" % (
+                self.result(),
+                code.error_goto(self.pos)))
+        else:
+            code.putln("PyObject* exc_type = PyErr_Occurred();")
+            code.putln("if (exc_type) {")
+            code.putln("if (!PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)) %s" %
+                code.error_goto(self.pos))
+            code.putln("PyErr_Clear();")
+            code.putln("}")
+        code.putln("}")
 
 class GlobalsExprNode(AtomicExprNode):
     type = dict_type
