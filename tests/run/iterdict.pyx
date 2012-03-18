@@ -43,8 +43,13 @@ def optimistic_iteritems(d):
     >>> optimistic_iteritems({})
     []
     >>> class mydict(object):
-    ...     def iteritems(self): return d.items()
-    >>> optimistic_iteritems(mydict())
+    ...     def __init__(self, t): self.t = t
+    ...     def iteritems(self): return self.t(d.items())
+    >>> optimistic_iteritems(mydict(list))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems(mydict(tuple))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems(mydict(iter))
     [(10, 0), (11, 1), (12, 2), (13, 3)]
     """
     l = []
@@ -103,8 +108,13 @@ def optimistic_iteritems_int(d):
     >>> optimistic_iteritems_int({})
     []
     >>> class mydict(object):
-    ...     def iteritems(self): return d.items()
-    >>> optimistic_iteritems_int(mydict())
+    ...     def __init__(self, t): self.t = t
+    ...     def iteritems(self): return self.t(d.items())
+    >>> optimistic_iteritems_int(mydict(list))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems_int(mydict(tuple))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems_int(mydict(iter))
     [(10, 0), (11, 1), (12, 2), (13, 3)]
 
     >>> optimistic_iteritems_int({'a': 1})
@@ -174,8 +184,17 @@ def optimistic_iterkeys(d):
     >>> optimistic_iterkeys({})
     []
     >>> class mydict(object):
-    ...     def iterkeys(self): return d
-    >>> optimistic_iterkeys(mydict())
+    ...     def __init__(self, t): self.t = t
+    ...     def iterkeys(self): return self.t(d)
+    >>> optimistic_iterkeys(mydict(lambda x:x))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(lambda x:x.keys()))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(list))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(tuple))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(iter))
     [10, 11, 12, 13]
     """
     l = []
@@ -298,8 +317,15 @@ def optimistic_itervalues(d):
     >>> optimistic_itervalues({})
     []
     >>> class mydict(object):
-    ...     def itervalues(self): return d.values()
-    >>> optimistic_itervalues(mydict())
+    ...     def __init__(self, t): self.t = t
+    ...     def itervalues(self): return self.t(d.values())
+    >>> optimistic_itervalues(mydict(lambda x:x))
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues(mydict(list))
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues(mydict(tuple))
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues(mydict(iter))
     [0, 1, 2, 3]
     """
     l = []

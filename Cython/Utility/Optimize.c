@@ -310,36 +310,41 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
 
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_is_dict) {
 #if !CYTHON_COMPILING_IN_PYPY
-    if (is_dict || likely(PyDict_CheckExact(dict))) {
+    if (is_dict || likely(PyDict_CheckExact(iterable))) {
         *p_is_dict = 1;
-        *p_orig_length = PyDict_Size(dict);
-        Py_INCREF(dict);
-        return dict;
+        *p_orig_length = PyDict_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
     }
 #endif
     *p_is_dict = 0;
     *p_orig_length = 0;
     if (method_name) {
-        dict = PyObject_CallMethodObjArgs(dict, method_name, NULL);
-        if (!dict)
+        iterable = PyObject_CallMethodObjArgs(iterable, method_name, NULL);
+        if (!iterable)
             return NULL;
+#if !CYTHON_COMPILING_IN_PYPY
+        if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
+            return iterable;
+#endif
     }
-    return PyObject_GetIter(dict);
+    return PyObject_GetIter(iterable);
 }
 
-static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t orig_length, Py_ssize_t* ppos,
+static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* iter_obj, Py_ssize_t orig_length, Py_ssize_t* ppos,
                                               PyObject** pkey, PyObject** pvalue, PyObject** pitem, int is_dict) {
+    PyObject* next_item;
 #if !CYTHON_COMPILING_IN_PYPY
     if (is_dict) {
         PyObject *key, *value;
-        if (unlikely(orig_length != PyDict_Size(dict_or_iter))) {
+        if (unlikely(orig_length != PyDict_Size(iter_obj))) {
             PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration");
             return -1;
         }
-        if (unlikely(!PyDict_Next(dict_or_iter, ppos, &key, &value))) {
+        if (unlikely(!PyDict_Next(iter_obj, ppos, &key, &value))) {
             return 0;
         }
         if (pitem) {
@@ -363,25 +368,37 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
             }
         }
         return 1;
-    }
+    } else if (PyTuple_CheckExact(iter_obj)) {
+        Py_ssize_t pos = *ppos;
+        if (unlikely(pos >= PyTuple_GET_SIZE(iter_obj))) return 0;
+        *ppos = pos + 1;
+        next_item = PyTuple_GET_ITEM(iter_obj, pos);
+        Py_INCREF(next_item);
+    } else if (PyList_CheckExact(iter_obj)) {
+        Py_ssize_t pos = *ppos;
+        if (unlikely(pos >= PyList_GET_SIZE(iter_obj))) return 0;
+        *ppos = pos + 1;
+        next_item = PyList_GET_ITEM(iter_obj, pos);
+        Py_INCREF(next_item);
+    } else
 #endif
     {
-        PyObject* next_item = PyIter_Next(dict_or_iter);
+        next_item = PyIter_Next(iter_obj);
         if (unlikely(!next_item)) {
             return __Pyx_IterFinish();
         }
-        if (pitem) {
-            *pitem = next_item;
-        } else if (pkey && pvalue) {
-            if (__Pyx_unpack_tuple2(next_item, pkey, pvalue, is_dict, is_dict, 1))
-                return -1;
-        } else if (pkey) {
-            *pkey = next_item;
-        } else {
-            *pvalue = next_item;
-        }
-        return 1;
     }
+    if (pitem) {
+        *pitem = next_item;
+    } else if (pkey && pvalue) {
+        if (__Pyx_unpack_tuple2(next_item, pkey, pvalue, is_dict, is_dict, 1))
+            return -1;
+    } else if (pkey) {
+        *pkey = next_item;
+    } else {
+        *pvalue = next_item;
+    }
+    return 1;
 }
 
 /////////////// pyobject_as_double.proto ///////////////
