@@ -323,6 +323,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     *p_is_dict = 0;
     *p_orig_length = 0;
     if (method_name) {
+        PyObject* iter;
         iterable = PyObject_CallMethodObjArgs(iterable, method_name, NULL);
         if (!iterable)
             return NULL;
@@ -330,6 +331,9 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
         if (PyTuple_CheckExact(iterable) || PyList_CheckExact(iterable))
             return iterable;
 #endif
+        iter = PyObject_GetIter(iterable);
+        Py_DECREF(iterable);
+        return iter;
     }
     return PyObject_GetIter(iterable);
 }
