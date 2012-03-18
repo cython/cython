@@ -6589,13 +6589,11 @@ class YieldFromExprNode(YieldExprNode):
         code.globalstate.use_utility_code(UtilityCode.load_cached("YieldFrom", "Generator.c"))
 
         self.arg.generate_evaluation_code(code)
-        self.arg.make_owned_reference(code)
-        code.put_xgiveref(self.arg.result())
         code.putln("%s = __Pyx_Generator_Yield_From(%s, %s);" % (
             Naming.retval_cname,
             Naming.generator_cname,
             self.arg.result_as(py_object_type)))
-        self.arg.generate_post_assignment_code(code) # reference was stolen
+        self.arg.generate_disposal_code(code)
         self.arg.free_temps(code)
         code.put_xgotref(Naming.retval_cname)
 
