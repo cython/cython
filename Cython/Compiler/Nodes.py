@@ -4182,6 +4182,8 @@ class GeneratorBodyDefNode(DefNode):
         code.put_label(code.return_label)
         code.put_xdecref(Naming.retval_cname, py_object_type)
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
+        # clean up as early as possible to help breaking any reference cycles
+        code.putln('__Pyx_Generator_clear((PyObject*)%s);' % Naming.generator_cname)
         code.put_finish_refcount_context()
         code.putln('return NULL;')
         code.putln("}")

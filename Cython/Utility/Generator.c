@@ -43,6 +43,7 @@ typedef struct {
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
                                                   PyObject *closure);
 static int __pyx_Generator_init(void);
+static int __Pyx_Generator_clear(PyObject* self);
 
 #if 1 || PY_VERSION_HEX < 0x030300B0
 static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
@@ -407,6 +408,18 @@ static int __Pyx_Generator_traverse(PyObject *self, visitproc visit, void *arg) 
     return 0;
 }
 
+static int __Pyx_Generator_clear(PyObject *self) {
+    __pyx_GeneratorObject *gen = (__pyx_GeneratorObject *) self;
+
+    Py_CLEAR(gen->closure);
+    Py_CLEAR(gen->classobj);
+    Py_CLEAR(gen->yieldfrom);
+    Py_CLEAR(gen->exc_type);
+    Py_CLEAR(gen->exc_value);
+    Py_CLEAR(gen->exc_traceback);
+    return 0;
+}
+
 static void __Pyx_Generator_dealloc(PyObject *self) {
     __pyx_GeneratorObject *gen = (__pyx_GeneratorObject *) self;
 
@@ -423,12 +436,7 @@ static void __Pyx_Generator_dealloc(PyObject *self) {
     }
 
     PyObject_GC_UnTrack(self);
-    Py_CLEAR(gen->closure);
-    Py_CLEAR(gen->classobj);
-    Py_CLEAR(gen->yieldfrom);
-    Py_CLEAR(gen->exc_type);
-    Py_CLEAR(gen->exc_value);
-    Py_CLEAR(gen->exc_traceback);
+    __Pyx_Generator_clear(self);
     PyObject_GC_Del(gen);
 }
 
@@ -537,7 +545,7 @@ static PyTypeObject __pyx_GeneratorType = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Generator_traverse,   /*tp_traverse*/
-    0,                                  /*tp_clear*/
+    (inquiry) __Pyx_Generator_clear,           /*tp_clear*/
     0,                                  /*tp_richcompare*/
     offsetof(__pyx_GeneratorObject, gi_weakreflist), /* tp_weaklistoffse */
     PyObject_SelfIter,                  /*tp_iter*/
