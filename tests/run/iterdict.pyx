@@ -180,7 +180,7 @@ def iterkeys(dict d):
 def iterkeys_argerror(dict d):
     """
     >>> try: iterkeys_argerror(d)
-    ... except TypeError: pass
+    ... except (TypeError, AttributeError): pass
     """
     for k in d.iterkeys(1):
         print k
@@ -220,7 +220,7 @@ def optimistic_iterkeys(d):
 def optimistic_iterkeys_argerror(d):
     """
     >>> try: optimistic_iterkeys_argerror(d)
-    ... except TypeError: pass
+    ... except (TypeError, AttributeError): pass
     """
     for k in d.iterkeys(1):
         print k
