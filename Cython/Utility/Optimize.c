@@ -311,16 +311,16 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 //@requires: ObjectHandling.c::IterFinish
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_is_dict) {
+                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    is_dict = is_dict || likely(PyDict_CheckExact(iterable));
+    *p_source_is_dict = is_dict;
 #if !CYTHON_COMPILING_IN_PYPY
-    if (is_dict || likely(PyDict_CheckExact(iterable))) {
-        *p_is_dict = 1;
+    if (is_dict) {
         *p_orig_length = PyDict_Size(iterable);
         Py_INCREF(iterable);
         return iterable;
     }
 #endif
-    *p_is_dict = 0;
     *p_orig_length = 0;
     if (method_name) {
         PyObject* iter;
@@ -339,10 +339,10 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
 }
 
 static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* iter_obj, Py_ssize_t orig_length, Py_ssize_t* ppos,
-                                              PyObject** pkey, PyObject** pvalue, PyObject** pitem, int is_dict) {
+                                              PyObject** pkey, PyObject** pvalue, PyObject** pitem, int source_is_dict) {
     PyObject* next_item;
 #if !CYTHON_COMPILING_IN_PYPY
-    if (is_dict) {
+    if (source_is_dict) {
         PyObject *key, *value;
         if (unlikely(orig_length != PyDict_Size(iter_obj))) {
             PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration");
@@ -395,7 +395,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* iter_obj, Py_ssize_t ori
     if (pitem) {
         *pitem = next_item;
     } else if (pkey && pvalue) {
-        if (__Pyx_unpack_tuple2(next_item, pkey, pvalue, is_dict, is_dict, 1))
+        if (__Pyx_unpack_tuple2(next_item, pkey, pvalue, source_is_dict, source_is_dict, 1))
             return -1;
     } else if (pkey) {
         *pkey = next_item;
