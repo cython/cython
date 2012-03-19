@@ -164,9 +164,16 @@ class IterationTransform(Visitor.VisitorTransform):
         if not isinstance(iterator, ExprNodes.SimpleCallNode):
             return node
 
+        if iterator.args is None:
+            arg_count = iterator.arg_tuple and len(iterator.arg_tuple.args) or 0
+        else:
+            arg_count = len(iterator.args)
+            if arg_count and iterator.self is not None:
+                arg_count -= 1
+
         function = iterator.function
         # dict iteration?
-        if function.is_attribute and not reversed:
+        if function.is_attribute and not reversed and not arg_count:
             base_obj = iterator.self or function.obj
             method = function.attribute
 
