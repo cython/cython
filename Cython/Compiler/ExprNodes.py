@@ -4877,6 +4877,7 @@ class SequenceNode(ExprNode):
         special_unpack = (rhs.type is py_object_type
                           or rhs.type in (tuple_type, list_type)
                           or not rhs.type.is_builtin_type)
+        long_enough_for_a_loop = len(self.unpacked_items) > 3
         if special_unpack:
             tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
             list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
@@ -4889,29 +4890,32 @@ class SequenceNode(ExprNode):
             else:
                 sequence_types = ['Tuple', 'List']
                 sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
+            code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
             code.putln("if (%s) {" % sequence_type_test)
             code.putln("PyObject* sequence = %s;" % rhs.py_result())
             if len(sequence_types) == 2:
                 code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
-            self.generate_special_parallel_unpacking_code(code, sequence_types[0])
+            self.generate_special_parallel_unpacking_code(
+                code, sequence_types[0],
+                use_loop=long_enough_for_a_loop and sequence_types[0] != 'Tuple')
             if len(sequence_types) == 2:
                 code.putln("} else {")
-                self.generate_special_parallel_unpacking_code(code, sequence_types[1])
+                self.generate_special_parallel_unpacking_code(
+                    code, sequence_types[1], use_loop=long_enough_for_a_loop)
                 code.putln("}")
-            for item in self.unpacked_items:
-                code.put_incref(item.result(), item.ctype())
             rhs.generate_disposal_code(code)
-            code.putln("} else {")
-        else:
-            code.putln("{")
+            code.putln("} else")
+            code.putln("#endif")
 
+        code.putln("{")
         if special_unpack and rhs.type is tuple_type:
             code.globalstate.use_utility_code(tuple_unpacking_error_code)
             code.putln("__Pyx_UnpackTupleError(%s, %s);" % (
                         rhs.py_result(), len(self.args)))
             code.putln(code.error_goto(self.pos))
         else:
-            self.generate_generic_parallel_unpacking_code(code, rhs)
+            self.generate_generic_parallel_unpacking_code(
+                code, rhs, use_loop=long_enough_for_a_loop)
         code.putln("}")
 
         for value_node in self.coerced_unpacked_items:
@@ -4920,9 +4924,16 @@ class SequenceNode(ExprNode):
             self.args[i].generate_assignment_code(
                 self.coerced_unpacked_items[i], code)
 
-    def generate_special_parallel_unpacking_code(self, code, sequence_type):
+    def generate_special_parallel_unpacking_code(self, code, sequence_type, use_loop):
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
         code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
+
+        if use_loop:
+            # must be at the start of a C block!
+            code.putln("PyObject** temps[%s] = {%s};" % (
+                len(self.unpacked_items),
+                ','.join(['&%s' % item.result() for item in self.unpacked_items])))
+
         code.putln("if (unlikely(Py%s_GET_SIZE(sequence) != %d)) {" % (
             sequence_type, len(self.args)))
         code.putln("if (Py%s_GET_SIZE(sequence) > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
@@ -4930,13 +4941,33 @@ class SequenceNode(ExprNode):
         code.putln("else __Pyx_RaiseNeedMoreValuesError(Py%s_GET_SIZE(sequence));" % sequence_type)
         code.putln(code.error_goto(self.pos))
         code.putln("}")
-        for i, item in enumerate(self.unpacked_items):
-            code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (item.result(), sequence_type, i))
 
-    def generate_generic_parallel_unpacking_code(self, code, rhs):
+        if use_loop:
+            # shorter code in a loop works better for lists in CPython
+            counter = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            code.putln("for (%s=0; %s < %s; %s++) {" % (
+                counter, counter, len(self.unpacked_items), counter))
+            code.putln("PyObject* item = Py%s_GET_ITEM(sequence, %s); *(temps[%s]) = item;" % (
+                sequence_type, counter, counter))
+            code.put_incref("item", PyrexTypes.py_object_type)
+            code.putln("}")
+            code.funcstate.release_temp(counter)
+        else:
+            # unrolling the loop is very fast for tuples in CPython
+            for i, item in enumerate(self.unpacked_items):
+                code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (item.result(), sequence_type, i))
+                code.put_incref(item.result(), item.ctype())
+
+    def generate_generic_parallel_unpacking_code(self, code, rhs, use_loop):
         code.globalstate.use_utility_code(iternext_unpacking_end_utility_code)
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+        code.globalstate.use_utility_code(UtilityCode.load_cached("IterFinish", "ObjectHandling.c"))
         code.putln("Py_ssize_t index = -1;") # must be at the start of a C block!
+
+        if use_loop:
+            code.putln("PyObject** temps[%s] = {%s};" % (
+                len(self.unpacked_items),
+                ','.join(['&%s' % item.result() for item in self.unpacked_items])))
 
         iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
@@ -4952,32 +4983,37 @@ class SequenceNode(ExprNode):
             iternext_func, iterator_temp))
 
         unpacking_error_label = code.new_label('unpacking_failed')
-        code.use_label(unpacking_error_label)
         unpack_code = "%s(%s)" % (iternext_func, iterator_temp)
-        for i in range(len(self.args)):
-            item = self.unpacked_items[i]
-            code.putln(
-                "index = %d; %s = %s; if (unlikely(!%s)) goto %s;" % (
-                    i,
-                    item.result(),
-                    typecast(item.ctype(), py_object_type, unpack_code),
-                    item.result(),
-                    unpacking_error_label))
-            code.put_gotref(item.py_result())
-        code.put_error_if_neg(self.pos, "__Pyx_IternextUnpackEndCheck(%s(%s), %d)" % (
-            iternext_func,
-            iterator_temp,
-            len(self.args)))
+        if use_loop:
+            code.putln("for (index=0; index < %s; index++) {" % len(self.unpacked_items))
+            code.put("PyObject* item = %s; if (unlikely(!item)) " % unpack_code)
+            code.put_goto(unpacking_error_label)
+            code.put_gotref("item")
+            code.putln("*(temps[index]) = item;")
+            code.putln("}")
+        else:
+            for i, item in enumerate(self.unpacked_items):
+                code.put(
+                    "index = %d; %s = %s; if (unlikely(!%s)) " % (
+                        i,
+                        item.result(),
+                        unpack_code,
+                        item.result()))
+                code.put_goto(unpacking_error_label)
+                code.put_gotref(item.py_result())
+        code.put_error_if_neg(self.pos, "__Pyx_IternextUnpackEndCheck(%s, %d)" % (
+            unpack_code,
+            len(self.unpacked_items)))
         code.put_decref_clear(iterator_temp, py_object_type)
         code.funcstate.release_temp(iterator_temp)
+        code.putln("%s = NULL;" % iternext_func)
         code.funcstate.release_temp(iternext_func)
         unpacking_done_label = code.new_label('unpacking_done')
         code.put_goto(unpacking_done_label)
 
         code.put_label(unpacking_error_label)
         code.put_decref_clear(iterator_temp, py_object_type)
-        code.putln("if (PyErr_Occurred() && PyErr_ExceptionMatches(PyExc_StopIteration)) PyErr_Clear();")
-        code.putln("if (!PyErr_Occurred()) __Pyx_RaiseNeedMoreValuesError(index);")
+        code.putln("if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);")
         code.putln(code.error_goto(self.pos))
         code.put_label(unpacking_done_label)
 

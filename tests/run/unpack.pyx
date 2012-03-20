@@ -319,3 +319,54 @@ def failure_while_unpacking(it):
     """
     a,b,c = it
     return a,b,c
+
+def unpack_many(it):
+    """
+    >>> items = range(1,13)
+    >>> unpack_many(items)
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    >>> unpack_many(iter(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    >>> unpack_many(list(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    >>> unpack_many(tuple(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    """
+    a,b,c,d,e,f,g,h,i,j,k,l = it
+    return a,b,c,d,e,f,g,h,i,j,k,l
+
+def unpack_many_tuple(tuple it):
+    """
+    >>> items = range(1,13)
+    >>> unpack_many_tuple(tuple(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    """
+    a,b,c,d,e,f,g,h,i,j,k,l = it
+    return a,b,c,d,e,f,g,h,i,j,k,l
+
+def unpack_many_list(list it):
+    """
+    >>> items = range(1,13)
+    >>> unpack_many_list(list(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    """
+    a,b,c,d,e,f,g,h,i,j,k,l = it
+    return a,b,c,d,e,f,g,h,i,j,k,l
+
+def unpack_many_int(it):
+    """
+    >>> items = range(1,13)
+    >>> unpack_many_int(items)
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    >>> unpack_many_int(iter(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    >>> unpack_many_int(list(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    >>> unpack_many_int(tuple(items))
+    (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+    """
+    cdef int b
+    cdef long f
+    cdef Py_ssize_t h
+    a,b,c,d,e,f,g,h,i,j,k,l = it
+    return a,b,c,d,e,f,g,h,i,j,k,l
