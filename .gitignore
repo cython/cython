@@ -8,6 +8,8 @@ Cython/Compiler/*.c
 Cython/Plex/*.c
 Cython/Runtime/refnanny.c
 
+Tools/*.elc
+
 BUILD/
 build/
 !tests/build/
