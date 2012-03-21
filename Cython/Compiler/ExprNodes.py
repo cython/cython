@@ -1363,15 +1363,8 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
 
-    def create_analysed_rvalue(pos, env, entry):
-        node = NameNode(pos)
-        node.analyse_types(env, entry=entry)
-        return node
-
     def as_cython_attribute(self):
         return self.cython_attribute
-
-    create_analysed_rvalue = staticmethod(create_analysed_rvalue)
 
     def type_dependencies(self, env):
         if self.entry is None:
