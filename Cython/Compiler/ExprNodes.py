@@ -4947,8 +4947,9 @@ class SequenceNode(ExprNode):
             counter = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln("for (%s=0; %s < %s; %s++) {" % (
                 counter, counter, len(self.unpacked_items), counter))
-            code.putln("PyObject* item = Py%s_GET_ITEM(sequence, %s); *(temps[%s]) = item;" % (
-                sequence_type, counter, counter))
+            code.putln("PyObject* item = Py%s_GET_ITEM(sequence, %s);" % (
+                sequence_type, counter))
+            code.putln("*(temps[%s]) = item;" % counter)
             code.put_incref("item", PyrexTypes.py_object_type)
             code.putln("}")
             code.funcstate.release_temp(counter)
