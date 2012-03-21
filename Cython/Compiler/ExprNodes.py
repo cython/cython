@@ -7574,7 +7574,7 @@ class CBinopNode(BinopNode):
         if self.is_py_operation():
             self.type = PyrexTypes.error_type
 
-    def py_operation_function():
+    def py_operation_function(self):
         return ""
 
     def calculate_result_code(self):
