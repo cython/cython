@@ -120,7 +120,7 @@ class ResultRefNode(AtomicExprNode):
     subexprs = []
     lhs_of_first_assignment = False
 
-    def __init__(self, expression=None, pos=None, type=None, may_hold_none=True):
+    def __init__(self, expression=None, pos=None, type=None, may_hold_none=True, is_temp=False):
         self.expression = expression
         self.pos = None
         self.may_hold_none = may_hold_none
@@ -132,6 +132,8 @@ class ResultRefNode(AtomicExprNode):
             self.pos = pos
         if type is not None:
             self.type = type
+        if is_temp:
+            self.is_temp = True
         assert self.pos is not None
 
     def clone_node(self):

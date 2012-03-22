@@ -36,9 +36,34 @@ def iteritems(dict d):
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
-def iteritems_dict(dict d):
+def optimistic_iteritems(d):
     """
-    >>> iteritems_dict(d)
+    >>> optimistic_iteritems(d)
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems({})
+    []
+    >>> class mydict(object):
+    ...     def __init__(self, t): self.t = t
+    ...     def iteritems(self): return self.t(d.items())
+    >>> optimistic_iteritems(mydict(list))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems(mydict(tuple))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems(mydict(iter))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    """
+    l = []
+    for k,v in d.iteritems():
+        l.append((k,v))
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iteritems_dict():
+    """
+    >>> iteritems_dict()
     [(11, 1), (12, 2), (13, 3)]
     """
     l = []
@@ -56,6 +81,51 @@ def iteritems_int(dict d):
     [(10, 0), (11, 1), (12, 2), (13, 3)]
     >>> iteritems_int({})
     []
+    >>> iteritems_int({'a': 1})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> iteritems_int({1: 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> iteritems_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    """
+    cdef int k,v
+    l = []
+    for k,v in d.iteritems():
+        l.append((k,v))
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def optimistic_iteritems_int(d):
+    """
+    >>> optimistic_iteritems_int(d)
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems_int({})
+    []
+    >>> class mydict(object):
+    ...     def __init__(self, t): self.t = t
+    ...     def iteritems(self): return self.t(d.items())
+    >>> optimistic_iteritems_int(mydict(list))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems_int(mydict(tuple))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    >>> optimistic_iteritems_int(mydict(iter))
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+
+    >>> optimistic_iteritems_int({'a': 1})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> optimistic_iteritems_int({1: 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    >>> optimistic_iteritems_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int k,v
     l = []
@@ -104,6 +174,57 @@ def iterkeys(dict d):
     l.sort()
     return l
 
+@cython.test_fail_if_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def iterkeys_argerror(dict d):
+    """
+    >>> try: iterkeys_argerror(d)
+    ... except (TypeError, AttributeError): pass
+    """
+    for k in d.iterkeys(1):
+        print k
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def optimistic_iterkeys(d):
+    """
+    >>> optimistic_iterkeys(d)
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys({})
+    []
+    >>> class mydict(object):
+    ...     def __init__(self, t): self.t = t
+    ...     def iterkeys(self): return self.t(d)
+    >>> optimistic_iterkeys(mydict(lambda x:x))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(lambda x:x.keys()))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(list))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(tuple))
+    [10, 11, 12, 13]
+    >>> optimistic_iterkeys(mydict(iter))
+    [10, 11, 12, 13]
+    """
+    l = []
+    for k in d.iterkeys():
+        l.append(k)
+    l.sort()
+    return l
+
+@cython.test_fail_if_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def optimistic_iterkeys_argerror(d):
+    """
+    >>> try: optimistic_iterkeys_argerror(d)
+    ... except (TypeError, AttributeError): pass
+    """
+    for k in d.iterkeys(1):
+        print k
+
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
@@ -113,6 +234,9 @@ def iterkeys_int(dict d):
     [10, 11, 12, 13]
     >>> iterkeys_int({})
     []
+    >>> iterkeys_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int k
     l = []
@@ -146,6 +270,9 @@ def iterdict_int(dict d):
     [10, 11, 12, 13]
     >>> iterdict_int({})
     []
+    >>> iterdict_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int k
     l = []
@@ -205,12 +332,42 @@ def itervalues(dict d):
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
+def optimistic_itervalues(d):
+    """
+    >>> optimistic_itervalues(d)
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues({})
+    []
+    >>> class mydict(object):
+    ...     def __init__(self, t): self.t = t
+    ...     def itervalues(self): return self.t(d.values())
+    >>> optimistic_itervalues(mydict(lambda x:x))
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues(mydict(list))
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues(mydict(tuple))
+    [0, 1, 2, 3]
+    >>> optimistic_itervalues(mydict(iter))
+    [0, 1, 2, 3]
+    """
+    l = []
+    for v in d.itervalues():
+        l.append(v)
+    l.sort()
+    return l
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
 def itervalues_int(dict d):
     """
     >>> itervalues_int(d)
     [0, 1, 2, 3]
     >>> itervalues_int({})
     []
+    >>> itervalues_int({'a': 'b'})
+    Traceback (most recent call last):
+    TypeError: an integer is required
     """
     cdef int v
     l = []
@@ -271,6 +428,43 @@ def iterdict_change_size(dict d):
     cdef int count = 0
     i = -1
     for i in d:
+        d[i+1] = 5
+        count += 1
+        if count > 5:
+            break # safety
+    return "DONE"
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def optimistic_iterdict_change_size(d):
+    """
+    >>> count, i = 0, -1
+    >>> d = {1:2, 10:20}
+    >>> for i in d:
+    ...     d[i+1] = 5
+    ...     count += 1
+    ...     if count > 5:
+    ...         break # safety
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+
+    >>> optimistic_iterdict_change_size({1:2, 10:20})
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+    >>> print( optimistic_iterdict_change_size({}) )
+    DONE
+    >>> class mydict(object):
+    ...     _d = {1:2, 10:20}
+    ...     def iterkeys(self): return self._d
+    ...     def __setitem__(self, key, value): self._d[key] = value
+    >>> optimistic_iterdict_change_size(mydict())
+    Traceback (most recent call last):
+    RuntimeError: dictionary changed size during iteration
+    """
+    cdef int count = 0
+    i = -1
+    for i in d.iterkeys():
         d[i+1] = 5
         count += 1
         if count > 5:
