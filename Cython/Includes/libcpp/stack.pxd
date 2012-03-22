@@ -3,8 +3,8 @@ cdef extern from "<stack>" namespace "std":
         stack()
         stack(stack&)
         #stack(Container&)
-        bint empty()
-        void pop()
-        void push(T&)
-        size_t size()
-        T& top()
+        bint empty() nogil
+        void pop() nogil
+        void push(T&) nogil
+        size_t size() nogil
+        T& top() nogil
