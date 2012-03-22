@@ -978,7 +978,7 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
     result.from_slice = memviewslice[0]
     __PYX_INC_MEMVIEW(memviewslice, 1)
 
-    result.from_object = <object> memviewslice.memview.obj
+    result.from_object = (<memoryview> memviewslice.memview).base
     result.typeinfo = memviewslice.memview.typeinfo
 
     result.view = memviewslice.memview.view

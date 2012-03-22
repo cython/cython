@@ -2577,7 +2577,7 @@ class FusedCFuncDefNode(StatListNode):
                     memslice = {{coerce_from_py_func}}(arg)
                     if memslice.memview:
                         __PYX_XDEC_MEMVIEW(&memslice, 1)
-                        # print "found a match for the buffer through format parsing"
+                        # print 'found a match for the buffer through format parsing'
                         %s
                         break
                     else:
@@ -2603,8 +2603,8 @@ class FusedCFuncDefNode(StatListNode):
                                 if isinstance(arg, numpy.ndarray):
                                     dtype = arg.dtype
                                 elif (__pyx_memoryview_check(arg) and
-                                      isinstance(arg.object, numpy.ndarray)):
-                                    dtype = arg.object.dtype
+                                      isinstance(arg.base, numpy.ndarray)):
+                                    dtype = arg.base.dtype
                                 else:
                                     dtype = None
 
@@ -2612,7 +2612,7 @@ class FusedCFuncDefNode(StatListNode):
                                 if dtype is not None:
                                     itemsize = dtype.itemsize
                                     kind = ord(dtype.kind)
-                                    dtype_signed = kind == ord('u')
+                                    dtype_signed = kind == ord('i')
                         """)
                     pyx_code.indent(2)
                     pyx_code.named_insertion_point("numpy_dtype_checks")
@@ -2805,7 +2805,7 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 candidates = []
                 for sig in signatures:
-                    match_found = True
+                    match_found = filter(None, dest_sig)
                     for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
                         if dst_type is not None and match_found:
                             match_found = src_type == dst_type
