@@ -362,11 +362,11 @@ class Scope(object):
         # Return the module-level scope containing this scope.
         return self.outer_scope.builtin_scope()
 
-    def declare(self, name, cname, type, pos, visibility, shadow = 0):
+    def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
         # declared.
-        if type.is_buffer and not isinstance(self, LocalScope):
+        if type.is_buffer and not isinstance(self, LocalScope) and not is_type:
             error(pos, ERR_BUF_LOCALONLY)
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
@@ -416,7 +416,7 @@ class Scope(object):
         # Add an entry for a type definition.
         if not cname:
             cname = name
-        entry = self.declare(name, cname, type, pos, visibility, shadow)
+        entry = self.declare(name, cname, type, pos, visibility, shadow, True)
         entry.is_type = 1
         entry.api = api
         if defining:
