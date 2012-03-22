@@ -666,19 +666,22 @@ def test_dispatch_typedef(np.ndarray[typedeffed_fused_type] a):
 
 
 cdef extern from "types.h":
-    ctypedef unsigned char actually_long_t
+    ctypedef char actually_long_t
 
 cdef fused confusing_fused_typedef:
     actually_long_t
+    int
+    unsigned long
+    double complex
     unsigned char
     signed char
 
 def test_dispatch_external_typedef(np.ndarray[confusing_fused_typedef] a):
     """
-    >>> test_dispatch_external_typedef(np.arange(10, dtype=np.long))
-    5
+    >>> test_dispatch_external_typedef(np.arange(-5, 5, dtype=np.long))
+    -2
     """
-    print a[5]
+    print a[3]
 
 # test fused memoryview slices
 cdef fused memslice_fused_dtype:
@@ -718,24 +721,34 @@ cdef fused memslice_fused:
     double complex[:]
     object[:]
 
-def test_fused_memslice_fused(memslice_fused a):
+def test_fused_memslice(memslice_fused a):
     """
     >>> import cython
-    >>> sorted(test_fused_memslice_fused.__signatures__)
+    >>> sorted(test_fused_memslice.__signatures__)
     ['double complex[:]', 'double[:]', 'float complex[:]', 'float[:]', 'int[:]', 'long[:]', 'object[:]']
-    >>> test_fused_memslice_fused(np.arange(10, dtype=np.complex64))
+    >>> test_fused_memslice(np.arange(10, dtype=np.complex64))
     float complex[:] float complex[:] (5+0j) (6+0j)
-    >>> test_fused_memslice_fused(np.arange(10, dtype=np.complex128))
+    >>> test_fused_memslice(np.arange(10, dtype=np.complex128))
     double complex[:] double complex[:] (5+0j) (6+0j)
-    >>> test_fused_memslice_fused(np.arange(10, dtype=np.float32))
+    >>> test_fused_memslice(np.arange(10, dtype=np.float32))
     float[:] float[:] 5.0 6.0
-    >>> test_fused_memslice_fused(np.arange(10, dtype=np.dtype('i')))
+    >>> test_fused_memslice(np.arange(10, dtype=np.dtype('i')))
     int[:] int[:] 5 6
-    >>> test_fused_memslice_fused(np.arange(10, dtype=np.object))
+    >>> test_fused_memslice(np.arange(10, dtype=np.object))
     object[:] object[:] 5 6
     """
     cdef memslice_fused b = a
     print cython.typeof(a), cython.typeof(b), a[5], b[6]
+
+def test_dispatch_memoryview_object():
+    """
+    >>> test_dispatch_memoryview_object()
+    int[:] int[:] 5 6
+    """
+    cdef int[:] m = np.arange(10, dtype=np.dtype('i'))
+    cdef int[:] m2 = m
+    cdef int[:] m3 = <object> m
+    test_fused_memslice(m3)
 
 
 include "numpy_common.pxi"
