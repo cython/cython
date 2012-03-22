@@ -417,7 +417,8 @@ class Scope(object):
         # Add an entry for a type definition.
         if not cname:
             cname = name
-        entry = self.declare(name, cname, type, pos, visibility, shadow, True)
+        entry = self.declare(name, cname, type, pos, visibility, shadow,
+                             is_type=True)
         entry.is_type = 1
         entry.api = api
         if defining:

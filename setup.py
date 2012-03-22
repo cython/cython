@@ -112,6 +112,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         "Cython.Compiler.FlowControl",
                         "Cython.Compiler.Code",
                         "Cython.Runtime.refnanny",
+                        "Cython.Compiler.FusedNode",
                         ]
     if compile_more:
         compiled_modules.extend([

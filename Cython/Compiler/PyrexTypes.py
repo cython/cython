@@ -782,10 +782,9 @@ class BufferType(BaseType):
 
     def __str__(self):
         # avoid ', ', as fused functions split the signature string on ', '
+        cast_str = ''
         if self.cast:
             cast_str = ',cast=True'
-        else:
-            cast_str = ''
 
         return "%s[%s,ndim=%d%s]" % (self.base, self.dtype, self.ndim,
                                       cast_str)
