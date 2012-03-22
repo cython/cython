@@ -17,6 +17,7 @@ from Cython.Compiler.UtilNodes import LetNode, LetRefNode, ResultRefNode
 from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
+from Cython.Compiler import Importer
 
 import copy
 
@@ -1485,7 +1486,8 @@ if VALUE is not None:
 
                 return node
 
-            node = Nodes.FusedCFuncDefNode(node, env)
+            FusedNode = Importer.importer("Cython.Compiler.FusedNode", version=(2, 5))
+            node = FusedNode.FusedCFuncDefNode(node, env)
 
             self.fused_function = node
             self.visitchildren(node)

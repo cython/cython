@@ -782,7 +782,9 @@ class BufferType(BaseType):
 
     def __str__(self):
         # avoid ', ', as fused functions split the signature string on ', '
-        cast_str = ',cast=True' if self.cast else ''
+        cast_str = ''
+        if self.cast:
+            cast_str = ',cast=True'
         return "%s[%s,ndim=%d%s]" % (self.base, self.dtype, self.ndim,
                                       cast_str)
 
@@ -3506,7 +3508,6 @@ def best_match(args, functions, pos=None, env=None):
         if len(bad_types) == 1:
             error(pos, bad_types[0][1])
         else:
-            import pdb; pdb.set_trace()
             error(pos, "no suitable method found")
 
     return None

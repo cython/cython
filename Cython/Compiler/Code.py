@@ -1914,7 +1914,9 @@ class PyrexCodeWriter(object):
 
 class PyxCodeWriter(object):
     """
-    Can be used for writing out some Cython code.
+    Can be used for writing out some Cython code. To use the indenter
+    functionality, the Cython.Compiler.Importer module will have to be used
+    to load the code to support python 2.4
     """
 
     def __init__(self, buffer=None, indent_level=0, context=None):
