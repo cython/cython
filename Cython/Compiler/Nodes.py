@@ -1038,8 +1038,8 @@ class FusedTypeNode(CBaseTypeNode):
             else:
                 types.append(type)
 
-        if len(self.types) == 1:
-            return types[0]
+        # if len(self.types) == 1:
+        #     return types[0]
 
         return PyrexTypes.FusedType(types, name=self.name)
 
@@ -2277,24 +2277,10 @@ class FusedCFuncDefNode(StatListNode):
                 assert n.type.op_arg_struct
 
         node.entry.fused_cfunction = self
-
-        if self.py_func:
-            self.py_func.entry.fused_cfunction = self
-            for node in self.nodes:
-                if is_def:
-                    node.fused_py_func = self.py_func
-                else:
-                    node.py_func.fused_py_func = self.py_func
-                    node.entry.as_variable = self.py_func.entry
-
         # Copy the nodes as AnalyseDeclarationsTransform will prepend
         # self.py_func to self.stats, as we only want specialized
         # CFuncDefNodes in self.nodes
         self.stats = self.nodes[:]
-
-        if self.py_func:
-            self.synthesize_defnodes()
-            self.stats.append(self.__signatures__)
 
     def copy_def(self, env):
         """
@@ -2304,9 +2290,6 @@ class FusedCFuncDefNode(StatListNode):
         fused_compound_types = PyrexTypes.unique(
             [arg.type for arg in self.node.args if arg.type.is_fused])
         permutations = PyrexTypes.get_all_specialized_permutations(fused_compound_types)
-        fused_types = [fused_type
-                           for fused_compound_type in fused_compound_types
-                               for fused_type in fused_compound_type.get_fused_types()]
 
         if self.node.entry in env.pyfunc_entries:
             env.pyfunc_entries.remove(self.node.entry)
@@ -2321,7 +2304,7 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.analyse_declarations(env)
             self.create_new_local_scope(copied_node, env, fused_to_specific)
             self.specialize_copied_def(copied_node, cname, self.node.entry,
-                                       fused_to_specific, fused_types)
+                                       fused_to_specific, fused_compound_types)
 
             PyrexTypes.specialize_entry(copied_node.entry, cname)
             copied_node.entry.used = True
@@ -2330,6 +2313,7 @@ class FusedCFuncDefNode(StatListNode):
             if not self.replace_fused_typechecks(copied_node):
                 break
 
+        self.orig_py_func = self.node
         self.py_func = self.make_fused_cpdef(self.node, env, is_def=True)
 
     def copy_cdef(self, env):
@@ -2346,7 +2330,7 @@ class FusedCFuncDefNode(StatListNode):
             env.cfunc_entries.remove(self.node.entry)
 
         # Prevent copying of the python function
-        orig_py_func = self.node.py_func
+        self.orig_py_func = orig_py_func = self.node.py_func
         self.node.py_func = None
         if orig_py_func:
             env.pyfunc_entries.remove(orig_py_func.entry)
@@ -2430,11 +2414,9 @@ class FusedCFuncDefNode(StatListNode):
         """Specialize the copy of a DefNode given the copied node,
         the specialization cname and the original DefNode entry"""
         type_strings = [
-            fused_type.specialize(f2s).typeof_name()
+            PyrexTypes.specialization_signature_string(fused_type, f2s)
                 for fused_type in fused_types
         ]
-        #type_strings = [f2s[fused_type].typeof_name()
-        #                    for fused_type in fused_types]
 
         node.specialized_signature_string = ', '.join(type_strings)
 
@@ -2465,179 +2447,436 @@ class FusedCFuncDefNode(StatListNode):
 
         return True
 
+    def _fused_instance_checks(self, normal_types, pyx_code, env):
+        """
+        Genereate Cython code for instance checks, matching an object to
+        specialized types.
+        """
+        if_ = 'if'
+        for specialized_type in normal_types:
+            # all_numeric = all_numeric and specialized_type.is_numeric
+            py_type_name = specialized_type.py_type_name()
+
+            # in the case of long, unicode or bytes we need to instance
+            # check for long_, unicode_, bytes_ (long = long is no longer
+            # valid code with control flow analysis)
+            specialized_check_name = py_type_name
+            if py_type_name in ('long', 'unicode', 'bytes'):
+                specialized_check_name += '_'
+
+            specialized_type_name = specialized_type.specialization_string
+            pyx_code.context.update(locals())
+            pyx_code.put_chunk(
+                u"""
+                    {{if_}} isinstance(arg, {{specialized_check_name}}):
+                        dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'
+                """)
+            if_ = 'elif'
+
+        if not normal_types:
+            # we need an 'if' to match the following 'else'
+            pyx_code.putln("if 0: pass")
+
+    def _dtype_name(self, dtype):
+        if dtype.is_typedef:
+            return '___pyx_%s' % dtype
+        return str(dtype).replace(' ', '_')
+
+    def _dtype_type(self, dtype):
+        if dtype.is_typedef:
+            return self._dtype_name(dtype)
+        return str(dtype)
+
+    def _sizeof_dtype(self, dtype):
+        if dtype.is_pyobject:
+            return 'sizeof(void *)'
+        else:
+            return "sizeof(%s)" % self._dtype_type(dtype)
+
+    def _buffer_check_numpy_dtype_setup_cases(self, pyx_code):
+        "Setup some common cases to match dtypes against specializations"
+        with pyx_code.indenter("if dtype.kind in ('i', 'u'):"):
+            pyx_code.putln("pass")
+            pyx_code.named_insertion_point("dtype_int")
+
+        with pyx_code.indenter("elif dtype.kind == 'f':"):
+            pyx_code.putln("pass")
+            pyx_code.named_insertion_point("dtype_float")
+
+        with pyx_code.indenter("elif dtype.kind == 'c':"):
+            pyx_code.putln("pass")
+            pyx_code.named_insertion_point("dtype_complex")
+
+        with pyx_code.indenter("elif dtype.kind == 'O':"):
+            pyx_code.putln("pass")
+            pyx_code.named_insertion_point("dtype_object")
+
+    match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
+    no_match = "dest_sig[{{dest_sig_idx}}] = None"
+    def _buffer_check_numpy_dtype(self, pyx_code, specialized_buffer_types):
+        """
+        Match a numpy dtype object to the individual specializations.
+        """
+        self._buffer_check_numpy_dtype_setup_cases(pyx_code)
+
+        for specialized_type in specialized_buffer_types:
+            dtype = specialized_type.dtype
+            pyx_code.context.update(
+                itemsize_match=self._sizeof_dtype(dtype) + " == itemsize",
+                signed_match="not (%s_is_signed ^ dtype_signed)" % self._dtype_name(dtype),
+                dtype=dtype,
+                specialized_type_name=specialized_type.specialization_string)
+
+            dtypes = [
+                (dtype.is_int, pyx_code.dtype_int),
+                (dtype.is_float, pyx_code.dtype_float),
+                (dtype.is_complex, pyx_code.dtype_complex)
+            ]
+
+            for dtype_category, codewriter in dtypes:
+                if dtype_category:
+                    cond = '{{itemsize_match}}'
+                    if dtype.is_int:
+                        cond += ' and {{signed_match}}'
+
+                    with codewriter.indenter("if %s:" % cond):
+                        # codewriter.putln("print 'buffer match found based on numpy dtype'")
+                        codewriter.putln(self.match)
+                        codewriter.putln("break")
+
+    def _buffer_parse_format_string_check(self, pyx_code, decl_code,
+                                          specialized_type, env):
+        """
+        For each specialized type, try to coerce the object to a memoryview
+        slice of that type. This means obtaining a buffer and parsing the
+        format string.
+        TODO: separate buffer acquisition from format parsing
+        """
+        dtype = specialized_type.dtype
+        if specialized_type.is_buffer:
+            axes = [('direct', 'strided')] * specialized_type.ndim
+        else:
+            axes = specialized_type.axes
+
+        memslice_type = PyrexTypes.MemoryViewSliceType(dtype, axes)
+        memslice_type.create_from_py_utility_code(env)
+        pyx_code.context.update(
+            coerce_from_py_func=memslice_type.from_py_function,
+            dtype=dtype)
+        decl_code.putln(
+            "{{memviewslice_cname}} {{coerce_from_py_func}}(object)")
+
+        pyx_code.context.update(
+            specialized_type_name=specialized_type.specialization_string,
+            sizeof_dtype=self._sizeof_dtype(dtype))
+
+        pyx_code.put_chunk(
+            u"""
+                # try {{dtype}}
+                if itemsize == -1 or itemsize == {{sizeof_dtype}}:
+                    memslice = {{coerce_from_py_func}}(arg)
+                    if memslice.memview:
+                        __PYX_XDEC_MEMVIEW(&memslice, 1)
+                        # print "found a match for the buffer through format parsing"
+                        %s
+                        break
+                    else:
+                        PyErr_Clear()
+            """ % self.match)
+
+    def _buffer_checks(self, buffer_types, pyx_code, decl_code, env):
+        """
+        Generate Cython code to match objects to buffer specializations.
+        First try to get a numpy dtype object and match it against the individual
+        specializations. If that fails, try naively to coerce the object
+        to each specialization, which obtains the buffer each time and tries
+        to match the format string.
+        """
+        from Cython.Compiler import ExprNodes
+        if buffer_types:
+            with pyx_code.indenter(u"else:"):
+                # The first thing to find a match in this loop breaks out of the loop
+                with pyx_code.indenter(u"while 1:"):
+                    pyx_code.put_chunk(
+                        u"""
+                            if numpy is not None:
+                                if isinstance(arg, numpy.ndarray):
+                                    dtype = arg.dtype
+                                elif (__pyx_memoryview_check(arg) and
+                                      isinstance(arg.object, numpy.ndarray)):
+                                    dtype = arg.object.dtype
+                                else:
+                                    dtype = None
+
+                                itemsize = -1
+                                if dtype is not None:
+                                    itemsize = dtype.itemsize
+                                    kind = ord(dtype.kind)
+                                    dtype_signed = kind == ord('u')
+                        """)
+                    pyx_code.indent(2)
+                    pyx_code.named_insertion_point("numpy_dtype_checks")
+                    self._buffer_check_numpy_dtype(pyx_code, buffer_types)
+                    pyx_code.dedent(2)
+
+                    for specialized_type in buffer_types:
+                        self._buffer_parse_format_string_check(
+                                pyx_code, decl_code, specialized_type, env)
+
+                    pyx_code.putln(self.no_match)
+                    pyx_code.putln("break")
+        else:
+            pyx_code.putln("else: %s" % self.no_match)
+
+    def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types):
+        """
+        If we have any buffer specializations, write out some variable
+        declarations and imports.
+        """
+        decl_code.put_chunk(
+            u"""
+                ctypedef struct {{memviewslice_cname}}:
+                    void *memview
+
+                void __PYX_XDEC_MEMVIEW({{memviewslice_cname}} *, int have_gil)
+                bint __pyx_memoryview_check(object)
+            """)
+
+        pyx_code.local_variable_declarations.put_chunk(
+            u"""
+                cdef {{memviewslice_cname}} memslice
+                cdef Py_ssize_t itemsize
+                cdef bint dtype_signed
+                cdef char kind
+
+                itemsize = -1
+            """)
+
+        pyx_code.imports.put_chunk(
+            u"""
+                try:
+                    import numpy
+                except ImportError:
+                    numpy = None
+            """)
+
+        seen_int_dtypes = set()
+        for buffer_type in all_buffer_types:
+            dtype = buffer_type.dtype
+            if dtype.is_typedef:
+                 #decl_code.putln("ctypedef %s %s" % (dtype.resolve(),
+                 #                                    self._dtype_name(dtype)))
+                decl_code.putln('ctypedef %s %s "%s"' % (dtype.resolve(),
+                                                         self._dtype_name(dtype),
+                                                         dtype.declaration_code("")))
+
+            if buffer_type.dtype.is_int:
+                if str(dtype) not in seen_int_dtypes:
+                    seen_int_dtypes.add(str(dtype))
+                    pyx_code.context.update(dtype_name=self._dtype_name(dtype),
+                                            dtype_type=self._dtype_type(dtype))
+                    pyx_code.local_variable_declarations.put_chunk(
+                        u"""
+                            cdef bint {{dtype_name}}_is_signed
+                            {{dtype_name}}_is_signed = <{{dtype_type}}> -1 < 0
+                        """)
+
+    def _split_fused_types(self, arg):
+        """
+        Specialize fused types and split into normal types and buffer types.
+        """
+        specialized_types = PyrexTypes.get_specialized_types(arg.type)
+        # Prefer long over int, etc
+        # specialized_types.sort()
+        seen_py_type_names = set()
+        normal_types, buffer_types = [], []
+        for specialized_type in specialized_types:
+            py_type_name = specialized_type.py_type_name()
+            if py_type_name:
+                if py_type_name in seen_py_type_names:
+                    continue
+                seen_py_type_names.add(py_type_name)
+                normal_types.append(specialized_type)
+            elif specialized_type.is_buffer or specialized_type.is_memoryviewslice:
+                buffer_types.append(specialized_type)
+
+        return normal_types, buffer_types
+
+    def _unpack_argument(self, pyx_code):
+        pyx_code.put_chunk(
+            u"""
+                # PROCESSING ARGUMENT {{arg_tuple_idx}}
+                if {{arg_tuple_idx}} < len(args):
+                    arg = args[{{arg_tuple_idx}}]
+                elif '{{arg.name}}' in kwargs:
+                    arg = kwargs['{{arg.name}}']
+                else:
+                {{if arg.default:}}
+                    arg = defaults[{{default_idx}}]
+                {{else}}
+                    raise TypeError("Expected at least %d arguments" % len(args))
+                {{endif}}
+            """)
+
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
         runtime dispatch based on the argument types. The function gets the
-        arg tuple and kwargs dict (or None) as arugments from the Binding
-        Fused Function's tp_call.
+        arg tuple and kwargs dict (or None) and the defaults tuple
+        as arguments from the Binding Fused Function's tp_call.
         """
-        from Cython.Compiler import TreeFragment
-        from Cython.Compiler import ParseTreeTransforms
+        from Cython.Compiler import TreeFragment, Code, MemoryView, UtilityCode
 
         # { (arg_pos, FusedType) : specialized_type }
         seen_fused_types = set()
 
-        # list of statements that do the instance checks
-        body_stmts = []
-
-        args = self.node.args
-        for i, arg in enumerate(args):
-            arg_type = arg.type
-            if arg_type.is_fused and arg_type not in seen_fused_types:
-                seen_fused_types.add(arg_type)
-
-                specialized_types = PyrexTypes.get_specialized_types(arg_type)
-                # Prefer long over int, etc
-                # specialized_types.sort()
-
-                seen_py_type_names = set()
-                first_check = True
-
-                body_stmts.append(u"""
-    if nargs >= %(nextidx)d or '%(argname)s' in kwargs:
-        if nargs >= %(nextidx)d:
-            arg = args[%(idx)d]
-        else:
-            arg = kwargs['%(argname)s']
-""" % {'idx': i, 'nextidx': i + 1, 'argname': arg.name})
-
-                all_numeric = True
-                for specialized_type in specialized_types:
-                    py_type_name = specialized_type.py_type_name()
-
-                    if not py_type_name or py_type_name in seen_py_type_names:
-                        continue
-
-                    seen_py_type_names.add(py_type_name)
-
-                    all_numeric = all_numeric and specialized_type.is_numeric
-
-                    if first_check:
-                        if_ = 'if'
-                        first_check = False
-                    else:
-                        if_ = 'elif'
-
-                    # in the case of long, unicode or bytes we need to instance
-                    # check for long_, unicode_, bytes_ (long = long is no longer
-                    # valid code with control flow analysis)
-                    instance_check_py_type_name = py_type_name
-                    if py_type_name in ('long', 'unicode', 'bytes'):
-                        instance_check_py_type_name += '_'
-
-                    tup =  (if_, instance_check_py_type_name,
-                            len(seen_fused_types) - 1,
-                            specialized_type.typeof_name())
-                    body_stmts.append(
-                        "        %s isinstance(arg, %s): "
-                                     "dest_sig[%d] = '%s'" % tup)
-
-                if arg.default and all_numeric:
-                    arg.default.analyse_types(env)
-
-                    ts = specialized_types
-                    if arg.default.type.is_complex:
-                        typelist = [t for t in ts if t.is_complex]
-                    elif arg.default.type.is_float:
-                        typelist = [t for t in ts if t.is_float]
-                    else:
-                        typelist = [t for t in ts if t.is_int]
-
-                    if typelist:
-                        body_stmts.append(u"""\
-    else:
-        dest_sig[%d] = '%s'
-""" % (i, typelist[0].typeof_name()))
-
-        fmt_dict = {
-            'body': '\n'.join(body_stmts),
-            'nargs': len(args),
+        context = {
+            'memviewslice_cname': MemoryView.memviewslice_cname,
+            'func_args': self.node.args,
+            'n_fused': len([arg for arg in self.node.args]),
             'name': orig_py_func.entry.name,
         }
 
-        fragment_code = u"""
-def __pyx_fused_cpdef(signatures, args, kwargs):
-    #if len(args) < %(nargs)d:
-    #    raise TypeError("Invalid number of arguments, expected %(nargs)d, "
-    #                    "got %%d" %% len(args))
-    cdef int nargs
-    nargs = len(args)
+        pyx_code = Code.PyxCodeWriter(context=context)
+        decl_code = Code.PyxCodeWriter(context=context)
+        decl_code.put_chunk(
+            u"""
+                cdef extern from *:
+                    void PyErr_Clear()
+            """)
+        decl_code.indent()
 
-    import sys
-    if sys.version_info >= (3, 0):
-        long_ = int
-        unicode_ = str
-        bytes_ = bytes
-    else:
-        long_ = long
-        unicode_ = unicode
-        bytes_ = str
+        pyx_code.put_chunk(
+            u"""
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
+                    import sys
+                    if sys.version_info >= (3, 0):
+                        long_ = int
+                        unicode_ = str
+                        bytes_ = bytes
+                    else:
+                        long_ = long
+                        unicode_ = unicode
+                        bytes_ = str
 
-    dest_sig = [None] * %(nargs)d
+                    dest_sig = [None] * {{n_fused}}
 
-    if kwargs is None:
-        kwargs = {}
+                    if kwargs is None:
+                        kwargs = {}
 
-    # instance check body
-%(body)s
+                    cdef Py_ssize_t i
 
-    candidates = []
-    for sig in signatures:
-        match_found = True
-        for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
-            if dst_type is not None and match_found:
-                match_found = src_type == dst_type
+                    # instance check body
+            """)
+        pyx_code.indent() # indent following code to function body
+        pyx_code.named_insertion_point("imports")
+        pyx_code.named_insertion_point("local_variable_declarations")
 
-        if match_found:
-            candidates.append(sig)
+        fused_index = 0
+        default_idx = 0
+        all_buffer_types = set()
+        for i, arg in enumerate(self.node.args):
+            if arg.type.is_fused and arg.type not in seen_fused_types:
+                seen_fused_types.add(arg.type)
 
-    if not candidates:
-        raise TypeError("No matching signature found")
-    elif len(candidates) > 1:
-        raise TypeError("Function call with ambiguous argument types")
-    else:
-        return signatures[candidates[0]]
-""" % fmt_dict
+                context.update(
+                    arg_tuple_idx=i,
+                    arg=arg,
+                    dest_sig_idx=fused_index,
+                    default_idx=default_idx,
+                )
 
-        fragment = TreeFragment.TreeFragment(fragment_code, level='module')
+                normal_types, buffer_types = self._split_fused_types(arg)
+                self._unpack_argument(pyx_code)
+                self._fused_instance_checks(normal_types, pyx_code, env)
+                self._buffer_checks(buffer_types, pyx_code, decl_code, env)
+                fused_index += 1
 
-        # analyse the declarations of our fragment ...
-        py_func, = fragment.substitute(pos=self.node.pos).stats
-        # Analyse the function object ...
-        py_func.analyse_declarations(env)
-        # ... and its body
-        py_func.scope = env
+                all_buffer_types.update(buffer_types)
 
-        # Will be analysed later by underlying AnalyseDeclarationsTransform
-        #ParseTreeTransforms.AnalyseDeclarationsTransform(None)(py_func)
+            if arg.default:
+                default_idx += 1
 
-        e, orig_e = py_func.entry, orig_py_func.entry
+        if all_buffer_types:
+            self._buffer_declarations(pyx_code, decl_code, all_buffer_types)
 
-        # Update the new entry ...
-        py_func.name = e.name = orig_e.name
-        e.cname, e.func_cname = orig_e.cname, orig_e.func_cname
-        e.pymethdef_cname = orig_e.pymethdef_cname
-        e.doc, e.doc_cname = orig_e.doc, orig_e.doc_cname
-        # e.signature = TypeSlots.binaryfunc
+        pyx_code.put_chunk(
+            u"""
+                candidates = []
+                for sig in signatures:
+                    match_found = True
+                    for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
+                        if dst_type is not None and match_found:
+                            match_found = src_type == dst_type
 
-        py_func.doc = orig_py_func.doc
+                    if match_found:
+                        candidates.append(sig)
 
-        # ... and the symbol table
-        env.entries.pop('__pyx_fused_cpdef', None)
-        if is_def:
-            env.entries[e.name] = e
-        else:
-            env.entries[e.name].as_variable = e
+                if not candidates:
+                    raise TypeError("No matching signature found")
+                elif len(candidates) > 1:
+                    raise TypeError("Function call with ambiguous argument types")
+                else:
+                    return signatures[candidates[0]]
+            """)
 
-        env.pyfunc_entries.append(e)
+        fragment_code = pyx_code.getvalue()
+        # print decl_code.getvalue()
+        # print fragment_code
+        fragment = TreeFragment.TreeFragment(fragment_code.decode('ascii'),
+                                             level='module')
+        ast = TreeFragment.SetPosTransform(self.node.pos)(fragment.root)
+        UtilityCode.declare_declarations_in_scope(decl_code.getvalue(), env)
+        ast.scope = env
+        ast.analyse_declarations(env)
+        py_func = ast.stats[-1] # the DefNode
+        self.fragment_scope = ast.scope
 
-        if is_def:
+        if isinstance(self.node, DefNode):
             py_func.specialized_cpdefs = self.nodes[:]
         else:
             py_func.specialized_cpdefs = [n.py_func for n in self.nodes]
 
         return py_func
+
+    def update_fused_defnode_entry(self, env):
+        import ExprNodes
+
+        copy_attributes = (
+            'name', 'pos', 'cname', 'func_cname', 'pyfunc_cname',
+            'pymethdef_cname', 'doc', 'doc_cname', 'is_member',
+            'scope'
+        )
+
+        entry = self.py_func.entry
+
+        for attr in copy_attributes:
+            setattr(entry, attr,
+                    getattr(self.orig_py_func.entry, attr))
+
+        self.py_func.name = self.orig_py_func.name
+        self.py_func.doc = self.orig_py_func.doc
+
+        env.entries.pop('__pyx_fused_cpdef', None)
+        if isinstance(self.node, DefNode):
+            env.entries[entry.name] = entry
+        else:
+            env.entries[entry.name].as_variable = entry
+
+        env.pyfunc_entries.append(entry)
+
+        self.py_func.entry.fused_cfunction = self
+        for node in self.nodes:
+            if isinstance(self.node, DefNode):
+                node.fused_py_func = self.py_func
+            else:
+                node.py_func.fused_py_func = self.py_func
+                node.entry.as_variable = entry
+
+        self.synthesize_defnodes()
+        self.stats.append(self.__signatures__)
+
+        env.use_utility_code(ExprNodes.import_utility_code)
 
     def analyse_expressions(self, env):
         """

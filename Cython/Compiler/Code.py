@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import operator
+import textwrap
 
 import Naming
 import Options
@@ -365,7 +366,7 @@ class UtilityCode(UtilityCodeBase):
                 self.cleanup(writer, output.module_pos)
 
 
-def sub_tempita(s, context, file, name):
+def sub_tempita(s, context, file=None, name=None):
     "Run tempita on string s with given context."
     if not s:
         return None
@@ -1911,6 +1912,63 @@ class PyrexCodeWriter(object):
     def dedent(self):
         self.level -= 1
 
+class PyxCodeWriter(object):
+    """
+    Can be used for writing out some Cython code.
+    """
+
+    def __init__(self, buffer=None, indent_level=0, context=None):
+        self.buffer = buffer or StringIOTree()
+        self.level = indent_level
+        self.context = context
+        self.encoding = 'ascii'
+
+    def indent(self, levels=1):
+        self.level += levels
+
+    def dedent(self, levels=1):
+        self.level -= levels
+
+    def indenter(self, line):
+        """
+        with pyx_code.indenter("for i in range(10):"):
+            pyx_code.putln("print i")
+        """
+        self.putln(line)
+        return self
+
+    def getvalue(self):
+        return unicode(self.buffer.getvalue(), self.encoding)
+
+    def putln(self, line, context=None):
+        context = context or self.context
+        if context:
+            line = sub_tempita(line, context)
+        self._putln(line)
+
+    def _putln(self, line):
+        self.buffer.write("%s%s\n" % (self.level * "    ", line))
+
+    def put_chunk(self, chunk, context=None):
+        context = context or self.context
+        if context:
+            chunk = sub_tempita(chunk, context)
+
+        chunk = textwrap.dedent(chunk)
+        for line in chunk.splitlines():
+            self._putln(line)
+
+    def insertion_point(self):
+        return PyxCodeWriter(self.buffer.insertion_point(), self.level,
+                             self.context)
+
+    def named_insertion_point(self, name):
+        setattr(self, name, self.insertion_point())
+
+    __enter__ = indent
+
+    def __exit__(self, exc_value, exc_type, exc_tb):
+        self.dedent()
 
 class ClosureTempAllocator(object):
     def __init__(self, klass):

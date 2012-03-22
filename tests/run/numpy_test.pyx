@@ -4,6 +4,8 @@
 cimport numpy as np
 cimport cython
 
+from libc.stdlib cimport malloc
+
 def little_endian():
     cdef int endian_detector = 1
     return (<char*>&endian_detector)[0] != 0
@@ -488,17 +490,252 @@ def test_point_record():
         test[i].y = -i
     print repr(test).replace('<', '!').replace('>', '!')
 
-def test_fused_ndarray_dtype(np.ndarray[cython.floating, ndim=1] a):
+# Test fused np.ndarray dtypes and runtime dispatch
+def test_fused_ndarray_floating_dtype(np.ndarray[cython.floating, ndim=1] a):
     """
     >>> import cython
-    >>> sorted(test_fused_ndarray_dtype.__signatures__)
+    >>> sorted(test_fused_ndarray_floating_dtype.__signatures__)
     ['double', 'float']
-    >>> test_fused_ndarray_dtype[cython.double](np.arange(10, dtype=np.float64))
-    ndarray[double, ndim=1] ndarray[double, ndim=1] 5.0 6.0
-    >>> test_fused_ndarray_dtype[cython.float](np.arange(10, dtype=np.float32))
-    ndarray[float, ndim=1] ndarray[float, ndim=1] 5.0 6.0
+
+    >>> test_fused_ndarray_floating_dtype[cython.double](np.arange(10, dtype=np.float64))
+    ndarray[double,ndim=1] ndarray[double,ndim=1] 5.0 6.0
+    >>> test_fused_ndarray_floating_dtype(np.arange(10, dtype=np.float64))
+    ndarray[double,ndim=1] ndarray[double,ndim=1] 5.0 6.0
+
+    >>> test_fused_ndarray_floating_dtype[cython.float](np.arange(10, dtype=np.float32))
+    ndarray[float,ndim=1] ndarray[float,ndim=1] 5.0 6.0
+    >>> test_fused_ndarray_floating_dtype(np.arange(10, dtype=np.float32))
+    ndarray[float,ndim=1] ndarray[float,ndim=1] 5.0 6.0
     """
     cdef np.ndarray[cython.floating, ndim=1] b = a
     print cython.typeof(a), cython.typeof(b), a[5], b[6]
+
+def test_fused_ndarray_integral_dtype(np.ndarray[cython.integral, ndim=1] a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_ndarray_integral_dtype.__signatures__)
+    ['int', 'long', 'short']
+
+    >>> test_fused_ndarray_integral_dtype[cython.int](np.arange(10, dtype=np.dtype('i')))
+    ndarray[int,ndim=1] ndarray[int,ndim=1] 5 6
+    >>> test_fused_ndarray_integral_dtype(np.arange(10, dtype=np.dtype('i')))
+    ndarray[int,ndim=1] ndarray[int,ndim=1] 5 6
+
+    >>> test_fused_ndarray_integral_dtype[cython.long](np.arange(10, dtype=np.long))
+    ndarray[long,ndim=1] ndarray[long,ndim=1] 5 6
+    >>> test_fused_ndarray_integral_dtype(np.arange(10, dtype=np.long))
+    ndarray[long,ndim=1] ndarray[long,ndim=1] 5 6
+    """
+    cdef np.ndarray[cython.integral, ndim=1] b = a
+    print cython.typeof(a), cython.typeof(b), a[5], b[6]
+
+cdef fused fused_dtype:
+    float complex
+    double complex
+    object
+
+def test_fused_ndarray_other_dtypes(np.ndarray[fused_dtype, ndim=1] a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_ndarray_other_dtypes.__signatures__)
+    ['double complex', 'float complex', 'object']
+    >>> test_fused_ndarray_other_dtypes(np.arange(10, dtype=np.complex64))
+    ndarray[float complex,ndim=1] ndarray[float complex,ndim=1] (5+0j) (6+0j)
+    >>> test_fused_ndarray_other_dtypes(np.arange(10, dtype=np.complex128))
+    ndarray[double complex,ndim=1] ndarray[double complex,ndim=1] (5+0j) (6+0j)
+    >>> test_fused_ndarray_other_dtypes(np.arange(10, dtype=np.object))
+    ndarray[Python object,ndim=1] ndarray[Python object,ndim=1] 5 6
+    """
+    cdef np.ndarray[fused_dtype, ndim=1] b = a
+    print cython.typeof(a), cython.typeof(b), a[5], b[6]
+
+
+# Test fusing the array types together and runtime dispatch
+cdef struct Foo:
+    int a
+    float b
+
+cdef fused fused_FooArray:
+    np.ndarray[Foo, ndim=1]
+
+cdef fused fused_ndarray:
+    np.ndarray[float, ndim=1]
+    np.ndarray[double, ndim=1]
+    np.ndarray[Foo, ndim=1]
+
+def get_Foo_array():
+    cdef Foo[:] result = <Foo[:10]> malloc(sizeof(Foo) * 10)
+    result[5].b = 9.0
+    return np.asarray(result)
+
+def test_fused_ndarray(fused_ndarray a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_ndarray.__signatures__)
+    ['ndarray[Foo,ndim=1]', 'ndarray[double,ndim=1]', 'ndarray[float,ndim=1]']
+
+    >>> test_fused_ndarray(get_Foo_array())
+    ndarray[Foo,ndim=1] ndarray[Foo,ndim=1]
+    9.0
+    >>> test_fused_ndarray(np.arange(10, dtype=np.float64))
+    ndarray[double,ndim=1] ndarray[double,ndim=1]
+    5.0
+    >>> test_fused_ndarray(np.arange(10, dtype=np.float32))
+    ndarray[float,ndim=1] ndarray[float,ndim=1]
+    5.0
+    """
+    cdef fused_ndarray b = a
+    print cython.typeof(a), cython.typeof(b)
+
+    if fused_ndarray in fused_FooArray:
+        print b[5].b
+    else:
+        print b[5]
+
+cpdef test_fused_cpdef_ndarray(fused_ndarray a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_cpdef_ndarray.__signatures__)
+    ['ndarray[Foo,ndim=1]', 'ndarray[double,ndim=1]', 'ndarray[float,ndim=1]']
+
+    >>> test_fused_cpdef_ndarray(get_Foo_array())
+    ndarray[Foo,ndim=1] ndarray[Foo,ndim=1]
+    9.0
+    >>> test_fused_cpdef_ndarray(np.arange(10, dtype=np.float64))
+    ndarray[double,ndim=1] ndarray[double,ndim=1]
+    5.0
+    >>> test_fused_cpdef_ndarray(np.arange(10, dtype=np.float32))
+    ndarray[float,ndim=1] ndarray[float,ndim=1]
+    5.0
+    """
+    cdef fused_ndarray b = a
+    print cython.typeof(a), cython.typeof(b)
+
+    if fused_ndarray in fused_FooArray:
+        print b[5].b
+    else:
+        print b[5]
+
+def test_fused_cpdef_ndarray_cdef_call():
+    """
+    >>> test_fused_cpdef_ndarray_cdef_call()
+    ndarray[Foo,ndim=1] ndarray[Foo,ndim=1]
+    9.0
+    """
+    cdef np.ndarray[Foo, ndim=1] foo_array = get_Foo_array()
+    test_fused_cpdef_ndarray(foo_array)
+
+cdef fused int_type:
+    np.int32_t
+    np.int64_t
+
+float64_array = np.arange(10, dtype=np.float64)
+float32_array = np.arange(10, dtype=np.float32)
+int32_array = np.arange(10, dtype=np.int32)
+int64_array = np.arange(10, dtype=np.int64)
+
+def test_dispatch_non_clashing_declarations_repeating_types(np.ndarray[cython.floating] a1,
+                                                            np.ndarray[int_type] a2,
+                                                            np.ndarray[cython.floating] a3,
+                                                            np.ndarray[int_type] a4):
+    """
+    >>> test_dispatch_non_clashing_declarations_repeating_types(float64_array, int32_array, float64_array, int32_array)
+    1.0 2 3.0 4
+    >>> test_dispatch_non_clashing_declarations_repeating_types(float64_array, int64_array, float64_array, int64_array)
+    1.0 2 3.0 4
+    >>> test_dispatch_non_clashing_declarations_repeating_types(float64_array, int32_array, float64_array, int64_array)
+    Traceback (most recent call last):
+       ...
+    TypeError: No matching signature found
+    """
+    print a1[1], a2[2], a3[3], a4[4]
+
+ctypedef np.int32_t typedeffed_type
+
+cdef fused typedeffed_fused_type:
+    typedeffed_type
+    int
+    long
+
+def test_dispatch_typedef(np.ndarray[typedeffed_fused_type] a):
+    """
+    >>> test_dispatch_typedef(int32_array)
+    5
+    """
+    print a[5]
+
+
+cdef extern from "types.h":
+    ctypedef unsigned char actually_long_t
+
+cdef fused confusing_fused_typedef:
+    actually_long_t
+    unsigned char
+    signed char
+
+def test_dispatch_external_typedef(np.ndarray[confusing_fused_typedef] a):
+    """
+    >>> test_dispatch_external_typedef(np.arange(10, dtype=np.long))
+    5
+    """
+    print a[5]
+
+# test fused memoryview slices
+cdef fused memslice_fused_dtype:
+    float
+    double
+    int
+    long
+    float complex
+    double complex
+    object
+
+def test_fused_memslice_other_dtypes(memslice_fused_dtype[:] a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_memslice_other_dtypes.__signatures__)
+    ['double', 'double complex', 'float', 'float complex', 'int', 'long', 'object']
+    >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.complex64))
+    float complex[:] float complex[:] (5+0j) (6+0j)
+    >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.complex128))
+    double complex[:] double complex[:] (5+0j) (6+0j)
+    >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.float32))
+    float[:] float[:] 5.0 6.0
+    >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.dtype('i')))
+    int[:] int[:] 5 6
+    >>> test_fused_memslice_other_dtypes(np.arange(10, dtype=np.object))
+    object[:] object[:] 5 6
+    """
+    cdef memslice_fused_dtype[:] b = a
+    print cython.typeof(a), cython.typeof(b), a[5], b[6]
+
+cdef fused memslice_fused:
+    float[:]
+    double[:]
+    int[:]
+    long[:]
+    float complex[:]
+    double complex[:]
+    object[:]
+
+def test_fused_memslice_fused(memslice_fused a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_memslice_fused.__signatures__)
+    ['double complex[:]', 'double[:]', 'float complex[:]', 'float[:]', 'int[:]', 'long[:]', 'object[:]']
+    >>> test_fused_memslice_fused(np.arange(10, dtype=np.complex64))
+    float complex[:] float complex[:] (5+0j) (6+0j)
+    >>> test_fused_memslice_fused(np.arange(10, dtype=np.complex128))
+    double complex[:] double complex[:] (5+0j) (6+0j)
+    >>> test_fused_memslice_fused(np.arange(10, dtype=np.float32))
+    float[:] float[:] 5.0 6.0
+    >>> test_fused_memslice_fused(np.arange(10, dtype=np.dtype('i')))
+    int[:] int[:] 5 6
+    >>> test_fused_memslice_fused(np.arange(10, dtype=np.object))
+    object[:] object[:] 5 6
+    """
+    cdef memslice_fused b = a
+    print cython.typeof(a), cython.typeof(b), a[5], b[6]
+
 
 include "numpy_common.pxi"
