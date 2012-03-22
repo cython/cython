@@ -1486,7 +1486,8 @@ if VALUE is not None:
 
                 return node
 
-            FusedNode = Importer.importer("Cython.Compiler.FusedNode", version=(2, 5))
+            FusedNode = Importer.importer("Cython.Compiler.FusedNode",
+                                          version=(2, 5))
             node = FusedNode.FusedCFuncDefNode(node, env)
 
             self.fused_function = node

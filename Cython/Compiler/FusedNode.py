@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 import copy
 
 from Cython.Compiler import (ExprNodes, PyrexTypes, MemoryView,
@@ -605,8 +607,7 @@ class FusedCFuncDefNode(StatListNode):
         fragment_code = pyx_code.getvalue()
         # print decl_code.getvalue()
         # print fragment_code
-        fragment = TreeFragment.TreeFragment(fragment_code.decode('ascii'),
-                                             level='module')
+        fragment = TreeFragment.TreeFragment(fragment_code, level='module')
         ast = TreeFragment.SetPosTransform(self.node.pos)(fragment.root)
         UtilityCode.declare_declarations_in_scope(decl_code.getvalue(), env)
         ast.scope = env

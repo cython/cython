@@ -1228,6 +1228,8 @@ def refactor_for_py3(distdir, cy3_dir):
                      recursive-include Cython *.py *.pyx *.pxd
                      recursive-include Cython/Debugger/Tests *
                      recursive-include Cython/Utility *
+                     recursive-exclude pyximport test
+                     include pyximport/*.py
                      include runtests.py
                      include cython.py
                      ''')

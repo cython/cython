@@ -1919,11 +1919,11 @@ class PyxCodeWriter(object):
     to load the code to support python 2.4
     """
 
-    def __init__(self, buffer=None, indent_level=0, context=None):
+    def __init__(self, buffer=None, indent_level=0, context=None, encoding='ascii'):
         self.buffer = buffer or StringIOTree()
         self.level = indent_level
         self.context = context
-        self.encoding = 'ascii'
+        self.encoding = encoding
 
     def indent(self, levels=1):
         self.level += levels
@@ -1940,7 +1940,11 @@ class PyxCodeWriter(object):
         return self
 
     def getvalue(self):
-        return unicode(self.buffer.getvalue(), self.encoding)
+        result = self.buffer.getvalue()
+        if not isinstance(result, unicode):
+            result = result.decode(self.encoding)
+
+        return result
 
     def putln(self, line, context=None):
         context = context or self.context

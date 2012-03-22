@@ -40,7 +40,7 @@ def importer(modulename, compile=False, version=None):
     Otherwise, try a regular import and if that fails (i.e. there is a
     syntax error, try to compile it.
     """
-    if version is not None and sys.version_info[:2] >= version:
+    if version is not None and sys.version_info[:2] >= version and not compile:
         return _import_normal(modulename)
 
     if compile:
