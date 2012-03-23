@@ -5022,66 +5022,93 @@ class SequenceNode(ExprNode):
         for i, arg in enumerate(self.args):
             if arg.is_starred:
                 starred_target = self.unpacked_items[i]
-                fixed_args_left  = self.args[:i]
-                fixed_args_right = self.args[i+1:]
+                unpacked_fixed_items_left  = self.unpacked_items[:i]
+                unpacked_fixed_items_right = self.unpacked_items[i+1:]
                 break
+        else:
+            assert False
 
-        iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln(
-            "%s = PyObject_GetIter(%s); %s" % (
+        iterator_temp = None
+        if unpacked_fixed_items_left:
+            iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            code.putln("%s = PyObject_GetIter(%s); %s" % (
                 iterator_temp,
                 rhs.py_result(),
                 code.error_goto_if_null(iterator_temp, self.pos)))
-        code.put_gotref(iterator_temp)
-        rhs.generate_disposal_code(code)
+            code.put_gotref(iterator_temp)
+            rhs.generate_disposal_code(code)
 
-        for item in self.unpacked_items:
-            item.allocate(code)
-        code.globalstate.use_utility_code(unpacking_utility_code)
-        for i in range(len(fixed_args_left)):
-            item = self.unpacked_items[i]
-            unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
-                iterator_temp, i)
-            code.putln(
-                "%s = %s; %s" % (
-                    item.result(),
-                    typecast(item.ctype(), py_object_type, unpack_code),
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("UnpackItem", "ObjectHandling.c"))
+            for i, item in enumerate(unpacked_fixed_items_left):
+                item.allocate(code)
+                code.putln("%s = __Pyx_UnpackItem(%s, %d); %s" % (
+                    item.result(), iterator_temp, i,
                     code.error_goto_if_null(item.result(), self.pos)))
-            code.put_gotref(item.py_result())
-            value_node = self.coerced_unpacked_items[i]
-            value_node.generate_evaluation_code(code)
+                code.put_gotref(item.py_result())
+                value_node = self.coerced_unpacked_items[i]
+                value_node.generate_evaluation_code(code)
 
+        starred_target.allocate(code)
         target_list = starred_target.result()
         code.putln("%s = PySequence_List(%s); %s" % (
-            target_list, iterator_temp,
+            target_list,
+            iterator_temp or rhs.py_result(),
             code.error_goto_if_null(target_list, self.pos)))
         code.put_gotref(target_list)
-        if fixed_args_right:
+
+        if iterator_temp:
+            code.put_decref_clear(iterator_temp, py_object_type)
+            code.funcstate.release_temp(iterator_temp)
+        else:
+            rhs.generate_disposal_code(code)
+
+        if unpacked_fixed_items_right:
             code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-            unpacked_right_args = self.unpacked_items[-len(fixed_args_right):]
-            code.putln("if (unlikely(PyList_GET_SIZE(%s) < %d)) {" % (
-                (target_list, len(unpacked_right_args))))
-            code.put("__Pyx_RaiseNeedMoreValuesError(%d+PyList_GET_SIZE(%s)); %s" % (
-                     len(fixed_args_left), target_list,
-                     code.error_goto(self.pos)))
+            length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            code.putln('%s = PyList_GET_SIZE(%s);' % (length_temp, target_list))
+            code.putln("if (unlikely(%s < %d)) {" % (length_temp, len(unpacked_fixed_items_right)))
+            code.putln("__Pyx_RaiseNeedMoreValuesError(%d+%s); %s" % (
+                 len(unpacked_fixed_items_left), length_temp,
+                 code.error_goto(self.pos)))
             code.putln('}')
-            for i, (arg, coerced_arg) in enumerate(zip(unpacked_right_args[::-1],
-                                                       self.coerced_unpacked_items[::-1])):
+
+            for item in unpacked_fixed_items_right[::-1]:
+                item.allocate(code)
+            code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+            for i, (item, coerced_arg) in enumerate(zip(unpacked_fixed_items_right[::-1],
+                                                        self.coerced_unpacked_items[::-1])):
                 code.putln(
-                    "%s = PyList_GET_ITEM(%s, PyList_GET_SIZE(%s)-1); " % (
-                        arg.py_result(),
-                        target_list, target_list))
+                    "%s = PyList_GET_ITEM(%s, %s-%d); " % (
+                        item.py_result(), target_list, length_temp, i+1))
                 # resize the list the hard way
                 code.putln("((PyVarObject*)%s)->ob_size--;" % target_list)
-                code.put_gotref(arg.py_result())
+                code.put_gotref(item.py_result())
                 coerced_arg.generate_evaluation_code(code)
 
-        code.put_decref_clear(iterator_temp, py_object_type)
-        code.funcstate.release_temp(iterator_temp)
+            code.putln('#else')
 
-        for i in range(len(self.args)):
-            self.args[i].generate_assignment_code(
-                self.coerced_unpacked_items[i], code)
+            for i, (item, coerced_arg) in enumerate(zip(unpacked_fixed_items_right[::-1],
+                                                        self.coerced_unpacked_items[::-1])):
+                code.putln(
+                    "%s = PySequence_GetItem(%s, %s-%d); " % (
+                        item.py_result(), target_list, length_temp, i+1))
+                # resize the list the hard way
+                code.put_gotref(item.py_result())
+                coerced_arg.generate_evaluation_code(code)
+            sublist_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            code.putln('%s = PyList_GetSlice(%s, 0, %s-%d); %s' % (
+                sublist_temp, target_list, length_temp, len(unpacked_fixed_items_right),
+                code.error_goto_if_null(sublist_temp, self.pos)))
+            code.put_gotref(sublist_temp)
+            code.funcstate.release_temp(length_temp)
+            code.put_decref(target_list, py_object_type)
+            code.putln('%s = %s; %s = NULL;' % (target_list, sublist_temp, sublist_temp))
+            code.funcstate.release_temp(sublist_temp)
+            code.putln('#endif')
+
+        for i, arg in enumerate(self.args):
+            arg.generate_assignment_code(self.coerced_unpacked_items[i], code)
 
     def annotate(self, code):
         for arg in self.args:
@@ -10099,7 +10126,6 @@ raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesT
 #------------------------------------------------------------------------------------
 
 tuple_unpacking_error_code = UtilityCode.load_cached("UnpackTupleError", "ObjectHandling.c")
-unpacking_utility_code = UtilityCode.load_cached("UnpackItem", "ObjectHandling.c")
 iternext_unpacking_end_utility_code = UtilityCode.load_cached("UnpackItemEndCheck", "ObjectHandling.c")
 
 #------------------------------------------------------------------------------------
