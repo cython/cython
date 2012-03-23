@@ -166,6 +166,7 @@ VER_DEP_MODULES = {
                                           ]),
     (2,5) : (operator.lt, lambda x: x in ['run.any',
                                           'run.all',
+                                          'run.yield_from_pep380',  # GeneratorExit
                                           'run.relativeimport_T542',
                                           'run.relativeimport_star_T542',
                                           ]),
