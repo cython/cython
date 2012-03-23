@@ -7737,21 +7737,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         A bug on OS X Lion disallows __builtin_expect macros. This code avoids them
         """
         if not self.parent:
-            code.putln("#if %s" % self.redef_condition)
-            code.putln("    #undef likely")
-            code.putln("    #undef unlikely")
-            code.putln("    #define likely(x)   (x)")
-            code.putln("    #define unlikely(x) (x)")
-            code.putln("#endif")
+            code.undef_builtin_expect(self.redef_condition)
 
     def redef_builtin_expect_apple_gcc_bug(self, code):
         if not self.parent:
-            code.putln("#if %s" % self.redef_condition)
-            code.putln("    #undef likely")
-            code.putln("    #undef unlikely")
-            code.putln("    #define likely(x)   __builtin_expect(!!(x), 1)")
-            code.putln("    #define unlikely(x) __builtin_expect(!!(x), 0)")
-            code.putln("#endif")
+            code.redef_builtin_expect(self.redef_condition)
 
 
 class ParallelWithBlockNode(ParallelStatNode):
