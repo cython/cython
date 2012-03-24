@@ -5075,27 +5075,21 @@ class SequenceNode(ExprNode):
 
             for item in unpacked_fixed_items_right[::-1]:
                 item.allocate(code)
-            code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
             for i, (item, coerced_arg) in enumerate(zip(unpacked_fixed_items_right[::-1],
                                                         self.coerced_unpacked_items[::-1])):
-                code.putln(
-                    "%s = PyList_GET_ITEM(%s, %s-%d); " % (
-                        item.py_result(), target_list, length_temp, i+1))
+                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                code.putln("%s = PyList_GET_ITEM(%s, %s-%d); " % (
+                    item.py_result(), target_list, length_temp, i+1))
                 # resize the list the hard way
                 code.putln("((PyVarObject*)%s)->ob_size--;" % target_list)
+                code.putln('#else')
+                code.putln("%s = PySequence_GetItem(%s, %s-%d); " % (
+                    item.py_result(), target_list, length_temp, i+1))
+                code.putln('#endif')
                 code.put_gotref(item.py_result())
                 coerced_arg.generate_evaluation_code(code)
 
-            code.putln('#else')
-
-            for i, (item, coerced_arg) in enumerate(zip(unpacked_fixed_items_right[::-1],
-                                                        self.coerced_unpacked_items[::-1])):
-                code.putln(
-                    "%s = PySequence_GetItem(%s, %s-%d); " % (
-                        item.py_result(), target_list, length_temp, i+1))
-                # resize the list the hard way
-                code.put_gotref(item.py_result())
-                coerced_arg.generate_evaluation_code(code)
+            code.putln('#if !CYTHON_COMPILING_IN_CPYTHON')
             sublist_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln('%s = PyList_GetSlice(%s, 0, %s-%d); %s' % (
                 sublist_temp, target_list, length_temp, len(unpacked_fixed_items_right),
@@ -5104,6 +5098,8 @@ class SequenceNode(ExprNode):
             code.funcstate.release_temp(length_temp)
             code.put_decref(target_list, py_object_type)
             code.putln('%s = %s; %s = NULL;' % (target_list, sublist_temp, sublist_temp))
+            code.putln('#else')
+            code.putln('%s = %s;' % (sublist_temp, sublist_temp)) # avoid warning about unused variable
             code.funcstate.release_temp(sublist_temp)
             code.putln('#endif')
 
