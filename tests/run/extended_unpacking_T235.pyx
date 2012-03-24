@@ -292,3 +292,53 @@ def unpack_middle_tuple(tuple t):
     """
     a, *b, c = t
     return a,b,c
+
+def unpack_many_middle(it):
+    """
+    >>> unpack_many_middle(list(range(14)))
+    (0, 1, 2, 3, 4, [5, 6, 7, 8, 9], 10, 11, 12, 13)
+    >>> unpack_many_middle(tuple(range(14)))
+    (0, 1, 2, 3, 4, [5, 6, 7, 8, 9], 10, 11, 12, 13)
+    >>> unpack_many_middle(iter(range(14)))
+    (0, 1, 2, 3, 4, [5, 6, 7, 8, 9], 10, 11, 12, 13)
+    """
+    a,b,c,d,e,*f,g,h,i,j = it
+    return a,b,c,d,e,f,g,h,i,j
+
+def unpack_many_left(it):
+    """
+    >>> unpack_many_left(list(range(14)))
+    (0, 1, 2, 3, 4, 5, 6, 7, 8, [9, 10, 11, 12, 13])
+    >>> unpack_many_left(tuple(range(14)))
+    (0, 1, 2, 3, 4, 5, 6, 7, 8, [9, 10, 11, 12, 13])
+    >>> unpack_many_left(iter(range(14)))
+    (0, 1, 2, 3, 4, 5, 6, 7, 8, [9, 10, 11, 12, 13])
+    """
+    a,b,c,d,e,f,g,h,i,*j = it
+    return a,b,c,d,e,f,g,h,i,j
+
+def unpack_many_right(it):
+    """
+    >>> unpack_many_right(list(range(14)))
+    ([0, 1, 2, 3, 4], 5, 6, 7, 8, 9, 10, 11, 12, 13)
+    >>> unpack_many_right(tuple(range(14)))
+    ([0, 1, 2, 3, 4], 5, 6, 7, 8, 9, 10, 11, 12, 13)
+    >>> unpack_many_right(iter(range(14)))
+    ([0, 1, 2, 3, 4], 5, 6, 7, 8, 9, 10, 11, 12, 13)
+    """
+    *a,b,c,d,e,f,g,h,i,j = it
+    return a,b,c,d,e,f,g,h,i,j
+
+def unpack_many_right_loop(it):
+    """
+    >>> unpack_many_right_loop(list(range(14)))
+    ([0, 1, 2, 3, 4], 5, 6, 7, 8, 9, 10, 11, 12, 13)
+    >>> unpack_many_right_loop(tuple(range(14)))
+    ([0, 1, 2, 3, 4], 5, 6, 7, 8, 9, 10, 11, 12, 13)
+    >>> unpack_many_right_loop(iter(range(14)))
+    ([0, 1, 2, 3, 4], 5, 6, 7, 8, 9, 10, 11, 12, 13)
+    """
+    cdef int i
+    for i in range(1):
+        *a,b,c,d,e,f,g,h,i,j = it
+    return a,b,c,d,e,f,g,h,i,j
