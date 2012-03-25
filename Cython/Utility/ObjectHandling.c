@@ -152,6 +152,53 @@ bad:
     return -1;
 }
 
+/////////////// IterNext.proto ///////////////
+
+#define __Pyx_PyIter_Next(obj) __Pyx_PyIter_Next2(obj, NULL);
+static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*proto*/
+
+/////////////// IterNext ///////////////
+
+// originally copied from Py3's builtin_next()
+static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
+    PyObject* next;
+    iternextfunc iternext = Py_TYPE(iterator)->tp_iternext;
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (unlikely(!iternext)) {
+#else
+    if (unlikely(!iternext) || unlikely(!PyIter_Check(iterator))) {
+#endif
+        PyErr_Format(PyExc_TypeError,
+            "%.200s object is not an iterator", Py_TYPE(iterator)->tp_name);
+        return NULL;
+    }
+    next = iternext(iterator);
+    if (likely(next))
+        return next;
+#if CYTHON_COMPILING_IN_CPYTHON
+#if PY_VERSION_HEX >= 0x03010000 || PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000
+    if (unlikely(iternext == &_PyObject_NextNotImplemented)) {
+        return NULL;
+#endif
+#endif
+    } else if (defval) {
+        PyObject* exc_type = PyErr_Occurred();
+        if (exc_type) {
+            if (unlikely(exc_type != PyExc_StopIteration) &&
+                    !PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))
+                return NULL;
+            PyErr_Clear();
+        }
+        Py_INCREF(defval);
+        return defval;
+    } else if (PyErr_Occurred()) {
+        return NULL;
+    } else {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
+    }
+}
+
 /////////////// IterFinish.proto ///////////////
 
 static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
