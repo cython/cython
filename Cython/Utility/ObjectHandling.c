@@ -154,7 +154,7 @@ bad:
 
 /////////////// IterNext.proto ///////////////
 
-#define __Pyx_PyIter_Next(obj) __Pyx_PyIter_Next2(obj, NULL);
+#define __Pyx_PyIter_Next(obj) __Pyx_PyIter_Next2(obj, NULL)
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*proto*/
 
 /////////////// IterNext ///////////////
