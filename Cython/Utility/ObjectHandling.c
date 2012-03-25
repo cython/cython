@@ -71,23 +71,6 @@ static void __Pyx_UnpackTupleError(PyObject *t, Py_ssize_t index) {
     }
 }
 
-/////////////// UnpackItem.proto ///////////////
-
-static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
-
-/////////////// UnpackItem ///////////////
-//@requires: RaiseNeedMoreValuesToUnpack
-
-static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
-    PyObject *item;
-    if (!(item = PyIter_Next(iter))) {
-        if (!PyErr_Occurred()) {
-            __Pyx_RaiseNeedMoreValuesError(index);
-        }
-    }
-    return item;
-}
-
 /////////////// UnpackItemEndCheck.proto ///////////////
 
 static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected); /*proto*/
@@ -113,21 +96,22 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** value1,
                                              int is_tuple, int has_known_size, int decref_tuple);
 
 /////////////// UnpackTuple2 ///////////////
-//@requires: UnpackItem
 //@requires: UnpackItemEndCheck
 //@requires: UnpackTupleError
+//@requires: RaiseNeedMoreValuesToUnpack
 
 static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** pvalue1, PyObject** pvalue2,
                                              int is_tuple, int has_known_size, int decref_tuple) {
+    Py_ssize_t index;
     PyObject *value1 = NULL, *value2 = NULL, *iter = NULL;
     if (!is_tuple && unlikely(!PyTuple_Check(tuple))) {
+        iternextfunc iternext;
         iter = PyObject_GetIter(tuple);
         if (unlikely(!iter)) goto bad;
         if (decref_tuple) { Py_DECREF(tuple); tuple = NULL; }
-        value1 = __Pyx_UnpackItem(iter, 0);
-        if (unlikely(!value1)) goto bad;
-        value2 = __Pyx_UnpackItem(iter, 1);
-        if (unlikely(!value2)) goto bad;
+        iternext = Py_TYPE(iter)->tp_iternext;
+        value1 = iternext(iter); if (unlikely(!value1)) { index = 0; goto unpacking_failed; }
+        value2 = iternext(iter); if (unlikely(!value2)) { index = 1; goto unpacking_failed; }
         if (!has_known_size && unlikely(__Pyx_IternextUnpackEndCheck(PyIter_Next(iter), 2))) goto bad;
         Py_DECREF(iter);
     } else {
@@ -144,6 +128,9 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** pvalue1
     *pvalue1 = value1;
     *pvalue2 = value2;
     return 0;
+unpacking_failed:
+    if (!has_known_size && __Pyx_IterFinish() == 0)
+        __Pyx_RaiseNeedMoreValuesError(index);
 bad:
     Py_XDECREF(iter);
     Py_XDECREF(value1);
