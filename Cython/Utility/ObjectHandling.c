@@ -176,12 +176,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     if (likely(next))
         return next;
 #if CYTHON_COMPILING_IN_CPYTHON
-#if PY_VERSION_HEX >= 0x03010000 || PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000
-    if (unlikely(iternext == &_PyObject_NextNotImplemented)) {
+#if PY_VERSION_HEX >= 0x03010000 || (PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000)
+    if (unlikely(iternext == &_PyObject_NextNotImplemented))
         return NULL;
 #endif
 #endif
-    } else if (defval) {
+    if (defval) {
         PyObject* exc_type = PyErr_Occurred();
         if (exc_type) {
             if (unlikely(exc_type != PyExc_StopIteration) &&
@@ -191,12 +191,10 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
         }
         Py_INCREF(defval);
         return defval;
-    } else if (PyErr_Occurred()) {
-        return NULL;
-    } else {
-        PyErr_SetNone(PyExc_StopIteration);
-        return NULL;
     }
+    if (!PyErr_Occurred())
+        PyErr_SetNone(PyExc_StopIteration);
+    return NULL;
 }
 
 /////////////// IterFinish.proto ///////////////
