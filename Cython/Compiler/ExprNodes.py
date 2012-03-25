@@ -5003,7 +5003,8 @@ class SequenceNode(ExprNode):
                 code.put_gotref(item.py_result())
 
         if terminate:
-            code.globalstate.use_utility_code(iternext_unpacking_end_utility_code)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("UnpackItemEndCheck", "ObjectHandling.c"))
             code.put_error_if_neg(self.pos, "__Pyx_IternextUnpackEndCheck(%s, %d)" % (
                 unpack_code,
                 len(unpacked_items)))
@@ -10123,7 +10124,6 @@ raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesT
 #------------------------------------------------------------------------------------
 
 tuple_unpacking_error_code = UtilityCode.load_cached("UnpackTupleError", "ObjectHandling.c")
-iternext_unpacking_end_utility_code = UtilityCode.load_cached("UnpackItemEndCheck", "ObjectHandling.c")
 
 #------------------------------------------------------------------------------------
 
