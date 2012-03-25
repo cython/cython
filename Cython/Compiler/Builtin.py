@@ -40,17 +40,30 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 impl = '''
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
     PyObject* next;
-    if (unlikely(!PyIter_Check(iterator))) {
+    iternextfunc iternext = Py_TYPE(iterator)->tp_iternext;
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (unlikely(!iternext)) {
+#else
+    if (unlikely(!iternext) || unlikely(!PyIter_Check(iterator))) {
+#endif
         PyErr_Format(PyExc_TypeError,
-            "%.200s object is not an iterator", iterator->ob_type->tp_name);
+            "%.200s object is not an iterator", Py_TYPE(iterator)->tp_name);
         return NULL;
     }
-    next = (*(Py_TYPE(iterator)->tp_iternext))(iterator);
-    if (likely(next)) {
+    next = iternext(iterator);
+    if (likely(next))
         return next;
+#if CYTHON_COMPILING_IN_CPYTHON
+#if PY_VERSION_HEX >= 0x03010000 || PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000
+    if (unlikely(iternext == &_PyObject_NextNotImplemented)) {
+        return NULL;
+#endif
+#endif
     } else if (defval) {
-        if (PyErr_Occurred()) {
-            if(!PyErr_ExceptionMatches(PyExc_StopIteration))
+        PyObject* exc_type = PyErr_Occurred();
+        if (exc_type) {
+            if (unlikely(exc_type != PyExc_StopIteration) &&
+                    !PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))
                 return NULL;
             PyErr_Clear();
         }
