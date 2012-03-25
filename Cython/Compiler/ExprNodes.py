@@ -4915,7 +4915,7 @@ class SequenceNode(ExprNode):
             code.putln(code.error_goto(self.pos))
         else:
             self.generate_generic_parallel_unpacking_code(
-                code, rhs, use_loop=long_enough_for_a_loop)
+                code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
         code.putln("}")
 
         for value_node in self.coerced_unpacked_items:
@@ -4959,8 +4959,7 @@ class SequenceNode(ExprNode):
                 code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (item.result(), sequence_type, i))
                 code.put_incref(item.result(), item.ctype())
 
-    def generate_generic_parallel_unpacking_code(self, code, rhs, use_loop):
-        code.globalstate.use_utility_code(iternext_unpacking_end_utility_code)
+    def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
         code.globalstate.use_utility_code(UtilityCode.load_cached("IterFinish", "ObjectHandling.c"))
         code.putln("Py_ssize_t index = -1;") # must be at the start of a C block!
@@ -4968,7 +4967,7 @@ class SequenceNode(ExprNode):
         if use_loop:
             code.putln("PyObject** temps[%s] = {%s};" % (
                 len(self.unpacked_items),
-                ','.join(['&%s' % item.result() for item in self.unpacked_items])))
+                ','.join(['&%s' % item.result() for item in unpacked_items])))
 
         iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
@@ -4986,14 +4985,14 @@ class SequenceNode(ExprNode):
         unpacking_error_label = code.new_label('unpacking_failed')
         unpack_code = "%s(%s)" % (iternext_func, iterator_temp)
         if use_loop:
-            code.putln("for (index=0; index < %s; index++) {" % len(self.unpacked_items))
+            code.putln("for (index=0; index < %s; index++) {" % len(unpacked_items))
             code.put("PyObject* item = %s; if (unlikely(!item)) " % unpack_code)
             code.put_goto(unpacking_error_label)
             code.put_gotref("item")
             code.putln("*(temps[index]) = item;")
             code.putln("}")
         else:
-            for i, item in enumerate(self.unpacked_items):
+            for i, item in enumerate(unpacked_items):
                 code.put(
                     "index = %d; %s = %s; if (unlikely(!%s)) " % (
                         i,
@@ -5002,21 +5001,31 @@ class SequenceNode(ExprNode):
                         item.result()))
                 code.put_goto(unpacking_error_label)
                 code.put_gotref(item.py_result())
-        code.put_error_if_neg(self.pos, "__Pyx_IternextUnpackEndCheck(%s, %d)" % (
-            unpack_code,
-            len(self.unpacked_items)))
-        code.put_decref_clear(iterator_temp, py_object_type)
-        code.funcstate.release_temp(iterator_temp)
-        code.putln("%s = NULL;" % iternext_func)
-        code.funcstate.release_temp(iternext_func)
+
+        if terminate:
+            code.globalstate.use_utility_code(iternext_unpacking_end_utility_code)
+            code.put_error_if_neg(self.pos, "__Pyx_IternextUnpackEndCheck(%s, %d)" % (
+                unpack_code,
+                len(unpacked_items)))
+            code.putln("%s = NULL;" % iternext_func)
+            code.put_decref_clear(iterator_temp, py_object_type)
+
         unpacking_done_label = code.new_label('unpacking_done')
         code.put_goto(unpacking_done_label)
 
         code.put_label(unpacking_error_label)
         code.put_decref_clear(iterator_temp, py_object_type)
+        code.putln("%s = NULL;" % iternext_func)
         code.putln("if (__Pyx_IterFinish() == 0) __Pyx_RaiseNeedMoreValuesError(index);")
         code.putln(code.error_goto(self.pos))
         code.put_label(unpacking_done_label)
+
+        code.funcstate.release_temp(iternext_func)
+        if terminate:
+            code.funcstate.release_temp(iterator_temp)
+            iterator_temp = None
+
+        return iterator_temp
 
     def generate_starred_assignment_code(self, rhs, code):
         for i, arg in enumerate(self.args):
@@ -5030,24 +5039,16 @@ class SequenceNode(ExprNode):
 
         iterator_temp = None
         if unpacked_fixed_items_left:
-            iterator_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            code.putln("%s = PyObject_GetIter(%s); %s" % (
-                iterator_temp,
-                rhs.py_result(),
-                code.error_goto_if_null(iterator_temp, self.pos)))
-            code.put_gotref(iterator_temp)
-            rhs.generate_disposal_code(code)
-
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("UnpackItem", "ObjectHandling.c"))
-            for i, item in enumerate(unpacked_fixed_items_left):
+            for item in unpacked_fixed_items_left:
                 item.allocate(code)
-                code.putln("%s = __Pyx_UnpackItem(%s, %d); %s" % (
-                    item.result(), iterator_temp, i,
-                    code.error_goto_if_null(item.result(), self.pos)))
-                code.put_gotref(item.py_result())
+            code.putln('{')
+            iterator_temp = self.generate_generic_parallel_unpacking_code(
+                code, rhs, unpacked_fixed_items_left,
+                use_loop=True, terminate=False)
+            for i, item in enumerate(unpacked_fixed_items_left):
                 value_node = self.coerced_unpacked_items[i]
                 value_node.generate_evaluation_code(code)
+            code.putln('}')
 
         starred_target.allocate(code)
         target_list = starred_target.result()
