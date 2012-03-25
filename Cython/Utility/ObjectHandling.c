@@ -112,7 +112,7 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** pvalue1
         iternext = Py_TYPE(iter)->tp_iternext;
         value1 = iternext(iter); if (unlikely(!value1)) { index = 0; goto unpacking_failed; }
         value2 = iternext(iter); if (unlikely(!value2)) { index = 1; goto unpacking_failed; }
-        if (!has_known_size && unlikely(__Pyx_IternextUnpackEndCheck(PyIter_Next(iter), 2))) goto bad;
+        if (!has_known_size && unlikely(__Pyx_IternextUnpackEndCheck(iternext(iter), 2))) goto bad;
         Py_DECREF(iter);
     } else {
         if (!has_known_size && unlikely(PyTuple_GET_SIZE(tuple) != 2)) {
