@@ -1744,6 +1744,7 @@ if VALUE is not None:
 
 
 class AnalyseExpressionsTransform(CythonTransform):
+    # Also handles NumPy
 
     def visit_ModuleNode(self, node):
         self.env_stack = [node.scope]
@@ -1785,9 +1786,18 @@ class AnalyseExpressionsTransform(CythonTransform):
         elif node.memslice_ellipsis_noop:
             # memoryviewslice[...] expression, drop the IndexNode
             node = node.base
-
         return node
 
+    def visit_AttributeNode(self, node):
+        # Note: Expression analysis for attributes has already happened
+        # at this point (by recursive calls starting from FuncDefNode)
+        #print node.dump()
+        #return node
+        type = node.obj.type
+        if type.is_extension_type and type.objstruct_cname == 'PyArrayObject':
+            from NumpySupport import numpy_transform_attribute_node
+            node = numpy_transform_attribute_node(node)
+        return node
 
 class FindInvalidUseOfFusedTypes(CythonTransform):
 
