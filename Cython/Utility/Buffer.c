@@ -134,6 +134,8 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
             goto fail;
 
         return func(obj, view, flags);
+    } else {
+        PyErr_Clear();
     }
   #endif
 
@@ -182,6 +184,8 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
 
         func(obj, view);
         return;
+    } else {
+        PyErr_Clear();
     }
   #endif
 
