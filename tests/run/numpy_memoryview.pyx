@@ -431,7 +431,7 @@ def test_memslice_structarray(data, dtype):
 
     >>> data = [(range(4), b('spam\\0')), (range(4, 8), b('ham\\0\\0')), (range(8, 12), b('eggs\\0'))]
     >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
-    >>> test_memslice_structarray([(L, to_byte_values(s))) for L, s in data], dtype)
+    >>> test_memslice_structarray([(L, to_byte_values(s)) for L, s in data], dtype)
     0
     1
     2
