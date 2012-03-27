@@ -61,8 +61,9 @@ static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
 static PyObject *__Pyx_Generator_Close(PyObject *self);
 static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args);
 
-static PyTypeObject __pyx_GeneratorType;
-#define __Pyx_Generator_CheckExact(obj) (Py_TYPE(obj) == &__pyx_GeneratorType)
+static PyTypeObject *__pyx_GeneratorType = 0;
+
+#define __Pyx_Generator_CheckExact(obj) (Py_TYPE(obj) == __pyx_GeneratorType)
 #define __Pyx_Generator_Undelegate(gen) Py_CLEAR((gen)->yieldfrom)
 
 //   If StopIteration exception is set, fetches its 'value'
@@ -518,7 +519,7 @@ static PyMethodDef __pyx_Generator_methods[] = {
     {0, 0, 0, 0}
 };
 
-static PyTypeObject __pyx_GeneratorType = {
+static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     __Pyx_NAMESTR("generator"),         /*tp_name*/
     sizeof(__pyx_GeneratorObject),      /*tp_basicsize*/
@@ -577,7 +578,7 @@ static PyTypeObject __pyx_GeneratorType = {
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
                                                   PyObject *closure) {
     __pyx_GeneratorObject *gen =
-        PyObject_GC_New(__pyx_GeneratorObject, &__pyx_GeneratorType);
+        PyObject_GC_New(__pyx_GeneratorObject, &__pyx_GeneratorType_type);
 
     if (gen == NULL)
         return NULL;
@@ -599,5 +600,9 @@ static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
 }
 
 static int __pyx_Generator_init(void) {
-    return PyType_Ready(&__pyx_GeneratorType);
+    if (PyType_Ready(&__pyx_GeneratorType_type)) {
+        return -1;
+    }
+    __pyx_GeneratorType = &__pyx_GeneratorType_type;
+    return 0;
 }
