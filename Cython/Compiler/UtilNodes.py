@@ -310,6 +310,11 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
         self.body.generate_execution_code(code)
         self.teardown_temp_expr(code)
 
+    def generate_function_definitions(self, env, code):
+        self.temp_expression.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
+
+
 class TempResultFromStatNode(ExprNodes.ExprNode):
     # An ExprNode wrapper around a StatNode that executes the StatNode
     # body.  Requires a ResultRefNode that it sets up to refer to its
