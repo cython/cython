@@ -521,8 +521,9 @@ def stringtest(String[:] view):
 @testcase_numpy_1_5
 def test_string_invalid_dims():
     """
+    >>> def b(s): return s.encode('ascii')
     >>> dtype = np.dtype([('a', 'S4')])
-    >>> data = ['spam', 'eggs']
+    >>> data = [b('spam'), b('eggs')]
     >>> stringstructtest(np.array(data, dtype=dtype))
     Traceback (most recent call last):
        ...
