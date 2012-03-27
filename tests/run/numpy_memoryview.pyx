@@ -422,9 +422,10 @@ cdef packed struct StructArray:
 @testcase_numpy_1_5
 def test_memslice_structarray(data, dtype):
     """
-    >>> data = [(range(4), 'spam\\0'), (range(4, 8), 'ham\\0\\0'), (range(8, 12), 'eggs\\0')]
+    >>> def b(s): return s.encode('ascii')
+    >>> data = [(range(4), b('spam\\0')), (range(4, 8), b('ham\\0\\0')), (range(8, 12), b('eggs\\0'))]
     >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
-    >>> test_memslice_structarray([(L, map(ord, s)) for L, s in data], dtype)
+    >>> test_memslice_structarray([(L, list(map(ord, s))) for L, s in data], dtype)
     0
     1
     2
@@ -468,7 +469,7 @@ def test_memslice_structarray(data, dtype):
     for i in range(3):
         for j in range(4):
             print myslice[i].a[j]
-        print myslice[i].b
+        print myslice[i].b.decode('ASCII')
 
 @testcase_numpy_1_5
 def test_structarray_errors(StructArray[:] a):
