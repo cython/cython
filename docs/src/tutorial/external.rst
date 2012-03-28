@@ -77,3 +77,33 @@ Just like the ``sin()`` function from the math library, it is possible
 to declare and call into any C library as long as the module that
 Cython generates is properly linked against the shared or static
 library.
+Since use of pointers in C is ubiquitous, here we give a quick example of how
+to call C functions whose arguments contain pointers. Suppose you have a
+file in C 'C_func_file.c', which contains a function `C_func` with
+the following signature::
+    void C_func(double * CPointer);
+
+where CPointer points a one-dimensional array of size N, whose data you want
+to access through a numpy array.
+
+Now assume that you write a corresponding .pxd file C_func_file.pxd to
+make the function cimport-able::
+    cdef extern from "C_func_file.h":
+        void C_func(double *)  
+
+Now you can access it in a :file: `.pyx` file :file: `NumpyCPointerExample.pyx`::
+
+    from C_func_file cimport C_func
+    import cython
+    cimport numpy as np
+    cimport numpy as np
+    
+    def f(N):
+        np.ndarray[np.double_t, ndim=1, mode="c"] numar = np.empty((N,),dtype=np.float64)
+        C_func(<cython.float64 *> numar.data)
+        # followed by some manipulations of the numarray array
+        return
+
+This way, you can have access the function more or less as a regular
+python function while its data and associated memory gracefully managed (allocate and
+deallocate) by Numpy.
