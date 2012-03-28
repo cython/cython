@@ -5443,7 +5443,8 @@ class ComprehensionAppendNode(Node):
 
     def generate_execution_code(self, code):
         if self.target.type is list_type:
-            function = "PyList_Append"
+            code.globalstate.use_utility_code(UtilityCode.load_cached("InternalListAppend", "Optimize.c"))
+            function = "__Pyx_PyList_Append"
         elif self.target.type is set_type:
             function = "PySet_Add"
         else:
