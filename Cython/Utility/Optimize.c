@@ -1,12 +1,12 @@
 /////////////// append.proto ///////////////
+//@requires: InternalListAppend
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
-        if (PyList_Append(L, x) < 0) return NULL;
+        if (unlikely(__Pyx_PyList_Append(L, x) < 0)) return NULL;
         Py_INCREF(Py_None);
         return Py_None; /* this is just to have an accurate signature */
-    }
-    else {
+    } else {
         PyObject *r, *m;
         m = __Pyx_GetAttrString(L, "append");
         if (!m) return NULL;
@@ -16,6 +16,23 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     }
 }
 
+/////////////// InternalListAppend.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+    if (likely(L->allocated > len)) {
+        Py_INCREF(x);
+        PyList_SET_ITEM(list, len, x);
+        Py_SIZE(list) = len+1;
+        return 0;
+    }
+    return PyList_Append(list, x);
+}
+#else
+#define __Pyx_PyList_Append(L,x) PyList_Append(L,x)
+#endif
 
 /////////////// pop.proto ///////////////
 
