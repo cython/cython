@@ -1,3 +1,5 @@
+# This file is to avoid "unused function" warnings.
+
 cdef extern from *:
    bint FALSE "0"
    void import_array()
