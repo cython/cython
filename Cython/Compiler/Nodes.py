@@ -3330,7 +3330,6 @@ class DefNodeWrapper(FuncDefNode):
                           self.target.pymethdef_required)
         self.generate_function_header(code, with_pymethdef)
         self.generate_argument_declarations(lenv, code)
-        self.generate_keyword_list(code)
         tempvardecl_code = code.insertion_point()
 
         if self.return_type.is_pyobject:
@@ -3450,18 +3449,6 @@ class DefNodeWrapper(FuncDefNode):
             if entry.is_arg:
                 code.put_var_declaration(entry)
 
-    def generate_keyword_list(self, code):
-        if self.signature_has_generic_args() and \
-                self.signature_has_nongeneric_args():
-            code.put(
-                "static PyObject **%s[] = {" %
-                    Naming.pykwdlist_cname)
-            for arg in self.args:
-                if arg.is_generic:
-                    pystring_cname = code.intern_identifier(arg.name)
-                    code.put('&%s,' % pystring_cname)
-            code.putln("0};")
-
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
         # generic arguments, if any, including args/kwargs
@@ -3492,24 +3479,7 @@ class DefNodeWrapper(FuncDefNode):
             self.generate_stararg_copy_code(code)
 
         else:
-            positional_args = []
-            kw_only_args = []
-            for arg in self.args:
-                arg_entry = arg.entry
-                if arg.is_generic:
-                    if arg.default:
-                        if not arg.is_self_arg and not arg.is_type_arg:
-                            if arg.kw_only:
-                                kw_only_args.append(arg)
-                            else:
-                                positional_args.append(arg)
-                    elif arg.kw_only:
-                        kw_only_args.append(arg)
-                    elif not arg.is_self_arg and not arg.is_type_arg:
-                        positional_args.append(arg)
-
-            self.generate_tuple_and_keyword_parsing_code(
-                positional_args, kw_only_args, end_label, code)
+            self.generate_tuple_and_keyword_parsing_code(self.args, end_label, code)
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
@@ -3628,12 +3598,31 @@ class DefNodeWrapper(FuncDefNode):
                     Naming.args_cname))
             self.star_arg.entry.xdecref_cleanup = 0
 
-    def generate_tuple_and_keyword_parsing_code(self, positional_args,
-                                                kw_only_args, success_label, code):
+    def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
         argtuple_error_label = code.new_label("argtuple_error")
 
+        positional_args = []
+        required_kw_only_args = []
+        optional_kw_only_args = []
+        for arg in args:
+            if arg.is_generic:
+                if arg.default:
+                    if not arg.is_self_arg and not arg.is_type_arg:
+                        if arg.kw_only:
+                            optional_kw_only_args.append(arg)
+                        else:
+                            positional_args.append(arg)
+                elif arg.kw_only:
+                    required_kw_only_args.append(arg)
+                elif not arg.is_self_arg and not arg.is_type_arg:
+                    positional_args.append(arg)
+
+        # sort required kw-only args before optional ones to avoid special
+        # cases in the unpacking code
+        kw_only_args = required_kw_only_args + optional_kw_only_args
+
         min_positional_args = self.num_required_args - self.num_required_kw_args
-        if len(self.args) > 0 and (self.args[0].is_self_arg or self.args[0].is_type_arg):
+        if len(args) > 0 and (args[0].is_self_arg or args[0].is_type_arg):
             min_positional_args -= 1
         max_positional_args = len(positional_args)
         has_fixed_positional_count = not self.star_arg and \
@@ -3654,6 +3643,10 @@ class DefNodeWrapper(FuncDefNode):
         # keyword arguments.
         code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
+        code.putln("static PyObject **%s[] = {%s,0};" % (
+            Naming.pykwdlist_cname,
+            ','.join([ '&%s' % code.intern_identifier(arg.name)
+                        for arg in all_args ])))
         self.generate_argument_values_setup_code(
             all_args, max_positional_args, argtuple_error_label, code)
 
@@ -3863,17 +3856,17 @@ class DefNodeWrapper(FuncDefNode):
                 pystring_cname = code.intern_identifier(arg.name)
                 if arg.default:
                     if arg.kw_only:
-                        # handled separately below
+                        # optional kw-only args are handled separately below
                         continue
                     code.putln('if (kw_args > 0) {')
+                    # don't overwrite default argument
                     code.putln('PyObject* value = PyDict_GetItem(%s, %s);' % (
                         Naming.kwds_cname, pystring_cname))
                     code.putln('if (value) { values[%d] = value; kw_args--; }' % i)
                     code.putln('}')
                 else:
-                    code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
+                    code.putln('if (likely((values[%d] = PyDict_GetItem(%s, %s)) != 0)) kw_args--;' % (
                         i, Naming.kwds_cname, pystring_cname))
-                    code.putln('if (likely(values[%d])) kw_args--;' % i);
                     if i < min_positional_args:
                         if i == 0:
                             # special case: we know arg 0 is missing
@@ -3905,22 +3898,23 @@ class DefNodeWrapper(FuncDefNode):
             # checking for interned strings in a dict is faster than iterating
             # but it's too likely that we must iterate if we expect **kwargs
             optional_args = []
+            first_optional_arg = -1
             for i, arg in enumerate(all_args[max_positional_args:]):
                 if not arg.kw_only or not arg.default:
                     continue
-                optional_args.append((i+max_positional_args, arg))
+                if not optional_args:
+                    first_optional_arg = max_positional_args + i
+                optional_args.append(arg.name)
             if optional_args:
-                # this mimics an unrolled loop so that we can "break" out of it
-                code.putln('while (kw_args > 0) {')
-                code.putln('PyObject* value;')
-                for i, arg in optional_args:
-                    pystring_cname = code.intern_identifier(arg.name)
-                    code.putln(
-                        'value = PyDict_GetItem(%s, %s);' % (
-                        Naming.kwds_cname, pystring_cname))
-                    code.putln(
-                        'if (value) { values[%d] = value; if (!(--kw_args)) break; }' % i)
-                code.putln('break;')
+                # not unrolling the loop here reduces the C code overhead
+                code.putln('if (kw_args > 0) {')
+                code.putln('Py_ssize_t index;')
+                code.putln('for (index = %d; index < %d && kw_args > 0; index++) {' % (
+                    first_optional_arg, first_optional_arg + len(optional_args)))
+                code.putln('PyObject* value = PyDict_GetItem(%s, *%s[index]);' % (
+                    Naming.kwds_cname, Naming.pykwdlist_cname))
+                code.putln('if (value) { values[index] = value; kw_args--; }')
+                code.putln('}')
                 code.putln('}')
 
         code.putln('if (unlikely(kw_args > 0)) {')
