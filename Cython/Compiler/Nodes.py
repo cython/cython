@@ -3908,7 +3908,7 @@ class DefNodeWrapper(FuncDefNode):
                 # if we receive more than the named kwargs, we either have **kwargs
                 # (in which case we must iterate anyway) or it's an error (which we
                 # also handle during iteration) => skip this part if there are more
-                code.putln('if (kw_args > 0 && %s(kw_args < %d)) {' % (
+                code.putln('if (kw_args > 0 && %s(kw_args <= %d)) {' % (
                     not self.starstar_arg and 'likely' or '',
                     len(optional_args)))
                 code.putln('Py_ssize_t index;')
