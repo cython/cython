@@ -1789,10 +1789,8 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
     def visit_AttributeNode(self, node):
-        # Note: Expression analysis for attributes has already happened
-        # at this point (by recursive calls starting from FuncDefNode)
-        #print node.dump()
-        #return node
+        self.visitchildren(node)
+
         type = node.obj.type
         if type.is_extension_type and type.objstruct_cname == 'PyArrayObject':
             from NumpySupport import numpy_transform_attribute_node
