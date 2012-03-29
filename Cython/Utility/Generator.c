@@ -546,7 +546,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Generator_traverse,   /*tp_traverse*/
-    (inquiry) __Pyx_Generator_clear,           /*tp_clear*/
+    0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
     offsetof(__pyx_GeneratorObject, gi_weakreflist), /* tp_weaklistoffse */
     PyObject_SelfIter,                  /*tp_iter*/
