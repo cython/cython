@@ -23,6 +23,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_GeneratorObject 
 //////////////////// Generator.proto ////////////////////
 #define __Pyx_Generator_USED
 #include <structmember.h>
+#include <frameobject.h>
 
 typedef PyObject *(*__pyx_generator_body_t)(PyObject *, PyObject *);
 
@@ -186,19 +187,43 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
     }
 
 
-    if (value)
-        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
-    else
+    if (value) {
+        /* Generators always return to their most recent caller, not
+         * necessarily their creator. */
+        if (self->exc_traceback) {
+            PyThreadState *tstate = PyThreadState_GET();
+            PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
+            PyFrameObject *f = tb->tb_frame;
+
+            Py_XINCREF(tstate->frame);
+            assert(f->f_back == NULL);
+            f->f_back = tstate->frame;
+        }
+
+        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
+                            &self->exc_traceback);
+    } else {
         __Pyx_Generator_ExceptionClear(self);
+    }
 
     self->is_running = 1;
     retval = self->body((PyObject *) self, value);
     self->is_running = 0;
 
-    if (retval)
-        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value, &self->exc_traceback);
-    else
+    if (retval) {
+        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
+                            &self->exc_traceback);
+        /* Don't keep the reference to f_back any longer than necessary.  It
+         * may keep a chain of frames alive or it could create a reference
+         * cycle. */
+        if (self->exc_traceback) {
+            PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
+            PyFrameObject *f = tb->tb_frame;
+            Py_CLEAR(f->f_back);
+        }
+    } else {
         __Pyx_Generator_ExceptionClear(self);
+    }
 
     return retval;
 }
