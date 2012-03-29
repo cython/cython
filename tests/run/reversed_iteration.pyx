@@ -133,6 +133,25 @@ def reversed_range_step_neg(int a, int b):
         result.append(i)
     return result, i
 
+#@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_range_step3(int a, int b):
+    """
+    >>> [ i for i in _reversed(range(0, 5, 3)) ]
+    [3, 0]
+    >>> reversed_range_step3(0, 5)
+    ([3, 0], 0)
+
+    >>> [ i for i in _reversed(range(5, 0, 3)) ]
+    []
+    >>> reversed_range_step3(5, 0)
+    ([], 99)
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(a, b, 3)):
+        result.append(i)
+    return result, i
+
 unicode_string = u"abcDEF"
 
 @cython.test_assert_path_exists('//ForFromStatNode')

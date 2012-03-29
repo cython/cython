@@ -269,7 +269,10 @@ def parse_dependencies(source_filename):
     if '\t' in source:
         source = source.replace('\t', ' ')
     # TODO: pure mode
-    dependancy = re.compile(r"(cimport +([0-9a-zA-Z_.]+)\b)|(from +([0-9a-zA-Z_.]+) +cimport)|(include +'([^']+)')|(cdef +extern +from +'([^']+)')")
+    dependancy = re.compile(r"(cimport +([0-9a-zA-Z_.]+)\b)|"
+                             "(from +([0-9a-zA-Z_.]+) +cimport)|"
+                             "(include +['\"]([^'\"]+)['\"])|"
+                             "(cdef +extern +from +['\"]([^'\"]+)['\"])")
     cimports = []
     includes = []
     externs  = []

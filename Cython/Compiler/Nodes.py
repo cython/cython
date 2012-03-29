@@ -7494,6 +7494,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.begin_of_parallel_control_block_point = code.insertion_point()
         self.begin_of_parallel_control_block_point_after_decls = code.insertion_point()
 
+        self.undef_builtin_expect_apple_gcc_bug(code)
+
     def begin_parallel_block(self, code):
         """
         Each OpenMP thread in a parallel section that contains a with gil block
@@ -7786,6 +7788,24 @@ class ParallelStatNode(StatNode, ParallelNode):
                 "}") # end if
 
         code.end_block() # end parallel control flow block
+        self.redef_builtin_expect_apple_gcc_bug(code)
+
+    # FIXME: improve with version number for OS X Lion
+    buggy_platform_macro_condition = "(defined(__APPLE__) || defined(__OSX__))"
+    have_expect_condition = "(defined(__GNUC__) && " \
+                             "(__GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))))"
+    redef_condition = "(%s && %s)" % (buggy_platform_macro_condition, have_expect_condition)
+
+    def undef_builtin_expect_apple_gcc_bug(self, code):
+        """
+        A bug on OS X Lion disallows __builtin_expect macros. This code avoids them
+        """
+        if not self.parent:
+            code.undef_builtin_expect(self.redef_condition)
+
+    def redef_builtin_expect_apple_gcc_bug(self, code):
+        if not self.parent:
+            code.redef_builtin_expect(self.redef_condition)
 
 
 class ParallelWithBlockNode(ParallelStatNode):

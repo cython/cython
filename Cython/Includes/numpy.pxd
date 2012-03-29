@@ -151,6 +151,9 @@ cdef extern from "numpy/arrayobject.h":
 
     ctypedef void (*PyArray_VectorUnaryFunc)(void *, void *, npy_intp, void *,  void *)
 
+    ctypedef struct PyArray_Descr:
+        pass
+    
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined. Please
@@ -177,15 +180,11 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef class numpy.ndarray [object PyArrayObject]:
         cdef __cythonbufferdefaults__ = {"mode": "strided"}
 
-        cdef:
-            # Only taking a few of the most commonly used and stable fields.
-            # One should use PyArray_* macros instead to access the C fields.
-            char *data
-            int ndim "nd"
-            npy_intp *shape "dimensions"
-            npy_intp *strides
-            dtype descr
-            PyObject* base
+        # Note: The fields are no longer defined, please use accessor
+        # functions. Cython special-cases/hacks the data, ndim, shape
+        # and stride attributes of the ndarray to use accessor
+        # functions for backwards compatability and convenience.
+
 
         # Note: This syntax (function definition in pxd files) is an
         # experimental exception made for __getbuffer__ and __releasebuffer__
@@ -236,7 +235,7 @@ cdef extern from "numpy/arrayobject.h":
 
             cdef int t
             cdef char* f = NULL
-            cdef dtype descr = self.descr
+            cdef dtype descr = get_array_dtype(self)
             cdef list stack
             cdef int offset
 
@@ -376,20 +375,29 @@ cdef extern from "numpy/arrayobject.h":
     bint PyArray_ISWRITEABLE(ndarray m)
     bint PyArray_ISALIGNED(ndarray m)
 
-    int PyArray_NDIM(ndarray)
+    int PyArray_NDIM(ndarray) nogil
     bint PyArray_ISONESEGMENT(ndarray)
     bint PyArray_ISFORTRAN(ndarray)
     int PyArray_FORTRANIF(ndarray)
 
-    void* PyArray_DATA(ndarray)
-    char* PyArray_BYTES(ndarray)
-    npy_intp* PyArray_DIMS(ndarray)
-    npy_intp* PyArray_STRIDES(ndarray)
-    npy_intp PyArray_DIM(ndarray, size_t)
-    npy_intp PyArray_STRIDE(ndarray, size_t)
+    void* PyArray_DATA(ndarray) nogil
+    char* PyArray_BYTES(ndarray) nogil
+    npy_intp* PyArray_DIMS(ndarray) nogil
+    npy_intp* PyArray_STRIDES(ndarray) nogil
+    npy_intp PyArray_DIM(ndarray, size_t) nogil
+    npy_intp PyArray_STRIDE(ndarray, size_t) nogil
 
-    # object PyArray_BASE(ndarray) wrong refcount semantics
-    # dtype PyArray_DESCR(ndarray) wrong refcount semantics
+    # The two functions below return borrowed references and should
+    # be used with care; often you will want to use get_array_base
+    # or get_array_dtype (define below) instead from Cython.
+    PyObject* PyArray_BASE(ndarray)
+    # Cython API of the function below might change! PyArray_DESCR
+    # actually returns PyArray_Descr* == pointer-version of dtype,
+    # which appears to be difficult to declare properly in Cython;
+    # protect it with trailing underscore for now just to avoid having
+    # user code depend on it without reading this note.
+    PyArray_Descr * PyArray_DESCR_ "PyArray_DESCR"(ndarray)
+
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
     int PyArray_TYPE(ndarray arr)
@@ -961,18 +969,34 @@ cdef extern from "numpy/ufuncobject.h":
     void import_ufunc()
 
 
-cdef inline void set_array_base(ndarray arr, object base):
-     cdef PyObject* baseptr
-     if base is None:
-         baseptr = NULL
-     else:
-         Py_INCREF(base) # important to do this before decref below!
-         baseptr = <PyObject*>base
-     Py_XDECREF(arr.base)
-     arr.base = baseptr
+# The ability to set the base field of an ndarray seems to be
+# deprecated in NumPy 1.7 (no PyArray_SET_BASE seems to be
+# available). Remove this support and see who complains and how their
+# case could be fixed in 1.7...
+#
+#cdef inline void set_array_base(ndarray arr, object base):
+#     cdef PyObject* baseptr
+#     if base is None:
+#         baseptr = NULL
+#     else:
+#         Py_INCREF(base) # important to do this before decref below!
+#         baseptr = <PyObject*>base
+#     Py_XDECREF(arr.base)
+#     arr.base = baseptr
 
 cdef inline object get_array_base(ndarray arr):
-    if arr.base is NULL:
-        return None
+    cdef PyObject *pobj = PyArray_BASE(arr)
+    if pobj != NULL:
+        obj = <object>pobj
+        Py_INCREF(obj)
+        return obj
     else:
-        return <object>arr.base
+        return None
+
+cdef inline dtype get_array_dtype(ndarray arr):
+    if PyArray_DESCR_(arr) != NULL:
+        obj = <object>PyArray_DESCR_(arr)
+        Py_INCREF(obj)
+        return obj
+    else:
+        return None
