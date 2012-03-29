@@ -3893,10 +3893,9 @@ class DefNodeWrapper(FuncDefNode):
             if max_positional_args > 0:
                 code.putln('}')
 
-        if has_kw_only_args and not self.starstar_arg:
+        if has_kw_only_args:
             # unpack optional keyword-only arguments
             # checking for interned strings in a dict is faster than iterating
-            # but it's too likely that we must iterate if we expect **kwargs
             optional_args = []
             first_optional_arg = -1
             for i, arg in enumerate(all_args[max_positional_args:]):
@@ -3906,9 +3905,14 @@ class DefNodeWrapper(FuncDefNode):
                     first_optional_arg = max_positional_args + i
                 optional_args.append(arg.name)
             if optional_args:
-                # not unrolling the loop here reduces the C code overhead
-                code.putln('if (kw_args > 0) {')
+                # if we receive more than the named kwargs, we either have **kwargs
+                # (in which case we must iterate anyway) or it's an error (which we
+                # also handle during iteration) => skip this part if there are more
+                code.putln('if (kw_args > 0 && %s(kw_args < %d)) {' % (
+                    not self.starstar_arg and 'likely' or '',
+                    len(optional_args)))
                 code.putln('Py_ssize_t index;')
+                # not unrolling the loop here reduces the C code overhead
                 code.putln('for (index = %d; index < %d && kw_args > 0; index++) {' % (
                     first_optional_arg, first_optional_arg + len(optional_args)))
                 code.putln('PyObject* value = PyDict_GetItem(%s, *%s[index]);' % (
