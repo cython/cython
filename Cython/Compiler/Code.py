@@ -1903,6 +1903,26 @@ class CCodeWriter(object):
         self.putln(string)
         self.putln("#endif /* _OPENMP */")
 
+    def undef_builtin_expect(self, cond):
+        """
+        Redefine the macros likely() and unlikely to no-ops, depending on
+        condition 'cond'
+        """
+        self.putln("#if %s" % cond)
+        self.putln("    #undef likely")
+        self.putln("    #undef unlikely")
+        self.putln("    #define likely(x)   (x)")
+        self.putln("    #define unlikely(x) (x)")
+        self.putln("#endif")
+
+    def redef_builtin_expect(self, cond):
+        self.putln("#if %s" % cond)
+        self.putln("    #undef likely")
+        self.putln("    #undef unlikely")
+        self.putln("    #define likely(x)   __builtin_expect(!!(x), 1)")
+        self.putln("    #define unlikely(x) __builtin_expect(!!(x), 0)")
+        self.putln("#endif")
+
 class PyrexCodeWriter(object):
     # f                file      output file
     # level            int       indentation level
