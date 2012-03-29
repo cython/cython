@@ -1,5 +1,6 @@
 # tag: cpp
 # mode: compile
+# ticket: 767
 
 cdef extern from "templates.h":
     cdef cppclass TemplateTest1[T]:
@@ -35,3 +36,6 @@ del b, e
 ctypedef TemplateTest1[int] TemplateTest1_int
 cdef TemplateTest1_int aa
 
+# Verify that T767 is fixed.
+cdef public int func(int arg):
+    return arg

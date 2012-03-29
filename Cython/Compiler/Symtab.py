@@ -412,7 +412,8 @@ class Scope(object):
         return entry
 
     def declare_type(self, name, type, pos,
-            cname = None, visibility = 'private', api = 0, defining = 1, shadow = 0):
+            cname = None, visibility = 'private', api = 0, defining = 1,
+            shadow = 0, template = 0):
         # Add an entry for a type definition.
         if not cname:
             cname = name
@@ -422,7 +423,8 @@ class Scope(object):
         if defining:
             self.type_entries.append(entry)
 
-        type.entry = entry
+        if not template:
+            type.entry = entry
 
         # here we would set as_variable to an object representing this type
         return entry
@@ -2052,9 +2054,10 @@ class CppClassScope(Scope):
         for entry in self.entries.values():
             if entry.is_type:
                 scope.declare_type(entry.name,
-                                    entry.type.specialize(values),
-                                    entry.pos,
-                                    entry.cname)
+                                   entry.type.specialize(values),
+                                   entry.pos,
+                                   entry.cname,
+                                   template=1)
             else:
 #                scope.declare_var(entry.name,
 #                                    entry.type.specialize(values),
