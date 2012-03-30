@@ -3894,37 +3894,9 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('}')
 
         if has_kw_only_args:
-            # unpack optional keyword-only arguments
+            # unpack optional keyword-only arguments separately because
             # checking for interned strings in a dict is faster than iterating
-            optional_args = []
-            first_optional_arg = -1
-            for i, arg in enumerate(all_args[max_positional_args:]):
-                if not arg.kw_only or not arg.default:
-                    continue
-                if not optional_args:
-                    first_optional_arg = max_positional_args + i
-                optional_args.append(arg.name)
-            if optional_args:
-                if len(optional_args) > 1:
-                    # if we receive more than the named kwargs, we either have **kwargs
-                    # (in which case we must iterate anyway) or it's an error (which we
-                    # also handle during iteration) => skip this part if there are more
-                    code.putln('if (kw_args > 0 && %s(kw_args <= %d)) {' % (
-                        not self.starstar_arg and 'likely' or '',
-                        len(optional_args)))
-                    code.putln('Py_ssize_t index;')
-                    # not unrolling the loop here reduces the C code overhead
-                    code.putln('for (index = %d; index < %d && kw_args > 0; index++) {' % (
-                        first_optional_arg, first_optional_arg + len(optional_args)))
-                else:
-                    code.putln('if (kw_args == 1) {')
-                    code.putln('const Py_ssize_t index = %d;' % first_optional_arg)
-                code.putln('PyObject* value = PyDict_GetItem(%s, *%s[index]);' % (
-                    Naming.kwds_cname, Naming.pykwdlist_cname))
-                code.putln('if (value) { values[index] = value; kw_args--; }')
-                if len(optional_args) > 1:
-                    code.putln('}')
-                code.putln('}')
+            self.generate_optional_kwonly_args_unpacking_code(all_args, code)
 
         code.putln('if (unlikely(kw_args > 0)) {')
         # non-positional/-required kw args left in dict: default args,
@@ -3968,6 +3940,37 @@ class DefNodeWrapper(FuncDefNode):
                     code.put_incref_memoryviewslice(arg.entry.cname,
                                                     have_gil=True)
                 code.putln('}')
+
+    def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
+        optional_args = []
+        first_optional_arg = -1
+        for i, arg in enumerate(all_args):
+            if not arg.kw_only or not arg.default:
+                continue
+            if not optional_args:
+                first_optional_arg = i
+            optional_args.append(arg.name)
+        if optional_args:
+            if len(optional_args) > 1:
+                # if we receive more than the named kwargs, we either have **kwargs
+                # (in which case we must iterate anyway) or it's an error (which we
+                # also handle during iteration) => skip this part if there are more
+                code.putln('if (kw_args > 0 && %s(kw_args <= %d)) {' % (
+                    not self.starstar_arg and 'likely' or '',
+                    len(optional_args)))
+                code.putln('Py_ssize_t index;')
+                # not unrolling the loop here reduces the C code overhead
+                code.putln('for (index = %d; index < %d && kw_args > 0; index++) {' % (
+                    first_optional_arg, first_optional_arg + len(optional_args)))
+            else:
+                code.putln('if (kw_args == 1) {')
+                code.putln('const Py_ssize_t index = %d;' % first_optional_arg)
+            code.putln('PyObject* value = PyDict_GetItem(%s, *%s[index]);' % (
+                Naming.kwds_cname, Naming.pykwdlist_cname))
+            code.putln('if (value) { values[index] = value; kw_args--; }')
+            if len(optional_args) > 1:
+                code.putln('}')
+            code.putln('}')
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from signature type to
