@@ -176,11 +176,22 @@ try:
     ValueError: Buffer dtype mismatch, expected 'int' but got 'float' in 'DoubleInt.y'
 
     >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=False))))
-    array([(22, 23)], 
-          dtype=[('f0', '|i1'), ('f1', '!i4')])
-    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    [(22, 23)]
+
+
+    The output changed in Python 3:
+    >> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
     array([(22, 23)], 
           dtype=[('f0', '|i1'), ('', '|V3'), ('f1', '!i4')])
+
+    ->
+
+    array([(22, 23)], 
+          dtype={'names':['f0','f1'], 'formats':['i1','!i4'], 'offsets':[0,4], 'itemsize':8, 'aligned':True})
+
+
+    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    [(22, 23)]
 
     >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=True)))) #doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -444,12 +455,13 @@ cdef packed struct PartiallyPackedStruct2:
 def test_packed_align(np.ndarray[PackedStruct] arr):
     arr[0].a = 22
     arr[0].b = 23
-    return repr(arr).replace('<', '!').replace('>', '!')
+    return list(arr)
 
 def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     arr[0].a = 22
-    arr[0].b = 23    
-    return repr(arr).replace('<', '!').replace('>', '!')
+    arr[0].b = 23
+    # return repr(arr).replace('<', '!').replace('>', '!')
+    return list(arr)
 
 def test_partially_packed_align(np.ndarray[PartiallyPackedStruct] arr):
     arr[0].a = 22
