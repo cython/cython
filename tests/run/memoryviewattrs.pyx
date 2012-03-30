@@ -55,24 +55,16 @@ def test_copy_to():
     0 1 2 3 4 5 6 7
     0 1 2 3 4 5 6 7
     '''
-    cdef int[:,:,:] from_mvs, to_mvs
+    cdef int[:, :, :] from_mvs, to_mvs
     from_mvs = np.arange(8, dtype=np.int32).reshape(2,2,2)
-    cdef int *from_dta = <int*>from_mvs._data
-    for i in range(2*2*2):
-        print from_dta[i],
-    print
-    # for i in range(2*2*2):
-        # from_dta[i] = i
-
+    cdef int *from_data = <int *> from_mvs._data
+    print ' '.join(str(from_data[i]) for i in range(2*2*2))
     to_mvs = array((2,2,2), sizeof(int), 'i')
     to_mvs[...] = from_mvs
+
     cdef int *to_data = <int*>to_mvs._data
-    for i in range(2*2*2):
-        print from_dta[i],
-    print
-    for i in range(2*2*2):
-        print to_data[i],
-    print
+    print ' '.join(str(from_data[i]) for i in range(2*2*2))
+    print ' '.join(str(to_data[i]) for i in range(2*2*2))
 
 @testcase
 def test_overlapping_copy():
