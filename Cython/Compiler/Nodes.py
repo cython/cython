@@ -3499,25 +3499,6 @@ class DefNodeWrapper(FuncDefNode):
         if code.label_used(end_label):
             code.put_label(end_label)
 
-    def generate_arg_assignment(self, arg, item, code, incref_closure=True):
-        if arg.type.is_pyobject:
-            if arg.is_generic:
-                item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
-            entry = arg.entry
-            code.putln("%s = %s;" % (entry.cname, item))
-        else:
-            func = arg.type.from_py_function
-            if func:
-                rhs = "%s(%s)" % (func, item)
-                if arg.type.is_enum:
-                    rhs = arg.type.cast_code(rhs)
-                code.putln("%s = %s; %s" % (
-                    arg.entry.cname,
-                    rhs,
-                    code.error_goto_if(arg.type.error_condition(arg.entry.cname), arg.pos)))
-            else:
-                error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
-
     def generate_arg_xdecref(self, arg, code):
         if arg:
             code.put_var_xdecref_clear(arg.entry)
@@ -3636,19 +3617,22 @@ class DefNodeWrapper(FuncDefNode):
         if self.starstar_arg or self.star_arg:
             self.generate_stararg_init_code(max_positional_args, code)
 
-        # Before being converted and assigned to the target variables,
-        # borrowed references to all unpacked argument values are
-        # collected into a local PyObject* array, regardless if they
-        # were taken from default arguments, positional arguments or
-        # keyword arguments.
         code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
         code.putln("static PyObject **%s[] = {%s,0};" % (
             Naming.pykwdlist_cname,
             ','.join([ '&%s' % code.intern_identifier(arg.name)
                         for arg in all_args ])))
-        self.generate_argument_values_setup_code(
-            all_args, max_positional_args, argtuple_error_label, code)
+
+        # Before being converted and assigned to the target variables,
+        # borrowed references to all unpacked argument values are
+        # collected into a local PyObject* array called "values",
+        # regardless if they were taken from default arguments,
+        # positional arguments or keyword arguments.  Note that
+        # C-typed default arguments are handled at conversion time,
+        # so their array value is NULL in the end if no argument
+        # was passed for them.
+        self.generate_argument_values_setup_code(all_args, code)
 
         # --- optimised code when we receive keyword arguments
         code.putln("if (%s(%s)) {" % (
@@ -3720,25 +3704,15 @@ class DefNodeWrapper(FuncDefNode):
                     code.put_goto(argtuple_error_label)
                 code.putln('}')
 
-        code.putln('}')
+        code.putln('}') # end of the conditional unpacking blocks
 
-        # convert arg values to their final type and assign them
+        # Convert arg values to their final type and assign them.
+        # Also inject non-Python default arguments, which do cannot
+        # live in the values[] array.
         for i, arg in enumerate(all_args):
-            if arg.default and not arg.type.is_pyobject:
-                code.putln("if (values[%d]) {" % i)
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
-            if arg.default and not arg.type.is_pyobject:
-                code.putln('} else {')
-                code.putln(
-                    "%s = %s;" % (
-                        arg.entry.cname,
-                        arg.calculate_default_value_code(code)))
-                if arg.entry.type.is_memoryviewslice:
-                    code.put_incref_memoryviewslice(arg.entry.cname,
-                                                    have_gil=True)
-                code.putln('}')
 
-        code.putln('}')
+        code.putln('}') # end of the whole argument unpacking block
 
         if code.label_used(argtuple_error_label):
             code.put_goto(success_label)
@@ -3751,16 +3725,38 @@ class DefNodeWrapper(FuncDefNode):
                     Naming.args_cname))
             code.putln(code.error_goto(self.pos))
 
-    def generate_arg_default_assignments(self, code):
-        for arg in self.args:
-            if arg.is_generic and arg.default:
-                code.putln(
-                    "%s = %s;" % (
-                        arg.entry.cname,
-                        arg.calculate_default_value_code(code)))
-                if arg.type.is_memoryviewslice:
-                    code.put_incref_memoryviewslice(arg.entry.cname,
-                                                    have_gil=True)
+    def generate_arg_assignment(self, arg, item, code):
+        if arg.type.is_pyobject:
+            # Python default arguments were already stored in 'item' at the very beginning
+            if arg.is_generic:
+                item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
+            entry = arg.entry
+            code.putln("%s = %s;" % (entry.cname, item))
+        else:
+            func = arg.type.from_py_function
+            if func:
+                if arg.default:
+                    # C-typed default arguments must be handled here
+                    code.putln('if (%s) {' % item)
+                rhs = "%s(%s)" % (func, item)
+                if arg.type.is_enum:
+                    rhs = arg.type.cast_code(rhs)
+                code.putln("%s = %s; %s" % (
+                    arg.entry.cname,
+                    rhs,
+                    code.error_goto_if(arg.type.error_condition(arg.entry.cname), arg.pos)))
+                if arg.default:
+                    code.putln('} else {')
+                    code.putln(
+                        "%s = %s;" % (
+                            arg.entry.cname,
+                            arg.calculate_default_value_code(code)))
+                    if arg.type.is_memoryviewslice:
+                        code.put_incref_memoryviewslice(arg.entry.cname,
+                                                        have_gil=True)
+                    code.putln('}')
+            else:
+                error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
 
     def generate_stararg_init_code(self, max_positional_args, code):
         if self.starstar_arg:
@@ -3790,7 +3786,7 @@ class DefNodeWrapper(FuncDefNode):
             code.put_incref(Naming.empty_tuple, py_object_type)
             code.putln('}')
 
-    def generate_argument_values_setup_code(self, args, max_positional_args, argtuple_error_label, code):
+    def generate_argument_values_setup_code(self, args, code):
         max_args = len(args)
         # the 'values' array collects borrowed references to arguments
         # before doing any type coercion etc.
@@ -3925,21 +3921,6 @@ class DefNodeWrapper(FuncDefNode):
                 self.name,
                 code.error_goto(self.pos)))
         code.putln('}')
-
-        # convert arg values to their final type and assign them
-        for i, arg in enumerate(all_args):
-            if arg.default and not arg.type.is_pyobject:
-                code.putln("if (values[%d]) {" % i)
-            if arg.default and not arg.type.is_pyobject:
-                code.putln('} else {')
-                code.putln(
-                    "%s = %s;" % (
-                        arg.entry.cname,
-                        arg.calculate_default_value_code(code)))
-                if arg.type.is_memoryviewslice:
-                    code.put_incref_memoryviewslice(arg.entry.cname,
-                                                    have_gil=True)
-                code.putln('}')
 
     def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
         optional_args = []
