@@ -13,6 +13,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object)
 
 import sys
+import copy
 import operator
 
 from Errors import error, warning, warn_once, InternalError, CompileError
@@ -3451,6 +3452,19 @@ class SliceNode(ExprNode):
         code.put_gotref(self.py_result())
         if self.is_literal:
             code.put_giveref(self.py_result())
+
+    def __deepcopy__(self, memo):
+        """
+        There is a copy bug in python 2.4 for slice objects.
+        """
+        return SliceNode(
+            self.pos,
+            start=copy.deepcopy(self.start, memo),
+            stop=copy.deepcopy(self.stop, memo),
+            step=copy.deepcopy(self.step, memo),
+            is_temp=self.is_temp,
+            is_literal=self.is_literal,
+            constant_result=self.constant_result)
 
 
 class CallNode(ExprNode):
