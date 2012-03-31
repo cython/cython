@@ -3,12 +3,15 @@
 
 COUNT = 10000
 
+import cython
+
+@cython.locals(N=cython.Py_ssize_t)
 def count_to(N):
     for i in range(N):
         yield i
 
-def round_robin(*iterators):
-    iterators = list(iterators)
+def round_robin(*_iterators):
+    iterators = list(_iterators)
     to_drop = []
     while iterators:
         for i, it in enumerate(iterators):
