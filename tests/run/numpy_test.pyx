@@ -509,9 +509,9 @@ def test_fused_ndarray_dtype(np.ndarray[cython.floating, ndim=1] a):
     >>> sorted(test_fused_ndarray_dtype.__signatures__)
     ['double', 'float']
     >>> test_fused_ndarray_dtype[cython.double](np.arange(10, dtype=np.float64))
-    ndarray[double, ndim=1] ndarray[double, ndim=1] 5.0 6.0
+    ndarray[double,ndim=1] ndarray[double,ndim=1] 5.0 6.0
     >>> test_fused_ndarray_dtype[cython.float](np.arange(10, dtype=np.float32))
-    ndarray[float, ndim=1] ndarray[float, ndim=1] 5.0 6.0
+    ndarray[float,ndim=1] ndarray[float,ndim=1] 5.0 6.0
     """
     cdef np.ndarray[cython.floating, ndim=1] b = a
     print cython.typeof(a), cython.typeof(b), a[5], b[6]
