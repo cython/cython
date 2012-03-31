@@ -2584,7 +2584,7 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
 
     candidates = []
     for sig in signatures:
-        match_found = True
+        match_found = filter(None, dest_sig)
         for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
             if dst_type is not None and match_found:
                 match_found = src_type == dst_type
