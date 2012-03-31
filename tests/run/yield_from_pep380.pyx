@@ -8,7 +8,6 @@ see <http://www.cosc.canterbury.ac.nz/greg.ewing/python/yield-from/YieldFrom-Pyt
 """
 
 import sys
-IS_PY3 = sys.version_info[0] >= 3
 
 def _lines(trace):
     for line in trace:
@@ -523,7 +522,7 @@ def test_broken_getattr_handling():
         def __getattr__(self, attr):
             1/0
 
-    if IS_PY3:
+    if sys.version_info >= (3,3):
         expected_exception = ZeroDivisionError
     else:
         expected_exception = AttributeError
