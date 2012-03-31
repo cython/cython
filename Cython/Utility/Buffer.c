@@ -107,7 +107,7 @@ typedef struct {
 /////////////// GetAndReleaseBuffer ///////////////
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-    PyObject *getbuffer_cobj = NULL;
+    PyObject *getbuffer_cobj;
 
   #if PY_VERSION_HEX >= 0x02060000
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
@@ -130,6 +130,7 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
       #else
         func = (getbufferproc) PyCObject_AsVoidPtr(getbuffer_cobj);
       #endif
+        Py_DECREF(getbuffer_cobj);
         if (!func)
             goto fail;
 
@@ -144,13 +145,13 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
 #if PY_VERSION_HEX < 0x02060000
 fail:
 #endif
-    Py_XDECREF(getbuffer_cobj);
+
     return -1;
 }
 
 static void __Pyx_ReleaseBuffer(Py_buffer *view) {
-    PyObject* obj = view->obj;
-    PyObject *releasebuffer_cobj = NULL;
+    PyObject *obj = view->obj;
+    PyObject *releasebuffer_cobj;
 
     if (!obj) return;
 
@@ -179,6 +180,8 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         func = (releasebufferproc) PyCObject_AsVoidPtr(releasebuffer_cobj);
       #endif
 
+        Py_DECREF(releasebuffer_cobj);
+
         if (!func)
             goto fail;
 
@@ -197,7 +200,6 @@ fail:
     PyErr_WriteUnraisable(obj);
 
 nofail:
-    Py_XDECREF(releasebuffer_cobj);
     Py_DECREF(obj);
     view->obj = NULL;
 }

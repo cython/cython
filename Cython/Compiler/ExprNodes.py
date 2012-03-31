@@ -4429,7 +4429,9 @@ class AttributeNode(ExprNode):
                     # attribute.
                     pass
         # NumPy hack
-        if obj_type.is_extension_type and obj_type.objstruct_cname == 'PyArrayObject':
+        if (getattr(self.obj, 'type', None) and
+                obj_type.is_extension_type and
+                obj_type.objstruct_cname == 'PyArrayObject'):
             from NumpySupport import numpy_transform_attribute_node
             replacement_node = numpy_transform_attribute_node(self)
             # Since we can't actually replace our node yet, we only grasp its

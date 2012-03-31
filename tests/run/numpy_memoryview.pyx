@@ -243,9 +243,12 @@ ctypedef td_h_short td_h_cy_short
 cdef void dealloc_callback(void *data):
     print "deallocating..."
 
-def index(array array):
+def build_numarray(array array):
     array.callback_free_data = dealloc_callback
-    print np.asarray(array)[3, 2]
+    return np.asarray(array)
+
+def index(array array):
+    print build_numarray(array)[3, 2]
 
 @testcase_numpy_1_5
 def test_coerce_to_numpy():
@@ -254,7 +257,7 @@ def test_coerce_to_numpy():
     generated format strings.
 
     >>> test_coerce_to_numpy()
-    (97, 98, 600L, 700, 800)
+    [97, 98, 600, 700, 800]
     deallocating...
     (600, 700)
     deallocating...
@@ -359,7 +362,9 @@ def test_coerce_to_numpy():
     #
     ### Create a NumPy array and see if our element can be correctly retrieved
     #
-    index(<MyStruct[:4, :5]> <MyStruct *> mystructs)
+    mystruct_array = build_numarray(<MyStruct[:4, :5]> <MyStruct *> mystructs)
+    print [int(x) for x in mystruct_array[3, 2]]
+    del mystruct_array
     index(<SmallStruct[:4, :5]> <SmallStruct *> smallstructs)
     index(<NestedStruct[:4, :5]> <NestedStruct *> nestedstructs)
     index(<PackedStruct[:4, :5]> <PackedStruct *> packedstructs)
