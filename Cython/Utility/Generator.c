@@ -506,12 +506,14 @@ static void __Pyx_Generator_del(PyObject *self) {
         _Py_NewReference(self);
         self->ob_refcnt = refcnt;
     }
+#if CYTHON_COMPILING_FOR_CPYTHON
     assert(PyType_IS_GC(self->ob_type) &&
            _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
 
     /* If Py_REF_DEBUG, _Py_NewReference bumped _Py_RefTotal, so
      * we need to undo that. */
     _Py_DEC_REFTOTAL;
+#endif
     /* If Py_TRACE_REFS, _Py_NewReference re-added self to the object
      * chain, so no more to do there.
      * If COUNT_ALLOCS, the original decref bumped tp_frees, and
