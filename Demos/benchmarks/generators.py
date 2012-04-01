@@ -10,6 +10,7 @@ def count_to(N):
     for i in range(N):
         yield i
 
+@cython.locals(i=cython.Py_ssize_t)
 def round_robin(*_iterators):
     iterators = list(_iterators)
     to_drop = []
@@ -22,8 +23,8 @@ def round_robin(*_iterators):
             else:
                 yield value
         if to_drop:
-            for index in reversed(to_drop):
-                del iterators[index]
+            for i in reversed(to_drop):
+                del iterators[i]
             del to_drop[:]
 
 def yield_from(*iterators):
