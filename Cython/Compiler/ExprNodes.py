@@ -1839,7 +1839,7 @@ class NameNode(AtomicExprNode):
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
             code.put_error_if_neg(self.pos,
-                'PyMapping_DelItem(%s, %s)' % (
+                'PyObject_DelItem(%s, %s)' % (
                     namespace,
                     interned_cname))
         elif self.entry.is_pyglobal:
