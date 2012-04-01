@@ -1,7 +1,7 @@
 __doc__ = u"""
-  >>> iter(C())
+  >>> iter(C())    # doctest: +ELLIPSIS
   Traceback (most recent call last):
-  TypeError: iter() returned non-iterator of type 'NoneType'
+  TypeError: iter() returned non-iterator...
 """
 
 cdef class C:
