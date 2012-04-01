@@ -188,6 +188,9 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
 
 
     if (value) {
+#if CYTHON_COMPILING_IN_PYPY
+        // FIXME: what to do in PyPy?
+#else
         /* Generators always return to their most recent caller, not
          * necessarily their creator. */
         if (self->exc_traceback) {
@@ -199,7 +202,7 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
             assert(f->f_back == NULL);
             f->f_back = tstate->frame;
         }
-
+#endif
         __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
                             &self->exc_traceback);
     } else {
@@ -213,6 +216,9 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
     if (retval) {
         __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
                             &self->exc_traceback);
+#if CYTHON_COMPILING_IN_PYPY
+        // FIXME: what to do in PyPy?
+#else
         /* Don't keep the reference to f_back any longer than necessary.  It
          * may keep a chain of frames alive or it could create a reference
          * cycle. */
@@ -221,6 +227,7 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
             PyFrameObject *f = tb->tb_frame;
             Py_CLEAR(f->f_back);
         }
+#endif
     } else {
         __Pyx_Generator_ExceptionClear(self);
     }
