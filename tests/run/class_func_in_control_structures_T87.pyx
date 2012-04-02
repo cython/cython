@@ -2,9 +2,9 @@
 
 __doc__ = u"""
 >>> d = Defined()
->>> n = NotDefined()
+>>> n = NotDefined()         # doctest: +ELLIPSIS
 Traceback (most recent call last):
-NameError: name 'NotDefined' is not defined
+NameError: ...name 'NotDefined' is not defined
 """
 
 if True:

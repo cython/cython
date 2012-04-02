@@ -63,9 +63,9 @@ __doc__ = u"""
 >>> # errors
 
 >>> d1, d2 = {}, {}
->>> test_dict_scope_ref(d1, d2)
+>>> test_dict_scope_ref(d1, d2)         # doctest: +ELLIPSIS
 Traceback (most recent call last):
-NameError: name 'a' is not defined
+NameError: ...name 'a' is not defined
 """
 
 #def test_module_scope():
