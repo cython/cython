@@ -107,7 +107,7 @@ typedef struct {
 /////////////// GetAndReleaseBuffer ///////////////
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-    PyObject *getbuffer_cobj;
+    CYTHON_UNUSED PyObject *getbuffer_cobj;
 
   #if PY_VERSION_HEX >= 0x02060000
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
@@ -151,7 +151,7 @@ fail:
 
 static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     PyObject *obj = view->obj;
-    PyObject *releasebuffer_cobj;
+    CYTHON_UNUSED PyObject *releasebuffer_cobj;
 
     if (!obj) return;
 
