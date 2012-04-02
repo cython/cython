@@ -278,7 +278,7 @@ static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
             if (value == Py_None)
                 ret = PyIter_Next(yf);
             else
-                ret = PyObject_CallMethod(yf, "send", "O", value);
+                ret = PyObject_CallMethod(yf, (char*)"send", (char*)"O", value);
         }
         gen->is_running = 0;
         //Py_DECREF(yf);
@@ -310,7 +310,7 @@ static int __Pyx_Generator_CloseIter(__pyx_GeneratorObject *gen, PyObject *yf) {
             }
             PyErr_Clear();
         } else {
-            retval = PyObject_CallFunction(meth, "");
+            retval = PyObject_CallFunction(meth, NULL);
             Py_DECREF(meth);
             if (!retval)
                 err = -1;
