@@ -537,7 +537,7 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     offset = ctx->head->parent_offset + field->offset;
     if (ctx->fmt_offset != offset) {
       PyErr_Format(PyExc_ValueError,
-                   "Buffer dtype mismatch; next field is at offset %"PY_FORMAT_SIZE_T"d but %"PY_FORMAT_SIZE_T"d expected",
+                   "Buffer dtype mismatch; next field is at offset %" PY_FORMAT_SIZE_T "d but %" PY_FORMAT_SIZE_T "d expected",
                    (Py_ssize_t)ctx->fmt_offset, (Py_ssize_t)offset);
       return -1;
     }
