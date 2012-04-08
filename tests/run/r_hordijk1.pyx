@@ -1,17 +1,16 @@
-__doc__ = u"""
+__doc__ = """
   >>> try:
   ...     s = Spam()
   ... except KeyError, e:
   ...     print("Exception: %s" % e)
   ... else:
   ...     print("Did not raise the expected exception")
-  Exception: u'This is not a spanish inquisition'
+  Exception: 'This is not a spanish inquisition'
 """
 
 import sys
 if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u"Error, e", u"Error as e")
-    __doc__ = __doc__.replace(u" u'", u" '")
+    __doc__ = __doc__.replace("Error, e", "Error as e")
 
 cdef extern from "Python.h":
     ctypedef class __builtin__.list [object PyListObject]:
@@ -19,4 +18,4 @@ cdef extern from "Python.h":
 
 cdef class Spam(list):
     def __init__(self):
-        raise KeyError(u"This is not a spanish inquisition")
+        raise KeyError("This is not a spanish inquisition")
