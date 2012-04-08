@@ -4911,17 +4911,17 @@ class SequenceNode(ExprNode):
                 code.putln("}")
             rhs.generate_disposal_code(code)
             code.putln("} else")
+            if rhs.type is tuple_type:
+                code.putln("if (1) {")
+                code.globalstate.use_utility_code(tuple_unpacking_error_code)
+                code.putln("__Pyx_UnpackTupleError(%s, %s); %s" % (
+                    rhs.py_result(), len(self.args), code.error_goto(self.pos)))
+                code.putln("} else")
             code.putln("#endif")
 
         code.putln("{")
-        if special_unpack and rhs.type is tuple_type:
-            code.globalstate.use_utility_code(tuple_unpacking_error_code)
-            code.putln("__Pyx_UnpackTupleError(%s, %s);" % (
-                        rhs.py_result(), len(self.args)))
-            code.putln(code.error_goto(self.pos))
-        else:
-            self.generate_generic_parallel_unpacking_code(
-                code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
+        self.generate_generic_parallel_unpacking_code(
+            code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
         code.putln("}")
 
         for value_node in self.coerced_unpacked_items:
