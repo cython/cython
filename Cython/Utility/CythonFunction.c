@@ -840,14 +840,14 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         if (!tup)
             goto __pyx_err;
 
-        new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);;
+        new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);
         Py_DECREF(tup);
 
         if (!new_func)
             goto __pyx_err;
 
-        Py_CLEAR(new_func->func.func_classobj);
         Py_XINCREF(binding_func->func.func_classobj);
+        Py_CLEAR(new_func->func.func_classobj);
         new_func->func.func_classobj = binding_func->func.func_classobj;
 
         func = (PyObject *) new_func;
