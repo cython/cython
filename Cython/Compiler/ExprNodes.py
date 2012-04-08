@@ -5099,7 +5099,7 @@ class SequenceNode(ExprNode):
 
             code.putln('#if !CYTHON_COMPILING_IN_CPYTHON')
             sublist_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            code.putln('%s = PyList_GetSlice(%s, 0, %s-%d); %s' % (
+            code.putln('%s = PySequence_GetSlice(%s, 0, %s-%d); %s' % (
                 sublist_temp, target_list, length_temp, len(unpacked_fixed_items_right),
                 code.error_goto_if_null(sublist_temp, self.pos)))
             code.put_gotref(sublist_temp)
