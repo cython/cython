@@ -533,6 +533,8 @@ static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
                                                          PyObject *classobj);
 
 //////////////////// CyFunctionClassCell ////////////////////
+//@requires: CythonFunction
+
 void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
                                     PyObject *classobj)
 {
@@ -567,6 +569,8 @@ static int __pyx_FusedFunction_init(void);
 #define __Pyx_FusedFunction_USED
 
 //////////////////// FusedFunction ////////////////////
+//@requires: CythonFunction
+
 static PyObject *
 __pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject *self,
                         PyObject *module, PyObject *code)
@@ -765,12 +769,12 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
 
         m_self = cyfunc->func.m_self;
         cyfunc->func.m_self = self;
-        result = __Pyx_PyCFunction_Call(func, new_args, kw);
+        result = __Pyx_CyFunction_Call(func, new_args, kw);
         cyfunc->func.m_self = m_self;
 
         Py_DECREF(new_args);
     } else {
-        result = __Pyx_PyCFunction_Call(func, args, kw);
+        result = __Pyx_CyFunction_Call(func, args, kw);
     }
 
     return result;
