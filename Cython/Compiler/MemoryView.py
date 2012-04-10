@@ -880,7 +880,8 @@ context = {
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",
         proto_block='utility_code_proto_before_types',
-        context=context)
+        context=context,
+        requires=[])
 
 atomic_utility = load_memview_c_utility("Atomics", context,
               proto_block='utility_code_proto_before_types')
@@ -923,4 +924,5 @@ view_utility_whitelist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
                           'indirect_contiguous')
 
+memviewslice_declare_code.requires.append(view_utility_code)
 copy_contents_new_utility.requires.append(view_utility_code)

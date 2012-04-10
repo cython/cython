@@ -4443,9 +4443,13 @@ class AttributeNode(ExprNode):
             if entry:
                 if obj_type.is_extension_type and entry.name == "__weakref__":
                     error(self.pos, "Illegal use of special attribute __weakref__")
-                # methods need the normal attribute lookup
+
+                # def methods need the normal attribute lookup
                 # because they do not have struct entries
-                if entry.is_variable or entry.is_cmethod:
+                # fused function go through assignment synthesis
+                # (foo = pycfunction(foo_func_obj)) and need to go through
+                # regular Python lookup as well
+                if (entry.is_variable and not entry.fused_cfunction) or entry.is_cmethod:
                     self.type = entry.type
                     self.member = entry.cname
                     return
@@ -7151,7 +7155,7 @@ class CythonArrayNode(ExprNode):
         else:
             return error()
 
-        if not base_type.same_as(array_dtype):
+        if not (base_type.same_as(array_dtype) or base_type.is_void):
             return error(self.operand.pos, ERR_BASE_TYPE)
         elif self.operand.type.is_array and len(array_dimension_sizes) != ndim:
             return error(self.operand.pos,

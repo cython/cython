@@ -2610,8 +2610,8 @@ class ReplaceFusedTypeChecks(VisitorTransform):
                 else:
                     types = PyrexTypes.get_specialized_types(type2)
 
-                    for specific_type in types:
-                        if type1.same_as(specific_type):
+                    for specialized_type in types:
+                        if type1.same_as(specialized_type):
                             if op == 'in':
                                 return true_node
                             else:

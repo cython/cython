@@ -1038,8 +1038,8 @@ class FusedTypeNode(CBaseTypeNode):
             else:
                 types.append(type)
 
-        if len(self.types) == 1:
-            return types[0]
+        # if len(self.types) == 1:
+        #     return types[0]
 
         return PyrexTypes.FusedType(types, name=self.name)
 
@@ -2286,7 +2286,6 @@ class FusedCFuncDefNode(StatListNode):
                 else:
                     node.py_func.fused_py_func = self.py_func
                     node.entry.as_variable = self.py_func.entry
-
         # Copy the nodes as AnalyseDeclarationsTransform will prepend
         # self.py_func to self.stats, as we only want specialized
         # CFuncDefNodes in self.nodes
@@ -2304,9 +2303,6 @@ class FusedCFuncDefNode(StatListNode):
         fused_compound_types = PyrexTypes.unique(
             [arg.type for arg in self.node.args if arg.type.is_fused])
         permutations = PyrexTypes.get_all_specialized_permutations(fused_compound_types)
-        fused_types = [fused_type
-                           for fused_compound_type in fused_compound_types
-                               for fused_type in fused_compound_type.get_fused_types()]
 
         if self.node.entry in env.pyfunc_entries:
             env.pyfunc_entries.remove(self.node.entry)
@@ -2321,7 +2317,7 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.analyse_declarations(env)
             self.create_new_local_scope(copied_node, env, fused_to_specific)
             self.specialize_copied_def(copied_node, cname, self.node.entry,
-                                       fused_to_specific, fused_types)
+                                       fused_to_specific, fused_compound_types)
 
             PyrexTypes.specialize_entry(copied_node.entry, cname)
             copied_node.entry.used = True
@@ -2430,11 +2426,9 @@ class FusedCFuncDefNode(StatListNode):
         """Specialize the copy of a DefNode given the copied node,
         the specialization cname and the original DefNode entry"""
         type_strings = [
-            fused_type.specialize(f2s).typeof_name()
+            PyrexTypes.specialization_signature_string(fused_type, f2s)
                 for fused_type in fused_types
         ]
-        #type_strings = [f2s[fused_type].typeof_name()
-        #                    for fused_type in fused_types]
 
         node.specialized_signature_string = ', '.join(type_strings)
 
