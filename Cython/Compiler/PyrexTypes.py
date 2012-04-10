@@ -1632,7 +1632,7 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
         return PyUnicode_AS_UNICODE(x)[0];
         #endif
     } else {
-        #if CYTHON_PEP393_ENABLED
+        #if !CYTHON_PEP393_ENABLED
         if (unlikely(!maxval))
             maxval = (long)PyUnicode_GetMax();
         #endif
