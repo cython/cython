@@ -43,10 +43,8 @@ def test_cast(x):
     """
     >>> test_cast(1.5)
     1
-    >>> test_cast(None)
-    Traceback (most recent call last):
-    ...
-    TypeError: a float is required
+    >>> try: test_cast(None)
+    ... except TypeError: pass
     """
     n = cython.cast(cython.int, x)
     return n

@@ -14,13 +14,12 @@ def test_call(kwargs):
     [('a', 1), ('b', 2)]
 
     >>> kwargs = {'a' : 2}
-    >>> f(a=1, **kwargs)
+    >>> f(a=1, **kwargs)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: f() got multiple values for keyword argument 'a'
+    TypeError: ...got multiple values for keyword argument 'a'
 
-    FIXME: remove ellipsis, fix function name
     >>> test_call(kwargs)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...() got multiple values for keyword argument 'a'
+    TypeError: ...got multiple values for keyword argument 'a'
     """
     return f(a=1, **kwargs)

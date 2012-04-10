@@ -24,9 +24,9 @@ cdef class Spam:
 def f(Spam spam):
     """
     >>> s = Spam(12)
-    >>> f(s)
+    >>> f(s)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    AttributeError: 'exttype.Spam' object has no attribute 'foo'
+    AttributeError: '...Spam' object has no attribute 'foo'
     >>> s.eat()
     12 42
     >>> class Spam2(Spam):
