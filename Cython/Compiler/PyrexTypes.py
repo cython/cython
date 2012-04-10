@@ -798,7 +798,7 @@ class BufferType(BaseType):
                 self.dtype.same_as(other_type.dtype) and
                 self.ndim == other_type.ndim and
                 self.mode == other_type.mode and
-                self.cast == other_type.cast)
+                self.cast == other_type.cast) or self.base.same_as(other_type)
 
 
 class PyObjectType(PyrexType):
