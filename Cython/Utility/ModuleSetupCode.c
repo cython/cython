@@ -124,10 +124,11 @@
 
 /* new Py3.3 unicode representation (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_GET_LENGTH)
-  #define CYTHON_PEP393_ENABLED
+  #define CYTHON_PEP393_ENABLED 1
   #define __Pyx_PyUnicode_GET_LENGTH(u) PyUnicode_GET_LENGTH(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
 #else
+  #define CYTHON_PEP393_ENABLED 0
   #define __Pyx_PyUnicode_GET_LENGTH(u) PyUnicode_GET_SIZE(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AS_UNICODE(u)[i]))
 #endif

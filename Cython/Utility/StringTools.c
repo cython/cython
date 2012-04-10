@@ -28,7 +28,7 @@ static CYTHON_INLINE int __Pyx_PyUnicodeBufferContainsUCS4(Py_UNICODE* buffer, P
 //////////////////// PyUCS4InUnicode ////////////////////
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
-#ifdef CYTHON_PEP393_ENABLED
+#if CYTHON_PEP393_ENABLED
     Py_ssize_t i;
     int kind;
     void* udata;
@@ -94,7 +94,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
-        #ifdef CYTHON_PEP393_ENABLED
+        #if CYTHON_PEP393_ENABLED
         if ((PyUnicode_READY(s1) < 0) || (PyUnicode_READY(s2) < 0))
             return -1;
         if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
