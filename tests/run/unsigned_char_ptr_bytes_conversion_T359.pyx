@@ -1,10 +1,12 @@
 # ticket: 359
 
-__doc__ = u"""
->>> py_string1.decode('ASCII') == 'test toast taste'
-True
->>> py_string1 == py_string2 == py_string3
-True
+__doc__ = """
+>>> print(py_string1.decode('iso8859-1'))
+test toast taste
+>>> print(py_string2.decode('iso8859-1'))
+test toast taste
+>>> print(py_string3.decode('iso8859-1'))
+test toast taste
 """
 
 cdef unsigned char* some_c_unstring = 'test toast taste'
