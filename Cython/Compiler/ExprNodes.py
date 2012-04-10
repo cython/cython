@@ -2738,7 +2738,7 @@ class IndexNode(ExprNode):
         specific_types = []
         positions = []
 
-        if self.index.is_name:
+        if self.index.is_name or self.index.is_attribute:
             positions.append(self.index.pos)
             specific_types.append(self.index.analyse_as_type(env))
         elif isinstance(self.index, TupleNode):

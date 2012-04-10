@@ -1785,7 +1785,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         """
         self.visit_Node(node)
 
-        if node.is_fused_index and node.type is not PyrexTypes.error_type:
+        if node.is_fused_index and not node.type.is_error:
             node = node.base
         elif node.memslice_ellipsis_noop:
             # memoryviewslice[...] expression, drop the IndexNode
@@ -1798,7 +1798,8 @@ class AnalyseExpressionsTransform(CythonTransform):
         #print node.dump()
         #return node
         type = node.obj.type
-        if type.is_extension_type and should_apply_numpy_hack(type):
+        if (not node.type.is_error and type.is_extension_type and
+            should_apply_numpy_hack(type)):
             node = numpy_transform_attribute_node(node)
 
         self.visitchildren(node)
