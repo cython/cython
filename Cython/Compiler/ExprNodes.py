@@ -2587,8 +2587,9 @@ class IndexNode(ExprNode):
         self.nogil = env.nogil
 
         if buffer_access or self.memslice_index:
-            if self.base.type.is_memoryviewslice and not self.base.is_name:
-                self.base = self.base.coerce_to_temp(env)
+            #if self.base.type.is_memoryviewslice and not self.base.is_name:
+            #    self.base = self.base.coerce_to_temp(env)
+            self.base = self.base.coerce_to_simple(env)
 
             self.indices = indices
             self.index = None
@@ -3043,7 +3044,8 @@ class IndexNode(ExprNode):
         if self.base.is_name:
             entry = self.base.entry
         else:
-            assert self.base.is_temp
+            # SimpleCallNode is_simple is not consistent with coerce_to_simple
+            assert self.base.is_simple() or self.base.is_temp
             cname = self.base.result()
             entry = Symtab.Entry(cname, cname, self.base.type, self.base.pos)
 
