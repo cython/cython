@@ -15,9 +15,16 @@ cdef extern from "pythread.h":
     int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
     void PyThread_release_lock(PyThread_type_lock) nogil
 
-    enum: # 'mode' in PyThread_acquire_lock
+    enum:
+        # 'mode' in PyThread_acquire_lock()
         WAIT_LOCK    #   1
         NOWAIT_LOCK  #   0
+
+    ctypedef enum PyLockStatus:
+        # return values of PyThread_acquire_lock() in CPython 3.2+
+        PY_LOCK_FAILURE = 0
+        PY_LOCK_ACQUIRED = 1
+        PY_LOCK_INTR
 
     size_t PyThread_get_stacksize()
     int PyThread_set_stacksize(size_t)
