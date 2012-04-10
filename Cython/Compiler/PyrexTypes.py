@@ -1510,7 +1510,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
    long ival;
    if (PyUnicode_Check(x)) {
        Py_ssize_t length;
-       #ifdef CYTHON_PEP393_ENABLED
+       #if CYTHON_PEP393_ENABLED
        length = PyUnicode_GET_LENGTH(x);
        if (likely(length == 1)) {
            return PyUnicode_READ_CHAR(x, 0);
@@ -1580,7 +1580,7 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject*);
 impl='''
 static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     long ival;
-    #ifdef CYTHON_PEP393_ENABLED
+    #if CYTHON_PEP393_ENABLED
     const long maxval = 1114111;
     #else
     static long maxval = 0;
@@ -1592,13 +1592,13 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
                          "got length %" PY_FORMAT_SIZE_T "d", __Pyx_PyUnicode_GET_LENGTH(x));
             return (Py_UNICODE)-1;
         }
-        #ifdef CYTHON_PEP393_ENABLED
+        #if CYTHON_PEP393_ENABLED
         ival = PyUnicode_READ_CHAR(x, 0);
         #else
         return PyUnicode_AS_UNICODE(x)[0];
         #endif
     } else {
-        #ifndef CYTHON_PEP393_ENABLED
+        #if CYTHON_PEP393_ENABLED
         if (unlikely(!maxval))
             maxval = (long)PyUnicode_GetMax();
         #endif
