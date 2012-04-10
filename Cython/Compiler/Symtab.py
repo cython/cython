@@ -782,6 +782,23 @@ class Scope(object):
     def add_include_file(self, filename):
         self.outer_scope.add_include_file(filename)
 
+    def get_refcounted_entries(self, include_weakref=False):
+        py_attrs = []
+        py_buffers = []
+        memoryview_slices = []
+
+        for entry in self.var_entries:
+            if entry.type.is_pyobject:
+                if include_weakref or entry.name != "weakref":
+                    py_attrs.append(entry)
+            elif entry.type == PyrexTypes.c_py_buffer_type:
+                py_buffers.append(entry)
+            elif entry.type.is_memoryviewslice:
+                memoryview_slices.append(entry)
+
+        have_entries = py_attrs or py_buffers or memoryview_slices
+        return have_entries, (py_attrs, py_buffers, memoryview_slices)
+
 
 class PreImportScope(Scope):
 

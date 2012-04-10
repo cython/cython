@@ -86,7 +86,7 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
     "We can avoid decreffing the lhs if we know it is the first assignment"
     assert rhs.type.is_memoryviewslice
 
-    pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
+    pretty_rhs = rhs.result_in_temp() or rhs.is_simple()
     if pretty_rhs:
         rhstmp = rhs.result()
     else:
@@ -106,18 +106,10 @@ def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code
     if not first_assignment:
         code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
 
-    if rhs.is_name:
-        code.put_incref_memoryviewslice(rhs_cname, have_gil=have_gil)
+    if not rhs.result_in_temp():
+        rhs.make_owned_memoryviewslice(code)
 
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
-
-    #code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
-    #code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
-    #for i in range(memviewslicetype.ndim):
-    #    tup = (lhs_cname, i, rhs_cname, i)
-    #    code.putln("%s.shape[%d] = %s.shape[%d];" % tup)
-    #    code.putln("%s.strides[%d] = %s.strides[%d];" % tup)
-    #    code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % tup)
 
 def get_buf_flags(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)

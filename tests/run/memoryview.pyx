@@ -133,6 +133,16 @@ def test_coerce_to_temp():
     print
     print _coerce_to_temp()[4][4]
 
+def test_extclass_attribute_dealloc():
+    """
+    >>> test_extclass_attribute_dealloc()
+    acquired self.arr
+    2
+    released self.arr
+    """
+    cdef ExtClassMockedAttr obj = ExtClassMockedAttr()
+    print obj.arr[4, 4]
+
 cdef float[:,::1] global_mv = array((10,10), itemsize=sizeof(float), format='f')
 global_mv = array((10,10), itemsize=sizeof(float), format='f')
 cdef object global_obj

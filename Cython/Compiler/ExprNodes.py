@@ -489,10 +489,20 @@ class ExprNode(Node):
     # ---------------- Code Generation -----------------
 
     def make_owned_reference(self, code):
-        #  If result is a pyobject, make sure we own
-        #  a reference to it.
+        """
+        If result is a pyobject, make sure we own a reference to it.
+        If the result is in a temp, it is already a new reference.
+        """
         if self.type.is_pyobject and not self.result_in_temp():
             code.put_incref(self.result(), self.ctype())
+
+    def make_owned_memoryviewslice(self, code):
+        """
+        Make sure we own the reference to this memoryview slice.
+        """
+        if not self.result_in_temp():
+            code.put_incref_memoryviewslice(self.result(),
+                                            have_gil=self.in_nogil_context)
 
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
@@ -8809,6 +8819,10 @@ class CoercionNode(ExprNode):
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
 class CoerceToMemViewSliceNode(CoercionNode):
+    """
+    Coerce an object to a memoryview slice. This holds a new reference in
+    a managed temp.
+    """
 
     def __init__(self, arg, dst_type, env):
         assert dst_type.is_memoryviewslice

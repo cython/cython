@@ -5365,7 +5365,7 @@ class ReturnStatNode(StatNode):
                     "%s = %s;" % (
                         Naming.retval_cname,
                         self.value.result_as(self.return_type)))
-                self.value.generate_post_assignment_code(code)
+            self.value.generate_post_assignment_code(code)
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:

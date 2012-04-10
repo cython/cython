@@ -988,18 +988,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = scope.parent_type
         base_type = type.base_type
 
-        py_attrs = []
-        memviewslice_attrs = []
-        py_buffers = []
-        for entry in scope.var_entries:
-            if entry.type.is_pyobject:
-                py_attrs.append(entry)
-            elif entry.type.is_memoryviewslice:
-                memviewslice_attrs.append(entry)
-            elif entry.type == PyrexTypes.c_py_buffer_type:
-                py_buffers.append(entry)
+        have_entries, (py_attrs, py_buffers, memoryview_slices) = \
+                        scope.get_refcounted_entries(include_weakref=True)
 
-        need_self_cast = type.vtabslot_cname or py_attrs or memviewslice_attrs or py_buffers
+        need_self_cast = type.vtabslot_cname or have_entries
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {"
@@ -1044,7 +1036,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
 
-        for entry in memviewslice_attrs:
+        for entry in memoryview_slices:
             code.putln("p->%s.data = NULL;" % entry.cname)
             code.putln("p->%s.memview = NULL;" % entry.cname)
 
@@ -1081,18 +1073,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "static void %s(PyObject *o) {"
                 % scope.mangle_internal("tp_dealloc"))
-        py_attrs = []
+
         weakref_slot = scope.lookup_here("__weakref__")
-        for entry in scope.var_entries:
-            if entry.type.is_pyobject and entry is not weakref_slot:
-                py_attrs.append(entry)
-        if py_attrs or weakref_slot in scope.var_entries:
+        _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
+
+        if py_attrs or memoryview_slices or weakref_slot in scope.var_entries:
             self.generate_self_cast(scope, code)
+
+        # call the user's __dealloc__
         self.generate_usr_dealloc_call(scope, code)
         if weakref_slot in scope.var_entries:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
+
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type, nanny=False)
+
+        for entry in memoryview_slices:
+            code.put_xdecref_memoryviewslice("p->%s" % entry.cname,
+                                             have_gil=True)
+
         if base_type:
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is None:
@@ -1139,13 +1138,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, visitproc v, void *a) {"
                 % slot_func)
 
-        py_attrs = []
-        py_buffers = []
-        for entry in scope.var_entries:
-            if entry.type.is_pyobject and entry.name != "__weakref__":
-                py_attrs.append(entry)
-            if entry.type == PyrexTypes.c_py_buffer_type:
-                py_buffers.append(entry)
+        have_entries, (py_attrs, py_buffers,
+                       memoryview_slices) = scope.get_refcounted_entries()
 
         if base_type or py_attrs:
             code.putln("int e;")
@@ -1178,9 +1172,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "}")
 
-        for entry in py_buffers:
-            code.putln("if (p->%s.obj) {" % entry.cname)
-            code.putln(    "e = (*v)(p->%s.obj, a); if (e) return e;" % entry.cname)
+        for entry in py_buffers + memoryview_slices:
+            if entry.type == PyrexTypes.c_py_buffer_type:
+                cname = entry.cname + ".obj"
+            else:
+                # traverse the memoryview object, which should traverse the
+                # object exposing the buffer
+                cname = entry.cname + ".memview"
+
+            code.putln("if (p->%s) {" % cname)
+            code.putln(    "e = (*v)(p->%s, a); if (e) return e;" % cname)
             code.putln("}")
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
