@@ -90,6 +90,9 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
 //////////////////// UnicodeEquals ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
+#if CYTHON_COMPILING_IN_PYPY
+    return PyObject_RichCompareBool(s1, s2, equals);
+#else
     if (s1 == s2) {
         /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
@@ -133,6 +136,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         Py_DECREF(py_result);
         return result;
     }
+#endif
 }
 
 
@@ -144,6 +148,9 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
+#if CYTHON_COMPILING_IN_PYPY
+    return PyObject_RichCompareBool(s1, s2, equals);
+#else
     if (s1 == s2) {
         /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
@@ -172,4 +179,5 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         Py_DECREF(py_result);
         return result;
     }
+#endif
 }
