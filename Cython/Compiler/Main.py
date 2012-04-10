@@ -24,6 +24,10 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 
 verbose = 0
 
+standard_include_path = os.path.abspath(os.path.normpath(
+    os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
+
+
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
     #  (For now, this is only)
@@ -70,8 +74,6 @@ class Context(object):
 
         self.pxds = {} # full name -> node tree
 
-        standard_include_path = os.path.abspath(os.path.normpath(
-            os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
         self.include_directories = include_directories + [standard_include_path]
 
         self.set_language_level(language_level)
