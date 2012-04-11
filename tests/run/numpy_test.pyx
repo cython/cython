@@ -528,7 +528,7 @@ cdef fused fused_external:
 def test_fused_external(np.ndarray[fused_external, ndim=1] a):
     """
     >>> import cython
-    >>> print sorted(test_fused_external.__signatures__)
+    >>> sorted(test_fused_external.__signatures__)
     ['float32_t', 'float64_t', 'int32_t', 'int64_t']
 
     >>> test_fused_external["float64_t"](double_array)
@@ -539,10 +539,7 @@ def test_fused_external(np.ndarray[fused_external, ndim=1] a):
 
     >>> test_fused_external(np.arange(100)) # fix in next release
     Traceback (most recent call last):
-      File "/Users/mark/source/py/osx/lib/python2.7/doctest.py", line 1248, in __run
-        compileflags, 1) in test.globs
-      File "<doctest numpy_test.__test__.test_fused_external (line 525)[5]>", line 1, in <module>
-      File "numpy_test.pyx", line 525, in numpy_test.__pyx_fused_cpdef (numpy_test.cpp:10264)
+        ...
     TypeError: No matching signature found
     """
     print a.dtype
@@ -554,6 +551,7 @@ cdef fused fused_buffers:
 def test_fused_buffers(fused_buffers arg):
     """
     >>> sorted(test_fused_buffers.__signatures__)
+    ['int64_t[::1]', 'ndarray[int32_t,ndim=1]']
     """
 
 cpdef _fused_cpdef_buffers(np.ndarray[fused_external] a):
@@ -562,6 +560,8 @@ cpdef _fused_cpdef_buffers(np.ndarray[fused_external] a):
 def test_fused_cpdef_buffers():
     """
     >>> test_fused_cpdef_buffers()
+    int32
+    int32
     """
     _fused_cpdef_buffers[np.int32_t](int32_array)
 

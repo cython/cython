@@ -791,14 +791,21 @@ class BufferType(BaseType):
                                       cast_str)
 
     def assignable_from(self, other_type):
-        return self.same_as(other_type) or other_type.is_pyobject
+        if other_type.is_buffer:
+            return (self.same_as(other_type, compare_base=False) and
+                    self.base.assignable_from(other_type.base))
 
-    def same_as(self, other_type):
-        return (other_type.is_buffer and
-                self.dtype.same_as(other_type.dtype) and
+        return self.base.assignable_from(other_type)
+
+    def same_as(self, other_type, compare_base=True):
+        if not other_type.is_buffer:
+            return other_type.same_as(self.base)
+
+        return (self.dtype.same_as(other_type.dtype) and
                 self.ndim == other_type.ndim and
                 self.mode == other_type.mode and
-                self.cast == other_type.cast) or self.base.same_as(other_type)
+                self.cast == other_type.cast and
+                (not compare_base or self.base.same_as(other_type.base)))
 
 
 class PyObjectType(PyrexType):
