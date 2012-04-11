@@ -26,7 +26,7 @@ def numpy_transform_attribute_node(node):
         return node
 
     pos = node.pos
-    numpy_pxd_scope = node.obj.entry.type.scope.parent_scope
+    numpy_pxd_scope = node.obj.type.scope.parent_scope
         
     def macro_call_node(numpy_macro_name):
         array_node = node.obj
