@@ -548,10 +548,8 @@ def test_fused_external(np.ndarray[fused_external, ndim=1] a):
     >>> test_fused_external["int32_t"](int32_array)
     int32
 
-    >>> test_fused_external(np.arange(100)) # fix in next release
-    Traceback (most recent call last):
-        ...
-    TypeError: No matching signature found
+    >>> test_fused_external(np.arange(100))
+    int64
     """
     print a.dtype
 
