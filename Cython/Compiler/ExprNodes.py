@@ -4887,12 +4887,15 @@ class SequenceNode(ExprNode):
         if special_unpack:
             tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
             list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
+            sequence_type_test = '1'
             if rhs.type is list_type:
                 sequence_types = ['List']
-                sequence_type_test = list_check
+                if rhs.may_be_none():
+                    sequence_type_test = list_check
             elif rhs.type is tuple_type:
                 sequence_types = ['Tuple']
-                sequence_type_test = tuple_check
+                if rhs.may_be_none():
+                    sequence_type_test = tuple_check
             else:
                 sequence_types = ['Tuple', 'List']
                 sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
