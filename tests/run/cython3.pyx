@@ -106,9 +106,9 @@ def list_comp_module_level():
     """
     >>> module_level_lc
     [0, 2, 4, 6]
-    >>> module_level_loopvar
+    >>> module_level_loopvar         # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    NameError: name 'module_level_loopvar' is not defined
+    NameError: ...name 'module_level_loopvar' is not defined
     """
 
 module_level_list_genexp = list(module_level_genexp_loopvar*2 for module_level_genexp_loopvar in range(4))
@@ -116,9 +116,9 @@ def genexpr_module_level():
     """
     >>> module_level_list_genexp
     [0, 2, 4, 6]
-    >>> module_level_genexp_loopvar
+    >>> module_level_genexp_loopvar         # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    NameError: name 'module_level_genexp_loopvar' is not defined
+    NameError: ...name 'module_level_genexp_loopvar' is not defined
     """
 
 def list_comp_unknown_type(l):

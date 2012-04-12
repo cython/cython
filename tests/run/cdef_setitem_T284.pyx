@@ -26,8 +26,7 @@ def test_list(list L, object i, object a):
     [0, 1, 2, 3, 4, 5, 6, 7, 8, None, 10]
     >>> test_list(list(range(11)), "invalid index", None) #doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: list indices must be integers...
+    TypeError: list ... must be ...integer...
     """
     L[i] = a
     return L

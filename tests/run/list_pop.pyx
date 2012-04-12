@@ -154,7 +154,7 @@ def crazy_pop(L):
     """
     >>> crazy_pop(list(range(10)))    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: pop... at most 1 argument...3...
+    TypeError: pop... at most ... argument...
     >>> crazy_pop(A())
     (1, 2, 3)
     """

@@ -1,15 +1,10 @@
+# mode: run
 # ticket: 303
 
 __doc__ = """
->>> readonly() #doctest: +ELLIPSIS
-Traceback (most recent call last):
-    ...
-TypeError: ...
+>>> try: readonly()
+... except (TypeError, AttributeError): pass
 """
-
-import sys
-if sys.version_info >= (2,5):
-    __doc__ = __doc__.replace('TypeError:', 'AttributeError:')
 
 
 cdef extern from "external_defs.h":

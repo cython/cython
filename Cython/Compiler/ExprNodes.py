@@ -1839,7 +1839,7 @@ class NameNode(AtomicExprNode):
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
             code.put_error_if_neg(self.pos,
-                'PyMapping_DelItem(%s, %s)' % (
+                'PyObject_DelItem(%s, %s)' % (
                     namespace,
                     interned_cname))
         elif self.entry.is_pyglobal:
@@ -4914,17 +4914,17 @@ class SequenceNode(ExprNode):
                 code.putln("}")
             rhs.generate_disposal_code(code)
             code.putln("} else")
+            if rhs.type is tuple_type:
+                code.putln("if (1) {")
+                code.globalstate.use_utility_code(tuple_unpacking_error_code)
+                code.putln("__Pyx_UnpackTupleError(%s, %s); %s" % (
+                    rhs.py_result(), len(self.args), code.error_goto(self.pos)))
+                code.putln("} else")
             code.putln("#endif")
 
         code.putln("{")
-        if special_unpack and rhs.type is tuple_type:
-            code.globalstate.use_utility_code(tuple_unpacking_error_code)
-            code.putln("__Pyx_UnpackTupleError(%s, %s);" % (
-                        rhs.py_result(), len(self.args)))
-            code.putln(code.error_goto(self.pos))
-        else:
-            self.generate_generic_parallel_unpacking_code(
-                code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
+        self.generate_generic_parallel_unpacking_code(
+            code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
         code.putln("}")
 
         for value_node in self.coerced_unpacked_items:
@@ -5102,7 +5102,7 @@ class SequenceNode(ExprNode):
 
             code.putln('#if !CYTHON_COMPILING_IN_CPYTHON')
             sublist_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            code.putln('%s = PyList_GetSlice(%s, 0, %s-%d); %s' % (
+            code.putln('%s = PySequence_GetSlice(%s, 0, %s-%d); %s' % (
                 sublist_temp, target_list, length_temp, len(unpacked_fixed_items_right),
                 code.error_goto_if_null(sublist_temp, self.pos)))
             code.put_gotref(sublist_temp)

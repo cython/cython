@@ -1,9 +1,8 @@
 __doc__ = """
     >>> test_chars(b'yo')
     (b'a', b'bc', b'yo')
-    >>> test_chars(None)       # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    TypeError: expected ...
+    >>> try: test_chars(None)
+    ... except TypeError: pass
 """
 
 import sys

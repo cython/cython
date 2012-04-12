@@ -5,9 +5,9 @@ True
 True
 >>> X == 4*5 + 1
 True
->>> NONPUBLIC
+>>> NONPUBLIC         # doctest: +ELLIPSIS
 Traceback (most recent call last):
-NameError: name 'NONPUBLIC' is not defined
+NameError: ...name 'NONPUBLIC' is not defined
 >>> NOWPUBLIC == 23 + 42
 True
 """

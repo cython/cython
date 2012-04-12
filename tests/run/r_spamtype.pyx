@@ -1,10 +1,15 @@
-__doc__ = u"""
+__doc__ = """
     >>> s = Spam()
     >>> s.get_tons()
     17
     >>> s.set_tons(42)
     >>> s.get_tons()
     42
+"""
+
+import platform
+if not hasattr(platform, 'python_implementation') or platform.python_implementation() == 'CPython':
+    __doc__ += """
     >>> s = None
     42 tons of spam is history.
 """

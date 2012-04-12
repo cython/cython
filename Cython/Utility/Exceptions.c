@@ -200,6 +200,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb);
 
 static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
     PyObject *local_type, *local_value, *local_tb;
+#if CYTHON_COMPILING_IN_CPYTHON
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
     local_type = tstate->curexc_type;
@@ -208,19 +209,27 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
     tstate->curexc_type = 0;
     tstate->curexc_value = 0;
     tstate->curexc_traceback = 0;
+#else
+    PyErr_Fetch(&local_type, &local_value, &local_tb);
+#endif
     PyErr_NormalizeException(&local_type, &local_value, &local_tb);
+#if CYTHON_COMPILING_IN_CPYTHON
     if (unlikely(tstate->curexc_type))
+#else
+    if (unlikely(PyErr_Occurred()))
+#endif
         goto bad;
     #if PY_MAJOR_VERSION >= 3
     if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
         goto bad;
     #endif
-    *type = local_type;
-    *value = local_value;
-    *tb = local_tb;
     Py_INCREF(local_type);
     Py_INCREF(local_value);
     Py_INCREF(local_tb);
+    *type = local_type;
+    *value = local_value;
+    *tb = local_tb;
+#if CYTHON_COMPILING_IN_CPYTHON
     tmp_type = tstate->exc_type;
     tmp_value = tstate->exc_value;
     tmp_tb = tstate->exc_traceback;
@@ -228,10 +237,13 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
     tstate->exc_value = local_value;
     tstate->exc_traceback = local_tb;
     /* Make sure tstate is in a consistent state when we XDECREF
-       these objects (XDECREF may run arbitrary code). */
+       these objects (DECREF may run arbitrary code). */
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
+#else
+    PyErr_SetExcInfo(local_type, local_value, local_tb);
+#endif
     return 0;
 bad:
     *type = 0;
@@ -251,6 +263,7 @@ static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb);
 /////////////// SaveResetException ///////////////
 
 static CYTHON_INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
+#if CYTHON_COMPILING_IN_CPYTHON
     PyThreadState *tstate = PyThreadState_GET();
     *type = tstate->exc_type;
     *value = tstate->exc_value;
@@ -258,9 +271,13 @@ static CYTHON_INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value,
     Py_XINCREF(*type);
     Py_XINCREF(*value);
     Py_XINCREF(*tb);
+#else
+    PyErr_GetExcInfo(type, value, tb);
+#endif
 }
 
 static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) {
+#if CYTHON_COMPILING_IN_CPYTHON
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
     tmp_type = tstate->exc_type;
@@ -272,6 +289,9 @@ static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) 
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
+#else
+    PyErr_SetExcInfo(type, value, tb);
+#endif
 }
 
 /////////////// SwapException.proto ///////////////
@@ -282,6 +302,7 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 
 static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value, PyObject **tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
+#if CYTHON_COMPILING_IN_CPYTHON
     PyThreadState *tstate = PyThreadState_GET();
 
     tmp_type = tstate->exc_type;
@@ -291,6 +312,10 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
     tstate->exc_type = *type;
     tstate->exc_value = *value;
     tstate->exc_traceback = *tb;
+#else
+    PyErr_GetExcInfo(&tmp_type, &tmp_value, &tmp_tb);
+    PyErr_SetExcInfo(*type, *value, *tb);
+#endif
 
     *type = tmp_type;
     *value = tmp_value;
