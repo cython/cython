@@ -4797,7 +4797,7 @@ class SequenceNode(ExprNode):
         elif self.type is Builtin.tuple_type:
             create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
         else:
-            raise InternalError("sequence unpacking for unexpected type %s" % self.type)
+            raise InternalError("sequence packing for unexpected type %s" % self.type)
         arg_count = len(self.args)
         code.putln("%s = %s(%s%s); %s" % (
             target, create_func, arg_count, size_factor,
