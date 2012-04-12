@@ -740,8 +740,6 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
     int static_specialized = (cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD &&
                               !((__pyx_FusedFunctionObject *) func)->__signatures__);
 
-    //PyObject_Print(args, stdout, Py_PRINT_RAW);
-
     if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS && !static_specialized) {
         Py_ssize_t argc;
         PyObject *new_args;
@@ -827,8 +825,9 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     }
 
     if (binding_func->__signatures__) {
-        PyObject *tup = PyTuple_Pack(3, binding_func->__signatures__, args,
-                                        kw == NULL ? Py_None : kw);
+        PyObject *tup = PyTuple_Pack(4, binding_func->__signatures__, args,
+                                        kw == NULL ? Py_None : kw,
+                                        binding_func->func.defaults_tuple);
         if (!tup)
             goto __pyx_err;
 
