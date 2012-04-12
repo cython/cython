@@ -180,16 +180,13 @@ def unpack_typed(it):
     >>> it.count
     4
 
-    >>> unpack_typed((1, None, [1]))
-    Traceback (most recent call last):
-    TypeError: a float is required
-    >>> unpack_typed([1, None, [1]])
-    Traceback (most recent call last):
-    TypeError: a float is required
+    >>> try: unpack_typed((1, None, [1]))
+    ... except TypeError: pass
+    >>> try: unpack_typed([1, None, [1]])
+    ... except TypeError: pass
     >>> it = ItCount([1, None, [1]])
-    >>> unpack_typed(it)
-    Traceback (most recent call last):
-    TypeError: a float is required
+    >>> try: unpack_typed(it)
+    ... except TypeError: pass
     >>> it.count
     4
 
@@ -211,16 +208,14 @@ def unpack_typed(it):
 
 def failure_too_many(it):
     """
-    >>> a,b,c = [1,2,3,4]    # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ValueError: too many values to unpack...
+    >>> try: a,b,c = [1,2,3,4]
+    ... except ValueError: pass
     >>> failure_too_many([1,2,3,4])
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
 
-    >>> a,b,c = [1,2,3,4]    # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ValueError: too many values to unpack...
+    >>> try: a,b,c = [1,2,3,4]
+    ... except ValueError: pass
     >>> failure_too_many((1,2,3,4))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
@@ -244,16 +239,14 @@ def failure_too_many(it):
 
 def failure_too_few(it):
     """
-    >>> a,b,c = [1,2]
-    Traceback (most recent call last):
-    ValueError: need more than 2 values to unpack
+    >>> try: a,b,c = [1,2]
+    ... except ValueError: pass
     >>> failure_too_few([1,2])
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
 
-    >>> a,b,c = (1,2)
-    Traceback (most recent call last):
-    ValueError: need more than 2 values to unpack
+    >>> try: a,b,c = (1,2)
+    ... except ValueError: pass
     >>> failure_too_few((1,2))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack

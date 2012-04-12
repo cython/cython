@@ -2,9 +2,9 @@
 def test(**kw):
     """
     >>> d = {1 : 2}
-    >>> test(**d)
+    >>> test(**d)       # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test() keywords must be strings
+    TypeError: ...keywords must be strings
     >>> d
     {1: 2}
     >>> d = {}
@@ -12,7 +12,7 @@ def test(**kw):
     {'arg': 3}
     >>> d
     {}
-    >>> d = {'arg' : 2} # this should be u'arg', but Py2 can't handle it...
+    >>> d = {'arg' : 2}
     >>> test(**d)
     {'arg': 3}
     >>> d

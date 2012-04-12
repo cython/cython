@@ -3428,8 +3428,10 @@ class DefNodeWrapper(FuncDefNode):
                     split_string_literal(escape_byte_string(docstr))))
 
             if entry.is_special:
+                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                 code.putln(
                     "struct wrapperbase %s;" % entry.wrapperbase_cname)
+                code.putln('#endif')
 
         if with_pymethdef or self.target.fused_py_func:
             code.put(
@@ -8376,19 +8378,19 @@ else:
 printing_utility_code = UtilityCode(
 proto = """
 static int __Pyx_Print(PyObject*, PyObject *, int); /*proto*/
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION >= 3
 static PyObject* %s = 0;
 static PyObject* %s = 0;
 #endif
 """ % (Naming.print_function, Naming.print_function_kwargs),
 cleanup = """
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION >= 3
 Py_CLEAR(%s);
 Py_CLEAR(%s);
 #endif
 """ % (Naming.print_function, Naming.print_function_kwargs),
 impl = r"""
-#if PY_MAJOR_VERSION < 3
+#if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
     PyObject *f = PySys_GetObject((char *)"stdout");
     if (!f) {
@@ -8498,7 +8500,7 @@ proto = """
 static int __Pyx_PrintOne(PyObject* stream, PyObject *o); /*proto*/
 """,
 impl = r"""
-#if PY_MAJOR_VERSION < 3
+#if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION < 3
 
 static int __Pyx_PrintOne(PyObject* f, PyObject *o) {
     if (!f) {

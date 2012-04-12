@@ -20,9 +20,9 @@ def test():
 
     >>> p = PublicType
 
-    >>> i = InternalType
+    >>> i = InternalType         # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    NameError: name 'InternalType' is not defined
+    NameError: ...name 'InternalType' is not defined
     """
     p = PublicType
     i = InternalType

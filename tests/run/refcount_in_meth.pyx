@@ -12,7 +12,10 @@ True
 True
 """
 
-import sys
+from cpython.ref cimport PyObject
+
+def get_refcount(obj):
+    return (<PyObject*>obj).ob_refcnt
 
 cdef class RefCountInMeth(object):
     cdef double value
@@ -32,27 +35,27 @@ cdef class RefCountInMeth(object):
     cdef int c_meth(self):
         cdef int v
 
-        v = sys.getrefcount(self)
+        v = get_refcount(self)
         return v
 
     cdef int c_meth_if(self):
         cdef int v
         if 5>6:
             v = 7
-        v = sys.getrefcount(self)
+        v = get_refcount(self)
         return v
 
     def chk_meth(self):
         cdef int a,b
 
-        a = sys.getrefcount(self)
+        a = get_refcount(self)
         b = self.c_meth()
         return a==b
 
     def chk_meth_if(self):
         cdef int a,b
 
-        a = sys.getrefcount(self)
+        a = get_refcount(self)
         b = self.c_meth_if()
         return a==b
 

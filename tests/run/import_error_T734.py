@@ -3,8 +3,8 @@
 
 def test_import_error():
     """
-    >>> test_import_error()
+    >>> test_import_error()   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ImportError: cannot import name xxx
+    ImportError: cannot import name ...xxx...
     """
     from sys import xxx

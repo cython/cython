@@ -36,4 +36,4 @@ def getitem_in_condition(dict d, key, expected_result):
     >>> getitem_in_condition(d, 'a', 1)
     True
     """
-    return d[key] is expected_result
+    return d[key] is expected_result or d[key] == expected_result

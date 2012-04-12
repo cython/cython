@@ -7,10 +7,8 @@ def test_constructor(x, y, color):
     """
     >>> sorted(test_constructor(1,2,255).items())
     [('color', 255), ('x', 1.0), ('y', 2.0)]
-    >>> test_constructor(1,None,255)
-    Traceback (most recent call last):
-    ...
-    TypeError: a float is required
+    >>> try: test_constructor(1,None,255)
+    ... except TypeError: pass
     """
     cdef Point p = Point(x, y, color)
     return p
@@ -31,10 +29,8 @@ def test_dict_construction(x, y, color):
     """
     >>> sorted(test_dict_construction(4, 5, 64).items())
     [('color', 64), ('x', 4.0), ('y', 5.0)]
-    >>> test_dict_construction("foo", 5, 64)
-    Traceback (most recent call last):
-    ...
-    TypeError: a float is required
+    >>> try: test_dict_construction("foo", 5, 64)
+    ... except TypeError: pass
     """
     cdef Point p = {'color': color, 'x': x, 'y': y}
     return p

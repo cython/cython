@@ -392,6 +392,59 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 #endif
 }
 
+#if CYTHON_COMPILING_IN_PYPY
+/* originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c */
+/* PyPy does not have this function */
+static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+    PyCFunctionObject* f = (PyCFunctionObject*)func;
+    PyCFunction meth = PyCFunction_GET_FUNCTION(func);
+    PyObject *self = PyCFunction_GET_SELF(func);
+    Py_ssize_t size;
+
+    switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST)) {
+    case METH_VARARGS:
+        if (likely(kw == NULL) || PyDict_Size(kw) == 0)
+            return (*meth)(self, arg);
+        break;
+    case METH_VARARGS | METH_KEYWORDS:
+        return (*(PyCFunctionWithKeywords)meth)(self, arg, kw);
+    case METH_NOARGS:
+        if (likely(kw == NULL) || PyDict_Size(kw) == 0) {
+            size = PyTuple_GET_SIZE(arg);
+            if (size == 0)
+                return (*meth)(self, NULL);
+            PyErr_Format(PyExc_TypeError,
+                "%.200s() takes no arguments (%zd given)",
+                f->m_ml->ml_name, size);
+            return NULL;
+        }
+        break;
+    case METH_O:
+        if (likely(kw == NULL) || PyDict_Size(kw) == 0) {
+            size = PyTuple_GET_SIZE(arg);
+            if (size == 1)
+                return (*meth)(self, PyTuple_GET_ITEM(arg, 0));
+            PyErr_Format(PyExc_TypeError,
+                "%.200s() takes exactly one argument (%zd given)",
+                f->m_ml->ml_name, size);
+            return NULL;
+        }
+        break;
+    default:
+        PyErr_SetString(PyExc_SystemError, "Bad call flags in "
+                        "__Pyx_CyFunction_Call. METH_OLDARGS is no "
+                        "longer supported!");
+
+        return NULL;
+    }
+    PyErr_Format(PyExc_TypeError, "%.200s() takes no keyword arguments",
+                 f->m_ml->ml_name);
+    return NULL;
+}
+#else
+#define __Pyx_CyFunction_Call PyCFunction_Call
+#endif
+
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     __Pyx_NAMESTR("cython_function_or_method"), /*tp_name*/
@@ -411,7 +464,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_as_sequence*/
     0,                                  /*tp_as_mapping*/
     0,                                  /*tp_hash*/
-    __Pyx_PyCFunction_Call,             /*tp_call*/
+    __Pyx_CyFunction_Call,              /*tp_call*/
     0,                                  /*tp_str*/
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
@@ -480,6 +533,8 @@ static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
                                                          PyObject *classobj);
 
 //////////////////// CyFunctionClassCell ////////////////////
+//@requires: CythonFunction
+
 void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
                                     PyObject *classobj)
 {
@@ -514,6 +569,8 @@ static int __pyx_FusedFunction_init(void);
 #define __Pyx_FusedFunction_USED
 
 //////////////////// FusedFunction ////////////////////
+//@requires: CythonFunction
+
 static PyObject *
 __pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject *self,
                         PyObject *module, PyObject *code)
@@ -712,12 +769,12 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
 
         m_self = cyfunc->func.m_self;
         cyfunc->func.m_self = self;
-        result = __Pyx_PyCFunction_Call(func, new_args, kw);
+        result = __Pyx_CyFunction_Call(func, new_args, kw);
         cyfunc->func.m_self = m_self;
 
         Py_DECREF(new_args);
     } else {
-        result = __Pyx_PyCFunction_Call(func, args, kw);
+        result = __Pyx_CyFunction_Call(func, args, kw);
     }
 
     return result;
@@ -783,14 +840,14 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         if (!tup)
             goto __pyx_err;
 
-        new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);;
+        new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);
         Py_DECREF(tup);
 
         if (!new_func)
             goto __pyx_err;
 
-        Py_CLEAR(new_func->func.func_classobj);
         Py_XINCREF(binding_func->func.func_classobj);
+        Py_CLEAR(new_func->func.func_classobj);
         new_func->func.func_classobj = binding_func->func.func_classobj;
 
         func = (PyObject *) new_func;
@@ -880,4 +937,52 @@ static int __pyx_FusedFunction_init(void) {
     }
     __pyx_FusedFunctionType = &__pyx_FusedFunctionType_type;
     return 0;
+}
+
+//////////////////// ClassMethod.proto ////////////////////
+
+#include "descrobject.h"
+static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
+
+//////////////////// ClassMethod ////////////////////
+
+static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
+#if CYTHON_COMPILING_IN_PYPY
+    if (PyObject_TypeCheck(method, &PyWrapperDescr_Type)) { /* cdef classes */
+        return PyClassMethod_New(method);
+    }
+#else
+    /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
+    static PyTypeObject *methoddescr_type = NULL;
+    if (methoddescr_type == NULL) {
+       PyObject *meth = __Pyx_GetAttrString((PyObject*)&PyList_Type, "append");
+       if (!meth) return NULL;
+       methoddescr_type = Py_TYPE(meth);
+       Py_DECREF(meth);
+    }
+    if (PyObject_TypeCheck(method, methoddescr_type)) { /* cdef classes */
+        PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+        #if PY_VERSION_HEX < 0x03020000
+        PyTypeObject *d_type = descr->d_type;
+        #else
+        PyTypeObject *d_type = descr->d_common.d_type;
+        #endif
+        return PyDescr_NewClassMethod(d_type, descr->d_method);
+    }
+#endif
+    else if (PyMethod_Check(method)) { /* python classes */
+        return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
+    }
+    else if (PyCFunction_Check(method)) {
+        return PyClassMethod_New(method);
+    }
+#ifdef __Pyx_CyFunction_USED
+    else if (PyObject_TypeCheck(method, __pyx_CyFunctionType)) {
+        return PyClassMethod_New(method);
+    }
+#endif
+    PyErr_Format(PyExc_TypeError,
+                 "Class-level classmethod() can only be called on "
+                 "a method_descriptor or instance method.");
+    return NULL;
 }

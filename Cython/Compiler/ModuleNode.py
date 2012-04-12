@@ -1910,6 +1910,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #            if entry.type.is_pyobject and entry.used:
 #                code.putln("Py_DECREF(%s); %s = 0;" % (
 #                    code.entry_as_pyobject(entry), entry.cname))
+        code.putln('#if CYTHON_COMPILING_IN_PYPY')
+        code.putln('Py_CLEAR(%s);' % Naming.builtins_cname)
+        code.putln('#endif')
         code.putln("Py_INCREF(Py_None); return Py_None;")
 
     def generate_main_method(self, env, code):
@@ -1968,7 +1971,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "if (!%s) %s;" % (
                 env.module_cname,
-                code.error_goto(self.pos)));
+                code.error_goto(self.pos)))
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
             "Py_INCREF(%s);" %
@@ -1980,7 +1983,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "if (!%s) %s;" % (
                 Naming.builtins_cname,
-                code.error_goto(self.pos)));
+                code.error_goto(self.pos)))
+        code.putln('#if CYTHON_COMPILING_IN_PYPY')
+        code.putln('Py_INCREF(%s);' % Naming.builtins_cname)
+        code.putln('#endif')
         code.putln(
             'if (__Pyx_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
                 env.module_cname,
@@ -1994,7 +2000,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "if (!%s) %s;" % (
                     Naming.preimport_cname,
-                    code.error_goto(self.pos)));
+                    code.error_goto(self.pos)))
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *
@@ -2208,6 +2214,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # a significant performance hit. (See trac #561.)
                 for func in entry.type.scope.pyfunc_entries:
                     if func.is_special and Options.docstrings and func.wrapperbase_cname:
+                        code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                         code.putln("{")
                         code.putln(
                             'PyObject *wrapper = __Pyx_GetAttrString((PyObject *)&%s, "%s"); %s' % (
@@ -2226,6 +2233,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                 func.wrapperbase_cname))
                         code.putln("}")
                         code.putln("}")
+                        code.putln('#endif')
                 if type.vtable_cname:
                     code.putln(
                         "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (

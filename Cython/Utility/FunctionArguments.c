@@ -121,6 +121,12 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(
 {
     PyObject* key = 0;
     Py_ssize_t pos = 0;
+#if CPYTHON_COMPILING_IN_PYPY
+    /* PyPy appears to check keywords at call time, not at unpacking time => not much to do here */
+    if (!kw_allowed && PyDict_Next(kwdict, &pos, &key, 0))
+        goto invalid_keyword;
+    return 1;
+#else
     while (PyDict_Next(kwdict, &pos, &key, 0)) {
         #if PY_MAJOR_VERSION < 3
         if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key)))
@@ -136,6 +142,7 @@ invalid_keyword_type:
     PyErr_Format(PyExc_TypeError,
         "%s() keywords must be strings", function_name);
     return 0;
+#endif
 invalid_keyword:
     PyErr_Format(PyExc_TypeError,
     #if PY_MAJOR_VERSION < 3

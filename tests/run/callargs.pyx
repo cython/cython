@@ -166,17 +166,17 @@ def test_noargs(f):
 
 def test_int_kwargs(f):
     """
-    >>> test_int_kwargs(e)
+    >>> test_int_kwargs(e)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: e() keywords must be strings
-    >>> test_int_kwargs(f)
+    TypeError: ...keywords must be strings
+    >>> test_int_kwargs(f)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: f() keywords must be strings
-    >>> test_int_kwargs(g)
+    TypeError: ...keywords must be strings
+    >>> test_int_kwargs(g)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() keywords must be strings
-    >>> test_int_kwargs(h)
+    TypeError: ...keywords must be strings
+    >>> test_int_kwargs(h)     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: h() keywords must be strings
+    TypeError: ...keywords must be strings
     """
     f(a=1,b=2,c=3, **{10:20,30:40})
