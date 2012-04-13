@@ -1216,6 +1216,15 @@ def string_selector(s):
         return RegExSelector(s)
     else:
         return TagsSelector(s[:ix], s[ix+1:])
+
+class ShardExcludeSelector:
+    # This is an exclude selector so it can override the (include) selectors.
+    def __init__(self, shard_num, shard_count):
+        self.shard_num = shard_num
+        self.shard_count = shard_count
+
+    def __call__(self, testname, tags=None):
+        return abs(hash(testname)) % self.shard_count != self.shard_num
         
 
 def refactor_for_py3(distdir, cy3_dir):
@@ -1313,6 +1322,7 @@ def flush_and_terminate(status):
 
 def main():
 
+    global DISTDIR
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
 
     from optparse import OptionParser
@@ -1367,6 +1377,12 @@ def main():
     parser.add_option("-x", "--exclude", dest="exclude",
                       action="append", metavar="PATTERN",
                       help="exclude tests matching the PATTERN")
+    parser.add_option("--shard_count", dest="shard_count", metavar="N",
+                      type=int, default=1,
+                      help="shard this run into several parallel runs")
+    parser.add_option("--shard_num", dest="shard_num", metavar="K",
+                      type=int, default=-1,
+                      help="test only this single shard")
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
@@ -1411,7 +1427,7 @@ def main():
 
     ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
-
+    
     if sys.version_info[0] >= 3:
         options.doctests = False
         if options.with_cython:
@@ -1459,7 +1475,51 @@ def main():
         Options.generate_cleanup_code = 3   # complete cleanup code
         from Cython.Compiler import DebugFlags
         DebugFlags.debug_temp_code_comments = 1
+    
+    if options.shard_count > 1 and options.shard_num == -1:
+        import multiprocessing
+        pool = multiprocessing.Pool(options.shard_count)
+        tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
+        errors = []
+        for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
+            if return_code != 0:
+                errors.append(shard_num)
+                print("FAILED (%s/%s)" % (shard_num, options.shard_count))
+            print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
+        pool.close()
+        pool.join()
+        if errors:
+            print "Errors for shards %s" % ", ".join([str(e) for e in errors])
+            return_code = 1
+        else:
+            return_code = 0
+    else:
+        _, return_code = runtests(options, cmd_args)
+    print("ALL DONE")
 
+
+    try:
+        check_thread_termination(ignore_seen=False)
+        sys.exit(return_code)
+    except PendingThreadsError:
+        # normal program exit won't kill the threads, do it the hard way here
+        flush_and_terminate(return_code)
+
+
+def runtests_callback(args):
+    options, cmd_args, shard_num = args
+    options.shard_num = shard_num
+    return runtests(options, cmd_args)
+
+def runtests(options, cmd_args):
+
+    WITH_CYTHON = options.with_cython
+    ROOTDIR = os.path.abspath(options.root_dir)
+    WORKDIR = os.path.abspath(options.work_dir)
+
+    if options.shard_num > -1:
+        WORKDIR = os.path.join(WORKDIR, str(options.shard_num))
+    
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
     UNITTEST_ROOT = os.path.join(os.path.dirname(__file__), UNITTEST_MODULE)
@@ -1471,12 +1531,13 @@ def main():
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
 
-    sys.stderr.write("Python %s\n" % sys.version)
-    sys.stderr.write("\n")
-    if WITH_CYTHON:
-        sys.stderr.write("Running tests against Cython %s\n" % get_version())
-    else:
-        sys.stderr.write("Running tests without Cython.\n")
+    if options.shard_num <= 0:
+        sys.stderr.write("Python %s\n" % sys.version)
+        sys.stderr.write("\n")
+        if WITH_CYTHON:
+            sys.stderr.write("Running tests against Cython %s\n" % get_version())
+        else:
+            sys.stderr.write("Running tests without Cython.\n")
 
     if options.for_debugging:
         options.cleanup_workdir = False
@@ -1523,6 +1584,9 @@ def main():
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
+    if options.shard_num > -1:
+        exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
+
     if not test_bugs:
         exclude_selectors += [ FileListExcluder(os.path.join(ROOTDIR, "bugs.txt")) ]
 
@@ -1545,7 +1609,8 @@ def main():
                 backend, ','.join(BACKENDS)))
             sys.exit(1)
         backends.append(backend)
-    sys.stderr.write("Backends: %s\n" % ','.join(backends))
+    if options.shard_num <= 0:
+        sys.stderr.write("Backends: %s\n" % ','.join(backends))
     languages = backends
 
     sys.stderr.write("\n")
@@ -1616,19 +1681,11 @@ def main():
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
-    print("ALL DONE")
-
     if options.exit_ok:
-        return_code = 0
+        return options.shard_num, 0
     else:
-        return_code = not result.wasSuccessful()
+        return options.shard_num, not result.wasSuccessful()
 
-    try:
-        check_thread_termination(ignore_seen=False)
-        sys.exit(return_code)
-    except PendingThreadsError:
-        # normal program exit won't kill the threads, do it the hard way here
-        flush_and_terminate(return_code)
 
 if __name__ == '__main__':
     try:
