@@ -1219,6 +1219,8 @@ def string_selector(s):
 
 class ShardExcludeSelector:
     # This is an exclude selector so it can override the (include) selectors.
+    # It may not provide uniform distribution (in time or count), but is a
+    # determanistic partition of the tests which is important.
     def __init__(self, shard_num, shard_count):
         self.shard_num = shard_num
         self.shard_count = shard_count
