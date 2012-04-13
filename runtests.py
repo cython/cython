@@ -230,6 +230,7 @@ def memoize(f):
         return res
     return func
 
+@memoize
 def parse_tags(filepath):
     tags = defaultdict(list)
     f = io_open(filepath, encoding='ISO-8859-1', errors='replace')
@@ -248,8 +249,6 @@ def parse_tags(filepath):
     finally:
         f.close()
     return tags
-
-parse_tags = memoize(parse_tags)
 
 list_unchanging_dir = memoize(lambda x: os.listdir(x))
 
@@ -1515,7 +1514,7 @@ def main():
 
     missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES)
     version_dep_excluder = VersionDependencyExcluder(VER_DEP_MODULES)
-    exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to pring msg at exit
+    exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to print msg at exit
 
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
