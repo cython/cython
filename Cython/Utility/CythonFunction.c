@@ -172,15 +172,11 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
     return 0;
 }
 
-{{# """
-/*
-    TODO: we implicitly use the global module to get func_globals.  This
-    will need to be passed into __Pyx_CyFunction_NewEx() if we share
-    this type across modules.  We currently avoid doing this to reduce
-    the overhead of creating a function object, and to avoid keeping a
-    reference to the module dict as long as we don't need to.
-*/
-""" }}
+//  TODO: we implicitly use the global module to get func_globals.  This
+//  will need to be passed into __Pyx_CyFunction_NewEx() if we share
+//  this type across modules.  We currently avoid doing this to reduce
+//  the overhead of creating a function object, and to avoid keeping a
+//  reference to the module dict as long as we don't need to.
 
 static PyObject *
 __Pyx_CyFunction_get_globals(CYTHON_UNUSED __pyx_CyFunctionObject *op)
