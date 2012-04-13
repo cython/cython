@@ -502,16 +502,14 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 };
 
 
-static int __Pyx_CyFunction_init(void)
-{
+static int __Pyx_CyFunction_init(void) {
     if (PyType_Ready(&__pyx_CyFunctionType_type) < 0)
         return -1;
     __pyx_CyFunctionType = &__pyx_CyFunctionType_type;
     return 0;
 }
 
-void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t size, int pyobjects)
-{
+static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t size, int pyobjects) {
     __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
 
     m->defaults = PyMem_Malloc(size);
@@ -522,12 +520,12 @@ void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t size, int pyobjects)
     return m->defaults;
 }
 
-static void __Pyx_CyFunction_SetDefaultsTuple(PyObject *func, PyObject *tuple)
-{
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *func, PyObject *tuple) {
     __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
     m->defaults_tuple = tuple;
     Py_INCREF(tuple);
 }
+
 //////////////////// CyFunctionClassCell.proto ////////////////////
 static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
                                                          PyObject *classobj);
@@ -535,9 +533,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
 //////////////////// CyFunctionClassCell ////////////////////
 //@requires: CythonFunction
 
-void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions,
-                                    PyObject *classobj)
-{
+static CYTHON_INLINE void __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
     int i;
 
     for (i = 0; i < PyList_GET_SIZE(cyfunctions); i++) {
