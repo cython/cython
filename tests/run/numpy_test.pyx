@@ -2,6 +2,7 @@
 # cannot be named "numpy" in order to not clash with the numpy module!
 
 cimport numpy as np
+cimport cython
 
 def little_endian():
     cdef int endian_detector = 1
@@ -35,7 +36,7 @@ try:
      [[ 16.  17.  18.  19.]
       [ 20.  21.  22.  23.]]]
     6.0 0.0 13.0 8.0
-    
+
     >>> obj_array()
     [a 1 {}]
     a 1 {}
@@ -501,5 +502,70 @@ def test_point_record():
         test[i].x = i
         test[i].y = -i
     print repr(test).replace('<', '!').replace('>', '!')
+
+def test_fused_ndarray_dtype(np.ndarray[cython.floating, ndim=1] a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_ndarray_dtype.__signatures__)
+    ['double', 'float']
+    >>> test_fused_ndarray_dtype[cython.double](np.arange(10, dtype=np.float64))
+    ndarray[double,ndim=1] ndarray[double,ndim=1] 5.0 6.0
+    >>> test_fused_ndarray_dtype[cython.float](np.arange(10, dtype=np.float32))
+    ndarray[float,ndim=1] ndarray[float,ndim=1] 5.0 6.0
+    """
+    cdef np.ndarray[cython.floating, ndim=1] b = a
+    print cython.typeof(a), cython.typeof(b), a[5], b[6]
+
+double_array = np.linspace(0, 1, 100)
+int32_array = np.arange(100, dtype=np.int32)
+
+cdef fused fused_external:
+    np.int32_t
+    np.int64_t
+    np.float32_t
+    np.float64_t
+
+def test_fused_external(np.ndarray[fused_external, ndim=1] a):
+    """
+    >>> import cython
+    >>> sorted(test_fused_external.__signatures__)
+    ['float32_t', 'float64_t', 'int32_t', 'int64_t']
+
+    >>> test_fused_external["float64_t"](double_array)
+    float64
+
+    >>> test_fused_external["int32_t"](int32_array)
+    int32
+
+    >>> test_fused_external(np.arange(100)) # fix in next release
+    Traceback (most recent call last):
+        ...
+    TypeError: No matching signature found
+    """
+    print a.dtype
+
+cdef fused fused_buffers:
+    np.ndarray[np.int32_t, ndim=1]
+    np.int64_t[::1]
+
+def test_fused_buffers(fused_buffers arg):
+    """
+    >>> sorted(test_fused_buffers.__signatures__)
+    ['int64_t[::1]', 'ndarray[int32_t,ndim=1]']
+    """
+
+cpdef _fused_cpdef_buffers(np.ndarray[fused_external] a):
+    print a.dtype
+
+def test_fused_cpdef_buffers():
+    """
+    >>> test_fused_cpdef_buffers()
+    int32
+    int32
+    """
+    _fused_cpdef_buffers[np.int32_t](int32_array)
+
+    cdef np.ndarray[np.int32_t] typed_array = int32_array
+    _fused_cpdef_buffers(typed_array)
 
 include "numpy_common.pxi"

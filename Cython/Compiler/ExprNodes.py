@@ -13,6 +13,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object)
 
 import sys
+import copy
 import operator
 
 from Errors import error, warning, warn_once, InternalError, CompileError
@@ -33,6 +34,8 @@ import Symtab
 import Options
 from Cython import Utils
 from Annotate import AnnotationItem
+from NumpySupport import numpy_transform_attribute_node, \
+         should_apply_numpy_hack
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
@@ -488,10 +491,20 @@ class ExprNode(Node):
     # ---------------- Code Generation -----------------
 
     def make_owned_reference(self, code):
-        #  If result is a pyobject, make sure we own
-        #  a reference to it.
+        """
+        If result is a pyobject, make sure we own a reference to it.
+        If the result is in a temp, it is already a new reference.
+        """
         if self.type.is_pyobject and not self.result_in_temp():
             code.put_incref(self.result(), self.ctype())
+
+    def make_owned_memoryviewslice(self, code):
+        """
+        Make sure we own the reference to this memoryview slice.
+        """
+        if not self.result_in_temp():
+            code.put_incref_memoryviewslice(self.result(),
+                                            have_gil=self.in_nogil_context)
 
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
@@ -623,7 +636,7 @@ class ExprNode(Node):
                         return self
 
             if src_type.is_fused:
-                error(self.pos, "Type is not specific")
+                error(self.pos, "Type is not specialized")
             else:
                 error(self.pos, "Cannot coerce to a type that is not specialized")
 
@@ -2586,8 +2599,9 @@ class IndexNode(ExprNode):
         self.nogil = env.nogil
 
         if buffer_access or self.memslice_index:
-            if self.base.type.is_memoryviewslice and not self.base.is_name:
-                self.base = self.base.coerce_to_temp(env)
+            #if self.base.type.is_memoryviewslice and not self.base.is_name:
+            #    self.base = self.base.coerce_to_temp(env)
+            self.base = self.base.coerce_to_simple(env)
 
             self.indices = indices
             self.index = None
@@ -2724,7 +2738,7 @@ class IndexNode(ExprNode):
         specific_types = []
         positions = []
 
-        if self.index.is_name:
+        if self.index.is_name or self.index.is_attribute:
             positions.append(self.index.pos)
             specific_types.append(self.index.analyse_as_type(env))
         elif isinstance(self.index, TupleNode):
@@ -3042,7 +3056,8 @@ class IndexNode(ExprNode):
         if self.base.is_name:
             entry = self.base.entry
         else:
-            assert self.base.is_temp
+            # SimpleCallNode is_simple is not consistent with coerce_to_simple
+            assert self.base.is_simple() or self.base.is_temp
             cname = self.base.result()
             entry = Symtab.Entry(cname, cname, self.base.type, self.base.pos)
 
@@ -3451,6 +3466,19 @@ class SliceNode(ExprNode):
         code.put_gotref(self.py_result())
         if self.is_literal:
             code.put_giveref(self.py_result())
+
+    def __deepcopy__(self, memo):
+        """
+        There is a copy bug in python 2.4 for slice objects.
+        """
+        return SliceNode(
+            self.pos,
+            start=copy.deepcopy(self.start, memo),
+            stop=copy.deepcopy(self.stop, memo),
+            step=copy.deepcopy(self.step, memo),
+            is_temp=self.is_temp,
+            is_literal=self.is_literal,
+            constant_result=self.constant_result)
 
 
 class CallNode(ExprNode):
@@ -4417,9 +4445,13 @@ class AttributeNode(ExprNode):
             if entry:
                 if obj_type.is_extension_type and entry.name == "__weakref__":
                     error(self.pos, "Illegal use of special attribute __weakref__")
-                # methods need the normal attribute lookup
+
+                # def methods need the normal attribute lookup
                 # because they do not have struct entries
-                if entry.is_variable or entry.is_cmethod:
+                # fused function go through assignment synthesis
+                # (foo = pycfunction(foo_func_obj)) and need to go through
+                # regular Python lookup as well
+                if (entry.is_variable and not entry.fused_cfunction) or entry.is_cmethod:
                     self.type = entry.type
                     self.member = entry.cname
                     return
@@ -4429,10 +4461,8 @@ class AttributeNode(ExprNode):
                     # attribute.
                     pass
         # NumPy hack
-        if (getattr(self.obj, 'type', None) and
-                obj_type.is_extension_type and
-                obj_type.objstruct_cname == 'PyArrayObject'):
-            from NumpySupport import numpy_transform_attribute_node
+        if (getattr(self.obj, 'type', None) and obj_type.is_extension_type
+            and should_apply_numpy_hack(obj_type)):
             replacement_node = numpy_transform_attribute_node(self)
             # Since we can't actually replace our node yet, we only grasp its
             # type, and then the replacement happens in
@@ -4440,7 +4470,6 @@ class AttributeNode(ExprNode):
             self.type = replacement_node.type
             if replacement_node is not self:
                 return
-        
         # If we get here, the base object is not a struct/union/extension
         # type, or it is an extension type and the attribute is either not
         # declared or is declared as a Python method. Treat it as a Python
@@ -7244,7 +7273,7 @@ class CythonArrayNode(ExprNode):
         else:
             return error()
 
-        if not base_type.same_as(array_dtype):
+        if not (base_type.same_as(array_dtype) or base_type.is_void):
             return error(self.operand.pos, ERR_BASE_TYPE)
         elif self.operand.type.is_array and len(array_dimension_sizes) != ndim:
             return error(self.operand.pos,
@@ -8912,6 +8941,10 @@ class CoercionNode(ExprNode):
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
 class CoerceToMemViewSliceNode(CoercionNode):
+    """
+    Coerce an object to a memoryview slice. This holds a new reference in
+    a managed temp.
+    """
 
     def __init__(self, arg, dst_type, env):
         assert dst_type.is_memoryviewslice

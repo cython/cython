@@ -18,7 +18,8 @@ from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
 from Cython.Compiler.Code import UtilityCode
-
+from Cython.Compiler.NumpySupport import (should_apply_numpy_hack,
+                                          numpy_transform_attribute_node)
 import copy
 
 
@@ -1495,12 +1496,15 @@ if VALUE is not None:
             self.fused_function = None
 
             if node.py_func:
+                # Create PyCFunction nodes for each specialization
                 node.stats.insert(0, node.py_func)
                 node.py_func = self.visit(node.py_func)
                 pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func,
                                                                  True)
                 pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
                 node.resulting_fused_function = pycfunc
+
+                # Create assignment node for our def function
                 node.fused_func_assignment = self._create_assignment(
                               node.py_func, ExprNodes.CloneNode(pycfunc), env)
         else:
@@ -1781,7 +1785,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         """
         self.visit_Node(node)
 
-        if node.is_fused_index and node.type is not PyrexTypes.error_type:
+        if node.is_fused_index and not node.type.is_error:
             node = node.base
         elif node.memslice_ellipsis_noop:
             # memoryviewslice[...] expression, drop the IndexNode
@@ -1792,8 +1796,8 @@ class AnalyseExpressionsTransform(CythonTransform):
         self.visitchildren(node)
 
         type = node.obj.type
-        if type.is_extension_type and type.objstruct_cname == 'PyArrayObject':
-            from NumpySupport import numpy_transform_attribute_node
+        if (not node.type.is_error and type.is_extension_type and
+            should_apply_numpy_hack(type)):
             node = numpy_transform_attribute_node(node)
 
         self.visitchildren(node)
@@ -2603,8 +2607,8 @@ class ReplaceFusedTypeChecks(VisitorTransform):
                 else:
                     types = PyrexTypes.get_specialized_types(type2)
 
-                    for specific_type in types:
-                        if type1.same_as(specific_type):
+                    for specialized_type in types:
+                        if type1.same_as(specialized_type):
                             if op == 'in':
                                 return true_node
                             else:

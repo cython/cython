@@ -439,6 +439,10 @@ class CNameDeclaratorNode(CDeclaratorNode):
             else:
                 self.name = base_type.declaration_code("", for_display=1, pyrex=1)
                 base_type = py_object_type
+
+        if base_type.is_fused and env.fused_to_specific:
+            base_type = base_type.specialize(env.fused_to_specific)
+
         self.type = base_type
         return self, base_type
 
@@ -982,6 +986,9 @@ class TemplatedTypeNode(CBaseTypeNode):
                     dimension = dimension)
                 self.type = self.array_declarator.analyse(base_type, env)[1]
 
+        if self.type.is_fused and env.fused_to_specific:
+            self.type = self.type.specialize(env.fused_to_specific)
+
         return self.type
 
 class CComplexBaseTypeNode(CBaseTypeNode):
@@ -1031,8 +1038,8 @@ class FusedTypeNode(CBaseTypeNode):
             else:
                 types.append(type)
 
-        if len(self.types) == 1:
-            return types[0]
+        # if len(self.types) == 1:
+        #     return types[0]
 
         return PyrexTypes.FusedType(types, name=self.name)
 
@@ -2279,7 +2286,6 @@ class FusedCFuncDefNode(StatListNode):
                 else:
                     node.py_func.fused_py_func = self.py_func
                     node.entry.as_variable = self.py_func.entry
-
         # Copy the nodes as AnalyseDeclarationsTransform will prepend
         # self.py_func to self.stats, as we only want specialized
         # CFuncDefNodes in self.nodes
@@ -2294,9 +2300,9 @@ class FusedCFuncDefNode(StatListNode):
         Create a copy of the original def or lambda function for specialized
         versions.
         """
-        fused_types = PyrexTypes.unique(
+        fused_compound_types = PyrexTypes.unique(
             [arg.type for arg in self.node.args if arg.type.is_fused])
-        permutations = PyrexTypes.get_all_specialized_permutations(fused_types)
+        permutations = PyrexTypes.get_all_specialized_permutations(fused_compound_types)
 
         if self.node.entry in env.pyfunc_entries:
             env.pyfunc_entries.remove(self.node.entry)
@@ -2311,7 +2317,7 @@ class FusedCFuncDefNode(StatListNode):
             copied_node.analyse_declarations(env)
             self.create_new_local_scope(copied_node, env, fused_to_specific)
             self.specialize_copied_def(copied_node, cname, self.node.entry,
-                                       fused_to_specific, fused_types)
+                                       fused_to_specific, fused_compound_types)
 
             PyrexTypes.specialize_entry(copied_node.entry, cname)
             copied_node.entry.used = True
@@ -2420,11 +2426,9 @@ class FusedCFuncDefNode(StatListNode):
         """Specialize the copy of a DefNode given the copied node,
         the specialization cname and the original DefNode entry"""
         type_strings = [
-            fused_type.specialize(f2s).typeof_name()
+            PyrexTypes.specialization_signature_string(fused_type, f2s)
                 for fused_type in fused_types
         ]
-        #type_strings = [f2s[fused_type].typeof_name()
-        #                    for fused_type in fused_types]
 
         node.specialized_signature_string = ', '.join(type_strings)
 
@@ -2574,7 +2578,7 @@ def __pyx_fused_cpdef(signatures, args, kwargs):
 
     candidates = []
     for sig in signatures:
-        match_found = True
+        match_found = [x for x in dest_sig if x]
         for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
             if dst_type is not None and match_found:
                 match_found = src_type == dst_type
@@ -5355,7 +5359,7 @@ class ReturnStatNode(StatNode):
                     "%s = %s;" % (
                         Naming.retval_cname,
                         self.value.result_as(self.return_type)))
-                self.value.generate_post_assignment_code(code)
+            self.value.generate_post_assignment_code(code)
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:

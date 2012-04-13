@@ -767,11 +767,45 @@ class BufferType(BaseType):
     def as_argument_type(self):
         return self
 
+    def specialize(self, values):
+        dtype = self.dtype.specialize(values)
+        if dtype is not self.dtype:
+            return BufferType(self.base, dtype, self.ndim, self.mode,
+                              self.negative_indices, self.cast)
+        return self
+
     def __getattr__(self, name):
         return getattr(self.base, name)
 
     def __repr__(self):
         return "<BufferType %r>" % self.base
+
+    def __str__(self):
+        # avoid ', ', as fused functions split the signature string on ', '
+        if self.cast:
+            cast_str = ',cast=True'
+        else:
+            cast_str = ''
+
+        return "%s[%s,ndim=%d%s]" % (self.base, self.dtype, self.ndim,
+                                      cast_str)
+
+    def assignable_from(self, other_type):
+        if other_type.is_buffer:
+            return (self.same_as(other_type, compare_base=False) and
+                    self.base.assignable_from(other_type.base))
+
+        return self.base.assignable_from(other_type)
+
+    def same_as(self, other_type, compare_base=True):
+        if not other_type.is_buffer:
+            return other_type.same_as(self.base)
+
+        return (self.dtype.same_as(other_type.dtype) and
+                self.ndim == other_type.ndim and
+                self.mode == other_type.mode and
+                self.cast == other_type.cast and
+                (not compare_base or self.base.same_as(other_type.base)))
 
 
 class PyObjectType(PyrexType):
@@ -2631,6 +2665,31 @@ def _get_all_specialized_permutations(fused_types, id="", f2s=()):
 
     return result
 
+def specialization_signature_string(fused_compound_type, fused_to_specific):
+    """
+    Return the signature for a specialization of a fused type. e.g.
+
+        floating[:] ->
+            'float' or 'double'
+
+        cdef fused ft:
+            float[:]
+            double[:]
+
+        ft ->
+            'float[:]' or 'double[:]'
+
+        integral func(floating) ->
+            'int (*func)(float)' or ...
+    """
+    fused_types = fused_compound_type.get_fused_types()
+    if len(fused_types) == 1:
+        fused_type = fused_types[0]
+    else:
+        fused_type = fused_compound_type
+
+    return fused_type.specialize(fused_to_specific).typeof_name()
+
 def get_specialized_types(type):
     """
     Return a list of specialized types sorted in reverse order in accordance
@@ -2640,10 +2699,15 @@ def get_specialized_types(type):
 
     if isinstance(type, FusedType):
         result = type.types
+        for specialized_type in result:
+            specialized_type.specialization_string = specialized_type.typeof_name()
     else:
         result = []
         for cname, f2s in get_all_specialized_permutations(type.get_fused_types()):
-            result.append(type.specialize(f2s))
+            specialized_type = type.specialize(f2s)
+            specialized_type.specialization_string = (
+                            specialization_signature_string(type, f2s))
+            result.append(specialized_type)
 
     return sorted(result)
 

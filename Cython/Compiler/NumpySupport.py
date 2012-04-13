@@ -2,20 +2,31 @@
 # the NumPy ABI changed so that the shape, ndim, strides, etc. fields were
 # no longer available, however the use of these were so entrenched in
 # Cython codes
-
-import PyrexTypes
-import ExprNodes
+import os
 from StringEncoding import EncodedString
 
+def should_apply_numpy_hack(obj_type):
+    if not obj_type.is_extension_type or obj_type.objstruct_cname != 'PyArrayObject':
+        return False
+    from Scanning import FileSourceDescriptor
+    from Main import standard_include_path
+    type_source = obj_type.pos[0]
+    if isinstance(type_source, FileSourceDescriptor):
+        type_source_path = os.path.abspath(os.path.normpath(type_source.filename))
+        return type_source_path == os.path.join(standard_include_path, 'numpy.pxd')
+    else:
+        return False
 
 def numpy_transform_attribute_node(node):
+    import PyrexTypes
+    import ExprNodes
     assert isinstance(node, ExprNodes.AttributeNode)
 
     if node.obj.type.objstruct_cname != 'PyArrayObject':
         return node
 
     pos = node.pos
-    numpy_pxd_scope = node.obj.entry.type.scope.parent_scope
+    numpy_pxd_scope = node.obj.type.scope.parent_scope
         
     def macro_call_node(numpy_macro_name):
         array_node = node.obj
