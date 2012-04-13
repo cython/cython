@@ -938,7 +938,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
 
 include_debugger = sys.version_info[:2] > (2, 5)
 
-def collect_unittests(path, module_prefix, suite, selectors):
+def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
     def file_matches(filename):
         return filename.startswith("Test") and filename.endswith(".py")
 
@@ -970,6 +970,8 @@ def collect_unittests(path, module_prefix, suite, selectors):
                     modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
                     if not [ 1 for match in selectors if match(modulename) ]:
                         continue
+                    if [ 1 for match in exclude_selectors if match(modulename) ]:
+                        continue
                     module = __import__(modulename)
                     for x in modulename.split('.')[1:]:
                         module = getattr(module, x)
@@ -977,7 +979,7 @@ def collect_unittests(path, module_prefix, suite, selectors):
 
 
 
-def collect_doctests(path, module_prefix, suite, selectors):
+def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
     def package_matches(dirname):
         if dirname == 'Debugger' and not include_debugger:
             return False
@@ -1004,6 +1006,8 @@ def collect_doctests(path, module_prefix, suite, selectors):
                 filepath = filepath[:-len(".py")]
                 modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
                 if not [ 1 for match in selectors if match(modulename) ]:
+                    continue
+                if [ 1 for match in exclude_selectors if match(modulename) ]:
                     continue
                 if 'in_gdb' in modulename:
                     # These should only be imported from gdb.
@@ -1549,10 +1553,10 @@ def main():
     test_suite = unittest.TestSuite()
 
     if options.unittests:
-        collect_unittests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
+        collect_unittests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors, exclude_selectors)
 
     if options.doctests:
-        collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
+        collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors, exclude_selectors)
 
     if options.filetests and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
