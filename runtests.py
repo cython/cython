@@ -136,7 +136,11 @@ def get_openmp_compiler_flags(language):
 
     output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
 
-    compiler_version = matcher(output).group(1)
+    gcc_version = matcher(output)
+    if not gcc_version:
+        return None # not gcc - FIXME: do something about other compilers
+
+    compiler_version = gcc_version.group(1)
     if compiler_version and compiler_version.split('.') >= ['4', '2']:
         return '-fopenmp', '-fopenmp'
 
