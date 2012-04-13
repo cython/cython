@@ -1649,16 +1649,16 @@ class ClassScope(Scope):
             return entry
         if name == "classmethod":
             # We don't want to use the builtin classmethod here 'cause it won't do the
-            # right thing in this scope (as the class memebers aren't still functions).
+            # right thing in this scope (as the class members aren't still functions).
             # Don't want to add a cfunction to this scope 'cause that would mess with
             # the type definition, so we just return the right entry.
-            self.use_utility_code(Code.UtilityCode.load_cached("ClassMethod", "CythonFunction.c"))
             entry = Entry(
                 "classmethod",
                 "__Pyx_Method_ClassMethod",
                 PyrexTypes.CFuncType(
                     py_object_type,
                     [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
+            entry.utility_code_definition = Code.UtilityCode.load_cached("ClassMethod", "CythonFunction.c")
             entry.is_cfunction = 1
         return entry
 
