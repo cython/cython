@@ -1491,7 +1491,7 @@ def main():
         pool.close()
         pool.join()
         if errors:
-            print "Errors for shards %s" % ", ".join([str(e) for e in errors])
+            print("Errors for shards %s" % ", ".join([str(e) for e in errors]))
             return_code = 1
         else:
             return_code = 0
