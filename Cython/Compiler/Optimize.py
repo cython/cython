@@ -157,8 +157,10 @@ class IterationTransform(Visitor.VisitorTransform):
         # C array (slice) iteration?
         if iterator.type.is_ptr or iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator, reversed=reversed)
-        if iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
-            return self._transform_string_iteration(node, iterator, reversed=reversed)
+        if iterator.type is Builtin.bytes_type:
+            return self._transform_bytes_iteration(node, iterator, reversed=reversed)
+        if iterator.type is Builtin.unicode_type:
+            return self._transform_unicode_iteration(node, iterator, reversed=reversed)
 
         # the rest is based on function calls
         if not isinstance(iterator, ExprNodes.SimpleCallNode):
@@ -233,16 +235,6 @@ class IterationTransform(Visitor.VisitorTransform):
 
         return self._optimise_for_loop(node, arg, reversed=True)
 
-    PyUnicode_AS_UNICODE_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_py_unicode_ptr_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
-            ])
-
-    PyUnicode_GET_SIZE_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_py_ssize_t_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
-            ])
-
     PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_char_ptr_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
@@ -253,35 +245,25 @@ class IterationTransform(Visitor.VisitorTransform):
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
             ])
 
-    def _transform_string_iteration(self, node, slice_node, reversed=False):
-        if slice_node.type is Builtin.unicode_type:
-            unpack_func = "PyUnicode_AS_UNICODE"
-            len_func = "PyUnicode_GET_SIZE"
-            unpack_func_type = self.PyUnicode_AS_UNICODE_func_type
-            len_func_type = self.PyUnicode_GET_SIZE_func_type
-        elif slice_node.type is Builtin.bytes_type:
-            target_type = node.target.type
-            if not target_type.is_int:
-                # bytes iteration returns bytes objects in Py2, but
-                # integers in Py3
-                return node
-            unpack_func = "PyBytes_AS_STRING"
-            unpack_func_type = self.PyBytes_AS_STRING_func_type
-            len_func = "PyBytes_GET_SIZE"
-            len_func_type = self.PyBytes_GET_SIZE_func_type
-        else:
+    def _transform_bytes_iteration(self, node, slice_node, reversed=False):
+        target_type = node.target.type
+        if not target_type.is_int:
+            # bytes iteration returns bytes objects in Py2, but
+            # integers in Py3
             return node
 
         unpack_temp_node = UtilNodes.LetRefNode(
             slice_node.as_none_safe_node("'NoneType' is not iterable"))
 
         slice_base_node = ExprNodes.PythonCapiCallNode(
-            slice_node.pos, unpack_func, unpack_func_type,
+            slice_node.pos, "PyBytes_AS_STRING",
+            self.PyBytes_AS_STRING_func_type,
             args = [unpack_temp_node],
             is_temp = 0,
             )
         len_node = ExprNodes.PythonCapiCallNode(
-            slice_node.pos, len_func, len_func_type,
+            slice_node.pos, "PyBytes_GET_SIZE",
+            self.PyBytes_GET_SIZE_func_type,
             args = [unpack_temp_node],
             is_temp = 0,
             )
@@ -300,6 +282,93 @@ class IterationTransform(Visitor.VisitorTransform):
                     is_temp = 1,
                     ),
                 reversed = reversed))
+
+    PyUnicode_GET_LENGTH_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+        ])
+
+    PyUnicode_KIND_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+        ])
+
+    PyUnicode_READ_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ucs4_type, [
+            PyrexTypes.CFuncTypeArg("kind", PyrexTypes.c_int_type, None),
+            PyrexTypes.CFuncTypeArg("data", PyrexTypes.c_void_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_py_ssize_t_type, None)
+        ])
+
+    PyUnicode_DATA_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_void_ptr_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+        ])
+
+    def _transform_unicode_iteration(self, node, slice_node, reversed=False):
+        unpack_temp_node = UtilNodes.LetRefNode(
+            slice_node.as_none_safe_node("'NoneType' is not iterable"))
+
+        start_node = ExprNodes.IntNode(
+            node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
+        end_node = ExprNodes.PythonCapiCallNode(
+            slice_node.pos, "__Pyx_PyUnicode_GET_LENGTH",
+            self.PyUnicode_GET_LENGTH_func_type,
+            args = [unpack_temp_node],
+            is_temp = not reversed,
+            )
+
+        if reversed:
+            relation1, relation2 = '>', '>='
+            start_node, end_node = end_node, start_node
+        else:
+            relation1, relation2 = '<=', '<'
+
+        counter = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        counter_temp = counter.ref(node.target.pos)
+
+        kind_temp = UtilNodes.LetRefNode(
+            ExprNodes.PythonCapiCallNode(
+                slice_node.pos, "__Pyx_PyUnicode_KIND",
+                self.PyUnicode_KIND_func_type,
+                args = [unpack_temp_node],
+                is_temp = False,
+                ))
+        data_temp = UtilNodes.LetRefNode(
+            ExprNodes.PythonCapiCallNode(
+                slice_node.pos, "__Pyx_PyUnicode_DATA",
+                self.PyUnicode_DATA_func_type,
+                args = [unpack_temp_node],
+                is_temp = False,
+                ))
+
+        target_assign = Nodes.SingleAssignmentNode(
+            pos = node.target.pos,
+            lhs = node.target,
+            rhs = ExprNodes.PythonCapiCallNode(
+                slice_node.pos, "__Pyx_PyUnicode_READ",
+                self.PyUnicode_READ_func_type,
+                args = [kind_temp, data_temp, counter_temp],
+                is_temp = 0,
+                ))
+        body = Nodes.StatListNode(
+            node.pos,
+            stats = [target_assign, node.body])
+
+        loop_node = Nodes.ForFromStatNode(
+            node.pos,
+            bound1=start_node, relation1=relation1,
+            target=counter_temp,
+            relation2=relation2, bound2=end_node,
+            step=None, body=body,
+            else_clause=node.else_clause,
+            from_range=True)
+
+        loop_node = UtilNodes.TempsBlockNode(
+            node.pos, temps=[counter], body=loop_node)
+        for temp in (kind_temp, data_temp, unpack_temp_node): # last is outermost temp
+            loop_node = UtilNodes.LetNode(temp, loop_node)
+        return loop_node
 
     def _transform_carray_iteration(self, node, slice_node, reversed=False):
         neg_step = False
