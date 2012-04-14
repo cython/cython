@@ -29,14 +29,11 @@ static CYTHON_INLINE int __Pyx_PyUnicodeBufferContainsUCS4(Py_UNICODE* buffer, P
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
 #if CYTHON_PEP393_ENABLED
-    Py_ssize_t i;
-    int kind;
-    void* udata;
-    Py_ssize_t length;
-    kind = PyUnicode_KIND(unicode);
+    const int kind = PyUnicode_KIND(unicode);
     if (likely(kind != PyUnicode_WCHAR_KIND)) {
-        udata = PyUnicode_DATA(unicode);
-        length = PyUnicode_GET_LENGTH(unicode);
+        Py_ssize_t i;
+        const void* udata = PyUnicode_DATA(unicode);
+        const Py_ssize_t length = PyUnicode_GET_LENGTH(unicode);
         for (i=0; i < length; i++) {
             if (unlikely(character == PyUnicode_READ(kind, udata, i))) return 1;
         }
