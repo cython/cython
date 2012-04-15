@@ -34,8 +34,6 @@ import Symtab
 import Options
 from Cython import Utils
 from Annotate import AnnotationItem
-from NumpySupport import numpy_transform_attribute_node, \
-         should_apply_numpy_hack
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
@@ -4460,16 +4458,6 @@ class AttributeNode(ExprNode):
                     # method of an extension type, so we treat it like a Python
                     # attribute.
                     pass
-        # NumPy hack
-        if (getattr(self.obj, 'type', None) and obj_type.is_extension_type
-            and should_apply_numpy_hack(obj_type)):
-            replacement_node = numpy_transform_attribute_node(self)
-            # Since we can't actually replace our node yet, we only grasp its
-            # type, and then the replacement happens in
-            # AnalyseExpresssionsTransform...
-            self.type = replacement_node.type
-            if replacement_node is not self:
-                return
         # If we get here, the base object is not a struct/union/extension
         # type, or it is an extension type and the attribute is either not
         # declared or is declared as a Python method. Treat it as a Python
