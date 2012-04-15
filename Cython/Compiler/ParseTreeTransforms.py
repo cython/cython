@@ -18,8 +18,7 @@ from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
 from Cython.Compiler.Code import UtilityCode
-from Cython.Compiler.NumpySupport import (should_apply_numpy_hack,
-                                          numpy_transform_attribute_node)
+
 import copy
 
 
@@ -1798,8 +1797,8 @@ class AnalyseExpressionsTransform(CythonTransform):
         #print node.dump()
         #return node
         type = node.obj.type
-        if (not node.type.is_error and type.is_extension_type and
-            should_apply_numpy_hack(type)):
+        if type.is_extension_type and type.objstruct_cname == 'PyArrayObject':
+            from NumpySupport import numpy_transform_attribute_node
             node = numpy_transform_attribute_node(node)
 
         self.visitchildren(node)
