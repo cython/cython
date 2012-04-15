@@ -181,11 +181,11 @@ def reversed_unicode_slice(unicode u):
     return result
 
 @cython.test_assert_path_exists('//ForFromStatNode')
-def reversed_unicode_slice_step(unicode u):
+def reversed_unicode_slice_neg_step(unicode u):
     """
     >>> print(''.join(_reversed(unicode_string[-2:1:-1])))
     cDE
-    >>> print(''.join(reversed_unicode_slice_step(unicode_string)))
+    >>> print(''.join(reversed_unicode_slice_neg_step(unicode_string)))
     cDE
     """
     result = []
@@ -194,15 +194,93 @@ def reversed_unicode_slice_step(unicode u):
     return result
 
 @cython.test_assert_path_exists('//ForFromStatNode')
-def reversed_unicode_slice_step_only(unicode u):
+def reversed_unicode_slice_pos_step(unicode u):
+    """
+    >>> print(''.join(_reversed(unicode_string[1:-2:1])))
+    Dcb
+    >>> print(''.join(reversed_unicode_slice_pos_step(unicode_string)))
+    Dcb
+    """
+    result = []
+    for c in reversed(u[1:-2:1]):
+        result.append(c)
+    return result
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unicode_slice_start_pos_step(unicode u):
+    """
+    >>> print(''.join(_reversed(unicode_string[2::1])))
+    FEDc
+    >>> print(''.join(reversed_unicode_slice_start_pos_step(unicode_string)))
+    FEDc
+    """
+    result = []
+    for c in reversed(u[2::1]):
+        result.append(c)
+    return result
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unicode_slice_start_neg_step(unicode u):
+    """
+    >>> print(''.join(_reversed(unicode_string[3::-1])))
+    abcD
+    >>> print(''.join(reversed_unicode_slice_start_neg_step(unicode_string)))
+    abcD
+    """
+    result = []
+    for c in reversed(u[3::-1]):
+        result.append(c)
+    return result
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unicode_slice_end_pos_step(unicode u):
+    """
+    >>> print(''.join(_reversed(unicode_string[:-2:1])))
+    Dcba
+    >>> print(''.join(reversed_unicode_slice_end_pos_step(unicode_string)))
+    Dcba
+    """
+    result = []
+    for c in reversed(u[:-2:1]):
+        result.append(c)
+    return result
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unicode_slice_end_neg_step(unicode u):
+    """
+    >>> print(''.join(_reversed(unicode_string[:-3:-1])))
+    EF
+    >>> print(''.join(reversed_unicode_slice_end_neg_step(unicode_string)))
+    EF
+    """
+    result = []
+    for c in reversed(u[:-3:-1]):
+        result.append(c)
+    return result
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unicode_slice_neg_step_only(unicode u):
     """
     >>> print(''.join(_reversed(unicode_string[::-1])))
     abcDEF
-    >>> print(''.join(reversed_unicode_slice_step_only(unicode_string)))
+    >>> print(''.join(reversed_unicode_slice_neg_step_only(unicode_string)))
     abcDEF
     """
     result = []
     for c in reversed(u[::-1]):
+        result.append(c)
+    return result
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unicode_slice_pos_step_only(unicode u):
+    """
+    >>> print(''.join(_reversed(unicode_string[::1])))
+    FEDcba
+    >>> print(''.join(reversed_unicode_slice_pos_step_only(unicode_string)))
+    FEDcba
+    """
+    result = []
+    for c in reversed(u[::1]):
         result.append(c)
     return result
 
