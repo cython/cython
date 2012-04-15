@@ -4458,17 +4458,6 @@ class AttributeNode(ExprNode):
                     # method of an extension type, so we treat it like a Python
                     # attribute.
                     pass
-        # NumPy hack
-        if obj_type.is_extension_type and obj_type.objstruct_cname == 'PyArrayObject':
-            from NumpySupport import numpy_transform_attribute_node
-            replacement_node = numpy_transform_attribute_node(self)
-            # Since we can't actually replace our node yet, we only grasp its
-            # type, and then the replacement happens in
-            # AnalyseExpresssionsTransform...
-            self.type = replacement_node.type
-            if replacement_node is not self:
-                return
-        
         # If we get here, the base object is not a struct/union/extension
         # type, or it is an extension type and the attribute is either not
         # declared or is declared as a Python method. Treat it as a Python
