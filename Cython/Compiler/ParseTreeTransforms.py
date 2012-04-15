@@ -1800,8 +1800,6 @@ class AnalyseExpressionsTransform(CythonTransform):
         if type.is_extension_type and type.objstruct_cname == 'PyArrayObject':
             from NumpySupport import numpy_transform_attribute_node
             node = numpy_transform_attribute_node(node)
-
-        self.visitchildren(node)
         return node
 
 class FindInvalidUseOfFusedTypes(CythonTransform):
