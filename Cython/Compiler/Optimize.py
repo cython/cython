@@ -283,14 +283,20 @@ class IterationTransform(Visitor.VisitorTransform):
                     ),
                 reversed = reversed))
 
+    PyUnicode_READY_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("s", PyrexTypes.py_object_type, None)
+        ],
+        exception_value='-1')
+
     PyUnicode_GET_LENGTH_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+            PyrexTypes.CFuncTypeArg("s", PyrexTypes.py_object_type, None)
         ])
 
     PyUnicode_KIND_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_int_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+            PyrexTypes.CFuncTypeArg("s", PyrexTypes.py_object_type, None)
         ])
 
     PyUnicode_READ_func_type = PyrexTypes.CFuncType(
@@ -302,7 +308,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
     PyUnicode_DATA_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_void_ptr_type, [
-            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+            PyrexTypes.CFuncTypeArg("s", PyrexTypes.py_object_type, None)
         ])
 
     def _transform_unicode_iteration(self, node, slice_node, reversed=False):
@@ -349,7 +355,7 @@ class IterationTransform(Visitor.VisitorTransform):
                 slice_node.pos, "__Pyx_PyUnicode_READ",
                 self.PyUnicode_READ_func_type,
                 args = [kind_temp, data_temp, counter_temp],
-                is_temp = 0,
+                is_temp = False,
                 ))
         body = Nodes.StatListNode(
             node.pos,
@@ -366,9 +372,21 @@ class IterationTransform(Visitor.VisitorTransform):
 
         loop_node = UtilNodes.TempsBlockNode(
             node.pos, temps=[counter], body=loop_node)
-        for temp in (kind_temp, data_temp, unpack_temp_node): # last is outermost temp
+        for temp in (kind_temp, data_temp):
             loop_node = UtilNodes.LetNode(temp, loop_node)
-        return loop_node
+
+        setup_node = Nodes.ExprStatNode(
+            node.pos,
+            expr = ExprNodes.PythonCapiCallNode(
+                slice_node.pos, "__Pyx_PyUnicode_READY",
+                self.PyUnicode_READY_func_type,
+                args = [unpack_temp_node],
+                is_temp = True,
+                result_is_used = False,
+                ))
+        return UtilNodes.LetNode(
+            unpack_temp_node,
+            Nodes.StatListNode(node.pos, stats=[setup_node, loop_node]))
 
     def _transform_carray_iteration(self, node, slice_node, reversed=False):
         neg_step = False

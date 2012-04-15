@@ -119,6 +119,7 @@
 /* new Py3.3 unicode type (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
   #define CYTHON_PEP393_ENABLED 1
+  #define __Pyx_PyUnicode_READY(u)        PyUnicode_READY(u)
   #define __Pyx_PyUnicode_KIND(u)         PyUnicode_KIND(u)
   #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
   #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
@@ -126,6 +127,7 @@
   #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
 #else
   #define CYTHON_PEP393_ENABLED 0
+  #define __Pyx_PyUnicode_READY(u)        (0)
   #define __Pyx_PyUnicode_KIND(u)         (0)    /* PyUnicode_WCHAR_KIND */
   #define __Pyx_PyUnicode_DATA(u)         PyUnicode_AS_UNICODE(u)
   #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_SIZE(u)
