@@ -4,7 +4,6 @@
 import numpy as np
 cimport numpy as np
 
-int64_array = np.ones((3, 2), dtype=np.int64)
 
 def f():
     """
@@ -15,7 +14,7 @@ def f():
     shape[1] 2
     strides 16 8
     """
-    cdef np.ndarray x = int64_array
+    cdef np.ndarray x = np.ones((3, 2), dtype=np.int64)
     cdef int i
     cdef Py_ssize_t j, k
     cdef char *p
@@ -24,7 +23,7 @@ def f():
     with nogil:
         i = x.ndim
     print 'ndim', i
-
+    
     with nogil:
         p = x.data
     print 'data', (<np.int64_t*>p)[0]
@@ -43,12 +42,4 @@ def f():
         j = x.strides[0]
         k = x.strides[1]
     print 'strides', j, k
-
-def test_non_namenode_attribute_access(obj):
-    """
-    >>> test_non_namenode_attribute_access(int64_array)
-    data 1
-    """
-    # Try casting, resulting in an AttributeNode with a TypeCastNode as object
-    # and 'data' as attribute
-    print "data", (<np.int64_t *> (<np.ndarray> obj).data)[0]
+    
