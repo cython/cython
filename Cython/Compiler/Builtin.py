@@ -457,6 +457,8 @@ builtin_types_table = [
     ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),  # FIXME: Py3 mode?
                                     BuiltinMethod("keys",  "T",   "O", "PyDict_Keys"),   # FIXME: Py3 mode?
                                     BuiltinMethod("values","T",   "O", "PyDict_Values"), # FIXME: Py3 mode?
+                                    BuiltinMethod("clear", "T",   "r", "__Pyx_PyDict_Clear",
+                                                  utility_code = UtilityCode.load_cached("py_dict_clear", "Optimize.c")),
                                     BuiltinMethod("copy",  "T",   "T", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    [BuiltinAttribute('start'),

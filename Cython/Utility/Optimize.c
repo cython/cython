@@ -309,11 +309,7 @@ static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *d
 
 /////////////// py_dict_clear.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Clear(PyObject* d) {
-    PyDict_Clear(d);
-    Py_INCREF(Py_None);
-    return Py_None;
-}
+#define __Pyx_PyDict_Clear(d) (PyDict_Clear(d), 0)
 
 /////////////// dict_iter.proto ///////////////
 

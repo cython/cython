@@ -2288,34 +2288,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     ### methods of builtin types
 
-    PyDict_Clear_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_void_type, [
-            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
-            ])
-
-    PyDict_Clear_Retval_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
-            ])
-
-    def _handle_simple_method_dict_clear(self, node, args, is_unbound_method):
-        """Optimise dict.clear() differently, depending on the use (or
-        non-use) of the return value.
-        """
-        if len(args) != 1:
-            return node
-        if node.result_is_used:
-            return self._substitute_method_call(
-                node, "__Pyx_PyDict_Clear", self.PyDict_Clear_Retval_func_type,
-                'clear', is_unbound_method, args,
-                may_return_none=True, is_temp=True,
-                utility_code=load_c_utility('py_dict_clear')
-                ).coerce_to(node.type, self.current_env)
-        else:
-            return self._substitute_method_call(
-                node, "PyDict_Clear", self.PyDict_Clear_func_type,
-                'clear', is_unbound_method, args, is_temp=False)
-
     PyObject_Append_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),

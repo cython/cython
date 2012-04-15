@@ -68,6 +68,9 @@ def set_clear(set s):
     """
     >>> set_clear(_set([1,2,3])) is None
     True
+    >>> set_clear(None)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'clear'
     """
     s.clear()
     return s.clear()
@@ -92,6 +95,9 @@ def dict_clear(dict d):
     """
     >>> dict_clear({1:2,3:4}) is None
     True
+    >>> dict_clear(None)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'clear'
     """
     d.clear()
     return d.clear()
