@@ -18,8 +18,7 @@ from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
 from Cython.Compiler.Code import UtilityCode
-from Cython.Compiler.NumpySupport import (should_apply_numpy_hack,
-                                          numpy_transform_attribute_node)
+
 import copy
 
 
@@ -1748,7 +1747,6 @@ if VALUE is not None:
 
 
 class AnalyseExpressionsTransform(CythonTransform):
-    # Also handles NumPy
 
     def visit_ModuleNode(self, node):
         self.env_stack = [node.scope]
@@ -1790,20 +1788,9 @@ class AnalyseExpressionsTransform(CythonTransform):
         elif node.memslice_ellipsis_noop:
             # memoryviewslice[...] expression, drop the IndexNode
             node = node.base
+
         return node
 
-    def visit_AttributeNode(self, node):
-        # Note: Expression analysis for attributes has already happened
-        # at this point (by recursive calls starting from FuncDefNode)
-        #print node.dump()
-        #return node
-        type = node.obj.type
-        if (not node.type.is_error and type.is_extension_type and
-            should_apply_numpy_hack(type)):
-            node = numpy_transform_attribute_node(node)
-
-        self.visitchildren(node)
-        return node
 
 class FindInvalidUseOfFusedTypes(CythonTransform):
 
