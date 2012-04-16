@@ -1854,6 +1854,8 @@ class CClassScope(ClassScope):
             error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
                   (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
+        if cname is None:
+            cname = c_safe_identifier(name)
         if entry:
             if not entry.is_cfunction:
                 warning(pos, "'%s' redeclared  " % name, 0)
@@ -1866,7 +1868,7 @@ class CClassScope(ClassScope):
                 elif type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     pass
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    entry = self.add_cfunction(name, type, pos, cname or name, visibility='ignore', modifiers=modifiers)
+                    entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                     defining = 1
                 else:
                     error(pos, "Signature not compatible with previous declaration")
@@ -1876,7 +1878,7 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C method '%s' not previously declared in definition part of"
                     " extension type" % name)
-            entry = self.add_cfunction(name, type, pos, cname or name,
+            entry = self.add_cfunction(name, type, pos, cname,
                                        visibility, modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
