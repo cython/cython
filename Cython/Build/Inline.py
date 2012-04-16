@@ -1,5 +1,5 @@
-import tempfile
 import sys, os, re, inspect
+import imp
 
 try:
     import hashlib
@@ -137,16 +137,13 @@ def cython_inline(code,
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
-    try:
-        if not os.path.exists(lib_dir):
-            os.makedirs(lib_dir)
-        if lib_dir not in sys.path:
-            sys.path.append(lib_dir)
-        if force:
-            raise ImportError
-        else:
-            __import__(module_name)
-    except ImportError:
+
+    so_ext = [ ext for ext,_,mod_type in imp.get_suffixes() if mod_type == imp.C_EXTENSION ][0]
+    module_path = os.path.join(lib_dir, module_name+so_ext)
+
+    if not os.path.exists(lib_dir):
+        os.makedirs(lib_dir)
+    if force or not os.path.isfile(module_path):
         cflags = []
         c_include_dirs = []
         qualified = re.compile(r'([.\w]+)[.]')
@@ -187,8 +184,10 @@ def __invoke(%(params)s):
         build_extension.build_lib  = lib_dir
         build_extension.run()
         _code_cache[key] = module_name
+
+    module = imp.load_dynamic(module_name, module_path)
     arg_list = [kwds[arg] for arg in arg_names]
-    return __import__(module_name).__invoke(*arg_list)
+    return module.__invoke(*arg_list)
 
 non_space = re.compile('[^ ]')
 def strip_common_indent(code):
