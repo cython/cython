@@ -50,16 +50,18 @@ def path_exists(path):
     # figure out if a PEP 302 loader is around
     try:
         loader = __loader__
-        # XXX the code below assumes as 'zipimport.zipimporter' instance
+        # XXX the code below assumes a 'zipimport.zipimporter' instance
         # XXX should be easy to generalize, but too lazy right now to write it
-        if path.startswith(loader.archive):
-            nrmpath = os.path.normpath(path)
-            arcname = nrmpath[len(loader.archive)+1:]
-            try:
-                loader.get_data(arcname)
-                return True
-            except IOError:
-                return False
+        archive_path = getattr(loader, 'archive', None)
+        if archive_path:
+            normpath = os.path.normpath(path)
+            if normpath.startswith(archive_path):
+                arcname = normpath[len(archive_path)+1:]
+                try:
+                    loader.get_data(arcname)
+                    return True
+                except IOError:
+                    return False
     except NameError:
         pass
     return False
