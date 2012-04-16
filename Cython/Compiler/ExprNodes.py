@@ -9572,12 +9572,31 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
         goto bad;
     #if PY_VERSION_HEX >= 0x02050000
     {
-        PyObject *py_level = PyInt_FromLong(level);
-        if (!py_level)
-            goto bad;
-        module = PyObject_CallFunctionObjArgs(py_import,
-            name, global_dict, empty_dict, list, py_level, NULL);
-        Py_DECREF(py_level);
+        #if PY_VERSION_HEX >= 0x03030000
+        if (level == -1) {
+            /* try relative import first */
+            PyObject *py_level = PyInt_FromLong(1);
+            if (!py_level)
+                goto bad;
+            module = PyObject_CallFunctionObjArgs(py_import,
+                name, global_dict, empty_dict, list, py_level, NULL);
+            Py_DECREF(py_level);
+            if (!module) {
+                if (!PyErr_ExceptionMatches(PyExc_ImportError))
+                    goto bad;
+                PyErr_Clear();
+                level = 0; /* try absolute import on failure */
+            }
+        }
+        #endif
+        if (!module) {
+            PyObject *py_level = PyInt_FromLong(level);
+            if (!py_level)
+                goto bad;
+            module = PyObject_CallFunctionObjArgs(py_import,
+                name, global_dict, empty_dict, list, py_level, NULL);
+            Py_DECREF(py_level);
+        }
     }
     #else
     if (level>0) {
