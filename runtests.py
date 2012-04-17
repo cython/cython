@@ -693,7 +693,10 @@ class CythonCompileTestCase(unittest.TestCase):
 
 class CythonRunTestCase(CythonCompileTestCase):
     def shortDescription(self):
-        return "compiling (%s) and running %s" % (self.language, self.module)
+        if self.cython_only:
+            return CythonCompileTestCase.shortDescription(self)
+        else:
+            return "compiling (%s) and running %s" % (self.language, self.module)
 
     def run(self, result=None):
         if result is None:
@@ -1427,7 +1430,6 @@ def main():
 
     options, cmd_args = parser.parse_args()
 
-    ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
     
     if sys.version_info[0] >= 3:
