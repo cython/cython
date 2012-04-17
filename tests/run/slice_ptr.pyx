@@ -20,8 +20,11 @@ def double_ptr_slice(x, L, int a, int b):
         for i, a in enumerate(L):
             L_c[i] = L[i]
         assert (x in L_c[:b]) == (x in L[:b])
+        assert (x not in L_c[:b]) == (x not in L[:b])
         assert (x in L_c[a:b]) == (x in L[a:b])
+        assert (x not in L_c[a:b]) == (x not in L[a:b])
         assert (x in L_c[a:b:2]) == (x in L[a:b:2])
+        assert (x not in L_c[a:b:2]) == (x not in L[a:b:2])
     finally:
         free(L_c)
 
@@ -43,8 +46,11 @@ def void_ptr_slice(py_x, L, int a, int b):
         for i, a in enumerate(L):
             L_c[i] = <void*>L[i]
         assert (x in L_c[:b]) == (py_x in L[:b])
+        assert (x not in L_c[:b]) == (py_x not in L[:b])
         assert (x in L_c[a:b]) == (py_x in L[a:b])
+        assert (x not in L_c[a:b]) == (py_x not in L[a:b])
         assert (x in L_c[a:b:2]) == (py_x in L[a:b:2])
+        assert (x not in L_c[a:b:2]) == (py_x not in L[a:b:2])
     finally:
         free(L_c)
 
