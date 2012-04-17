@@ -65,16 +65,6 @@ class IterationTransform(Visitor.VisitorTransform):
     - for-in-enumerate is replaced by an external counter variable
     - for-in-range loop becomes a plain C for loop
     """
-    PyDict_Size_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_py_ssize_t_type, [
-            PyrexTypes.CFuncTypeArg("dict",  PyrexTypes.py_object_type, None),
-            ])
-
-    PyDict_Size_name = EncodedString("PyDict_Size")
-
-    PyDict_Size_entry = Symtab.Entry(
-        PyDict_Size_name, PyDict_Size_name, PyDict_Size_func_type)
-
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_ModuleNode(self, node):
