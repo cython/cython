@@ -305,6 +305,21 @@ def test_nested_yield():
     """
     yield (yield (yield 1))
 
+def test_sum_of_yields(n):
+    """
+    >>> g = test_sum_of_yields(3)
+    >>> next(g)
+    (0, 0)
+    >>> g.send(1)
+    (0, 1)
+    >>> g.send(1)
+    (1, 2)
+    """
+    x = 0
+    x += yield (0, x)
+    x += yield (0, x)
+    yield (1, x)
+
 def test_nested_gen(n):
     """
     >>> [list(a) for a in test_nested_gen(5)]
