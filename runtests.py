@@ -1458,10 +1458,11 @@ def main():
 
     coverage = None
     if options.coverage or options.coverage_xml or options.coverage_html:
-        if not options.shard_count and options.shard_num < 0:
+        if options.shard_count <= 1 and options.shard_num < 0:
             if not WITH_CYTHON:
                 options.coverage = options.coverage_xml = options.coverage_html = False
             else:
+                print("Enabling coverage analysis")
                 from coverage import coverage as _coverage
                 coverage = _coverage(branch=True)
                 coverage.erase()
