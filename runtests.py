@@ -1456,14 +1456,16 @@ def main():
 
     WITH_CYTHON = options.with_cython
 
+    coverage = None
     if options.coverage or options.coverage_xml or options.coverage_html:
-        if not WITH_CYTHON:
-            options.coverage = options.coverage_xml = options.coverage_html = False
-        else:
-            from coverage import coverage as _coverage
-            coverage = _coverage(branch=True)
-            coverage.erase()
-            coverage.start()
+        if not options.shard_count and options.shard_num < 0:
+            if not WITH_CYTHON:
+                options.coverage = options.coverage_xml = options.coverage_html = False
+            else:
+                from coverage import coverage as _coverage
+                coverage = _coverage(branch=True)
+                coverage.erase()
+                coverage.start()
 
     if WITH_CYTHON:
         global CompilationOptions, pyrex_default_options, cython_compile
@@ -1496,7 +1498,7 @@ def main():
         else:
             return_code = 0
     else:
-        _, return_code = runtests(options, cmd_args)
+        _, return_code = runtests(options, cmd_args, coverage)
     print("ALL DONE")
 
 
@@ -1513,7 +1515,7 @@ def runtests_callback(args):
     options.shard_num = shard_num
     return runtests(options, cmd_args)
 
-def runtests(options, cmd_args):
+def runtests(options, cmd_args, coverage=None):
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
@@ -1660,7 +1662,7 @@ def runtests(options, cmd_args):
 
     result = test_runner.run(test_suite)
 
-    if options.coverage or options.coverage_xml or options.coverage_html:
+    if coverage is not None:
         coverage.stop()
         ignored_modules = ('Options', 'Version', 'DebugFlags', 'CmdLine')
         modules = [ module for name, module in sys.modules.items()
