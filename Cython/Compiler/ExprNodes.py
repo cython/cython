@@ -9448,7 +9448,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
         goto bad;
     #if PY_VERSION_HEX >= 0x02050000
     {
-        #if PY_VERSION_HEX >= 0x03030000
+        #if PY_MAJOR_VERSION >= 3
         if (level == -1) {
             if (strchr(__Pyx_MODULE_NAME, '.')) {
                 /* try package relative import first */
