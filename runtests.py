@@ -388,7 +388,7 @@ class TestBuilder(object):
             for test in self.build_tests(test_class, path, workdir,
                                          module, mode == 'error', tags):
                 suite.addTest(test)
-            if mode == 'run' and ext == '.py':
+            if mode == 'run' and ext == '.py' and not cython_only:
                 # additionally test file in real Python
                 suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
                 
