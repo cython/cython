@@ -1466,7 +1466,7 @@ def main():
             else:
                 print("Enabling coverage analysis")
                 from coverage import coverage as _coverage
-                coverage = _coverage(branch=True)
+                coverage = _coverage(branch=True, omit=['Test*'])
                 coverage.erase()
                 coverage.start()
 
