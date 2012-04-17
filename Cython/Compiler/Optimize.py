@@ -348,15 +348,19 @@ class IterationTransform(Visitor.VisitorTransform):
                 is_temp = False,
                 ))
 
+        target_value = ExprNodes.PythonCapiCallNode(
+            slice_node.pos, "__Pyx_PyUnicode_READ",
+            self.PyUnicode_READ_func_type,
+            args = [kind_temp, data_temp, counter_temp],
+            is_temp = False,
+            )
+        if target_value.type != node.target.type:
+            target_value = target_value.coerce_to(node.target.type,
+                                                  self.current_scope)
         target_assign = Nodes.SingleAssignmentNode(
             pos = node.target.pos,
             lhs = node.target,
-            rhs = ExprNodes.PythonCapiCallNode(
-                slice_node.pos, "__Pyx_PyUnicode_READ",
-                self.PyUnicode_READ_func_type,
-                args = [kind_temp, data_temp, counter_temp],
-                is_temp = False,
-                ))
+            rhs = target_value)
         body = Nodes.StatListNode(
             node.pos,
             stats = [target_assign, node.body])

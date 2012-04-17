@@ -341,6 +341,16 @@ def loop_over_unicode():
         pass
     return typeof(uchar)
 
+def loop_over_unicode_literal():
+    """
+    >>> print( loop_over_unicode_literal() )
+    Py_UCS4
+    """
+    # Py_UCS4 can represent any Unicode character
+    for uchar in u'abcdefg':
+        pass
+    return typeof(uchar)
+
 def loop_over_int_array():
     """
     >>> print( loop_over_int_array() )

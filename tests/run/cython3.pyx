@@ -81,6 +81,16 @@ def str_type_is_unicode():
     cdef str s = 'abc'
     return str, s
 
+def loop_over_unicode_literal():
+    """
+    >>> print( loop_over_unicode_literal() )
+    Py_UCS4
+    """
+    # Py_UCS4 can represent any Unicode character
+    for uchar in 'abcdefg':
+        pass
+    return cython.typeof(uchar)
+
 def list_comp():
     """
     >>> list_comp()

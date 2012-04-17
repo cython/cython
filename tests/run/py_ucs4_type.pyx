@@ -201,6 +201,17 @@ def count_lower_case_characters_slice_reversed(unicode ustring):
              count += 1
     return count
 
+def loop_object_over_unicode_literal():
+    """
+    >>> print(loop_object_over_unicode_literal())
+    abcdefg
+    """
+    cdef object uchar
+    chars = []
+    for uchar in u'abcdefg':
+        chars.append(uchar)
+    return u''.join(chars)
+
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//ForInStatNode')
 def iter_and_in():
