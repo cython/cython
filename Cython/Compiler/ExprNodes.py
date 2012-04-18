@@ -5814,7 +5814,7 @@ class ClassNode(ExprNode, ModuleNameMixin):
             self.doc = self.doc.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
-        env.use_utility_code(create_class_utility_code);
+        env.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
         #TODO(craig,haoyu) This should be moved to a better place
         self.set_mod_name(env)
 
@@ -5864,7 +5864,7 @@ class Py3ClassNode(ExprNode):
     gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
-        code.globalstate.use_utility_code(create_py3class_utility_code)
+        code.globalstate.use_utility_code(UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
         cname = code.intern_identifier(self.name)
         code.putln(
             '%s = __Pyx_Py3ClassCreate(%s, %s, %s, %s, %s); %s' % (
@@ -6006,7 +6006,7 @@ class PyClassMetaclassNode(ExprNode):
         return True
 
     def generate_result_code(self, code):
-        code.globalstate.use_utility_code(get_py3_metaclass_utility_code)
+        code.globalstate.use_utility_code(UtilityCode.load_cached("Py3MetaclassGet", "ObjectHandling.c"))
         code.putln(
             "%s = __Pyx_Py3MetaclassGet(%s, %s); %s" % (
                 self.result(),
@@ -9680,172 +9680,6 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     PyErr_Format(PyExc_TypeError, "Cannot convert %.200s to %.200s",
                  Py_TYPE(obj)->tp_name, type->tp_name);
     return 0;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
-find_py2_metaclass_utility_code = UtilityCode(
-proto = '''
-static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases); /*proto*/
-''',
-impl = '''
-static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
-    PyObject *metaclass;
-    /* Default metaclass */
-#if PY_MAJOR_VERSION < 3
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = PyObject_GetAttrString(base, (char *)"__class__");
-        if (!metaclass) {
-            PyErr_Clear();
-            metaclass = (PyObject*) Py_TYPE(base);
-        }
-    } else {
-        metaclass = (PyObject *) &PyClass_Type;
-    }
-#else
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = (PyObject*) Py_TYPE(base);
-    } else {
-        metaclass = (PyObject *) &PyType_Type;
-    }
-#endif
-    Py_INCREF(metaclass);
-    return metaclass;
-}
-''')
-
-create_class_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
-                                   PyObject *modname); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
-                                   PyObject *modname) {
-    PyObject *result;
-    PyObject *metaclass;
-
-    if (PyDict_SetItemString(dict, "__module__", modname) < 0)
-        return NULL;
-
-    /* Python2 __metaclass__ */
-    metaclass = PyDict_GetItemString(dict, "__metaclass__");
-    if (metaclass) {
-        Py_INCREF(metaclass);
-    } else {
-        metaclass = __Pyx_FindPy2Metaclass(bases);
-    }
-    result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
-    Py_DECREF(metaclass);
-    return result;
-}
-""",
-requires = [find_py2_metaclass_utility_code])
-
-#------------------------------------------------------------------------------------
-
-get_py3_metaclass_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
-    PyObject *metaclass = PyDict_GetItemString(mkw, "metaclass");
-    if (metaclass) {
-        Py_INCREF(metaclass);
-        if (PyDict_DelItemString(mkw, "metaclass") < 0) {
-            Py_DECREF(metaclass);
-            return NULL;
-        }
-        return metaclass;
-    }
-    return __Pyx_FindPy2Metaclass(bases);
-}
-""",
-requires = [find_py2_metaclass_utility_code])
-
-create_py3class_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
-static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
-                                           PyObject *mkw, PyObject *modname, PyObject *doc) {
-    PyObject *prep;
-    PyObject *pargs;
-    PyObject *ns;
-    PyObject *str;
-
-    prep = PyObject_GetAttrString(metaclass, (char *)"__prepare__");
-    if (!prep) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            return NULL;
-        PyErr_Clear();
-        return PyDict_New();
-    }
-    pargs = PyTuple_Pack(2, name, bases);
-    if (!pargs) {
-        Py_DECREF(prep);
-        return NULL;
-    }
-    ns = PyObject_Call(prep, pargs, mkw);
-    Py_DECREF(prep);
-    Py_DECREF(pargs);
-
-    if (ns == NULL)
-        return NULL;
-
-    /* Required here to emulate assignment order */
-    /* XXX: use consts here */
-    #if PY_MAJOR_VERSION >= 3
-    str = PyUnicode_FromString("__module__");
-    #else
-    str = PyString_FromString("__module__");
-    #endif
-    if (!str) {
-        Py_DECREF(ns);
-        return NULL;
-    }
-
-    if (PyObject_SetItem(ns, str, modname) < 0) {
-        Py_DECREF(ns);
-        Py_DECREF(str);
-        return NULL;
-    }
-    Py_DECREF(str);
-    if (doc) {
-        #if PY_MAJOR_VERSION >= 3
-        str = PyUnicode_FromString("__doc__");
-        #else
-        str = PyString_FromString("__doc__");
-        #endif
-        if (!str) {
-            Py_DECREF(ns);
-            return NULL;
-        }
-        if (PyObject_SetItem(ns, str, doc) < 0) {
-            Py_DECREF(ns);
-            Py_DECREF(str);
-            return NULL;
-        }
-        Py_DECREF(str);
-    }
-    return ns;
-}
-
-static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
-                                      PyObject *dict, PyObject *mkw) {
-    PyObject *result;
-    PyObject *margs = PyTuple_Pack(3, name, bases, dict);
-    if (!margs)
-        return NULL;
-    result = PyObject_Call(metaclass, margs, mkw);
-    Py_DECREF(margs);
-    return result;
 }
 """)
 
