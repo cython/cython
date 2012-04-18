@@ -9801,17 +9801,15 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i) {
-    if (likely(o != Py_None)) {
-        if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
-            PyObject *r = Py%(type)s_GET_ITEM(o, i);
-            Py_INCREF(r);
-            return r;
-        }
-        else if ((-Py%(type)s_GET_SIZE(o) <= i) & (i < 0)) {
-            PyObject *r = Py%(type)s_GET_ITEM(o, Py%(type)s_GET_SIZE(o) + i);
-            Py_INCREF(r);
-            return r;
-        }
+    if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
+        PyObject *r = Py%(type)s_GET_ITEM(o, i);
+        Py_INCREF(r);
+        return r;
+    }
+    else if ((-Py%(type)s_GET_SIZE(o) <= i) & (i < 0)) {
+        PyObject *r = Py%(type)s_GET_ITEM(o, Py%(type)s_GET_SIZE(o) + i);
+        Py_INCREF(r);
+        return r;
     }
     return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
 }
@@ -9847,8 +9845,6 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) 
     }
     return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
 }
-""",
-impl = """
 """)
 
 
