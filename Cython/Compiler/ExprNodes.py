@@ -9621,50 +9621,6 @@ bad:
 
 #------------------------------------------------------------------------------------
 
-get_exception_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_GetExcValue(void); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_GetExcValue(void) {
-    PyObject *type = 0, *value = 0, *tb = 0;
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyObject *result = 0;
-    PyThreadState *tstate = PyThreadState_Get();
-    PyErr_Fetch(&type, &value, &tb);
-    PyErr_NormalizeException(&type, &value, &tb);
-    if (PyErr_Occurred())
-        goto bad;
-    if (!value) {
-        value = Py_None;
-        Py_INCREF(value);
-    }
-    tmp_type = tstate->exc_type;
-    tmp_value = tstate->exc_value;
-    tmp_tb = tstate->exc_traceback;
-    tstate->exc_type = type;
-    tstate->exc_value = value;
-    tstate->exc_traceback = tb;
-    /* Make sure tstate is in a consistent state when we XDECREF
-    these objects (XDECREF may run arbitrary code). */
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
-    result = value;
-    Py_XINCREF(result);
-    type = 0;
-    value = 0;
-    tb = 0;
-bad:
-    Py_XDECREF(type);
-    Py_XDECREF(value);
-    Py_XDECREF(tb);
-    return result;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
 cpp_exception_utility_code = UtilityCode(
 proto = """
 #ifndef __Pyx_CppExn2PyErr
