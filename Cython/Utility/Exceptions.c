@@ -330,8 +330,8 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
 /////////////// WriteUnraisableException ///////////////
 //@requires: PyErrFetchRestore
 
-static void __Pyx_WriteUnraisable(const char *name, int clineno,
-                                  int lineno, const char *filename) {
+static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
+                                  CYTHON_UNUSED int lineno, CYTHON_UNUSED const char *filename) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
