@@ -235,6 +235,29 @@ static CYTHON_INLINE int __Pyx_IterFinish(void) {
 #endif
 }
 
+/////////////// DictGetItem.proto ///////////////
+//@requires: RaiseNoneIndexingError
+
+#if PY_MAJOR_VERSION >= 3
+static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
+    PyObject *value;
+    if (unlikely(d == Py_None)) {
+        __Pyx_RaiseNoneIndexingError();
+        return NULL;
+    }
+    value = PyDict_GetItemWithError(d, key);
+    if (unlikely(!value)) {
+        if (!PyErr_Occurred())
+            PyErr_SetObject(PyExc_KeyError, key);
+        return NULL;
+    }
+    Py_INCREF(value);
+    return value;
+}
+#else
+    #define __Pyx_PyDict_GetItem(d, key) PyObject_GetItem(d, key)
+#endif
+
 /////////////// FindPy2Metaclass.proto ///////////////
 
 static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases); /*proto*/

@@ -2916,7 +2916,8 @@ class IndexNode(ExprNode):
                     index_code = self.index.py_result()
                     if self.base.type is dict_type:
                         function = "__Pyx_PyDict_GetItem"
-                        code.globalstate.use_utility_code(getitem_dict_utility_code)
+                        code.globalstate.use_utility_code(
+                            UtilityCode.load_cached("DictGetItem", "ObjectHandling.c"))
                     else:
                         function = "PyObject_GetItem"
                 code.putln(
@@ -9738,32 +9739,6 @@ static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
 }
 """,
 requires = [raise_unbound_local_error_utility_code])
-
-#------------------------------------------------------------------------------------
-
-getitem_dict_utility_code = UtilityCode(
-proto = """
-#if PY_MAJOR_VERSION >= 3
-static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
-    PyObject *value;
-    if (unlikely(d == Py_None)) {
-        __Pyx_RaiseNoneIndexingError();
-        return NULL;
-    }
-    value = PyDict_GetItemWithError(d, key);
-    if (unlikely(!value)) {
-        if (!PyErr_Occurred())
-            PyErr_SetObject(PyExc_KeyError, key);
-        return NULL;
-    }
-    Py_INCREF(value);
-    return value;
-}
-#else
-    #define __Pyx_PyDict_GetItem(d, key) PyObject_GetItem(d, key)
-#endif
-""",
-requires = [raise_noneindex_error_utility_code])
 
 #------------------------------------------------------------------------------------
 
