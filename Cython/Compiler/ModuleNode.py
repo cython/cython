@@ -991,11 +991,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
                         scope.get_refcounted_entries(include_weakref=True)
 
+        new_func_entry = scope.lookup_here("__new__")
+        if base_type or (new_func_entry and new_func_entry.is_special
+                         and not new_func_entry.trivial_signature):
+            unused_marker = ''
+        else:
+            unused_marker = 'CYTHON_UNUSED '
+
         need_self_cast = type.vtabslot_cname or have_entries
         code.putln("")
         code.putln(
-            "static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {"
-                % scope.mangle_internal("tp_new"))
+            "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {"
+                % (scope.mangle_internal("tp_new"), unused_marker, unused_marker))
         if need_self_cast:
             code.putln(
                 "%s;"
@@ -1046,15 +1053,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("p->from_slice.memview = NULL;")
 
-        entry = scope.lookup_here("__new__")
-        if entry and entry.is_special:
-            if entry.trivial_signature:
+        if new_func_entry and new_func_entry.is_special:
+            if new_func_entry.trivial_signature:
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
                 cinit_args = "o, a, k"
             code.putln(
                 "if (%s(%s) < 0) {" %
-                    (entry.func_cname, cinit_args))
+                    (new_func_entry.func_cname, cinit_args))
             code.put_decref_clear("o", py_object_type, nanny=False);
             code.putln(
                 "}")
