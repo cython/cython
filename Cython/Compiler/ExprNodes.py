@@ -9015,7 +9015,7 @@ class PyTypeTestNode(CoercionNode):
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
             if not self.type.is_builtin_type:
-                code.globalstate.use_utility_code(type_test_utility_code)
+                code.globalstate.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
             code.putln(
                 "if (!(%s)) %s" % (
                     self.type.type_test_code(self.arg.py_result(), self.notnone),
@@ -9660,26 +9660,6 @@ bad:
     Py_XDECREF(value);
     Py_XDECREF(tb);
     return result;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
-type_test_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
-""",
-impl = """
-static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
-    if (unlikely(!type)) {
-        PyErr_Format(PyExc_SystemError, "Missing type object");
-        return 0;
-    }
-    if (likely(PyObject_TypeCheck(obj, type)))
-        return 1;
-    PyErr_Format(PyExc_TypeError, "Cannot convert %.200s to %.200s",
-                 Py_TYPE(obj)->tp_name, type->tp_name);
-    return 0;
 }
 """)
 
