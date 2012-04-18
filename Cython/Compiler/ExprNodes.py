@@ -6006,6 +6006,7 @@ class PyClassMetaclassNode(ExprNode):
         return True
 
     def generate_result_code(self, code):
+        code.globalstate.use_utility_code(get_py3_metaclass_utility_code)
         code.putln(
             "%s = __Pyx_Py3MetaclassGet(%s, %s); %s" % (
                 self.result(),
@@ -9746,14 +9747,12 @@ requires = [find_py2_metaclass_utility_code])
 
 #------------------------------------------------------------------------------------
 
-create_py3class_utility_code = UtilityCode(
+get_py3_metaclass_utility_code = UtilityCode(
 proto = """
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
-static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
-static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
 """,
 impl = """
-PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
+static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
     PyObject *metaclass = PyDict_GetItemString(mkw, "metaclass");
     if (metaclass) {
         Py_INCREF(metaclass);
@@ -9765,9 +9764,17 @@ PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
     }
     return __Pyx_FindPy2Metaclass(bases);
 }
+""",
+requires = [find_py2_metaclass_utility_code])
 
-PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw,
-                                    PyObject *modname, PyObject *doc) {
+create_py3class_utility_code = UtilityCode(
+proto = """
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
+static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
+""",
+impl = """
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
+                                           PyObject *mkw, PyObject *modname, PyObject *doc) {
     PyObject *prep;
     PyObject *pargs;
     PyObject *ns;
@@ -9780,19 +9787,12 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
         PyErr_Clear();
         return PyDict_New();
     }
-    pargs = PyTuple_New(2);
+    pargs = PyTuple_Pack(2, name, bases);
     if (!pargs) {
         Py_DECREF(prep);
         return NULL;
     }
-
-    Py_INCREF(name);
-    Py_INCREF(bases);
-    PyTuple_SET_ITEM(pargs, 0, name);
-    PyTuple_SET_ITEM(pargs, 1, bases);
-
     ns = PyObject_Call(prep, pargs, mkw);
-
     Py_DECREF(prep);
     Py_DECREF(pargs);
 
@@ -9837,23 +9837,17 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
     return ns;
 }
 
-PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw) {
+static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
+                                      PyObject *dict, PyObject *mkw) {
     PyObject *result;
-    PyObject *margs = PyTuple_New(3);
+    PyObject *margs = PyTuple_Pack(3, name, bases, dict);
     if (!margs)
         return NULL;
-    Py_INCREF(name);
-    Py_INCREF(bases);
-    Py_INCREF(dict);
-    PyTuple_SET_ITEM(margs, 0, name);
-    PyTuple_SET_ITEM(margs, 1, bases);
-    PyTuple_SET_ITEM(margs, 2, dict);
     result = PyObject_Call(metaclass, margs, mkw);
     Py_DECREF(margs);
     return result;
 }
-""",
-requires = [find_py2_metaclass_utility_code])
+""")
 
 #------------------------------------------------------------------------------------
 
