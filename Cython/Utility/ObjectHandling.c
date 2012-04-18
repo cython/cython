@@ -236,15 +236,10 @@ static CYTHON_INLINE int __Pyx_IterFinish(void) {
 }
 
 /////////////// DictGetItem.proto ///////////////
-//@requires: RaiseNoneIndexingError
 
 #if PY_MAJOR_VERSION >= 3
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
-    if (unlikely(d == Py_None)) {
-        __Pyx_RaiseNoneIndexingError();
-        return NULL;
-    }
     value = PyDict_GetItemWithError(d, key);
     if (unlikely(!value)) {
         if (!PyErr_Occurred())
