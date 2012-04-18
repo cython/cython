@@ -417,6 +417,29 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* iter_obj, Py_ssize_t ori
     return 1;
 }
 
+
+/////////////// unicode_iter.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_init_unicode_iteration(
+    PyObject* ustring, Py_ssize_t *length, void** data, int *kind); /* proto */
+
+/////////////// unicode_iter ///////////////
+
+static CYTHON_INLINE int __Pyx_init_unicode_iteration(
+    PyObject* ustring, Py_ssize_t *length, void** data, int *kind) {
+#if CYTHON_PEP393_ENABLED
+    if (unlikely(PyUnicode_READY(ustring) < 0)) return -1;
+    *kind   = PUnicode_KIND(ustring);
+    *length = PyUnicode_GET_LENGTH(ustring);
+    *data   = PyUnicode_DATA(ustring);
+#else
+    *kind   = 0;
+    *length = PyUnicode_GET_SIZE(ustring);
+    *data   = (void*)PyUnicode_AS_UNICODE(ustring);
+#endif
+    return 0;
+}
+
 /////////////// pyobject_as_double.proto ///////////////
 
 static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
