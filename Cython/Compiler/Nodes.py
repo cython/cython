@@ -3383,8 +3383,10 @@ class DefNodeWrapper(FuncDefNode):
         sig = self.signature
 
         if sig.has_dummy_arg or self.self_in_stararg:
-            arg_code_list.append(
-                "PyObject *%s" % Naming.self_cname)
+            arg_code = "PyObject *%s" % Naming.self_cname
+            if not sig.has_dummy_arg:
+                arg_code = 'CYTHON_UNUSED ' + arg_code
+            arg_code_list.append(arg_code)
 
         for arg in self.args:
             if not arg.is_generic:
@@ -3458,10 +3460,6 @@ class DefNodeWrapper(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
         # generic arguments, if any, including args/kwargs
-        if self.signature.has_dummy_arg and not self.self_in_stararg:
-            # get rid of unused argument warning
-            code.putln("%s = %s;" % (Naming.self_cname, Naming.self_cname))
-
         old_error_label = code.new_error_label()
         our_error_label = code.error_label
         end_label = code.new_label("argument_unpacking_done")
