@@ -1558,7 +1558,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         get_entry = property_scope.lookup_here("__get__")
         code.putln("")
         code.putln(
-            "static PyObject *%s(PyObject *o, void *x) {" %
+            "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" %
                 property_entry.getter_cname)
         code.putln(
                 "return %s(o);" %
@@ -1574,7 +1574,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         del_entry = property_scope.lookup_here("__del__")
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, PyObject *v, void *x) {" %
+            "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" %
                 property_entry.setter_cname)
         code.putln(
                 "if (v) {")
