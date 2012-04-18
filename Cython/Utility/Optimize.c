@@ -429,7 +429,7 @@ static CYTHON_INLINE int __Pyx_init_unicode_iteration(
     PyObject* ustring, Py_ssize_t *length, void** data, int *kind) {
 #if CYTHON_PEP393_ENABLED
     if (unlikely(PyUnicode_READY(ustring) < 0)) return -1;
-    *kind   = PUnicode_KIND(ustring);
+    *kind   = PyUnicode_KIND(ustring);
     *length = PyUnicode_GET_LENGTH(ustring);
     *data   = PyUnicode_DATA(ustring);
 #else
