@@ -2665,10 +2665,11 @@ class IndexNode(ExprNode):
             if base_type.is_pyobject:
                 if self.index.type.is_int:
                     if (not setting
-                        and (base_type in (list_type, tuple_type, unicode_type))
+                        and (base_type in (list_type, tuple_type))
                         and (not self.index.type.signed
                              or not env.directives['wraparound']
-                             or isinstance(self.index, IntNode) and int(self.index.value) >= 0)
+                             or (isinstance(self.index, IntNode) and
+                                 self.index.has_constant_result() and self.index.constant_result >= 0))
                         and not env.directives['boundscheck']):
                         self.is_temp = 0
                     else:
@@ -2847,8 +2848,6 @@ class IndexNode(ExprNode):
             return "PyList_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is tuple_type:
             return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
-        elif self.base.type is unicode_type and self.type.is_unicode_char:
-            return "__Pyx_PyUnicode_READ_CHAR(%s, %s)" % (self.base.result(), self.index.result())
         elif (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
             error(self.pos, "Invalid use of pointer slice")
         else:
