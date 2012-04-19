@@ -9801,6 +9801,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i) {
+#if CYTHON_COMPILING_IN_CPYTHON
     if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
         PyObject *r = Py%(type)s_GET_ITEM(o, i);
         Py_INCREF(r);
@@ -9812,6 +9813,9 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ss
         return r;
     }
     return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
+#else
+    return PySequence_GetItem(o, i);
+#endif
 }
 """ % {'type' : type_name} for type_name in ('List', 'Tuple')
 ]) + """
@@ -9821,6 +9825,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ss
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) {
+#if CYTHON_COMPILING_IN_CPYTHON
     if (PyList_CheckExact(o)) {
         Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
@@ -9843,6 +9848,11 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) 
             return m->sq_item(o, i);
         }
     }
+#else
+    if (PySequence_Check(o)) {
+        return PySequence_GetItem(o, i);
+    }
+#endif
     return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
 }
 """)
