@@ -4,7 +4,7 @@ static {{struct_type_decl}} {{funcname}}(PyObject *);
 
 /////////////// FromPyStructUtility ///////////////
 static {{struct_type_decl}} {{funcname}}(PyObject * o) {
-    {{struct_type_decl}} result = {{init}};
+    {{struct_type_decl}} result;
     PyObject *value = NULL;
 
     if (!PyMapping_Check(o)) {

@@ -2828,7 +2828,7 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_to_py_code is False: return # tri-state-ish
+        if self._convert_to_py_code is False: return None # tri-state-ish
 
         if self._convert_to_py_code is None:
             for member in self.scope.var_entries:
@@ -2846,7 +2846,7 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_from_py_code is False: return # tri-state-ish
+        if self._convert_from_py_code is False: return None # tri-state-ish
 
         if self._convert_from_py_code is None:
             for member in self.scope.var_entries:
@@ -2856,20 +2856,10 @@ class CStructOrUnionType(CType):
                     self._convert_from_py_code = False
                     return False
 
-            forward_decl = (self.entry.visibility != 'extern')
-
-            # Avoid C compiler warnings
-            nesting_depth = 0
-            type = self
-            while type.is_struct_or_union:
-                type = type.scope.var_entries[0].type
-                nesting_depth += 1
-
             context = dict(
                 struct_type_decl = self.declaration_code(""),
                 var_entries = self.scope.var_entries,
                 funcname = self.from_py_function,
-                init = '%s 0 %s' % ('{' * nesting_depth, '}' * nesting_depth)
             )
             self._convert_from_py_code = TempitaUtilityCode.load(
                       "FromPyStructUtility", "TypeConversion.c", context=context)
