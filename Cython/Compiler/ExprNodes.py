@@ -9047,6 +9047,8 @@ class NoneCheckNode(CoercionNode):
         self.exception_message = exception_message
         self.exception_format_args = tuple(exception_format_args or ())
 
+    nogil_check = None # this node only guards an operation that would fail already
+
     def analyse_types(self, env):
         pass
 
