@@ -2161,12 +2161,12 @@ def test_noneslice_index(double[:] m):
     """
     with cython.nonecheck(True):
         try:
-            m[10]
+            a = m[10]
         except Exception, e:
             print e.args[0]
 
         try:
-            m[:]
+            b = m[:]
         except Exception, e:
             print e.args[0]
 
