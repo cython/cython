@@ -410,7 +410,7 @@ cdef class memoryview(object):
         cdef {{memviewslice_name}} tmp_slice, *dst_slice
         dst_slice = get_slice_from_memview(dst, &tmp_slice)
 
-        if self.view.itemsize > sizeof(array):
+        if <size_t>self.view.itemsize > sizeof(array):
             tmp = malloc(self.view.itemsize)
             if tmp == NULL:
                 raise MemoryError
