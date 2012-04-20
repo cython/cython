@@ -16,7 +16,7 @@ static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
 /////////////// RaiseNoneIndexingError ///////////////
 
 static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
 }
 
 /////////////// RaiseNoneIterError.proto ///////////////

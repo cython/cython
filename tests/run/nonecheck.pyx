@@ -19,7 +19,6 @@ def getattr_(MyClass var):
     2
     >>> getattr_(None)
     Traceback (most recent call last):
-    ...
     AttributeError: 'NoneType' object has no attribute 'a'
     >>> setattr_(obj)
     >>> getattr_(obj)
@@ -34,7 +33,6 @@ def setattr_(MyClass var):
     >>> setattr_(obj)
     >>> setattr_(None)
     Traceback (most recent call last):
-    ...
     AttributeError: 'NoneType' object has no attribute 'a'
     """
     var.a = 10
@@ -66,7 +64,6 @@ def check_and_assign(MyClass var):
     >>> obj = MyClass(2, 3)
     >>> check_and_assign(obj)
     Traceback (most recent call last):
-    ...
     AttributeError: 'NoneType' object has no attribute 'a'
     """
     if var is not None:
@@ -79,8 +76,7 @@ def check_buffer_get(object[int] buf):
     """
     >>> check_buffer_get(None)
     Traceback (most recent call last):
-    ...
-    TypeError: 'NoneType' object is unsubscriptable
+    TypeError: 'NoneType' object is not subscriptable
     """
     return buf[0]
 
@@ -89,7 +85,6 @@ def check_buffer_set(object[int] buf):
     """
     >>> check_buffer_set(None)
     Traceback (most recent call last):
-    ...
-    TypeError: 'NoneType' object is unsubscriptable
+    TypeError: 'NoneType' object is not subscriptable
     """
     buf[0] = 1

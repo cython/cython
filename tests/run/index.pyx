@@ -24,7 +24,7 @@ def index_tuple(tuple t, int i):
     IndexError: tuple index out of range
     >>> index_tuple(None, 0)
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is unsubscriptable
+    TypeError: 'NoneType' object is not subscriptable
     """
     return t[i]
 
@@ -41,7 +41,7 @@ def index_list(list L, int i):
     IndexError: list index out of range
     >>> index_list(None, 0)
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is unsubscriptable
+    TypeError: 'NoneType' object is not subscriptable
     """
     return L[i]
 
@@ -65,7 +65,7 @@ def index_object(object o, int i):
     IndexError: string index out of range
     >>> index_object(None, 0)
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is unsubscriptable
+    TypeError: 'NoneType' object is not subscriptable
     """
     return o[i]
 
