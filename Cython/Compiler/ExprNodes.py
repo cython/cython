@@ -2685,8 +2685,9 @@ class IndexNode(ExprNode):
                 elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
                     self.type = base_type
                 else:
-                    if base_type is dict_type:
-                        self.base = self.base.as_none_safe_node("'NoneType' object is unsubscriptable")
+                    if base_type in (list_type, tuple_type, dict_type):
+                        # do the None check explicitly (not in a helper) to allow optimising it away
+                        self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
                     self.type = py_object_type
             else:
                 if base_type.is_ptr or base_type.is_array:
