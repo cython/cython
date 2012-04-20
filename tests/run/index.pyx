@@ -61,11 +61,9 @@ def index_object(object o, int i):
     'z'
     >>> index_object("abcdef...z", 100)
     Traceback (most recent call last):
-    ...
     IndexError: string index out of range
-    >>> index_object(None, 0)
-    Traceback (most recent call last):
-    TypeError: 'NoneType' object is not subscriptable
+    >>> try: index_object(None, 0)
+    ... except TypeError: pass
     """
     return o[i]
 
