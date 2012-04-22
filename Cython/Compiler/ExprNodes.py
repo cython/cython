@@ -6726,7 +6726,9 @@ class GlobalsExprNode(AtomicExprNode):
 
 class FuncLocalsExprNode(DictNode):
     def __init__(self, pos, env):
-        local_vars = [var.name for var in env.entries.values() if var.name]
+        local_vars = [entry.name for entry in env.entries.values()
+                      if entry.name and (entry.type is unspecified_type or
+                                         entry.type.can_coerce_to_pyobject(env))]
         items = [DictItemNode(pos, key=IdentifierStringNode(pos, value=var),
                               value=NameNode(pos, name=var, allow_null=True))
                  for var in local_vars]

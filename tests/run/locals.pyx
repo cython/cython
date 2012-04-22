@@ -71,3 +71,11 @@ def sorted(it):
     l = list(it)
     l.sort()
     return l
+
+def locals_ctype():
+    """
+    >>> locals_ctype()
+    False
+    """
+    cdef int *p = NULL
+    return 'p' in locals()
