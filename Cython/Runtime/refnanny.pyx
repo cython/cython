@@ -15,12 +15,12 @@ LOG_NONE, LOG_ALL = range(2)
 
 @cython.final
 cdef class Context(object):
-    cdef public object name, filename
-    cdef public dict refs
-    cdef public list errors
-    cdef public Py_ssize_t start
+    cdef readonly object name, filename
+    cdef readonly dict refs
+    cdef readonly list errors
+    cdef readonly Py_ssize_t start
 
-    def __init__(self, name, line=0, filename=None):
+    def __cinit__(self, name, line=0, filename=None):
         self.name = name
         self.start = line
         self.filename = filename
