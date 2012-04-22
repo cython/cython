@@ -1178,22 +1178,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "}")
 
-        for entry in py_buffers + memoryview_slices:
+        # Do not traverse memoryview attributes of memoryview slices
+        # When triggered by the GC, it would cause multiple visits (gc_refs
+        # subtractions which is not matched by its reference count!)
+        for entry in py_buffers: # + memoryview_slices:
             if entry.type == PyrexTypes.c_py_buffer_type:
                 cname = entry.cname + ".obj"
             else:
                 # traverse the memoryview object, which should traverse the
                 # object exposing the buffer
-                cname = entry.cname + ".memview"
+                # cname = entry.cname + ".memview"
+                pass
 
             code.putln("if (p->%s) {" % cname)
             code.putln(    "e = (*v)(p->%s, a); if (e) return e;" % cname)
             code.putln("}")
 
-        if cclass_entry.cname == '__pyx_memoryviewslice':
-            code.putln("if (p->from_slice.memview) {")
-            code.putln(     "e = (*v)((PyObject *) p->from_slice.memview, a); if (e) return e;")
-            code.putln("}")
+        #if cclass_entry.cname == '__pyx_memoryviewslice':
+        #    code.putln("if (p->from_slice.memview) {")
+        #    code.putln(     "e = (*v)((PyObject *) p->from_slice.memview, a); if (e) return e;")
+        #    code.putln("}")
 
         code.putln(
                 "return 0;")
@@ -1241,6 +1245,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("Py_XDECREF(tmp);")
 
         for entry in py_buffers:
+            # Note: shouldn't this call __Pyx_ReleaseBuffer ??
             code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
