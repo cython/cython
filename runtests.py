@@ -76,11 +76,16 @@ EXT_DEP_MODULES = {
     'tag:numpy' : 'numpy',
     'tag:pstats': 'pstats',
     'tag:posix' : 'posix',
+    'tag:array' : 'array',
 }
 
 def update_numpy_extension(ext):
     import numpy
     ext.include_dirs.append(numpy.get_include())
+
+def update_pyarray_extension(ext):
+    ext.include_dirs.append(
+        os.path.join(os.path.dirname(DISTDIR), "Cython/Includes/cpython"))
 
 def update_openmp_extension(ext):
     ext.openmp = True
@@ -157,6 +162,7 @@ EXCLUDE_EXT = object()
 
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
+    'tag:array' : update_pyarray_extension,
     'tag:openmp': update_openmp_extension,
 }
 
