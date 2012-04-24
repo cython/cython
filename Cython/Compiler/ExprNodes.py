@@ -6724,16 +6724,32 @@ class GlobalsExprNode(AtomicExprNode):
         code.put_gotref(self.result())
 
 
+class LocalsDictItemNode(DictItemNode):
+    def analyse_types(self, env):
+        self.key.analyse_types(env)
+        self.value.analyse_types(env)
+        self.key = self.key.coerce_to_pyobject(env)
+        if self.value.type.can_coerce_to_pyobject(env):
+            self.value = self.value.coerce_to_pyobject(env)
+        else:
+            self.value = None
+
+
 class FuncLocalsExprNode(DictNode):
     def __init__(self, pos, env):
         local_vars = [entry.name for entry in env.entries.values()
-                      if entry.name and (entry.type is unspecified_type or
-                                         entry.type.can_coerce_to_pyobject(env))]
-        items = [DictItemNode(pos, key=IdentifierStringNode(pos, value=var),
-                              value=NameNode(pos, name=var, allow_null=True))
+                      if entry.name]
+        items = [LocalsDictItemNode(
+            pos, key=IdentifierStringNode(pos, value=var),
+            value=NameNode(pos, name=var, allow_null=True))
                  for var in local_vars]
         DictNode.__init__(self, pos, key_value_pairs=items,
                           exclude_null_values=True)
+
+    def analyse_types(self, env):
+        super(FuncLocalsExprNode, self).analyse_types(env)
+        self.key_value_pairs = [i for i in self.key_value_pairs
+                                if i.value is not None]
 
 
 class PyClassLocalsExprNode(AtomicExprNode):
