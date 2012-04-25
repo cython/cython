@@ -333,6 +333,12 @@ class CTypedefType(BaseType):
     def __repr__(self):
         return "<CTypedefType %s>" % self.typedef_cname
 
+    def __hash__(self):
+        return hash(self.typedef_base_type)
+
+    def __eq__(self, other):
+        return other == self.typedef_base_type
+
     def __str__(self):
         return self.typedef_name
 
