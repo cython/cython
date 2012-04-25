@@ -2146,13 +2146,13 @@ class CPointerBaseType(CType):
 
         if self.is_string:
             if base_type.signed:
-                self.to_py_function = "__Pyx_PyBytes_FromUString"
-                if self.is_ptr:
-                    self.from_py_function = "__Pyx_PyBytes_AsUString"
-            else:
                 self.to_py_function = "PyBytes_FromString"
                 if self.is_ptr:
                     self.from_py_function = "PyBytes_AsString"
+            else:
+                self.to_py_function = "__Pyx_PyBytes_FromUString"
+                if self.is_ptr:
+                    self.from_py_function = "__Pyx_PyBytes_AsUString"
             self.exception_value = "NULL"
 
     def py_type_name(self):
