@@ -5,6 +5,7 @@ that is not supported in certain Python versions but which is supported
 by Cython.
 """
 
+import os
 import sys
 import imp
 
@@ -50,3 +51,15 @@ def importer(modulename, compile=False, version=None):
             return _import_normal(modulename)
         except SyntaxError:
             return _import_compile(modulename)
+
+def importer(modulename):
+    try:
+        # Check for an already compiled module
+        return __import__(modulename, None, None, [''])
+    except ImportError:
+        pass
+
+    dirname = os.path.dirname
+    root = dirname(dirname(dirname(os.path.abspath(__file__))))
+    filename = os.path.join(root, *modulename.split('.')) + ".pyx"
+    return pyximport.load_module(modulename, filename)
