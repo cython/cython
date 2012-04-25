@@ -2141,8 +2141,10 @@ class CArrayType(CType):
     def __init__(self, base_type, size):
         self.base_type = base_type
         self.size = size
-        if base_type in (c_char_type, c_uchar_type, c_schar_type):
-            self.is_string = 1
+        for char_type in (c_char_type, c_uchar_type, c_schar_type):
+            if base_type.same_as(char_type):
+                self.is_string = 1
+                break
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
@@ -2188,6 +2190,10 @@ class CPtrType(CType):
 
     def __init__(self, base_type):
         self.base_type = base_type
+        for char_type in (c_char_type, c_uchar_type, c_schar_type):
+            if base_type.same_as(char_type):
+                self.is_string = 1
+                break
 
     def __repr__(self):
         return "<CPtrType %s>" % repr(self.base_type)
@@ -3218,6 +3224,8 @@ RANK_FLOAT = _rank_to_type_name.index('float')
 UNSIGNED = 0
 SIGNED = 2
 
+error_type =    ErrorType()
+unspecified_type = UnspecifiedType()
 
 py_object_type = PyObjectType()
 
@@ -3308,9 +3316,6 @@ cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
 
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
-
-error_type =    ErrorType()
-unspecified_type = UnspecifiedType()
 
 modifiers_and_name_to_type = {
     #(signed, longness, name) : type
