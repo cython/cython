@@ -333,6 +333,8 @@ builtin_function_table = [
                             ],
                         is_strict_signature = True)),
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
+    BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
+                    utility_code = UtilityCode.load_cached("CallableCheck", "ObjectHandling.c")),
     #('chr',       "",     "",      ""),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
