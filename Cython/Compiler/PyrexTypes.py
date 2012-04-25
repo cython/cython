@@ -2155,12 +2155,6 @@ class CPointerBaseType(CType):
                     self.from_py_function = "__Pyx_PyBytes_AsUString"
             self.exception_value = "NULL"
 
-    def __eq__(self, other):
-        if isinstance(other, CType):
-            if self.is_array and other.is_array or self.is_ptr and other.is_ptr:
-                return self.base_type.same_as(other.base_type)
-        return False
-
     def __hash__(self):
         return hash(self.base_type) + self.is_ptr + 27 # arbitrarily chosen offset
 
@@ -2185,6 +2179,12 @@ class CArrayType(CPointerBaseType):
     def __init__(self, base_type, size):
         super(CArrayType, self).__init__(base_type)
         self.size = size
+
+    def __eq__(self, other):
+        if isinstance(other, CType):
+            if self.is_array and other.is_array and self.size == other.size:
+                return self.base_type.same_as(other.base_type)
+        return False
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
@@ -2225,6 +2225,11 @@ class CPtrType(CPointerBaseType):
 
     is_ptr = 1
     default_value = "0"
+
+    def __eq__(self, other):
+        if isinstance(other, CType) and other.is_ptr:
+            return self.base_type.same_as(other.base_type)
+        return False
 
     def __repr__(self):
         return "<CPtrType %s>" % repr(self.base_type)
