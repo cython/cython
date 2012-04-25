@@ -2144,7 +2144,7 @@ class CPointerBaseType(CType):
                 self.is_string = 1
                 break
 
-        if self.is_string:
+        if self.is_string and not base_type.is_error:
             if base_type.signed:
                 self.to_py_function = "PyBytes_FromString"
                 if self.is_ptr:
