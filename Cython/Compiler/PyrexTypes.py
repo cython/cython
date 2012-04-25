@@ -2155,6 +2155,15 @@ class CPointerBaseType(CType):
                     self.from_py_function = "__Pyx_PyBytes_AsUString"
             self.exception_value = "NULL"
 
+    def __eq__(self, other):
+        if isinstance(other, CType):
+            if self.is_array and other.is_array or self.is_ptr and other.is_ptr:
+                return self.base_type.same_as(other.base_type)
+        return False
+
+    def __hash__(self):
+        return hash(self.base_type) + self.is_ptr + 27 # arbitrarily chosen offset
+
     def py_type_name(self):
         if self.is_string:
             return "bytes"
@@ -3636,20 +3645,14 @@ def parse_basic_type(name):
 
 def c_array_type(base_type, size):
     # Construct a C array type.
-    if base_type is c_char_type:
-        return CCharArrayType(size)
-    elif base_type is error_type:
+    if base_type is error_type:
         return error_type
     else:
         return CArrayType(base_type, size)
 
 def c_ptr_type(base_type):
     # Construct a C pointer type.
-    if base_type is c_char_type:
-        return c_char_ptr_type
-    elif base_type is c_uchar_type:
-        return c_uchar_ptr_type
-    elif base_type is error_type:
+    if base_type is error_type:
         return error_type
     else:
         return CPtrType(base_type)
