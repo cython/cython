@@ -2130,21 +2130,52 @@ impl="""
 #endif
 """)
 
-class CArrayType(CType):
+class CPointerBaseType(CType):
+    # common base type for pointer/array types
+    #
+    #  base_type     CType              Reference type
+
+    subtypes = ['base_type']
+
+    def __init__(self, base_type):
+        self.base_type = base_type
+        for char_type in (c_char_type, c_uchar_type, c_schar_type):
+            if base_type.same_as(char_type):
+                self.is_string = 1
+                break
+
+        if self.is_string:
+            if base_type.signed:
+                self.to_py_function = "__Pyx_PyBytes_FromUString"
+                if self.is_ptr:
+                    self.from_py_function = "__Pyx_PyBytes_AsUString"
+            else:
+                self.to_py_function = "PyBytes_FromString"
+                if self.is_ptr:
+                    self.from_py_function = "PyBytes_AsString"
+            self.exception_value = "NULL"
+
+    def py_type_name(self):
+        if self.is_string:
+            return "bytes"
+        else:
+            return super(CPointerBaseType, self).py_type_name()
+
+    def literal_code(self, value):
+        if self.is_string:
+            assert isinstance(value, str)
+            return '"%s"' % StringEncoding.escape_byte_string(value)
+
+
+class CArrayType(CPointerBaseType):
     #  base_type     CType              Element type
     #  size          integer or None    Number of elements
 
     is_array = 1
 
-    subtypes = ['base_type']
-
     def __init__(self, base_type, size):
-        self.base_type = base_type
+        super(CArrayType, self).__init__(base_type)
         self.size = size
-        for char_type in (c_char_type, c_uchar_type, c_schar_type):
-            if base_type.same_as(char_type):
-                self.is_string = 1
-                break
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
@@ -2180,20 +2211,11 @@ class CArrayType(CType):
         return self.size is not None
 
 
-class CPtrType(CType):
-    #  base_type     CType    Referenced type
+class CPtrType(CPointerBaseType):
+    #  base_type     CType              Reference type
 
     is_ptr = 1
     default_value = "0"
-
-    subtypes = ['base_type']
-
-    def __init__(self, base_type):
-        self.base_type = base_type
-        for char_type in (c_char_type, c_uchar_type, c_schar_type):
-            if base_type.same_as(char_type):
-                self.is_string = 1
-                break
 
     def __repr__(self):
         return "<CPtrType %s>" % repr(self.base_type)
@@ -3110,63 +3132,6 @@ class CEnumType(CType):
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
-
-class CStringType(object):
-    #  Mixin class for C string types.
-
-    is_string = 1
-    is_unicode = 0
-
-    to_py_function = "PyBytes_FromString"
-    from_py_function = "PyBytes_AsString"
-    exception_value = "NULL"
-
-    def literal_code(self, value):
-        assert isinstance(value, str)
-        return '"%s"' % StringEncoding.escape_byte_string(value)
-
-    def py_type_name(self):
-        if self.is_unicode:
-            return "unicode"
-        return "bytes"
-
-class CUTF8CharArrayType(CStringType, CArrayType):
-    #  C 'char []' type.
-
-    is_unicode = 1
-
-    to_py_function = "PyUnicode_DecodeUTF8"
-    exception_value = "NULL"
-
-    def __init__(self, size):
-        CArrayType.__init__(self, c_char_type, size)
-
-class CCharArrayType(CStringType, CArrayType):
-    #  C 'char []' type.
-
-    from_py_function = None
-
-    def __init__(self, size):
-        CArrayType.__init__(self, c_char_type, size)
-
-
-class CCharPtrType(CStringType, CPtrType):
-    # C 'char *' type.
-
-    def __init__(self):
-        CPtrType.__init__(self, c_char_type)
-
-
-class CUCharPtrType(CStringType, CPtrType):
-    # C 'unsigned char *' type.
-
-    to_py_function = "__Pyx_PyBytes_FromUString"
-    from_py_function = "__Pyx_PyBytes_AsUString"
-
-    def __init__(self):
-        CPtrType.__init__(self, c_uchar_type)
-
-
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.
 
@@ -3270,10 +3235,8 @@ c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_void_ptr_type =     CPtrType(c_void_type)
 c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
-c_char_array_type =   CCharArrayType(None)
-c_char_ptr_type =     CCharPtrType()
-c_uchar_ptr_type =    CUCharPtrType()
-c_utf8_char_array_type = CUTF8CharArrayType(None)
+c_char_ptr_type =     CPtrType(c_char_type)
+c_uchar_ptr_type =    CPtrType(c_uchar_type)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 c_py_unicode_ptr_type = CPtrType(c_py_unicode_type)
