@@ -2,8 +2,8 @@
 
 cdef extern from *:
     ctypedef char const_char "const char"
-    ctypedef char const_schar "const signed char"
-    ctypedef char const_uchar "const unsigned char"
+    ctypedef signed char const_schar "const signed char"
+    ctypedef unsigned char const_uchar "const unsigned char"
     ctypedef void const_void "const void"
 
 cdef extern from "string.h" nogil:
