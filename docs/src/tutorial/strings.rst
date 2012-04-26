@@ -26,6 +26,26 @@ as terminator character, as generally known from C.  The above will
 therefore only work correctly for C strings that do not contain null
 bytes.
 
+Besides not working for null bytes, the above is also very inefficient
+for long strings, since Cython has to call ``strlen()`` on the C string
+first to find out the length by counting the bytes up to the terminating
+null byte.  In many cases, the user code will know the length already,
+e.g. because a C function returned it.  In this case, it is much more
+efficient to tell Cython the exact number of bytes by slicing the C
+string::
+
+    cdef char* c_string = NULL
+    cdef Py_ssize_t length = 0
+
+    # get pointer and length from a C function
+    get_a_c_string(&c_string, &length)
+
+    py_bytes_string = c_string[:length]
+
+Here, no additional byte counting is required and ``length`` bytes from
+the ``c_string`` will be copied into the Python bytes object, including
+any null bytes.
+
 Note that the creation of the Python bytes string can fail with an
 exception, e.g. due to insufficient memory.  If you need to ``free()``
 the string after the conversion, you should wrap the assignment in a
@@ -33,7 +53,7 @@ try-finally construct::
 
     cimport stdlib
     cdef bytes py_string
-    cdef char* c_string = c_call_returning_a_c_string()
+    cdef char* c_string = c_call_creating_a_new_c_string()
     try:
         py_string = c_string
     finally:
@@ -52,7 +72,7 @@ keep a reference to the Python string as long as the ``char*`` is in
 use.  Often enough, this only spans the call to a C function that
 receives the pointer as parameter.  Special care must be taken,
 however, when the C function stores the pointer for later use.  Apart
-from keeping a Python reference to the string, no manual memory
+from keeping a Python reference to the string object, no manual memory
 management is required.
 
 Decoding bytes to text
@@ -75,13 +95,7 @@ contains no null bytes::
     cdef char* some_c_string = c_call_returning_a_c_string()
     ustring = some_c_string.decode('UTF-8')
 
-However, this will not work for strings that contain null bytes, and
-it is very inefficient for long strings, since Cython has to call
-``strlen()`` on the C string first to find out the length by counting
-the bytes up to the terminating null byte.  In many cases, the user
-code will know the length already, e.g. because a C function returned
-it.  In this case, it is much more efficient to tell Cython the exact
-number of bytes by slicing the C string::
+And for strings where the length is known::
 
     cdef char* c_string = NULL
     cdef Py_ssize_t length = 0
@@ -91,9 +105,9 @@ number of bytes by slicing the C string::
 
     ustring = c_string[:length].decode('UTF-8')
 
-The same can be used when the string contains null bytes, e.g. when it
-uses an encoding like UCS-4, where each character is encoded in four
-bytes.
+The same should be used when the string contains null bytes, e.g. when
+it uses an encoding like UCS-4, where each character is encoded in four
+bytes most of which tend to be 0.
 
 It is common practice to wrap string conversions (and non-trivial type
 conversions in general) in dedicated functions, as this needs to be
