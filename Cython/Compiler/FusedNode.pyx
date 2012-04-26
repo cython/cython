@@ -679,18 +679,18 @@ class FusedCFuncDefNode(StatListNode):
             else:
                 defaults.append(None)
 
-        for node in self.stats:
-            node.analyse_expressions(env)
-            if isinstance(node, FuncDefNode):
-                for arg, default in zip(node.args, defaults):
+        for stat in self.stats:
+            stat.analyse_expressions(env)
+            if isinstance(stat, FuncDefNode):
+                for arg, default in zip(stat.args, defaults):
                     if default is not None:
                         arg.default = CloneNode(default).coerce_to(arg.type, env)
 
         if self.py_func:
             args = [CloneNode(default) for default in defaults if default]
-            defaults_tuple = TupleNode(self.pos, args=args)
-            defaults_tuple.analyse_types(env, skip_children=True)
-            self.defaults_tuple = ProxyNode(defaults_tuple)
+            self.defaults_tuple = TupleNode(self.pos, args=args)
+            self.defaults_tuple.analyse_types(env, skip_children=True)
+            self.defaults_tuple = ProxyNode(self.defaults_tuple)
             self.code_object = ProxyNode(self.specialized_pycfuncs[0].code_object)
 
             fused_func = self.resulting_fused_function.arg
@@ -698,8 +698,9 @@ class FusedCFuncDefNode(StatListNode):
             fused_func.code_object = CloneNode(self.code_object)
 
             for pycfunc in self.specialized_pycfuncs:
-                pycfunc.defaults_tuple = CloneNode(self.defaults_tuple)
                 pycfunc.code_object = CloneNode(self.code_object)
+                pycfunc.analyse_types(env)
+                pycfunc.defaults_tuple = CloneNode(self.defaults_tuple)
 
     def synthesize_defnodes(self):
         """

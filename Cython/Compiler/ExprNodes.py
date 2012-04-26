@@ -6217,7 +6217,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 env.use_utility_code(fused_function_utility_code)
             else:
                 env.use_utility_code(binding_cfunc_utility_code)
-                self.analyse_default_args(env)
+            self.analyse_default_args(env)
 
         #TODO(craig,haoyu) This should be moved to a better place
         self.set_mod_name(env)
@@ -6240,7 +6240,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 else:
                     arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
                 default_args.append(arg)
-        if nonliteral_objects or nonliteral_objects:
+        if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
             cname = module_scope.next_id(Naming.defaults_struct_prefix)
             scope = Symtab.StructOrUnionScope(cname)
