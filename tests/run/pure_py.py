@@ -1,5 +1,7 @@
 import cython
 
+is_compiled = cython.compiled
+
 NULL = 5
 _NULL = NULL
 
@@ -170,3 +172,27 @@ def test_declare_c_types(n):
     #z01 = cython.declare(cython.floatcomplex, n+1j)
     #z02 = cython.declare(cython.doublecomplex, n+1j)
     #z03 = cython.declare(cython.longdoublecomplex, n+1j)
+
+@cython.ccall
+@cython.returns(cython.double)
+def c_call(x):
+    """
+    Test that a declared return type is honoured when compiled.
+
+    >>> result, return_type = call_ccall(1)
+
+    >>> (not is_compiled and 'double') or return_type
+    'double'
+    >>> (is_compiled and 'int') or return_type
+    'int'
+
+    >>> (not is_compiled and 1.0) or result
+    1.0
+    >>> (is_compiled and 1) or result
+    1
+    """
+    return x
+
+def call_ccall(x):
+    ret = c_call(x)
+    return ret, cython.typeof(ret)

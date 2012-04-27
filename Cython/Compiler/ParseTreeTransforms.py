@@ -1897,7 +1897,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
 
     def visit_DefNode(self, node):
         if 'ccall' in self.directives:
-            node = node.as_cfunction(overridable=True)
+            node = node.as_cfunction(overridable=True, returns=self.directives.get('returns'))
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
