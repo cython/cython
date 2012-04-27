@@ -11,6 +11,10 @@ import imp
 
 import pyximport
 
+# set up the PyxArgs global variable in pyximport (why is that a global :)
+importers = pyximport.install(pyimport=True)
+pyximport.uninstall(*importers)
+
 def importer(modulename, version=None):
     try:
         # Check for an already compiled module
@@ -22,7 +26,7 @@ def importer(modulename, version=None):
     root = dirname(dirname(dirname(os.path.abspath(__file__))))
     filename = os.path.join(root, *modulename.split('.')) + ".pyx"
 
-    if version and version < sys.version_info[:2]:
+    if version and sys.version_info[:2] < version:
         return pyximport.load_module(modulename, filename)
     else:
         mod = imp.new_module(modulename)
