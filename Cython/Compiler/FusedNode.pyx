@@ -748,7 +748,7 @@ class FusedCFuncDefNode(StatListNode):
             code.mark_pos(stat.pos)
             if isinstance(stat, ExprNodes.ExprNode):
                 stat.generate_evaluation_code(code)
-            elif not isinstance(stat, FuncDefNode) or stat.entry.used:
+            elif not isinstance(stat, FuncDefNode): # or stat.entry.used:
                 stat.generate_execution_code(code)
 
         if self.__signatures__:

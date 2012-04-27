@@ -121,6 +121,8 @@ class Entry(object):
     # error_on_uninitialized      Have Control Flow issue an error when this entry is
     #                             used uninitialized
     # cf_used          boolean    Entry is used
+    # is_fused_specialized boolean Whether this entry of a cdef or def function
+    #                              is a specialization
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -180,6 +182,7 @@ class Entry(object):
     prev_entry = None
     might_overflow = 0
     fused_cfunction = None
+    is_fused_specialized = False
     utility_code_definition = None
     in_with_gil_block = 0
     from_cython_utility_code = None

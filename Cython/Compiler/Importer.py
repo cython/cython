@@ -8,6 +8,7 @@ by Cython.
 import os
 import sys
 import imp
+import shutil
 
 import pyximport
 
@@ -33,3 +34,5 @@ def importer(modulename, version=None):
         exec open(filename).read() in mod.__dict__, mod.__dict__
         sys.modules[modulename] = mod
         return mod
+        #shutil.copy(filename, os.path.splitext(filename)[0] + '.py')
+        #return __import__(modulename, None, None, [''])

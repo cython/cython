@@ -2608,6 +2608,7 @@ def specialize_entry(entry, cname):
     """
     Specialize an entry of a copied fused function or method
     """
+    entry.is_fused_specialized = True
     entry.name = get_fused_cname(cname, entry.name)
 
     if entry.is_cmethod:

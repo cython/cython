@@ -2630,7 +2630,7 @@ class DefNode(FuncDefNode):
                 decorator.decorator.analyse_expressions(env)
 
     def needs_assignment_synthesis(self, env, code=None):
-        if self.is_wrapper or self.specialized_cpdefs:
+        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
             return False
         if self.is_staticmethod:
             return True
