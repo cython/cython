@@ -736,6 +736,8 @@ class FusedCFuncDefNode(StatListNode):
                 stat.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
+        # Note: all def function specialization are wrapped in PyCFunction
+        # nodes in the self.__signatures__ dictnode.
         for default in self.defaults:
             if default is not None:
                 default.generate_evaluation_code(code)
@@ -748,7 +750,7 @@ class FusedCFuncDefNode(StatListNode):
             code.mark_pos(stat.pos)
             if isinstance(stat, ExprNodes.ExprNode):
                 stat.generate_evaluation_code(code)
-            elif not isinstance(stat, FuncDefNode): # or stat.entry.used:
+            else:
                 stat.generate_execution_code(code)
 
         if self.__signatures__:
