@@ -12,10 +12,10 @@ def _empty_decorator(x):
 def locals(**arg_types):
     return _empty_decorator
 
-def test_assert_path_exists(path):
+def test_assert_path_exists(*paths):
     return _empty_decorator
 
-def test_fail_if_path_exists(path):
+def test_fail_if_path_exists(*paths):
     return _empty_decorator
 
 class _EmptyDecoratorAndManager(object):
