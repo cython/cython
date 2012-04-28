@@ -251,8 +251,8 @@ cdef extern from "numpy/arrayobject.h":
 
             if not hasfields:
                 t = descr.type_num
-                if ((descr.byteorder == '>' and little_endian) or
-                    (descr.byteorder == '<' and not little_endian)):
+                if ((descr.byteorder == c'>' and little_endian) or
+                    (descr.byteorder == c'<' and not little_endian)):
                     raise ValueError(u"Non-native byte order not supported")
                 if   t == NPY_BYTE:        f = "b"
                 elif t == NPY_UBYTE:       f = "B"
@@ -797,8 +797,8 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
         if (end - f) - (new_offset - offset[0]) < 15:
             raise RuntimeError(u"Format string allocated too short, see comment in numpy.pxd")
 
-        if ((child.byteorder == '>' and little_endian) or
-            (child.byteorder == '<' and not little_endian)):
+        if ((child.byteorder == c'>' and little_endian) or
+            (child.byteorder == c'<' and not little_endian)):
             raise ValueError(u"Non-native byte order not supported")
             # One could encode it in the format string and have Cython
             # complain instead, BUT: < and > in format strings also imply
