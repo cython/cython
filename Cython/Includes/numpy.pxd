@@ -277,12 +277,12 @@ cdef extern from "numpy/arrayobject.h":
                 return
             else:
                 info.format = <char*>stdlib.malloc(_buffer_format_string_len)
-                info.format[0] = '^' # Native data types, manual alignment
+                info.format[0] = c'^' # Native data types, manual alignment
                 offset = 0
                 f = _util_dtypestring(descr, info.format + 1,
                                       info.format + _buffer_format_string_len,
                                       &offset)
-                f[0] = 0 # Terminate format string
+                f[0] = c'\0' # Terminate format string
 
         def __releasebuffer__(ndarray self, Py_buffer* info):
             if PyArray_HASFIELDS(self):
