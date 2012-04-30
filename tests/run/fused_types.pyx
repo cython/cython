@@ -47,9 +47,9 @@ def test_cdef_func_with_fused_args():
     4.2 8.6 bunny
     12.8
     """
-    print cdef_func_with_fused_args('spam', 'ham', 'eggs').decode('ascii')
-    print cdef_func_with_fused_args(10, 20, 'butter')
-    print cdef_func_with_fused_args(4.2, 8.6, 'bunny')
+    print cdef_func_with_fused_args(b'spam', b'ham', b'eggs').decode('ascii')
+    print cdef_func_with_fused_args(10, 20, b'butter')
+    print cdef_func_with_fused_args(4.2, 8.6, b'bunny')
 
 cdef fused_type1 fused_with_pointer(fused_type1 *array):
     for i in range(5):
