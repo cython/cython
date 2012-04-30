@@ -34,7 +34,8 @@ system.  Python documentation for writing extension modules should
 have some details for your system.  Here we give an example on a Linux
 system::
 
-    $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -I/usr/include/python2.5 -o yourmod.so yourmod.c
+    $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
+          -I/usr/include/python2.5 -o yourmod.so yourmod.c
 
 [``gcc`` will need to have paths to your included header files and
 paths to libraries you need to link with]
@@ -46,43 +47,25 @@ Compiling with ``distutils``
 ============================
 
 First, make sure that ``distutils`` package is installed in your
-system.  The following assumes a Cython file to be compiled called
+system.  It normally comes as part of the standard library.
+The following assumes a Cython file to be compiled called
 *hello.pyx*.  Now, create a ``setup.py`` script::
-
-    from distutils.core import setup
-    from distutils.extension import Extension
-    from Cython.Distutils import build_ext
-
-    ext_modules = [Extension("spam", ["spam.pyx"]),
-                   Extension("ham", ["ham.pyx"])]
-    # You can add directives for each extension too
-    # by attaching the `pyrex_directives`
-    for e in ext modules:
-        e.pyrex_directives = {"boundscheck": False}
-    setup(
-        name = "My hello app",
-        cmdclass = {"build_ext": build_ext},
-        ext_modules = ext_modules
-    )
-
-Run the command ``python setup.py build_ext --inplace`` in your
-system's command shell and you are done.  Import your new extension
-module into your python shell or script as normal.
-
-Cython provides utility code to automatically generate lists of
-Extension objects from ```.pyx`` files, so one can write::
 
     from distutils.core import setup
     from Cython.Build import cythonize
 
     setup(
         name = "My hello app",
-        ext_modules = cythonize("*.pyx"),
+        ext_modules = cythonize('hello.pyx'), # accepts a glob pattern
     )
 
-to compile all ``.pyx`` files in a given directory.
+Run the command ``python setup.py build_ext --inplace`` in your
+system's command shell and you are done.  Import your new extension
+module into your python shell or script as normal.
+
 The ``cythonize`` command also allows for multi-threaded compilation and
-dependency resolution.
+dependency resolution.  Recompilation will be skipped if the target file
+is up to date with its main source file and dependencies.
 
 Compiling with ``pyximport``
 =============================
@@ -212,7 +195,6 @@ Cython code.  Here is the list of currently supported directives:
     Note that cimported and included source files inherit this
     setting from the module being compiled, unless they explicitly
     set their own language level.
-
 
 How to set directives
 ---------------------
