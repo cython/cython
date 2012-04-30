@@ -202,7 +202,17 @@ Cython code.  Here is the list of currently supported directives:
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is
     None, indicating that on safe (semantically-unchanging) inferences
-   are allowed.
+    are allowed.
+
+``language_level`` (2/3)
+    Globally set the Python language level to be used for module
+    compilation.  Default is compatibility with Python 2.  To enable
+    Python 3 source code semantics, set this to 3 at the start of a
+    module or pass the "-3" command line option to the compiler.
+    Note that cimported and included source files inherit this
+    setting from the module being compiled, unless they explicitly
+    set their own language level.
+
 
 How to set directives
 ---------------------
