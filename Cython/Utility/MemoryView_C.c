@@ -493,6 +493,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
             goto fail;
         } else {
             PyTuple_SET_ITEM(shape_tuple, i, temp_int);
+            temp_int = NULL;
         }
     }
 
@@ -524,10 +525,9 @@ fail:
     new_mvs.memview = NULL;
     new_mvs.data = NULL;
 no_fail:
-    __Pyx_XDECREF(shape_tuple); shape_tuple = 0;
-    __Pyx_GOTREF(temp_int);
-    __Pyx_XDECREF(temp_int); temp_int = 0;
-    __Pyx_XDECREF(array_obj); array_obj = 0;
+    __Pyx_XDECREF(shape_tuple);
+    __Pyx_XDECREF(temp_int);
+    __Pyx_XDECREF(array_obj);
     __Pyx_RefNannyFinishContext();
     return new_mvs;
 }
