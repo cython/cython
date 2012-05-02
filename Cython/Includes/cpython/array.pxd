@@ -38,7 +38,7 @@
     
   Suitable as lightweight arrays intra Cython without speed penalty. 
   Replacement for C stack/malloc arrays; no trouble with refcounting, 
-  mem.leaks; seamless Python compatibility, buffer() optionA
+  mem.leaks; seamless Python compatibility, buffer() optional
   
 
   IMPORTANT: arrayarray.h (arrayobject, arraydescr) is not part of 
@@ -48,23 +48,17 @@
 
   last changes: 2009-05-15 rk
               : 2009-12-06 bp
+              : 2012-05-02 andreasvc
 """
 from libc cimport stdlib
+from libc.string cimport strcat, strncat, \
+    memset, memchr, memcmp, memcpy, memmove
 
-cdef extern from "stdlib.h" nogil:
-    void *memset(void *str, int c, size_t n)
-    char *strcat(char *str1, char *str2)
-    char *strncat(char *str1, char *str2, size_t n)
-    void *memchr(void *str, int c, size_t n)
-    int memcmp(void *str1, void *str2, size_t n)
-    void *memcpy(void *str1, void *str2, size_t n)
-    void *memmove(void *str1, void *str2, size_t n)
-
+from cpython.ref cimport PyTypeObject
+from cpython.exc cimport PyErr_BadArgument
 
 cdef extern from "arrayarray.h":
-    ctypedef void PyTypeObject
     ctypedef short Py_UNICODE
-    int PyErr_BadArgument()
     ctypedef class array.array [object arrayobject]
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)
@@ -79,17 +73,10 @@ cdef extern from "arrayarray.h":
         
         cdef:
             PyTypeObject* ob_type
-            
-            int ob_size             # number of valid items; 
             unsigned length         # == ob_size (by union)
-            
-            char* ob_item           # to first item
-            
-            Py_ssize_t allocated    # bytes
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
-            object weakreflist      # /* List of weak references */
 
-            # view's of ob_item:
+            # views of ob_item:
             float* _f               # direct float pointer access to buffer
             double* _d              # double ...
             int*    _i
@@ -112,7 +99,7 @@ cdef extern from "arrayarray.h":
             cdef unsigned rows, columns, itemsize
             
             info.suboffsets = NULL
-            info.buf = self.ob_item
+            info.buf = self._c
             info.readonly = 0
             info.ndim = 1
             info.itemsize = itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
@@ -144,44 +131,40 @@ cdef extern from "arrayarray.h":
     int resize_smart(array self, Py_ssize_t n)
 
 
-#  fast creation of a new array - init with zeros 
-#  yet you need a (any) template array of the same item type (but not same size)
-cdef inline array zeros_like(array sametype):
-    cdef array op = newarrayobject(<PyTypeObject*>sametype.ob_type, sametype.ob_size, sametype.ob_descr)
-    if op:
-        memset(op.ob_item, 0, op.ob_size * op.ob_descr.itemsize)
-        return op
-
-#  fast creation of a new array - no init with zeros
-cdef inline array new_array(array sametype, unsigned n):
-    return newarrayobject( <PyTypeObject*>sametype.ob_type, n, sametype.ob_descr)
-
-#  fast creation of a new array - no init with zeros, same length 
-cdef inline array empty_like(array sametype):
-    return newarrayobject(<PyTypeObject*>sametype.ob_type, sametype.op.ob_size,
-                           sametype.ob_descr)
+cdef inline array clone(array template, Py_ssize_t length, bint zero):
+    """ fast creation of a new array, given a template array.
+    type will be same as template.
+    if zero is true, new array will be initialized with zeroes."""
+    cdef array op
+    op = newarrayobject(template.ob_type, length, template.ob_descr)
+    if zero and op is not None:
+        memset(op._c, 0, length * op.ob_descr.itemsize)
+    return op
 
 cdef inline array copy(array self):
-    cdef array op = newarrayobject(<PyTypeObject*>self.ob_type, self.ob_size,
-                                   self.ob_descr)
-    memcpy(op.ob_item, self.ob_item, op.ob_size * op.ob_descr.itemsize)
+    """ make a copy of an array. """
+    cdef array op
+    op = newarrayobject(self.ob_type, self.length, self.ob_descr)
+    memcpy(op._c, self._c, op.length * op.ob_descr.itemsize)
     return op
 
 cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n):
-    """ efficent appending of new stuff of same type (e.g. of same array type)
-        n: number of elements (not number of bytes!)
-    """
-    cdef Py_ssize_t itemsize = self.ob_descr.itemsize, orgsize = self.ob_size
-    if -1 == resize_smart(self, orgsize + n):
+    """ efficent appending of new stuff of same type
+    (e.g. of same array type)
+    n: number of elements (not number of bytes!) """
+    cdef Py_ssize_t itemsize = self.ob_descr.itemsize
+    cdef Py_ssize_t orgsize = self.length
+    if resize_smart(self, orgsize + n) == -1:
         return -1
-    memcpy(self.ob_item + orgsize * itemsize, stuff, n * itemsize)
+    memcpy(self._c + orgsize * itemsize, stuff, n * itemsize)
 
 cdef inline int extend(array self, array other):
+    """ extend array with data from another array; types must match. """
     if self.ob_descr.typecode != self.ob_descr.typecode:
         PyErr_BadArgument()
         return -1
-    return extend_buffer(self, other.ob_item, other.ob_size)
-
+    return extend_buffer(self, other._c, other.length)
 
 cdef inline void zero(array op):
-    memset(op.ob_item, 0, op.ob_size * op.ob_descr.itemsize)
+    """ set all elements of array to zero. """
+    memset(op._c, 0, op.length * op.ob_descr.itemsize)
