@@ -1956,17 +1956,27 @@ class PyxCodeWriter(object):
 
     def indent(self, levels=1):
         self.level += levels
+        return True
 
     def dedent(self, levels=1):
         self.level -= levels
 
     def indenter(self, line):
         """
-        with pyx_code.indenter("for i in range(10):"):
-            pyx_code.putln("print i")
+        Instead of
+
+            with pyx_code.indenter("for i in range(10):"):
+                pyx_code.putln("print i")
+
+        write
+
+            if pyx_code.indenter("for i in range(10);"):
+                pyx_code.putln("print i")
+                pyx_code.dedent()
         """
         self.putln(line)
-        return self
+        self.indent()
+        return True
 
     def getvalue(self):
         result = self.buffer.getvalue()
@@ -2000,10 +2010,6 @@ class PyxCodeWriter(object):
     def named_insertion_point(self, name):
         setattr(self, name, self.insertion_point())
 
-    __enter__ = indent
-
-    def __exit__(self, exc_value, exc_type, exc_tb):
-        self.dedent()
 
 class ClosureTempAllocator(object):
     def __init__(self, klass):

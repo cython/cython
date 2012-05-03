@@ -279,21 +279,25 @@ class FusedCFuncDefNode(StatListNode):
 
     def _buffer_check_numpy_dtype_setup_cases(self, pyx_code):
         "Setup some common cases to match dtypes against specializations"
-        with pyx_code.indenter("if dtype.kind in ('i', 'u'):"):
+        if pyx_code.indenter("if dtype.kind in ('i', 'u'):"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_int")
+            pyx_code.dedent()
 
-        with pyx_code.indenter("elif dtype.kind == 'f':"):
+        if pyx_code.indenter("elif dtype.kind == 'f':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_float")
+            pyx_code.dedent()
 
-        with pyx_code.indenter("elif dtype.kind == 'c':"):
+        if pyx_code.indenter("elif dtype.kind == 'c':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_complex")
+            pyx_code.dedent()
 
-        with pyx_code.indenter("elif dtype.kind == 'O':"):
+        if pyx_code.indenter("elif dtype.kind == 'O':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_object")
+            pyx_code.dedent()
 
     match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
     no_match = "dest_sig[{{dest_sig_idx}}] = None"
@@ -323,10 +327,11 @@ class FusedCFuncDefNode(StatListNode):
                     if dtype.is_int:
                         cond += ' and {{signed_match}}'
 
-                    with codewriter.indenter("if %s:" % cond):
+                    if codewriter.indenter("if %s:" % cond):
                         # codewriter.putln("print 'buffer match found based on numpy dtype'")
                         codewriter.putln(self.match)
                         codewriter.putln("break")
+                        codewriter.dedent()
 
     def _buffer_parse_format_string_check(self, pyx_code, decl_code,
                                           specialized_type, env):
@@ -378,9 +383,9 @@ class FusedCFuncDefNode(StatListNode):
         """
         from Cython.Compiler import ExprNodes
         if buffer_types:
-            with pyx_code.indenter(u"else:"):
+            if pyx_code.indenter(u"else:"):
                 # The first thing to find a match in this loop breaks out of the loop
-                with pyx_code.indenter(u"while 1:"):
+                if pyx_code.indenter(u"while 1:"):
                     pyx_code.put_chunk(
                         u"""
                             if numpy is not None:
@@ -409,6 +414,9 @@ class FusedCFuncDefNode(StatListNode):
 
                     pyx_code.putln(self.no_match)
                     pyx_code.putln("break")
+                    pyx_code.dedent()
+
+                pyx_code.dedent()
         else:
             pyx_code.putln("else: %s" % self.no_match)
 
