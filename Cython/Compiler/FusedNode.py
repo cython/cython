@@ -1,5 +1,3 @@
-from __future__ import with_statement
-
 import copy
 
 from Cython.Compiler import (ExprNodes, PyrexTypes, MemoryView,
