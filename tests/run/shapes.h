@@ -23,9 +23,15 @@ namespace shapes {
             this->width = width;
             this->height = height;
         }
+
         float area() { return width * height; }
         int width;
         int height;
+
+        int method(int arg) {
+            return width * height + arg;
+        }
+
     };
 
     class Square : public Rectangle

@@ -3467,7 +3467,7 @@ def best_match(args, functions, pos=None, env=None):
                 elif ((src_type.is_int and dst_type.is_int) or
                       (src_type.is_float and dst_type.is_float)):
                     score[2] += abs(dst_type.rank + (not dst_type.signed) -
-                                    (src_type.rank + (not src_type.signed)))
+                                    (src_type.rank + (not src_type.signed))) + 1
                 elif not src_type.is_pyobject:
                     score[1] += 1
                 else:
@@ -3482,10 +3482,13 @@ def best_match(args, functions, pos=None, env=None):
 
     if possibilities:
         possibilities.sort()
-        if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
-            if pos is not None:
-                error(pos, "ambiguous overloaded method")
-            return None
+        if len(possibilities) > 1:
+            score1 = possibilities[0][0]
+            score2 = possibilities[1][0]
+            if score1 == score2:
+                if pos is not None:
+                    error(pos, "ambiguous overloaded method")
+                return None
 
         function = possibilities[0][-1]
 
