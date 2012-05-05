@@ -645,7 +645,7 @@ class MemoryViewSliceType(PyrexType):
 
         tup = (obj.result(), self.ndim, to_py_func, from_py_func,
                self.dtype.is_pyobject)
-        return "__pyx_memoryview_fromslice(&%s, %s, %s, %s, %d);" % tup
+        return "__pyx_memoryview_fromslice(%s, %s, %s, %s, %d);" % tup
 
     def dtype_object_conversion_funcs(self, env):
         import MemoryView, Code
