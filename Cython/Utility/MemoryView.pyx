@@ -713,6 +713,11 @@ cdef memoryview memview_slice(memoryview memview, object indices):
                 index, 0, 0, # start, stop, step
                 0, 0, 0, # have_{start,stop,step}
                 False)
+        elif index is None:
+            p_dst.shape[new_ndim] = 1
+            p_dst.strides[new_ndim] = 0
+            p_dst.suboffsets[new_ndim] = -1
+            new_ndim += 1
         else:
             start = index.start or 0
             stop = index.stop or 0
