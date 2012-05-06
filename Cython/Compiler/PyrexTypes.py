@@ -738,6 +738,8 @@ class MemoryViewSliceType(PyrexType):
         if dtype is not self.dtype:
             return MemoryViewSliceType(dtype, self.axes)
 
+        return self
+
     def cast_code(self, expr_code):
         return expr_code
 
