@@ -58,7 +58,6 @@ from cpython.ref cimport PyTypeObject
 from cpython.exc cimport PyErr_BadArgument
 
 cdef extern from "arrayarray.h":
-    ctypedef short Py_UNICODE
     ctypedef class array.array [object arrayobject]
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)
@@ -73,7 +72,7 @@ cdef extern from "arrayarray.h":
         
         cdef:
             PyTypeObject* ob_type
-            unsigned length         # == ob_size (by union)
+            Py_ssize_t length       # == ob_size (by union)
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
 
             # views of ob_item:

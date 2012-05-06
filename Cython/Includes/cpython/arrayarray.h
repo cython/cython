@@ -35,8 +35,7 @@ typedef struct arraydescr {
 typedef struct arrayobject {
     PyObject_HEAD
     union {
-        Py_ssize_t ob_size;
-        unsigned length;
+        Py_ssize_t ob_size, length;
     };
     union {
         char *ob_item;
