@@ -130,7 +130,7 @@ __ nogil_
                abort()
 
            # populate our local buffer in a sequential loop
-           for idx in range(size):
+           for i in xrange(size):
                local_buf[i] = i * 2
 
            # share the work using the thread-local buffer(s)
@@ -145,7 +145,7 @@ __ nogil_
 .. function:: threadid()
 
     Returns the id of the thread. For n threads, the ids will range from 0 to
-    n.
+    n-1.
 
 Compiling
 =========
@@ -169,11 +169,11 @@ enable OpenMP. For gcc this can be done as follows in a setup.py::
         ext_modules = [ext_module],
     )
 
-Breaking
-========
-The parallel with and prange blocks support break, continue and return in
-nogil mode. Additionally, it is valid to use a ``with gil`` block inside these
-blocks, and have exceptions propagate from them.
+Breaking out of loops
+=====================
+The parallel with and prange blocks support the statements break, continue and
+return in nogil mode. Additionally, it is valid to use a ``with gil`` block
+inside these blocks, and have exceptions propagate from them.
 However, because the blocks use OpenMP, they can not just be left, so the
 exiting procedure is best-effort. For prange() this means that the loop
 body is skipped after the first break, return or exception for any subsequent
