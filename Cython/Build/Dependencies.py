@@ -321,7 +321,7 @@ class DependencyTree(object):
 
     @cached_method
     def package(self, filename):
-        dir = os.path.dirname(os.path.abspath(filename))
+        dir = os.path.dirname(os.path.abspath(str(filename)))
         if dir != filename and os.path.exists(os.path.join(dir, '__init__.py')):
             return self.package(dir) + (os.path.basename(dir),)
         else:
