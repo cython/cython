@@ -523,7 +523,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                             print("Compiling %s because it changed." % source)
                         else:
                             print("Compiling %s because it depends on %s." % (source, dep))
-                    to_compile.append((priority, source, c_file, options))
+                    to_compile.append((priority, source, c_file, quiet, options))
                 new_sources.append(c_file)
             else:
                 new_sources.append(source)
@@ -539,7 +539,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
     if not nthreads:
-        for priority, pyx_file, c_file, options in to_compile:
+        for priority, pyx_file, c_file, quiet, options in to_compile:
             cythonize_one(pyx_file, c_file, quiet, options)
     return module_list
 
@@ -549,7 +549,7 @@ def cythonize_one(pyx_file, c_file, quiet, options=None):
     from Cython.Compiler.Errors import CompileError, PyrexError
 
     if not quiet:
-        print "Cythonizing %s" % pyx_file
+        print("Cythonizing", pyx_file)
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file

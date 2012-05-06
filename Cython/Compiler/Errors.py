@@ -52,6 +52,9 @@ class CompileError(PyrexError):
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         Exception.__init__(self, format_error(message, position))
+        # Python Exception subclass pickling is broken,
+        # see http://bugs.python.org/issue1692335
+        self.args = (position, message)
 
 class CompileWarning(PyrexWarning):
 
@@ -96,6 +99,9 @@ class CompilerCrash(CompileError):
                 message += u'\n'
             message += u'%s: %s' % (cause.__class__.__name__, cause)
         CompileError.__init__(self, pos, message)
+        # Python Exception subclass pickling is broken,
+        # see http://bugs.python.org/issue1692335
+        self.args = (pos, context, message, cause, stacktrace)
 
 class NoElementTreeInstalledException(PyrexError):
     """raised when the user enabled options.gdb_debug but no ElementTree
