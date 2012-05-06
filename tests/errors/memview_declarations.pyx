@@ -54,8 +54,15 @@ cdef struct Invalid:
 cdef Valid[:] validslice
 cdef Invalid[:] invalidslice
 
+cdef int[:, :, :, :] four_D
+four_D[None, None, None, None]
+four_D[None, None, None, None, None]
+
+cdef int[:, :, :, :, :, :, :, :] eight_D = object()
+
 # These are VALID
 cdef int[::view.indirect_contiguous, ::view.contiguous] a9
+four_D[None, None, None]
 
 _ERRORS = u'''
 11:25: Cannot specify an array that is both C and Fortran contiguous.
@@ -79,4 +86,7 @@ _ERRORS = u'''
 46:35: Can only create cython.array from pointer or array
 47:24: Cannot assign type 'double' to 'Py_ssize_t'
 55:13: Invalid base type for memoryview slice: Invalid
+58:6: More dimensions than the maximum number of buffer dimensions were used.
+59:6: More dimensions than the maximum number of buffer dimensions were used.
+61:9: More dimensions than the maximum number of buffer dimensions were used.
 '''

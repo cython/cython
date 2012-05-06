@@ -2644,6 +2644,11 @@ class IndexNode(ExprNode):
             self.index = None
             self.is_temp = True
             self.use_managed_ref = True
+
+            if not MemoryView.validate_axes(self.pos, axes):
+                self.type = error_type
+                return
+
             self.type = PyrexTypes.MemoryViewSliceType(
                             self.base.type.dtype, axes)
 

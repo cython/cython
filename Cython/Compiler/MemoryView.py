@@ -723,6 +723,14 @@ def get_axes_specs(env, axes):
 
     return axes_specs
 
+def validate_axes(pos, axes):
+    if len(axes) >= Options.buffer_max_dims:
+        error(pos, "More dimensions than the maximum number"
+                   " of buffer dimensions were used.")
+        return False
+
+    return True
+
 def all(it):
     for item in it:
         if not item:
