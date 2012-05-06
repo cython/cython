@@ -549,7 +549,7 @@ def cythonize_one(pyx_file, c_file, quiet, options=None):
     from Cython.Compiler.Errors import CompileError, PyrexError
 
     if not quiet:
-        print("Cythonizing", pyx_file)
+        print("Cythonizing %s" % pyx_file)
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
