@@ -112,7 +112,6 @@ class Entry(object):
     # buffer_aux       BufferAux or None  Extra information needed for buffer variables
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
-    # assignments      [ExprNode] List of expressions that get assigned to this entry.
     # might_overflow   boolean    In an arithmetic expression that could cause
     #                             overflow (used for type inference).
     # utility_code_definition     For some Cython builtins, the utility code
@@ -193,7 +192,6 @@ class Entry(object):
         self.pos = pos
         self.init = init
         self.overloaded_alternatives = []
-        self.assignments = []
         self.cf_assignments = []
         self.cf_references = []
 

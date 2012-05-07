@@ -31,7 +31,6 @@ class MarkAssignments(EnvTransform):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
                 return
-            lhs.entry.assignments.append(rhs)
 
             if self.parallel_block_stack:
                 parallel_node = self.parallel_block_stack[-1]
@@ -359,8 +358,8 @@ class SimpleAssignmentTypeInferer(object):
                     entry.type = py_object_type
                     continue
                 all = set()
-                for expr in entry.assignments:
-                    all.update(expr.type_dependencies(scope))
+                for assmt in entry.cf_assignments:
+                    all.update(assmt.rhs.type_dependencies(scope))
                 if all:
                     dependancies_by_entry[entry] = all
                     for dep in all:
@@ -384,7 +383,8 @@ class SimpleAssignmentTypeInferer(object):
         while True:
             while ready_to_infer:
                 entry = ready_to_infer.pop()
-                types = [expr.infer_type(scope) for expr in entry.assignments]
+                types = [assmt.rhs.infer_type(scope)
+                         for assmt in entry.cf_assignments]
                 if types and Utils.all(types):
                     entry.type = spanning_type(types, entry.might_overflow)
                 else:
@@ -397,10 +397,13 @@ class SimpleAssignmentTypeInferer(object):
             # Deal with simple circular dependancies...
             for entry, deps in dependancies_by_entry.items():
                 if len(deps) == 1 and deps == set([entry]):
-                    types = [expr.infer_type(scope) for expr in entry.assignments if expr.type_dependencies(scope) == ()]
+                    types = [assmt.rhs.infer_type(scope)
+                             for assmt in entry.cf_assignments
+                             if assmt.rhs.type_dependencies(scope) == ()]
                     if types:
                         entry.type = spanning_type(types, entry.might_overflow)
-                        types = [expr.infer_type(scope) for expr in entry.assignments]
+                        types = [assmt.rhs.infer_type(scope)
+                                 for assmt in entry.cf_assignments]
                         entry.type = spanning_type(types, entry.might_overflow) # might be wider...
                         resolve_dependancy(entry)
                         del dependancies_by_entry[entry]
