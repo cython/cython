@@ -226,6 +226,20 @@ def as_argument(object[int] bufarg, int n):
     print 'END'
 
 @testcase
+def as_argument_not_none(object[int] bufarg not None):
+    """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> as_argument_not_none(A)
+    acquired A
+    ACCEPTED
+    released A
+    >>> as_argument_not_none(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'bufarg' must not be None
+    """
+    print 'ACCEPTED'
+
+@testcase
 def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), int n=6):
     """
     >>> as_argument_defval()

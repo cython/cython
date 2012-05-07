@@ -2978,12 +2978,13 @@ class DefNode(FuncDefNode):
             arg.needs_conversion = 0
             arg.needs_type_test = 0
             arg.is_generic = 1
-            if arg.type.is_pyobject:
+            if arg.type.is_pyobject or arg.type.is_buffer:
                 if arg.or_none:
                     arg.accept_none = True
                 elif arg.not_none:
                     arg.accept_none = False
-                elif arg.type.is_extension_type or arg.type.is_builtin_type:
+                elif (arg.type.is_extension_type or arg.type.is_builtin_type
+                      or arg.type.is_buffer):
                     if arg.default and arg.default.constant_result is None:
                         # special case: def func(MyType obj = None)
                         arg.accept_none = True
