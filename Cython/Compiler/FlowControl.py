@@ -8,7 +8,7 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
 import Builtin
 import ExprNodes
 import Nodes
-from PyrexTypes import py_object_type
+from PyrexTypes import py_object_type, unspecified_type
 
 from Visitor import TreeVisitor, CythonTransform
 from Errors import error, warning, InternalError
@@ -24,6 +24,9 @@ class TypedExprNode(ExprNodes.ExprNode):
 
 object_expr = TypedExprNode(py_object_type, may_be_none=True)
 object_expr_not_none = TypedExprNode(py_object_type, may_be_none=False)
+# Fake rhs to silence "unused variable" warning
+fake_rhs_expr = TypedExprNode(unspecified_type)
+
 
 class ControlBlock(object):
     """Control flow graph node. Sequence of assignments and name references.
@@ -174,7 +177,7 @@ class ControlFlow(object):
 
     def mark_deletion(self, node, entry):
         if self.block and self.is_tracked(entry):
-            assignment = NameAssignment(node, None, entry)
+            assignment = NameDeletion(node, entry)
             self.block.stats.append(assignment)
             self.block.gen[entry] = Uninitialized
             self.entries.add(entry)
@@ -293,6 +296,7 @@ class ExceptionDescr(object):
         self.finally_enter = finally_enter
         self.finally_exit = finally_exit
 
+
 class NameAssignment(object):
     def __init__(self, lhs, rhs, entry):
         if lhs.cf_state is None:
@@ -303,14 +307,23 @@ class NameAssignment(object):
         self.pos = lhs.pos
         self.refs = set()
         self.is_arg = False
+        self.is_deletion = False
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
+
 
 class Argument(NameAssignment):
     def __init__(self, lhs, rhs, entry):
         NameAssignment.__init__(self, lhs, rhs, entry)
         self.is_arg = True
+
+
+class NameDeletion(NameAssignment):
+    def __init__(self, lhs, entry):
+        NameAssignment.__init__(self, lhs, lhs, entry)
+        self.is_deletion = True
+
 
 class Uninitialized(object):
     pass
@@ -462,12 +475,13 @@ def check_definitions(flow, compiler_directives):
                 stat.lhs.cf_state.update(state)
                 assmt_nodes.add(stat.lhs)
                 i_state = i_state & ~i_assmts.mask
-                if stat.rhs:
-                    i_state |= stat.bit
-                else:
+                if stat.is_deletion:
                     i_state |= i_assmts.bit
+                else:
+                    i_state |= stat.bit
                 assignments.add(stat)
-                stat.entry.cf_assignments.append(stat)
+                if stat.rhs is not fake_rhs_expr:
+                    stat.entry.cf_assignments.append(stat)
             elif isinstance(stat, NameReference):
                 references[stat.node] = stat.entry
                 stat.entry.cf_references.append(stat)
@@ -754,7 +768,8 @@ class ControlFlowAnalysis(CythonTransform):
         entry = self.env.lookup(node.name)
         if entry:
             may_be_none = not node.not_none
-            self.flow.mark_argument(node, TypedExprNode(entry.type, may_be_none), entry)
+            self.flow.mark_argument(
+                node, TypedExprNode(entry.type, may_be_none), entry)
         return node
 
     def visit_NameNode(self, node):
@@ -838,6 +853,41 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block = None
         return node
 
+    def mark_forloop_target(self, node):
+        # TODO: Remove redundancy with range optimization...
+        is_special = False
+        sequence = node.iterator.sequence
+        if isinstance(sequence, ExprNodes.SimpleCallNode):
+            function = sequence.function
+            if sequence.self is None and function.is_name:
+                if function.name == 'reversed' and len(sequence.args) == 1:
+                    sequence = sequence.args[0]
+        if isinstance(sequence, ExprNodes.SimpleCallNode):
+            function = sequence.function
+            if sequence.self is None and function.is_name:
+                if function.name in ('range', 'xrange'):
+                    is_special = True
+                    for arg in sequence.args[:2]:
+                        self.mark_assignment(node.target, arg)
+                    if len(sequence.args) > 2:
+                        self.mark_assignment(
+                            node.target,
+                            ExprNodes.binop_node(node.pos,
+                                                 '+',
+                                                 sequence.args[0],
+                                                 sequence.args[2]))
+
+        if not is_special:
+            # A for-loop basically translates to subsequent calls to
+            # __getitem__(), so using an IndexNode here allows us to
+            # naturally infer the base type of pointers, C arrays,
+            # Python strings, etc., while correctly falling back to an
+            # object type when the base type cannot be handled.
+            self.mark_assignment(node.target, ExprNodes.IndexNode(
+                node.pos,
+                base = sequence,
+                index = ExprNodes.IntNode(node.pos, value = '0')))
+
     def visit_ForInStatNode(self, node):
         condition_block = self.flow.nextblock()
         next_block = self.flow.newblock()
@@ -846,7 +896,11 @@ class ControlFlowAnalysis(CythonTransform):
         self.visit(node.iterator)
         # Target assignment
         self.flow.nextblock()
-        self.mark_assignment(node.target)
+
+        if isinstance(node, Nodes.ForInStatNode):
+            self.mark_forloop_target(node)
+        else: # Parallel
+            self.mark_assignment(node.target)
 
         # Body block
         if isinstance(node, Nodes.ParallelRangeNode):
@@ -916,12 +970,15 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.loops.append(LoopDescr(next_block, condition_block))
         self.visit(node.bound1)
         self.visit(node.bound2)
-        if node.step:
+        if node.step is not None:
             self.visit(node.step)
         # Target assignment
         self.flow.nextblock()
-        self.mark_assignment(node.target)
-
+        self.mark_assignment(node.target, node.bound1)
+        if node.step is not None:
+            self.mark_assignment(node.target,
+                                 ExprNodes.binop_node(node.pos, '+',
+                                                      node.bound1, node.step))
         # Body block
         self.flow.nextblock()
         self.visit(node.body)
@@ -1143,6 +1200,6 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_AmpersandNode(self, node):
         if node.operand.is_name:
             # Fake assignment to silence warning
-            self.mark_assignment(node.operand)
+            self.mark_assignment(node.operand, fake_rhs_expr)
         self.visitchildren(node)
         return node

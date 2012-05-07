@@ -26,6 +26,7 @@ cdef class ExitBlock(ControlBlock):
 
 cdef class NameAssignment:
     cdef public bint is_arg
+    cdef public bint is_deletion
     cdef public object lhs
     cdef public object rhs
     cdef public object entry
