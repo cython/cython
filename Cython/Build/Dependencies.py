@@ -560,7 +560,7 @@ def cythonize_one(pyx_file, c_file, quiet, options=None):
         if result.num_errors > 0:
             any_failures = 1
     except (EnvironmentError, PyrexError), e:
-        sys.stderr.write(str(e) + '\n')
+        sys.stderr.write('%s\n' % e)
         any_failures = 1
     if any_failures:
         raise CompileError(None, pyx_file)
