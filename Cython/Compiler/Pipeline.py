@@ -129,7 +129,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
     from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-    from TypeInference import MarkAssignments, MarkOverflowingArithmetic
+    from TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
     from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
     from FlowControl import ControlFlowAnalysis
@@ -179,10 +179,10 @@ def create_pipeline(context, mode, exclude_classes=()):
         EmbedSignature(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),  ## Necessary?
-        MarkAssignments(context),
+        MarkParallelAssignments(context),
         ControlFlowAnalysis(context),
         RemoveUnreachableCode(context),
-        # MarkAssignments(context),
+        # MarkParallelAssignments(context),
         MarkOverflowingArithmetic(context),
         IntroduceBufferAuxiliaryVars(context),
         _check_c_declarations,

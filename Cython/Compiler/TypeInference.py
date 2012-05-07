@@ -15,7 +15,11 @@ class TypedExprNode(ExprNodes.ExprNode):
 
 object_expr = TypedExprNode(py_object_type)
 
-class MarkAssignments(EnvTransform):
+
+class MarkParallelAssignments(EnvTransform):
+    # Collects assignments inside parallel blocks prange, with parallel.
+    # Perhaps it's better to move it to ControlFlowAnalysis.
+
     # tells us whether we're in a normal loop
     in_loop = False
 
@@ -24,7 +28,7 @@ class MarkAssignments(EnvTransform):
     def __init__(self, context):
         # Track the parallel block scopes (with parallel, for i in prange())
         self.parallel_block_stack = []
-        return super(MarkAssignments, self).__init__(context)
+        return super(MarkParallelAssignments, self).__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
