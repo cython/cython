@@ -527,9 +527,9 @@ class IterationTransform(Visitor.VisitorTransform):
             error(enumerate_function.pos,
                   "enumerate() requires an iterable argument")
             return node
-        elif len(args) > 1:
+        elif len(args) > 2:
             error(enumerate_function.pos,
-                  "enumerate() takes at most 1 argument")
+                  "enumerate() takes at most 2 arguments")
             return node
 
         if not node.target.is_sequence_constructor:
@@ -550,10 +550,15 @@ class IterationTransform(Visitor.VisitorTransform):
             # nothing we can do here, I guess
             return node
 
-        temp = UtilNodes.LetRefNode(ExprNodes.IntNode(enumerate_function.pos,
-                                                      value='0',
-                                                      type=counter_type,
-                                                      constant_result=0))
+        if len(args) == 2:
+            start = unwrap_coerced_node(args[1]).coerce_to(counter_type, self.current_scope)
+        else:
+            start = ExprNodes.IntNode(enumerate_function.pos,
+                                      value='0',
+                                      type=counter_type,
+                                      constant_result=0)
+        temp = UtilNodes.LetRefNode(start)
+
         inc_expression = ExprNodes.AddNode(
             enumerate_function.pos,
             operand1 = temp,
@@ -586,7 +591,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
         node.target = iterable_target
         node.item = node.item.coerce_to(iterable_target.type, self.current_scope)
-        node.iterator.sequence = enumerate_function.arg_tuple.args[0]
+        node.iterator.sequence = args[0]
 
         # recurse into loop to check for further optimisations
         return UtilNodes.LetNode(temp, self._optimise_for_loop(node, node.iterator.sequence))
