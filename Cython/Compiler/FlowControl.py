@@ -9,6 +9,7 @@ import Builtin
 import ExprNodes
 import Nodes
 from PyrexTypes import py_object_type, unspecified_type
+import PyrexTypes
 
 from Visitor import TreeVisitor, CythonTransform
 from Errors import error, warning, InternalError
@@ -857,25 +858,43 @@ class ControlFlowAnalysis(CythonTransform):
         # TODO: Remove redundancy with range optimization...
         is_special = False
         sequence = node.iterator.sequence
+        target = node.target
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                if function.name == 'reversed' and len(sequence.args) == 1:
-                    sequence = sequence.args[0]
+                entry = self.env.lookup(function.name)
+                if not entry or entry.is_builtin:
+                    if function.name == 'reversed' and len(sequence.args) == 1:
+                        sequence = sequence.args[0]
+                    elif function.name == 'enumerate' and len(sequence.args) == 1:
+                        if target.is_sequence_constructor and len(target.args) == 2:
+                            iterator = sequence.args[0]
+                            if iterator.is_name:
+                                iterator_type = iterator.infer_type(self.env)
+                                if iterator_type.is_builtin_type:
+                                    # assume that builtin types have a length within Py_ssize_t
+                                    self.mark_assignment(
+                                        target.args[0],
+                                        ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
+                                                          type=PyrexTypes.c_py_ssize_t_type))
+                                    target = target.args[1]
+                                    sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                if function.name in ('range', 'xrange'):
-                    is_special = True
-                    for arg in sequence.args[:2]:
-                        self.mark_assignment(node.target, arg)
-                    if len(sequence.args) > 2:
-                        self.mark_assignment(
-                            node.target,
-                            ExprNodes.binop_node(node.pos,
-                                                 '+',
-                                                 sequence.args[0],
-                                                 sequence.args[2]))
+                entry = self.env.lookup(function.name)
+                if not entry or entry.is_builtin:
+                    if function.name in ('range', 'xrange'):
+                        is_special = True
+                        for arg in sequence.args[:2]:
+                            self.mark_assignment(target, arg)
+                        if len(sequence.args) > 2:
+                            self.mark_assignment(
+                                target,
+                                ExprNodes.binop_node(node.pos,
+                                                     '+',
+                                                     sequence.args[0],
+                                                     sequence.args[2]))
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
@@ -883,7 +902,7 @@ class ControlFlowAnalysis(CythonTransform):
             # naturally infer the base type of pointers, C arrays,
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
-            self.mark_assignment(node.target, ExprNodes.IndexNode(
+            self.mark_assignment(target, ExprNodes.IndexNode(
                 node.pos,
                 base = sequence,
                 index = ExprNodes.IntNode(node.pos, value = '0')))
