@@ -56,6 +56,9 @@ class CompileError(PyrexError):
         # see http://bugs.python.org/issue1692335
         self.args = (position, message)
 
+    def __str__(self):
+        return self.message
+
 class CompileWarning(PyrexWarning):
 
     def __init__(self, position = None, message = ""):
