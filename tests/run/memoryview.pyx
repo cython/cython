@@ -913,3 +913,64 @@ def test_acquire_memoryview_slice():
     cdef int[:, :] c = b
     print b[2, 4]
     print c[2, 4]
+
+class SingleObject(object):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
+
+    def __eq__(self, other):
+        return self.value == getattr(other, 'value', None) or self.value == other
+
+def test_assign_scalar(int[:, :] m):
+    """
+    >>> A = IntMockBuffer("A", [0] * 100, shape=(10, 10))
+    >>> test_assign_scalar(A)
+    acquired A
+    1 1 1 4 1 6 1 1 1 1
+    2 2 2 4 2 6 2 2 2 2
+    3 3 3 4 3 6 3 3 3 3
+    1 1 1 4 1 6 1 1 1 1
+    5 5 5 5 5 6 5 5 5 5
+    1 1 1 4 1 6 1 1 1 1
+    released A
+    """
+    m[:, :] = 1
+    m[1, :] = 2
+    m[2, :] = 3
+    m[:, 3] = 4
+    m[4, ...] = 5
+    m[..., 5] = 6
+
+    for i in range(6):
+        print " ".join([str(m[i, j]) for j in range(m.shape[1])])
+
+
+def test_contig_scalar_to_slice_assignment():
+    """
+    >>> test_contig_scalar_to_slice_assignment()
+    14 14 14 14
+    20 20 20 20
+    """
+    cdef int a[5][10]
+    cdef int[:, ::1] _m = a
+    m = _m
+
+    m[...] = 14
+    print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+    m[:, :] = 20
+    print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+def test_dtype_object_scalar_assignment():
+    """
+    >>> test_dtype_object_scalar_assignment()
+    """
+    cdef object[:] m = array((10,), sizeof(PyObject *), 'O')
+    m[:] = SingleObject(2)
+    assert m[0] == m[4] == m[-1] == 2
+
+    (<object> m)[:] = SingleObject(3)
+    assert m[0] == m[4] == m[-1] == 3

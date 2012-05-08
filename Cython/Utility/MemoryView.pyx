@@ -402,7 +402,7 @@ cdef class memoryview(object):
                                  get_slice_from_memview(dst, &dst_slice)[0],
                                  src.ndim, dst.ndim, self.dtype_is_object)
 
-    cdef setitem_slice_assign_scalar(self, dst, value):
+    cdef setitem_slice_assign_scalar(self, memoryview dst, value):
         cdef int array[128]
         cdef void *tmp = NULL
         cdef void *item
@@ -431,7 +431,7 @@ cdef class memoryview(object):
         # to disallow :)
         if self.view.suboffsets != NULL:
             assert_direct_dimensions(self.view.suboffsets, self.view.ndim)
-        slice_assign_scalar(dst_slice, self.view.ndim, self.view.itemsize,
+        slice_assign_scalar(dst_slice, dst.view.ndim, self.view.itemsize,
                             item, self.dtype_is_object)
         free(tmp)
 
