@@ -363,7 +363,7 @@ class SimpleAssignmentTypeInferer(object):
                     continue
                 all = set()
                 for assmt in entry.cf_assignments:
-                    all.update(assmt.rhs.type_dependencies(scope))
+                    all.update(assmt.type_dependencies(scope))
                 if all:
                     dependancies_by_entry[entry] = all
                     for dep in all:
@@ -401,12 +401,12 @@ class SimpleAssignmentTypeInferer(object):
             # Deal with simple circular dependancies...
             for entry, deps in dependancies_by_entry.items():
                 if len(deps) == 1 and deps == set([entry]):
-                    types = [assmt.rhs.infer_type(scope)
+                    types = [assmt.infer_type(scope)
                              for assmt in entry.cf_assignments
-                             if assmt.rhs.type_dependencies(scope) == ()]
+                             if assmt.type_dependencies(scope) == ()]
                     if types:
                         entry.type = spanning_type(types, entry.might_overflow)
-                        types = [assmt.rhs.infer_type(scope)
+                        types = [assmt.infer_type(scope)
                                  for assmt in entry.cf_assignments]
                         entry.type = spanning_type(types, entry.might_overflow) # might be wider...
                         resolve_dependancy(entry)
