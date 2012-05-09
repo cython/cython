@@ -435,7 +435,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 /////////////// CallableCheck.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
 #define __Pyx_PyCallable_Check(obj)   ((obj)->ob_type->tp_call != NULL)
 #else
 #define __Pyx_PyCallable_Check(obj)   PyCallable_Check(obj)

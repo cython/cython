@@ -10,6 +10,13 @@ def test_callable(x):
     False
     >>> test_callable('ABC')
     False
+
+    >>> class C: pass
+    >>> test_callable(C)
+    True
+    >>> test_callable(C())
+    False
+
     >>> test_callable(int)
     True
     >>> test_callable(test_callable)
