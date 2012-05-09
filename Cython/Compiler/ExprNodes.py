@@ -4493,9 +4493,11 @@ class AttributeNode(ExprNode):
             return
 
         msg = None
+        format_args = ()
         if (self.obj.type.is_extension_type and self.needs_none_check and not
                 self.is_py_attr):
-            msg = "'NoneType' object has no attribute '%s'" % self.attribute
+            msg = "'NoneType' object has no attribute '%s'"
+            format_args = (self.attribute,)
         elif self.obj.type.is_memoryviewslice:
             if self.is_memslice_transpose:
                 msg = "Cannot transpose None memoryview slice"
@@ -4503,10 +4505,12 @@ class AttributeNode(ExprNode):
                 entry = self.obj.type.scope.lookup_here(self.attribute)
                 if entry:
                     # copy/is_c_contig/shape/strides etc
-                    msg = "Cannot access '%s' attribute of None memoryview slice" % entry.name
+                    msg = "Cannot access '%s' attribute of None memoryview slice"
+                    format_args = (entry.name,)
 
         if msg:
-            self.obj = self.obj.as_none_safe_node(msg, 'PyExc_AttributeError')
+            self.obj = self.obj.as_none_safe_node(msg, 'PyExc_AttributeError',
+                                                  format_args=format_args)
 
 
     def nogil_check(self, env):
