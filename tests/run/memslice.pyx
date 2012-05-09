@@ -2195,6 +2195,14 @@ def test_noneslice_nogil_check_none(double[:] m):
 
     return is_none, not_none
 
+@testcase
+def test_noneslice_not_none(double[:] m not None):
+    """
+    >>> test_noneslice_not_none(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'm' must not be None
+    """
+
 def get_int():
     return 10
 
