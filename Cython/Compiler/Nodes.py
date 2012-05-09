@@ -127,6 +127,7 @@ class Node(object):
 
     is_name = 0
     is_none = 0
+    is_nonecheck = 0
     is_literal = 0
     is_terminator = 0
     temps = None

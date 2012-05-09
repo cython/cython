@@ -1,24 +1,3 @@
-
-/////////////// RaiseNoneAttrError.proto ///////////////
-
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
-
-/////////////// RaiseNoneAttrError ///////////////
-
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
-    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
-}
-
-/////////////// RaiseNoneIndexingError.proto ///////////////
-
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
-
-/////////////// RaiseNoneIndexingError ///////////////
-
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-}
-
 /////////////// RaiseNoneIterError.proto ///////////////
 
 static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
