@@ -9117,7 +9117,7 @@ class NoneCheckNode(CoercionNode):
         if self.type.is_pyobject:
             return self.arg.py_result()
         elif self.type.is_memoryviewslice:
-            return "%s.memview" % self.arg.result()
+            return "((PyObject *) %s.memview)" % self.arg.result()
         else:
             raise Exception("unsupported type")
 
