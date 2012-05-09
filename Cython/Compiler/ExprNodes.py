@@ -758,7 +758,8 @@ class ExprNode(Node):
         return self.result_in_temp()
 
     def may_be_none(self):
-        if self.type and not self.type.is_pyobject:
+        if self.type and not (self.type.is_pyobject or
+                              self.type.is_memoryviewslice):
             return False
         if self.constant_result not in (not_a_constant, constant_value_not_set):
             return self.constant_result is not None
@@ -1588,7 +1589,8 @@ class NameNode(AtomicExprNode):
         return 1
 
     def may_be_none(self):
-        if self.cf_state and self.type and self.type.is_pyobject:
+        if self.cf_state and self.type and (self.type.is_pyobject or
+                                            self.type.is_memoryviewslice):
             # gard against infinite recursion on self-dependencies
             if getattr(self, '_none_checking', False):
                 # self-dependency - either this node receives a None
@@ -2723,6 +2725,24 @@ class IndexNode(ExprNode):
                             base_type)
                     self.type = PyrexTypes.error_type
 
+        self.wrap_in_nonecheck_node(env, getting)
+
+    def wrap_in_nonecheck_node(self, env, getting):
+        if not env.directives['nonecheck'] or not self.base.may_be_none():
+            return
+
+        if self.base.type.is_memoryviewslice:
+            if self.is_memslice_copy and not getting:
+                msg = "Cannot assign to None memoryview slice"
+            elif self.memslice_slice:
+                msg = "Cannot slice None memoryview slice"
+            else:
+                msg = "Cannot index None memoryview slice"
+        else:
+            msg = "'NoneType' object is not subscriptable"
+
+        self.base = self.base.as_none_safe_node(msg)
+
     def parse_indexed_fused_cdef(self, env):
         """
         Interpret fused_cdef_func[specific_type1, ...]
@@ -2893,7 +2913,6 @@ class IndexNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_buffer_access or self.memslice_index:
-            self.nonecheck(code)
             buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
             if self.type.is_pyobject:
                 # is_temp is True, so must pull out value and incref it.
@@ -2901,7 +2920,6 @@ class IndexNode(ExprNode):
                 code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
 
         elif self.memslice_slice:
-            self.nonecheck(code)
             self.put_memoryviewslice_slice_code(code)
 
         elif self.is_temp:
@@ -2977,7 +2995,6 @@ class IndexNode(ExprNode):
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
-        self.nonecheck(code)
         buffer_entry, ptrexpr = self.buffer_lookup_code(code)
 
         if self.buffer_type.dtype.is_pyobject:
@@ -3054,12 +3071,16 @@ class IndexNode(ExprNode):
     def buffer_entry(self):
         import Buffer, MemoryView
 
-        if self.base.is_name:
-            entry = self.base.entry
+        base = self.base
+        if self.base.is_nonecheck:
+            base = base.arg
+
+        if base.is_name:
+            entry = base.entry
         else:
             # SimpleCallNode is_simple is not consistent with coerce_to_simple
-            assert self.base.is_simple() or self.base.is_temp
-            cname = self.base.result()
+            assert base.is_simple() or base.is_temp
+            cname = base.result()
             entry = Symtab.Entry(cname, cname, self.base.type, self.base.pos)
 
         if entry.type.is_buffer:
@@ -3139,26 +3160,6 @@ class IndexNode(ExprNode):
         "memslice1[...] = 0.0 or memslice1[:] = 0.0"
         import MemoryView
         MemoryView.assign_scalar(self, rhs, code)
-
-    def nonecheck(self, code):
-        if code.globalstate.directives['nonecheck']:
-            self.put_nonecheck(code)
-
-    def put_nonecheck(self, code):
-        if self.base.type.is_memoryviewslice:
-            code.globalstate.use_utility_code(
-                raise_noneindex_memview_error_utility_code)
-            code.putln("if (unlikely((PyObject *) %s.memview == Py_None)) {" %
-                                                         self.base.result())
-            code.putln("__Pyx_RaiseNoneMemviewIndexingError();")
-        else:
-            code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
-            code.putln("if (%s) {" % code.unlikely("%s == Py_None") %
-                            self.base.result_as(PyrexTypes.py_object_type))
-            code.putln("__Pyx_RaiseNoneIndexingError();")
-
-        code.putln(code.error_goto(self.pos))
-        code.putln("}")
 
 
 class SliceIndexNode(ExprNode):
@@ -4304,6 +4305,10 @@ class AttributeNode(ExprNode):
             if self.entry:
                 self.entry.used = True
 
+        # may be mutated in a namenode now :)
+        if self.is_attribute:
+            self.wrap_obj_in_nonecheck(env)
+
     def analyse_as_cimported_attribute(self, env, target):
         # Try to interpret this as a reference to an imported
         # C const, type, var or function. If successful, mutates
@@ -4483,6 +4488,31 @@ class AttributeNode(ExprNode):
                       "Object of type '%s' has no attribute '%s'" %
                       (obj_type, self.attribute))
 
+    def wrap_obj_in_nonecheck(self, env):
+        if not env.directives['nonecheck']:
+            return
+
+        msg = None
+        format_args = ()
+        if (self.obj.type.is_extension_type and self.needs_none_check and not
+                self.is_py_attr):
+            msg = "'NoneType' object has no attribute '%s'"
+            format_args = (self.attribute,)
+        elif self.obj.type.is_memoryviewslice:
+            if self.is_memslice_transpose:
+                msg = "Cannot transpose None memoryview slice"
+            else:
+                entry = self.obj.type.scope.lookup_here(self.attribute)
+                if entry:
+                    # copy/is_c_contig/shape/strides etc
+                    msg = "Cannot access '%s' attribute of None memoryview slice"
+                    format_args = (entry.name,)
+
+        if msg:
+            self.obj = self.obj.as_none_safe_node(msg, 'PyExc_AttributeError',
+                                                  format_args=format_args)
+
+
     def nogil_check(self, env):
         if self.is_py_attr:
             self.gil_error()
@@ -4552,9 +4582,6 @@ class AttributeNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         elif self.type.is_memoryviewslice:
-            if code.globalstate.directives['nonecheck']:
-                self.put_nonecheck(code)
-
             if self.is_memslice_transpose:
                 # transpose the slice
                 for access, packing in self.type.axes:
@@ -4577,15 +4604,11 @@ class AttributeNode(ExprNode):
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
-        elif (self.obj.type.is_memoryviewslice and
-                code.globalstate.directives['nonecheck']):
-            self.put_nonecheck(code)
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
             if self.obj.type.is_extension_type:
-                if self.needs_none_check and code.globalstate.directives['nonecheck']:
-                    self.put_nonecheck(code)
+                pass
             elif self.entry and self.entry.is_cmethod and self.entry.utility_code:
                 # C method implemented as function call with utility code
                 code.globalstate.use_utility_code(self.entry.utility_code)
@@ -4606,11 +4629,6 @@ class AttributeNode(ExprNode):
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
         else:
-            if (self.obj.type.needs_nonecheck()
-                  and self.needs_none_check
-                  and code.globalstate.directives['nonecheck']):
-                self.put_nonecheck(code)
-
             select_code = self.result()
             if self.type.is_pyobject and self.use_managed_ref:
                 rhs.make_owned_reference(code)
@@ -4651,19 +4669,6 @@ class AttributeNode(ExprNode):
             code.annotate(self.pos, AnnotationItem('py_attr', 'python attribute', size=len(self.attribute)))
         else:
             code.annotate(self.pos, AnnotationItem('c_attr', 'c attribute', size=len(self.attribute)))
-
-    def put_nonecheck(self, code):
-        code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
-        if self.obj.type.is_extension_type:
-            test = "%s == Py_None" % self.obj.result_as(PyrexTypes.py_object_type)
-        elif self.obj.type.is_memoryviewslice:
-            test = "(PyObject *) %s.memview == Py_None" % self.obj.result()
-        else:
-            assert False
-        code.putln("if (%s) {" % code.unlikely(test))
-        code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute)
-        code.putln(code.error_goto(self.pos))
-        code.putln("}")
 
 
 #-------------------------------------------------------------------
@@ -8642,6 +8647,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     child_attrs = ['operand1', 'operand2', 'cascade']
 
     cascade = None
+    is_memslice_nonecheck = False
 
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
@@ -8665,6 +8671,10 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             if self.cascade:
                 error(self.pos, "Cascading comparison not yet supported for cpp types.")
             return
+
+        if self.analyse_memoryviewslice_comparison(env):
+            return
+
         if self.cascade:
             self.cascade.analyse_types(env)
 
@@ -8743,6 +8753,19 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.operand2 = self.operand2.coerce_to(func_type.args[1].type, env)
         self.type = func_type.return_type
 
+    def analyse_memoryviewslice_comparison(self, env):
+        have_none = self.operand1.is_none or self.operand2.is_none
+        have_slice = (self.operand1.type.is_memoryviewslice or
+                      self.operand2.type.is_memoryviewslice)
+        ops = ('==', '!=', 'is', 'is_not')
+        if have_slice and have_none and self.operator in ops:
+            self.is_pycmp = False
+            self.type = PyrexTypes.c_bint_type
+            self.is_memslice_nonecheck = True
+            return True
+
+        return False
+
     def has_python_operands(self):
         return (self.operand1.type.is_pyobject
             or self.operand2.type.is_pyobject)
@@ -8780,10 +8803,18 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 self.operand2.result(),
                 self.operand1.result())
         else:
+            result1 = self.operand1.result()
+            result2 = self.operand2.result()
+            if self.is_memslice_nonecheck:
+                if self.operand1.type.is_memoryviewslice:
+                    result1 = "((PyObject *) %s.memview)" % result1
+                else:
+                    result2 = "((PyObject *) %s.memview)" % result2
+
             return "(%s %s %s)" % (
-                self.operand1.result(),
+                result1,
                 self.c_operator(self.operator),
-                self.operand2.result())
+                result2)
 
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
@@ -9058,6 +9089,8 @@ class NoneCheckNode(CoercionNode):
     # raises an appropriate exception (as specified by the creating
     # transform).
 
+    is_nonecheck = True
+
     def __init__(self, arg, exception_type_cname, exception_message,
                  exception_format_args):
         CoercionNode.__init__(self, arg)
@@ -9084,24 +9117,42 @@ class NoneCheckNode(CoercionNode):
     def calculate_result_code(self):
         return self.arg.result()
 
-    def generate_result_code(self, code):
+    def condition(self):
+        if self.type.is_pyobject:
+            return self.arg.py_result()
+        elif self.type.is_memoryviewslice:
+            return "((PyObject *) %s.memview)" % self.arg.result()
+        else:
+            raise Exception("unsupported type")
+
+    def put_nonecheck(self, code):
         code.putln(
-            "if (unlikely(%s == Py_None)) {" % self.arg.py_result())
+            "if (unlikely(%s == Py_None)) {" % self.condition())
+
+        if self.in_nogil_context:
+            code.put_ensure_gil()
+
         escape = StringEncoding.escape_byte_string
         if self.exception_format_args:
-            code.putln('PyErr_Format(%s, "%s", %s); %s ' % (
+            code.putln('PyErr_Format(%s, "%s", %s);' % (
                 self.exception_type_cname,
                 StringEncoding.escape_byte_string(
                     self.exception_message.encode('UTF-8')),
                 ', '.join([ '"%s"' % escape(str(arg).encode('UTF-8'))
-                            for arg in self.exception_format_args ]),
-                code.error_goto(self.pos)))
+                            for arg in self.exception_format_args ])))
         else:
-            code.putln('PyErr_SetString(%s, "%s"); %s ' % (
+            code.putln('PyErr_SetString(%s, "%s");' % (
                 self.exception_type_cname,
-                escape(self.exception_message.encode('UTF-8')),
-                code.error_goto(self.pos)))
+                escape(self.exception_message.encode('UTF-8'))))
+
+        if self.in_nogil_context:
+            code.put_release_ensured_gil()
+
+        code.putln(code.error_goto(self.pos))
         code.putln("}")
+
+    def generate_result_code(self, code):
+        self.put_nonecheck(code)
 
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)
@@ -9710,20 +9761,6 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
 )
 
 #------------------------------------------------------------------------------------
-
-raise_noneattr_error_utility_code = UtilityCode.load_cached("RaiseNoneAttrError", "ObjectHandling.c")
-raise_noneindex_error_utility_code = UtilityCode.load_cached("RaiseNoneIndexingError", "ObjectHandling.c")
-raise_none_iter_error_utility_code = UtilityCode.load_cached("RaiseNoneIterError", "ObjectHandling.c")
-
-raise_noneindex_memview_error_utility_code = UtilityCode(
-    proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneMemviewIndexingError(void);
-""",
-    impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneMemviewIndexingError(void) {
-    PyErr_SetString(PyExc_TypeError, "Cannot index None memoryview slice");
-}
-''')
 
 raise_unbound_local_error_utility_code = UtilityCode(
 proto = """
