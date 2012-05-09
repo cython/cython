@@ -2180,6 +2180,21 @@ def test_noneslice_del():
         del m
         print m
 
+@testcase
+def test_noneslice_nogil_check_none(double[:] m):
+    """
+    >>> test_noneslice_nogil_check_none(None)
+    (True, False)
+    """
+    cdef bint is_none = False
+    cdef bint not_none = True
+
+    with nogil:
+        is_none = m is None and None is m and m == None and None == m
+        not_none = m is not None and None is not m and m != None and None != m
+
+    return is_none, not_none
+
 def get_int():
     return 10
 

@@ -8643,6 +8643,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     child_attrs = ['operand1', 'operand2', 'cascade']
 
     cascade = None
+    is_memslice_nonecheck = False
 
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
@@ -8666,6 +8667,10 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             if self.cascade:
                 error(self.pos, "Cascading comparison not yet supported for cpp types.")
             return
+
+        if self.analyse_memoryviewslice_comparison(env):
+            return
+
         if self.cascade:
             self.cascade.analyse_types(env)
 
@@ -8744,6 +8749,19 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.operand2 = self.operand2.coerce_to(func_type.args[1].type, env)
         self.type = func_type.return_type
 
+    def analyse_memoryviewslice_comparison(self, env):
+        have_none = self.operand1.is_none or self.operand2.is_none
+        have_slice = (self.operand1.type.is_memoryviewslice or
+                      self.operand2.type.is_memoryviewslice)
+        ops = ('==', '!=', 'is', 'is_not')
+        if have_slice and have_none and self.operator in ops:
+            self.is_pycmp = False
+            self.type = PyrexTypes.c_bint_type
+            self.is_memslice_nonecheck = True
+            return True
+
+        return False
+
     def has_python_operands(self):
         return (self.operand1.type.is_pyobject
             or self.operand2.type.is_pyobject)
@@ -8781,10 +8799,18 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 self.operand2.result(),
                 self.operand1.result())
         else:
+            result1 = self.operand1.result()
+            result2 = self.operand2.result()
+            if self.is_memslice_nonecheck:
+                if self.operand1.type.is_memoryviewslice:
+                    result1 = "((PyObject *) %s.memview)" % result1
+                else:
+                    result2 = "((PyObject *) %s.memview)" % result2
+
             return "(%s %s %s)" % (
-                self.operand1.result(),
+                result1,
                 self.c_operator(self.operator),
-                self.operand2.result())
+                result2)
 
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
