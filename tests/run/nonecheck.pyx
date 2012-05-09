@@ -37,6 +37,26 @@ def setattr_(MyClass var):
     """
     var.a = 10
 
+@cython.nonecheck(True)
+def getattr_nogil(MyClass var):
+    """
+    >>> getattr_nogil(None)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'a'
+    """
+    with nogil:
+        var.a
+
+@cython.nonecheck(True)
+def setattr_nogil(MyClass var):
+    """
+    >>> setattr_nogil(None)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'a'
+    """
+    with nogil:
+        var.a = 1
+
 def some():
     return MyClass(4, 5)
 
