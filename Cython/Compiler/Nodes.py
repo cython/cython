@@ -127,6 +127,7 @@ class Node(object):
 
     is_name = 0
     is_none = 0
+    is_nonecheck = 0
     is_literal = 0
     is_terminator = 0
     temps = None
@@ -1832,7 +1833,12 @@ class FuncDefNode(StatNode, BlockNode):
 
     def generate_arg_none_check(self, arg, code):
         # Generate None check for one argument.
-        code.putln('if (unlikely(((PyObject *)%s) == Py_None)) {' % arg.entry.cname)
+        if arg.type.is_memoryviewslice:
+            cname = "%s.memview" % arg.entry.cname
+        else:
+            cname = arg.entry.cname
+
+        code.putln('if (unlikely(((PyObject *)%s) == Py_None)) {' % cname)
         code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%s' must not be None"); %s''' % (
             arg.name,
             code.error_goto(arg.pos)))
@@ -2978,13 +2984,13 @@ class DefNode(FuncDefNode):
             arg.needs_conversion = 0
             arg.needs_type_test = 0
             arg.is_generic = 1
-            if arg.type.is_pyobject or arg.type.is_buffer:
+            if arg.type.is_pyobject or arg.type.is_buffer or arg.type.is_memoryviewslice:
                 if arg.or_none:
                     arg.accept_none = True
                 elif arg.not_none:
                     arg.accept_none = False
                 elif (arg.type.is_extension_type or arg.type.is_builtin_type
-                      or arg.type.is_buffer):
+                      or arg.type.is_buffer or arg.type.is_memoryviewslice):
                     if arg.default and arg.default.constant_result is None:
                         # special case: def func(MyType obj = None)
                         arg.accept_none = True
@@ -4028,7 +4034,9 @@ class DefNodeWrapper(FuncDefNode):
         for arg in self.args:
             if arg.needs_type_test:
                 self.generate_arg_type_test(arg, code)
-            elif not arg.accept_none and arg.type.is_pyobject:
+            elif not arg.accept_none and (arg.type.is_pyobject or
+                                          arg.type.is_buffer or
+                                          arg.type.is_memoryviewslice):
                 self.generate_arg_none_check(arg, code)
 
     def error_value(self):

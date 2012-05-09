@@ -2120,6 +2120,10 @@ def test_dtype_object_scalar_assignment():
 #
 ### Test slices that are set to None
 #
+
+# for none memoryview slice attribute testing, slicing, indexing, etc, see
+# nonecheck.pyx
+
 @testcase
 def test_coerce_to_from_None(double[:] m1, double[:] m2 = None):
     """
@@ -2129,56 +2133,6 @@ def test_coerce_to_from_None(double[:] m1, double[:] m2 = None):
     (None, None)
     """
     return m1, m2
-
-@testcase
-def test_noneslice_attrib(double[:] m):
-    """
-    >>> test_noneslice_attrib(None)
-    'NoneType' object has no attribute 'copy'
-    'NoneType' object has no attribute 'T'
-    """
-    cdef double[:] m2
-
-    with cython.nonecheck(True):
-        try:
-            m2 = m.copy()
-        except Exception, e:
-            print e.args[0]
-
-        try:
-            m2 = m.T
-        except Exception, e:
-            print e.args[0]
-
-@testcase
-def test_noneslice_index(double[:] m):
-    """
-    >>> test_noneslice_index(None)
-    Cannot index None memoryview slice
-    Cannot index None memoryview slice
-    Cannot index None memoryview slice
-    Cannot index None memoryview slice
-    """
-    with cython.nonecheck(True):
-        try:
-            a = m[10]
-        except Exception, e:
-            print e.args[0]
-
-        try:
-            b = m[:]
-        except Exception, e:
-            print e.args[0]
-
-        try:
-            m[10] = 2
-        except Exception, e:
-            print e.args[0]
-
-        try:
-            m[:] = 2
-        except Exception, e:
-            print e.args[0]
 
 @testcase
 def test_noneslice_compare(double[:] m):
@@ -2225,6 +2179,29 @@ def test_noneslice_del():
         m = None
         del m
         print m
+
+@testcase
+def test_noneslice_nogil_check_none(double[:] m):
+    """
+    >>> test_noneslice_nogil_check_none(None)
+    (True, False)
+    """
+    cdef bint is_none = False
+    cdef bint not_none = True
+
+    with nogil:
+        is_none = m is None and None is m and m == None and None == m
+        not_none = m is not None and None is not m and m != None and None != m
+
+    return is_none, not_none
+
+@testcase
+def test_noneslice_not_none(double[:] m not None):
+    """
+    >>> test_noneslice_not_none(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'm' must not be None
+    """
 
 def get_int():
     return 10
