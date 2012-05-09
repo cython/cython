@@ -30,14 +30,15 @@ static int __Pyx_Print(PyObject* f, PyObject *arg_tuple, int newline) {
         if (!(f = __Pyx_GetStdout()))
             return -1;
     }
+    Py_INCREF(f);
     for (i=0; i < PyTuple_GET_SIZE(arg_tuple); i++) {
         if (PyFile_SoftSpace(f, 1)) {
             if (PyFile_WriteString(" ", f) < 0)
-                return -1;
+                goto error;
         }
         v = PyTuple_GET_ITEM(arg_tuple, i);
         if (PyFile_WriteObject(v, f, Py_PRINT_RAW) < 0)
-            return -1;
+            goto error;
         if (PyString_Check(v)) {
             char *s = PyString_AsString(v);
             Py_ssize_t len = PyString_Size(v);
@@ -49,10 +50,14 @@ static int __Pyx_Print(PyObject* f, PyObject *arg_tuple, int newline) {
     }
     if (newline) {
         if (PyFile_WriteString("\n", f) < 0)
-            return -1;
+            goto error;
         PyFile_SoftSpace(f, 0);
     }
+    Py_DECREF(f);
     return 0;
+error:
+    Py_DECREF(f);
+    return -1;
 }
 
 #else /* Python 3 has a print function */
@@ -125,15 +130,20 @@ static int __Pyx_PrintOne(PyObject* f, PyObject *o) {
         if (!(f = __Pyx_GetStdout()))
             return -1;
     }
+    Py_INCREF(f);
     if (PyFile_SoftSpace(f, 0)) {
         if (PyFile_WriteString(" ", f) < 0)
-            return -1;
+            goto error;
     }
     if (PyFile_WriteObject(o, f, Py_PRINT_RAW) < 0)
-        return -1;
+        goto error;
     if (PyFile_WriteString("\n", f) < 0)
-        return -1;
+        goto error;
+    Py_DECREF(f);
     return 0;
+error:
+    Py_DECREF(f);
+    return -1;
     /* the line below is just to avoid compiler
      * compiler warnings about unused functions */
     return __Pyx_Print(f, NULL, 0);
