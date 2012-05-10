@@ -1,18 +1,23 @@
 ////////////////////// Print.proto //////////////////////
 //@substitute: naming
+
 static int __Pyx_Print(PyObject*, PyObject *, int); /*proto*/
 #if CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION >= 3
 static PyObject* $print_function = 0;
 static PyObject* $print_function_kwargs = 0;
 #endif
+
 ////////////////////// Print.cleanup //////////////////////
 //@substitute: naming
+
 #if CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION >= 3
 Py_CLEAR($print_function);
 Py_CLEAR($print_function_kwargs);
 #endif
+
 ////////////////////// Print //////////////////////
 //@substitute: naming
+
 #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
     PyObject *f = PySys_GetObject((char *)"stdout");
@@ -123,6 +128,7 @@ bad:
 static int __Pyx_PrintOne(PyObject* stream, PyObject *o); /*proto*/
 
 ////////////////////// PrintOne //////////////////////
+
 #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION < 3
 
 static int __Pyx_PrintOne(PyObject* f, PyObject *o) {
