@@ -231,6 +231,12 @@ class TreeFragment(object):
                                    substitutions = nodes,
                                    temps = self.temps + temps, pos = pos)
 
+class SetPosTransform(VisitorTransform):
+    def __init__(self, pos):
+        super(SetPosTransform, self).__init__()
+        self.pos = pos
 
-
-
+    def visit_Node(self, node):
+        node.pos = self.pos
+        self.visitchildren(node)
+        return node

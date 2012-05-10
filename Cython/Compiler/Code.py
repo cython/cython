@@ -14,6 +14,7 @@ import re
 import sys
 from string import Template
 import operator
+import textwrap
 
 import Naming
 import Options
@@ -376,7 +377,7 @@ class UtilityCode(UtilityCodeBase):
                 self.cleanup(writer, output.module_pos)
 
 
-def sub_tempita(s, context, file, name):
+def sub_tempita(s, context, file=None, name=None):
     "Run tempita on string s with given context."
     if not s:
         return None
@@ -1939,6 +1940,75 @@ class PyrexCodeWriter(object):
 
     def dedent(self):
         self.level -= 1
+
+class PyxCodeWriter(object):
+    """
+    Can be used for writing out some Cython code. To use the indenter
+    functionality, the Cython.Compiler.Importer module will have to be used
+    to load the code to support python 2.4
+    """
+
+    def __init__(self, buffer=None, indent_level=0, context=None, encoding='ascii'):
+        self.buffer = buffer or StringIOTree()
+        self.level = indent_level
+        self.context = context
+        self.encoding = encoding
+
+    def indent(self, levels=1):
+        self.level += levels
+        return True
+
+    def dedent(self, levels=1):
+        self.level -= levels
+
+    def indenter(self, line):
+        """
+        Instead of
+
+            with pyx_code.indenter("for i in range(10):"):
+                pyx_code.putln("print i")
+
+        write
+
+            if pyx_code.indenter("for i in range(10);"):
+                pyx_code.putln("print i")
+                pyx_code.dedent()
+        """
+        self.putln(line)
+        self.indent()
+        return True
+
+    def getvalue(self):
+        result = self.buffer.getvalue()
+        if not isinstance(result, unicode):
+            result = result.decode(self.encoding)
+
+        return result
+
+    def putln(self, line, context=None):
+        context = context or self.context
+        if context:
+            line = sub_tempita(line, context)
+        self._putln(line)
+
+    def _putln(self, line):
+        self.buffer.write("%s%s\n" % (self.level * "    ", line))
+
+    def put_chunk(self, chunk, context=None):
+        context = context or self.context
+        if context:
+            chunk = sub_tempita(chunk, context)
+
+        chunk = textwrap.dedent(chunk)
+        for line in chunk.splitlines():
+            self._putln(line)
+
+    def insertion_point(self):
+        return PyxCodeWriter(self.buffer.insertion_point(), self.level,
+                             self.context)
+
+    def named_insertion_point(self, name):
+        setattr(self, name, self.insertion_point())
 
 
 class ClosureTempAllocator(object):
