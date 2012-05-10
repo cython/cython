@@ -28,7 +28,6 @@ static PyObject *__Pyx_GetStdout(void) {
 }
 
 static int __Pyx_Print(PyObject* f, PyObject *arg_tuple, int newline) {
-    PyObject* v;
     int i;
 
     if (!f) {
@@ -37,6 +36,7 @@ static int __Pyx_Print(PyObject* f, PyObject *arg_tuple, int newline) {
     }
     Py_INCREF(f);
     for (i=0; i < PyTuple_GET_SIZE(arg_tuple); i++) {
+        PyObject* v;
         if (PyFile_SoftSpace(f, 1)) {
             if (PyFile_WriteString(" ", f) < 0)
                 goto error;
@@ -150,8 +150,8 @@ static int __Pyx_PrintOne(PyObject* f, PyObject *o) {
 error:
     Py_DECREF(f);
     return -1;
-    /* the line below is just to avoid compiler
-     * compiler warnings about unused functions */
+    /* the line below is just to avoid C compiler
+     * warnings about unused functions */
     return __Pyx_Print(f, NULL, 0);
 }
 
@@ -159,11 +159,9 @@ error:
 
 static int __Pyx_PrintOne(PyObject* stream, PyObject *o) {
     int res;
-    PyObject* arg_tuple = PyTuple_New(1);
+    PyObject* arg_tuple = PyTuple_Pack(1, o);
     if (unlikely(!arg_tuple))
         return -1;
-    Py_INCREF(o);
-    PyTuple_SET_ITEM(arg_tuple, 0, o);
     res = __Pyx_Print(stream, arg_tuple, 1);
     Py_DECREF(arg_tuple);
     return res;
