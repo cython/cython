@@ -313,6 +313,12 @@ class NameAssignment(object):
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
 
+    def infer_type(self, scope):
+        return self.rhs.infer_type(scope)
+
+    def type_dependencies(self, scope):
+        return self.rhs.type_dependencies(scope)
+
 
 class Argument(NameAssignment):
     def __init__(self, lhs, rhs, entry):
@@ -324,6 +330,13 @@ class NameDeletion(NameAssignment):
     def __init__(self, lhs, entry):
         NameAssignment.__init__(self, lhs, lhs, entry)
         self.is_deletion = True
+
+    def infer_type(self, scope):
+        inferred_type = self.rhs.infer_type(scope)
+        if (not inferred_type.is_pyobject and
+            inferred_type.can_coerce_to_pyobject(scope)):
+            return py_object_type
+        return inferred_type
 
 
 class Uninitialized(object):
