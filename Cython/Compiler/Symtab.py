@@ -120,6 +120,8 @@ class Entry(object):
     # error_on_uninitialized      Have Control Flow issue an error when this entry is
     #                             used uninitialized
     # cf_used          boolean    Entry is used
+    # is_fused_specialized boolean Whether this entry of a cdef or def function
+    #                              is a specialization
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -179,6 +181,7 @@ class Entry(object):
     prev_entry = None
     might_overflow = 0
     fused_cfunction = None
+    is_fused_specialized = False
     utility_code_definition = None
     in_with_gil_block = 0
     from_cython_utility_code = None
@@ -360,11 +363,11 @@ class Scope(object):
         # Return the module-level scope containing this scope.
         return self.outer_scope.builtin_scope()
 
-    def declare(self, name, cname, type, pos, visibility, shadow = 0):
+    def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
         # declared.
-        if type.is_buffer and not isinstance(self, LocalScope):
+        if type.is_buffer and not isinstance(self, LocalScope): # and not is_type:
             error(pos, 'Buffer types only allowed as function local variables')
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
@@ -415,7 +418,8 @@ class Scope(object):
         # Add an entry for a type definition.
         if not cname:
             cname = name
-        entry = self.declare(name, cname, type, pos, visibility, shadow)
+        entry = self.declare(name, cname, type, pos, visibility, shadow,
+                             is_type=True)
         entry.is_type = 1
         entry.api = api
         if defining:

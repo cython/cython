@@ -790,10 +790,9 @@ class BufferType(BaseType):
 
     def __str__(self):
         # avoid ', ', as fused functions split the signature string on ', '
+        cast_str = ''
         if self.cast:
             cast_str = ',cast=True'
-        else:
-            cast_str = ''
 
         return "%s[%s,ndim=%d%s]" % (self.base, self.dtype, self.ndim,
                                       cast_str)
@@ -2661,6 +2660,7 @@ def specialize_entry(entry, cname):
     """
     Specialize an entry of a copied fused function or method
     """
+    entry.is_fused_specialized = True
     entry.name = get_fused_cname(cname, entry.name)
 
     if entry.is_cmethod:

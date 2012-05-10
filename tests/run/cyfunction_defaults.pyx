@@ -107,3 +107,27 @@ def test_defaults_fused(cython.floating arg1, cython.floating arg2 = counter2())
     (2.0,)
     """
     print arg1, arg2
+
+funcs = []
+for i in range(10):
+    def defaults_fused(cython.floating a, cython.floating b = i):
+        return a, b
+    funcs.append(defaults_fused)
+
+def test_dynamic_defaults_fused():
+    """
+    >>> test_dynamic_defaults_fused()
+    i 0 func result (1.0, 0.0) defaults (0,)
+    i 1 func result (1.0, 1.0) defaults (1,)
+    i 2 func result (1.0, 2.0) defaults (2,)
+    i 3 func result (1.0, 3.0) defaults (3,)
+    i 4 func result (1.0, 4.0) defaults (4,)
+    i 5 func result (1.0, 5.0) defaults (5,)
+    i 6 func result (1.0, 6.0) defaults (6,)
+    i 7 func result (1.0, 7.0) defaults (7,)
+    i 8 func result (1.0, 8.0) defaults (8,)
+    i 9 func result (1.0, 9.0) defaults (9,)
+    """
+    for i, f in enumerate(funcs):
+        print "i", i, "func result", f(1.0), "defaults", get_defaults(f)
+

@@ -373,7 +373,19 @@ class PyxArgs(object):
     setup_args={}   #None
 
 ##pyxargs=None   
-    
+
+def _have_importers():
+    has_py_importer = False
+    has_pyx_importer = False
+    for importer in sys.meta_path:
+        if isinstance(importer, PyxImporter):
+            if isinstance(importer, PyImporter):
+                has_py_importer = True
+            else:
+                has_pyx_importer = True
+
+    return has_py_importer, has_pyx_importer
+
 def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
             setup_args={}, reload_support=False,
             load_py_module_on_import_failure=False):
@@ -426,23 +438,32 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     pyxargs.reload_support = reload_support
     pyxargs.load_py_module_on_import_failure = load_py_module_on_import_failure
 
-    has_py_importer = False
-    has_pyx_importer = False
-    for importer in sys.meta_path:
-        if isinstance(importer, PyxImporter):
-            if isinstance(importer, PyImporter):
-                has_py_importer = True
-            else:
-                has_pyx_importer = True
+    has_py_importer, has_pyx_importer = _have_importers()
+    py_importer, pyx_importer = None, None
 
     if pyimport and not has_py_importer:
-        importer = PyImporter(pyxbuild_dir=build_dir)
-        sys.meta_path.insert(0, importer)
+        py_importer = PyImporter(pyxbuild_dir=build_dir)
+        sys.meta_path.insert(0, py_importer)
 
     if pyximport and not has_pyx_importer:
-        importer = PyxImporter(pyxbuild_dir=build_dir)
-        sys.meta_path.append(importer)
+        pyx_importer = PyxImporter(pyxbuild_dir=build_dir)
+        sys.meta_path.append(pyx_importer)
 
+    return py_importer, pyx_importer
+
+def uninstall(py_importer, pyx_importer):
+    """
+    Uninstall an import hook.
+    """
+    try:
+        sys.meta_path.remove(py_importer)
+    except ValueError:
+        pass
+
+    try:
+        sys.meta_path.remove(pyx_importer)
+    except ValueError:
+        pass
 
 # MAIN
 

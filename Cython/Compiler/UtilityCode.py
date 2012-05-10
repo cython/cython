@@ -167,3 +167,11 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 dep.declare_in_scope(dest_scope)
 
         return original_scope
+
+def declare_declarations_in_scope(declaration_string, env, private_type=True,
+                                  *args, **kwargs):
+    """
+    Declare some declarations given as Cython code in declaration_string
+    in scope env.
+    """
+    CythonUtilityCode(declaration_string, *args, **kwargs).declare_in_scope(env)
