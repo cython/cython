@@ -576,10 +576,14 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 candidates = []
                 for sig in signatures:
-                    match_found = filter(None, dest_sig)
+                    match_found = False
                     for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
-                        if dst_type is not None and match_found:
-                            match_found = src_type == dst_type
+                        if dst_type is not None:
+                            if src_type == dst_type:
+                                match_found = True
+                            else:
+                                match_found = False
+                                break
 
                     if match_found:
                         candidates.append(sig)
