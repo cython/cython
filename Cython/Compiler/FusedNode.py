@@ -571,6 +571,7 @@ class FusedCFuncDefNode(StatListNode):
 
         if all_buffer_types:
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types)
+            env.use_utility_code(ExprNodes.import_utility_code)
 
         pyx_code.put_chunk(
             u"""
@@ -649,8 +650,6 @@ class FusedCFuncDefNode(StatListNode):
 
         self.synthesize_defnodes()
         self.stats.append(self.__signatures__)
-
-        env.use_utility_code(ExprNodes.import_utility_code)
 
     def analyse_expressions(self, env):
         """
