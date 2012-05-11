@@ -2523,26 +2523,32 @@ class IndexNode(ExprNode):
             import MemoryView
 
             skip_child_analysis = True
+            newaxes = [newaxis for newaxis in indices if newaxis.is_none]
             have_slices, indices = MemoryView.unellipsify(indices,
+                                                          newaxes,
                                                           self.base.type.ndim)
-            self.memslice_index = len(indices) == self.base.type.ndim
+
+            self.memslice_index = (not newaxes and
+                                   len(indices) == self.base.type.ndim)
             axes = []
 
             index_type = PyrexTypes.c_py_ssize_t_type
             new_indices = []
 
-            if len(indices) > self.base.type.ndim:
+            if len(indices) - len(newaxes) > self.base.type.ndim:
                 self.type = error_type
                 return error(indices[self.base.type.ndim].pos,
                              "Too many indices specified for type %s" %
                                                         self.base.type)
 
-            suboffsets_dim = -1
+            axis_idx = 0
             for i, index in enumerate(indices[:]):
                 index.analyse_types(env)
-                access, packing = self.base.type.axes[i]
+                if not index.is_none:
+                    access, packing = self.base.type.axes[axis_idx]
+                    axis_idx += 1
+
                 if isinstance(index, SliceNode):
-                    suboffsets_dim = i
                     self.memslice_slice = True
                     if index.step.is_none:
                         axes.append((access, packing))
@@ -2557,6 +2563,11 @@ class IndexNode(ExprNode):
                             #value = value.coerce_to_temp(env)
                             setattr(index, attr, value)
                             new_indices.append(value)
+
+                elif index.is_none:
+                    self.memslice_slice = True
+                    new_indices.append(index)
+                    axes.append(('direct', 'strided'))
 
                 elif index.type.is_int or index.type.is_pyobject:
                     if index.type.is_pyobject and not self.warned_untyped_idx:
@@ -2633,6 +2644,11 @@ class IndexNode(ExprNode):
             self.index = None
             self.is_temp = True
             self.use_managed_ref = True
+
+            if not MemoryView.validate_axes(self.pos, axes):
+                self.type = error_type
+                return
+
             self.type = PyrexTypes.MemoryViewSliceType(
                             self.base.type.dtype, axes)
 

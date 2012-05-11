@@ -76,6 +76,22 @@ the slice can be transposed in the same way that numpy slices can be transposed:
 
 This gives a new, transposed, view on the data.
 
+Newaxis
+-------
+New axes can be introduced by indexing an array with ``None`` ::
+
+    cdef double[:] myslice = np.linspace(0, 10, num=50)
+
+    # 2D array with shape (1, 50)
+    myslice[None] # or
+    myslice[None, :]
+
+    # 2D array with shape (50, 1)
+    myslice[:, None]
+
+One may mix new axis indexing with all other forms of indexing and slicing.
+See also an example_.
+
 Specifying data layout
 ======================
 
@@ -230,3 +246,4 @@ Unlike object attributes of extension classes, memoryview slices are not initial
 to None.
 
 .. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
+.. _example: http://www.scipy.org/Numpy_Example_List#newaxis
