@@ -9935,6 +9935,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v) {
+#if CYTHON_COMPILING_IN_CPYTHON
     if (PyList_CheckExact(o)) {
         Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
@@ -9944,8 +9945,9 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             Py_DECREF(old);
             return 1;
         }
-    }
-    else if (likely(i >= 0)) {
+    } else
+#endif
+    if (likely(i >= 0)) {
         PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
         if (likely(m && m->sq_ass_item)) {
             return m->sq_ass_item(o, i, v);
