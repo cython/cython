@@ -183,6 +183,7 @@ class Entry(object):
     fused_cfunction = None
     is_fused_specialized = False
     utility_code_definition = None
+    needs_property = False
     in_with_gil_block = 0
     from_cython_utility_code = None
     error_on_uninitialized = False

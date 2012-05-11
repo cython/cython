@@ -238,19 +238,11 @@ class FusedCFuncDefNode(StatListNode):
         for specialized_type in normal_types:
             # all_numeric = all_numeric and specialized_type.is_numeric
             py_type_name = specialized_type.py_type_name()
-
-            # in the case of long, unicode or bytes we need to instance
-            # check for long_, unicode_, bytes_ (long = long is no longer
-            # valid code with control flow analysis)
-            specialized_check_name = py_type_name
-            if py_type_name in ('long', 'unicode', 'bytes'):
-                specialized_check_name += '_'
-
             specialized_type_name = specialized_type.specialization_string
             pyx_code.context.update(locals())
             pyx_code.put_chunk(
                 u"""
-                    {{if_}} isinstance(arg, {{specialized_check_name}}):
+                    {{if_}} isinstance(arg, {{py_type_name}}):
                         dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'
                 """)
             if_ = 'elif'
@@ -539,17 +531,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.put_chunk(
             u"""
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
-                    import sys
-                    if sys.version_info >= (3, 0):
-                        long_ = int
-                        unicode_ = str
-                        bytes_ = bytes
-                    else:
-                        long_ = long
-                        unicode_ = unicode
-                        bytes_ = str
-
-                    dest_sig = [None] * {{n_fused}}
+                    dest_sig = [{{for _ in range(n_fused)}}None,{{endfor}}]
 
                     if kwargs is None:
                         kwargs = {}
@@ -594,10 +576,14 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 candidates = []
                 for sig in signatures:
-                    match_found = filter(None, dest_sig)
+                    match_found = False
                     for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
-                        if dst_type is not None and match_found:
-                            match_found = src_type == dst_type
+                        if dst_type is not None:
+                            if src_type == dst_type:
+                                match_found = True
+                            else:
+                                match_found = False
+                                break
 
                     if match_found:
                         candidates.append(sig)
