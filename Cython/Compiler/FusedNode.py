@@ -531,7 +531,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.put_chunk(
             u"""
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
-                    dest_sig = [None] * {{n_fused}}
+                    dest_sig = [{{for _ in range(n_fused)}}None,{{endfor}}]
 
                     if kwargs is None:
                         kwargs = {}
