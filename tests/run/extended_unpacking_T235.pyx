@@ -39,6 +39,24 @@ def unpack_tuple(tuple t):
     a, b = t
     return a,b
 
+def unpack_single(l):
+    """
+    >>> unpack_single([1])
+    [1]
+    >>> unpack_single('1')
+    ['1']
+    """
+    *a, = l
+    return a
+
+def unpack_tuple_single(tuple t):
+    """
+    >>> unpack_tuple_single((1,))
+    [1]
+    """
+    *a, = t
+    return a
+
 def assign():
     """
     >>> assign()
