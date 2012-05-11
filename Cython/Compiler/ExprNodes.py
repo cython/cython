@@ -10008,38 +10008,7 @@ impl = """
 
 raise_too_many_values_to_unpack = UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c")
 raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c")
-
-#------------------------------------------------------------------------------------
-
 tuple_unpacking_error_code = UtilityCode.load_cached("UnpackTupleError", "ObjectHandling.c")
-
-#------------------------------------------------------------------------------------
-
-# CPython supports calling functions with non-dict kwargs by
-# converting them to a dict first
-
-kwargs_call_utility_code = UtilityCode(
-proto = """
-static PyObject* __Pyx_PyEval_CallObjectWithKeywords(PyObject*, PyObject*, PyObject*); /*proto*/
-""",
-impl = """
-static PyObject* __Pyx_PyEval_CallObjectWithKeywords(PyObject *callable, PyObject *args, PyObject *kwargs) {
-    PyObject* result;
-    if (likely(PyDict_Check(kwargs))) {
-        return PyEval_CallObjectWithKeywords(callable, args, kwargs);
-    } else {
-        PyObject* real_dict;
-        real_dict = PyObject_CallFunctionObjArgs((PyObject*)&PyDict_Type, kwargs, NULL);
-        if (unlikely(!real_dict))
-            return NULL;
-        result = PyEval_CallObjectWithKeywords(callable, args, real_dict);
-        Py_DECREF(real_dict);
-        return result; /* may be NULL */
-    }
-}
-""",
-)
-
 
 #------------------------------------------------------------------------------------
 
