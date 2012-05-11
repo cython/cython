@@ -1073,6 +1073,12 @@ def p_nonlocal_statement(s):
 
 def p_expression_or_assignment(s):
     expr_list = [p_testlist_star_expr(s)]
+    if s.sy == '=' and expr_list[0].is_starred:
+        # This is a common enough error to make when learning Cython to let
+        # it fail as early as possible and give a very clear error message.
+        s.error("a starred assignment target must be in a list or tuple"
+                " - maybe you meant to use an index assignment: var[0] = ...",
+                pos=expr_list[0].pos)
     while s.sy == '=':
         s.next()
         if s.sy == 'yield':
