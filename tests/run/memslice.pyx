@@ -49,6 +49,14 @@ def testcase(func):
 include "mockbuffers.pxi"
 include "cythonarrayutil.pxi"
 
+def _print_attributes(memview):
+    print "shape: " + " ".join(map(str, memview.shape))
+    print "strides: " + " ".join([str(stride // memview.itemsize)
+                                      for stride in memview.strides])
+    print "suboffsets: " + " ".join(
+        [str(suboffset if suboffset < 0 else suboffset // memview.itemsize)
+             for suboffset in memview.suboffsets])
+
 #
 # Buffer acquire and release tests
 #
@@ -2217,3 +2225,63 @@ def test_inplace_assignment():
 
     m[0] = get_int()
     print m[0]
+
+@testcase
+def test_newaxis(int[:] one_D):
+    """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> test_newaxis(A)
+    acquired A
+    3
+    3
+    3
+    3
+    released A
+    """
+    cdef int[:, :] two_D_1 = one_D[None]
+    cdef int[:, :] two_D_2 = one_D[None, :]
+    cdef int[:, :] two_D_3 = one_D[:, None]
+    cdef int[:, :] two_D_4 = one_D[..., None]
+
+    print two_D_1[0, 3]
+    print two_D_2[0, 3]
+    print two_D_3[3, 0]
+    print two_D_4[3, 0]
+
+@testcase
+def test_newaxis2(int[:, :] two_D):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(3, 2))
+    >>> test_newaxis2(A)
+    acquired A
+    shape: 3 1 1
+    strides: 2 0 0
+    suboffsets: -1 -1 -1
+    <BLANKLINE>
+    shape: 1 2 1
+    strides: 0 1 0
+    suboffsets: -1 -1 -1
+    <BLANKLINE>
+    shape: 3 1 1 1
+    strides: 2 0 1 0
+    suboffsets: -1 -1 -1 -1
+    <BLANKLINE>
+    shape: 1 2 2 1
+    strides: 0 2 1 0
+    suboffsets: -1 -1 -1 -1
+    released A
+    """
+    cdef int[:, :, :] a = two_D[..., None, 1, None]
+    cdef int[:, :, :] b = two_D[None, 1, ..., None]
+    cdef int[:, :, :, :] c = two_D[..., None, 1:, None]
+    cdef int[:, :, :, :] d = two_D[None, 1:, ..., None]
+
+    _print_attributes(a)
+    print
+    _print_attributes(b)
+    print
+    _print_attributes(c)
+    print
+    _print_attributes(d)
+
+

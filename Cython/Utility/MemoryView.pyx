@@ -707,8 +707,17 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 
     for dim, index in enumerate(indices):
         if PyIndex_Check(index):
-            slice_memviewslice(p_src, p_dst, dim, new_ndim, p_suboffset_dim,
-                               index, 0, 0, 0, 0, 0, False)
+            slice_memviewslice(
+                p_dst, p_src.shape[dim], p_src.strides[dim], p_src.suboffsets[dim],
+                dim, new_ndim, p_suboffset_dim,
+                index, 0, 0, # start, stop, step
+                0, 0, 0, # have_{start,stop,step}
+                False)
+        elif index is None:
+            p_dst.shape[new_ndim] = 1
+            p_dst.strides[new_ndim] = 0
+            p_dst.suboffsets[new_ndim] = -1
+            new_ndim += 1
         else:
             start = index.start or 0
             stop = index.stop or 0
@@ -718,18 +727,21 @@ cdef memoryview memview_slice(memoryview memview, object indices):
             have_stop = index.stop is not None
             have_step = index.step is not None
 
-            slice_memviewslice(p_src, p_dst, dim, new_ndim, p_suboffset_dim,
-                               start, stop, step, have_start, have_stop, have_step,
-                               True)
+            slice_memviewslice(
+                p_dst, p_src.shape[dim], p_src.strides[dim], p_src.suboffsets[dim],
+                dim, new_ndim, p_suboffset_dim,
+                start, stop, step,
+                have_start, have_stop, have_step,
+                True)
             new_ndim += 1
 
     if isinstance(memview, _memoryviewslice):
-        return memoryview_fromslice(&dst, new_ndim,
+        return memoryview_fromslice(dst, new_ndim,
                                     memviewsliceobj.to_object_func,
                                     memviewsliceobj.to_dtype_func,
                                     memview.dtype_is_object)
     else:
-        return memoryview_fromslice(&dst, new_ndim, NULL, NULL,
+        return memoryview_fromslice(dst, new_ndim, NULL, NULL,
                                     memview.dtype_is_object)
 
 
@@ -754,18 +766,13 @@ cdef extern from "pystate.h":
     PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
 
 @cname('__pyx_memoryview_slice_memviewslice')
-cdef int slice_memviewslice({{memviewslice_name}} *src,
-                              {{memviewslice_name}} *dst,
-                              int dim,
-                              int new_ndim,
-                              int *suboffset_dim,
-                              Py_ssize_t start,
-                              Py_ssize_t stop,
-                              Py_ssize_t step,
-                              int have_start,
-                              int have_stop,
-                              int have_step,
-                              bint is_slice) nogil except -1:
+cdef int slice_memviewslice(
+        {{memviewslice_name}} *dst,
+        Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
+        int dim, int new_ndim, int *suboffset_dim,
+        Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
+        int have_start, int have_stop, int have_step,
+        bint is_slice) nogil except -1:
     """
     Create a new slice dst given slice src.
 
@@ -776,14 +783,8 @@ cdef int slice_memviewslice({{memviewslice_name}} *src,
                       where slicing offsets should be added
     """
 
-    cdef:
-        Py_ssize_t shape, stride, suboffset
-        Py_ssize_t new_shape
-        bint negative_step
-
-    shape = src.shape[dim]
-    stride = src.strides[dim]
-    suboffset = src.suboffsets[dim]
+    cdef Py_ssize_t new_shape
+    cdef bint negative_step
 
     if not is_slice:
         # index is a normal integer-like index
@@ -958,7 +959,7 @@ cdef class _memoryviewslice(memoryview):
 
 
 @cname('__pyx_memoryview_fromslice')
-cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
+cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           int ndim,
                           object (*to_object_func)(char *),
                           int (*to_dtype_func)(char *, object) except 0,
@@ -975,8 +976,8 @@ cdef memoryview_fromslice({{memviewslice_name}} *memviewslice,
 
     result = _memoryviewslice(None, 0, dtype_is_object)
 
-    result.from_slice = memviewslice[0]
-    __PYX_INC_MEMVIEW(memviewslice, 1)
+    result.from_slice = memviewslice
+    __PYX_INC_MEMVIEW(&memviewslice, 1)
 
     result.from_object = (<memoryview> memviewslice.memview).base
     result.typeinfo = memviewslice.memview.typeinfo
@@ -1055,7 +1056,7 @@ cdef memoryview_copy_from_slice(memoryview memview, {{memviewslice_name}} *memvi
         to_object_func = NULL
         to_dtype_func = NULL
 
-    return memoryview_fromslice(memviewslice, memview.view.ndim,
+    return memoryview_fromslice(memviewslice[0], memview.view.ndim,
                                 to_object_func, to_dtype_func,
                                 memview.dtype_is_object)
 

@@ -655,6 +655,8 @@ int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 /////////////// MemviewDtypeToObject ///////////////
 {{#__pyx_memview_<dtype_name>_to_object}}
 
+/* Convert a dtype to or from a Python object */
+
 {{if to_py_function}}
 PyObject *{{get_function}}(const char *itemp) {
     return (PyObject *) {{to_py_function}}(*({{dtype}} *) itemp);
@@ -672,6 +674,7 @@ int {{set_function}}(const char *itemp, PyObject *obj) {
 {{endif}}
 
 /////////////// MemviewObjectToObject.proto ///////////////
+/* Function callbacks (for memoryview object) for dtype object */
 PyObject *{{get_function}}(const char *itemp); /* proto */
 int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 
@@ -693,8 +696,8 @@ int {{set_function}}(const char *itemp, PyObject *obj) {
 /* Dimension is indexed with 'start:stop:step' */
 
 if (unlikely(__pyx_memoryview_slice_memviewslice(
-    &{{src}},
     &{{dst}},
+    {{src}}.shape[{{dim}}], {{src}}.strides[{{dim}}], {{src}}.suboffsets[{{dim}}],
     {{dim}},
     {{new_ndim}},
     &{{suboffset_dim}},
@@ -793,6 +796,8 @@ __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t 
 
 ////////// FillStrided1DScalar //////////
 /* Fill a slice with a scalar value. The dimension is direct and strided or contiguous */
+/* This can be used as a callback for the memoryview object to efficienty assign a scalar */
+/* Currently unused */
 static void
 __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t stride,
                                 size_t itemsize, void *itemp)
