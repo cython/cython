@@ -360,7 +360,7 @@ class FusedCFuncDefNode(StatListNode):
                         %s
                         break
                     else:
-                        PyErr_Clear()
+                        __pyx_PyErr_Clear()
             """ % self.match)
 
     def _buffer_checks(self, buffer_types, pyx_code, decl_code, env):
@@ -524,7 +524,7 @@ class FusedCFuncDefNode(StatListNode):
         decl_code.put_chunk(
             u"""
                 cdef extern from *:
-                    void PyErr_Clear()
+                    void __pyx_PyErr_Clear "PyErr_Clear" ()
             """)
         decl_code.indent()
 
@@ -601,7 +601,8 @@ class FusedCFuncDefNode(StatListNode):
         # print fragment_code
         fragment = TreeFragment.TreeFragment(fragment_code, level='module')
         ast = TreeFragment.SetPosTransform(self.node.pos)(fragment.root)
-        UtilityCode.declare_declarations_in_scope(decl_code.getvalue(), env)
+        UtilityCode.declare_declarations_in_scope(decl_code.getvalue(),
+                                                  env.global_scope())
         ast.scope = env
         ast.analyse_declarations(env)
         py_func = ast.stats[-1] # the DefNode
