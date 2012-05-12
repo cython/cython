@@ -13,6 +13,7 @@ Tutorials
    strings
    pure
    numpy
+   pypy
    readings
    related_work
    appendix
