@@ -2,7 +2,7 @@ Porting Cython code to PyPy
 ============================
 
 Since version 0.17, Cython has basic support for cpyext, the layer in
-`PyPy <http://pypy.org>` that emulates CPython's C-API.  This is
+`PyPy <http://pypy.org>`_ that emulates CPython's C-API.  This is
 achieved by making the generated C code adapt at C compile time, so
 the generated code will compile in both CPython and PyPy unchanged.
 
