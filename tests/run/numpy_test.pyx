@@ -10,6 +10,18 @@ def little_endian():
     cdef int endian_detector = 1
     return (<char*>&endian_detector)[0] != 0
 
+__test__ = {}
+
+def testcase(f):
+    __test__[f.__name__] = f.__doc__
+    return f
+
+def testcase_numpy_1_5(f):
+    major, minor, *rest = np.__version__.split('.')
+    if (int(major), int(minor)) >= (1, 5):
+        __test__[f.__name__] = f.__doc__
+    return f
+
 if little_endian():
     my_endian = '<'
     other_endian = '>'
@@ -254,6 +266,7 @@ try:
 except:
     __doc__ = u""
 
+__test__[__name__] = __doc__
 
 def assert_dtype_sizes():
     assert sizeof(np.int8_t) == 1
@@ -506,6 +519,7 @@ def test_point_record():
     print repr(test).replace('<', '!').replace('>', '!')
 
 # Test fused np.ndarray dtypes and runtime dispatch
+@testcase
 def test_fused_ndarray_floating_dtype(np.ndarray[cython.floating, ndim=1] a):
     """
     >>> import cython
@@ -536,6 +550,7 @@ cdef fused fused_external:
     np.float32_t
     np.float64_t
 
+@testcase
 def test_fused_external(np.ndarray[fused_external, ndim=1] a):
     """
     >>> import cython
@@ -557,6 +572,7 @@ cdef fused fused_buffers:
     np.ndarray[np.int32_t, ndim=1]
     np.int64_t[::1]
 
+@testcase
 def test_fused_buffers(fused_buffers arg):
     """
     >>> sorted(test_fused_buffers.__signatures__)
@@ -566,6 +582,7 @@ def test_fused_buffers(fused_buffers arg):
 cpdef _fused_cpdef_buffers(np.ndarray[fused_external] a):
     print a.dtype
 
+@testcase
 def test_fused_cpdef_buffers():
     """
     >>> test_fused_cpdef_buffers()
@@ -577,6 +594,7 @@ def test_fused_cpdef_buffers():
     cdef np.ndarray[np.int32_t] typed_array = int32_array
     _fused_cpdef_buffers(typed_array)
 
+@testcase
 def test_fused_ndarray_integral_dtype(np.ndarray[cython.integral, ndim=1] a):
     """
     >>> import cython
@@ -601,6 +619,7 @@ cdef fused fused_dtype:
     double complex
     object
 
+@testcase
 def test_fused_ndarray_other_dtypes(np.ndarray[fused_dtype, ndim=1] a):
     """
     >>> import cython
@@ -635,6 +654,7 @@ def get_Foo_array():
     result[5].b = 9.0
     return np.asarray(result)
 
+@testcase_numpy_1_5
 def test_fused_ndarray(fused_ndarray a):
     """
     >>> import cython
@@ -683,6 +703,9 @@ cpdef test_fused_cpdef_ndarray(fused_ndarray a):
     else:
         print b[5]
 
+testcase_numpy_1_5(test_fused_cpdef_ndarray)
+
+@testcase_numpy_1_5
 def test_fused_cpdef_ndarray_cdef_call():
     """
     >>> test_fused_cpdef_ndarray_cdef_call()
@@ -701,6 +724,7 @@ float32_array = np.arange(10, dtype=np.float32)
 int32_array = np.arange(10, dtype=np.int32)
 int64_array = np.arange(10, dtype=np.int64)
 
+@testcase
 def test_dispatch_non_clashing_declarations_repeating_types(np.ndarray[cython.floating] a1,
                                                             np.ndarray[int_type] a2,
                                                             np.ndarray[cython.floating] a3,
@@ -724,6 +748,7 @@ cdef fused typedeffed_fused_type:
     int
     long
 
+@testcase
 def test_dispatch_typedef(np.ndarray[typedeffed_fused_type] a):
     """
     >>> test_dispatch_typedef(int32_array)
@@ -760,6 +785,7 @@ cdef fused memslice_fused_dtype:
     double complex
     object
 
+@testcase
 def test_fused_memslice_other_dtypes(memslice_fused_dtype[:] a):
     """
     >>> import cython
@@ -788,6 +814,7 @@ cdef fused memslice_fused:
     double complex[:]
     object[:]
 
+@testcase
 def test_fused_memslice(memslice_fused a):
     """
     >>> import cython
@@ -807,6 +834,7 @@ def test_fused_memslice(memslice_fused a):
     cdef memslice_fused b = a
     print cython.typeof(a), cython.typeof(b), a[5], b[6]
 
+@testcase
 def test_dispatch_memoryview_object():
     """
     >>> test_dispatch_memoryview_object()
