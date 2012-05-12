@@ -116,6 +116,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         ]
     if compile_more:
         compiled_modules.extend([
+            "Cython.Build.Dependencies",
             "Cython.Compiler.ParseTreeTransforms",
             "Cython.Compiler.Nodes",
             "Cython.Compiler.ExprNodes",

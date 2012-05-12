@@ -7,6 +7,29 @@ import os, sys, re, codecs
 
 modification_time = os.path.getmtime
 
+def cached_function(f):
+    cache = {}
+    uncomputed = object()
+    def wrapper(*args):
+        res = cache.get(args, uncomputed)
+        if res is uncomputed:
+            res = cache[args] = f(*args)
+        return res
+    return wrapper
+
+def cached_method(f):
+    cache_name = '__%s_cache' % f.__name__
+    def wrapper(self, *args):
+        cache = getattr(self, cache_name, None)
+        if cache is None:
+            cache = {}
+            setattr(self, cache_name, cache)
+        if args in cache:
+            return cache[args]
+        res = cache[args] = f(self, *args)
+        return res
+    return wrapper
+
 def replace_suffix(path, newsuf):
     base, _ = os.path.splitext(path)
     return base + newsuf
@@ -43,6 +66,82 @@ def file_newer_than(path, time):
     ftime = modification_time(path)
     return ftime > time
 
+@cached_function
+def search_include_directories(dirs, qualified_name, suffix, pos,
+                               include=False, sys_path=False):
+    # Search the list of include directories for the given
+    # file name. If a source file position is given, first
+    # searches the directory containing that file. Returns
+    # None if not found, but does not report an error.
+    # The 'include' option will disable package dereferencing.
+    # If 'sys_path' is True, also search sys.path.
+    if sys_path:
+        dirs = dirs + tuple(sys.path)
+    if pos:
+        file_desc = pos[0]
+        from Cython.Compiler.Scanning import FileSourceDescriptor
+        if not isinstance(file_desc, FileSourceDescriptor):
+            raise RuntimeError("Only file sources for code supported")
+        if include:
+            dirs = (os.path.dirname(file_desc.filename),) + dirs
+        else:
+            dirs = (find_root_package_dir(file_desc.filename),) + dirs
+
+    dotted_filename = qualified_name
+    if suffix:
+        dotted_filename += suffix
+    if not include:
+        names = qualified_name.split('.')
+        package_names = tuple(names[:-1])
+        module_name = names[-1]
+        module_filename = module_name + suffix
+        package_filename = "__init__" + suffix
+
+    for dir in dirs:
+        path = os.path.join(dir, dotted_filename)
+        if path_exists(path):
+            return path
+        if not include:
+            package_dir = check_package_dir(dir, package_names)
+            if package_dir is not None:
+                path = os.path.join(package_dir, module_filename)
+                if path_exists(path):
+                    return path
+                path = os.path.join(dir, package_dir, module_name,
+                                    package_filename)
+                if path_exists(path):
+                    return path
+    return None
+
+
+@cached_function
+def find_root_package_dir(file_path):
+    dir = os.path.dirname(file_path)
+    while is_package_dir(dir):
+        parent = os.path.dirname(dir)
+        if parent == dir:
+            break
+        dir = parent
+    return dir
+
+@cached_function
+def check_package_dir(dir, package_names):
+    for dirname in package_names:
+        dir = os.path.join(dir, dirname)
+        if not is_package_dir(dir):
+            return None
+    return dir
+
+@cached_function
+def is_package_dir(dir_path):
+    for filename in ("__init__.py",
+                     "__init__.pyx",
+                     "__init__.pxd"):
+        path = os.path.join(dir_path, filename)
+        if path_exists(path):
+            return 1
+
+@cached_function
 def path_exists(path):
     # try on the filesystem first
     if os.path.exists(path):
@@ -85,9 +184,26 @@ def decode_filename(filename):
 _match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
 
 def detect_file_encoding(source_filename):
-    # PEPs 263 and 3120
     f = open_source_file(source_filename, encoding="UTF-8", error_handling='ignore')
     try:
+        return detect_opened_file_encoding(f)
+    finally:
+        f.close()
+    
+def detect_opened_file_encoding(f):
+    # PEPs 263 and 3120
+    # Most of the time the first two lines fall in the first 250 chars,
+    # and this bulk read/split is much faster.
+    lines = f.read(250).split("\n")
+    if len(lines) > 2:
+        m = _match_file_encoding(lines[0]) or _match_file_encoding(lines[1])
+        if m:
+            return m.group(1)
+        else:
+            return "UTF-8"
+    else:
+        # Fallback to one-char-at-a-time detection.
+        f.seek(0)
         chars = []
         for i in range(2):
             c = f.read(1)
@@ -97,8 +213,6 @@ def detect_file_encoding(source_filename):
             encoding = _match_file_encoding(u''.join(chars))
             if encoding:
                 return encoding.group(1)
-    finally:
-        f.close()
     return "UTF-8"
 
 normalise_newlines = re.compile(u'\r\n?|\n').sub
@@ -111,6 +225,7 @@ class NormalisedNewlineStream(object):
   """
   def __init__(self, stream):
     # let's assume .read() doesn't change
+    self.stream = stream
     self._read = stream.read
     self.close = stream.close
     self.encoding = getattr(stream, 'encoding', 'UTF-8')
@@ -133,6 +248,12 @@ class NormalisedNewlineStream(object):
 
     return u''.join(content).splitlines(True)
 
+  def seek(self, pos):
+    if pos == 0:
+        self.stream.seek(0)
+    else:
+        raise NotImplementedError
+
 io = None
 if sys.version_info >= (2,6):
     try:
@@ -144,17 +265,26 @@ def open_source_file(source_filename, mode="r",
                      encoding=None, error_handling=None,
                      require_normalised_newlines=True):
     if encoding is None:
-        encoding = detect_file_encoding(source_filename)
+        # Most of the time the coding is unspecified, so be optimistic that
+        # it's UTF-8.
+        f = open_source_file(source_filename, encoding="UTF-8", mode=mode, error_handling='ignore')
+        encoding = detect_opened_file_encoding(f)
+        if encoding == "UTF-8" and error_handling=='ignore' and require_normalised_newlines:
+            f.seek(0)
+            return f
+        else:
+            f.close()
     #
-    try:
-        loader = __loader__
-        if source_filename.startswith(loader.archive):
-            return open_source_from_loader(
-                loader, source_filename,
-                encoding, error_handling,
-                require_normalised_newlines)
-    except (NameError, AttributeError):
-        pass
+    if not os.path.exists(source_filename):
+        try:
+            loader = __loader__
+            if source_filename.startswith(loader.archive):
+                return open_source_from_loader(
+                    loader, source_filename,
+                    encoding, error_handling,
+                    require_normalised_newlines)
+        except (NameError, AttributeError):
+            pass
     #
     if io is not None:
         return io.open(source_filename, mode=mode,

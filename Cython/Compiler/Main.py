@@ -222,65 +222,14 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
-        # Search the list of include directories for the given
-        # file name. If a source file position is given, first
-        # searches the directory containing that file. Returns
-        # None if not found, but does not report an error.
-        # The 'include' option will disable package dereferencing.
-        # If 'sys_path' is True, also search sys.path.
-        dirs = self.include_directories
-        if sys_path:
-            dirs = dirs + sys.path
-        if pos:
-            file_desc = pos[0]
-            if not isinstance(file_desc, FileSourceDescriptor):
-                raise RuntimeError("Only file sources for code supported")
-            if include:
-                dirs = [os.path.dirname(file_desc.filename)] + dirs
-            else:
-                dirs = [self.find_root_package_dir(file_desc.filename)] + dirs
-
-        dotted_filename = qualified_name
-        if suffix:
-            dotted_filename += suffix
-        if not include:
-            names = qualified_name.split('.')
-            package_names = names[:-1]
-            module_name = names[-1]
-            module_filename = module_name + suffix
-            package_filename = "__init__" + suffix
-
-        for dir in dirs:
-            path = os.path.join(dir, dotted_filename)
-            if Utils.path_exists(path):
-                return path
-            if not include:
-                package_dir = self.check_package_dir(dir, package_names)
-                if package_dir is not None:
-                    path = os.path.join(package_dir, module_filename)
-                    if Utils.path_exists(path):
-                        return path
-                    path = os.path.join(dir, package_dir, module_name,
-                                        package_filename)
-                    if Utils.path_exists(path):
-                        return path
-        return None
+        return Utils.search_include_directories(
+            tuple(self.include_directories), qualified_name, suffix, pos, include, sys_path)
 
     def find_root_package_dir(self, file_path):
-        dir = os.path.dirname(file_path)
-        while self.is_package_dir(dir):
-            parent = os.path.dirname(dir)
-            if parent == dir:
-                break
-            dir = parent
-        return dir
+        return Utils.find_root_package_dir(file_path)
 
     def check_package_dir(self, dir, package_names):
-        for dirname in package_names:
-            dir = os.path.join(dir, dirname)
-            if not self.is_package_dir(dir):
-                return None
-        return dir
+        return Utils.check_package_dir(dir, tuple(package_names))
 
     def c_file_out_of_date(self, source_path):
         c_path = Utils.replace_suffix(source_path, ".c")
@@ -309,13 +258,7 @@ class Context(object):
                  if kind == "cimport" ]
 
     def is_package_dir(self, dir_path):
-        #  Return true if the given directory is a package directory.
-        for filename in ("__init__.py",
-                         "__init__.pyx",
-                         "__init__.pxd"):
-            path = os.path.join(dir_path, filename)
-            if Utils.path_exists(path):
-                return 1
+        return Utils.is_package_dir(dir_path)
 
     def read_dependency_file(self, source_path):
         dep_path = Utils.replace_suffix(source_path, ".dep")

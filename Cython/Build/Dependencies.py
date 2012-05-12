@@ -1,3 +1,7 @@
+# cython: profile=True
+
+import cython
+
 from glob import glob
 import re, os, sys
 
@@ -5,33 +9,10 @@ import re, os, sys
 from distutils.extension import Extension
 
 from Cython import Utils
+from Cython.Utils import cached_function, cached_method, path_exists
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
-
-def cached_function(f):
-    cache_name = '__%s_cache' % f.__name__
-    def wrapper(*args):
-        cache = getattr(f, cache_name, None)
-        if cache is None:
-            cache = {}
-            setattr(f, cache_name, cache)
-        if args in cache:
-            return cache[args]
-        res = cache[args] = f(*args)
-        return res
-    return wrapper
-
-def cached_method(f):
-    cache_name = '__%s_cache' % f.__name__
-    def wrapper(self, *args):
-        cache = getattr(self, cache_name, None)
-        if cache is None:
-            cache = {}
-            setattr(self, cache_name, cache)
-        if args in cache:
-            return cache[args]
-        res = cache[args] = f(self, *args)
-        return res
-    return wrapper
+    
+os.path.join = cached_function(os.path.join)
     
 def extended_iglob(pattern):
     if '**/' in pattern:
@@ -97,6 +78,7 @@ distutils_settings = {
     'language':             transitive_str,
 }
 
+@cython.locals(start=long, end=long)
 def line_iter(source):
     start = 0
     while True:
@@ -175,7 +157,8 @@ class DistutilsInfo(object):
             resolved.values[key] = value
         return resolved
 
-
+@cython.locals(start=long, q=long, single_q=long, double_q=long, hash_mark=long,
+               end=long, k=long, counter=long, quote_len=long)
 def strip_string_literals(code, prefix='__Pyx_L'):
     """
     Normalizes every string literal to be of the form '__Pyx_Lxxx',
@@ -187,11 +170,16 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     counter = 0
     start = q = 0
     in_quote = False
-    raw = False
+    hash_mark = single_q = double_q = -1
+    code_len = len(code)
+    
     while True:
-        hash_mark = code.find('#', q)
-        single_q = code.find("'", q)
-        double_q = code.find('"', q)
+        if hash_mark < q:
+            hash_mark = code.find('#', q)
+        if single_q < q:
+            single_q = code.find("'", q)
+        if double_q < q:
+            double_q = code.find('"', q)
         q = min(single_q, double_q)
         if q == -1: q = max(single_q, double_q)
 
@@ -202,19 +190,22 @@ def strip_string_literals(code, prefix='__Pyx_L'):
 
         # Try to close the quote.
         elif in_quote:
-            if code[q-1] == '\\' and not raw:
+            if code[q-1] == u'\\':
                 k = 2
-                while q >= k and code[q-k] == '\\':
+                while q >= k and code[q-k] == u'\\':
                     k += 1
                 if k % 2 == 0:
                     q += 1
                     continue
-            if code[q:q+len(in_quote)] == in_quote:
+            if code[q] == quote_type and (quote_len == 1 or (code_len > q + 2 and quote_type == code[q+1] == code[q+2])):
                 counter += 1
                 label = "%s%s_" % (prefix, counter)
-                literals[label] = code[start+len(in_quote):q]
-                new_code.append("%s%s%s" % (in_quote, label, in_quote))
-                q += len(in_quote)
+                literals[label] = code[start+quote_len:q]
+                full_quote = code[q:q+quote_len]
+                new_code.append(full_quote)
+                new_code.append(label)
+                new_code.append(full_quote)
+                q += quote_len
                 in_quote = False
                 start = q
             else:
@@ -222,70 +213,67 @@ def strip_string_literals(code, prefix='__Pyx_L'):
 
         # Process comment.
         elif -1 != hash_mark and (hash_mark < q or q == -1):
-            end = code.find('\n', hash_mark)
-            if end == -1:
-                end = None
             new_code.append(code[start:hash_mark+1])
+            end = code.find('\n', hash_mark)
             counter += 1
             label = "%s%s_" % (prefix, counter)
-            literals[label] = code[hash_mark+1:end]
+            if end == -1:
+                end_or_none = None
+            else:
+                end_or_none = end
+            literals[label] = code[hash_mark+1:end_or_none]
             new_code.append(label)
-            if end is None:
+            if end == -1:
                 break
-            q = end
-            start = q
+            start = q = end
 
         # Open the quote.
         else:
-            raw = False
-            if len(code) >= q+3 and (code[q+1] == code[q] == code[q+2]):
-                in_quote = code[q]*3
+            if code_len >= q+3 and (code[q] == code[q+1] == code[q+2]):
+                quote_len = 3
             else:
-                in_quote = code[q]
-            end = marker = q
-            while marker > 0 and code[marker-1] in 'rRbBuU':
-                if code[marker-1] in 'rR':
-                    raw = True
-                marker -= 1
-            new_code.append(code[start:end])
+                quote_len = 1
+            in_quote = True
+            quote_type = code[q]
+            new_code.append(code[start:q])
             start = q
-            q += len(in_quote)
+            q += quote_len
 
     return "".join(new_code), literals
 
+
+dependancy_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
+                              r"(?:^cimport +([0-9a-zA-Z_.]+)\b)|"
+                              r"(?:^cdef +extern +from +['\"]([^'\"]+)['\"])|"
+                              r"(?:^include +['\"]([^'\"]+)['\"])", re.M)
 
 def parse_dependencies(source_filename):
     # Actual parsing is way to slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
     # literals ahead of time.
-    fh = Utils.open_source_file(source_filename, "rU")
+    fh = Utils.open_source_file(source_filename, "rU", error_handling='ignore')
     try:
         source = fh.read()
     finally:
         fh.close()
     distutils_info = DistutilsInfo(source)
     source, literals = strip_string_literals(source)
-    source = source.replace('\\\n', ' ')
-    if '\t' in source:
-        source = source.replace('\t', ' ')
+    source = source.replace('\\\n', ' ').replace('\t', ' ')
+
     # TODO: pure mode
-    dependancy = re.compile(r"(cimport +([0-9a-zA-Z_.]+)\b)|"
-                             "(from +([0-9a-zA-Z_.]+) +cimport)|"
-                             "(include +['\"]([^'\"]+)['\"])|"
-                             "(cdef +extern +from +['\"]([^'\"]+)['\"])")
     cimports = []
     includes = []
     externs  = []
-    for m in dependancy.finditer(source):
-        groups = m.groups()
-        if groups[0]:
-            cimports.append(groups[1])
-        elif groups[2]:
-            cimports.append(groups[3])
-        elif groups[4]:
-            includes.append(literals[groups[5]])
+    for m in dependancy_regex.finditer(source):
+        cimport_from, cimport, extern, include = m.groups()
+        if cimport_from:
+            cimports.append(cimport_from)
+        elif cimport:
+            cimports.append(cimport)
+        elif extern:
+            externs.append(literals[extern])
         else:
-            externs.append(literals[groups[7]])
+            includes.append(literals[include])
     return cimports, includes, externs, distutils_info
 
 
@@ -306,9 +294,19 @@ class DependencyTree(object):
         externs = set(externs)
         for include in includes:
             include_path = os.path.join(os.path.dirname(filename), include)
-            if not os.path.exists(include_path):
+            if not path_exists(include_path):
                 include_path = self.context.find_include_file(include, None)
             if include_path:
+                if '.' + os.path.sep in include_path:
+                    path_segments = include_path.split(os.path.sep)
+                    while '.' in path_segments:
+                        path_segments.remove('.')
+                    while '..' in path_segments:
+                        ix = path_segments.index('..')
+                        if ix == 0:
+                            break
+                        del path_segments[ix-1:ix+1]
+                    include_path = os.path.sep.join(path_segments)
                 a, b = self.cimports_and_externs(include_path)
                 cimports.update(a)
                 externs.update(b)
@@ -322,7 +320,7 @@ class DependencyTree(object):
     @cached_method
     def package(self, filename):
         dir = os.path.dirname(os.path.abspath(str(filename)))
-        if dir != filename and os.path.exists(os.path.join(dir, '__init__.py')):
+        if dir != filename and path_exists(os.path.join(dir, '__init__.py')):
             return self.package(dir) + (os.path.basename(dir),)
         else:
             return ()
@@ -345,17 +343,20 @@ class DependencyTree(object):
 
     @cached_method
     def cimported_files(self, filename):
-        if filename[-4:] == '.pyx' and os.path.exists(filename[:-4] + '.pxd'):
-            self_pxd = [filename[:-4] + '.pxd']
+        if filename[-4:] == '.pyx' and path_exists(filename[:-4] + '.pxd'):
+            pxd_list = [filename[:-4] + '.pxd']
         else:
-            self_pxd = []
-        a = list(x for x in self.cimports(filename) if x.split('.')[0] != 'cython')
-        b = filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)])
-        if len(a) != len(b):
-            print("missing cimport: %s" % filename)
-            print("\n\t".join(a))
-            print("\n\t".join(b))
-        return tuple(self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)]))
+            pxd_list = []
+        for module in self.cimports(filename):
+            if module[:7] == 'cython.':
+                continue
+            pxd_file = self.find_pxd(module, filename)
+            if pxd_file is None:
+                print("missing cimport: %s" % filename)
+                print(module)
+            else:
+                pxd_list.append(pxd_file)
+        return tuple(pxd_list)
 
     def immediate_dependencies(self, filename):
         all = list(self.cimported_files(filename))

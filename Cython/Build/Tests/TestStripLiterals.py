@@ -35,10 +35,10 @@ class TestStripLiterals(CythonTest):
         self.t("u'abc'", "u'_L1_'")
 
     def test_raw(self):
-        self.t(r"r'abc\'", "r'_L1_'")
+        self.t(r"r'abc\\'", "r'_L1_'")
 
     def test_raw_unicode(self):
-        self.t(r"ru'abc\'", "ru'_L1_'")
+        self.t(r"ru'abc\\'", "ru'_L1_'")
 
     def test_comment(self):
         self.t("abc # foo", "abc #_L1_")
