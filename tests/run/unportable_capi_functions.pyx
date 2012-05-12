@@ -11,13 +11,13 @@ def number_index(x):
     1
     >>> try: number_index(1.1)
     ... except TypeError: pass
-    ... else: print "FAILED"
+    ... else: print("FAILED")
     >>> try: number_index(1j)
     ... except TypeError: pass
-    ... else: print "FAILED"
+    ... else: print("FAILED")
     >>> try: number_index('abc')
     ... except TypeError: pass
-    ... else: print "FAILED"
+    ... else: print("FAILED")
     """
     # was not available in Py2.4
     return PyNumber_Index(x)
