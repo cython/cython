@@ -900,7 +900,9 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_iternext*/
     0,                                  /*tp_methods*/
     __pyx_FusedFunction_members,        /*tp_members*/
-    0,                                  /*tp_getset*/
+    /* __doc__ is None for the fused function type, but we need it to be */
+    /* a descriptor for the instance's __doc__, so rebuild descriptors in our subclass */
+    __pyx_CyFunction_getsets,           /*tp_getset*/
     &__pyx_CyFunctionType_type,         /*tp_base*/
     0,                                  /*tp_dict*/
     __pyx_FusedFunction_descr_get,      /*tp_descr_get*/

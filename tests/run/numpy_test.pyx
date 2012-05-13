@@ -4,6 +4,8 @@
 cimport numpy as np
 cimport cython
 
+import sys
+
 from libc.stdlib cimport malloc
 
 def little_endian():
@@ -16,9 +18,9 @@ def testcase(f):
     __test__[f.__name__] = f.__doc__
     return f
 
-def testcase_numpy_1_5(f):
+def testcase_have_buffer_interface(f):
     major, minor, *rest = np.__version__.split('.')
-    if (int(major), int(minor)) >= (1, 5):
+    if (int(major), int(minor)) >= (1, 5) and sys.version_info[:2] >= (2, 6):
         __test__[f.__name__] = f.__doc__
     return f
 
@@ -654,7 +656,7 @@ def get_Foo_array():
     result[5].b = 9.0
     return np.asarray(result)
 
-@testcase_numpy_1_5
+@testcase_have_buffer_interface
 def test_fused_ndarray(fused_ndarray a):
     """
     >>> import cython
@@ -703,9 +705,9 @@ cpdef test_fused_cpdef_ndarray(fused_ndarray a):
     else:
         print b[5]
 
-testcase_numpy_1_5(test_fused_cpdef_ndarray)
+testcase_have_buffer_interface(test_fused_cpdef_ndarray)
 
-@testcase_numpy_1_5
+@testcase_have_buffer_interface
 def test_fused_cpdef_ndarray_cdef_call():
     """
     >>> test_fused_cpdef_ndarray_cdef_call()
