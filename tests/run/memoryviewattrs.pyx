@@ -174,13 +174,13 @@ def test_copy_mismatch():
 def test_is_contiguous():
     u'''
     >>> test_is_contiguous()
-    1 1
-    0 1
-    1 0
-    1 0
+    True True
+    False True
+    True False
+    True False
     <BLANKLINE>
-    0 1
-    1 0
+    False True
+    True False
 '''
     cdef int[::1, :, :] fort_contig = array((1,1,1), sizeof(int), 'i', mode='fortran')
     print fort_contig.is_c_contig() , fort_contig.is_f_contig()

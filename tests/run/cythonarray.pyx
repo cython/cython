@@ -166,7 +166,7 @@ def test_array_from_pointer_3d():
     >>> test_array_from_pointer_3d()
     getp()
     3 3
-    1 1
+    True True
     """
     cdef int *p = getp(2, 2, 2)
     cdef array c_arr = <int[:2, :2, :2:1]> p

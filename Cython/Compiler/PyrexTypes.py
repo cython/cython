@@ -572,7 +572,7 @@ class MemoryViewSliceType(PyrexType):
                         MemoryView.get_is_contig_func_name(c_or_f, self.ndim)
 
                 cfunctype = CFuncType(
-                        return_type=c_int_type,
+                        return_type=c_bint_type,
                         args=[CFuncTypeArg("memviewslice", self, None)],
                         exception_value="-1",
                 )
