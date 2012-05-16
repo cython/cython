@@ -106,7 +106,7 @@ cdef extern from "arrayarray.h":
             info.strides = <Py_ssize_t*> \
                            stdlib.malloc(sizeof(Py_ssize_t) * info.ndim * 2 + 2)
             info.shape = info.strides + 1
-            info.shape[0] = self.ob_size            # number of items
+            info.shape[0] = self.length            # number of items
             info.strides[0] = info.itemsize
 
             info.format = <char*>(info.strides + 2 * info.ndim)
