@@ -244,7 +244,7 @@ class ExprNode(Node):
         return 0
 
     def is_addressable(self):
-        return self.is_lvalue()
+        return self.is_lvalue() and not self.type.is_memoryviewslice
 
     def is_ephemeral(self):
         #  An ephemeral node is one whose result is in
@@ -1638,7 +1638,7 @@ class NameNode(AtomicExprNode):
             not self.entry.is_readonly
 
     def is_addressable(self):
-        return self.entry.is_variable
+        return self.entry.is_variable and not self.type.is_memoryviewslice
 
     def is_ephemeral(self):
         #  Name nodes are never ephemeral, even if the
@@ -7069,7 +7069,10 @@ class AmpersandNode(ExprNode):
         self.operand.analyse_types(env)
         argtype = self.operand.type
         if not (argtype.is_cfunction or self.operand.is_addressable()):
-            self.error("Taking address of non-lvalue")
+            if argtype.is_memoryviewslice:
+                self.error("Cannot take address of memoryview slice")
+            else:
+                self.error("Taking address of non-lvalue")
             return
         if argtype.is_pyobject:
             self.error("Cannot take address of Python variable")

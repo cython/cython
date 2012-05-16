@@ -60,6 +60,9 @@ four_D[None, None, None, None, None]
 
 cdef int[:, :, :, :, :, :, :, :] eight_D = object()
 
+cdef double[:] m
+print <long> &m
+
 # These are VALID
 cdef int[::view.indirect_contiguous, ::view.contiguous] a9
 four_D[None, None, None]
@@ -89,4 +92,5 @@ _ERRORS = u'''
 58:6: More dimensions than the maximum number of buffer dimensions were used.
 59:6: More dimensions than the maximum number of buffer dimensions were used.
 61:9: More dimensions than the maximum number of buffer dimensions were used.
+64:13: Cannot take address of memoryview slice
 '''
