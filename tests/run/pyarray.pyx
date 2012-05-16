@@ -56,7 +56,7 @@ def test_new_zero(a):
     >>> test_new_zero(a)
     array('f', [0.0, 0.0, 0.0])
     """
-    cdef array.array cb = array.zeros_like(a)
+    cdef array.array cb = array.clone(a, len(a), True)
     assert cb.length == len(a)
     return cb
 
@@ -111,8 +111,8 @@ def test_likes(a):
     >>> test_likes(a)
     array('f', [0.0, 0.0, 0.0])
     """
-    cdef array.array z = array.zeros_like(a)
-    cdef array.array e = array.empty_like(a)
+    cdef array.array z = array.clone(a, len(a), True)
+    cdef array.array e = array.clone(a, len(a), False)
     assert e.length == len(a)
     return z
 
