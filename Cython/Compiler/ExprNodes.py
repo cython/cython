@@ -7336,6 +7336,7 @@ class CythonArrayNode(ExprNode):
 
             first_or_last = axis_no in (0, ndim - 1)
             if not axis.step.is_none and first_or_last:
+                # '1' in the first or last dimension denotes F or C contiguity
                 axis.step.analyse_types(env)
                 if (not axis.step.type.is_int and axis.step.is_literal and not
                         axis.step.type.is_error):
@@ -7347,7 +7348,8 @@ class CythonArrayNode(ExprNode):
                 if axis_no == 0:
                     self.mode = "fortran"
 
-            elif axis.step and not first_or_last:
+            elif not axis.step.is_none and not first_or_last:
+                # step provided in some other dimension
                 return error(axis.step.pos, ERR_STEPS)
 
         if not self.operand.is_name:

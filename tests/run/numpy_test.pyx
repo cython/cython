@@ -847,5 +847,4 @@ def test_dispatch_memoryview_object():
     cdef int[:] m3 = <object> m
     test_fused_memslice(m3)
 
-
 include "numpy_common.pxi"

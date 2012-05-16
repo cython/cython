@@ -60,3 +60,12 @@ my_c_contig = a33[0, :, :]
 
 my_f_contig = a32[0, ...]
 my_c_contig = a33[0, ...]
+
+# Test casting to cython.view.array
+cdef double[:, :] m1 = <double[:10, :10]> NULL
+cdef double[:, :] m2 = <double[:10, :10:1]> NULL
+cdef double[:, :] m3 = <double[:10:1, :10]> NULL
+
+cdef double[:, :, :] m4 = <double[:10, :10, :10]> NULL
+cdef double[:, :, :] m5 = <double[:10, :10, :10:1]> NULL
+cdef double[:, :, :] m6 = <double[:10:1, :10, :10]> NULL

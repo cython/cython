@@ -102,15 +102,15 @@ def test_cython_array_index():
     print f_array[9, 8]
     print f_array[6, 1]
 
-cdef int *getp(int dim1=10, int dim2=10) except NULL:
+cdef int *getp(int dim1=10, int dim2=10, dim3=1) except NULL:
     print "getp()"
 
-    cdef int *p = <int *> malloc(dim1 * dim2 * sizeof(int))
+    cdef int *p = <int *> malloc(dim1 * dim2 * dim3 * sizeof(int))
 
     if p == NULL:
         raise MemoryError
 
-    for i in range(dim1 * dim2):
+    for i in range(dim1 * dim2 * dim3):
         p[i] = i
 
     return p
@@ -160,6 +160,23 @@ def test_array_from_pointer():
     c_arr = <int[:m, :n]> getp(m, n)
     c_arr.callback_free_data = callback_free_data
     print c_arr[m - 1, n - 1]
+
+def test_array_from_pointer_3d():
+    """
+    >>> test_array_from_pointer_3d()
+    getp()
+    3 3
+    1 1
+    """
+    cdef int *p = getp(2, 2, 2)
+    cdef array c_arr = <int[:2, :2, :2:1]> p
+    cdef array f_arr = <int[:2:1, :2, :2]> p
+
+    cdef int[:, :, ::1] m1 = c_arr
+    cdef int[::1, :, :] m2 = f_arr
+
+    print m1[0, 1, 1], m2[1, 1, 0]
+    print m1.is_c_contig(), m2.is_f_contig()
 
 def test_cyarray_from_carray():
     """
