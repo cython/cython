@@ -163,7 +163,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     struct __pyx_memoryview_obj *memview, *new_memview;
     __Pyx_RefNannyDeclarations
     Py_buffer *buf;
-    int stride, i, spec = 0, retval = -1;
+    int i, spec = 0, retval = -1;
     __Pyx_BufFmt_Context ctx;
     int from_memoryview = __pyx_memoryview_check(original_obj);
 
@@ -261,7 +261,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     }
 
     if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
-        stride = 1;
+        Py_ssize_t stride = 1;
         for(i=0; i<ndim; i++) {
             if(stride * buf->itemsize != buf->strides[i]) {
                 PyErr_SetString(PyExc_ValueError,
@@ -270,7 +270,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
             }
             stride = stride * buf->shape[i];
         }
-    } else if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
+    } else if (c_or_f_flag & __Pyx_IS_C_CONTIG) {
+        Py_ssize_t stride = 1;
         for(i=ndim-1; i>-1; i--) {
             if(stride * buf->itemsize != buf->strides[i]) {
                 PyErr_SetString(PyExc_ValueError,
