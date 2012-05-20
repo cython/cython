@@ -6390,6 +6390,10 @@ class CImportStatNode(StatNode):
         else:
             name = self.as_name or self.module_name
             env.declare_module(name, module_scope, self.pos)
+        if self.module_name == "cpython.array":
+            # TODO: Consider a generic user-level mechanism for importing
+            # utility code (or inlining c) in a pxd (or pyx) file.
+            env.use_utility_code(UtilityCode.load("ArrayAPI", "arrayarray.h"))
 
     def analyse_expressions(self, env):
         pass
@@ -6440,6 +6444,12 @@ class FromCImportStatNode(StatNode):
                 if entry:
                     local_name = as_name or name
                     env.add_imported_entry(local_name, entry, pos)
+        if self.module_name == "cpython":
+            # TODO: Consider a generic user-level mechanism for importing
+            # utility code (or inlining c) in a pxd (or pyx) file.
+            for _, name, _, _ in self.imported_names:
+                if name == "array":
+                    env.use_utility_code(UtilityCode.load("ArrayAPI", "arrayarray.h"))
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:

@@ -41,14 +41,10 @@
   mem.leaks; seamless Python compatibility, buffer() optional
   
 
-  IMPORTANT: arrayarray.h (arrayobject, arraydescr) is not part of 
-             the official Python C-API so far; arrayarray.h is located 
-             next to this file copy it to PythonXX/include or local or 
-             somewhere on your -I path 
-
   last changes: 2009-05-15 rk
               : 2009-12-06 bp
               : 2012-05-02 andreasvc
+              : (see revision control)
 """
 from libc cimport stdlib
 from libc.string cimport strcat, strncat, \
@@ -57,7 +53,7 @@ from libc.string cimport strcat, strncat, \
 from cpython.ref cimport PyTypeObject
 from cpython.exc cimport PyErr_BadArgument
 
-cdef extern from "arrayarray.h":
+cdef extern from *:  # Hard-coded utility code hack.
     ctypedef class array.array [object arrayobject]
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)

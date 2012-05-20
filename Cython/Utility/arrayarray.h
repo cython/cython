@@ -1,12 +1,13 @@
+/////////////// ArrayAPI.proto ///////////////
+
 /* arrayarray.h  
 
-    artificial C-API for Python's 
-    <array.array> type.
-    copy this file to your -I path, e.g. .../pythonXX/include
-    See array.pxd next to this file
+    Artificial C-API for Python's <array.array> type,
+    used by array.pxd
     
     last changes: 2009-05-15 rk
                   2012-05-02 andreasvc
+                  (see revision control)
 
 */
 
