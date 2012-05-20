@@ -50,7 +50,7 @@ from libc cimport stdlib
 from libc.string cimport strcat, strncat, \
     memset, memchr, memcmp, memcpy, memmove
 
-from cpython.ref cimport PyTypeObject
+from cpython.ref cimport PyTypeObject, Py_TYPE
 from cpython.exc cimport PyErr_BadArgument
 
 cdef extern from *:  # Hard-coded utility code hack.
@@ -67,7 +67,6 @@ cdef extern from *:  # Hard-coded utility code hack.
         cdef __cythonbufferdefaults__ = {'ndim' : 1, 'mode':'c'}
         
         cdef:
-            PyTypeObject* ob_type
             Py_ssize_t length       # == ob_size (by union)
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
 
@@ -131,7 +130,7 @@ cdef inline array clone(array template, Py_ssize_t length, bint zero):
     type will be same as template.
     if zero is true, new array will be initialized with zeroes."""
     cdef array op
-    op = newarrayobject(template.ob_type, length, template.ob_descr)
+    op = newarrayobject(Py_TYPE(template), length, template.ob_descr)
     if zero and op is not None:
         memset(op._c, 0, length * op.ob_descr.itemsize)
     return op
@@ -139,7 +138,7 @@ cdef inline array clone(array template, Py_ssize_t length, bint zero):
 cdef inline array copy(array self):
     """ make a copy of an array. """
     cdef array op
-    op = newarrayobject(self.ob_type, self.length, self.ob_descr)
+    op = newarrayobject(Py_TYPE(self), self.length, self.ob_descr)
     memcpy(op._c, self._c, op.length * op.ob_descr.itemsize)
     return op
 
