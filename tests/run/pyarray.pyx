@@ -10,8 +10,8 @@ def test_len(a):
     >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> len(a)
     3
-    >>> test_len(a)
-    3L
+    >>> int(test_len(a))
+    3
     >>> assert len(a) == test_len(a)
     """
     cdef array.array ca = a  # for C-fast array usage
@@ -22,11 +22,11 @@ def test_copy(a):
     >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_copy(a)
     array('f', [1.0, 2.0, 3.0])
-    >>> assert a == test_copy(a)
     """
     cdef array.array ca = a
     cdef array.array b
     b = array.copy(a)
+    assert a == b
     a[2] = 3.5
     assert b[2] != a[2]
     return b
@@ -35,9 +35,6 @@ def test_copy(a):
 def test_fast_access(a):
     """
     >>> a = array.array('f', [1.0, 2.0, 3.0])
-    >>> a[2]
-    3.5
-
     >>> test_fast_access(a)
     """
     
