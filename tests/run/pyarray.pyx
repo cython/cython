@@ -117,13 +117,12 @@ def test_view():
 
 def test_extend():
     """
-    >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_extend()
     """
     cdef array.array ca = array.array('i', [1, 2, 3])
-    cdef array.array cb = array.array('i', range(4, 6))
+    cdef array.array cb = array.array('i', [4, 5])
     array.extend(ca, cb)
-    assert list(ca) == range(1, 6), list(ca)
+    assert list(ca) == [1, 2, 3, 4, 5], list(ca)
 
 def test_likes(a):
     """
@@ -138,14 +137,15 @@ def test_likes(a):
 
 def test_extend_buffer():
     """
-    >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_extend_buffer()
-    array('c', 'abcdefghij')
+    array('l', [15, 37, 389, 5077])
     """
-    cdef array.array ca = array.array('c', "abcdef")
-    cdef char* s = "ghij"
-    array.extend_buffer(ca, s, len(s)) # or use stdlib.strlen
+    cdef array.array ca = array.array('l', [15, 37])
+    cdef long[2] s
+    s[0] = 389
+    s[1] = 5077
+    array.extend_buffer(ca, <char*> &s, 2)
 
-    assert ca._c[9] == 'j'
-    assert len(ca) == 10
+    assert ca._L[3] == 5077
+    assert len(ca) == 4
     return ca
