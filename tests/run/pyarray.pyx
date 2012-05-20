@@ -39,12 +39,35 @@ def test_fast_access(a):
     """
     
     cdef array.array ca = a
-    assert ca._f[1] == 2.0, ca._f[1]
+    
+    cdef float value
+    with nogil:
+        value = ca._f[1]
+    assert value == 2.0, value
 
     assert ca._c[:5] == b'\x00\x00\x80?\x00', ca._c[:5]
 
-    ca._f[1] += 2.0
+    with nogil:
+        ca._f[1] += 2.0
     assert ca._f[1] == 4.0
+
+
+def test_fast_buffer_access(a):
+    """
+    >>> a = array.array('f', [1.0, 2.0, 3.0])
+    >>> test_fast_buffer_access(a)
+    """
+    
+    cdef array.array[float] ca = a
+    
+    cdef float value
+    with nogil:
+        value = ca[1]
+    assert value == 2.0, value
+
+    with nogil:
+        ca[1] += 2.0
+    assert ca[1] == 4.0
 
 
 def test_new_zero(a):
