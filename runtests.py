@@ -84,8 +84,8 @@ def update_numpy_extension(ext):
     ext.include_dirs.append(numpy.get_include())
 
 def update_pyarray_extension(ext):
-    ext.include_dirs.append(
-        os.path.join(os.path.dirname(DISTDIR), "Cython/Includes/cpython"))
+    # See http://gcc.gnu.org/onlinedocs/gcc/Unnamed-Fields.html#Unnamed-Fields
+    ext.extra_compile_args.append('-fms-extensions')
 
 def update_openmp_extension(ext):
     ext.openmp = True

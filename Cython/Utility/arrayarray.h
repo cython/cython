@@ -14,8 +14,6 @@
 #ifndef _ARRAYARRAY_H
 #define _ARRAYARRAY_H
 
-#include <Python.h>
-
 struct arrayobject; /* Forward */
 
 /* All possible arraydescr values are defined in the vector "descriptors"
@@ -60,9 +58,9 @@ typedef struct arrayobject {
     struct arraydescr *ob_descr;
 #if PY_VERSION_HEX >= 0x02040000
     PyObject *weakreflist; /* List of weak references */
+#endif
 #if PY_VERSION_HEX >= 0x03000000
         int ob_exports;  /* Number of exported buffers */
-#endif
 #endif
 } arrayobject;
 
@@ -73,7 +71,7 @@ typedef struct arrayobject {
  *  fast creation of a new array
  */
  
-inline PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t size,
+CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t size,
     struct arraydescr *descr) {
     arrayobject *op;
     size_t nbytes;
