@@ -117,13 +117,13 @@ PyObject* newarrayobject(PyTypeObject *type, Py_ssize_t size,
 /* fast resize (reallocation to the point) 
    not designed for filing small increments (but for fast opaque array apps) */
 int resize(arrayobject *self, Py_ssize_t n) {
-    void *item=self->ob_item;
+    void *item= (void*) self->ob_item;
     PyMem_Resize(item, char, (size_t)(n * self->ob_descr->itemsize));
     if (item == NULL) {
         PyErr_NoMemory();
         return -1;
     }    
-    self->ob_item = item;
+    self->ob_item = (char*) item;
     self->ob_size = n;
 #if PY_VERSION_HEX >= 0x02040000
     self->allocated = n;
@@ -135,7 +135,7 @@ int resize(arrayobject *self, Py_ssize_t n) {
    Remains non-smart in Python 2.3- ; but exists for compatibility */
 int resize_smart(arrayobject *self, Py_ssize_t n) {
 #if PY_VERSION_HEX >= 0x02040000
-    void *item=self->ob_item;
+    void *item = (void*) self->ob_item;
     Py_ssize_t newsize;
     if (n < self->allocated) {
         if (n*4 > self->allocated) {
@@ -149,7 +149,7 @@ int resize_smart(arrayobject *self, Py_ssize_t n) {
         PyErr_NoMemory();
         return -1;
     }    
-    self->ob_item = item;
+    self->ob_item = (char*) item;
     self->ob_size = n;
     self->allocated = newsize;
     return 0;
