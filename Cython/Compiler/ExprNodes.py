@@ -221,6 +221,8 @@ class ExprNode(Node):
     is_memview_slice = False
     is_memview_broadcast = False
 
+    is_slice = False
+
     saved_subexpr_nodes = None
     is_temp = 0
     is_target = 0
@@ -2465,34 +2467,40 @@ class IndexNode(ExprNode):
             self.type = PyrexTypes.error_type
             return
 
-        is_slice = isinstance(self.index, SliceNode)
-
         # Potentially overflowing index value.
-        if not is_slice and isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
+        if (not self.index.is_slice and isinstance(self.index, IntNode)
+                and Utils.long_literal(self.index.value)):
             self.index = self.index.coerce_to_pyobject(env)
 
         is_memslice = self.base.type.is_memoryviewslice
         # Handle the case where base is a literal char* (and we expect a string, not an int)
-        if not is_memslice and (isinstance(self.base, BytesNode) or is_slice):
-            if self.base.type.is_string or not (self.base.type.is_ptr or self.base.type.is_array):
+        if not is_memslice and (isinstance(self.base, BytesNode) or
+                                self.index.is_slice):
+            if self.base.type.is_string or not (self.base.type.is_ptr
+                                                or self.base.type.is_array):
                 self.base = self.base.coerce_to_pyobject(env)
 
         is_buffer_operation, skip_child_analysis = \
             self.analyse_as_buffer_operation(env, getting)
 
         if is_buffer_operation:
+            # self.replacement_node now contains the actual node and will
+            # replace this IndexNode
             return
 
         self.nogil = env.nogil
-
         base_type = self.base.type
-        fused_index_operation = base_type.is_cfunction and base_type.is_fused
-        if not fused_index_operation:
-            if isinstance(self.index, TupleNode):
-                self.index.analyse_types(env, skip_children=skip_child_analysis)
-            elif not skip_child_analysis:
-                self.index.analyse_types(env)
-            self.original_index_type = self.index.type
+
+        # First check for fused function indexing, we don't analyse the indices
+        if base_type.is_cfunction and base_type.is_fused:
+            self.parse_indexed_fused_cdef(env)
+            return
+
+        if isinstance(self.index, TupleNode):
+            self.index.analyse_types(env, skip_children=skip_child_analysis)
+        elif not skip_child_analysis:
+            self.index.analyse_types(env)
+        self.original_index_type = self.index.type
 
         if base_type.is_unicode_char:
             # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
@@ -2503,19 +2511,35 @@ class IndexNode(ExprNode):
                 pass
             self.base = self.base.coerce_to_pyobject(env)
             base_type = self.base.type
+
+        if self.analyse_as_object(base_type, env, getting):
+            self.wrap_in_nonecheck_node(env, getting)
+        elif self.analyse_as_c_array(base_type, env, getting):
+            pass
+        elif self.analyse_as_cpp(base_type, env, getting):
+            pass
+        else:
+            error(self.pos,
+                  "Attempting to index non-array type '%s'" %
+                  base_type)
+            self.type = PyrexTypes.error_type
+
+    def analyse_as_object(self, base_type, env, getting):
         if base_type.is_pyobject:
             if self.index.type.is_int:
-                if (not setting
+                if (getting
                     and (base_type in (list_type, tuple_type))
                     and (not self.index.type.signed
                          or not env.directives['wraparound']
                          or (isinstance(self.index, IntNode) and
-                             self.index.has_constant_result() and self.index.constant_result >= 0))
+                             self.index.has_constant_result() and
+                             self.index.constant_result >= 0))
                     and not env.directives['boundscheck']):
                     self.is_temp = 0
                 else:
                     self.is_temp = 1
-                self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type,
+                                                  env).coerce_to_simple(env)
             else:
                 self.index = self.index.coerce_to_pyobject(env)
                 self.is_temp = 1
@@ -2523,48 +2547,47 @@ class IndexNode(ExprNode):
                 # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
                 # if required, so this is fast and safe
                 self.type = PyrexTypes.c_py_ucs4_type
-            elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
+            elif self.index.is_slice and base_type in (bytes_type, str_type,
+                                                       unicode_type, list_type,
+                                                       tuple_type):
                 self.type = base_type
             else:
                 if base_type in (list_type, tuple_type, dict_type):
                     # do the None check explicitly (not in a helper) to allow optimising it away
                     self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
                 self.type = py_object_type
-        else:
-            if base_type.is_ptr or base_type.is_array:
-                self.type = base_type.base_type
-                if is_slice:
-                    self.type = base_type
-                elif self.index.type.is_pyobject:
-                    self.index = self.index.coerce_to(
-                        PyrexTypes.c_py_ssize_t_type, env)
-                elif not self.index.type.is_int:
-                    error(self.pos,
-                        "Invalid index type '%s'" %
-                            self.index.type)
-            elif base_type.is_cpp_class:
-                function = env.lookup_operator("[]", [self.base, self.index])
-                if function is None:
-                    error(self.pos, "Indexing '%s' not supported for index type '%s'" % (base_type, self.index.type))
-                    self.type = PyrexTypes.error_type
-                    self.result_code = "<error>"
-                    return
-                func_type = function.type
-                if func_type.is_ptr:
-                    func_type = func_type.base_type
-                self.index = self.index.coerce_to(func_type.args[0].type, env)
-                self.type = func_type.return_type
-                if setting and not func_type.return_type.is_reference:
-                    error(self.pos, "Can't set non-reference result '%s'" % self.type)
-            elif fused_index_operation:
-                self.parse_indexed_fused_cdef(env)
-            else:
-                error(self.pos,
-                    "Attempting to index non-array type '%s'" %
-                        base_type)
-                self.type = PyrexTypes.error_type
+            return True
 
-        self.wrap_in_nonecheck_node(env, getting)
+    def analyse_as_c_array(self, base_type, env, getting):
+        if base_type.is_ptr or base_type.is_array:
+            self.type = base_type.base_type
+            if self.index.is_slice:
+                self.type = base_type
+            elif self.index.type.is_pyobject:
+                self.index = self.index.coerce_to(
+                    PyrexTypes.c_py_ssize_t_type, env)
+            elif not self.index.type.is_int:
+                error(self.pos,
+                    "Invalid index type '%s'" %
+                        self.index.type)
+            return True
+
+    def analyse_as_cpp(self, base_type, env, getting):
+        if base_type.is_cpp_class:
+            function = env.lookup_operator("[]", [self.base, self.index])
+            if function is None:
+                error(self.pos, "Indexing '%s' not supported for index type '%s'" % (base_type, self.index.type))
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return
+            func_type = function.type
+            if func_type.is_ptr:
+                func_type = func_type.base_type
+            self.index = self.index.coerce_to(func_type.args[0].type, env)
+            self.type = func_type.return_type
+            if not getting and not func_type.return_type.is_reference:
+                error(self.pos, "Can't set non-reference result '%s'" % self.type)
+            return True
 
     def analyse_as_buffer_operation(self, env, getting):
         """
@@ -2627,6 +2650,15 @@ class IndexNode(ExprNode):
                 lhs.is_memview_broadcast = True
                 rhs.is_memview_broadcast = True
 
+    def analyse_as_memview_scalar_assignment(self, rhs):
+        lhs = self.replacement_node
+        if lhs and not rhs.type.is_memoryviewslice and lhs.is_memview_slice:
+            if (lhs.type.dtype.assignable_from(rhs.type) or
+                rhs.type.is_pyobject):
+                lhs.is_memview_scalar_assignment = True
+                return True
+        return False
+
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
             return
@@ -2634,18 +2666,9 @@ class IndexNode(ExprNode):
         msg = "'NoneType' object is not subscriptable"
         self.base = self.base.as_none_safe_node(msg)
 
-    def analyse_as_memview_scalar_assignment(self, rhs):
-        lhs = self.replacement_node
-        if lhs and not rhs.type.is_memoryviewslice and lhs.is_memview_slice:
-            if (lhs.type.dtype.assignable_from(rhs.type) or
-                    rhs.type.is_pyobject):
-                lhs.is_memview_scalar_assignment = True
-                return True
-        return False
-
     def parse_indexed_fused_cdef(self, env):
         """
-        Interpret fused_cdef_func[specific_type1, ...]
+        Interpret fused_cdef_func[specialized_type1, ...]
 
         Note that if this method is called, we are an indexed cdef function
         with fused argument types, and this IndexNode will be replaced by the
@@ -3521,7 +3544,7 @@ class SliceNode(ExprNode):
     #  step      ExprNode
 
     subexprs = ['start', 'stop', 'step']
-
+    is_slice = True
     type = py_object_type
     is_temp = 1
 
