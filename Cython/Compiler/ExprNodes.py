@@ -215,15 +215,18 @@ class ExprNode(Node):
     is_string_literal = 0
     is_attribute = 0
 
+    is_index = False
+    is_buffer_access = False
+    is_memview_index = False
+    is_memview_slice = False
+    is_memview_broadcast = False
+
     saved_subexpr_nodes = None
     is_temp = 0
     is_target = 0
     is_starred = 0
 
     constant_result = constant_value_not_set
-
-    # whether this node with a memoryview type should be broadcast
-    memslice_broadcast = False
 
     try:
         _get_child_attrs = operator.attrgetter('subexprs')
@@ -659,7 +662,7 @@ class ExprNode(Node):
                           "Cannot convert '%s' to memoryviewslice" %
                                                                 (src_type,))
             elif not MemoryView.src_conforms_to_dst(
-                        src.type, dst_type, broadcast=self.memslice_broadcast):
+                        src.type, dst_type, broadcast=self.is_memview_broadcast):
                 if src.type.dtype.same_as(dst_type.dtype):
                     msg = "Memoryview '%s' not conformable to memoryview '%s'."
                     tup = src.type, dst_type
@@ -2444,7 +2447,6 @@ class IndexNode(ExprNode):
     #  base     ExprNode
     #  index    ExprNode
     #  indices  [ExprNode]
-    #  is_buffer_access boolean Whether this is a buffer access.
     #
     #  indices is used on buffer access, index on non-buffer access.
     #  The former contains a clean list of index parameters, the
@@ -2453,23 +2455,11 @@ class IndexNode(ExprNode):
     #  is_fused_index boolean   Whether the index is used to specialize a
     #                           c(p)def function
 
-    subexprs = ['base', 'index', 'indices']
-    indices = None
+    subexprs = ['base', 'index']
 
+    is_index = True
     is_fused_index = False
-
-    # Whether we're assigning to a buffer (in that case it needs to be
-    # writable)
-    writable_needed = False
-
-    # Whether we are indexing or slicing a memoryviewslice
-    memslice_index = False
-    memslice_slice = False
-    is_memslice_copy = False
-    memslice_ellipsis_noop = False
-    warned_untyped_idx = False
-    # set by SingleAssignmentNode after analyse_types()
-    is_memslice_scalar_assignment = False
+    replacement_node = None
 
     def __init__(self, pos, index, *args, **kw):
         ExprNode.__init__(self, pos, index=index, *args, **kw)
@@ -2491,10 +2481,8 @@ class IndexNode(ExprNode):
         return self.base.is_ephemeral()
 
     def is_simple(self):
-        if self.is_buffer_access or self.memslice_index:
-            return False
-        elif self.memslice_slice:
-            return True
+        if self.replacement_node:
+            return self.replacement_node.is_simple()
 
         base = self.base
         return (base.is_simple() and self.index.is_simple()
@@ -2594,19 +2582,6 @@ class IndexNode(ExprNode):
         # Note: This might be cleaned up by having IndexNode
         # parsed in a saner way and only construct the tuple if
         # needed.
-
-        # Note that this function must leave IndexNode in a cloneable state.
-        # For buffers, self.index is packed out on the initial analysis, and
-        # when cloning self.indices is copied.
-        self.is_buffer_access = False
-
-        # a[...] = b
-        self.is_memslice_copy = False
-        # incomplete indexing, Ellipsis indexing or slicing
-        self.memslice_slice = False
-        # integer indexing
-        self.memslice_index = False
-
         if analyse_base:
             self.base.analyse_types(env)
 
@@ -2623,267 +2598,176 @@ class IndexNode(ExprNode):
             self.index = self.index.coerce_to_pyobject(env)
 
         is_memslice = self.base.type.is_memoryviewslice
-
         # Handle the case where base is a literal char* (and we expect a string, not an int)
         if not is_memslice and (isinstance(self.base, BytesNode) or is_slice):
             if self.base.type.is_string or not (self.base.type.is_ptr or self.base.type.is_array):
                 self.base = self.base.coerce_to_pyobject(env)
 
-        skip_child_analysis = False
-        buffer_access = False
+        is_buffer_operation, skip_child_analysis = \
+            self.analyse_as_buffer_operation(env, getting)
 
-        if self.indices:
-            indices = self.indices
-        elif isinstance(self.index, TupleNode):
+        if is_buffer_operation:
+            return
+
+        self.nogil = env.nogil
+
+        base_type = self.base.type
+        fused_index_operation = base_type.is_cfunction and base_type.is_fused
+        if not fused_index_operation:
+            if isinstance(self.index, TupleNode):
+                self.index.analyse_types(env, skip_children=skip_child_analysis)
+            elif not skip_child_analysis:
+                self.index.analyse_types(env)
+            self.original_index_type = self.index.type
+
+        if base_type.is_unicode_char:
+            # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
+            # cases, but indexing must still work for them
+            if self.index.constant_result in (0, -1):
+                # FIXME: we know that this node is redundant -
+                # currently, this needs to get handled in Optimize.py
+                pass
+            self.base = self.base.coerce_to_pyobject(env)
+            base_type = self.base.type
+        if base_type.is_pyobject:
+            if self.index.type.is_int:
+                if (not setting
+                    and (base_type in (list_type, tuple_type))
+                    and (not self.index.type.signed
+                         or not env.directives['wraparound']
+                         or (isinstance(self.index, IntNode) and
+                             self.index.has_constant_result() and self.index.constant_result >= 0))
+                    and not env.directives['boundscheck']):
+                    self.is_temp = 0
+                else:
+                    self.is_temp = 1
+                self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+            else:
+                self.index = self.index.coerce_to_pyobject(env)
+                self.is_temp = 1
+            if self.index.type.is_int and base_type is unicode_type:
+                # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
+                # if required, so this is fast and safe
+                self.type = PyrexTypes.c_py_ucs4_type
+            elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
+                self.type = base_type
+            else:
+                if base_type in (list_type, tuple_type, dict_type):
+                    # do the None check explicitly (not in a helper) to allow optimising it away
+                    self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
+                self.type = py_object_type
+        else:
+            if base_type.is_ptr or base_type.is_array:
+                self.type = base_type.base_type
+                if is_slice:
+                    self.type = base_type
+                elif self.index.type.is_pyobject:
+                    self.index = self.index.coerce_to(
+                        PyrexTypes.c_py_ssize_t_type, env)
+                elif not self.index.type.is_int:
+                    error(self.pos,
+                        "Invalid index type '%s'" %
+                            self.index.type)
+            elif base_type.is_cpp_class:
+                function = env.lookup_operator("[]", [self.base, self.index])
+                if function is None:
+                    error(self.pos, "Indexing '%s' not supported for index type '%s'" % (base_type, self.index.type))
+                    self.type = PyrexTypes.error_type
+                    self.result_code = "<error>"
+                    return
+                func_type = function.type
+                if func_type.is_ptr:
+                    func_type = func_type.base_type
+                self.index = self.index.coerce_to(func_type.args[0].type, env)
+                self.type = func_type.return_type
+                if setting and not func_type.return_type.is_reference:
+                    error(self.pos, "Can't set non-reference result '%s'" % self.type)
+            elif fused_index_operation:
+                self.parse_indexed_fused_cdef(env)
+            else:
+                error(self.pos,
+                    "Attempting to index non-array type '%s'" %
+                        base_type)
+                self.type = PyrexTypes.error_type
+
+        self.wrap_in_nonecheck_node(env, getting)
+
+    def analyse_as_buffer_operation(self, env, getting):
+        """
+        Analyse buffer indexing and memoryview indexing/slicing
+        """
+        if isinstance(self.index, TupleNode):
             indices = self.index.args
         else:
             indices = [self.index]
 
-        if (is_memslice and not self.indices and
-                isinstance(self.index, EllipsisNode)):
-            # Memoryviewslice copying
-            self.is_memslice_copy = True
-
-        elif is_memslice:
+        replacement_node = None
+        skip_child_analysis = False
+        if self.base.type.is_memoryviewslice:
             # memoryviewslice indexing or slicing
             import MemoryView
+            have_slices, indices, newaxes = MemoryView.unellipsify(
+                                        indices, self.base.type.ndim)
+            if have_slices:
+                replacement_node = MemoryViewSliceNode(
+                            self.pos, indices=indices, base=self.base)
+            else:
+                replacement_node = MemoryViewIndexNode(
+                            self.pos, indices=indices, base=self.base)
 
-            skip_child_analysis = True
-            newaxes = [newaxis for newaxis in indices if newaxis.is_none]
-            have_slices, indices = MemoryView.unellipsify(indices,
-                                                          newaxes,
-                                                          self.base.type.ndim)
-
-            self.memslice_index = (not newaxes and
-                                   len(indices) == self.base.type.ndim)
-            axes = []
-
-            index_type = PyrexTypes.c_py_ssize_t_type
-            new_indices = []
-
-            if len(indices) - len(newaxes) > self.base.type.ndim:
-                self.type = error_type
-                return error(indices[self.base.type.ndim].pos,
-                             "Too many indices specified for type %s" %
-                                                        self.base.type)
-
-            axis_idx = 0
-            for i, index in enumerate(indices[:]):
-                index.analyse_types(env)
-                if not index.is_none:
-                    access, packing = self.base.type.axes[axis_idx]
-                    axis_idx += 1
-
-                if isinstance(index, SliceNode):
-                    self.memslice_slice = True
-                    if index.step.is_none:
-                        axes.append((access, packing))
-                    else:
-                        axes.append((access, 'strided'))
-
-                    # Coerce start, stop and step to temps of the right type
-                    for attr in ('start', 'stop', 'step'):
-                        value = getattr(index, attr)
-                        if not value.is_none:
-                            value = value.coerce_to(index_type, env)
-                            #value = value.coerce_to_temp(env)
-                            setattr(index, attr, value)
-                            new_indices.append(value)
-
-                elif index.is_none:
-                    self.memslice_slice = True
-                    new_indices.append(index)
-                    axes.append(('direct', 'strided'))
-
-                elif index.type.is_int or index.type.is_pyobject:
-                    if index.type.is_pyobject and not self.warned_untyped_idx:
-                        warning(index.pos, "Index should be typed for more "
-                                           "efficient access", level=2)
-                        IndexNode.warned_untyped_idx = True
-
-                    self.memslice_index = True
-                    index = index.coerce_to(index_type, env)
-                    indices[i] = index
-                    new_indices.append(index)
-
-                else:
-                    self.type = error_type
-                    return error(index.pos, "Invalid index for memoryview specified")
-
-            self.memslice_index = self.memslice_index and not self.memslice_slice
-            self.original_indices = indices
-            # All indices with all start/stop/step for slices.
-            # We need to keep this around
-            self.indices = new_indices
-            self.env = env
-
-        elif self.base.type.is_buffer:
+        elif self.base.type.is_buffer and len(indices) == self.base.type.ndim:
             # Buffer indexing
-            if len(indices) == self.base.type.ndim:
-                buffer_access = True
-                skip_child_analysis = True
-                for x in indices:
-                    x.analyse_types(env)
-                    if not x.type.is_int:
-                        buffer_access = False
+            buffer_access = True
+            for index in indices:
+                index.analyse_types(env)
+                if not index.type.is_int:
+                    buffer_access = False
+                    skip_child_analysis = True
 
-            if buffer_access and not self.base.type.is_memoryviewslice:
-                assert hasattr(self.base, "entry") # Must be a NameNode-like node
+            if buffer_access:
+                replacement_node = BufferIndexNode(self.pos, indices=indices,
+                                                   base=self.base)
 
-        # On cloning, indices is cloned. Otherwise, unpack index into indices
-        assert not (buffer_access and isinstance(self.index, CloneNode))
+                # On cloning, indices is cloned. Otherwise, unpack index into indices
+                assert not isinstance(self.index, CloneNode)
 
-        self.nogil = env.nogil
+        if not replacement_node:
+            return False, skip_child_analysis
 
-        if buffer_access or self.memslice_index:
-            #if self.base.type.is_memoryviewslice and not self.base.is_name:
-            #    self.base = self.base.coerce_to_temp(env)
-            self.base = self.base.coerce_to_simple(env)
+        replacement_node.analyse_types(env, getting)
+        self.type = replacement_node.type
+        self.replacement_node = replacement_node
+        return True, True
 
-            self.indices = indices
-            self.index = None
-            self.type = self.base.type.dtype
-            self.is_buffer_access = True
-            self.buffer_type = self.base.type #self.base.entry.type
+    def analyse_broadcast_operation(self, rhs):
+        """
+        Support broadcasting for slice assignment.
 
-            if getting and self.type.is_pyobject:
-                self.is_temp = True
-
-            if setting and self.base.type.is_memoryviewslice:
-                self.base.type.writable_needed = True
-            elif setting:
-                if not self.base.entry.type.writable:
-                    error(self.pos, "Writing to readonly buffer")
-                else:
-                    self.writable_needed = True
-                    if self.base.type.is_buffer:
-                        self.base.entry.buffer_aux.writable_needed = True
-
-        elif self.is_memslice_copy:
-            self.type = self.base.type
-            if getting:
-                self.memslice_ellipsis_noop = True
-            else:
-                self.memslice_broadcast = True
-
-        elif self.memslice_slice:
-            self.index = None
-            self.is_temp = True
-            self.use_managed_ref = True
-
-            if not MemoryView.validate_axes(self.pos, axes):
-                self.type = error_type
-                return
-
-            self.type = PyrexTypes.MemoryViewSliceType(
-                            self.base.type.dtype, axes)
-
-            if (self.base.type.is_memoryviewslice and not
-                    self.base.is_name and not
-                    self.base.result_in_temp()):
-                self.base = self.base.coerce_to_temp(env)
-
-            if setting:
-                self.memslice_broadcast = True
-
-        else:
-            base_type = self.base.type
-
-            fused_index_operation = base_type.is_cfunction and base_type.is_fused
-            if not fused_index_operation:
-                if isinstance(self.index, TupleNode):
-                    self.index.analyse_types(env, skip_children=skip_child_analysis)
-                elif not skip_child_analysis:
-                    self.index.analyse_types(env)
-                self.original_index_type = self.index.type
-
-            if base_type.is_unicode_char:
-                # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
-                # cases, but indexing must still work for them
-                if self.index.constant_result in (0, -1):
-                    # FIXME: we know that this node is redundant -
-                    # currently, this needs to get handled in Optimize.py
-                    pass
-                self.base = self.base.coerce_to_pyobject(env)
-                base_type = self.base.type
-            if base_type.is_pyobject:
-                if self.index.type.is_int:
-                    if (not setting
-                        and (base_type in (list_type, tuple_type))
-                        and (not self.index.type.signed
-                             or not env.directives['wraparound']
-                             or (isinstance(self.index, IntNode) and
-                                 self.index.has_constant_result() and self.index.constant_result >= 0))
-                        and not env.directives['boundscheck']):
-                        self.is_temp = 0
-                    else:
-                        self.is_temp = 1
-                    self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-                else:
-                    self.index = self.index.coerce_to_pyobject(env)
-                    self.is_temp = 1
-                if self.index.type.is_int and base_type is unicode_type:
-                    # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
-                    # if required, so this is fast and safe
-                    self.type = PyrexTypes.c_py_ucs4_type
-                elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
-                    self.type = base_type
-                else:
-                    if base_type in (list_type, tuple_type, dict_type):
-                        # do the None check explicitly (not in a helper) to allow optimising it away
-                        self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
-                    self.type = py_object_type
-            else:
-                if base_type.is_ptr or base_type.is_array:
-                    self.type = base_type.base_type
-                    if is_slice:
-                        self.type = base_type
-                    elif self.index.type.is_pyobject:
-                        self.index = self.index.coerce_to(
-                            PyrexTypes.c_py_ssize_t_type, env)
-                    elif not self.index.type.is_int:
-                        error(self.pos,
-                            "Invalid index type '%s'" %
-                                self.index.type)
-                elif base_type.is_cpp_class:
-                    function = env.lookup_operator("[]", [self.base, self.index])
-                    if function is None:
-                        error(self.pos, "Indexing '%s' not supported for index type '%s'" % (base_type, self.index.type))
-                        self.type = PyrexTypes.error_type
-                        self.result_code = "<error>"
-                        return
-                    func_type = function.type
-                    if func_type.is_ptr:
-                        func_type = func_type.base_type
-                    self.index = self.index.coerce_to(func_type.args[0].type, env)
-                    self.type = func_type.return_type
-                    if setting and not func_type.return_type.is_reference:
-                        error(self.pos, "Can't set non-reference result '%s'" % self.type)
-                elif fused_index_operation:
-                    self.parse_indexed_fused_cdef(env)
-                else:
-                    error(self.pos,
-                        "Attempting to index non-array type '%s'" %
-                            base_type)
-                    self.type = PyrexTypes.error_type
-
-        self.wrap_in_nonecheck_node(env, getting)
+        E.g.
+            m_2d[...] = m_1d # or,
+            m_1d[...] = m_2d # if the leading dimension has extent 1
+        """
+        if self.type.is_memoryviewslice:
+            lhs = self.replacement_node
+            if lhs.is_memview_broadcast or rhs.is_memview_broadcast:
+                lhs.is_memview_broadcast = True
+                rhs.is_memview_broadcast = True
 
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
             return
 
-        if self.base.type.is_memoryviewslice:
-            if self.is_memslice_copy and not getting:
-                msg = "Cannot assign to None memoryview slice"
-            elif self.memslice_slice:
-                msg = "Cannot slice None memoryview slice"
-            else:
-                msg = "Cannot index None memoryview slice"
-        else:
-            msg = "'NoneType' object is not subscriptable"
-
+        msg = "'NoneType' object is not subscriptable"
         self.base = self.base.as_none_safe_node(msg)
+
+    def analyse_as_memview_scalar_assignment(self, rhs):
+        lhs = self.replacement_node
+        if lhs and not rhs.type.is_memoryviewslice and lhs.is_memview_slice:
+            if (lhs.type.dtype.assignable_from(rhs.type) or
+                    rhs.type.is_pyobject):
+                lhs.is_memview_scalar_assignment = True
+                return True
+        return False
 
     def parse_indexed_fused_cdef(self, env):
         """
@@ -2984,19 +2868,6 @@ class IndexNode(ExprNode):
 
     gil_message = "Indexing Python object"
 
-    def nogil_check(self, env):
-        if self.is_buffer_access or self.memslice_index or self.memslice_slice:
-            if not self.memslice_slice and env.directives['boundscheck']:
-                # error(self.pos, "Cannot check buffer index bounds without gil; "
-                #                 "use boundscheck(False) directive")
-                warning(self.pos, "Use boundscheck(False) for faster access",
-                        level=1)
-            if self.type.is_pyobject:
-                error(self.pos, "Cannot access buffer with object dtype without gil")
-                return
-        super(IndexNode, self).nogil_check(env)
-
-
     def check_const_addr(self):
         return self.base.check_const_addr() and self.index.check_const()
 
@@ -3008,11 +2879,13 @@ class IndexNode(ExprNode):
             return True
 
     def calculate_result_code(self):
-        if self.is_buffer_access:
-            return "(*%s)" % self.buffer_ptr_code
-        elif self.is_memslice_copy:
-            return self.base.result()
-        elif self.base.type is list_type:
+        if self.replacement_node:
+            # fixme: something got a hold of this IndexNode during type analysis
+            # and did not list is as a subexpr or child_attr. Fake the replacement
+            # node at this point
+            return self.replacement_node.result()
+
+        if self.base.type is list_type:
             return "PyList_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is tuple_type:
             return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
@@ -3032,86 +2905,54 @@ class IndexNode(ExprNode):
         else:
             return ""
 
-    def generate_subexpr_evaluation_code(self, code):
-        self.base.generate_evaluation_code(code)
-        if self.indices is None:
-            self.index.generate_evaluation_code(code)
-        else:
-            for i in self.indices:
-                i.generate_evaluation_code(code)
-
-    def generate_subexpr_disposal_code(self, code):
-        self.base.generate_disposal_code(code)
-        if self.indices is None:
-            self.index.generate_disposal_code(code)
-        else:
-            for i in self.indices:
-                i.generate_disposal_code(code)
-
-    def free_subexpr_temps(self, code):
-        self.base.free_temps(code)
-        if self.indices is None:
-            self.index.free_temps(code)
-        else:
-            for i in self.indices:
-                i.free_temps(code)
-
     def generate_result_code(self, code):
-        if self.is_buffer_access or self.memslice_index:
-            buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
-            if self.type.is_pyobject:
-                # is_temp is True, so must pull out value and incref it.
-                code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
-                code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+        if not self.is_temp:
+            return
 
-        elif self.memslice_slice:
-            self.put_memoryviewslice_slice_code(code)
-
-        elif self.is_temp:
-            if self.type.is_pyobject:
-                if self.index.type.is_int:
-                    index_code = self.index.result()
-                    if self.base.type is list_type:
-                        function = "__Pyx_GetItemInt_List"
-                    elif self.base.type is tuple_type:
-                        function = "__Pyx_GetItemInt_Tuple"
-                    else:
-                        function = "__Pyx_GetItemInt"
-                    code.globalstate.use_utility_code(
-                        TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c"))
-                else:
-                    index_code = self.index.py_result()
-                    if self.base.type is dict_type:
-                        function = "__Pyx_PyDict_GetItem"
-                        code.globalstate.use_utility_code(
-                            UtilityCode.load_cached("DictGetItem", "ObjectHandling.c"))
-                    else:
-                        function = "PyObject_GetItem"
-                code.putln(
-                    "%s = %s(%s, %s%s); if (!%s) %s" % (
-                        self.result(),
-                        function,
-                        self.base.py_result(),
-                        index_code,
-                        self.extra_index_params(),
-                        self.result(),
-                        code.error_goto(self.pos)))
-                code.put_gotref(self.py_result())
-            elif self.type.is_unicode_char and self.base.type is unicode_type:
-                assert self.index.type.is_int
+        if self.type.is_pyobject:
+            if self.index.type.is_int:
                 index_code = self.index.result()
-                function = "__Pyx_GetItemInt_Unicode"
+                if self.base.type is list_type:
+                    function = "__Pyx_GetItemInt_List"
+                elif self.base.type is tuple_type:
+                    function = "__Pyx_GetItemInt_Tuple"
+                else:
+                    function = "__Pyx_GetItemInt"
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c"))
-                code.putln(
-                    "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UCS4)-1)) %s;" % (
-                        self.result(),
-                        function,
-                        self.base.py_result(),
-                        index_code,
-                        self.extra_index_params(),
-                        self.result(),
-                        code.error_goto(self.pos)))
+                    TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c"))
+            else:
+                index_code = self.index.py_result()
+                if self.base.type is dict_type:
+                    function = "__Pyx_PyDict_GetItem"
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("DictGetItem", "ObjectHandling.c"))
+                else:
+                    function = "PyObject_GetItem"
+            code.putln(
+                "%s = %s(%s, %s%s); if (!%s) %s" % (
+                    self.result(),
+                    function,
+                    self.base.py_result(),
+                    index_code,
+                    self.extra_index_params(),
+                    self.result(),
+                    code.error_goto(self.pos)))
+            code.put_gotref(self.py_result())
+        elif self.type.is_unicode_char and self.base.type is unicode_type:
+            assert self.index.type.is_int
+            index_code = self.index.result()
+            function = "__Pyx_GetItemInt_Unicode"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c"))
+            code.putln(
+                "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UCS4)-1)) %s;" % (
+                    self.result(),
+                    function,
+                    self.base.py_result(),
+                    index_code,
+                    self.extra_index_params(),
+                    self.result(),
+                    code.error_goto(self.pos)))
 
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
@@ -3141,54 +2982,18 @@ class IndexNode(ExprNode):
                 self.extra_index_params(),
                 code.error_goto(self.pos)))
 
-    def generate_buffer_setitem_code(self, rhs, code, op=""):
-        # Used from generate_assignment_code and InPlaceAssignmentNode
-        buffer_entry, ptrexpr = self.buffer_lookup_code(code)
-
-        if self.buffer_type.dtype.is_pyobject:
-            # Must manage refcounts. Decref what is already there
-            # and incref what we put in.
-            ptr = code.funcstate.allocate_temp(buffer_entry.buf_ptr_type,
-                                               manage_ref=False)
-            rhs_code = rhs.result()
-            code.putln("%s = %s;" % (ptr, ptrexpr))
-            code.put_gotref("*%s" % ptr)
-            code.putln("__Pyx_INCREF(%s); __Pyx_DECREF(*%s);" % (
-                rhs_code, ptr))
-            code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
-            code.put_giveref("*%s" % ptr)
-            code.funcstate.release_temp(ptr)
-        else:
-            # Simple case
-            code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result()))
-
     def generate_assignment_code(self, rhs, code):
-        generate_evaluation_code = (self.is_memslice_scalar_assignment or
-                                    self.memslice_slice)
-        if generate_evaluation_code:
-            self.generate_evaluation_code(code)
-        else:
-            self.generate_subexpr_evaluation_code(code)
+        self.generate_subexpr_evaluation_code(code)
 
-        if self.is_buffer_access or self.memslice_index:
-            self.generate_buffer_setitem_code(rhs, code)
-        elif self.is_memslice_scalar_assignment:
-            self.generate_memoryviewslice_assign_scalar_code(rhs, code)
-        elif self.memslice_slice or self.is_memslice_copy:
-            self.generate_memoryviewslice_setslice_code(rhs, code)
-        elif self.type.is_pyobject:
+        if self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
             code.putln(
                 "%s = %s;" % (
                     self.result(), rhs.result()))
 
-        if generate_evaluation_code:
-            self.generate_disposal_code(code)
-        else:
-            self.generate_subexpr_disposal_code(code)
-            self.free_subexpr_temps(code)
-
+        self.generate_subexpr_disposal_code(code)
+        self.free_subexpr_temps(code)
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
@@ -3216,6 +3021,84 @@ class IndexNode(ExprNode):
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
 
+
+class BufferIndexNode(ExprNode):
+    """
+    Indexing of buffers and memoryviews. This node is created during type
+    analysis from IndexNode and replaced later by the transform.
+
+    Attributes:
+        base - base node being indexed
+        indices - list of indexing expressions
+    """
+
+    subexprs = ['base', 'indices']
+
+    is_buffer_access = True
+
+    # Whether we're assigning to a buffer (in that case it needs to be
+    # writable)
+    writable_needed = False
+
+    def analyse_target_types(self, env):
+        self.analyse_types(env, getting=False)
+
+    def analyse_types(self, env, getting=True):
+        """
+        Analyse types for buffer indexing only. Overridden by memoryview
+        indexing and slicing subclasses
+        """
+        # self.indices are already analyzed
+
+        if not self.base.is_name:
+            error(self.pos, "Can only index buffer variables")
+            self.type = error_type
+            return
+
+        if not getting:
+            if not self.base.entry.type.writable:
+                error(self.pos, "Writing to readonly buffer")
+            else:
+                self.writable_needed = True
+                if self.base.type.is_buffer:
+                    self.base.entry.buffer_aux.writable_needed = True
+
+        self.none_error_message = "'NoneType' object is not subscriptable"
+        self.analyse_buffer_index(env, getting)
+        self.wrap_in_nonecheck_node(env)
+
+    def analyse_buffer_index(self, env, getting):
+        self.base = self.base.coerce_to_simple(env)
+        self.type = self.base.type.dtype
+        self.buffer_type = self.base.type
+
+        if getting and self.type.is_pyobject:
+            self.is_temp = True
+
+    def wrap_in_nonecheck_node(self, env):
+        if not env.directives['nonecheck'] or not self.base.may_be_none():
+            return
+
+        self.base = self.base.as_none_safe_node(self.none_error_message)
+
+    def is_simple(self):
+        return False
+
+    def nogil_check(self, env):
+        if self.is_buffer_access or self.is_memview_index:
+            if env.directives['boundscheck']:
+                warning(self.pos, "Use boundscheck(False) for faster access",
+                        level=1)
+
+            if self.type.is_pyobject:
+                error(self.pos,
+                      "Cannot access buffer with object dtype without gil")
+                self.type = error_type
+                return
+
+    def calculate_result_code(self):
+        return "(*%s)" % self.buffer_ptr_code
+
     def buffer_entry(self):
         import Buffer, MemoryView
 
@@ -3242,7 +3125,7 @@ class IndexNode(ExprNode):
         "ndarray[1, 2, 3] and memslice[1, 2, 3]"
         # Assign indices to temps
         index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
-                           for i in self.indices]
+                       for i in self.indices]
 
         for temp, index in zip(index_temps, self.indices):
             code.putln("%s = %s;" % (temp, index.result()))
@@ -3258,16 +3141,201 @@ class IndexNode(ExprNode):
             negative_indices = Buffer.buffer_defaults['negative_indices']
 
         return buffer_entry, Buffer.put_buffer_lookup_code(
-               entry=buffer_entry,
-               index_signeds=[i.type.signed for i in self.indices],
-               index_cnames=index_temps,
-               directives=code.globalstate.directives,
-               pos=self.pos, code=code,
-               negative_indices=negative_indices,
-               in_nogil_context=self.in_nogil_context)
+            entry=buffer_entry,
+            index_signeds=[i.type.signed for i in self.indices],
+            index_cnames=index_temps,
+            directives=code.globalstate.directives,
+            pos=self.pos, code=code,
+            negative_indices=negative_indices,
+            in_nogil_context=self.in_nogil_context)
 
-    def put_memoryviewslice_slice_code(self, code):
-        "memslice[:]"
+    def generate_assignment_code(self, rhs, code):
+        self.generate_subexpr_evaluation_code(code)
+        self.generate_buffer_setitem_code(rhs, code)
+        self.generate_subexpr_disposal_code(code)
+        self.free_subexpr_temps(code)
+        rhs.generate_disposal_code(code)
+        rhs.free_temps(code)
+
+    def generate_buffer_setitem_code(self, rhs, code, op=""):
+        # Used from generate_assignment_code and InPlaceAssignmentNode
+        buffer_entry, ptrexpr = self.buffer_lookup_code(code)
+
+        if self.buffer_type.dtype.is_pyobject:
+            # Must manage refcounts. Decref what is already there
+            # and incref what we put in.
+            ptr = code.funcstate.allocate_temp(buffer_entry.buf_ptr_type,
+                                               manage_ref=False)
+            rhs_code = rhs.result()
+            code.putln("%s = %s;" % (ptr, ptrexpr))
+            code.put_gotref("*%s" % ptr)
+            code.putln("__Pyx_INCREF(%s); __Pyx_DECREF(*%s);" % (
+                ptr, rhs_code
+                ))
+            code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
+            code.put_giveref("*%s" % ptr)
+            code.funcstate.release_temp(ptr)
+        else:
+            # Simple case
+            code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result()))
+
+    def generate_result_code(self, code):
+        buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
+        if self.type.is_pyobject:
+            # is_temp is True, so must pull out value and incref it.
+            code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
+            code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+
+
+class MemoryViewIndexNode(BufferIndexNode):
+
+    is_memview_index = True
+    is_buffer_access = False
+    warned_untyped_idx = False
+
+    def analyse_types(self, env, getting=True):
+        # memoryviewslice indexing or slicing
+        import MemoryView
+
+        skip_child_analysis = True
+        indices = self.indices
+
+        have_slices, indices, newaxes = MemoryView.unellipsify(
+                                    indices, self.base.type.ndim)
+
+        self.is_memview_index = (not newaxes and
+                                 len(indices) == self.base.type.ndim)
+        axes = []
+
+        index_type = PyrexTypes.c_py_ssize_t_type
+        new_indices = []
+
+        if len(indices) - len(newaxes) > self.base.type.ndim:
+            self.type = error_type
+            return error(self.indices[self.base.type.ndim].pos,
+                         "Too many indices specified for type %s" %
+                         self.base.type)
+
+        axis_idx = 0
+        for i, index in enumerate(indices[:]):
+            index.analyse_types(env)
+            if not index.is_none:
+                access, packing = self.base.type.axes[axis_idx]
+                axis_idx += 1
+
+            if isinstance(index, SliceNode):
+                self.is_memview_slice = True
+                if index.step.is_none:
+                    axes.append((access, packing))
+                else:
+                    axes.append((access, 'strided'))
+
+                # Coerce start, stop and step to temps of the right type
+                for attr in ('start', 'stop', 'step'):
+                    value = getattr(index, attr)
+                    if not value.is_none:
+                        value = value.coerce_to(index_type, env)
+                        #value = value.coerce_to_temp(env)
+                        setattr(index, attr, value)
+                        new_indices.append(value)
+
+            elif index.is_none:
+                self.is_memview_slice = True
+                new_indices.append(index)
+                axes.append(('direct', 'strided'))
+
+            elif index.type.is_int or index.type.is_pyobject:
+                if index.type.is_pyobject and not self.warned_untyped_idx:
+                    warning(index.pos, "Index should be typed for more "
+                                       "efficient access", level=2)
+                    IndexNode.warned_untyped_idx = True
+
+                self.is_memview_index = True
+                index = index.coerce_to(index_type, env)
+                indices[i] = index
+                new_indices.append(index)
+
+            else:
+                self.type = error_type
+                return error(index.pos, "Invalid index for memoryview specified")
+
+        self.is_memview_index = self.is_memview_index and not self.is_memview_slice
+        self.indices = new_indices
+        # All indices with all start/stop/step for slices.
+        # We need to keep this around
+        self.original_indices = indices
+        self.nogil = env.nogil
+
+        self.analyse_operation(env, getting, axes)
+        self.wrap_in_nonecheck_node(env)
+
+    def analyse_operation(self, env, getting, axes):
+        self.none_error_message = "Cannot index None memoryview slice"
+        self.analyse_buffer_index(env, getting)
+
+
+class MemoryViewSliceNode(MemoryViewIndexNode):
+
+    is_memview_slice = True
+
+    # No-op slicing operation, this node will be replaced
+    is_ellipsis_noop = False
+    is_memview_scalar_assignment = False
+    is_memview_index = False
+    is_memview_broadcast = False
+
+    def analyse_ellipsis_noop(self, env, getting):
+        "Slicing operations needing no evaluation, i.e. m[...] or m[:, :]"
+        self.is_ellipsis_noop = True
+        for index in self.indices:
+            self.is_ellipsis_noop = (self.is_ellipsis_noop and
+                                     isinstance(index, SliceNode) and
+                                     index.start.is_none and
+                                     index.stop.is_none and
+                                     index.step.is_none)
+
+        if self.is_ellipsis_noop:
+            self.type = self.base.type
+
+    def analyse_operation(self, env, getting, axes):
+        import MemoryView
+
+        if not getting:
+            self.is_memview_broadcast = True
+            self.none_error_message = "Cannot assign to None memoryview slice"
+        else:
+            self.none_error_message ="Cannot slice None memoryview slice"
+
+        self.analyse_ellipsis_noop(env, getting)
+        if self.is_ellipsis_noop:
+            return
+
+        self.index = None
+        self.is_temp = True
+        self.use_managed_ref = True
+
+        if not MemoryView.validate_axes(self.pos, axes):
+            self.type = error_type
+            return
+
+        self.type = PyrexTypes.MemoryViewSliceType(
+            self.base.type.dtype, axes)
+
+        if not self.base.is_name and not self.base.result_in_temp():
+            self.base = self.base.coerce_to_temp(env)
+
+    def is_simple(self):
+        if self.is_ellipsis_noop:
+            # Todo: fix SimpleCallNode.is_simple()
+            return self.base.is_simple() or self.base.result_in_temp()
+
+        return self.result_in_temp()
+
+    def calculate_result_code(self):
+        "This is called in case this is a no-op slicing node"
+        return self.base.result()
+
+    def generate_result_code(self, code):
         buffer_entry = self.buffer_entry()
         have_gil = not self.in_nogil_context
 
@@ -3277,6 +3345,7 @@ class IndexNode(ExprNode):
         else:
             next_ = next
 
+        # Todo: this is insane, do it better
         have_slices = False
         it = iter(self.indices)
         for index in self.original_indices:
@@ -3298,6 +3367,26 @@ class IndexNode(ExprNode):
                                                 self.result(),
                                                 have_gil=have_gil,
                                                 have_slices=have_slices)
+
+    def generate_assignment_code(self, rhs, code):
+        import MemoryView
+        if self.is_ellipsis_noop:
+            self.generate_subexpr_evaluation_code(code)
+        else:
+            self.generate_evaluation_code(code)
+
+        if self.is_memview_scalar_assignment:
+            self.generate_memoryviewslice_assign_scalar_code(rhs, code)
+        else:
+            self.generate_memoryviewslice_setslice_code(rhs, code)
+
+        if self.is_ellipsis_noop:
+            self.generate_subexpr_disposal_code(code)
+        else:
+            self.generate_disposal_code(code)
+
+        rhs.generate_disposal_code(code)
+        rhs.free_temps(code)
 
     def generate_memoryviewslice_setslice_code(self, rhs, code):
         "memslice1[...] = memslice2 or memslice1[:] = memslice2"
@@ -3846,8 +3935,7 @@ class SimpleCallNode(CallNode):
                 return
         elif hasattr(self.function, 'entry'):
             overloaded_entry = self.function.entry
-        elif (isinstance(self.function, IndexNode) and
-              self.function.is_fused_index):
+        elif self.function.is_index and self.function.is_fused_index:
             overloaded_entry = self.function.type.entry
         else:
             overloaded_entry = None
@@ -9369,9 +9457,9 @@ class CoerceToPyTypeNode(CoercionNode):
             # FIXME: check that the target type and the resulting type are compatible
             pass
 
-        if arg.type.is_memoryviewslice:
-            # Register utility codes at this point
-            arg.type.get_to_py_function(env, arg)
+        if self.arg.type.is_memoryviewslice:
+            # register utility codes for conversion to/from the memoryview dtype
+            self.arg.type.dtype_object_conversion_funcs(env)
 
         self.env = env
 
@@ -9671,6 +9759,8 @@ class CloneNode(CoercionNode):
     nogil_check = None
 
     def __init__(self, arg):
+        if arg.is_index and arg.replacement_node:
+            arg = arg.replacement_node
         CoercionNode.__init__(self, arg)
         if hasattr(arg, 'type'):
             self.type = arg.type
