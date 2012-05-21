@@ -371,11 +371,12 @@ def empty_slice(pos):
     return ExprNodes.SliceNode(pos, start=none,
                                stop=none, step=none)
 
-def unellipsify(indices, newaxes, ndim):
+def unellipsify(indices, ndim):
     result = []
     seen_ellipsis = False
     have_slices = False
 
+    newaxes = [newaxis for newaxis in indices if newaxis.is_none]
     n_indices = len(indices) - len(newaxes)
 
     for index in indices:
@@ -401,7 +402,7 @@ def unellipsify(indices, newaxes, ndim):
         nslices = ndim - result_length
         result.extend([empty_slice(indices[-1].pos)] * nslices)
 
-    return have_slices, result
+    return have_slices, result, newaxes
 
 def get_memoryview_flag(access, packing):
     if access == 'full' and packing in ('strided', 'follow'):
@@ -477,8 +478,7 @@ def assign_scalar(dst, scalar, code):
 
     code.begin_block()
     code.putln("%s __pyx_temp_scalar = %s;" % (type_decl, scalar.result()))
-    if dst.result_in_temp() or (dst.base.is_name and
-                                isinstance(dst.index, ExprNodes.EllipsisNode)):
+    if dst.result_in_temp() or dst.is_simple():
         dst_temp = dst.result()
     else:
         code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, dst.result()))
@@ -499,16 +499,16 @@ def assign_scalar(dst, scalar, code):
     slice_iter_obj.end_loops()
     code.end_block()
 
-def slice_iter(slice_type, slice_temp, ndim, code):
+def slice_iter(slice_type, slice_result, ndim, code):
     if slice_type.is_c_contig or slice_type.is_f_contig:
-        return ContigSliceIter(slice_type, slice_temp, ndim, code)
+        return ContigSliceIter(slice_type, slice_result, ndim, code)
     else:
-        return StridedSliceIter(slice_type, slice_temp, ndim, code)
+        return StridedSliceIter(slice_type, slice_result, ndim, code)
 
 class SliceIter(object):
-    def __init__(self, slice_type, slice_temp, ndim, code):
+    def __init__(self, slice_type, slice_result, ndim, code):
         self.slice_type = slice_type
-        self.slice_temp = slice_temp
+        self.slice_result = slice_result
         self.code = code
         self.ndim = ndim
 
@@ -519,12 +519,12 @@ class ContigSliceIter(SliceIter):
 
         type_decl = self.slice_type.dtype.declaration_code("")
 
-        total_size = ' * '.join("%s.shape[%d]" % (self.slice_temp, i)
+        total_size = ' * '.join("%s.shape[%d]" % (self.slice_result, i)
                                     for i in range(self.ndim))
         code.putln("Py_ssize_t __pyx_temp_extent = %s;" % total_size)
         code.putln("Py_ssize_t __pyx_temp_idx;")
         code.putln("%s *__pyx_temp_pointer = (%s *) %s.data;" % (
-                            type_decl, type_decl, self.slice_temp))
+                            type_decl, type_decl, self.slice_result))
         code.putln("for (__pyx_temp_idx = 0; "
                         "__pyx_temp_idx < __pyx_temp_extent; "
                         "__pyx_temp_idx++) {")
@@ -542,13 +542,13 @@ class StridedSliceIter(SliceIter):
         code.begin_block()
 
         for i in range(self.ndim):
-            t = i, self.slice_temp, i
+            t = i, self.slice_result, i
             code.putln("Py_ssize_t __pyx_temp_extent_%d = %s.shape[%d];" % t)
             code.putln("Py_ssize_t __pyx_temp_stride_%d = %s.strides[%d];" % t)
             code.putln("char *__pyx_temp_pointer_%d;" % i)
             code.putln("Py_ssize_t __pyx_temp_idx_%d;" % i)
 
-        code.putln("__pyx_temp_pointer_0 = %s.data;" % self.slice_temp)
+        code.putln("__pyx_temp_pointer_0 = %s.data;" % self.slice_result)
 
         for i in range(self.ndim):
             if i > 0:

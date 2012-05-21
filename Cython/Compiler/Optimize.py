@@ -1782,7 +1782,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if isinstance(arg, ExprNodes.SimpleCallNode):
             if node.type.is_int or node.type.is_float:
                 return self._optimise_numeric_cast_call(node, arg)
-        elif isinstance(arg, ExprNodes.IndexNode) and not arg.is_buffer_access:
+        elif isinstance(arg, ExprNodes.IndexNode):
             index_node = arg.index
             if isinstance(index_node, ExprNodes.CoerceToPyTypeNode):
                 index_node = index_node.arg
