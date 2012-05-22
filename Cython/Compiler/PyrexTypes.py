@@ -556,25 +556,27 @@ class MemoryViewSliceType(PyrexType):
         elif attribute in ("copy", "copy_fortran"):
             ndim = len(self.axes)
 
-            to_axes_c = [('direct', 'contig')]
-            to_axes_f = [('direct', 'contig')]
-            if ndim - 1:
-                to_axes_c = [('direct', 'follow')]*(ndim-1) + to_axes_c
-                to_axes_f = to_axes_f + [('direct', 'follow')]*(ndim-1)
+            follow_dim = [('direct', 'follow')]
+            contig_dim = [('direct', 'contig')]
+            to_axes_c = follow_dim * (ndim - 1) + contig_dim
+            to_axes_f = contig_dim + follow_dim * (ndim -1)
 
             to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
             to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
 
             for to_memview, cython_name in [(to_memview_c, "copy"),
                                             (to_memview_f, "copy_fortran")]:
-                entry = scope.declare_cfunction(cython_name,
-                            CFuncType(self, [CFuncTypeArg("memviewslice", self, None)]),
-                            pos=pos,
-                            defining=1,
-                            cname=MemoryView.copy_c_or_fortran_cname(to_memview))
+                copy_func_type = CFuncType(to_memview,
+                            [CFuncTypeArg("memviewslice", self, None)])
+                copy_cname = MemoryView.copy_c_or_fortran_cname(to_memview)
 
-                #entry.utility_code_definition = \
-                env.use_utility_code(MemoryView.get_copy_new_utility(pos, self, to_memview))
+                entry = scope.declare_cfunction(cython_name,
+                            copy_func_type, pos=pos, defining=1,
+                            cname=copy_cname)
+
+                utility = MemoryView.get_copy_new_utility(pos, self,
+                                                          to_memview)
+                env.use_utility_code(utility)
 
             MemoryView.use_cython_array_utility_code(env)
 
