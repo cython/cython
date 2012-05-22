@@ -4,9 +4,7 @@ from ExprNodes import IntNode, NameNode, AttributeNode
 import Options
 from Code import UtilityCode, TempitaUtilityCode
 from UtilityCode import CythonUtilityCode
-import Buffer
-import PyrexTypes
-import ModuleNode
+from Cython.Compiler import Buffer, PyrexTypes, ModuleNode, Symtab
 
 START_ERR = "Start must not be given."
 STOP_ERR = "Axis specification only allowed in the 'step' slot."
@@ -18,12 +16,6 @@ EXPR_ERR = "no expressions allowed in axis spec, only names and literals."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
 ERR_UNINITIALIZED = ("Cannot check if memoryview %s is initialized without the "
                      "GIL, consider using initializedcheck(False)")
-
-def err_if_nogil_initialized_check(pos, env, name='variable'):
-    "This raises an exception at runtime now"
-    pass
-    #if env.nogil and env.directives['initializedcheck']:
-        #error(pos, ERR_UNINITIALIZED % name)
 
 def concat_flags(*flags):
     return "(%s)" % "|".join(flags)
@@ -72,11 +64,6 @@ memviewslice_cname = u'__Pyx_memviewslice'
 def put_init_entry(mv_cname, code):
     code.putln("%s.data = NULL;" % mv_cname)
     code.putln("%s.memview = NULL;" % mv_cname)
-
-def mangle_dtype_name(dtype):
-    # a dumb wrapper for now; move Buffer.mangle_dtype_name in here later?
-    import Buffer
-    return Buffer.mangle_dtype_name(dtype)
 
 #def axes_to_str(axes):
 #    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
@@ -138,54 +125,26 @@ def broadcast_types(src, dst):
     else:
         return src, insert_newaxes(dst, n)
 
-def src_conforms_to_dst(src, dst, broadcast=False):
-    '''
-    returns True if src conforms to dst, False otherwise.
-
-    If conformable, the types are the same, the ndims are equal, and each axis spec is conformable.
-
-    Any packing/access spec is conformable to itself.
-
-    'direct' and 'ptr' are conformable to 'full'.
-    'contig' and 'follow' are conformable to 'strided'.
-    Any other combo is not conformable.
-    '''
-
-    if src.dtype != dst.dtype:
-        return False
-
-    if src.ndim != dst.ndim:
-        if broadcast:
-            src, dst = broadcast_types(src, dst)
-        else:
-            return False
-
-    for src_spec, dst_spec in zip(src.axes, dst.axes):
-        src_access, src_packing = src_spec
-        dst_access, dst_packing = dst_spec
-        if src_access != dst_access and dst_access != 'full':
-            return False
-        if src_packing != dst_packing and dst_packing != 'strided':
-            return False
-
-    return True
-
-def validate_memslice_dtype(pos, dtype):
-    if not valid_memslice_dtype(dtype):
-        error(pos, "Invalid base type for memoryview slice: %s" % dtype)
-
-
 class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
+    """
+    May be used during code generation time to be queried for
+    shape/strides/suboffsets attributes, or to perform indexing or slicing.
+    """
+
     def __init__(self, entry):
+        """
+        node: the node which this entry wraps. The result of this node
+              must be simple
+        """
         self.entry = entry
         self.type = entry.type
         self.cname = entry.cname
+
         self.buf_ptr = "%s.data" % self.cname
-
         dtype = self.entry.type.dtype
-        dtype = PyrexTypes.CPtrType(dtype)
+        self.buf_ptr_type = PyrexTypes.CPtrType(dtype)
 
-        self.buf_ptr_type = dtype
+        self.init_attributes()
 
     def get_buf_suboffsetvars(self):
         return self._for_all_ndim("%s.suboffsets[%d]")
@@ -202,6 +161,10 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         return self._generate_buffer_lookup_code(code, axes)
 
     def _generate_buffer_lookup_code(self, code, axes, cast_result=True):
+        """
+        Generate a single expression that indexes the memory view slice
+        in each dimension.
+        """
         bufp = self.buf_ptr
         type_decl = self.type.dtype.declaration_code("")
 
@@ -252,7 +215,9 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                       then it must be coercible to Py_ssize_t
 
         Simply call __pyx_memoryview_slice_memviewslice with the right
-        arguments.
+        arguments, unless the dimension is omitted or a bare ':', in which
+        case we copy over the shape/strides/suboffsets attributes directly
+        for that dimension.
         """
         new_ndim = 0
         src = self.cname
@@ -403,67 +368,6 @@ def get_is_contig_utility(c_contig, ndim):
                                          requires=[is_contig_utility])
 
     return utility
-
-def copy_src_to_dst_cname():
-    return "__pyx_memoryview_copy_contents"
-
-def copy_broadcast_memview_src_to_dst(src, dst, code):
-    """
-    Copy the contents of slice src to slice dst. Does not support indirect
-    slices.
-    """
-    src.type.assert_direct_dims(src.pos)
-    dst.type.assert_direct_dims(dst.pos)
-
-    code.putln(code.error_goto_if_neg(
-            "%s(%s, %s, %d, %d, %d)" % (copy_src_to_dst_cname(),
-                                        src.result(), dst.result(),
-                                        src.type.ndim, dst.type.ndim,
-                                        dst.type.dtype.is_pyobject),
-            dst.pos))
-
-def get_1d_fill_scalar_func(type, code):
-    dtype = type.dtype
-    type_decl = dtype.declaration_code("")
-
-    dtype_name = mangle_dtype_name(dtype)
-    context = dict(dtype_name=dtype_name, type_decl=type_decl)
-    utility = load_memview_c_utility("FillStrided1DScalar", context)
-    code.globalstate.use_utility_code(utility)
-    return '__pyx_fill_slice_%s' % dtype_name
-
-def assign_scalar(dst, scalar, code):
-    """
-    Assign a scalar to a slice. dst must be a temp, scalar will be assigned
-    to a correct type and not just something assignable.
-    """
-    dst.type.assert_direct_dims(dst.pos)
-    dtype = dst.type.dtype
-    type_decl = dtype.declaration_code("")
-    slice_decl = dst.type.declaration_code("")
-
-    code.begin_block()
-    code.putln("%s __pyx_temp_scalar = %s;" % (type_decl, scalar.result()))
-    if dst.result_in_temp() or dst.is_simple():
-        dst_temp = dst.result()
-    else:
-        code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, dst.result()))
-        dst_temp = "__pyx_temp_slice"
-
-    # with slice_iter(dst.type, dst_temp, dst.type.ndim, code) as p:
-    slice_iter_obj = slice_iter(dst.type, dst_temp, dst.type.ndim, code)
-    p = slice_iter_obj.start_loops()
-
-    if dtype.is_pyobject:
-        code.putln("Py_DECREF(*(PyObject **) %s);" % p)
-
-    code.putln("*((%s *) %s) = __pyx_temp_scalar;" % (type_decl, p))
-
-    if dtype.is_pyobject:
-        code.putln("Py_INCREF(__pyx_temp_scalar);")
-
-    slice_iter_obj.end_loops()
-    code.end_block()
 
 def slice_iter(slice_type, slice_result, ndim, code):
     if slice_type.is_c_contig or slice_type.is_f_contig:

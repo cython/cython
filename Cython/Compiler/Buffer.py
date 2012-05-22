@@ -195,12 +195,20 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 #
 
 class BufferEntry(object):
+
     def __init__(self, entry):
         self.entry = entry
         self.type = entry.type
         self.cname = entry.buffer_aux.buflocal_nd_var.cname
         self.buf_ptr = "%s.rcbuffer->pybuffer.buf" % self.cname
-        self.buf_ptr_type = self.entry.type.buffer_ptr_type
+        self.buf_ptr_type = entry.type.buffer_ptr_type
+
+        self.init_attributes()
+
+    def init_attributes(self):
+        self.shape = self.get_buf_shapevars()
+        self.strides = self.get_buf_stridevars()
+        self.suboffsets = self.get_buf_suboffsetvars()
 
     def get_buf_suboffsetvars(self):
         return self._for_all_ndim("%s.diminfo[%d].suboffsets")

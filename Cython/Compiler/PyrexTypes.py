@@ -7,6 +7,7 @@ import StringEncoding
 import Naming
 import copy
 from Errors import error
+import Symtab
 
 class BaseType(object):
     #
@@ -454,7 +455,7 @@ class MemoryViewSliceType(PyrexType):
         the *first* axis' packing spec and 'follow' for all other packing
         specs.
         '''
-        import MemoryView
+        import Buffer, MemoryView
 
         self.dtype = base_dtype
         self.axes = axes
@@ -468,7 +469,7 @@ class MemoryViewSliceType(PyrexType):
         self.writable_needed = False
 
         if not self.dtype.is_fused:
-            self.dtype_name = MemoryView.mangle_dtype_name(self.dtype)
+            self.dtype_name = Buffer.mangle_dtype_name(self.dtype)
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
@@ -587,6 +588,54 @@ class MemoryViewSliceType(PyrexType):
 
                 entry.utility_code_definition = MemoryView.get_is_contig_utility(
                                             attribute == 'is_c_contig', self.ndim)
+
+        return True
+
+    def get_entry(self, node, cname=None, type=None):
+        import MemoryView
+
+        if cname is None:
+            assert node.is_simple() or node.is_temp or node.is_elemental
+            cname = node.result()
+
+        if type is None:
+            type = node.type
+
+        entry = Symtab.Entry(cname, cname, type, node.pos)
+        return MemoryView.MemoryViewSliceBufferEntry(entry)
+
+    def conforms_to(self, dst, broadcast=False):
+        '''
+        returns True if src conforms to dst, False otherwise.
+
+        If conformable, the types are the same, the ndims are equal, and each axis spec is conformable.
+
+        Any packing/access spec is conformable to itself.
+
+        'direct' and 'ptr' are conformable to 'full'.
+        'contig' and 'follow' are conformable to 'strided'.
+        Any other combo is not conformable.
+        '''
+        import MemoryView
+
+        src = self
+
+        if src.dtype != dst.dtype:
+            return False
+
+        if src.ndim != dst.ndim:
+            if broadcast:
+                src, dst = MemoryView.broadcast_types(src, dst)
+            else:
+                return False
+
+        for src_spec, dst_spec in zip(src.axes, dst.axes):
+            src_access, src_packing = src_spec
+            dst_access, dst_packing = dst_spec
+            if src_access != dst_access and dst_access != 'full':
+                return False
+            if src_packing != dst_packing and dst_packing != 'strided':
+                return False
 
         return True
 
@@ -823,6 +872,11 @@ class BufferType(BaseType):
             return BufferType(self.base, dtype, self.ndim, self.mode,
                               self.negative_indices, self.cast)
         return self
+
+    def get_entry(self, node):
+        import Buffer
+        assert node.is_name
+        return Buffer.BufferEntry(node.entry)
 
     def __getattr__(self, name):
         return getattr(self.base, name)
