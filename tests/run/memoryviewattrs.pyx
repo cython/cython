@@ -57,11 +57,14 @@ def test_copy_to():
     '''
     cdef int[:, :, :] from_mvs, to_mvs
     from_mvs = np.arange(8, dtype=np.int32).reshape(2,2,2)
+
     cdef int *from_data = <int *> from_mvs._data
     print ' '.join(str(from_data[i]) for i in range(2*2*2))
+
     to_mvs = array((2,2,2), sizeof(int), 'i')
     to_mvs[...] = from_mvs
 
+    # todo: remove this _data attribute
     cdef int *to_data = <int*>to_mvs._data
     print ' '.join(str(from_data[i]) for i in range(2*2*2))
     print ' '.join(str(to_data[i]) for i in range(2*2*2))
@@ -80,6 +83,20 @@ def test_overlapping_copy():
 
     for i in range(10):
         assert slice[i] == 10 - 1 - i
+
+@testcase
+def test_copy_return_type():
+    """
+    >>> test_copy_return_type()
+    60.0
+    60.0
+    """
+    cdef double[:, :, :] a = np.arange(5 * 5 * 5, dtype=np.float64).reshape(5, 5, 5)
+    cdef double[:, ::1] c_contig = a[..., 0].copy()
+    cdef double[::1, :] f_contig = a[..., 0].copy_fortran()
+
+    print c_contig[2, 2]
+    print f_contig[2, 2]
 
 @testcase
 def test_partly_overlapping():
@@ -174,27 +191,29 @@ def test_copy_mismatch():
 def test_is_contiguous():
     u'''
     >>> test_is_contiguous()
-    True True
-    False True
-    True False
-    True False
-    <BLANKLINE>
-    False True
-    True False
-'''
+    one sized is_c/f_contig True True
+    is_c/f_contig False True
+    f_contig.copy().is_c/f_contig True False
+    f_contig.copy_fortran().is_c/f_contig False True
+    one sized strided contig True True
+    strided False
+    '''
     cdef int[::1, :, :] fort_contig = array((1,1,1), sizeof(int), 'i', mode='fortran')
-    print fort_contig.is_c_contig() , fort_contig.is_f_contig()
-    fort_contig = array((200,100,100), sizeof(int), 'i', mode='fortran')
-    print fort_contig.is_c_contig(), fort_contig.is_f_contig()
-    fort_contig = fort_contig.copy()
-    print fort_contig.is_c_contig(), fort_contig.is_f_contig()
     cdef int[:,:,:] strided = fort_contig
-    print strided.is_c_contig(), strided.is_f_contig()
-    print
-    fort_contig = fort_contig.copy_fortran()
-    print fort_contig.is_c_contig(), fort_contig.is_f_contig()
-    print strided.is_c_contig(), strided.is_f_contig()
 
+    print 'one sized is_c/f_contig', fort_contig.is_c_contig(), fort_contig.is_f_contig()
+    fort_contig = array((2,2,2), sizeof(int), 'i', mode='fortran')
+    print 'is_c/f_contig', fort_contig.is_c_contig(), fort_contig.is_f_contig()
+
+    print 'f_contig.copy().is_c/f_contig', fort_contig.copy().is_c_contig(), \
+                                           fort_contig.copy().is_f_contig()
+    print 'f_contig.copy_fortran().is_c/f_contig', \
+           fort_contig.copy_fortran().is_c_contig(), \
+           fort_contig.copy_fortran().is_f_contig()
+
+    print 'one sized strided contig', strided.is_c_contig(), strided.is_f_contig()
+
+    print 'strided', strided[::2].is_c_contig()
 
 @testcase
 def call():
@@ -283,7 +302,8 @@ def fort_two_dee():
     1 2 3 -4
     '''
     cdef array arr = array((2,2), sizeof(long), 'l', mode='fortran')
-    cdef long[::1,:] mv1, mv2, mv3
+    cdef long[::1,:] mv1, mv2, mv4
+    cdef long[:, ::1] mv3
 
     cdef long *arr_data
     arr_data = <long*>arr.data
@@ -311,6 +331,6 @@ def fort_two_dee():
 
     print (<long*>mv3._data)[0], (<long*>mv3._data)[1], (<long*>mv3._data)[2], (<long*>mv3._data)[3]
 
-    mv3 = mv3.copy_fortran()
+    mv4 = mv3.copy_fortran()
 
-    print (<long*>mv3._data)[0], (<long*>mv3._data)[1], (<long*>mv3._data)[2], (<long*>mv3._data)[3]
+    print (<long*>mv4._data)[0], (<long*>mv4._data)[1], (<long*>mv4._data)[2], (<long*>mv4._data)[3]
