@@ -590,6 +590,45 @@ class MemoryViewSliceType(PyrexType):
 
         return True
 
+    def valid_dtype(self, dtype, i=0):
+        """
+        Return whether type dtype can be used as the base type of a
+        memoryview slice.
+
+        We support structs, numeric types and objects
+        """
+        if dtype.is_complex and dtype.real_type.is_int:
+            return False
+
+        if dtype.is_struct and dtype.kind == 'struct':
+            for member in dtype.scope.var_entries:
+                if not self.valid_dtype(member.type):
+                    return False
+
+            return True
+
+        return (
+            dtype.is_error or
+            # Pointers are not valid (yet)
+            # (dtype.is_ptr and valid_memslice_dtype(dtype.base_type)) or
+            (dtype.is_array and i < 8 and
+             self.valid_dtype(dtype.base_type, i + 1)) or
+            dtype.is_numeric or
+            dtype.is_pyobject or
+            dtype.is_fused or # accept this as it will be replaced by specializations later
+            (dtype.is_typedef and self.valid_dtype(dtype.typedef_base_type))
+            )
+
+    def validate_memslice_dtype(self, pos):
+        if not self.valid_dtype(self.dtype):
+            error(pos, "Invalid base type for memoryview slice: %s" % self.dtype)
+
+    def assert_direct_dims(self, pos):
+        for access, packing in self.axes:
+            if access != 'direct':
+                error(pos, "All dimensions must be direct")
+                break
+
     def specialization_suffix(self):
         return "%s_%s" % (self.axes_to_name(), self.dtype_name)
 
