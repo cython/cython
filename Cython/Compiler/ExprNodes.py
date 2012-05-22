@@ -7554,8 +7554,6 @@ class CythonArrayNode(ExprNode):
             array_dtype = self.base_type_node.base_type_node.analyse(env)
         axes = self.base_type_node.axes
 
-        MemoryView.validate_memslice_dtype(self.pos, array_dtype)
-
         self.type = error_type
         self.shapes = []
         ndim = len(axes)
@@ -7635,6 +7633,7 @@ class CythonArrayNode(ExprNode):
             axes[-1] = ('direct', 'contig')
 
         self.coercion_type = PyrexTypes.MemoryViewSliceType(array_dtype, axes)
+        self.coercion_type.validate_memslice_dtype(self.pos)
         self.type = self.get_cython_array_type(env)
         MemoryView.use_cython_array_utility_code(env)
         env.use_utility_code(MemoryView.typeinfo_to_format_code)

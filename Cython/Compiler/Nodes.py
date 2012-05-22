@@ -886,8 +886,8 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
         if not MemoryView.validate_axes(self.pos, axes_specs):
             self.type = error_type
         else:
-            MemoryView.validate_memslice_dtype(self.pos, base_type)
             self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs)
+            self.type.validate_memslice_dtype(self.pos)
             self.use_memview_utilities(env)
 
         return self.type
