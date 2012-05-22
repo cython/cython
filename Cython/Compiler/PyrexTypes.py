@@ -627,7 +627,14 @@ class MemoryViewSliceType(PyrexType):
         for access, packing in self.axes:
             if access != 'direct':
                 error(pos, "All dimensions must be direct")
-                break
+                return False
+        return True
+
+    def transpose(self, pos):
+        if not self.assert_direct_dims(pos):
+            return error_type
+
+        return MemoryViewSliceType(self.dtype, self.axes[::-1])
 
     def specialization_suffix(self):
         return "%s_%s" % (self.axes_to_name(), self.dtype_name)
