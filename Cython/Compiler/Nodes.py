@@ -4360,12 +4360,9 @@ class SingleAssignmentNode(AssignmentNode):
         if is_index_node:
             self.lhs.analyse_broadcast_operation(self.rhs)
 
-        if is_index_node and self.lhs.analyse_as_memview_scalar_assignment(self.rhs):
-            # scalar slice assignment
-            dtype = self.lhs.type.dtype
-        else:
-            dtype = self.lhs.type
+            self.lhs.analyse_as_memview_scalar_assignment(self.rhs)
 
+        dtype = self.lhs.type
         self.rhs = self.rhs.coerce_to(dtype, env)
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)

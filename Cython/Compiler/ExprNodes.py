@@ -663,8 +663,8 @@ class ExprNode(Node):
                     error(self.pos,
                           "Cannot convert '%s' to memoryviewslice" %
                                                                 (src_type,))
-            elif not MemoryView.src_conforms_to_dst(
-                        src.type, dst_type, broadcast=self.is_memview_broadcast):
+            elif not src.type.conforms_to(dst_type,
+                                          broadcast=self.is_memview_broadcast):
                 if src.type.dtype.same_as(dst_type.dtype):
                     msg = "Memoryview '%s' not conformable to memoryview '%s'."
                     tup = src.type, dst_type
@@ -1559,10 +1559,6 @@ class NameNode(AtomicExprNode):
                     self.gil_error()
             elif entry.is_pyglobal:
                 self.gil_error()
-            elif self.entry.type.is_memoryviewslice:
-                if self.cf_is_null or self.cf_maybe_null:
-                    import MemoryView
-                    MemoryView.err_if_nogil_initialized_check(self.pos, env)
 
     gil_message = "Accessing Python global or builtin"
 
@@ -2777,13 +2773,11 @@ class IndexNode(ExprNode):
                 rhs.is_memview_broadcast = True
 
     def analyse_as_memview_scalar_assignment(self, rhs):
-        lhs = self.replacement_node
-        if lhs and not rhs.type.is_memoryviewslice and lhs.is_memview_slice:
-            if (lhs.type.dtype.assignable_from(rhs.type) or
-                rhs.type.is_pyobject):
-                lhs.is_memview_scalar_assignment = True
-                return True
-        return False
+        if self.replacement_node:
+            lhs = self.replacement_node.analyse_assignment(rhs)
+            if lhs:
+                self.type = lhs.type
+                self.replacement_node = lhs
 
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
@@ -3098,6 +3092,12 @@ class BufferIndexNode(ExprNode):
         if getting and self.type.is_pyobject:
             self.is_temp = True
 
+    def analyse_assignment(self, rhs):
+        """
+        Called by IndexNode when this node is assigned to,
+        with the rhs of the assignment
+        """
+
     def wrap_in_nonecheck_node(self, env):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
             return
@@ -3129,20 +3129,7 @@ class BufferIndexNode(ExprNode):
         if self.base.is_nonecheck:
             base = base.arg
 
-        if base.is_name:
-            entry = base.entry
-        else:
-            # SimpleCallNode is_simple is not consistent with coerce_to_simple
-            assert base.is_simple() or base.is_temp
-            cname = base.result()
-            entry = Symtab.Entry(cname, cname, self.base.type, self.base.pos)
-
-        if entry.type.is_buffer:
-            buffer_entry = Buffer.BufferEntry(entry)
-        else:
-            buffer_entry = MemoryView.MemoryViewSliceBufferEntry(entry)
-
-        return buffer_entry
+        return base.type.get_entry(base)
 
     def buffer_lookup_code(self, code):
         "ndarray[1, 2, 3] and memslice[1, 2, 3]"
@@ -3344,8 +3331,17 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         self.type = PyrexTypes.MemoryViewSliceType(
             self.base.type.dtype, axes)
 
-        if not self.base.is_name and not self.base.result_in_temp():
-            self.base = self.base.coerce_to_temp(env)
+        if not (self.base.is_simple() or self.base.result_in_temp()):
+            self.base = self.base.coerce_to_simple(env)
+
+    def analyse_assignment(self, rhs):
+        if not rhs.type.is_memoryviewslice and (
+                self.type.dtype.assignable_from(rhs.type) or
+                rhs.type.is_pyobject):
+            # scalar assignment
+            return MemoryCopyScalar(self.pos, self)
+        else:
+            return MemoryCopySlice(self.pos, self)
 
     def is_simple(self):
         if self.is_ellipsis_noop:
@@ -3359,6 +3355,9 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         return self.base.result()
 
     def generate_result_code(self, code):
+        if self.is_ellipsis_noop:
+            return
+
         buffer_entry = self.buffer_entry()
         have_gil = not self.in_nogil_context
 
@@ -3391,35 +3390,95 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
                                                 have_gil=have_gil,
                                                 have_slices=have_slices)
 
+class MemoryCopyNode(ExprNode):
+    """
+    Wraps a memoryview slice for slice assignment.
+
+        dst: destination mememoryview slice
+    """
+
+    subexprs = ['dst']
+
+    def __init__(self, pos, dst):
+        super(MemoryCopyNode, self).__init__(pos)
+        self.dst = dst
+        self.type = dst.type
+
     def generate_assignment_code(self, rhs, code):
-        import MemoryView
-        if self.is_ellipsis_noop:
-            self.generate_subexpr_evaluation_code(code)
-        else:
-            self.generate_evaluation_code(code)
-
-        if self.is_memview_scalar_assignment:
-            self.generate_memoryviewslice_assign_scalar_code(rhs, code)
-        else:
-            self.generate_memoryviewslice_setslice_code(rhs, code)
-
-        if self.is_ellipsis_noop:
-            self.generate_subexpr_disposal_code(code)
-        else:
-            self.generate_disposal_code(code)
-
+        self.dst.generate_evaluation_code(code)
+        self._generate_assignment_code(rhs, code)
+        self.dst.generate_disposal_code(code)
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
-    def generate_memoryviewslice_setslice_code(self, rhs, code):
-        "memslice1[...] = memslice2 or memslice1[:] = memslice2"
-        import MemoryView
-        MemoryView.copy_broadcast_memview_src_to_dst(rhs, self, code)
+class MemoryCopySlice(MemoryCopyNode):
+    """
+    Copy the contents of slice src to slice dst. Does not support indirect
+    slices.
 
-    def generate_memoryviewslice_assign_scalar_code(self, rhs, code):
-        "memslice1[...] = 0.0 or memslice1[:] = 0.0"
+        memslice1[...] = memslice2
+        memslice1[:] = memslice2
+    """
+
+    copy_slice_cname = "__pyx_memoryview_copy_contents"
+
+    def _generate_assignment_code(self, src, code):
+        dst = self.dst
+
+        src.type.assert_direct_dims(src.pos)
+        dst.type.assert_direct_dims(dst.pos)
+
+        code.putln(code.error_goto_if_neg(
+            "%s(%s, %s, %d, %d, %d)" % (self.copy_slice_cname,
+                                        src.result(), dst.result(),
+                                        src.type.ndim, dst.type.ndim,
+                                        dst.type.dtype.is_pyobject),
+            dst.pos))
+
+class MemoryCopyScalar(MemoryCopyNode):
+    """
+    Assign a scalar to a slice. dst must be simple, scalar will be assigned
+    to a correct type and not just something assignable.
+
+        memslice1[...] = 0.0
+        memslice1[:] = 0.0
+    """
+
+    def __init__(self, pos, dst):
+        super(MemoryCopyScalar, self).__init__(pos, dst)
+        self.type = dst.type.dtype
+
+    def _generate_assignment_code(self, scalar, code):
         import MemoryView
-        MemoryView.assign_scalar(self, rhs, code)
+
+        self.dst.type.assert_direct_dims(self.dst.pos)
+
+        dtype = self.dst.type.dtype
+        type_decl = dtype.declaration_code("")
+        slice_decl = self.dst.type.declaration_code("")
+
+        code.begin_block()
+        code.putln("%s __pyx_temp_scalar = %s;" % (type_decl, scalar.result()))
+        if self.dst.result_in_temp() or self.dst.is_simple():
+            dst_temp = self.dst.result()
+        else:
+            code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, self.dst.result()))
+            dst_temp = "__pyx_temp_slice"
+
+        slice_iter_obj = MemoryView.slice_iter(self.dst.type, dst_temp,
+                                               self.dst.type.ndim, code)
+        p = slice_iter_obj.start_loops()
+
+        if dtype.is_pyobject:
+            code.putln("Py_DECREF(*(PyObject **) %s);" % p)
+
+        code.putln("*((%s *) %s) = __pyx_temp_scalar;" % (type_decl, p))
+
+        if dtype.is_pyobject:
+            code.putln("Py_INCREF(__pyx_temp_scalar);")
+
+        slice_iter_obj.end_loops()
+        code.end_block()
 
 
 class SliceIndexNode(ExprNode):
@@ -4775,9 +4834,6 @@ class AttributeNode(ExprNode):
     def nogil_check(self, env):
         if self.is_py_attr:
             self.gil_error()
-        elif self.type.is_memoryviewslice:
-            import MemoryView
-            MemoryView.err_if_nogil_initialized_check(self.pos, env, 'attribute')
 
     gil_message = "Accessing Python attribute"
 
