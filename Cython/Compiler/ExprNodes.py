@@ -4693,7 +4693,7 @@ class AttributeNode(ExprNode):
                         self.is_memslice_transpose = True
                         self.is_temp = True
                         self.use_managed_ref = True
-                        self.type = self.obj.type
+                        self.type = self.obj.type.transpose(self.pos)
                         return
                     else:
                         obj_type.declare_attribute(self.attribute, env, self.pos)
