@@ -1074,6 +1074,10 @@ class CVarDefNode(StatNode):
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
 
+        if base_type.is_fused and (env.is_c_class_scope or env.is_module_scope):
+            error(self.pos, "Fused types not allowed here")
+            return error_type
+
         self.entry = None
         visibility = self.visibility
 
