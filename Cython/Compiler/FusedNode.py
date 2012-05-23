@@ -32,6 +32,8 @@ class FusedCFuncDefNode(StatListNode):
                             specializations
     code_object             CodeObjectNode shared by all specializations and the
                             fused function
+
+    fused_compound_types    All fused (compound) types (e.g. floating[:])
     """
 
     __signatures__ = None
@@ -75,6 +77,8 @@ class FusedCFuncDefNode(StatListNode):
         fused_compound_types = PyrexTypes.unique(
             [arg.type for arg in self.node.args if arg.type.is_fused])
         permutations = PyrexTypes.get_all_specialized_permutations(fused_compound_types)
+
+        self.fused_compound_types = fused_compound_types
 
         if self.node.entry in env.pyfunc_entries:
             env.pyfunc_entries.remove(self.node.entry)
@@ -121,6 +125,7 @@ class FusedCFuncDefNode(StatListNode):
             env.pyfunc_entries.remove(orig_py_func.entry)
 
         fused_types = self.node.type.get_fused_types()
+        self.fused_compound_types = fused_types
 
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
@@ -656,6 +661,12 @@ class FusedCFuncDefNode(StatListNode):
         Analyse the expressions. Take care to only evaluate default arguments
         once and clone the result for all specializations
         """
+        for fused_compound_type in self.fused_compound_types:
+            for fused_type in fused_compound_type.get_fused_types():
+                for specialization_type in fused_type.types:
+                    if specialization_type.is_complex:
+                        specialization_type.create_declaration_utility_code(env)
+
         if self.py_func:
             self.__signatures__.analyse_expressions(env)
             self.py_func.analyse_expressions(env)

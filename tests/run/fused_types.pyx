@@ -272,3 +272,13 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
+
+def test_cython_numeric(cython.numeric arg):
+    """
+    Test to see whether complex numbers have their utility code declared
+    properly.
+
+    >>> test_cython_numeric(10.0 + 1j)
+    double complex (10+1j)
+    """
+    print cython.typeof(arg), arg
