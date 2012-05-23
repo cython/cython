@@ -1,9 +1,22 @@
+import sys
+
+if sys.version_info[0] < 3:
+    __doc__ = """
+    >>> import cPickle
+    >>> a = A(5); a
+    A(5)
+    >>> cPickle.loads(cPickle.dumps(a))
+    A(5)
+    
+    >>> b = B(0, 1); b
+    B(x=0, y=1)
+    >>> cPickle.loads(cPickle.dumps(b))
+    B(x=0, y=1)
+    """
+
 cdef class A:
     """
     >>> a = A(3); a
-    A(3)
-    >>> import cPickle
-    >>> cPickle.loads(cPickle.dumps(a))
     A(3)
     >>> import pickle
     >>> pickle.loads(pickle.dumps(a))
@@ -24,9 +37,6 @@ cdef class A:
 cdef class B:
     """
     >>> b = B(x=37, y=389); b
-    B(x=37, y=389)
-    >>> import cPickle
-    >>> cPickle.loads(cPickle.dumps(b))
     B(x=37, y=389)
     >>> import pickle
     >>> pickle.loads(pickle.dumps(b))
