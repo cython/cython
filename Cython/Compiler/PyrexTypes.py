@@ -7,7 +7,6 @@ import StringEncoding
 import Naming
 import copy
 from Errors import error
-import Symtab
 
 class BaseType(object):
     #
@@ -606,7 +605,7 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def get_entry(self, node, cname=None, type=None):
-        import MemoryView
+        import MemoryView, Symtab
 
         if cname is None:
             assert node.is_simple() or node.is_temp or node.is_elemental
