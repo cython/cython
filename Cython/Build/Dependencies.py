@@ -1,9 +1,15 @@
 # cython: profile=True
 
 import cython
+from Cython import __version__
 
 from glob import glob
-import re, os, sys
+import re, os, shutil, sys
+
+try:
+    import hashlib
+except ImportError:
+    import md5 as hashlib
 
 
 from distutils.extension import Extension
@@ -32,6 +38,14 @@ def extended_iglob(pattern):
     else:
         for path in glob(pattern):
             yield path
+
+@cached_function
+def file_hash(filename):
+    path = os.path.normpath(filename.encode("UTF-8"))
+    m = hashlib.md5(str(len(path)) + ":")
+    m.update(path)
+    m.update(open(filename).read())
+    return m.hexdigest()
 
 def parse_list(s):
     """
@@ -247,6 +261,7 @@ dependancy_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
                               r"(?:^cdef +extern +from +['\"]([^'\"]+)['\"])|"
                               r"(?:^include +['\"]([^'\"]+)['\"])", re.M)
 
+@cached_function
 def parse_dependencies(source_filename):
     # Actual parsing is way to slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
@@ -283,35 +298,36 @@ class DependencyTree(object):
         self.context = context
         self._transitive_cache = {}
 
-    @cached_method
     def parse_dependencies(self, source_filename):
         return parse_dependencies(source_filename)
+
+    @cached_method
+    def included_files(self, filename):
+        # This is messy because included files are textually included, resolving
+        # cimports (and other includes) relative to the including file.
+        all = set()
+        for include in self.parse_dependencies(filename)[1]:
+            include_path = os.path.join(os.path.dirname(filename), include)
+            if not path_exists(include_path):
+                include_path = self.context.find_include_file(include, None)
+            if include_path:
+                if '.' + os.path.sep in include_path:
+                    include_path = os.path.normpath(include_path)
+                all.add(include_path)
+            else:
+                print("Unable to locate '%s' referenced from '%s'" % (filename, include))
+        return all
     
     @cached_method
     def cimports_and_externs(self, filename):
         cimports, includes, externs = self.parse_dependencies(filename)[:3]
         cimports = set(cimports)
         externs = set(externs)
-        for include in includes:
-            include_path = os.path.join(os.path.dirname(filename), include)
-            if not path_exists(include_path):
-                include_path = self.context.find_include_file(include, None)
-            if include_path:
-                if '.' + os.path.sep in include_path:
-                    path_segments = include_path.split(os.path.sep)
-                    while '.' in path_segments:
-                        path_segments.remove('.')
-                    while '..' in path_segments:
-                        ix = path_segments.index('..')
-                        if ix == 0:
-                            break
-                        del path_segments[ix-1:ix+1]
-                    include_path = os.path.sep.join(path_segments)
-                a, b = self.cimports_and_externs(include_path)
-                cimports.update(a)
-                externs.update(b)
-            else:
-                print("Unable to locate '%s' referenced from '%s'" % (filename, include))
+        for include in self.included_files(filename):
+            # include file recursion resolved by self.included_files(source_filename)
+            deps = self.parse_dependencies(filename)
+            cimports.update(deps[0])
+            externs.update(deps[2])
         return tuple(cimports), tuple(externs)
 
     def cimports(self, filename):
@@ -358,22 +374,38 @@ class DependencyTree(object):
                 pxd_list.append(pxd_file)
         return tuple(pxd_list)
 
+    @cached_method
     def immediate_dependencies(self, filename):
-        all = list(self.cimported_files(filename))
-        for extern in sum(self.cimports_and_externs(filename), ()):
-            all.append(os.path.normpath(os.path.join(os.path.dirname(filename), extern)))
-        return tuple(all)
+        all = set([filename])
+        all.update(self.cimported_files(filename))
+        all.update(self.included_files(filename))
+        return all
+
+    def all_dependencies(self, filename):
+        return self.transitive_merge(filename, self.immediate_dependencies, set.union)
 
     @cached_method
     def timestamp(self, filename):
         return os.path.getmtime(filename)
 
     def extract_timestamp(self, filename):
-        # TODO: .h files from extern blocks
         return self.timestamp(filename), filename
 
     def newest_dependency(self, filename):
-        return self.transitive_merge(filename, self.extract_timestamp, max)
+        return max([self.extract_timestamp(f) for f in self.all_dependencies(filename)])
+
+    def transitive_fingerprint(self, filename, extra=None):
+        try:
+            m = hashlib.md5(__version__)
+            m.update(file_hash(filename))
+            for x in sorted(self.all_dependencies(filename)):
+                if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):
+                    m.update(file_hash(x))
+            if extra is not None:
+                m.update(str(extra))
+            return m.hexdigest()
+        except IOError:
+            return None
 
     def distutils_info0(self, filename):
         return self.parse_dependencies(filename)[3]
@@ -510,6 +542,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     c_timestamp = os.path.getmtime(c_file)
                 else:
                     c_timestamp = -1
+                    
                 # Priority goes first to modified files, second to direct
                 # dependents, and finally to indirect dependents.
                 if c_timestamp < deps.timestamp(source):
@@ -524,7 +557,12 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                             print("Compiling %s because it changed." % source)
                         else:
                             print("Compiling %s because it depends on %s." % (source, dep))
-                    to_compile.append((priority, source, c_file, quiet, options))
+                    if not force and hasattr(options, 'cache'):
+                        extra = m.language
+                        fingerprint = deps.transitive_fingerprint(source, extra)
+                    else:
+                        fingerprint = None
+                    to_compile.append((priority, source, c_file, fingerprint, quiet, options))
                 new_sources.append(c_file)
             else:
                 new_sources.append(source)
@@ -540,15 +578,29 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
     if not nthreads:
-        for priority, pyx_file, c_file, quiet, options in to_compile:
-            cythonize_one(pyx_file, c_file, quiet, options)
+        for args in to_compile:
+            cythonize_one(*args[1:])
     return module_list
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
-def cythonize_one(pyx_file, c_file, quiet, options=None):
+def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
     from Cython.Compiler.Main import compile, default_options
     from Cython.Compiler.Errors import CompileError, PyrexError
 
+    if fingerprint:
+        if not os.path.exists(options.cache):
+            try:
+                os.mkdir(options.cache)
+            except:
+                if not os.path.exists(options.cache):
+                    raise
+        fingerprint_file = os.path.join(options.cache, fingerprint + '-' + os.path.basename(c_file))
+        if os.path.exists(fingerprint_file):
+            if not quiet:
+                print("Found compiled %s in cache" % pyx_file)
+            os.utime(fingerprint_file, None)
+            shutil.copy(fingerprint_file, c_file)
+            return
     if not quiet:
         print("Cythonizing %s" % pyx_file)
     if options is None:
@@ -565,6 +617,8 @@ def cythonize_one(pyx_file, c_file, quiet, options=None):
         any_failures = 1
     if any_failures:
         raise CompileError(None, pyx_file)
+    if fingerprint:
+        shutil.copy(c_file, fingerprint_file)
 
 def cythonize_one_helper(m):
     return cythonize_one(*m[1:])
