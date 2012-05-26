@@ -6,6 +6,7 @@ from Cython import __version__
 from glob import glob
 import re, os, sys
 import gzip
+import subprocess
 
 try:
     import hashlib
@@ -581,6 +582,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args[1:])
+    if hasattr(options, 'cache'):
+        cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
     return module_list
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
@@ -626,3 +629,27 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
 
 def cythonize_one_helper(m):
     return cythonize_one(*m[1:])
+
+def cleanup_cache(cache, target_size, ratio=.85):
+    try:
+        p = subprocess.Popen(['du', '-s', '-k', os.path.abspath(cache)], stdout=subprocess.PIPE)
+        res = p.wait()
+        if res == 0:
+            total_size = 1024 * int(p.stdout.read().strip().split()[0])
+            if total_size < target_size:
+                return
+    except (OSError, ValueError):
+        pass
+    total_size = 0
+    all = []
+    for file in os.listdir(cache):
+        path = os.path.join(cache, file)
+        s = os.stat(path)
+        total_size += s.st_size
+        all.append((s.st_atime, s.st_size, path))
+    if total_size > target_size:
+        for time, size, file in reversed(sorted(all)):
+            os.unlink(file)
+            total_size -= size
+            if total_size < target_size * ratio:
+                break
