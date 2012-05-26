@@ -263,6 +263,18 @@ dependancy_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
                               r"(?:^cdef +extern +from +['\"]([^'\"]+)['\"])|"
                               r"(?:^include +['\"]([^'\"]+)['\"])", re.M)
 
+def normalize_existing(base_path, rel_paths):
+    return normalize_existing0(os.path.dirname(base_path), tuple(set(rel_paths)))
+
+@cached_function
+def normalize_existing0(base_dir, rel_paths):
+    filtered = []
+    for rel in rel_paths:
+        path = os.path.join(base_dir, rel)
+        if os.path.exists(path):
+            filtered.append(os.path.normpath(path))
+    return filtered
+
 @cached_function
 def parse_dependencies(source_filename):
     # Actual parsing is way to slow, so we use regular expressions.
@@ -330,7 +342,7 @@ class DependencyTree(object):
             deps = self.parse_dependencies(filename)
             cimports.update(deps[0])
             externs.update(deps[2])
-        return tuple(cimports), tuple(externs)
+        return tuple(cimports), normalize_existing(filename, externs)
 
     def cimports(self, filename):
         return self.cimports_and_externs(filename)[0]
@@ -410,7 +422,14 @@ class DependencyTree(object):
             return None
 
     def distutils_info0(self, filename):
-        return self.parse_dependencies(filename)[3]
+        info = self.parse_dependencies(filename)[3]
+        externs = self.cimports_and_externs(filename)[1]
+        if externs:
+            if 'depends' in info.values:
+                info.values['depends'] = list(set(info.values['depends']).union(set(externs)))
+            else:
+                info.values['depends'] = list(externs)
+        return info
 
     def distutils_info(self, filename, aliases=None, base=None):
         return (self.transitive_merge(filename, self.distutils_info0, DistutilsInfo.merge)
@@ -461,6 +480,7 @@ def create_dependency_tree(ctx=None):
 
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
+    explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
     deps = create_dependency_tree(ctx)
     to_exclude = set()
@@ -496,6 +516,8 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
             pkg = deps.package(file)
             if '*' in name:
                 module_name = deps.fully_qualifeid_name(file)
+                if module_name in explicit_modules:
+                    continue
             else:
                 module_name = name
             if module_name not in seen:
