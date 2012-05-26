@@ -4,7 +4,8 @@ import cython
 from Cython import __version__
 
 from glob import glob
-import re, os, shutil, sys
+import re, os, sys
+import gzip
 
 try:
     import hashlib
@@ -594,12 +595,15 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
             except:
                 if not os.path.exists(options.cache):
                     raise
-        fingerprint_file = os.path.join(options.cache, fingerprint + '-' + os.path.basename(c_file))
+        # Cython-generated c files are highly compressible.
+        # (E.g. a compression ratio of about 10 for Sage).
+        fingerprint_file = os.path.join(
+            options.cache, fingerprint + '-' + os.path.basename(c_file) + '.gz')
         if os.path.exists(fingerprint_file):
             if not quiet:
                 print("Found compiled %s in cache" % pyx_file)
             os.utime(fingerprint_file, None)
-            shutil.copy(fingerprint_file, c_file)
+            open(c_file, 'wb').write(gzip.open(fingerprint_file).read())
             return
     if not quiet:
         print("Cythonizing %s" % pyx_file)
@@ -618,7 +622,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
     if any_failures:
         raise CompileError(None, pyx_file)
     if fingerprint:
-        shutil.copy(c_file, fingerprint_file)
+        gzip.open(fingerprint_file, 'wb').write(open(c_file).read())
 
 def cythonize_one_helper(m):
     return cythonize_one(*m[1:])
