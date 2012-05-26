@@ -2734,7 +2734,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             visibility = ctx.visibility,
             base_type = base_type,
             declarators = declarators,
-            in_pxd = ctx.level == 'module_pxd',
+            in_pxd = ctx.level in ('module_pxd', 'c_class_pxd'),
             api = ctx.api,
             overridable = ctx.overridable)
     return result
