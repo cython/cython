@@ -603,7 +603,7 @@ class MemoryViewSliceType(PyrexType):
         entry = Symtab.Entry(cname, cname, type, node.pos)
         return MemoryView.MemoryViewSliceBufferEntry(entry)
 
-    def conforms_to(self, dst, broadcast=False):
+    def conforms_to(self, dst, broadcast=False, copying=False):
         '''
         returns True if src conforms to dst, False otherwise.
 
@@ -633,7 +633,8 @@ class MemoryViewSliceType(PyrexType):
             dst_access, dst_packing = dst_spec
             if src_access != dst_access and dst_access != 'full':
                 return False
-            if src_packing != dst_packing and dst_packing != 'strided':
+            if (src_packing != dst_packing and
+                dst_packing != 'strided' and not copying):
                 return False
 
         return True

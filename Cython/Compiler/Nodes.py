@@ -4357,11 +4357,9 @@ class SingleAssignmentNode(AssignmentNode):
         is_index_node = isinstance(self.lhs, ExprNodes.IndexNode)
         if is_index_node:
             self.lhs.analyse_broadcast_operation(self.rhs)
-
             self.lhs.analyse_as_memview_scalar_assignment(self.rhs)
 
-        dtype = self.lhs.type
-        self.rhs = self.rhs.coerce_to(dtype, env)
+        self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)
 

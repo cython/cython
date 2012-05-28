@@ -220,6 +220,7 @@ class ExprNode(Node):
     is_memview_index = False
     is_memview_slice = False
     is_memview_broadcast = False
+    is_memview_copy_assignment = False
 
     is_slice = False
 
@@ -664,7 +665,8 @@ class ExprNode(Node):
                           "Cannot convert '%s' to memoryviewslice" %
                                                                 (src_type,))
             elif not src.type.conforms_to(dst_type,
-                                          broadcast=self.is_memview_broadcast):
+                                          broadcast=self.is_memview_broadcast,
+                                          copying=self.is_memview_copy_assignment):
                 if src.type.dtype.same_as(dst_type.dtype):
                     msg = "Memoryview '%s' not conformable to memoryview '%s'."
                     tup = src.type, dst_type
@@ -2652,6 +2654,8 @@ class IndexNode(ExprNode):
             if lhs:
                 self.type = lhs.type
                 self.replacement_node = lhs
+                self.is_memview_copy_assignment = lhs.is_memview_copy_assignment
+                rhs.is_memview_copy_assignment = lhs.is_memview_copy_assignment
 
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
@@ -3287,6 +3291,7 @@ class MemoryCopySlice(MemoryCopyNode):
         memslice1[:] = memslice2
     """
 
+    is_memview_copy_assignment = True
     copy_slice_cname = "__pyx_memoryview_copy_contents"
 
     def _generate_assignment_code(self, src, code):
