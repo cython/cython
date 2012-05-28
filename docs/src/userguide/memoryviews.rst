@@ -1,14 +1,5 @@
 .. highlight:: cython
 
-.. Mark:
-
-    I noticed you often use ``slices`` to mean memoryview objects in the Cython
-    world, but I found that confusing, and I've changed that to ``memoryview``
-    or sometimes ``Cython memoryview`` or ``Cython-space memoryview``.  Can you
-    think of something better to distiguish a Python ``memoryview`` from a
-    ``cython.view.memoryview`` object from a ``Cython-space memoryview`` as I
-    have called them?
-
 .. _memoryviews:
 
 *****************
@@ -17,7 +8,7 @@ Typed Memoryviews
 
 Typed memoryviews can be used for efficient access to buffers, such as NumPy
 arrays, without incurring any Python overhead.  Memoryviews are similar to the
-current numpy array buffer support (``np.ndarray[np.float64_t, ndim=2]``, but
+current numpy array buffer support (``np.ndarray[np.float64_t, ndim=2]``), but
 they have more features and cleaner syntax.
 
 Memoryviews are more general than the old numpy aray buffer support, because
@@ -25,10 +16,8 @@ they can handle a wider variety of sources of array data.  For example, they can
 handle C arrays and the Cython array type (:ref:`view_cython_arrays`).
 
 A memoryview can be used in any context (function parameters, module-level, cdef
-class attribute, etc) and can be obtained from any nearly any object that
-exposes the `PEP 3118`_ buffer interface.
-
-.. Note:: Support is experimental and new in this release, there may be bugs!
+class attribute, etc) and can be obtained from nearly any object that
+exposes writable buffer through the `PEP 3118`_ buffer interface.
 
 .. _view_quickstart:
 
@@ -148,8 +137,6 @@ Memoryviews can be copied inplace::
 They can also be copied with the ``copy()`` and ``copy_fortran()`` methods; see
 :ref:`view_copy_c_fortran`.
 
-.. Note:: Copying of buffers with ``object`` as the base type is not supported yet.
-
 .. _view_transposing:
 
 Transposing
@@ -163,26 +150,9 @@ Numpy slices can be transposed::
 
 This gives a new, transposed, view on the data.
 
-.. Mark: I tried this:
-
-    c_contig = np.arange(24).reshape((2,3,4))
-    cdef int [:, :, ::1] c_contig_view = c_contig
-    cdef int[::1, :, :] c2f = c_contig_view.T
-
-    and got:
-
-    cdef int[::1, :, :] c2f = c_contig_view.T
-                                        ^
-    ------------------------------------------------------------
-
-    mincy.pyx:75:39: Memoryview 'int[:, :, ::1]' not conformable to memoryview 'int[::contiguous, :, :]'.
-
-    Is that what you were expecting?
-
-Transposing requires the GIL_ (you cannot use ``nogil`` in the surrounding
-function call. It also requires that all dimensions of the memoryview have a
+Transposing requires that all dimensions of the memoryview have a
 direct access memory layout (i.e., there are no indirections through pointers).
-See :ref:`view_general_layouts` for more explanation.
+See :ref:`view_general_layouts` for details.
 
 Newaxis
 -------
@@ -267,7 +237,7 @@ Background
 The concepts are as follows: there is data access and data packing. Data access
 means either direct (no pointer) or indirect (pointer).  Data packing means your
 data may be contiguous or not contiguous in memory, and may use *strides* to
-identify the data for each dimension.
+identify the jumps in memory consecutive indices need to take for each dimension.
 
 Numpy arrays provide a good model of strided direct data access, so we'll use
 them for a refresher on the concepts of C and Fortran contiguous arrays, and
@@ -486,9 +456,10 @@ not need the GIL::
     cpdef int sum3d(int[:, :, :] arr) nogil:
         ...
 
-In particular, you do not need the GIL for memoryview indexing or slicing.
-Memoryviews require the GIL for copies (:ref:`view_copy_c_fortran`), and
-transposes (:ref:`view_transposing`).
+In particular, you do not need the GIL for memoryview indexing, slicing or
+transposing. Memoryviews require the GIL for the copy methods
+(:ref:`view_copy_c_fortran`), or when the dtype is object and an object
+element is read or written.
 
 Memoryview Objects and Cython Arrays
 ====================================
