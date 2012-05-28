@@ -3,6 +3,7 @@
 #
 
 import cython
+
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
                CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
                StringEncoding=object, operator=object,
@@ -228,6 +229,7 @@ class ExprNode(Node):
     is_temp = 0
     is_target = 0
     is_starred = 0
+    is_elemental = 0
 
     constant_result = constant_value_not_set
 
@@ -3345,7 +3347,9 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
             # scalar assignment
             return MemoryCopyScalar(self.pos, self)
         else:
-            return MemoryCopySlice(self.pos, self)
+            result = MemoryCopySlice(self.pos, self)
+            result.is_elemental = rhs.is_elemental
+            return result
 
     def is_simple(self):
         if self.is_ellipsis_noop:
@@ -7932,6 +7936,28 @@ compile_time_binary_operators = {
     'not_in': _not_in,
 }
 
+elementwise_operators = {
+    '<': operator.lt,
+    '<=': operator.le,
+    '==': operator.eq,
+    '!=': operator.ne,
+    '>=': operator.ge,
+    '>': operator.gt,
+    '+': operator.add,
+    '&': operator.and_,
+    '/': operator.truediv,
+    '//': operator.floordiv,
+    '<<': operator.lshift,
+    '%': operator.mod,
+    '*': operator.mul,
+    '|': operator.or_,
+    '**': operator.pow,
+    '>>': operator.rshift,
+    '-': operator.sub,
+    '^': operator.xor,
+}
+
+
 def get_compile_time_binop(node):
     func = compile_time_binary_operators.get(node.operator)
     if not func:
@@ -7989,6 +8015,8 @@ class BinopNode(ExprNode):
             self.is_temp = 1
         elif self.is_cpp_operation():
             self.analyse_cpp_operation(env)
+        elif self.is_memoryview_operation():
+            self.analyse_memoryview_operation(env)
         else:
             self.analyse_c_operation(env)
 
@@ -8001,6 +8029,10 @@ class BinopNode(ExprNode):
     def is_cpp_operation(self):
         return (self.operand1.type.is_cpp_class
             or self.operand2.type.is_cpp_class)
+
+    def is_memoryview_operation(self):
+        return (self.operand1.type.is_memoryviewslice or
+                self.operand2.type.is_memoryviewslice)
 
     def analyse_cpp_operation(self, env):
         type1 = self.operand1.type
@@ -8018,6 +8050,34 @@ class BinopNode(ExprNode):
             self.operand1 = self.operand1.coerce_to(func_type.args[0].type, env)
             self.operand2 = self.operand2.coerce_to(func_type.args[1].type, env)
         self.type = func_type.return_type
+
+    def analyse_memoryview_operation(self, env):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        ndim1 = ndim2 = 0
+        dtype1 = type1
+        dtype2 = type2
+
+        if self.operator not in elementwise_operators:
+            error(self.pos, "operator must be element-wise")
+            self.type = error_type
+            return
+
+        if type1.is_memoryviewslice:
+            type1.assert_direct_dims(self.pos)
+            ndim1 = type1.ndim
+            dtype1 = type1.dtype
+
+        if type2.is_memoryviewslice:
+            type1.assert_direct_dims(self.pos)
+            ndim2 = type2.ndim
+            dtype2 = type2.dtype
+
+        ndim = max(ndim1, ndim2)
+        dtype = self.result_type(dtype1, dtype2)
+        axes = [('direct', 'strided')] * ndim
+        self.type = PyrexTypes.MemoryViewSliceType(dtype, axes)
+        self.is_elemental = True
 
     def result_type(self, type1, type2):
         if self.is_py_operation_types(type1, type2):

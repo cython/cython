@@ -18,6 +18,7 @@ from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, warning, CompileError, InternalError
 from Cython.Compiler.Code import UtilityCode
+from Cython.Compiler import Vector
 
 import copy
 
@@ -1832,9 +1833,6 @@ class AnalyseExpressionsTransform(CythonTransform):
             # We split IndexNode into BufferIndexNode, etc
             # Todo: rewrite analyse_types as a transform
             node = node.replacement_node
-            #if node.is_memview_slice and node.is_ellipsis_noop:
-                # memoryviewslice[...] expression, drop the IndexNode
-            #    node = node.base
             return self.visit_Node(node)
 
         self.visit_Node(node)
