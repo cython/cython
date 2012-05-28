@@ -3,8 +3,11 @@ from Cython.Compiler.Errors import error
 
 from Cython.minivect import miniast
 from Cython.minivect import minitypes
+from Cython.minivect import miniutils
 from Cython.minivect import minierror
 from Cython.minivect import specializers
+
+debug = False
 
 class Context(miniast.CContext):
     def getpos(self, node):
@@ -40,6 +43,8 @@ class ElementalNode(ExprNodes.ExprNode):
     context: Context attribute
     operands: all participating array views
     function: miniast function wrapping the array expression
+
+    all_contig: whether all operands are contiguous
     """
 
     subexprs = ['operands']
@@ -49,17 +54,23 @@ class ElementalNode(ExprNodes.ExprNode):
 
     def generate_result_code(self, code):
         function = self.function
-        strided_specializer = specializers.StridedSpecializer(
-                            self.context, 'strided_specializer')
-        codes = self.context.run(function, [strided_specializer])
+
+        if self.all_contig:
+            specializer = specializers.ContigSpecializer(self.context)
+        else:
+            specializer = specializers.StridedSpecializer(self.context)
+
+        codes = self.context.run(function, [specializer])
         (specialized_function, codewriter, (proto, impl)), = codes
         utility = Code.UtilityCode(proto=proto, impl=impl)
         code.globalstate.use_utility_code(utility)
-        # marker =  '-' * 20
-        # print marker, 'proto', marker
-        # print proto
-        # print marker, 'impl', marker
-        # print impl
+
+        if debug:
+            marker =  '-' * 20
+            print marker, 'proto', marker
+            print proto
+            print marker, 'impl', marker
+            print impl
 
         array_type = PyrexTypes.c_array_type(PyrexTypes.c_py_ssize_t_type,
                                              function.ndim)
@@ -67,7 +78,7 @@ class ElementalNode(ExprNodes.ExprNode):
         for i in range(function.ndim):
             code.putln("%s[%d] = 0;" % (shape, i))
 
-        args = ["&%s" % shape]
+        args = ["&%s[0]" % shape]
         for operand in self.operands:
             result = operand.result()
             if operand.type.is_memoryviewslice:
@@ -76,7 +87,10 @@ class ElementalNode(ExprNodes.ExprNode):
                     code.putln(    "%s[%d] = %s.shape[%d];" % (shape, i, result, i))
                     code.putln("}")
 
-                args.extend(['%s.data' % result, "&%s.strides" % result])
+                tp = operand.type.dtype.declaration_code("")
+                args.append('(%s *) %s.data' % (tp, result))
+                if not self.all_contig:
+                    args.append("&%s.strides[0]" % result)
             else:
                 args.append(result)
 
@@ -150,8 +164,12 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             name = '__pyx_array_expression%d' % self.funccount
             self.funccount += 1
             function = b.function(name, body, astmapper.funcargs, shapevar)
+
+            all_contig = miniutils.all(op.type.is_contig
+                                           for op in astmapper.operands)
             node = ElementalNode(node.pos, operands=astmapper.operands,
-                                 function=function, context=self.minicontext)
+                                 function=function, context=self.minicontext,
+                                 all_contig=all_contig)
             node = Nodes.ExprStatNode(node.pos, expr=node)
         return node
 

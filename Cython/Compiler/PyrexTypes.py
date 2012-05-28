@@ -476,6 +476,7 @@ class MemoryViewSliceType(PyrexType):
         self.flags = MemoryView.get_buf_flags(self.axes)
 
         self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
+        self.is_contig = self.is_c_contig or self.is_f_contig
         assert not (self.is_c_contig and self.is_f_contig)
 
         self.mode = MemoryView.get_mode(axes)
