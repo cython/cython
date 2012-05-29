@@ -1,6 +1,7 @@
 # tag: numpy
 # mode: run
 
+cimport numpy as np
 import numpy as np
 
 def test_simple_binop_assign(int[:] m):
@@ -53,6 +54,14 @@ def test_simple_binop_assign_contig_2d(int[:, :] m):
            [210, 213, 216, 219, 222, 225, 228, 231, 234, 237],
            [240, 243, 246, 249, 252, 255, 258, 261, 264, 267],
            [270, 273, 276, 279, 282, 285, 288, 291, 294, 297]], dtype=int32)
+    """
+    m[:] = m + m + m
+    return m
+
+def test_typedef(np.int32_t[:] m):
+    """
+    >>> np.asarray(test_typedef(np.arange(10, dtype=np.int32)))
+    array([ 0,  3,  6,  9, 12, 15, 18, 21, 24, 27], dtype=int32)
     """
     m[:] = m + m + m
     return m

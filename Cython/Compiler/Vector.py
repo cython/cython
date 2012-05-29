@@ -16,9 +16,18 @@ class Context(miniast.CContext):
     def getchildren(self, node):
         return node.child_attrs
 
+    def declare_type(self, type):
+        if type.is_typewrapper:
+            return type.opaque_type.declaration_code("")
+
+        return super(Context, self).declare_type(type)
+
+
 class TypeMapper(minitypes.TypeMapper):
     def map_type(self, type):
-        if type.is_memoryviewslice:
+        if type.is_typedef:
+            return minitypes.TypeWrapper(type)
+        elif type.is_memoryviewslice:
             return minitypes.ArrayType(self.map_type(type.dtype),
                                        len(type.axes),
                                        is_c_contig=type.is_c_contig,
@@ -114,8 +123,7 @@ class ElementalMapper(specializers.ASTMapper):
         except minierror.UnmappableTypeError, e:
             error(node.pos, "Unsupported type in elementwise "
                             "operation: %s" % (node.type,))
-            self.error = True
-            return minitypes.error_type
+            raise
 
     def visit_ExprNode(self, node):
         assert not node.is_elemental
@@ -157,8 +165,9 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             astmapper = ElementalMapper(self.minicontext, self.current_env())
             shapevar = b.variable(minitypes.Py_ssize_t.pointer(),
                                   '__pyx_shape')
-            body = astmapper.visit(node)
-            if astmapper.error:
+            try:
+                body = astmapper.visit(node)
+            except minierror.UnmappableTypeError:
                 return None
 
             name = '__pyx_array_expression%d' % self.funccount

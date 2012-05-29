@@ -1378,6 +1378,10 @@ class CNumericType(CType):
         # Prefer numeric types over others
         return True
 
+    def __eq__(self, other):
+        return (isinstance(other, CNumericType) and
+                self.rank == other.rank and self.signed == other.signed)
+
     def py_type_name(self):
         if self.rank <= 4:
             return "(int, long)"
@@ -3699,7 +3703,10 @@ def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
     if type1 == type2:
-        widest_type = type1
+        if type2.is_typedef:
+            widest_type = type2
+        else:
+            widest_type = type1
     elif type1.is_complex or type2.is_complex:
         def real_type(ntype):
             if ntype.is_complex:
@@ -3716,6 +3723,8 @@ def widest_numeric_type(type1, type2):
     elif type1.rank > type2.rank:
         widest_type = type1
     elif type1.signed < type2.signed:
+        widest_type = type1
+    elif type1.is_typedef:
         widest_type = type1
     else:
         widest_type = type2
