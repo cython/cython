@@ -1,0 +1,3 @@
+[submodule "Cython/minivect"]
+	path = Cython/minivect
+	url = git@github.com:markflorisson88/minivect.git
