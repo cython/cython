@@ -35,10 +35,24 @@ class TypeMapper(minitypes.TypeMapper):
         else:
             raise minierror.UnmappableTypeError(type)
 
+class CythonSpecializerMixin(object):
+    def visit_NodeWrapper(self, node):
+        for op in node.cython_ops:
+            op.variable = self.visit(op.variable)
+        return node
+
 class CCodeGen(codegen.CCodeGen):
     def visit_NodeWrapper(self, node):
-        node.opaque_node.generate_evaluation_code(self.code)
-        return node.result()
+        code = CythonCCodeWriter()
+        code.enter_cfunc_scope()
+        node.opaque_node.generate_evaluation_code(code)
+
+        declaration_code = CythonCCodeWriter()
+        declaration_code.put_temp_declarations(code.funcstate)
+        self.code.declaration_point.putln(declaration_code.getvalue())
+        self.code.putln(code.getvalue())
+
+        return node.opaque_node.result()
 
 class CCodeGenCleanup(codegen.CodeGenCleanup):
     def visit_NodeWrapper(self, node):
@@ -46,8 +60,24 @@ class CCodeGenCleanup(codegen.CodeGenCleanup):
 
 class Context(miniast.CContext):
 
-    codegen_cls = CCodeGen
+    #codegen_cls = CCodeGen
     cleanup_codegen_cls = CCodeGenCleanup
+    specializer_mixin_cls = CythonSpecializerMixin
+
+    def __init__(self, astbuilder=None, typemapper=None):
+        super(Context, self).__init__(astbuilder, typemapper)
+        # [OperandNode]
+        self.cython_operand_nodes = []
+
+    def codegen_cls(self, _, codewriter):
+        """
+        Monkeypatch all OperandNodes to have a codegen attribute, so they
+        can generate code for the miniast they wrap.
+        """
+        codegen = CCodeGen(self, codewriter)
+        for node in self.cython_operand_nodes:
+            node.codegen = codegen
+        return codegen
 
     def getpos(self, node):
         return node.pos
@@ -63,6 +93,41 @@ class Context(miniast.CContext):
 
     def may_error(self, node):
         return node.type.is_pyobject
+
+class CythonCCodeWriter(Code.CCodeWriter):
+    def mark_pos(self, pos):
+        pass
+
+class OperandNode(ExprNodes.ExprNode):
+    """
+    The purpose of this node is to wrap a miniast variable and dispatch
+    to the miniast code generator from within the Cython code generation
+    process.
+
+    This happens when certain operations are not supported natively in
+    elementwise expressions, such as operations on complex numbers or
+    objects. So the miniast has a NodeWrapper wrapping a Cython AST, of
+    which an OperandNode is a leaf, which has to return back again to
+    the miniast code generation process.
+
+    Summary:
+
+        miniast
+            -> cython ast
+                -> operand node
+                    -> miniast
+    """
+
+    subexprs = []
+
+    def analyse_types(self, env):
+        "self.type is already set"
+
+    def generate_result_code(self, code):
+        pass
+
+    def result(self):
+        return self.codegen.visit(self.variable)
 
 class ElementalNode(ExprNodes.ExprNode):
     """
@@ -84,9 +149,9 @@ class ElementalNode(ExprNodes.ExprNode):
         function = self.function
 
         if self.all_contig:
-            specializer = specializers.ContigSpecializer(self.context)
+            specializer = specializers.ContigSpecializer
         else:
-            specializer = specializers.StridedSpecializer(self.context)
+            specializer = specializers.StridedSpecializer
 
         codes = self.context.run(function, [specializer])
         (specialized_function, codewriter, (proto, impl)), = codes
@@ -127,13 +192,32 @@ class ElementalNode(ExprNodes.ExprNode):
 
         code.funcstate.release_temp(shape)
 
+def need_wrapper_node(type):
+    while True:
+        if type.is_ptr:
+            type = type.base_type
+        elif type.is_memoryviewslice:
+            type = type.dtype
+        else:
+            break
+
+    type = type.resolve()
+    return type.is_pyobject or type.is_complex
+
 class ElementalMapper(specializers.ASTMapper):
+
+    wrapping = 0
 
     def __init__(self, context, env):
         super(ElementalMapper, self).__init__(context)
         self.env = env
+        # operands to the function in callee space
         self.operands = []
+        # miniast function arguments to the function
         self.funcargs = []
+        # All OperandNodes founds in the Cython AST held by a
+        # miniast.NodeWrapper
+        self.cython_ops = []
         self.error = False
 
     def map_type(self, node, **kwds):
@@ -144,30 +228,36 @@ class ElementalMapper(specializers.ASTMapper):
                             "operation: %s" % (node.type,))
             raise
 
-    def need_wrapper_node(self, minitype):
-        while True:
-            if minitype.is_array:
-                minitype = minitype.dtype
-            elif minitype.is_pointer:
-                minitype = minitype.base_type
-            else:
-                break
+    def get_dtype(self, type):
+        if type.is_memoryviewslice:
+            return type.dtype
+        return type
 
-        if minitype.is_typewrapper:
-            type = minitype.opaque_type
-            return type.is_pyobject or type.is_complex
-
-        return False
-
-    def visit_ExprNode(self, node):
+    def register_operand(self, node):
+        """
+        Register a non-elemental subexpression, and pass it in to the function
+        we are generating as an argument.
+        """
         assert not node.is_elemental
         b = self.astbuilder
+
         node = node.coerce_to_simple(self.env)
         varname = '__pyx_op%d' % len(self.operands)
         self.operands.append(node)
+
         funcarg = b.funcarg(b.variable(self.map_type(node, wrap=True), varname))
         self.funcargs.append(funcarg)
+        if self.wrapping:
+            result = OperandNode(node.pos, type=self.get_dtype(node.type),
+                                 variable=funcarg.variable)
+            self.context.cython_operand_nodes.append(result)
+            self.cython_ops.append(result)
+            return result
+
         return funcarg.variable
+
+    def visit_ExprNode(self, node):
+        return self.register_operand(node)
 
     def visit_SingleAssignmentNode(self, node):
         return self.astbuilder.assign(self.visit(node.lhs.dst),
@@ -175,8 +265,25 @@ class ElementalMapper(specializers.ASTMapper):
 
     def visit_BinopNode(self, node):
         minitype = self.map_type(node, wrap=True)
-        if self.need_wrapper_node(minitype):
-            return self.astbuilder.wrap(node)
+        if need_wrapper_node(node.type):
+            if not node.is_elemental:
+                return self.register_operand(node)
+
+            self.wrapping += 1
+            self.visitchildren(node)
+            self.wrapping -= 1
+
+            dtype = node.type
+            if dtype.is_memoryviewslice:
+                dtype = dtype.dtype
+
+            node = type(node)(node.pos, type=dtype, operator=node.operator,
+                              operand1=node.operand1, operand2=node.operand2)
+            node.analyse_types(self.env)
+
+            result = self.astbuilder.wrap(node, cython_ops=self.cython_ops)
+            self.cython_ops = []
+            return result
 
         op1 = self.visit(node.operand1)
         op2 = self.visit(node.operand2)

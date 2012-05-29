@@ -79,13 +79,16 @@ def test_arbitrary_dtypes(long[:] m1, long double[:] m2):
     m1[:] = m1 + m1
     m2[:] = m2 + m2
 
-# def test_tougher_arbitrary_dtypes(double complex[:] m1, object[:] m2):
-#     """
-#     >>> a = np.arange(10, dtype=np.complex64)
-#     >>> b = np.arange(10, dtype=np.object)
-#     >>> test_tougher_arbitrary_dtypes(a, b)
-#     >>> a
-#     >>> b
-#     """
-#     m1[:] = m1 + m1
-#     m2[:] = m2 + m2
+def test_tougher_arbitrary_dtypes(double complex[:] m1, m2): #, object[:] m2):
+    """
+    >>> a = np.arange(10, dtype=np.complex128) + 1.2j
+    >>> b = np.arange(10, dtype=np.object)
+    >>> test_tougher_arbitrary_dtypes(a, b)
+    >>> a
+    array([  0.+2.4j,   2.+2.4j,   4.+2.4j,   6.+2.4j,   8.+2.4j,  10.+2.4j,
+            12.+2.4j,  14.+2.4j,  16.+2.4j,  18.+2.4j])
+    >>> b
+    array([0, 2, 4, 6, 8, 10, 12, 14, 16, 18], dtype=object)
+    """
+    m1[:] = m1 + m1
+    m2[:] = m2 + m2
