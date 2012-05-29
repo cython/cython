@@ -65,3 +65,27 @@ def test_typedef(np.int32_t[:] m):
     """
     m[:] = m + m + m
     return m
+
+def test_arbitrary_dtypes(long[:] m1, long double[:] m2):
+    """
+    >>> a = np.arange(10, dtype='l')
+    >>> b = np.arange(10, dtype=np.longdouble)
+    >>> test_arbitrary_dtypes(a, b)
+    >>> a
+    array([ 0,  2,  4,  6,  8, 10, 12, 14, 16, 18])
+    >>> b
+    array([ 0.0,  2.0,  4.0,  6.0,  8.0,  10.0,  12.0,  14.0,  16.0,  18.0], dtype=float128)
+    """
+    m1[:] = m1 + m1
+    m2[:] = m2 + m2
+
+# def test_tougher_arbitrary_dtypes(double complex[:] m1, object[:] m2):
+#     """
+#     >>> a = np.arange(10, dtype=np.complex64)
+#     >>> b = np.arange(10, dtype=np.object)
+#     >>> test_tougher_arbitrary_dtypes(a, b)
+#     >>> a
+#     >>> b
+#     """
+#     m1[:] = m1 + m1
+#     m2[:] = m2 + m2
