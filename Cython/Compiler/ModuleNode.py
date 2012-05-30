@@ -2181,6 +2181,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
+        # Some builtin types have a tp_basicsize which differs from sizeof(...):
+        objstruct = Code.basicsize_builtins_map.get(objstruct, objstruct)
         module_name = type.module_name
         condition = None
         if module_name not in ('__builtin__', 'builtins'):
