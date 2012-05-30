@@ -1884,7 +1884,7 @@ class CCodeWriter(object):
         if acquire_gil:
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
-        self.putln('__Pyx_RefNannySetupContext("%s", %d);' % (name, acquire_gil and 1 or 0))
+        self.putln('__Pyx_RefNannySetupContext("%s", %d);' % (name, int(acquire_gil)))
 
     def put_finish_refcount_context(self):
         self.putln("__Pyx_RefNannyFinishContext();")

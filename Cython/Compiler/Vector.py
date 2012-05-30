@@ -1,4 +1,5 @@
-from Cython.Compiler import ExprNodes, Nodes, PyrexTypes, Visitor, Code
+from Cython.Compiler import (ExprNodes, Nodes, PyrexTypes, Visitor,
+                             Code, Naming)
 from Cython.Compiler.Errors import error
 
 from Cython.minivect import miniast
@@ -41,22 +42,66 @@ class CythonSpecializerMixin(object):
             op.variable = self.visit(op.variable)
         return node
 
-class CCodeGen(codegen.CCodeGen):
-    def visit_NodeWrapper(self, node):
-        code = CythonCCodeWriter()
-        code.enter_cfunc_scope()
-        node.opaque_node.generate_evaluation_code(code)
+def create_hybrid_code(codegen, old_minicode):
+    minicode = codegen.context.codewriter_cls(codegen.context)
+    minicode.indent = old_minicode.indent
+    code = CythonCCodeWriter(codegen.context, minicode)
+    code.level = minicode.indent
+    code.declaration_levels = list(old_minicode.declaration_levels)
+    code.codegen = codegen.clone(codegen.context, code)
+    return code
 
-        declaration_code = CythonCCodeWriter()
+class CCodeGen(codegen.CCodeGen):
+
+    def __init__(self, context, codewriter):
+        super(CCodeGen, self).__init__(context, codewriter)
+        self.error_handlers = []
+
+    def visit_ErrorHandler(self, node):
+        self.error_handlers.append(node)
+        result = super(CCodeGen, self).visit_ErrorHandler(node)
+        self.error_handlers.pop()
+        return result
+
+    def visit_FunctionNode(self, node):
+        result = super(CCodeGen, self).visit_FunctionNode(node)
+        self.code.function_declarations.putln("__Pyx_RefNannyDeclarations")
+        self.code.before_loop.putln(
+                '__Pyx_RefNannySetupContext("%s", 1);' % node.mangled_name)
+
+    def visit_NodeWrapper(self, node):
+        node = node.opaque_node
+        code = create_hybrid_code(self, self.code)
+
+        # create funcstate and evaluate the expression
+        code.enter_cfunc_scope()
+        node.generate_evaluation_code(code)
+        if node.type.is_pyobject:
+            code.put_incref(node.result(), node.type, nanny=True)
+            code.put_giveref(node.result())
+
+        # generate declarations for any temporaries
+        declaration_code = CythonCCodeWriter(self.context, code.minicode)
         declaration_code.put_temp_declarations(code.funcstate)
-        self.code.declaration_point.putln(declaration_code.getvalue())
+        self.code.declaration_levels[0].putln(declaration_code.getvalue())
         self.code.putln(code.getvalue())
 
-        return node.opaque_node.result()
+        return node.result()
 
 class CCodeGenCleanup(codegen.CodeGenCleanup):
+    error_handler_level = 0
+    def visit_ErrorHandler(self, node):
+        self.error_handler_level += 1
+        super(CCodeGenCleanup, self).visit_ErrorHandler(node)
+        self.error_handler_level -= 1
+        if self.error_handler_level == 0:
+            self.code.putln("__Pyx_RefNannyFinishContext();")
+        return node
+
     def visit_NodeWrapper(self, node):
-        node.opaque_node.generate_disposal_code(self.code)
+        code = create_hybrid_code(self, self.code)
+        node.opaque_node.generate_disposal_code(code)
+        self.code.putln(code.getvalue())
 
 class Context(miniast.CContext):
 
@@ -79,9 +124,6 @@ class Context(miniast.CContext):
             node.codegen = codegen
         return codegen
 
-    def getpos(self, node):
-        return node.pos
-
     def getchildren(self, node):
         return node.child_attrs
 
@@ -92,11 +134,38 @@ class Context(miniast.CContext):
         return super(Context, self).declare_type(type)
 
     def may_error(self, node):
-        return node.type.is_pyobject
+        return (node.type.resolve().is_pyobject or
+                (node.type.is_memoryviewslice and node.type.dtype.is_pyobject))
 
 class CythonCCodeWriter(Code.CCodeWriter):
+
+    def __init__(self, context, minicode):
+        super(CythonCCodeWriter, self).__init__()
+        self.minicode = minicode
+        self.globalstate = context.original_cython_code.globalstate
+
     def mark_pos(self, pos):
         pass
+
+    def set_error_info(self, pos):
+        fn_var, lineno_var, col_var = [
+            self.minicode.mangle(v.name)
+                for v in self.codegen.function.posinfo.variables]
+
+        filename_idx = self.lookup_filename(pos[0])
+        return '*%s = %s[%d]; *%s = %s;' % (
+            fn_var, Naming.filetable_cname, filename_idx,
+            lineno_var, pos[1])
+
+    def error_goto(self, pos):
+        assert self.codegen.error_handlers
+
+        label = self.codegen.error_handlers[-1].error_label
+        return "{%s goto %s;}" % (self.set_error_info(pos), label.mangled_name)
+
+    def mangle(self, name):
+        "We are simultaneously a mini-CodeWriter and a Cython-CodeWriter"
+        return self.minicode.mangle(name)
 
 class OperandNode(ExprNodes.ExprNode):
     """
@@ -153,6 +222,7 @@ class ElementalNode(ExprNodes.ExprNode):
         else:
             specializer = specializers.StridedSpecializer
 
+        self.context.original_cython_code = code
         codes = self.context.run(function, [specializer])
         (specialized_function, codewriter, (proto, impl)), = codes
         utility = Code.UtilityCode(proto=proto, impl=impl)
@@ -171,7 +241,8 @@ class ElementalNode(ExprNodes.ExprNode):
         for i in range(function.ndim):
             code.putln("%s[%d] = 0;" % (shape, i))
 
-        args = ["&%s[0]" % shape]
+        args = ["&%s[0]" % shape, "&%s" % Naming.filename_cname,
+                "&%s" % Naming.lineno_cname, "NULL"]
         for operand in self.operands:
             result = operand.result()
             if operand.type.is_memoryviewslice:
@@ -188,7 +259,9 @@ class ElementalNode(ExprNodes.ExprNode):
                 args.append(result)
 
         call = "%s(%s)" % (specialized_function.mangled_name, ", ".join(args))
-        code.putln(code.error_goto_if_neg(call, self.pos))
+        lbl = code.funcstate.error_label
+        code.funcstate.use_label(lbl)
+        code.putln("if (unlikely(%s < 0)) { goto %s; }" % (call, lbl))
 
         code.funcstate.release_temp(shape)
 
@@ -256,23 +329,15 @@ class ElementalMapper(specializers.ASTMapper):
 
         return funcarg.variable
 
-    def visit_ExprNode(self, node):
-        return self.register_operand(node)
+    def register_wrapper_node(self, node):
+        if not node.is_elemental:
+            return self.register_operand(node)
 
-    def visit_SingleAssignmentNode(self, node):
-        return self.astbuilder.assign(self.visit(node.lhs.dst),
-                                      self.visit(node.rhs))
+        self.wrapping += 1
+        self.visitchildren(node)
+        self.wrapping -= 1
 
-    def visit_BinopNode(self, node):
-        minitype = self.map_type(node, wrap=True)
-        if need_wrapper_node(node.type):
-            if not node.is_elemental:
-                return self.register_operand(node)
-
-            self.wrapping += 1
-            self.visitchildren(node)
-            self.wrapping -= 1
-
+        if self.wrapping == 0:
             dtype = node.type
             if dtype.is_memoryviewslice:
                 dtype = dtype.dtype
@@ -284,6 +349,20 @@ class ElementalMapper(specializers.ASTMapper):
             result = self.astbuilder.wrap(node, cython_ops=self.cython_ops)
             self.cython_ops = []
             return result
+        else:
+            return node
+
+    def visit_ExprNode(self, node):
+        return self.register_operand(node)
+
+    def visit_SingleAssignmentNode(self, node):
+        return self.astbuilder.assign(self.visit(node.lhs.dst),
+                                      self.visit(node.rhs))
+
+    def visit_BinopNode(self, node):
+        minitype = self.map_type(node, wrap=True)
+        if need_wrapper_node(node.type):
+            return self.register_wrapper_node(node)
 
         op1 = self.visit(node.operand1)
         op2 = self.visit(node.operand2)
@@ -306,6 +385,7 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
 
         if not self.in_elemental:
             b = self.minicontext.astbuilder
+            b.pos = node.pos
             astmapper = ElementalMapper(self.minicontext, self.current_env())
             shapevar = b.variable(minitypes.Py_ssize_t.pointer(),
                                   '__pyx_shape')
@@ -316,7 +396,17 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
 
             name = '__pyx_array_expression%d' % self.funccount
             self.funccount += 1
-            function = b.function(name, body, astmapper.funcargs, shapevar)
+
+            pos_args = (
+                b.variable(minitypes.c_string_type.pointer(), 'filename'),
+                b.variable(minitypes.int_type.pointer(), 'lineno'),
+                b.variable(minitypes.int_type.pointer(), 'column'))
+
+            position_argument = b.funcarg(b.variable(None, 'position'),
+                                          *pos_args)
+
+            function = b.function(name, body, astmapper.funcargs, shapevar,
+                                  position_argument)
 
             all_contig = miniutils.all(op.type.is_contig
                                            for op in astmapper.operands)
