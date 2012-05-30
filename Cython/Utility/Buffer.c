@@ -802,7 +802,7 @@ static CYTHON_INLINE int __Pyx_GetBufferAndValidate(
   }
   if ((unsigned)buf->itemsize != dtype->size) {
     PyErr_Format(PyExc_ValueError,
-      "Item size of buffer (%"PY_FORMAT_SIZE_T"d byte%s) does not match size of '%s' (%"PY_FORMAT_SIZE_T"d byte%s)",
+      "Item size of buffer (%" PY_FORMAT_SIZE_T "d byte%s) does not match size of '%s' (%" PY_FORMAT_SIZE_T "d byte%s)",
       buf->itemsize, (buf->itemsize > 1) ? "s" : "",
       dtype->name, (Py_ssize_t)dtype->size, (dtype->size > 1) ? "s" : "");
     goto fail;
