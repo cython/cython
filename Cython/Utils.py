@@ -374,7 +374,7 @@ def get_cython_cache_dir():
     1. CYTHON_CACHE_DIR
     2. (OS X): ~/Library/Caches/Cython
        (posix not OS X): XDG_CACHE_HOME/cython if XDG_CACHE_HOME defined
-    3. ~/.cython/inline
+    3. ~/.cython
 
     """
     if 'CYTHON_CACHE_DIR' in os.environ:
@@ -392,4 +392,4 @@ def get_cython_cache_dir():
         return os.path.join(parent, 'cython')
 
     # last fallback: ~/.cython/inline
-    return os.path.expanduser(os.path.join('~', '.cython', 'inline'))
+    return os.path.expanduser(os.path.join('~', '.cython'))

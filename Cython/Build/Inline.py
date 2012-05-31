@@ -96,7 +96,7 @@ def safe_type(arg, context=None):
 
 def cython_inline(code,
                   get_type=unsafe_type,
-                  lib_dir=get_cython_cache_dir(),
+                  lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
                   cython_include_dirs=['.'],
                   force=False,
                   quiet=False,
