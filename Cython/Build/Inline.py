@@ -177,7 +177,12 @@ def __invoke(%(params)s):
             sources = [pyx_file],
             include_dirs = c_include_dirs,
             extra_compile_args = cflags)
-        build_extension = build_ext(Distribution())
+        dist = Distribution()
+        config_files = dist.find_config_files()
+        try: config_files.remove('setup.cfg')
+        except ValueError: pass
+        dist.parse_config_files(config_files)
+        build_extension = build_ext(dist)
         build_extension.finalize_options()
         build_extension.extensions = cythonize([extension], ctx=ctx, quiet=quiet)
         build_extension.build_temp = os.path.dirname(pyx_file)
