@@ -16,6 +16,7 @@ from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclaration
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Build.Dependencies import strip_string_literals, cythonize, cached_function
 from Cython.Compiler import Pipeline
+from Cython.Utils import get_cython_cache_dir
 import cython as cython_module
 
 # A utility function to convert user-supplied ASCII strings to unicode.
@@ -95,7 +96,7 @@ def safe_type(arg, context=None):
 
 def cython_inline(code,
                   get_type=unsafe_type,
-                  lib_dir=os.path.expanduser('~/.cython/inline'),
+                  lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
                   cython_include_dirs=['.'],
                   force=False,
                   quiet=False,
