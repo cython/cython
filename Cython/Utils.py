@@ -391,5 +391,5 @@ def get_cython_cache_dir():
     if parent and os.path.isdir(parent):
         return os.path.join(parent, 'cython')
 
-    # last fallback: ~/.cython/inline
+    # last fallback: ~/.cython
     return os.path.expanduser(os.path.join('~', '.cython'))
