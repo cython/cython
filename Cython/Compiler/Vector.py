@@ -253,6 +253,7 @@ class ElementalNode(ExprNodes.ExprNode):
 
                 tp = operand.type.dtype.declaration_code("")
                 args.append('(%s *) %s.data' % (tp, result))
+                #args.append('&%s.shape[0]' % result)
                 if not self.all_contig:
                     args.append("&%s.strides[0]" % result)
             else:
@@ -318,16 +319,24 @@ class ElementalMapper(specializers.ASTMapper):
         varname = '__pyx_op%d' % len(self.operands)
         self.operands.append(node)
 
-        funcarg = b.funcarg(b.variable(self.map_type(node, wrap=True), varname))
+        minitype = self.map_type(node, wrap=True)
+        if node.type.is_memoryviewslice:
+            funcarg = b.array_funcarg(b.variable(minitype, varname))
+        else:
+            funcarg = b.funcarg(b.variable(minitype, varname))
+
         self.funcargs.append(funcarg)
+
         if self.wrapping:
+            # we are inside a Cython AST, return something compatible
             result = OperandNode(node.pos, type=self.get_dtype(node.type),
                                  variable=funcarg.variable)
             self.context.cython_operand_nodes.append(result)
             self.cython_ops.append(result)
             return result
-
-        return funcarg.variable
+        else:
+            # we are in a miniast
+            return funcarg.variable
 
     def register_wrapper_node(self, node):
         if not node.is_elemental:
