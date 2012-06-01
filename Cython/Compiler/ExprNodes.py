@@ -9833,6 +9833,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
 #if CYTHON_PEP393_ENABLED
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return (Py_UCS4)-1;
 #endif
+    {
     const Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(ustring);
     if (likely((0 <= i) & (i < length))) {
         return __Pyx_PyUnicode_READ_CHAR(ustring, i);
@@ -9841,6 +9842,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
     } else {
         PyErr_SetString(PyExc_IndexError, "string index out of range");
         return (Py_UCS4)-1;
+    }
     }
 }
 
