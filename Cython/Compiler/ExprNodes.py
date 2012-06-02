@@ -9830,10 +9830,11 @@ proto = '''
                                                __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
+    Py_ssize_t length;
 #if CYTHON_PEP393_ENABLED
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return (Py_UCS4)-1;
 #endif
-    const Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(ustring);
+    length = __Pyx_PyUnicode_GET_LENGTH(ustring);
     if (likely((0 <= i) & (i < length))) {
         return __Pyx_PyUnicode_READ_CHAR(ustring, i);
     } else if ((-length <= i) & (i < 0)) {
