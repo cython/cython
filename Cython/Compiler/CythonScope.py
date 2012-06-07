@@ -127,6 +127,10 @@ def create_cython_scope(context):
     # it across different contexts)
     return CythonScope(context)
 
+def get_cython_scope(env):
+    "Return the CythonScope given an env in some context"
+    return env.global_scope().context.cython_scope
+
 # Load test utilities for the cython scope
 
 def load_testscope_utility(cy_util_name, **kwargs):

@@ -79,13 +79,18 @@ cdef extern from *:
                                                 {{memviewslice_name}} *slice2,
                                                 int ndim, size_t itemsize) nogil
 
+    bint broadcast "__pyx_memoryview_broadcast" (
+                   Py_ssize_t *dst_shape, Py_ssize_t *dst_strides,
+                   int max_ndim, int ndim,
+                   Py_ssize_t *input_shape, Py_ssize_t *input_strides) nogil
+    cdef int _err_extents "__pyx_memoryview_err_extents" (
+        int i, Py_ssize_t extent1,
+        Py_ssize_t extent2) except -1 with gil
 
 cdef extern from "stdlib.h":
     void *malloc(size_t) nogil
     void free(void *) nogil
     void *memcpy(void *dest, void *src, size_t n) nogil
-
-
 
 
 #
@@ -1206,12 +1211,6 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
 
 # Use 'with gil' functions and avoid 'with gil' blocks, as the code within the blocks
 # has temporaries that need the GIL to clean up
-@cname('__pyx_memoryview_err_extents')
-cdef int _err_extents(int i, Py_ssize_t extent1,
-                             Py_ssize_t extent2) except -1 with gil:
-    raise ValueError("got differing extents in dimension %d (got %d and %d)" %
-                                                        (i, extent1, extent2))
-
 @cname('__pyx_memoryview_err_dim')
 cdef int _err_dim(object error, char *msg, int dim) except -1 with gil:
     raise error(msg.decode('ascii') % dim)
@@ -1379,6 +1378,41 @@ cdef void _slice_assign_scalar(char *data, Py_ssize_t *shape,
                                 ndim - 1, itemsize, item)
             data += stride
 
+############## Broadcasting ###############
+# This utility is used to broadcast multiple operands in a vector expression.
+# The caller allocates a destination shape that all operands share, and
+# passes in the input shape and strides for each operand. The destination
+# strides are set accordingly for each operand as well as the output shape,
+# or an exception is raised in case of a mismatch.
+
+@cname('__pyx_memoryview_err_extents')
+cdef int __pyx_err_extents(int i, Py_ssize_t extent1,
+                           Py_ssize_t extent2) except -1 with gil:
+    raise ValueError("got differing extents in dimension %d (got %d and %d)" %
+                                                        (i, extent1, extent2))
+
+@cname('__pyx_memoryview_broadcast')
+cdef void __pyx_broadcast(Py_ssize_t *dst_shape, Py_ssize_t *dst_strides,
+                          int max_ndim, int ndim,
+                          Py_ssize_t *input_shape, Py_ssize_t *input_strides,
+                          bint *p_broadcast) nogil:
+    cdef Py_ssize_t i
+    cdef int dim_offset = max_ndim - ndim
+
+    for i in range(ndim):
+        src_extent = input_shape[i]
+        dst_extent = dst_shape[i + dim_offset]
+
+        dst_strides[i] = input_strides[i]
+
+        if src_extent != dst_extent:
+            if src_extent == 1:
+                p_broadcast[0] = True
+                dst_strides[i] = 0
+            elif dst_extent == 1:
+                dst_shape[i + dim_offset] = src_extent
+            else:
+                __pyx_err_extents(i, dst_shape[i], input_shape[i])
 
 ############### BufferFormatFromTypeInfo ###############
 cdef extern from *:
