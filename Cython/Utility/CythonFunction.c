@@ -438,10 +438,9 @@ static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject 
     return NULL;
 }
 #else
-static CYTHON_INLINE PyObject * __PyCFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+static CYTHON_INLINE PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
 	return PyCFunction_Call(func, arg, kw);
 }
-#define __Pyx_CyFunction_Call __PyCFunction_Call
 #endif
 
 static PyTypeObject __pyx_CyFunctionType_type = {
