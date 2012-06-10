@@ -40,6 +40,7 @@ class FusedCFuncDefNode(StatListNode):
     resulting_fused_function = None
     fused_func_assignment = None
     defaults_tuple = None
+    decorators = None
 
     def __init__(self, node, env):
         super(FusedCFuncDefNode, self).__init__(node.pos)
@@ -49,6 +50,7 @@ class FusedCFuncDefNode(StatListNode):
 
         is_def = isinstance(self.node, DefNode)
         if is_def:
+            # self.node.decorators = []
             self.copy_def(env)
         else:
             self.copy_cdef(env)
@@ -91,6 +93,8 @@ class FusedCFuncDefNode(StatListNode):
                                                     fused_to_specific)
 
             copied_node.analyse_declarations(env)
+            # copied_node.is_staticmethod = self.node.is_staticmethod
+            # copied_node.is_classmethod = self.node.is_classmethod
             self.create_new_local_scope(copied_node, env, fused_to_specific)
             self.specialize_copied_def(copied_node, cname, self.node.entry,
                                        fused_to_specific, fused_compound_types)

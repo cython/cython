@@ -1242,12 +1242,12 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         func_node = self.visit_FuncDefNode(func_node)
         if scope_type != 'cclass' or not func_node.decorators:
             return func_node
-        return self._handle_decorators(
-            func_node, func_node.name)
+        return self.handle_decorators(func_node, func_node.decorators,
+                                      func_node.name)
 
-    def _handle_decorators(self, node, name):
+    def handle_decorators(self, node, decorators, name):
         decorator_result = ExprNodes.NameNode(node.pos, name = name)
-        for decorator in node.decorators[::-1]:
+        for decorator in decorators[::-1]:
             decorator_result = ExprNodes.SimpleCallNode(
                 decorator.pos,
                 function = decorator.decorator,
@@ -1441,6 +1441,103 @@ if VALUE is not None:
                 node.body.stats += stats
         return node
 
+    def _handle_fused_def_decorators(self, old_decorators, env, node):
+        """
+        Create function calls to the decorators and reassignments to
+        the function.
+        """
+        # Delete staticmethod and classmethod decorators, this is
+        # handled directly by the fused function object.
+        decorators = []
+        for decorator in old_decorators:
+            func = decorator.decorator
+            if (not func.is_name or
+                func.name not in ('staticmethod', 'classmethod') or
+                env.lookup_here(func.name)):
+                # not a static or classmethod
+                decorators.append(decorator)
+
+        if decorators:
+            transform = DecoratorTransform(self.context)
+            def_node = node.node
+            _, reassignments = transform.handle_decorators(
+                def_node, decorators, def_node.name)
+            reassignments.analyse_declarations(env)
+            node = [node, reassignments]
+
+        return node
+
+    def _handle_def(self, decorators, env, node):
+        "Handle def or cpdef fused functions"
+        # Create PyCFunction nodes for each specialization
+        node.stats.insert(0, node.py_func)
+        node.py_func = self.visit(node.py_func)
+        node.update_fused_defnode_entry(env)
+        pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func,
+                                                         True)
+        pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
+        node.resulting_fused_function = pycfunc
+        # Create assignment node for our def function
+        node.fused_func_assignment = self._create_assignment(
+            node.py_func, ExprNodes.CloneNode(pycfunc), env)
+
+        if decorators:
+            node = self._handle_fused_def_decorators(decorators, env, node)
+
+        return node
+
+    def _create_fused_function(self, env, node):
+        "Create a fused function for a DefNode with fused arguments"
+        from Cython.Compiler import FusedNode
+
+        if self.fused_function or self.in_lambda:
+            if self.fused_function not in self.fused_error_funcs:
+                if self.in_lambda:
+                    error(node.pos, "Fused lambdas not allowed")
+                else:
+                    error(node.pos, "Cannot nest fused functions")
+
+            self.fused_error_funcs.add(self.fused_function)
+
+            node.body = Nodes.PassStatNode(node.pos)
+            for arg in node.args:
+                if arg.type.is_fused:
+                    arg.type = arg.type.get_fused_types()[0]
+
+            return node
+
+        decorators = getattr(node, 'decorators', None)
+        node = FusedNode.FusedCFuncDefNode(node, env)
+        self.fused_function = node
+        self.visitchildren(node)
+        self.fused_function = None
+        if node.py_func:
+            node = self._handle_def(decorators, env, node)
+
+        return node
+
+    def _handle_nogil_cleanup(self, lenv, node):
+        "Handle cleanup for 'with gil' blocks in nogil functions."
+        if lenv.nogil and lenv.has_with_gil_block:
+            # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
+            # the entire function body in try/finally.
+            # The corresponding release will be taken care of by
+            # Nodes.FuncDefNode.generate_function_definitions()
+            node.body = Nodes.NogilTryFinallyStatNode(
+                node.body.pos,
+                body=node.body,
+                finally_clause=Nodes.EnsureGILNode(node.body.pos))
+
+    def _handle_fused(self, node):
+        if node.is_generator and node.has_fused_arguments:
+            node.has_fused_arguments = False
+            error(node.pos, "Fused generators not supported")
+            node.gbody = Nodes.StatListNode(node.pos,
+                                            stats=[],
+                                            body=Nodes.PassStatNode(node.pos))
+
+        return node.has_fused_arguments
+
     def visit_FuncDefNode(self, node):
         """
         Analyse a function and its body, as that hasn't happend yet. Also
@@ -1464,63 +1561,11 @@ if VALUE is not None:
                 else:
                     error(type_node.pos, "Not a type")
 
-        if node.is_generator and node.has_fused_arguments:
-            node.has_fused_arguments = False
-            error(node.pos, "Fused generators not supported")
-            node.gbody = Nodes.StatListNode(node.pos,
-                                            stats=[],
-                                            body=Nodes.PassStatNode(node.pos))
-
-        if node.has_fused_arguments:
-            if self.fused_function or self.in_lambda:
-                if self.fused_function not in self.fused_error_funcs:
-                    if self.in_lambda:
-                        error(node.pos, "Fused lambdas not allowed")
-                    else:
-                        error(node.pos, "Cannot nest fused functions")
-
-                self.fused_error_funcs.add(self.fused_function)
-
-                node.body = Nodes.PassStatNode(node.pos)
-                for arg in node.args:
-                    if arg.type.is_fused:
-                        arg.type = arg.type.get_fused_types()[0]
-
-                return node
-
-            from Cython.Compiler import FusedNode
-            node = FusedNode.FusedCFuncDefNode(node, env)
-
-            self.fused_function = node
-            self.visitchildren(node)
-            self.fused_function = None
-
-            if node.py_func:
-                # Create PyCFunction nodes for each specialization
-                node.stats.insert(0, node.py_func)
-                node.py_func = self.visit(node.py_func)
-                node.update_fused_defnode_entry(env)
-                pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func,
-                                                                 True)
-                pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
-                node.resulting_fused_function = pycfunc
-
-                # Create assignment node for our def function
-                node.fused_func_assignment = self._create_assignment(
-                              node.py_func, ExprNodes.CloneNode(pycfunc), env)
+        if self._handle_fused(node):
+            node = self._create_fused_function(env, node)
         else:
             node.body.analyse_declarations(lenv)
-
-            if lenv.nogil and lenv.has_with_gil_block:
-                # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
-                # the entire function body in try/finally.
-                # The corresponding release will be taken care of by
-                # Nodes.FuncDefNode.generate_function_definitions()
-                node.body = Nodes.NogilTryFinallyStatNode(
-                    node.body.pos,
-                    body = node.body,
-                    finally_clause = Nodes.EnsureGILNode(node.body.pos),
-                )
+            self._handle_nogil_cleanup(lenv, node)
 
             self.env_stack.append(lenv)
             self.visitchildren(node)

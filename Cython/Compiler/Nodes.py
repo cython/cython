@@ -2524,7 +2524,8 @@ class DefNode(FuncDefNode):
             sig.is_staticmethod = True
             sig.has_generic_args = True
 
-        if self.is_classmethod and self.has_fused_arguments and env.is_c_class_scope:
+        if ((self.is_classmethod or self.is_staticmethod) and
+            self.has_fused_arguments and env.is_c_class_scope):
             del self.decorator_indirection.stats[:]
 
         for i in range(min(nfixed, len(self.args))):

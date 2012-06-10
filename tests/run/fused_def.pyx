@@ -304,3 +304,20 @@ def test_code_object(cython.floating dummy = 2.0):
     >>> getcode(test_code_object) is getcode(test_code_object[float])
     True
     """
+
+def create_dec(value):
+    def dec(f):
+        if not hasattr(f, 'order'):
+            f.order = []
+        f.order.append(value)
+        return f
+    return dec
+
+@create_dec(1)
+@create_dec(2)
+@create_dec(3)
+def test_decorators(cython.floating arg):
+    """
+    >>> test_decorators.order
+    [3, 2, 1]
+    """
