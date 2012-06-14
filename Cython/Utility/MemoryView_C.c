@@ -540,9 +540,9 @@ no_fail:
                                          {{dtype_is_object}})
 
 ////////// OverlappingSlices.proto //////////
-static int __pyx_slices_overlap({{memviewslice_name}} *slice1,
-                                {{memviewslice_name}} *slice2,
-                                int ndim, size_t itemsize);
+static int __pyx_slices_overlap({{memviewslice_name}} slice1,
+                                {{memviewslice_name}} slice2,
+                                int ndim1, int ndim2);
 
 ////////// OverlappingSlices //////////
 /* Based on numpy's core/src/multiarray/array_assign.c */
@@ -551,7 +551,7 @@ static int __pyx_slices_overlap({{memviewslice_name}} *slice1,
 static void
 __pyx_get_array_memory_extents({{memviewslice_name}} *slice,
                                void **out_start, void **out_end,
-                               int ndim, size_t itemsize)
+                               int ndim)
 {
     char *start, *end;
     int i;
@@ -575,22 +575,50 @@ __pyx_get_array_memory_extents({{memviewslice_name}} *slice,
 
     /* Return a half-open range */
     *out_start = start;
-    *out_end = end + itemsize;
+    *out_end = end;
 }
 
 /* Returns 1 if the arrays have overlapping data, 0 otherwise */
 static int
-__pyx_slices_overlap({{memviewslice_name}} *slice1,
-                     {{memviewslice_name}} *slice2,
-                     int ndim, size_t itemsize)
+__pyx_slices_overlap({{memviewslice_name}} slice1,
+                     {{memviewslice_name}} slice2,
+                     int ndim1, int ndim2)
 {
     void *start1, *end1, *start2, *end2;
 
-    __pyx_get_array_memory_extents(slice1, &start1, &end1, ndim, itemsize);
-    __pyx_get_array_memory_extents(slice2, &start2, &end2, ndim, itemsize);
+    __pyx_get_array_memory_extents(&slice1, &start1, &end1, ndim1);
+    __pyx_get_array_memory_extents(&slice2, &start2, &end2, ndim2);
 
-    return (start1 < end2) && (start2 < end1);
+    return (start1 <= end2) && (start2 <= end1);
 }
+
+////////// ReadAfterWrite.proto //////////
+/* This function is useful to determine a possiblity for a read ater a write. */
+/* This is only useful to call if you already know two memory regions overlap */
+static CYTHON_INLINE int
+__pyx_read_after_write({{memviewslice_name}} slice1,
+                       {{memviewslice_name}} slice2,
+                       int ndim);
+
+////////// ReadAfterWrite //////////
+static CYTHON_INLINE int
+__pyx_read_after_write({{memviewslice_name}} dst,
+                       {{memviewslice_name}} src,
+                       int ndim)
+{
+    if (dst.data == src.data) {
+        /* Handle operations like 'a[:] = a' (more likely, 'a = 2 * a') */
+        int i;
+        for (i = 0; i < ndim; i++) {
+            if (src.strides[i] != dst.strides[i]) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    return 1;
+}
+
 
 ////////// MemviewSliceIsCContig.proto //////////
 #define __pyx_memviewslice_is_c_contig{{ndim}}(slice) \

@@ -75,14 +75,10 @@ cdef extern from *:
                                  bint dtype_is_object) nogil except *
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
                             {{memviewslice_name}} mvs, char order, int ndim) nogil
-    bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
-                                                {{memviewslice_name}} *slice2,
-                                                int ndim, size_t itemsize) nogil
+    bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} slice1,
+                                                {{memviewslice_name}} slice2,
+                                                int ndim1, int ndim2) nogil
 
-    bint broadcast "__pyx_memoryview_broadcast" (
-                   Py_ssize_t *dst_shape, Py_ssize_t *dst_strides,
-                   int max_ndim, int ndim,
-                   Py_ssize_t *input_shape, Py_ssize_t *input_strides) nogil
     cdef int _err_extents "__pyx_memoryview_err_extents" (
         int i, Py_ssize_t extent1,
         Py_ssize_t extent2) except -1 with gil
@@ -1076,7 +1072,7 @@ cdef Py_ssize_t abs_py_ssize_t(Py_ssize_t arg) nogil:
         return arg
 
 @cname('__pyx_get_best_slice_order')
-cdef char get_best_order({{memviewslice_name}} *mslice, int ndim) nogil:
+cdef char get_best_order({{memviewslice_name}} mslice, int ndim) nogil:
     """
     Figure out the best memory access order for a given slice.
     """
@@ -1098,6 +1094,7 @@ cdef char get_best_order({{memviewslice_name}} *mslice, int ndim) nogil:
         return 'C'
     else:
         return 'F'
+
 
 @cython.cdivision(True)
 cdef void _copy_strided_to_strided(char *src_data, Py_ssize_t *src_strides,
@@ -1234,7 +1231,7 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
     cdef void *tmpdata = NULL
     cdef size_t itemsize = src.memview.view.itemsize
     cdef int i
-    cdef char order = get_best_order(&src, src_ndim)
+    cdef char order = get_best_order(src, src_ndim)
     cdef bint broadcasting = False
     cdef bint direct_copy = False
     cdef {{memviewslice_name}} tmp
@@ -1257,10 +1254,10 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
         if src.suboffsets[i] >= 0:
             _err_dim(ValueError, "Dimension %d is not direct", i)
 
-    if slices_overlap(&src, &dst, ndim, itemsize):
+    if slices_overlap(src, dst, ndim, ndim):
         # slices overlap, copy to temp, copy temp to dst
         if not slice_is_contig(src, order, ndim):
-            order = get_best_order(&dst, ndim)
+            order = get_best_order(dst, ndim)
 
         tmpdata = copy_data_to_temp(&src, &tmp, order, ndim)
         src = tmp
@@ -1280,7 +1277,7 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
             refcount_copying(&dst, dtype_is_object, ndim, True)
             return 0
 
-    if order == 'F' == get_best_order(&dst, ndim):
+    if order == 'F' == get_best_order(dst, ndim):
         # see if both slices have Fortran order, transpose them to match our
         # C-style indexing order
         transpose_memslice(&src)
@@ -1385,6 +1382,11 @@ cdef void _slice_assign_scalar(char *data, Py_ssize_t *shape,
 # strides are set accordingly for each operand as well as the output shape,
 # or an exception is raised in case of a mismatch.
 
+cdef extern from *:
+    ctypedef struct {{memviewslice_name}}:
+        Py_ssize_t shape[{{max_dims}}]
+
+
 @cname('__pyx_memoryview_err_extents')
 cdef int __pyx_err_extents(int i, Py_ssize_t extent1,
                            Py_ssize_t extent2) except -1 with gil:
@@ -1392,10 +1394,11 @@ cdef int __pyx_err_extents(int i, Py_ssize_t extent1,
                                                         (i, extent1, extent2))
 
 @cname('__pyx_memoryview_broadcast')
-cdef void __pyx_broadcast(Py_ssize_t *dst_shape, Py_ssize_t *dst_strides,
+cdef bint __pyx_broadcast(Py_ssize_t *dst_shape,
+                          Py_ssize_t *input_shape,
+                          Py_ssize_t *strides,
                           int max_ndim, int ndim,
-                          Py_ssize_t *input_shape, Py_ssize_t *input_strides,
-                          bint *p_broadcast) nogil:
+                          bint *p_broadcast) nogil except -1:
     cdef Py_ssize_t i
     cdef int dim_offset = max_ndim - ndim
 
@@ -1403,16 +1406,33 @@ cdef void __pyx_broadcast(Py_ssize_t *dst_shape, Py_ssize_t *dst_strides,
         src_extent = input_shape[i]
         dst_extent = dst_shape[i + dim_offset]
 
-        dst_strides[i] = input_strides[i]
-
         if src_extent != dst_extent:
             if src_extent == 1:
                 p_broadcast[0] = True
-                dst_strides[i] = 0
+                strides[i] = 0
             elif dst_extent == 1:
                 dst_shape[i + dim_offset] = src_extent
             else:
                 __pyx_err_extents(i, dst_shape[i], input_shape[i])
+
+@cname('__pyx_verify_shapes')
+cdef bint verify_shapes({{memviewslice_name}} dst, {{memviewslice_name}} src,
+                        int dst_ndim, int src_ndim) nogil except -1:
+    cdef int src_offset = max(src_ndim - dst_ndim, 0)
+    cdef int i
+
+    for i in range(src_offset):
+        if src.shape[i] != 1:
+            __pyx_err_extents(i, 1, src.shape[i])
+
+    cdef int dst_offset = max(dst_ndim - src_ndim, 0)
+    cdef Py_ssize_t src_extent, dst_extent
+
+    for i in range(dst_ndim - dst_offset):
+        src_extent = src.shape[i + src_offset]
+        dst_extent = dst.shape[i + dst_offset]
+        if src_extent != 1 and src_extent != dst_extent:
+            __pyx_err_extents(i + dst_offset, dst_extent, src_extent)
 
 ############### BufferFormatFromTypeInfo ###############
 cdef extern from *:

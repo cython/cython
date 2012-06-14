@@ -795,6 +795,7 @@ typeinfo_to_format_code = load_memview_cy_utility(
 
 is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context)
 overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
+read_after_write_utility = load_memview_c_utility("ReadAfterWrite", context)
 copy_contents_new_utility = load_memview_c_utility(
     "MemviewSliceCopyTemplate",
     context,

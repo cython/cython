@@ -1,6 +1,10 @@
 # tag: numpy
 # mode: run
 
+from cpython.object cimport Py_EQ
+
+import sys
+
 cimport numpy as np
 import numpy as np
 
@@ -118,18 +122,25 @@ def test_arbitrary_dtypes(fused_dtype_t[:] m1, fused_dtype_t[::1] m2):
     assert np.all(np.asarray(m1) == np.asarray(m2)) or np.allclose(m1, m2)
     return np.asarray(m1)
 
-class UniqueObject(object):
+cdef class UniqueObject(object):
+    cdef public object value
     def __init__(self, value):
         self.value = value
 
     def __add__(self, other):
         return UniqueObject(self.value + other.value)
 
-    def __eq__(self, other):
-        return self.value == other.value
+    def __richcmp__(self, other, int opid):
+        if opid == Py_EQ:
+            return self.value == other.value
+        return NotImplemented
 
     def __str__(self):
         return str(self.value)
+
+    def __dealloc__(self):
+        pass
+        # sys.stdout.write("dealloc %s " % self.value)
 
 class UniqueObjectInplace(UniqueObject):
     def __add__(self, other):
@@ -205,8 +216,8 @@ def test_broadcasting(fused_dtype_t[:] m1, fused_dtype_t[:, :] m2):
 
 testcase(test_broadcasting)
 
-def test_broadcasting_c_contig(fused_dtype_t[::1] m1, fused_dtype_t[:, ::1] m2):
-    return test_broadcasting(m1, m2)
+#def test_broadcasting_c_contig(fused_dtype_t[::1] m1, fused_dtype_t[:, ::1] m2):
+#    m2[...] = m2 + m1
+#    return np.asarray(m2)
 
-
-testcase_like(test_broadcasting)(test_broadcasting_c_contig)
+#testcase_like(test_broadcasting)(test_broadcasting_c_contig)
