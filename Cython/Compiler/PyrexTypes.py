@@ -57,6 +57,12 @@ class BaseType(object):
 
         return None
 
+    def specialize_fused(self, env):
+        if env.fused_to_specific:
+            return self.specialize(env.fused_to_specific)
+
+        return self
+
     def _get_fused_types(self):
         """
         Add this indirection for the is_fused property to allow overriding

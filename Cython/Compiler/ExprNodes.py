@@ -2805,6 +2805,9 @@ class IndexNode(ExprNode):
             self.is_fused_index = False
             return
 
+        for i, type in enumerate(specific_types):
+            specific_types[i] = type.specialize_fused(env)
+
         fused_types = base_type.get_fused_types()
         if len(specific_types) > len(fused_types):
             return error(self.pos, "Too many types specified")

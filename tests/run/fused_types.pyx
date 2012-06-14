@@ -282,3 +282,18 @@ def test_cython_numeric(cython.numeric arg):
     double complex (10+1j)
     """
     print cython.typeof(arg), arg
+
+cdef fused ints_t:
+    int
+    long
+
+cdef _test_index_fused_args(cython.floating f, ints_t i):
+    print cython.typeof(f), cython.typeof(i)
+
+def test_index_fused_args(cython.floating f, ints_t i):
+    """
+    >>> import cython
+    >>> test_index_fused_args[cython.double, cython.int](2.0, 3)
+    double int
+    """
+    _test_index_fused_args[cython.floating, ints_t](f, i)
