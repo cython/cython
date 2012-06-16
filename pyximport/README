@@ -1,4 +1,3 @@
-
  == Pyximport == 
 
 Download: pyx-import-1.0.tar.gz
@@ -28,6 +27,9 @@ Pyrex modules like this:
 
 
 python -c "import foo"
+
+See help(pyximport.install) to learn its options for controlling the
+default behavior of "import" and "reload".
 
  == Dependency Handling == 
 
@@ -59,13 +61,6 @@ supposed to.
 
  == For further thought and discussion == 
 
-I don't think that Python's "reload" will do anything for changed .SOs
-on some (all?) platforms. It would require some (easy) experimentation
-that I haven't gotten around to. But reload is rarely used in
-applications outside of the Python interactive interpreter and certainly
-not used much for C extension modules. Info about Windows
-<http://mail.python.org/pipermail/python-list/2001-July/053798.html>
-
 "setup.py install" does not modify sitecustomize.py for you. Should it?
 Modifying Python's "standard interpreter" behaviour may be more than
 most people expect of a package they install..
@@ -76,4 +71,3 @@ build directory as per normal for Distutils. If I could wave a magic
 wand and get Pyrex or distutils or whoever to put the build directory I
 might do it but not necessarily: having it at the top level is VERY
 HELPFUL for debugging Pyrex problems.
-

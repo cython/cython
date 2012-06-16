@@ -18,7 +18,7 @@ A custom distutils.core.Extension instance and setup() args
 (Distribution) for for the build can be defined by a <modulename>.pyxbld
 file like:
 
-# examplemod.pyxbdl
+# examplemod.pyxbld
 def make_ext(modname, pyxfilename):
     from distutils.extension import Extension
     return Extension(name = modname,
