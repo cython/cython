@@ -216,8 +216,8 @@ def test_broadcasting(fused_dtype_t[:] m1, fused_dtype_t[:, :] m2):
 
 testcase(test_broadcasting)
 
-#def test_broadcasting_c_contig(fused_dtype_t[::1] m1, fused_dtype_t[:, ::1] m2):
-#    m2[...] = m2 + m1
-#    return np.asarray(m2)
+def test_broadcasting_c_contig(fused_dtype_t[::1] m1, fused_dtype_t[:, ::1] m2):
+    m2[...] = m2 + m1
+    return np.asarray(m2)
 
-#testcase_like(test_broadcasting)(test_broadcasting_c_contig)
+testcase_like(test_broadcasting)(test_broadcasting_c_contig)

@@ -309,7 +309,9 @@ class BroadcastNode(ExprNodes.ExprNode):
         self.is_temp = True
 
     def generate_result_code(self, code):
-        code.putln("%s = 0;" % self.result())
+        broadcasting = miniutils.any(op.type.ndim != self.max_ndim
+                                         for op in self.operands)
+        code.putln("%s = %d;" % (self.result(), broadcasting))
 
         if self.init_shape:
             for i in range(self.dst_slice.type.ndim):
