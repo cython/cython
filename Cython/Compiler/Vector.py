@@ -532,10 +532,7 @@ class ElementalNode(Nodes.StatNode):
         rhs_var = b.variable(typemapper.map_type(self.rhs_type, wrap=True), 'rhs')
 
         if self.lhs.type.dtype.is_pyobject:
-            temp = b.temp(rhs_var.type.dtype)
-            body = b.stats(b.assign(temp, rhs_var),
-                           b.expr_stat(b.incref(temp)),
-                           b.assign(lhs_var, temp))
+            body = b.assign(b.decref(lhs_var), b.incref(rhs_var))
         else:
             body = b.assign(lhs_var, rhs_var)
 
