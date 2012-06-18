@@ -160,14 +160,16 @@ class SlotDescriptor(object):
     #
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
+    #  is_inherited                  Is inherited by subtypes (see PyType_Ready())
     #  py3                           Indicates presence of slot in Python 3
     #  py2                           Indicates presence of slot in Python 2
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
 
-    def __init__(self, slot_name, dynamic=0,
+    def __init__(self, slot_name, dynamic=False, inherited=False,
                  py3=True, py2=True, ifdef=None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
+        self.is_inherited = inherited
         self.ifdef = ifdef
         self.py3 = py3
         self.py2 = py2
@@ -245,8 +247,9 @@ class MethodSlot(SlotDescriptor):
     #  alternatives [string]         Alternative list of __xxx__ names for the method
 
     def __init__(self, signature, slot_name, method_name, fallback=None,
-                 py3=True, py2=True, ifdef=None):
-        SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2, ifdef=ifdef)
+                 py3=True, py2=True, ifdef=None, inherited=True):
+        SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2,
+                                ifdef=ifdef, inherited=inherited)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
@@ -269,6 +272,9 @@ class MethodSlot(SlotDescriptor):
             entry = scope.lookup_here(method_name)
             if entry and entry.func_cname:
                 return entry.func_cname
+        if (self.is_inherited and scope.parent_type and scope.parent_type.base_type
+            and scope.parent_type.base_type.scope):
+            return self.slot_code(scope.parent_type.base_type.scope)
         return "0"
 
 
@@ -685,7 +691,7 @@ slot_table = (
     SuiteSlot(PySequenceMethods, "PySequenceMethods", "tp_as_sequence"),
     SuiteSlot(PyMappingMethods, "PyMappingMethods", "tp_as_mapping"),
 
-    MethodSlot(hashfunc, "tp_hash", "__hash__"),
+    MethodSlot(hashfunc, "tp_hash", "__hash__", inherited=False),    # Py3 checks for __richcmp__
     MethodSlot(callfunc, "tp_call", "__call__"),
     MethodSlot(reprfunc, "tp_str", "__str__"),
 
@@ -701,7 +707,7 @@ slot_table = (
     GCDependentSlot("tp_clear"),
 
     # Later -- synthesize a method to split into separate ops?
-    MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__"),
+    MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
 
     EmptySlot("tp_weaklistoffset"),
 
