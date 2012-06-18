@@ -3214,9 +3214,14 @@ class MemoryViewIndexNode(BufferIndexNode):
     is_buffer_access = False
     warned_untyped_idx = False
 
+    type = None
+
     def analyse_types(self, env, getting=True):
         # memoryviewslice indexing or slicing
         import MemoryView
+
+        if self.type:
+            return
 
         skip_child_analysis = True
         indices = self.indices

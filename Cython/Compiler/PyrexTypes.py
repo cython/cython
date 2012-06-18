@@ -525,6 +525,15 @@ class MemoryViewSliceType(PyrexType):
 
         return True
 
+    def c_f_contig_types(self, ndim):
+        follow_dim = [('direct', 'follow')]
+        contig_dim = [('direct', 'contig')]
+        to_axes_c = follow_dim * (ndim - 1) + contig_dim
+        to_axes_f = contig_dim + follow_dim * (ndim - 1)
+        to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
+        to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
+        return to_memview_c, to_memview_f
+
     def declare_attribute(self, attribute, env, pos):
         import MemoryView, Options
 
@@ -557,13 +566,7 @@ class MemoryViewSliceType(PyrexType):
         elif attribute in ("copy", "copy_fortran"):
             ndim = len(self.axes)
 
-            follow_dim = [('direct', 'follow')]
-            contig_dim = [('direct', 'contig')]
-            to_axes_c = follow_dim * (ndim - 1) + contig_dim
-            to_axes_f = contig_dim + follow_dim * (ndim -1)
-
-            to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
-            to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
+            to_memview_c, to_memview_f = self.c_f_contig_types(ndim)
 
             for to_memview, cython_name in [(to_memview_c, "copy"),
                                             (to_memview_f, "copy_fortran")]:

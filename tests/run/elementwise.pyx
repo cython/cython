@@ -153,12 +153,11 @@ def object_range(n, shape=None, cls=UniqueObject):
         result = result.reshape(shape)
     return result
 
+def operands(dtype):
+    return np.arange(10, dtype=dtype), np.arange(100, dtype=dtype).reshape(10, 10)
+
 def test_broadcasting(fused_dtype_t[:] m1, fused_dtype_t[:, :] m2):
     """
-    >>> def operands(dtype):
-    ...     return np.arange(10, dtype=dtype), np.arange(100, dtype=dtype).reshape(10, 10)
-    ...
-
     >>> test_broadcasting(*operands('l'))
     array([[  0,   2,   4,   6,   8,  10,  12,  14,  16,  18],
            [ 10,  12,  14,  16,  18,  20,  22,  24,  26,  28],
@@ -221,3 +220,35 @@ def test_broadcasting_c_contig(fused_dtype_t[::1] m1, fused_dtype_t[:, ::1] m2):
     return np.asarray(m2)
 
 testcase_like(test_broadcasting)(test_broadcasting_c_contig)
+
+@testcase
+def test_broadcasting_larger_rhs_ndim(double[:] m):
+    """
+    >>> test_broadcasting_larger_rhs_ndim(np.arange(10, dtype=np.double))
+    """
+    m[:] = m[None, ::-1] + m[None, ::-1]
+
+@testcase
+def test_broadcasting_larger_rhs_ndim_contig(double[::1] m):
+    """
+    >>> test_broadcasting_larger_rhs_ndim_contig(np.arange(10, dtype=np.double))
+    """
+    m[:] = m[None, ::-1] + m[None, ::-1]
+
+
+def test_overlapping_memory(fused_dtype_t[:] m1, fused_dtype_t[:, :] m2):
+    """
+    >>> m1, m2 = operands('l')
+    >>> m2 = m2[:2]
+    >>> test_overlapping_memory(m1, m2)
+    >>> m1
+    array([0, 0, 1, 2, 3, 4, 5, 6, 7, 8])
+    >>> m2
+    array([[10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+           [ 0,  2,  4,  6,  8, 10, 12, 14, 16, 18]])
+    """
+    # test reads after writes
+    m2[...] = m2[::-1, :] + m1
+    m1[1:] = m1[:-1]
+
+testcase(test_overlapping_memory)
