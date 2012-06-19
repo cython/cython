@@ -17,7 +17,7 @@ cimport cython
 cdef extern from "Python.h":
     cdef int PyBUF_C_CONTIGUOUS
 
-include "mockbuffers.pxi"
+include "../buffers/mockbuffers.pxi"
 
 #
 ### Test for some coercions

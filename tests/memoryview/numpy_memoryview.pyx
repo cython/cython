@@ -12,7 +12,7 @@ import numpy as np
 cimport cython
 
 include "cythonarrayutil.pxi"
-include "mockbuffers.pxi"
+include "../buffers/mockbuffers.pxi"
 
 ctypedef np.int32_t dtype_t
 

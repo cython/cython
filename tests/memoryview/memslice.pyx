@@ -46,7 +46,7 @@ def testcase(func):
     return wrapper
 
 
-include "mockbuffers.pxi"
+include "../buffers/mockbuffers.pxi"
 include "cythonarrayutil.pxi"
 
 def _print_attributes(memview):
