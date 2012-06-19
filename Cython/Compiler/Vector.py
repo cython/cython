@@ -312,11 +312,16 @@ class BroadcastNode(ExprNodes.ExprNode):
         self.type = PyrexTypes.c_int_type
         self.is_temp = True
 
-    def generate_result_code(self, code):
-        broadcasting = miniutils.any(op.type.ndim != self.max_ndim
-                                         for op in self.operands)
-        code.putln("%s = %d;" % (self.result(), broadcasting))
+    def init_broadcast_flag(self, code, default=None):
+        if default is None:
+            default = self.definitely_broadcasting()
+        code.putln("%s = %d;" % (self.result(), default))
 
+    def definitely_broadcasting(self):
+        return miniutils.any(op.type.ndim != self.max_ndim
+                                 for op in self.operands)
+
+    def generate_broadcasting_code(self, code):
         if self.init_shape:
             for i in range(self.max_ndim):
                 code.putln("%s.shape[%d] = 1;" % (self.dst_slice.result(), i))
@@ -329,6 +334,12 @@ class BroadcastNode(ExprNodes.ExprNode):
                 self.result())
             sig = "%s(&%s.shape[0], &%s.shape[0], &%s.strides[0], %d, %d, &%s)"
             code.putln(code.error_goto_if_neg(sig % format_tuple, self.pos))
+
+    def generate_result_code(self, code):
+        """
+        The owner of this node should call init_broadcast_flag() and
+        generate_broadcasting_code().
+        """
 
 def slice_type(type, ndim):
     return PyrexTypes.MemoryViewSliceType(type.dtype, type.axes[-ndim:])
@@ -635,15 +646,18 @@ class ElementalNode(Nodes.StatNode):
 
         m3[0, :] contains the data, which we need to broadcast over m3[1:, :]
         """
-        lhs_offset, rhs_offset = offsets(self.lhs, self.rhs)
+        lhs_offset, _ = offsets(self.lhs, self.rhs)
         lhs_r, rhs_r = self.lhs.result(), self.rhs.result()
 
         def advance(i):
             code.putln("%s.data += %s.strides[%d];" % (lhs_r, lhs_r, i))
             code.putln("%s.shape[%d] -= 1;" % (lhs_r, i))
+            if not lhs_offset:
+                self.final_broadcast.init_broadcast_flag(code, True)
 
         for i in range(lhs_offset):
             advance(i)
+            self.final_broadcast.init_broadcast_flag(code, True)
 
         for i in range(self.rhs.type.ndim):
             code.putln("if (%s.shape[%d] > 1 && %s.shape[%d] == 1) {" %
@@ -673,6 +687,7 @@ class ElementalNode(Nodes.StatNode):
 
         code.putln("/* Broadcast all operands in RHS expression */")
         self.broadcast.generate_evaluation_code(code)
+        self.broadcast.generate_broadcasting_code(code)
         self.verify_final_shape(code)
 
         self.rhs.align_with_lhs(code)
@@ -691,13 +706,16 @@ class ElementalNode(Nodes.StatNode):
         self.rhs.broadcasting = self.broadcast.result()
         self.rhs.generate_evaluation_code(code)
 
+        self.final_broadcast.generate_evaluation_code(code)
         code.putln("if (!%s) {" % self.overlap())
         self.advance_lhs_data_ptr(code)
+        code.putln("} else {")
+        self.final_broadcast.init_broadcast_flag(code)
         code.putln("}")
 
         code.putln("/* Broadcast final RHS and LHS */")
         self.final_assignment_node.target.generate_evaluation_code(code)
-        self.final_broadcast.generate_evaluation_code(code)
+        self.final_broadcast.generate_broadcasting_code(code)
 
         code.putln("/* Final broadcasting assignment */")
         if self.lhs.type.ndim == self.rhs.type.ndim:
