@@ -230,7 +230,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
             }
         }
 
-        if (spec & (__Pyx_MEMVIEW_STRIDED | __Pyx_MEMVIEW_FOLLOW)) {
+        if (spec & __Pyx_MEMVIEW_FOLLOW) {
             Py_ssize_t stride = buf->strides[i];
             if (stride < 0)
                 stride = -stride;
