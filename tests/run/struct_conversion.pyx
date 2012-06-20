@@ -39,6 +39,21 @@ cdef union int_or_float:
     int n
     double x
 
+def test_union_constructor(n,x):
+    """
+    >>> test_union_constructor(1, None)
+    1
+    >>> test_union_constructor(None, 2.0)
+    2.0
+    """
+    cdef int_or_float u
+    if n is None:
+        u = int_or_float(x=x)
+        return u.x
+    else:
+        u = int_or_float(n=n)
+        return u.n
+
 cdef struct with_pointers:
     bint is_integral
     int_or_float data
