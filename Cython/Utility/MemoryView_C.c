@@ -629,16 +629,19 @@ __pyx_read_after_write({{memviewslice_name}} dst,
         __pyx_memviewslice_is_contig(slice, 'F', {{ndim}})
 
 ////////// MemviewSliceIsContig.proto //////////
+static CYTHON_INLINE
+int __pyx_memviewslice_is_contig2(const {{memviewslice_name}} mvs,
+                                  char order, int ndim, Py_ssize_t itemsize);
+
 static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
                                         char order, int ndim);
 
 ////////// MemviewSliceIsContig //////////
-static int
-__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
-                             char order, int ndim)
+static CYTHON_INLINE int
+__pyx_memviewslice_is_contig2(const {{memviewslice_name}} mvs,
+                              char order, int ndim, Py_ssize_t itemsize)
 {
     int i, index, step, start;
-    Py_ssize_t itemsize = mvs.memview->view.itemsize;
 
     if (order == 'F') {
         step = 1;
@@ -657,6 +660,13 @@ __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
     }
 
     return 1;
+}
+
+static int
+__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
+                             char order, int ndim)
+{
+    return __pyx_memviewslice_is_contig2(mvs, order, ndim, mvs.memview->view.itemsize);
 }
 
 /////////////// MemviewSliceIndex ///////////////

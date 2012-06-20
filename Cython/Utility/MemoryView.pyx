@@ -1406,14 +1406,13 @@ cdef bint __pyx_broadcast(Py_ssize_t *dst_shape,
         src_extent = input_shape[i]
         dst_extent = dst_shape[i + dim_offset]
 
-        if src_extent != dst_extent:
-            if src_extent == 1:
-                p_broadcast[0] = True
-                strides[i] = 0
-            elif dst_extent == 1:
-                dst_shape[i + dim_offset] = src_extent
-            else:
-                __pyx_err_extents(i, dst_shape[i], input_shape[i])
+        if src_extent == 1:
+            p_broadcast[0] = True
+            strides[i] = 0
+        elif dst_extent == 1:
+            dst_shape[i + dim_offset] = src_extent
+        elif src_extent != dst_extent:
+            __pyx_err_extents(i, dst_shape[i], input_shape[i])
 
 @cname('__pyx_verify_shapes')
 cdef bint verify_shapes({{memviewslice_name}} dst, {{memviewslice_name}} src,

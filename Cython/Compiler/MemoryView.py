@@ -113,6 +113,10 @@ def get_buf_flags(specs):
     else:
         return memview_strided_access
 
+def get_best_slice_order(memviewslice):
+    return "__pyx_get_best_slice_order(%s, %d)" % (memviewslice.result(),
+                                                   memviewslice.type.ndim)
+
 def insert_newaxes(memoryviewtype, n):
     axes = [('direct', 'strided')] * n
     axes.extend(memoryviewtype.axes)

@@ -254,8 +254,7 @@ class TempSliceMemory(ExprNodes.ExprNode):
         "Copy the slice struct and compute the contiguous strides"
         code.putln("%s.data = (char *) %s;" % (self.result(),
                                                self.data.result()))
-        order = "__pyx_get_best_slice_order(%s, %d)" % (self.target.result(),
-                                                        self.target.type.ndim)
+        order = MemoryView.get_best_slice_order(self.target)
         t = (self.result(), self.result(),
              self.dtype.declaration_code(""),
              self.target.type.ndim, order)
@@ -363,6 +362,48 @@ class TempSliceStruct(ExprNodes.ExprNode):
     def generate_result_code(self, code):
         pass
 
+class DetermineArrayLayoutNode(ExprNodes.ExprNode):
+    subexprs = []
+    def analyse_types(self, env):
+        self.type = PyrexTypes.c_int_type
+        self.is_temp = True
+
+    def generate_result_code(self, code):
+        memview_struct = MemoryView.memviewslice_cname
+        nops = len(self.operands)
+        code.begin_block()
+        ops = ", ".join("&%s" % op.result() for op in self.operands)
+        ndims = ", ".join(str(op.type.ndim) for op in self.operands)
+        itemsizes = ", ".join("sizeof(%s)" % op.type.dtype.declaration_code("")
+                                  for op in self.operands)
+
+        code.putln("const %s *__pyx_array_ops[%d] = { %s };" % (
+                                            memview_struct, nops, ops))
+        code.putln("int __pyx_ndims[%d] = { %s };" % (nops, ndims))
+        code.putln("Py_ssize_t __pyx_itemsizes[%d] = { %s };" %
+                                                    (nops, itemsizes))
+        code.putln("%s = __pyx_get_arrays_ordering("
+                        "__pyx_array_ops, __pyx_ndims, __pyx_itemsizes, %d);" %
+                                                        (self.result(), nops))
+        code.end_block()
+
+def all_c_or_f_contig(operands):
+    """
+    Return whether all operands are contiguous, or have mixed contiguity, as
+    well as whether they are C or F contiguous
+    """
+    all_c_contig = miniutils.all(op.type.is_c_contig for op in operands)
+    all_f_contig = miniutils.all(op.type.is_f_contig for op in operands)
+    any_c_contig = miniutils.any(op.type.is_c_contig for op in operands)
+    any_f_contig = miniutils.any(op.type.is_f_contig for op in operands)
+
+    broadcasting = len(set(op.type.ndim for op in operands)) > 1
+    all_c_contig = all_c_contig and not broadcasting
+    all_f_contig = all_f_contig and not broadcasting
+
+    return (all_c_contig or all_f_contig, any_c_contig and any_f_contig,
+            all_c_contig, all_f_contig)
+
 class SpecializationCaller(ExprNodes.ExprNode):
     """
     Wraps a mapped AST.
@@ -376,18 +417,18 @@ class SpecializationCaller(ExprNodes.ExprNode):
                       broadcasting
     """
 
-    subexprs = []
+    subexprs = ['array_layout']
 
     target = None
 
     def analyse_types(self, env):
-        all_c_contig = miniutils.all(
-            op.type.is_c_contig for op in self.operands)
-        all_f_contig = miniutils.all(
-            op.type.is_f_contig for op in self.operands)
-        self.all_contig = all_c_contig or all_f_contig
-
+        self.all_contig = all_c_or_f_contig(self.operands)[0]
         rhs_ndim = max(op.type.ndim for op in self.operands)
+
+        self.array_layout = DetermineArrayLayoutNode(self.pos,
+                                                     operands=self.operands)
+        self.array_layout.analyse_types(env)
+
         if not self.target:
             if self.dst.type.ndim >= rhs_ndim:
                 axes = self.dst.type.axes
@@ -442,38 +483,64 @@ class SpecializationCaller(ExprNodes.ExprNode):
     def result(self):
         return self.target.result()
 
+    def run_specializer(self, specializer):
+        codes = self.context.run(self.function, [specializer])
+        return iter(codes).next()
+
+    def put_specialization(self, code, specializer):
+        self.put_specialized_call(code, *self.run_specializer(specializer))
+
+    def _put_contig_specialization(self, code, if_clause, contig, mixed_contig):
+        if not mixed_contig:
+            code.putln("/* Contiguous specialization */")
+            not_broadcasting = "!%s" % self.broadcasting
+            if contig:
+                condition = not_broadcasting
+            else:
+                condition = "%s & __PYX_ARRAYS_ARE_CONTIG && %s" % (
+                    self.array_layout.result(), not_broadcasting)
+
+            code.putln("%s (%s) {" % (if_clause, condition))
+            self.put_specialization(code, specializers.ContigSpecializer)
+            code.putln("}")
+            if_clause = "else if"
+
+        return if_clause
+
+    def _put_strided_specializations(self, code, if_clause):
+        if if_clause != "if":
+            code.putln("else {")
+
+        code.putln("/* Strided specializations */")
+        code.putln("if (%s & __PYX_ARRAY_C_ORDER) {" %
+                                        self.array_layout.result())
+        self.put_specialization(code, specializers.StridedSpecializer)
+        code.putln("} else {")
+        self.put_specialization(code, specializers.StridedFortranSpecializer)
+        code.putln("}")
+
+        if if_clause != "if":
+            code.putln("}")
+
     def generate_result_code(self, code):
-        specializer_transforms = [
-            specializers.ContigSpecializer,
-            specializers.StridedSpecializer,
-        ]
+        contig, mixed_contig, c_contig, f_contig = all_c_or_f_contig(self.operands)
 
         self.context.original_cython_code = code
-        codes = self.context.run(self.function, specializer_transforms)
 
-        # select specializations
-        if_guard = "if"
-        for result in codes:
-            specializer = iter(result).next()
-            condition = self.condition(specializer)
-            if condition:
-                code.putln("%s (%s) {" % (if_guard, condition))
-                if_guard = " elif"
-            else:
-                code.putln(" else {")
+        if_clause = "if"
+        if_clause = self._put_contig_specialization(code, if_clause,
+                                                    contig, mixed_contig)
+        self._put_strided_specializations(code, if_clause)
 
-            self.put_specialized_call(code, *result)
-            code.put("}")
-
-        code.putln("")
-
-    def condition(self, specializer):
+    def contig_condition(self, specializer):
         if specializer.is_contig_specializer:
             if not self.all_contig:
                 # todo: implement a memoryview flag to quickly check whether
                 #       it is contig for each operand
                 return "0"
             return "!%s" % self.broadcasting
+
+        return MemoryView.get_best_slice_order(self.target)
 
     def put_specialized_call(self, code, specializer, specialized_function,
                              codewriter, result_code):
@@ -976,10 +1043,16 @@ def load_utilities(env):
                                        cython_scope=cython_scope, used=True)
 
     env.use_utility_code(overlap_utility)
+    env.use_utility_code(array_order_utility)
 
-broadcast_utility = MemoryView.load_memview_cy_utility(
-                "Broadcasting", context=MemoryView.context)
+def load_vector_utility(name, context, **kwargs):
+    return Code.TempitaUtilityCode.load(name, "Vector.c", context=context, **kwargs)
+
+context = MemoryView.context
+
+broadcast_utility = MemoryView.load_memview_cy_utility("Broadcasting",
+                                                       context=context)
 MemoryView.view_utility_code.requires.append(broadcast_utility)
-overlap_utility = MemoryView.load_memview_c_utility(
-        "ReadAfterWrite", context=MemoryView.context)
-        #proto_block='utility_code_proto_before_types')
+overlap_utility = MemoryView.load_memview_c_utility("ReadAfterWrite",
+                                                    context=context)
+array_order_utility = load_vector_utility("GetOrder", context)
