@@ -35,21 +35,21 @@ __pyx_get_arrays_ordering(const {{memviewslice_name}} **ops, const int *ndims,
             all_f_contig = 0;
             all_c_contig &= contig;
             seen_c_contig += all_c_contig;
-            seen_c_ish = 1;
+            seen_c_ish++;
         } else {
             all_c_contig = 0;
             all_f_contig &= contig;
             seen_f_contig += all_f_contig;
-            seen_f_ish = 1;
+            seen_f_ish++;
         }
     }
 
     if (all_c_contig || all_f_contig) {
         return __PYX_ARRAYS_ARE_CONTIG | all_c_contig;
     } else if (seen_c_contig + seen_f_contig == nops) {
-        return __PYX_ARRAYS_ARE_MIXED_CONTIG;
+        return __PYX_ARRAYS_ARE_MIXED_CONTIG | (seen_c_ish > seen_f_ish);
     } else if (seen_c_ish && seen_f_ish) {
-        return __PYX_ARRAYS_ARE_MIXED_STRIDED;
+        return __PYX_ARRAYS_ARE_MIXED_STRIDED | (seen_c_ish > seen_f_ish);
     } else {
         for (i = 0; i < nops; i++) {
             int dim = 0;
@@ -57,9 +57,9 @@ __pyx_get_arrays_ordering(const {{memviewslice_name}} **ops, const int *ndims,
                 dim = ndims[i] - 1;
 
             if (ops[i]->strides[dim] != itemsizes[i])
-                return __PYX_ARRAYS_ARE_STRIDED | seen_c_ish;
+                return __PYX_ARRAYS_ARE_STRIDED | !!seen_c_ish;
         }
     }
 
-    return __PYX_ARRAYS_ARE_INNER_CONTIG | seen_c_ish;
+    return __PYX_ARRAYS_ARE_INNER_CONTIG | !!seen_c_ish;
 }

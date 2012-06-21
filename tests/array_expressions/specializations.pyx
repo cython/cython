@@ -70,3 +70,26 @@ def test_contig_ff(_dtype_t[::1, :] m1, _dtype_t[::1, :] m2):
     m1[:] = m1 + m2 * m1
     return np.asarray(m1)
 
+@testcase
+def test_tiling(double[:, :] m1, double[:, :] m2):
+    """
+    >>> result = test_tiling(m.copy(), m.copy(order='F'))
+    >>> result
+    array([[   0.,    2.,    6.,   12.,   20.,   30.,   42.,   56.],
+           [  72.,   90.,  110.,  132.,  156.,  182.,  210.,  240.],
+           [ 272.,  306.,  342.,  380.,  420.,  462.,  506.,  552.],
+           [ 600.,  650.,  702.,  756.,  812.,  870.,  930.,  992.]])
+    >>> np.all(test_tiling(m.copy(order='F'), m.copy()) == result)
+    True
+
+    >>> result = test_tiling(m.copy()[::2], m.copy(order='F')[::2])
+    >>> result
+    array([[   0.,    2.,    6.,   12.,   20.,   30.,   42.,   56.],
+           [ 272.,  306.,  342.,  380.,  420.,  462.,  506.,  552.]])
+    >>> np.all(test_tiling(m.copy(order='F')[::2], m.copy()[::2]) == result)
+    True
+    """
+    m1[:] = m1 + m2 * m1
+    return np.asarray(m1)
+
+

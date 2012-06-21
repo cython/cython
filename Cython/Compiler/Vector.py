@@ -490,6 +490,16 @@ class SpecializationCaller(ExprNodes.ExprNode):
     def put_specialization(self, code, specializer):
         self.put_specialized_call(code, *self.run_specializer(specializer))
 
+    def is_c_order_code(self):
+        return "%s & __PYX_ARRAY_C_ORDER" % self.array_layout.result()
+
+    def put_ordered_specializations(self, code, c_specialization, f_specialization):
+        code.putln("if (%s) {" % self.is_c_order_code())
+        self.put_specialization(code, c_specialization)
+        code.putln("} else {")
+        self.put_specialization(code, f_specialization)
+        code.putln("}")
+
     def _put_contig_specialization(self, code, if_clause, contig, mixed_contig):
         if not mixed_contig:
             code.putln("/* Contiguous specialization */")
@@ -507,17 +517,29 @@ class SpecializationCaller(ExprNodes.ExprNode):
 
         return if_clause
 
-    def _put_strided_specializations(self, code, if_clause):
+    def _put_tiled_specialization(self, code, if_clause, mixed_contig):
+        if not mixed_contig:
+            code.putln("%s (%s & (__PYX_ARRAYS_ARE_MIXED_CONTIG|"
+                                 "__PYX_ARRAYS_ARE_MIXED_STRIDED)) {" %
+                                 (if_clause, self.array_layout.result()))
+
+        code.putln("/* Tiled specializations */")
+        self.put_ordered_specializations(code, specializers.CTiledStridedSpecializer,
+                                         specializers.FTiledStridedSpecializer)
+
+        if not mixed_contig:
+            code.putln("}")
+
+    def _put_strided_specializations(self, code, if_clause, mixed_contig):
+        if mixed_contig:
+            return
+
         if if_clause != "if":
             code.putln("else {")
 
         code.putln("/* Strided specializations */")
-        code.putln("if (%s & __PYX_ARRAY_C_ORDER) {" %
-                                        self.array_layout.result())
-        self.put_specialization(code, specializers.StridedSpecializer)
-        code.putln("} else {")
-        self.put_specialization(code, specializers.StridedFortranSpecializer)
-        code.putln("}")
+        self.put_ordered_specializations(code, specializers.StridedSpecializer,
+                                         specializers.StridedFortranSpecializer)
 
         if if_clause != "if":
             code.putln("}")
@@ -530,7 +552,9 @@ class SpecializationCaller(ExprNodes.ExprNode):
         if_clause = "if"
         if_clause = self._put_contig_specialization(code, if_clause,
                                                     contig, mixed_contig)
-        self._put_strided_specializations(code, if_clause)
+        if_clause = self._put_tiled_specialization(code, if_clause,
+                                                   mixed_contig)
+        self._put_strided_specializations(code, if_clause, mixed_contig)
 
     def contig_condition(self, specializer):
         if specializer.is_contig_specializer:
@@ -774,10 +798,9 @@ class ElementalNode(Nodes.StatNode):
         self.rhs.generate_evaluation_code(code)
 
         self.final_broadcast.generate_evaluation_code(code)
+        self.final_broadcast.init_broadcast_flag(code)
         code.putln("if (!%s) {" % self.overlap())
         self.advance_lhs_data_ptr(code)
-        code.putln("} else {")
-        self.final_broadcast.init_broadcast_flag(code)
         code.putln("}")
 
         code.putln("/* Broadcast final RHS and LHS */")
