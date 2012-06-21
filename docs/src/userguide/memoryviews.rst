@@ -171,8 +171,8 @@ As for Numpy, new axes can be introduced by indexing an array with ``None`` ::
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
 
-Comparison to the old Numpy buffer support
-==========================================
+Comparison to the old buffer support
+====================================
 
 You will probably prefer memoryviews to the older syntax because:
 
@@ -182,10 +182,8 @@ You will probably prefer memoryviews to the older syntax because:
 
 For example, this is the old syntax equivalent of the ``sum3d`` function above::
 
-    cimport numpy as cnp
-
-    cpdef int old_sum3d(cnp.ndarray[cnp.int_t, ndim=3] arr):
-        cdef int total = 0
+    cpdef int old_sum3d(object[int, ndim=3] arr):
+        cdef int I, J, K, total = 0
         I = arr.shape[0]
         J = arr.shape[1]
         K = arr.shape[2]
@@ -195,10 +193,11 @@ For example, this is the old syntax equivalent of the ``sum3d`` function above::
                     total += arr[i, j, k]
         return total
 
-Note that we can't use ``nogil`` for the ``ndarray`` version of the function as
-we could for the memoryview version of ``sum3d`` above.  However, even if we
-don't use ``nogil`` with the memoryview, it is significantly faster.  This is a
-output from an IPython session after importing both versions::
+Note that we can't use ``nogil`` for the buffer version of the function as we
+could for the memoryview version of ``sum3d`` above, because buffer objects
+are Python objects.  However, even if we don't use ``nogil`` with the
+memoryview, it is significantly faster.  This is a output from an IPython
+session after importing both versions::
 
     In [2]: import numpy as np
 
