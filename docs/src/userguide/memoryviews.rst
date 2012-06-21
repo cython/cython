@@ -182,7 +182,7 @@ You will probably prefer memoryviews to the older syntax because:
 
 For example, this is the old syntax equivalent of the ``sum3d`` function above::
 
-    cpdef int old_sum3d(object[int, ndim=3] arr):
+    cpdef int old_sum3d(object[int, ndim=3, mode='strided'] arr):
         cdef int I, J, K, total = 0
         I = arr.shape[0]
         J = arr.shape[1]
