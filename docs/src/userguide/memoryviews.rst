@@ -535,6 +535,35 @@ may be assigned directly to a memoryview slice::
 The arrays are indexable and slicable from Python space just like memoryview objects, and have the same
 attributes as memoryview objects.
 
+CPython array module
+====================
+
+An alternative to ``cython.view.array`` is the ``array`` module in the
+Python standard library.  In Python 3, the ``array.array`` type supports
+the buffer interface natively, so memoryviews work on top of it without
+additional setup.
+
+Starting with Cython 0.17, however, it is possible to use these arrays
+as buffer providers also in Python 2.  This is done through explicit
+typing (e.g. a cast or assignment) as follows::
+
+    from cpython cimport array
+
+    def sum_array(array.array arr):  # explicit typing required in Python 2
+        cdef int[:] view = arr
+        cdef int total
+        for i in range(view.shape[0]):
+            total += view[i]
+        return total
+
+Note that the explicit typing also enables support for the old buffer
+syntax for the array type.  Therefore, the following also works::
+
+    from cpython cimport array
+
+    def sum_array(array.array[int] arr):  # using old buffer syntax
+        ...
+
 Coercion to NumPy
 =================
 
