@@ -587,6 +587,13 @@ be be checked for being None as well::
     def func(double[:] myarray = None):
         print myarray is None
 
+If the function requires real memory views as input, it is therefore best to
+reject None input straight away in the signature, which is supported in Cython
+0.17 and later as follows::
+
+    def func(double[:] myarray not None):
+        ...
+
 Unlike object attributes of extension classes, memoryview slices are not
 initialized to None.
 
