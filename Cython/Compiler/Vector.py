@@ -425,8 +425,8 @@ class SpecializationCaller(ExprNodes.ExprNode):
         self.all_contig = all_c_or_f_contig(self.operands)[0]
         rhs_ndim = max(op.type.ndim for op in self.operands)
 
-        self.array_layout = DetermineArrayLayoutNode(self.pos,
-                                                     operands=self.operands)
+        self.array_layout = DetermineArrayLayoutNode(
+                            self.pos, operands=[self] + self.operands)
         self.array_layout.analyse_types(env)
 
         if not self.target:
