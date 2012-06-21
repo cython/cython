@@ -418,7 +418,8 @@ class SpecializationCaller(ExprNodes.ExprNode):
     """
 
     subexprs = ['array_layout']
-
+    _code_cache = {}
+    code_counter = 0
     target = None
 
     def analyse_types(self, env):
@@ -570,6 +571,23 @@ class SpecializationCaller(ExprNodes.ExprNode):
                              codewriter, result_code):
         proto, impl = result_code
 
+        code_counter = self.code_counter
+        filename = getattr(self.pos[0], 'filename', None)
+        if filename is not None:
+            key = self.pos[0].filename, proto, impl
+            if key in self._code_cache:
+                code_counter = self._code_cache[key]
+            else:
+                self._code_cache[key] = code_counter
+                SpecializationCaller.code_counter += 1
+        else:
+            SpecializationCaller.code_counter += 1
+
+        specialized_function.mangled_name = (
+            specialized_function.mangled_name % code_counter)
+        proto = proto % code_counter
+        impl = impl % ((code_counter,) * impl.count("%d"))
+
         function = self.function
         ndim = function.ndim
 
@@ -642,7 +660,6 @@ class ElementalNode(Nodes.StatNode):
     may_error = None
     rhs = None
     rhs_target = None
-    assignment_counter = 0
 
     def analyse_expressions(self, env):
         self.temp_nodes = []
@@ -704,9 +721,7 @@ class ElementalNode(Nodes.StatNode):
             body = b.assign(lhs_var, rhs_var)
 
         args = [b.array_funcarg(lhs_var), b.array_funcarg(rhs_var)]
-        func = b.function('final_assignment%d' % self.assignment_counter,
-                          body, args)
-        ElementalNode.assignment_counter += 1
+        func = b.function('final_assignment%d', body, args)
         return SpecializationCaller(self.pos, context=self.minicontext,
                                     operands=[self.rhs], function=func,
                                     dst=self.lhs, may_error=False,
@@ -988,7 +1003,6 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
 
     def visit_ModuleNode(self, node):
         self.minicontext = Context(typemapper=TypeMapper())
-        self.funccount = 0
         self.visitchildren(node)
         return node
 
@@ -1010,8 +1024,7 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             except minierror.UnmappableTypeError:
                 return None
 
-            name = '__pyx_array_expression%d' % self.funccount
-            self.funccount += 1
+            name = '__pyx_array_expression%d'
 
             if astmapper.may_error:
                 pos_args = (
