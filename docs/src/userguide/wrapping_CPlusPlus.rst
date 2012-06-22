@@ -9,17 +9,22 @@ Using C++ in Cython
 Overview
 =========
 
-Cython v0.13 introduces native support for most of the C++ language. This means that the previous tricks that were used to wrap C++ classes (as described in http://wiki.cython.org/WrappingCPlusPlus_ForCython012AndLower) are no longer needed. 
+Cython v0.13 introduces native support for most of the C++ language.
+This means that the previous tricks that were used to wrap C++ classes
+(as described in http://wiki.cython.org/WrappingCPlusPlus_ForCython012AndLower)
+are no longer needed.
 
-Wrapping C++ classes with Cython is now much more straightforward. This document describe in details the new way of wrapping C++ code.
+Wrapping C++ classes with Cython is now much more straightforward.
+This document describe in details the new way of wrapping C++ code.
 
 What's new in Cython v0.13 about C++
 ---------------------------------------------------
 
-For users of previous Cython versions, here is a brief overview of the main new features of Cython v0.13 regarding C++ support:
+For users of previous Cython versions, here is a brief overview of the
+main new features of Cython v0.13 regarding C++ support:
 
 * C++ objects can now be dynamically allocated with ``new`` and ``del`` keywords.
-* C++ objects can now be stack-allocated.
+* C++ objects can be stack-allocated.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes are supported.
 * Overloaded functions are supported.
@@ -107,29 +112,50 @@ This is pretty dumb, but should suffice to demonstrate the steps involved.
 Specify C++ language in setup.py
 ---------------------------------
 
-In Cython :file:`setup.py` scripts, one normally instantiates an Extension
-object. To make Cython generate and compile a C++ source, you just need
-to add the keyword ``language="c++"`` to your Extension construction statement, as in::
+The best way to build Cython code from :file:`setup.py` scripts is the
+``cythonize()`` function.  To make Cython generate and compile C++ code
+with distutils, you just need to pass the option ``language="c++"``::
 
    from distutils.core import setup
-   from distutils.extension import Extension
-   from Cython.Distutils import build_ext
+   from Cython.Build import cythonize
 
-   setup(ext_modules=[Extension(
-                      "rectangle",                 # name of extension
-                      ["rectangle.pyx", "Rectangle.cpp"], #  our Cython source
-                      language="c++")],  # causes Cython to create C++ source
-         cmdclass={'build_ext': build_ext})
+   setup(ext_modules = cythonize(
+              "rect.pyx",                 # our Cython source
+              sources=["Rectangle.cpp"],  # additional source file(s)
+              language="c++",             # generate C++ code
+         ))
 
-Cython will generate and compile the :file:`rectangle.cpp` file (from the
-:file:`rectangle.pyx`), then it will compile :file:`Rectangle.cpp`
+Cython will generate and compile the :file:`rect.cpp` file (from the
+:file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
 (implementation of the ``Rectangle`` class) and link both objects files
-together into :file:`rectangle.so`, which you can then import in Python using
-``import rectangle`` (if you forget to link the :file:`Rectangle.o`, you will
+together into :file:`rect.so`, which you can then import in Python using
+``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
 
+The options can also be passed directly from the source file, which is
+often preferable.  Starting with version 0.17, Cython also allows to
+pass external source files into the ``cythonize()`` command this way.
+Here is a simplified setup.py file::
 
-Alternatively, one can also use the ``cython`` command-line utility to generate a C++ ``.cpp`` file, and then compile it into a python extension. C++ mode for the ``cython`` command is turned on with the ``--cplus`` option.
+   from distutils.core import setup
+   from Cython.Build import cythonize
+
+   setup(
+       name = "rectangleapp",
+       ext_modules = cythonize('*.pyx'),
+   )
+
+And in the .pyx source file, write this into the first comment block, before
+any source code, to compile it in C++ mode and link it statically against the
+:file:`Rectange.cpp` code file::
+
+   # distutils: language = c++
+   # distutils: sources = Rectangle.cpp
+
+To compile manually (e.g. using ``make``), the ``cython`` command-line
+utility can be used to generate a C++ ``.cpp`` file, and then compile it
+into a python extension.  C++ mode for the ``cython`` command is turned
+on with the ``--cplus`` option.
 
 Declaring a C++ class interface
 --------------------------------
@@ -145,7 +171,8 @@ This will make the C++ class def for Rectangle available. Note the namespace dec
 Declare class with cdef cppclass
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Now, let's add the Rectangle class to this extern from block - just copy the class name from Rectangle.h and adjust for Cython syntax, so now it becomes::
+Now, let's add the Rectangle class to this extern from block - just copy the
+class name from Rectangle.h and adjust for Cython syntax, so now it becomes::
 
     cdef extern from "Rectangle.h" namespace "shapes":
         cdef cppclass Rectangle:
@@ -170,25 +197,32 @@ Declare a var with the wrapped C++ class
 Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
 
     cdef Rectangle *rec = new Rectangle(1, 2, 3, 4)
-    cdef int recLength = rec.getLength()
-    ...
-    del rec #delete heap allocated object
+    try:
+        recLength = rec.getLength()
+        ...
+    finally:
+        del rec     # delete heap allocated object
 
-It's also possible to declare a stack allocated object, but it's necessary to have a "default" constructor::
+It's also possible to declare a stack allocated object, as long as it has
+a "default" constructor::
 
     cdef extern from "Foo.h":
         cdef cppclass Foo:
             Foo()
 
-    cdef Foo foo
+    def func():
+        cdef Foo foo
+        ...
 
-Note that, like C++, if the class has only one constructor and it is a default one, it's not necessary to declare it.
+Note that, like C++, if the class has only one constructor and it
+is a default one, it's not necessary to declare it.
 
 Create Cython wrapper class
 ----------------------------
 
-At this point, we have exposed into our pyx file's namespace the interface of the C++ Rectangle type. Now, we need to make
-this accessible from external Python code (which is our whole point).
+At this point, we have exposed into our pyx file's namespace the interface
+of the C++ Rectangle type.  Now, we need to make this accessible from
+external Python code (which is our whole point).
 
 Common programming practice is to create a Cython extension type which
 holds a C++ instance pointer as an attribute ``thisptr``, and create a bunch of
@@ -227,7 +261,8 @@ We describe here all the C++ features that were not discussed in the above tutor
 Overloading
 ------------
 
-Overloading is very simple. Just declare the method with different parameters and use any of them::
+Overloading is very simple. Just declare the method with different parameters
+and use any of them::
 
     cdef extern from "Foo.h":
         cdef cppclass Foo:
@@ -266,8 +301,8 @@ Cython uses C++ for overloading operators::
 
 Nested class declarations
 --------------------------
-C++ allows nested class declaration. Class declarations can also be nested in Cython::
-
+C++ allows nested class declaration. Class declarations can also be
+nested in Cython::
 
     cdef extern from "<vector>" namespace "std":
         cdef cppclass vector[T]:
@@ -290,20 +325,29 @@ Note that the nested class is declared with a ``cppclass`` but without a ``cdef`
 C++ operators not compatible with Python syntax
 ------------------------------------------------
 
-Cython try to keep a syntax as close as possible to standard Python. Because of this, certain C++ operators, like the preincrement ``++foo`` or the dereferencing operator ``*foo`` cannot be used with the same syntax as C++. Cython provides functions replacing these operators in a special module ``cython.operator``. The functions provided are:
+Cython try to keep a syntax as close as possible to standard Python.
+Because of this, certain C++ operators, like the preincrement ``++foo``
+or the dereferencing operator ``*foo`` cannot be used with the same
+syntax as C++. Cython provides functions replacing these operators in
+a special module ``cython.operator``. The functions provided are:
 
-* ``cython.operator.dereference`` for dereferencing. ``dereference(foo)`` will produce the C++ code ``*foo``
-* ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)`` will produce the C++ code ``++foo``
+* ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
+  will produce the C++ code ``*foo``
+* ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
+  will produce the C++ code ``++foo``
 * ...
 
-These functions need to be cimported. Of course, one can use a ``from ... cimport ... as`` to have shorter and more readable functions. For example: ``from cython.operator cimport dereference as deref``.
+These functions need to be cimported. Of course, one can use a
+``from ... cimport ... as`` to have shorter and more readable functions.
+For example: ``from cython.operator cimport dereference as deref``.
 
 Templates
 ----------
 
 Cython uses a bracket syntax for templating. A simple example for wrapping C++ vector::
 
-    from cython.operator cimport dereference as deref, preincrement as inc #dereference and increment operators
+    # import dereference and increment operators
+    from cython.operator cimport dereference as deref, preincrement as inc
 
     cdef extern from "<vector>" namespace "std":
         cdef cppclass vector[T]:
@@ -331,12 +375,15 @@ Cython uses a bracket syntax for templating. A simple example for wrapping C++ v
 
     del v
 
-Multiple template parameters can be defined as a list, such as [T, U, V] or [int, bool, char]. 
+Multiple template parameters can be defined as a list, such as [T, U, V]
+or [int, bool, char].
 
 Standard library
 -----------------
 
-Most of the containers of the C++ Standard Library have been declared in pxd files  located in ``/Cython/Includes/libcpp``. These containers are: deque, list, map,  pair,  queue,  set,  stack,  vector.
+Most of the containers of the C++ Standard Library have been declared
+in pxd files located in ``/Cython/Includes/libcpp``.  These containers
+are: deque, list, map,  pair,  queue,  set,  stack,  vector.
 
 For example::
 
@@ -349,7 +396,8 @@ For example::
     for i in range(10):
         print vect[i]
         
-The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on how to declare C++ classes.
+The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
+how to declare C++ classes.
 
 Exceptions
 -----------
@@ -472,6 +520,8 @@ Question: How do you declare and call a function that takes a reference as an ar
 C++ left-values
 ----------------
 
-C++ allows functions returning a reference to be left-values. This is currently not supported in Cython. ``cython.operator.dereference(foo)`` is also not considered a left-value.
+C++ allows functions returning a reference to be left-values.  This is currently
+not supported in Cython. ``cython.operator.dereference(foo)`` is also not
+considered a left-value.
 
 
