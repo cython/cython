@@ -63,6 +63,7 @@ cdef class CreateClosureClasses(CythonTransform):
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack
     cdef bint nogil
+    cdef bint nogil_declarator_only
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef visit_cython_attribute(self, node)
