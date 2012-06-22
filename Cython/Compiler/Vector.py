@@ -410,6 +410,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
 
     context: Context attribute
     operands: all participating array views
+    scalar_operands: non-array operands
     function: miniast function wrapping the array expression
 
     During code generation:
@@ -621,6 +622,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
             else:
                 args.append(result)
 
+        args.extend(scalar_arg.result() for scalar_arg in self.scalar_operands)
         call = "%s(%s)" % (specialized_function.mangled_name, ", ".join(args))
 
         if self.may_error:
@@ -652,9 +654,9 @@ class ElementalNode(Nodes.StatNode):
     may_error: indicates whether the expression may raise a sudden error
     """
 
-    child_attrs = ['operands', 'temp_nodes', 'lhs', 'check_overlap', 'rhs',
-                   'final_assignment_node', 'broadcast', 'final_broadcast',
-                   'temp_dst']
+    child_attrs = ['operands', 'scalar_operands', 'temp_nodes', 'lhs',
+                   'check_overlap', 'rhs', 'final_assignment_node',
+                   'broadcast', 'final_broadcast', 'temp_dst']
 
     check_overlap = None
     may_error = None
@@ -672,7 +674,9 @@ class ElementalNode(Nodes.StatNode):
 
         self.rhs = SpecializationCaller(
             self.operands[0].pos, context=self.minicontext,
-            dst=self.lhs, operands=self.operands, function=self.rhs_function,
+            dst=self.lhs, operands=self.operands,
+            scalar_operands=self.scalar_operands,
+            function=self.rhs_function,
             may_error=self.may_error)
         self.rhs.analyse_types(env)
 
@@ -716,7 +720,11 @@ class ElementalNode(Nodes.StatNode):
         rhs_var = b.variable(typemapper.map_type(rhs_type, wrap=True), 'rhs')
 
         if self.lhs.type.dtype.is_pyobject:
-            body = b.assign(b.decref(lhs_var), b.incref(rhs_var))
+            rhs_tmp = b.temp(rhs_var.type.dtype)
+            body = b.stats(b.assign(rhs_tmp, rhs_var),
+                           b.decref(lhs_var),
+                           b.incref(rhs_tmp),
+                           b.assign(lhs_var, rhs_tmp))
         else:
             body = b.assign(lhs_var, rhs_var)
 
@@ -724,6 +732,7 @@ class ElementalNode(Nodes.StatNode):
         func = b.function('final_assignment%d', body, args)
         return SpecializationCaller(self.pos, context=self.minicontext,
                                     operands=[self.rhs], function=func,
+                                    scalar_operands=[],
                                     dst=self.lhs, may_error=False,
                                     target=self.lhs.wrap_in_clone_node())
 
@@ -787,6 +796,9 @@ class ElementalNode(Nodes.StatNode):
         code.putln("/* Evaluate operands */")
         for op in self.operands:
             op.generate_evaluation_code(code)
+
+        for scalar_op in self.scalar_operands:
+            scalar_op.generate_evaluation_code(code)
 
         code.putln("/* Check overlapping memory */")
         self.check_overlap.generate_evaluation_code(code)
@@ -908,6 +920,8 @@ class ElementalMapper(specializers.ASTMapper):
         self.env = env
         # operands to the function in callee space
         self.operands = []
+        # scalar operands to the function in callee space
+        self.scalar_operands = []
         # miniast function arguments to the function
         self.funcargs = []
         self.error = False
@@ -931,11 +945,17 @@ class ElementalMapper(specializers.ASTMapper):
 
         b = self.astbuilder
 
-        node = node.coerce_to_temp(self.env)
-        varname = '__pyx_op%d' % len(self.operands)
-        self.operands.append(node)
-
         minitype = self.map_type(node, wrap=True)
+        if node.type.is_memoryviewslice:
+            node = node.coerce_to_temp(self.env)
+            self.operands.append(node)
+        elif node.is_literal:
+            return b.constant(node.value, type=minitype)
+        else:
+            node = node.coerce_to_simple(self.env)
+            self.scalar_operands.append(node)
+
+        varname = '__pyx_op%d' % (len(self.operands) + len(self.scalar_operands))
         if node.type.is_memoryviewslice:
             funcarg = b.array_funcarg(b.variable(minitype, varname))
             funcarg.type.ndim = min(funcarg.type.ndim, self.max_ndim)
@@ -1040,7 +1060,9 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
                                   posinfo=posinfo)
 
             astmapper.operands.remove(lhs)
-            node = ElementalNode(node.pos, operands=astmapper.operands,
+            node = ElementalNode(node.pos,
+                                 operands=astmapper.operands,
+                                 scalar_operands=astmapper.scalar_operands,
                                  rhs_function=function,
                                  minicontext=self.minicontext,
                                  lhs=lhs)

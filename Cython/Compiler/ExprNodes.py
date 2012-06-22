@@ -8080,7 +8080,7 @@ class BinopNode(ExprNode):
             dtype1 = type1.dtype
 
         if type2.is_memoryviewslice:
-            type1.assert_direct_dims(self.pos)
+            type2.assert_direct_dims(self.pos)
             ndim2 = type2.ndim
             dtype2 = type2.dtype
 

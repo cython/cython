@@ -112,3 +112,64 @@ def test_overlapping_memory(fused_dtype_t[:] m1, fused_dtype_t[:, :] m2):
     m2[...] = m2[::-1, :] + m1
     m1[1:] = m1[:-1]
 
+@testcase
+def test_constant_scalar_complex_arguments(double complex[:] m):
+    """
+    >>> test_constant_scalar_complex_arguments(np.arange(10, dtype=np.complex128))
+    array([  5.+4.j,   7.+4.j,   9.+4.j,  11.+4.j,  13.+4.j,  15.+4.j,
+            17.+4.j,  19.+4.j,  21.+4.j,  23.+4.j])
+    """
+    m[:] = m + m + (5 + 4j)
+    return np.asarray(m)
+
+@testcase
+def test_constant_scalar_double_arguments(double[:] m):
+    """
+    >>> test_constant_scalar_double_arguments(np.arange(10, dtype=np.double))
+    array([  5.,   7.,   9.,  11.,  13.,  15.,  17.,  19.,  21.,  23.])
+    """
+    m[:] = m + m + 5.0
+    return np.asarray(m)
+
+@testcase
+def test_constant_external_arguments(np.uint64_t[:] m):
+    """
+    >>> test_constant_external_arguments(np.arange(10, dtype=np.uint64))
+    array([ 5,  7,  9, 11, 13, 15, 17, 19, 21, 23], dtype=uint64)
+    """
+    m[:] = m + m + 5
+    return np.asarray(m)
+
+@testcase
+def test_constant_object_arguments(object[:] m):
+    """
+    >>> test_constant_object_arguments(np.arange(10, dtype=np.object))
+    array([5, 7, 9, 11, 13, 15, 17, 19, 21, 23], dtype=object)
+    """
+    m[:] = m + m + 5
+    return np.asarray(m)
+
+cdef int func1():
+    print "func1"
+    return 4
+
+cdef int func2():
+    print "func2"
+    return 3
+
+cdef int func3():
+    print "func3"
+    return 2
+
+@testcase
+def test_evaluate_operands_once(int[:] m):
+    """
+    >>> test_evaluate_operands_once(np.arange(10, dtype='i'))
+    func1
+    func2
+    func3
+    array([ 5,  7,  9, 11, 13, 15, 17, 19, 21, 23], dtype=int32)
+    """
+    m[:] = m + func1() + m + func2()
+    m[:] = -func3() + m
+    return np.asarray(m)
