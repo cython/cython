@@ -173,3 +173,15 @@ def test_evaluate_operands_once(int[:] m):
     m[:] = m + func1() + m + func2()
     m[:] = -func3() + m
     return np.asarray(m)
+
+@testcase
+def test_unop_simple(fused_dtype_t[:] m):
+    """
+    >>> test_unop_simple(np.arange(10, dtype=np.longdouble))
+    array([-2.0, -2.0, -2.0, -2.0, -2.0, -2.0, -2.0, -2.0, -2.0, -2.0], dtype=float128)
+    >>> test_unop_simple(np.arange(10, dtype=np.complex128))
+    array([-2.+0.j, -2.+0.j, -2.+0.j, -2.+0.j, -2.+0.j, -2.+0.j, -2.+0.j,
+           -2.+0.j, -2.+0.j, -2.+0.j])
+    """
+    m[:] = -m --m - 2
+    return np.asarray(m)

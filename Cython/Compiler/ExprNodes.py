@@ -790,6 +790,10 @@ class ExprNode(Node):
         else:
             return self
 
+    def error(self, mess):
+        error(self.pos, mess)
+        self.type = PyrexTypes.error_type
+        self.result_code = "<error>"
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -7186,8 +7190,38 @@ class UnopNode(ExprNode):
             self.is_temp = 1
         elif self.is_cpp_operation():
             self.analyse_cpp_operation(env)
+        elif self.operand.type.is_memoryviewslice:
+            self.analyse_memoryview_operation(env)
         else:
             self.analyse_c_operation(env)
+
+    def type_error(self):
+        if not self.operand.type.is_error:
+            error(self.pos, "Invalid operand type for '%s' (%s)" %
+                                (self.operator, self.operand.type))
+        self.type = PyrexTypes.error_type
+
+    def analyse_cpp_operation(self, env):
+        type = self.operand.type
+        if type.is_ptr:
+            type = type.base_type
+        function = type.scope.lookup("operator%s" % self.operator)
+        if not function:
+            error(self.pos, "'%s' operator not defined for %s"
+            % (self.operator, type))
+            self.type_error()
+            return
+        func_type = function.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        self.type = func_type.return_type
+
+    def analyse_memoryview_operation(self, env):
+        if self.operator not in elementwise_unop_operators:
+            self.error("Operator must be elementwise (got '%s'" % self.operator)
+        else:
+            self.type = self.operand.type
+            self.is_elemental = True
 
     def check_const(self):
         return self.operand.check_const()
@@ -7219,28 +7253,6 @@ class UnopNode(ExprNode):
                 self.operand.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
-
-    def type_error(self):
-        if not self.operand.type.is_error:
-            error(self.pos, "Invalid operand type for '%s' (%s)" %
-                (self.operator, self.operand.type))
-        self.type = PyrexTypes.error_type
-
-    def analyse_cpp_operation(self, env):
-        type = self.operand.type
-        if type.is_ptr:
-            type = type.base_type
-        function = type.scope.lookup("operator%s" % self.operator)
-        if not function:
-            error(self.pos, "'%s' operator not defined for %s"
-                % (self.operator, type))
-            self.type_error()
-            return
-        func_type = function.type
-        if func_type.is_ptr:
-            func_type = func_type.base_type
-        self.type = func_type.return_type
-
 
 class NotNode(ExprNode):
     #  'not' operator
@@ -7424,11 +7436,6 @@ class AmpersandNode(ExprNode):
 
     def check_const(self):
         return self.operand.check_const_addr()
-
-    def error(self, mess):
-        error(self.pos, mess)
-        self.type = PyrexTypes.error_type
-        self.result_code = "<error>"
 
     def calculate_result_code(self):
         return "(&%s)" % self.operand.result()
@@ -7968,6 +7975,7 @@ elementwise_operators = {
     '^': operator.xor,
 }
 
+elementwise_unop_operators = set(('+', '-', '~'))
 
 def get_compile_time_binop(node):
     func = compile_time_binary_operators.get(node.operator)

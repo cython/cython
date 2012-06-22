@@ -865,12 +865,13 @@ class ElementalNode(Nodes.StatNode):
                 node.generate_disposal_code(code)
                 node.free_temps(code)
 
-def need_wrapper_node(type):
+def need_wrapper_node(node):
     """
     Return whether a Cython node that needs to be mapped to a miniast Node,
     should be mapped or wrapped (i.e., should minivect or Cython generate
     the code to evaluate the expression?).
     """
+    type = node.type
     while True:
         if type.is_ptr:
             type = type.base_type
@@ -894,6 +895,13 @@ class CythonASTInMiniastTransform(Visitor.VisitorTransform):
         self.env = env
         self.operands = []
 
+    def visit_UnopNode(self, node):
+        dtype = get_dtype(node.type)
+        node = type(node)(node.pos, type=dtype, operator=node.operator,
+                          operand=self.visit(node.operand))
+        node.analyse_types(self.env)
+        return node
+
     def visit_BinopNode(self, node):
         dtype = get_dtype(node.type)
         node = type(node)(node.pos, type=dtype, operator=node.operator,
@@ -906,6 +914,22 @@ class CythonASTInMiniastTransform(Visitor.VisitorTransform):
         node = OperandNode(node.pos, type=get_dtype(node.type), node=node)
         self.operands.append(node)
         return node
+
+def elemental_dispatcher(f):
+    def wrapper_method(self, node):
+        if not node.is_elemental:
+            return self.register_operand(node)
+
+        minitype = self.map_type(node, wrap=True)
+        if need_wrapper_node(node):
+            self.may_error = True
+            return self.register_wrapper_node(node)
+
+        return f(self, node, minitype)
+
+    wrapper_method.__name__ = f.__name__
+    wrapper_method.__doc__ = f.__doc__
+    return wrapper_method
 
 class ElementalMapper(specializers.ASTMapper):
     """
@@ -974,7 +998,6 @@ class ElementalMapper(specializers.ASTMapper):
 
         transform = CythonASTInMiniastTransform(self.env)
         try:
-
             node = transform.visit(node)
         except CompileError, e:
             error(e.position, e.message_only)
@@ -1000,12 +1023,13 @@ class ElementalMapper(specializers.ASTMapper):
         return self.astbuilder.assign(self.visit(node.lhs.dst),
                                       self.visit(node.rhs))
 
-    def visit_BinopNode(self, node):
-        minitype = self.map_type(node, wrap=True)
-        if need_wrapper_node(node.type):
-            self.may_error = True
-            return self.register_wrapper_node(node)
+    @elemental_dispatcher
+    def visit_UnopNode(self, node, minitype):
+        return self.astbuilder.unop(minitype, node.operator,
+                                    self.visit(node.operand))
 
+    @elemental_dispatcher
+    def visit_BinopNode(self, node, minitype):
         op1 = self.visit(node.operand1)
         op2 = self.visit(node.operand2)
         return self.astbuilder.binop(minitype, node.operator, op1, op2)
