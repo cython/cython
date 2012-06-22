@@ -1,0 +1,33 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; assert a.test() == 43"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## a.pyx ########
+
+# distutils: sources=alib.c
+
+cdef extern from "alib.h":
+    int c_function(int x)
+
+def test():
+    return c_function(42)
+
+
+######## alib.c ########
+
+int c_function(int x) {
+    return x + 1;
+}
+
+######## alib.h ########
+
+int c_function(int x);

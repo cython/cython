@@ -21,7 +21,20 @@ from Cython.Utils import cached_function, cached_method, path_exists
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
     
 os.path.join = cached_function(os.path.join)
-    
+
+if sys.version_info[0] < 3:
+    # stupid Py2 distutils enforces str type in list of sources
+    _fs_encoding = sys.getfilesystemencoding()
+    if _fs_encoding is None:
+        _fs_encoding = sys.getdefaultencoding()
+    def encode_filename_in_py2(filename):
+        if isinstance(filename, unicode):
+            return filename.encode(_fs_encoding)
+        return filename
+else:
+    def encode_filename_in_py2(filename):
+        return filename
+
 def extended_iglob(pattern):
     if '**/' in pattern:
         seen = set()
@@ -529,6 +542,13 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
                 sources = [file]
                 if template is not None:
                     sources += template.sources[1:]
+                if 'sources' in kwds:
+                    # allow users to add .c files etc.
+                    for source in kwds['sources']:
+                        source = encode_filename_in_py2(source)
+                        if source not in sources:
+                            sources.append(source)
+                    del kwds['sources']
                 module_list.append(exn_type(
                         name=module_name,
                         sources=sources,
