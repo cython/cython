@@ -646,7 +646,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         fingerprint_file = os.path.join(
-            options.cache, fingerprint + '-' + os.path.basename(c_file) + '.gz')
+            options.cache, "%s-%s.gz" % (os.path.basename(c_file), fingerprint)
         if os.path.exists(fingerprint_file):
             if not quiet:
                 print("Found compiled %s in cache" % pyx_file)
