@@ -71,7 +71,7 @@ def put_init_entry(mv_cname, code):
 def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
                                 have_gil=False, first_assignment=True):
     "We can avoid decreffing the lhs if we know it is the first assignment"
-    assert rhs.type.is_memoryviewslice
+    assert rhs.type.is_memoryviewslice, rhs.type
 
     pretty_rhs = rhs.result_in_temp() or rhs.is_simple()
     if pretty_rhs:

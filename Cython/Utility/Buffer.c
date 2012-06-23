@@ -928,6 +928,10 @@ static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type)
             else
                 *buf = 'g';
             break;
+        case 'O':
+            *buf = 'O';
+            break;
+        /* Note: pointers are disallowed at compile time */
     }
 
     return result;

@@ -251,7 +251,27 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format,
 
     return result
 
+@cname('__pyx_array_new_simple')
+cdef array array_cwrapper_simple(Py_ssize_t *shape, int ndim, Py_ssize_t itemsize,
+                                 object format, char mode):
+    cdef int i
+    cdef Py_ssize_t size = itemsize
 
+    for i in range(ndim):
+        size *= shape[i]
+
+    cdef char *buf = <char *> malloc(size)
+    if buf == NULL:
+        raise MemoryError
+
+    if mode == 'C':
+        dst_mode = "c"
+    else:
+        dst_mode = "fortran"
+    cdef array result = array_cwrapper(tuple([shape[i] for i in range(ndim)]),
+                                       itemsize, format, dst_mode, buf)
+    result.callback_free_data = free
+    return result
 #
 ### Memoryview constants and cython.view.memoryview class
 #

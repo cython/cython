@@ -97,22 +97,6 @@ def test_arbitrary_dtypes(fused_dtype_t[:] m1, fused_dtype_t[::1] m2):
     return np.asarray(m1)
 
 @testcase
-def test_overlapping_memory(fused_dtype_t[:] m1, fused_dtype_t[:, :] m2):
-    """
-    >>> m1, m2 = operands('l')
-    >>> m2 = m2[:2]
-    >>> test_overlapping_memory(m1, m2)
-    >>> m1
-    array([0, 0, 1, 2, 3, 4, 5, 6, 7, 8])
-    >>> m2
-    array([[10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
-           [ 0,  2,  4,  6,  8, 10, 12, 14, 16, 18]])
-    """
-    # test reads after writes
-    m2[...] = m2[::-1, :] + m1
-    m1[1:] = m1[:-1]
-
-@testcase
 def test_constant_scalar_complex_arguments(double complex[:] m):
     """
     >>> test_constant_scalar_complex_arguments(np.arange(10, dtype=np.complex128))

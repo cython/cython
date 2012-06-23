@@ -353,14 +353,48 @@ class UnbroadcastDestNode(ExprNodes.ExprNode):
         pass
 
 class TempSliceStruct(ExprNodes.ExprNode):
+    """
+    Alloate a temporary memoryview slice (only the struct temporary).
+    """
     subexprs = []
     def analyse_types(self, env):
         self.type = PyrexTypes.MemoryViewSliceType(
             self.dtype, self.axes[-self.ndim:])
         self.is_temp = True
 
+    def generate_assignment_code(self, rhs, code):
+        code.put_incref_memoryviewslice(rhs.result(),
+                                        have_gil=not self.in_nogil_context)
+        code.putln("%s = %s;" % (self.result(), rhs.result()))
+        rhs.generate_disposal_code(code)
+        rhs.free_temps(code)
+
     def generate_result_code(self, code):
         pass
+
+class TempCythonArrayNode(ExprNodes.ExprNode):
+    """
+    Attributes:
+        dest_array_type
+        rhs: the broadcasted rhs node
+    """
+    subexprs = ['format_string']
+    def analyse_types(self, env):
+        self.dtype = self.dest_array_type.dtype
+        self.type = PyrexTypes.py_object_type
+        self.format_string = ExprNodes.FormatStringNode(
+                                self.pos, dtype=self.dtype)
+        self.format_string.analyse_types(env)
+        self.is_temp = True
+
+    def generate_result_code(self, code):
+        t = (self.result(), self.rhs.result(), self.rhs.type.ndim,
+             self.dtype.declaration_code(""), self.format_string.result(),
+             MemoryView.get_best_slice_order(self.rhs))
+        code.putln("%s = (PyObject *) __pyx_array_new_simple("
+                        "&%s.shape[0], %d, sizeof(%s), %s, %s);" % t)
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result())
 
 class DetermineArrayLayoutNode(ExprNodes.ExprNode):
     subexprs = []
@@ -649,27 +683,43 @@ class ElementalNode(Nodes.StatNode):
            read
         2) Some error may occur while evaluating the rhs
 
-    rhs: entire RHS expression node
-    sources: list of broadcastable array operands, excluding the LHS
-    may_error: indicates whether the expression may raise a sudden error
+    Attributes:
+        rhs: entire RHS expression node
+        sources: list of broadcastable array operands, excluding the LHS
+        may_error: indicates whether the expression may raise a sudden error
+
+    For expressions like 'c = a + b', i.e., in case of no slice assignment
+        acquire_slice:
+            This assignment creates a cython.view.array and acquires a
+            memoryview slice from that in self.lhs (a temporary)
+        final_lhs_assignment:
+            Assignment of temporary memoryview slice of a
+            cython.view.array to the final lhs ('c').
     """
 
     child_attrs = ['operands', 'scalar_operands', 'temp_nodes', 'lhs',
                    'check_overlap', 'rhs', 'final_assignment_node',
-                   'broadcast', 'final_broadcast', 'temp_dst']
+                   'broadcast', 'final_broadcast', 'temp_dst',
+                   'acquire_slice', 'final_lhs_assignment']
 
     check_overlap = None
+    temp_dst = None
     may_error = None
     rhs = None
     rhs_target = None
+    final_broadcast = None
+    final_assignment_node = None
+
+    acquire_slice = None
+    final_lhs_assignment = None
 
     def analyse_expressions(self, env):
         self.temp_nodes = []
         self.max_ndim = max(op.type.ndim for op in self.operands)
 
-        # self.lhs is an UnbroadcastDestNode
-        self.lhs = self.lhs.lhs
-        #self.lhs.analyse_types(env)
+        if isinstance(self.lhs, UnbroadcastDestNode):
+            self.lhs = self.lhs.lhs
+
         self.lhs = self.lhs.coerce_to_simple(env)
 
         self.rhs = SpecializationCaller(
@@ -685,28 +735,29 @@ class ElementalNode(Nodes.StatNode):
         for i, operand in enumerate(self.operands):
             operand.analyse_types(env)
 
-        self.check_overlap = CheckOverlappingMemoryNode(
-                    self.pos, dst=self.lhs.wrap_in_clone_node(),
-                    operands=self.operands)
-        self.check_overlap.analyse_types(env)
+        if not self.acquire_slice:
+            self.check_overlap = CheckOverlappingMemoryNode(
+                        self.pos, dst=self.lhs.wrap_in_clone_node(),
+                        operands=self.operands)
+            self.check_overlap.analyse_types(env)
 
-        self.temp_dst = TempSliceMemory(self.rhs.pos, target=self.rhs)
-        self.temp_dst.analyse_types(env)
+            self.final_assignment_node = self.final_assignment()
+            self.final_assignment_node.analyse_types(env)
+            self.temp_nodes.append(self.final_assignment_node.target)
+
+            self.final_broadcast = BroadcastNode(
+                self.pos, operands=[self.rhs], max_ndim=self.lhs.type.ndim,
+                dst_slice=self.lhs, init_shape=False)
+            self.final_broadcast.analyse_types(env)
+
+            self.temp_dst = TempSliceMemory(self.rhs.pos, target=self.rhs)
+            self.temp_dst.analyse_types(env)
 
         self.broadcast = BroadcastNode(self.pos,
                                        operands=self.operands,
                                        max_ndim=self.max_ndim,
                                        dst_slice=self.rhs)
         self.broadcast.analyse_types(env)
-
-        self.final_assignment_node = self.final_assignment()
-        self.final_assignment_node.analyse_types(env)
-        self.temp_nodes.append(self.final_assignment_node.target)
-
-        self.final_broadcast = BroadcastNode(
-                self.pos, operands=[self.rhs], max_ndim=self.lhs.type.ndim,
-                dst_slice=self.lhs, init_shape=False)
-        self.final_broadcast.analyse_types(env)
 
     def final_assignment(self):
         b = self.minicontext.astbuilder
@@ -800,61 +851,71 @@ class ElementalNode(Nodes.StatNode):
         for scalar_op in self.scalar_operands:
             scalar_op.generate_evaluation_code(code)
 
-        code.putln("/* Check overlapping memory */")
-        self.check_overlap.generate_evaluation_code(code)
+        if self.check_overlap:
+            code.putln("/* Check overlapping memory */")
+            self.check_overlap.generate_evaluation_code(code)
 
         code.putln("/* Broadcast all operands in RHS expression */")
+        # create and initialize broadcasting flag
         self.broadcast.generate_evaluation_code(code)
+        self.broadcast.init_broadcast_flag(code)
         self.broadcast.generate_broadcasting_code(code)
-        self.verify_final_shape(code)
 
-        self.rhs.align_with_lhs(code)
-
-        # Set rhs.data and rhs.strides
-        code.putln("/* Allocate scratch space if needed */")
-        code.putln("if (%s) {" % self.overlap())
-        self.temp_dst.generate_evaluation_code(code)
-        code.putln("} else {")
-        # shut up compiler warnings
-        code.putln("%s = NULL;" % self.temp_dst.data.result())
-        self.init_rhs_temp(code)
-        code.putln("}")
+        if not self.acquire_slice:
+            self.verify_final_shape(code)
+            self.rhs.align_with_lhs(code)
+            # Set rhs.data and rhs.strides
+            code.putln("/* Allocate scratch space if needed */")
+            code.putln("if (%s) {" % self.overlap())
+            self.temp_dst.generate_evaluation_code(code)
+            code.put("} else {")
+            # shut up compiler warnings
+            code.putln("%s = NULL;" % self.temp_dst.data.result())
+            self.init_rhs_temp(code)
+            code.putln("}")
+        else:
+            self.acquire_slice.generate_execution_code(code)
+            self.init_rhs_temp(code)
 
         code.putln("/* Evaluate expression */")
         self.rhs.broadcasting = self.broadcast.result()
         self.rhs.generate_evaluation_code(code)
 
-        self.final_broadcast.generate_evaluation_code(code)
-        self.final_broadcast.init_broadcast_flag(code)
-        code.putln("if (!%s) {" % self.overlap())
-        self.advance_lhs_data_ptr(code)
-        code.putln("}")
-
-        code.putln("/* Broadcast final RHS and LHS */")
-        self.final_assignment_node.target.generate_evaluation_code(code)
-        self.final_broadcast.generate_broadcasting_code(code)
-
-        code.putln("/* Final broadcasting assignment */")
-        if self.lhs.type.ndim == self.rhs.type.ndim:
-            code.putln("if (%s || %s) {" % (self.final_broadcast.result(),
-                                            self.overlap()))
-        # self.remove_rhs_offset(code)
-        self.final_assignment_node.broadcasting = self.final_broadcast.result()
-        self.final_assignment_node.generate_evaluation_code(code)
-        if self.lhs.type.ndim == self.rhs.type.ndim:
+        if not self.acquire_slice:
+            self.final_broadcast.generate_evaluation_code(code)
+            self.final_broadcast.init_broadcast_flag(code)
+            code.putln("if (!%s) {" % self.overlap())
+            self.advance_lhs_data_ptr(code)
             code.putln("}")
 
-        code.putln("/* Cleanup */")
-        code.putln("if (%s) {" % self.overlap())
-        self.temp_dst.generate_disposal_code(code)
-        self.temp_dst.free_temps(code)
-        code.putln("}")
+            code.putln("/* Broadcast final RHS and LHS */")
+            self.final_assignment_node.target.generate_evaluation_code(code)
+            self.final_broadcast.generate_broadcasting_code(code)
+
+            code.putln("/* Final broadcasting assignment */")
+            if self.lhs.type.ndim == self.rhs.type.ndim:
+                code.putln("if (%s || %s) {" % (self.final_broadcast.result(),
+                                                self.overlap()))
+            # self.remove_rhs_offset(code)
+            self.final_assignment_node.broadcasting = self.final_broadcast.result()
+            self.final_assignment_node.generate_evaluation_code(code)
+            if self.lhs.type.ndim == self.rhs.type.ndim:
+                code.putln("}")
+
+            code.putln("/* Cleanup */")
+            code.putln("if (%s) {" % self.overlap())
+            self.temp_dst.generate_disposal_code(code)
+            self.temp_dst.free_temps(code)
+            code.putln("}")
+        else:
+            self.final_lhs_assignment.generate_execution_code(code)
 
         self.dispose(code)
 
     def dispose(self, code):
         for child_attr in self.child_attrs:
-            if child_attr == 'temp_dst':
+            if child_attr in ('temp_dst', 'acquire_slice',
+                              'final_lhs_assignment'):
                 continue
 
             value_list = getattr(self, child_attr)
@@ -862,8 +923,9 @@ class ElementalNode(Nodes.StatNode):
                 value_list = [value_list]
 
             for node in value_list:
-                node.generate_disposal_code(code)
-                node.free_temps(code)
+                if node:
+                    node.generate_disposal_code(code)
+                    node.free_temps(code)
 
 def need_wrapper_node(node):
     """
@@ -1020,7 +1082,11 @@ class ElementalMapper(specializers.ASTMapper):
         return self.register_operand(node)
 
     def visit_SingleAssignmentNode(self, node):
-        return self.astbuilder.assign(self.visit(node.lhs.dst),
+        if isinstance(node.lhs, ExprNodes.MemoryCopySlice):
+            lhs = node.lhs.dst
+        else:
+            lhs = node.lhs
+        return self.astbuilder.assign(self.visit(lhs),
                                       self.visit(node.rhs))
 
     @elemental_dispatcher
@@ -1050,7 +1116,7 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
         self.visitchildren(node)
         return node
 
-    def visit_elemental(self, node, lhs=None):
+    def visit_elemental(self, node, lhs=None, acquire_slice=None):
         self.in_elemental += 1
         self.visitchildren(node)
         self.in_elemental -= 1
@@ -1083,13 +1149,15 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             function = b.function(name, body, astmapper.funcargs,
                                   posinfo=posinfo)
 
-            astmapper.operands.remove(lhs)
+            #astmapper.operands.remove(lhs)
+            astmapper.operands.pop(0)
             node = ElementalNode(node.pos,
                                  operands=astmapper.operands,
                                  scalar_operands=astmapper.scalar_operands,
                                  rhs_function=function,
                                  minicontext=self.minicontext,
-                                 lhs=lhs)
+                                 lhs=lhs,
+                                 acquire_slice=acquire_slice)
             node.analyse_expressions(self.current_env())
             #node = Nodes.ExprStatNode(node.pos, expr=node)
         return node
@@ -1102,21 +1170,90 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
 
         return node
 
+    def _acquire_new_memview(self, lhs, rhs, lazy_rhs, env):
+        """
+        Acquire a new memoryview slice, assigning to an lhs variable which
+        may be a memoryview or an object. The rhs is the broadcasted rhs
+        expression.
+        """
+        if not lhs.type.is_pyobject:
+            type = lhs.type
+        else:
+            type = rhs.type
+
+        # cyarray = <dtype[:broadcasted_shape[0]]> malloc(broadcasted_shape[0])
+        temp_cy_array = TempCythonArrayNode(
+                            rhs.pos, dest_array_type=type, rhs=lazy_rhs)
+
+        # cdef dtype[:] tmp
+        tmp_lhs = TempSliceStruct(
+            lhs.pos, dtype=type.dtype, axes=type.axes, ndim=type.ndim)
+        tmp_lhs.analyse_types(env)
+        tmp_lhs = tmp_lhs.wrap_in_clone_node()
+
+        # tmp = cyarray
+        acquire_assignment = Nodes.SingleAssignmentNode(
+            lhs.pos, lhs=tmp_lhs.arg, rhs=temp_cy_array)
+        acquire_assignment.analyse_expressions(env)
+
+        # Final assignment, after elemental expression is executed:
+        # lhs = tmp
+        final_assignment = Nodes.SingleAssignmentNode(lhs.pos,
+                                                      lhs=lhs, rhs=tmp_lhs)
+        final_assignment.analyse_expressions(env)
+        return lhs, rhs, tmp_lhs, acquire_assignment, final_assignment
+
+    def _create_new_array_node(self, lhs, rhs, env):
+        """
+        In an assignment like 'b = a + a', we need to create a new array 'b'.
+        We create a cython.view.array, and assign it to variable 'b'.
+
+        Todo: implement temporary memoryview slices without needing the GIL!
+        """
+        lazy_rhs = ExprNodes.ProxyNode(rhs)
+        lhs, rhs, tmp_lhs, acquire_assignment, final_assignment = \
+                        self._acquire_new_memview(lhs, rhs, lazy_rhs, env)
+
+        # create elemental assignment
+        elemental_assignment = Nodes.SingleAssignmentNode(
+                                lhs.pos, lhs=tmp_lhs.arg, rhs=rhs)
+
+        elemental_node = self.visit_elemental(elemental_assignment,
+                                              lhs=tmp_lhs.arg,
+                                              acquire_slice=acquire_assignment)
+
+        lazy_rhs.arg = elemental_node.rhs
+        lazy_rhs.proxy_type()
+        elemental_node.final_lhs_assignment = final_assignment
+        return elemental_node
+        #return [elemental_node, final_assignment]
+
     def visit_SingleAssignmentNode(self, node):
+        if not (node.lhs.is_elemental or node.rhs.is_elemental):
+            self.visitchildren(node)
+            return node
+
+        env = self.current_env()
+
         if (isinstance(node.lhs, ExprNodes.MemoryCopySlice) and
                 node.lhs.is_elemental):
-
             assert not self.in_elemental
             node.is_elemental = True
 
             node.lhs.dst = UnbroadcastDestNode(
-                node.pos, lhs=node.lhs.dst.coerce_to_temp(self.current_env()),
+                node.pos, lhs=node.lhs.dst.coerce_to_temp(env),
                 rhs=node.rhs)
-            node.lhs.dst.analyse_types(self.current_env())
-            return self.visit_elemental(node, node.lhs.dst)
+            node.lhs.dst.analyse_types(env)
 
-        self.visitchildren(node)
-        return node
+            return self.visit_elemental(node, node.lhs.dst)
+        elif node.lhs.is_name and node.rhs.is_elemental:
+            if isinstance(node.rhs, ExprNodes.CoerceToPyTypeNode):
+                node.rhs = node.rhs.arg
+            return self._create_new_array_node(node.lhs, node.rhs, env)
+        else:
+            error(node.pos, "Invalid elementwise assignment")
+            return
+
 
 def load_utilities(env):
     from Cython.Compiler import CythonScope

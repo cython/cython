@@ -7587,6 +7587,34 @@ class TypecastNode(ExprNode):
                     self.operand.result()))
             code.put_incref(self.result(), self.ctype())
 
+class FormatStringNode(ExprNode):
+    """
+    Create a format string for a cython.view.array.
+
+    Attributes:
+        dtype
+    """
+
+    subexprs = []
+
+    def analyse_types(self, env):
+        self.type = py_object_type
+        self.is_temp = True
+        load_cython_array_utilities(env)
+
+    def generate_result_code(self, code):
+        import Buffer
+        type_info = Buffer.get_type_information_cname(code, self.dtype)
+        code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
+                                            (self.result(), type_info))
+        err = "!%s || !PyBytes_AsString(%s)" % (self.result(), self.result())
+        code.putln(code.error_goto_if(err, self.pos))
+        code.put_gotref(self.result())
+
+def load_cython_array_utilities(env):
+    import MemoryView
+    MemoryView.use_cython_array_utility_code(env)
+    env.use_utility_code(MemoryView.typeinfo_to_format_code)
 
 ERR_START = "Start may not be given"
 ERR_NOT_STOP = "Stop must be provided to indicate shape"
@@ -7616,9 +7644,10 @@ class CythonArrayNode(ExprNode):
     base_type_node      MemoryViewSliceTypeNode  the cast expression node
     """
 
-    subexprs = ['operand', 'shapes']
+    subexprs = ['format_string', 'operand', 'shapes']
 
     shapes = None
+    format_string = None
     is_temp = True
     mode = "c"
     array_dtype = None
@@ -7662,6 +7691,9 @@ class CythonArrayNode(ExprNode):
             return error(self.operand.pos,
                          "Expected %d dimensions, array has %d dimensions" %
                                             (ndim, len(array_dimension_sizes)))
+
+        self.format_string = FormatStringNode(self.pos, dtype=array_dtype)
+        self.format_string.analyse_types(env)
 
         # Verify the start, stop and step values
         # In case of a C array, use the size of C array in each dimension to
@@ -7716,8 +7748,7 @@ class CythonArrayNode(ExprNode):
         self.coercion_type = PyrexTypes.MemoryViewSliceType(array_dtype, axes)
         self.coercion_type.validate_memslice_dtype(self.pos)
         self.type = self.get_cython_array_type(env)
-        MemoryView.use_cython_array_utility_code(env)
-        env.use_utility_code(MemoryView.typeinfo_to_format_code)
+        load_cython_array_utilities(env)
 
     def allocate_temp_result(self, code):
         if self.temp_code:
@@ -7740,12 +7771,6 @@ class CythonArrayNode(ExprNode):
                       for shape in self.shapes]
         dtype = self.coercion_type.dtype
 
-        shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
-        format_temp = code.funcstate.allocate_temp(py_object_type, True)
-
-        itemsize = "sizeof(%s)" % dtype.declaration_code("")
-        type_info = Buffer.get_type_information_cname(code, dtype)
-
         if self.operand.type.is_ptr:
             code.putln("if (!%s) {" % self.operand.result())
             code.putln(    'PyErr_SetString(PyExc_ValueError,'
@@ -7753,21 +7778,18 @@ class CythonArrayNode(ExprNode):
             code.putln(code.error_goto(self.operand.pos))
             code.putln("}")
 
-        code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
-                                                (format_temp, type_info))
+        shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
         buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
         code.putln('%s = Py_BuildValue("(" %s ")", %s);' % (shapes_temp,
                                                             buildvalue_fmt,
                                                             ", ".join(shapes)))
 
-        err = "!%s || !%s || !PyBytes_AsString(%s)" % (format_temp,
-                                                       shapes_temp,
-                                                       format_temp)
-        code.putln(code.error_goto_if(err, self.pos))
-        code.put_gotref(format_temp)
+        code.putln(code.error_goto_if("!%s" % shapes_temp, self.pos))
         code.put_gotref(shapes_temp)
 
-        tup = (self.result(), shapes_temp, itemsize, format_temp,
+        tup = (self.result(), shapes_temp,
+               "sizeof(%s)" % dtype.declaration_code(""),
+               self.format_string.result(),
                self.mode, self.operand.result())
         code.putln('%s = __pyx_array_new('
                             '%s, %s, PyBytes_AS_STRING(%s), '
@@ -7780,7 +7802,6 @@ class CythonArrayNode(ExprNode):
             code.funcstate.release_temp(temp)
 
         dispose(shapes_temp)
-        dispose(format_temp)
 
     @classmethod
     def from_carray(cls, src_node, env):
@@ -9622,6 +9643,7 @@ class CoerceToPyTypeNode(CoercionNode):
         if self.arg.type.is_memoryviewslice:
             # register utility codes for conversion to/from the memoryview dtype
             self.arg.type.dtype_object_conversion_funcs(env)
+            self.is_elemental = self.arg.is_elemental
 
         self.env = env
 
@@ -9872,13 +9894,13 @@ class ProxyNode(CoercionNode):
 
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
-        self._proxy_type()
+        self.proxy_type()
 
-    def analyse_expressions(self, env):
-        self.arg.analyse_expressions(env)
-        self._proxy_type()
+    def analyse_types(self, env):
+        self.arg.analyse_types(env)
+        self.proxy_type()
 
-    def _proxy_type(self):
+    def proxy_type(self):
         if hasattr(self.arg, 'type'):
             self.type = self.arg.type
             self.result_ctype = self.arg.result_ctype
@@ -9908,6 +9930,10 @@ class ProxyNode(CoercionNode):
 
     def free_temps(self, code):
         self.arg.free_temps(code)
+
+    def generate_assignment_code(self, rhs, code):
+        self.arg.generate_assignment_code(rhs, code)
+
 
 class CloneNode(CoercionNode):
     #  This node is employed when the result of another node needs
@@ -9948,6 +9974,9 @@ class CloneNode(CoercionNode):
         self.is_temp = 1
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
+
+    def result_in_temp(self):
+        return True
 
     def is_simple(self):
         return True # result is always in a temp (or a name)
