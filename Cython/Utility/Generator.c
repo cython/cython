@@ -574,7 +574,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_hash*/
     0,                                  /*tp_call*/
     0,                                  /*tp_str*/
-    PyObject_GenericGetAttr,            /*tp_getattro*/
+    NULL,                               /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
@@ -583,7 +583,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
     offsetof(__pyx_GeneratorObject, gi_weakreflist), /* tp_weaklistoffse */
-    PyObject_SelfIter,                  /*tp_iter*/
+    NULL,                               /*tp_iter*/
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
     __pyx_Generator_methods,            /*tp_methods*/
     __pyx_Generator_memberlist,         /*tp_members*/
@@ -638,5 +638,7 @@ static int __pyx_Generator_init(void) {
         return -1;
     }
     __pyx_GeneratorType = &__pyx_GeneratorType_type;
+    __pyx_GeneratorType->tp_str = PyObject_GenericGetAttr;
+    __pyx_GeneratorType->tp_iter = PyObject_SelfIter;
     return 0;
 }
