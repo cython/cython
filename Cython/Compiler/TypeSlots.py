@@ -188,10 +188,29 @@ class SlotDescriptor(object):
         return guard
 
     def generate(self, scope, code):
+        end_pypy_guard = False
         if self.is_initialised_dynamically:
-            value = 0
+            value = "0"
         else:
             value = self.slot_code(scope)
+            if value == "0" and self.is_inherited:
+                # PyPy currently has a broken PyType_Ready() that fails to
+                # inherit some slots.  To work around this, we explicitly
+                # set inherited slots here, but only in PyPy since CPython
+                # handles this better than we do.
+                inherited_value = value
+                current_scope = scope
+                while (inherited_value == "0"
+                       and current_scope.parent_type
+                       and current_scope.parent_type.base_type
+                       and current_scope.parent_type.base_type.scope):
+                    current_scope = current_scope.parent_type.base_type.scope
+                    inherited_value = self.slot_code(current_scope)
+                if inherited_value != "0":
+                    code.putln("#if CYTHON_COMPILING_IN_PYPY")
+                    code.putln("%s, /*%s*/" % (inherited_value, self.slot_name))
+                    code.putln("#else")
+                    end_pypy_guard = True
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -200,6 +219,8 @@ class SlotDescriptor(object):
             code.putln("#else")
             code.putln("0, /*reserved*/")
         if preprocessor_guard:
+            code.putln("#endif")
+        if end_pypy_guard:
             code.putln("#endif")
 
     # Some C implementations have trouble statically
@@ -216,7 +237,7 @@ class SlotDescriptor(object):
                     self.slot_name,
                     value
                     )
-            )
+                )
 
 
 class FixedSlot(SlotDescriptor):
@@ -272,9 +293,6 @@ class MethodSlot(SlotDescriptor):
             entry = scope.lookup_here(method_name)
             if entry and entry.func_cname:
                 return entry.func_cname
-        if (self.is_inherited and scope.parent_type and scope.parent_type.base_type
-            and scope.parent_type.base_type.scope):
-            return self.slot_code(scope.parent_type.base_type.scope)
         return "0"
 
 
