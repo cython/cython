@@ -673,7 +673,7 @@ def offsets(lhs, rhs):
     rhs_offset = max(rhs_ndim - lhs_ndim, 0)
     return lhs_offset, rhs_offset
 
-class ElementalNode(Nodes.StatNode):
+class ElementalNode(ExprNodes.ExprNode):
     """
     Evaluate the expression on the right hand side before assigning to the
     expression on the left hand side. This is needed in two situations:
@@ -692,15 +692,12 @@ class ElementalNode(Nodes.StatNode):
         acquire_slice:
             This assignment creates a cython.view.array and acquires a
             memoryview slice from that in self.lhs (a temporary)
-        final_lhs_assignment:
-            Assignment of temporary memoryview slice of a
-            cython.view.array to the final lhs ('c').
     """
 
-    child_attrs = ['operands', 'scalar_operands', 'temp_nodes', 'lhs',
-                   'check_overlap', 'rhs', 'final_assignment_node',
-                   'broadcast', 'final_broadcast', 'temp_dst',
-                   'acquire_slice', 'final_lhs_assignment']
+    subexprs = ['operands', 'scalar_operands', 'temp_nodes', 'lhs',
+                'check_overlap', 'rhs', 'final_assignment_node',
+                'broadcast', 'final_broadcast', 'temp_dst',
+                'acquire_slice', 'final_lhs_assignment']
 
     check_overlap = None
     temp_dst = None
@@ -837,7 +834,7 @@ class ElementalNode(Nodes.StatNode):
             self.lhs.type.ndim, self.rhs.type.ndim)
         code.putln(code.error_goto_if_neg(call, self.pos))
 
-    def generate_execution_code(self, code):
+    def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
 
         code.putln("/* LHS */")
@@ -906,16 +903,12 @@ class ElementalNode(Nodes.StatNode):
             code.putln("if (%s) {" % self.overlap())
             self.temp_dst.generate_disposal_code(code)
             self.temp_dst.free_temps(code)
+            self.temp_dst = self.temp_dst.wrap_in_clone_node()
             code.putln("}")
-        else:
-            self.final_lhs_assignment.generate_execution_code(code)
 
-        self.dispose(code)
-
-    def dispose(self, code):
+    def generate_disposal_code(self, code):
         for child_attr in self.child_attrs:
-            if child_attr in ('temp_dst', 'acquire_slice',
-                              'final_lhs_assignment'):
+            if child_attr == 'acquire_slice':
                 continue
 
             value_list = getattr(self, child_attr)
@@ -926,6 +919,36 @@ class ElementalNode(Nodes.StatNode):
                 if node:
                     node.generate_disposal_code(code)
                     node.free_temps(code)
+
+    def free_temps(self, code):
+        "We already released temps during disposal code generation."
+
+    def calculate_result_code(self):
+        return ""
+
+class ElementalNodeWrapper(ExprNodes.ExprNode):
+    """
+    This node is used in case of no slice assignment.
+
+    Attributes:
+        elemental_node:
+            The ElementalNode being wrapped
+        slice_result:
+            The expression holding the final memoryview slice with the
+            result.
+    """
+    subexprs = ['elemental_node']
+    def analyse_types(self, env):
+        self.type = self.slice_result.type
+
+    def generate_assignment_code(self, rhs, code):
+        self.slice_result.generate_assignment_code(self, rhs, code)
+
+    def generate_result_code(self, code):
+        pass
+
+    def result(self):
+        return self.slice_result.result()
 
 def need_wrapper_node(node):
     """
@@ -1162,79 +1185,8 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             #node = Nodes.ExprStatNode(node.pos, expr=node)
         return node
 
-    def visit_ExprNode(self, node):
-        if node.is_elemental:
-            node = self.visit_elemental(node)
-        else:
-            self.visitchildren(node)
-
-        return node
-
-    def _acquire_new_memview(self, lhs, rhs, lazy_rhs, env):
-        """
-        Acquire a new memoryview slice, assigning to an lhs variable which
-        may be a memoryview or an object. The rhs is the broadcasted rhs
-        expression.
-        """
-        if not lhs.type.is_pyobject:
-            type = lhs.type
-        else:
-            type = rhs.type
-
-        # cyarray = <dtype[:broadcasted_shape[0]]> malloc(broadcasted_shape[0])
-        temp_cy_array = TempCythonArrayNode(
-                            rhs.pos, dest_array_type=type, rhs=lazy_rhs)
-
-        # cdef dtype[:] tmp
-        tmp_lhs = TempSliceStruct(
-            lhs.pos, dtype=type.dtype, axes=type.axes, ndim=type.ndim)
-        tmp_lhs.analyse_types(env)
-        tmp_lhs = tmp_lhs.wrap_in_clone_node()
-
-        # tmp = cyarray
-        acquire_assignment = Nodes.SingleAssignmentNode(
-            lhs.pos, lhs=tmp_lhs.arg, rhs=temp_cy_array)
-        acquire_assignment.analyse_expressions(env)
-
-        # Final assignment, after elemental expression is executed:
-        # lhs = tmp
-        final_assignment = Nodes.SingleAssignmentNode(lhs.pos,
-                                                      lhs=lhs, rhs=tmp_lhs)
-        final_assignment.analyse_expressions(env)
-        return lhs, rhs, tmp_lhs, acquire_assignment, final_assignment
-
-    def _create_new_array_node(self, lhs, rhs, env):
-        """
-        In an assignment like 'b = a + a', we need to create a new array 'b'.
-        We create a cython.view.array, and assign it to variable 'b'.
-
-        Todo: implement temporary memoryview slices without needing the GIL!
-        """
-        lazy_rhs = ExprNodes.ProxyNode(rhs)
-        lhs, rhs, tmp_lhs, acquire_assignment, final_assignment = \
-                        self._acquire_new_memview(lhs, rhs, lazy_rhs, env)
-
-        # create elemental assignment
-        elemental_assignment = Nodes.SingleAssignmentNode(
-                                lhs.pos, lhs=tmp_lhs.arg, rhs=rhs)
-
-        elemental_node = self.visit_elemental(elemental_assignment,
-                                              lhs=tmp_lhs.arg,
-                                              acquire_slice=acquire_assignment)
-
-        lazy_rhs.arg = elemental_node.rhs
-        lazy_rhs.proxy_type()
-        elemental_node.final_lhs_assignment = final_assignment
-        return elemental_node
-        #return [elemental_node, final_assignment]
-
     def visit_SingleAssignmentNode(self, node):
-        if not (node.lhs.is_elemental or node.rhs.is_elemental):
-            self.visitchildren(node)
-            return node
-
         env = self.current_env()
-
         if (isinstance(node.lhs, ExprNodes.MemoryCopySlice) and
                 node.lhs.is_elemental):
             assert not self.in_elemental
@@ -1245,15 +1197,78 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
                 rhs=node.rhs)
             node.lhs.dst.analyse_types(env)
 
-            return self.visit_elemental(node, node.lhs.dst)
-        elif node.lhs.is_name and node.rhs.is_elemental:
-            if isinstance(node.rhs, ExprNodes.CoerceToPyTypeNode):
-                node.rhs = node.rhs.arg
-            return self._create_new_array_node(node.lhs, node.rhs, env)
+            elemental_node = self.visit_elemental(node, node.lhs.dst)
+            return Nodes.ExprStatNode(node.pos, expr=elemental_node)
         else:
-            error(node.pos, "Invalid elementwise assignment")
-            return
+            is_elemental = node.rhs.is_elemental
+            self.visitchildren(node)
+            if is_elemental:
+                node.analyse_types(env)
+            return node
 
+    def visit_ExprNode(self, node):
+        if node.is_elemental:
+            if self.in_elemental:
+                return self.visit_elemental(node)
+
+            env = self.current_env()
+            tmp_lhs, elemental_node = self._create_new_array_node(node, env)
+            result = ElementalNodeWrapper(node.pos, slice_result=tmp_lhs,
+                                          elemental_node=elemental_node)
+            result.analyse_types(env)
+            return result
+
+        self.visitchildren(node)
+        return node
+
+    def _acquire_new_memview(self, rhs, lazy_rhs, env):
+        """
+        Acquire a new memoryview slice in a temp.
+        The rhs is the broadcasted rhs expression (which is a ProxyNode since
+        we don't have its result yet).
+        """
+        type = rhs.type
+
+        # cyarray = <dtype[:broadcasted_shape[0]]> malloc(broadcasted_shape[0])
+        temp_cy_array = TempCythonArrayNode(
+                            rhs.pos, dest_array_type=type, rhs=lazy_rhs)
+
+        # cdef dtype[:] tmp
+        tmp_lhs = TempSliceStruct(
+            rhs.pos, dtype=type.dtype, axes=type.axes, ndim=type.ndim)
+        tmp_lhs.analyse_types(env)
+        tmp_lhs = tmp_lhs.wrap_in_clone_node()
+
+        # tmp = cyarray
+        acquire_assignment = Nodes.SingleAssignmentNode(
+            rhs.pos, lhs=tmp_lhs.arg, rhs=temp_cy_array)
+        acquire_assignment.analyse_expressions(env)
+
+        return tmp_lhs, acquire_assignment
+
+    def _create_new_array_node(self, rhs, env):
+        """
+        In an assignment like 'b = a + a', we need to create a new array 'b'.
+        We create a cython.view.array, and assign it to variable 'b'.
+
+        Todo: implement temporary memoryview slices without needing the GIL!
+        """
+        lazy_rhs = ExprNodes.ProxyNode(rhs)
+        tmp_lhs, acquire_assignment = self._acquire_new_memview(
+                                                rhs, lazy_rhs, env)
+
+        # create elemental assignment
+        elemental_assignment = Nodes.SingleAssignmentNode(
+                                rhs.pos, lhs=tmp_lhs.arg, rhs=rhs)
+
+        elemental_node = self.visit_elemental(elemental_assignment,
+                                              lhs=tmp_lhs.arg,
+                                              acquire_slice=acquire_assignment)
+
+        lazy_rhs.arg = elemental_node.rhs
+        lazy_rhs.proxy_type()
+        #elemental_node.final_lhs_assignment = final_assignment
+        return tmp_lhs, elemental_node
 
 def load_utilities(env):
     from Cython.Compiler import CythonScope

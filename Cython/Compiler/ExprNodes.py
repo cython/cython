@@ -9643,7 +9643,6 @@ class CoerceToPyTypeNode(CoercionNode):
         if self.arg.type.is_memoryviewslice:
             # register utility codes for conversion to/from the memoryview dtype
             self.arg.type.dtype_object_conversion_funcs(env)
-            self.is_elemental = self.arg.is_elemental
 
         self.env = env
 
