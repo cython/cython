@@ -808,13 +808,16 @@ class ElementalNode(ExprNodes.ExprNode):
             m3[:, :] = m1[:] * m2[:]
 
         m3[0, :] contains the data, which we need to broadcast over m3[1:, :]
+
+        (This only works for one dimension at a time, so this would need a
+         wrapping loop. Currently disabled, it broadcasts itself with itself).
         """
         lhs_offset, _ = offsets(self.lhs, self.rhs)
         lhs_r, rhs_r = self.lhs.result(), self.rhs.result()
 
         def advance(i):
-            code.putln("%s.data += %s.strides[%d];" % (lhs_r, lhs_r, i))
-            code.putln("%s.shape[%d] -= 1;" % (lhs_r, i))
+            #code.putln("%s.data += %s.strides[%d];" % (lhs_r, lhs_r, i))
+            #code.putln("%s.shape[%d] -= 1;" % (lhs_r, i))
             if not lhs_offset:
                 self.final_broadcast.init_broadcast_flag(code, True)
 
@@ -822,11 +825,12 @@ class ElementalNode(ExprNodes.ExprNode):
             advance(i)
             self.final_broadcast.init_broadcast_flag(code, True)
 
-        for i in range(self.rhs.type.ndim):
-            code.putln("if (%s.shape[%d] > 1 && %s.shape[%d] == 1) {" %
-                       (lhs_r, i + lhs_offset, rhs_r, i))
-            advance(i + lhs_offset)
-            code.putln("}")
+        if not lhs_offset:
+            for i in range(self.rhs.type.ndim):
+                code.putln("if (%s.shape[%d] > 1 && %s.shape[%d] == 1) {" %
+                           (lhs_r, i + lhs_offset, rhs_r, i))
+                advance(i + lhs_offset)
+                code.putln("}")
 
     def verify_final_shape(self, code):
         call = "__pyx_verify_shapes(%s, %s, %d, %d)" % (
