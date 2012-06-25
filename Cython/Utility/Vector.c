@@ -63,3 +63,16 @@ __pyx_get_arrays_ordering(const {{memviewslice_name}} **ops, const int *ndims,
 
     return __PYX_ARRAYS_ARE_INNER_CONTIG | !!seen_c_ish;
 }
+
+////////// RestrictUtility.proto //////////
+#ifndef CYTHON_RESTRICT
+  #if defined(__GNUC__)
+    #define CYTHON_RESTRICT __restrict__
+  #elif defined(_MSC_VER)
+    #define CYTHON_RESTRICT __restrict
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_RESTRICT restrict
+  #else
+    #define CYTHON_RESTRICT
+  #endif
+#endif

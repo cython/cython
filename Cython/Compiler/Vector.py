@@ -44,6 +44,31 @@ class TypeMapper(minitypes.TypeMapper):
             raise minierror.UnmappableTypeError(type)
 
 class CythonSpecializerMixin(object):
+    def visit_FunctionNode(self, node):
+        node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
+
+        qualifiers = [
+            "const",
+            "CYTHON_RESTRICT",
+        ]
+        data_qualifiers = ["const"]
+
+        node.shape.type.qualifiers.update(qualifiers)
+        for idx, arg in enumerate(arg for arg in node.arguments
+                                           if arg.is_array_funcarg):
+            arg.data_pointer.type.qualifiers.update(qualifiers)
+            if arg.strides_pointer:
+                arg.strides_pointer.type.qualifiers.update(qualifiers)
+
+            if idx > 0:
+                arg.data_pointer.type.base_type.qualifiers.update(
+                                                            data_qualifiers)
+                if arg.strides_pointer:
+                    arg.strides_pointer.type.base_type.qualifiers.update(
+                                                            data_qualifiers)
+
+        return node
+
     def visit_NodeWrapper(self, node):
         for op in node.operands:
             op.variable = self.visit(op.variable)
@@ -1282,6 +1307,7 @@ def load_utilities(env):
 
     env.use_utility_code(overlap_utility)
     env.use_utility_code(array_order_utility)
+    env.use_utility_code(restrict_utility)
 
 def load_vector_utility(name, context, **kwargs):
     return Code.TempitaUtilityCode.load(name, "Vector.c", context=context, **kwargs)
@@ -1294,3 +1320,5 @@ MemoryView.view_utility_code.requires.append(broadcast_utility)
 overlap_utility = MemoryView.load_memview_c_utility("ReadAfterWrite",
                                                     context=context)
 array_order_utility = load_vector_utility("GetOrder", context)
+restrict_utility = load_vector_utility(
+    "RestrictUtility", context, proto_block='utility_code_proto_before_types')
