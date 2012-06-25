@@ -44,6 +44,7 @@ class TypeMapper(minitypes.TypeMapper):
             raise minierror.UnmappableTypeError(type)
 
 class CythonSpecializerMixin(object):
+    is_partial_mapping = False
     def visit_FunctionNode(self, node):
         node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
 
@@ -70,6 +71,7 @@ class CythonSpecializerMixin(object):
         return node
 
     def visit_NodeWrapper(self, node):
+        self.is_partial_mapping = True
         for op in node.operands:
             op.variable = self.visit(op.variable)
         return node
@@ -97,9 +99,10 @@ class CCodeGen(codegen.CCodeGen):
 
     def visit_FunctionNode(self, node):
         result = super(CCodeGen, self).visit_FunctionNode(node)
-        self.code.function_declarations.putln("__Pyx_RefNannyDeclarations")
-        self.code.before_loop.putln(
-                '__Pyx_RefNannySetupContext("%s", 1);' % node.mangled_name)
+        if self.specializer.is_partial_mapping:
+            self.code.function_declarations.putln("__Pyx_RefNannyDeclarations")
+            self.code.before_loop.putln(
+                    '__Pyx_RefNannySetupContext("%s", 1);' % node.mangled_name)
 
     def visit_NodeWrapper(self, node):
         for operand in node.operands:
@@ -591,6 +594,21 @@ class SpecializationCaller(ExprNodes.ExprNode):
         if not mixed_contig:
             code.putln("}")
 
+        return if_clause
+
+    def _put_inner_contig_specializations(self, code, if_clause, mixed_contig):
+        if not mixed_contig:
+            code.putln("%s (%s & __PYX_ARRAYS_ARE_INNER_CONTIG) {" %
+                                    (if_clause, self.array_layout.result()))
+            self.put_ordered_specializations(
+                    code,
+                    specializers.StridedCInnerContigSpecializer,
+                    specializers.StridedFortranInnerContigSpecializer)
+            code.putln("}")
+            if_clause = "else if"
+
+        return if_clause
+
     def _put_strided_specializations(self, code, if_clause, mixed_contig):
         if mixed_contig:
             return
@@ -615,6 +633,9 @@ class SpecializationCaller(ExprNodes.ExprNode):
                                                     contig, mixed_contig)
         if_clause = self._put_tiled_specialization(code, if_clause,
                                                    mixed_contig)
+        if self.target.type.ndim > 1:
+            if_clause = self._put_inner_contig_specializations(code, if_clause,
+                                                               mixed_contig)
         self._put_strided_specializations(code, if_clause, mixed_contig)
 
     def contig_condition(self, specializer):
