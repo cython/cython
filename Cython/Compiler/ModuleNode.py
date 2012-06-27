@@ -1036,6 +1036,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
 
+        for entry in scope.var_entries:
+            if entry.type.is_cpp_class:
+                code.putln("new(&(p->%s)) %s();" % (entry.cname, entry.type.cname));
+
         for entry in py_attrs:
             if scope.is_internal or entry.name == "__weakref__":
                 # internal classes do not need None inits
@@ -1090,6 +1094,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_usr_dealloc_call(scope, code)
         if weakref_slot in scope.var_entries:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
+
+        for entry in scope.var_entries:
+            if entry.type.is_cpp_class:
+                code.putln("p->%s.~%s();" % (entry.cname, entry.type.cname));
 
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type, nanny=False)
