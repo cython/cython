@@ -6,6 +6,7 @@ from Cython import __version__
 from glob import glob
 import re, os, sys
 import gzip
+import shutil
 import subprocess
 
 try:
@@ -646,12 +647,20 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         fingerprint_file = os.path.join(
-            options.cache, "%s-%s.gz" % (os.path.basename(c_file), fingerprint)
+            options.cache, "%s-%s.gz" % (os.path.basename(c_file), fingerprint))
         if os.path.exists(fingerprint_file):
             if not quiet:
                 print("Found compiled %s in cache" % pyx_file)
             os.utime(fingerprint_file, None)
-            open(c_file, 'wb').write(gzip.open(fingerprint_file).read())
+            g = gzip.open(fingerprint_file)
+            try:
+                f = open(c_file, 'wb')
+                try:
+                    shutil.copyfileobj(g, f)
+                finally:
+                    f.close()
+            finally:
+                g.close()
             return
     if not quiet:
         print("Cythonizing %s" % pyx_file)
@@ -670,7 +679,15 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
     if any_failures:
         raise CompileError(None, pyx_file)
     if fingerprint:
-        gzip.open(fingerprint_file, 'wb').write(open(c_file).read())
+        f = open(c_file, 'rb')
+        try:
+            g = gzip.open(fingerprint_file, 'wb')
+            try:
+                shutil.copyfileobj(f, g)
+            finally:
+                g.close()
+        finally:
+            f.close()
 
 def cythonize_one_helper(m):
     return cythonize_one(*m[1:])
