@@ -105,13 +105,39 @@ def test_resize(a):
     assert cb.length == 10
     assert cb[9] == cb[-1] == cb._f[9] == 9
 
+def test_buffer():
+    """
+    >>> test_buffer()
+    """
+    cdef object a = array.array('i', [1, 2, 3])
+    cdef object[int] ca = a
+    assert ca[0] == 1
+    assert ca[2] == 3
+
+def test_buffer_typed():
+    """
+    >>> test_buffer_typed()
+    """
+    cdef array.array a = array.array('i', [1, 2, 3])
+    cdef object[int] ca = a
+    assert ca[0] == 1
+    assert ca[2] == 3
+
 def test_view():
     """
-    >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_view()
     """
-    a = array.array('i', [1, 2, 3])
-    cdef object[int] ca = a
+    cdef object a = array.array('i', [1, 2, 3])
+    cdef int[:] ca = a
+    assert ca[0] == 1
+    assert ca[2] == 3
+
+def test_view_typed():
+    """
+    >>> test_view_typed()
+    """
+    cdef array.array a = array.array('i', [1, 2, 3])
+    cdef int[:] ca = a
     assert ca[0] == 1
     assert ca[2] == 3
 
