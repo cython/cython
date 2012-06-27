@@ -91,7 +91,7 @@ using this feature, just tell that to ``pyximport``::
     >>> pyximport.install(pyimport = True)
 
 Compiling with ``cython.inline``
-=============================
+=================================
 
 One can also compile Cython in a fashion similar to SciPy's ``weave.inline``.
 For example::

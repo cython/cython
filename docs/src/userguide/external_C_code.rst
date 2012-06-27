@@ -119,7 +119,7 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
        
 
 
-4. If the header file uses ``typedef`` names such as :ctype:`word` to refer
+4. If the header file uses ``typedef`` names such as :c:type:`word` to refer
    to platform-dependent flavours of numeric types, you will need a
    corresponding :keyword:`ctypedef` statement, but you don't need to match
    the type exactly, just use something of the right general kind (int, float,
@@ -127,7 +127,7 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
        ctypedef int word
 
-   will work okay whatever the actual size of a :ctype:`word ` is (provided the header
+   will work okay whatever the actual size of a :c:type:`word` is (provided the header
    file defines it correctly). Conversion to and from Python types, if any, will also 
    be used for this new type. 
 
@@ -210,7 +210,7 @@ same applies equally to union and enum declarations.
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 
 Note that in all the cases below, you refer to the type in Cython code simply
-as :ctype:`Foo`, not ``struct Foo``.
+as :c:type:`Foo`, not ``struct Foo``.
 
 Accessing Python/C API routines
 ---------------------------------

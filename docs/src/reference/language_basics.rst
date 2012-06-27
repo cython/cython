@@ -485,8 +485,7 @@ For-loops
     for i in range(n):
         ...
 
-* Iteration over C arrays is also permitted, e.g.
-::
+* Iteration over C arrays is also permitted, e.g.::
 
     cdef double x
     cdef double* data
