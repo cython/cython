@@ -544,20 +544,24 @@ the buffer interface natively, so memoryviews work on top of it without
 additional setup.
 
 Starting with Cython 0.17, however, it is possible to use these arrays
-as buffer providers also in Python 2.  This is done through explicit
-typing (e.g. a cast or assignment) as follows::
+as buffer providers also in Python 2.  This is done through explicitly
+cimporting the ``cpython.array`` module as follows::
 
-    from cpython cimport array
+    cimport cpython.array
 
-    def sum_array(array.array arr):  # explicit typing required in Python 2
-        cdef int[:] view = arr
+    def sum_array(int[:] view):
+        """
+        >>> from array import array
+        >>> sum_array( array('i', [1,2,3]) )
+        6
+        """
         cdef int total
         for i in range(view.shape[0]):
             total += view[i]
         return total
 
-Note that the explicit typing also enables support for the old buffer
-syntax for the array type.  Therefore, the following also works::
+Note that the cimport also enables the old buffer syntax for the array
+type.  Therefore, the following also works::
 
     from cpython cimport array
 
