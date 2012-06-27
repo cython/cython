@@ -237,10 +237,10 @@ In Cython ``<type>x`` will try and do a coercion (as would happen on assignment 
 It does not stop one from casting where there is no conversion (though it will
 emit a warning). If one really wants the address, cast to a ``void *`` first.
 
-As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type :ctype:`MyExtensionType` without any
+As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type :c:type:`MyExtensionType` without any
 type checking. Cython supports the syntax ``<MyExtensionType?>`` to do the cast
 with type checking (i.e. it will throw an error if ``x`` is not a (subclass of)
-:ctype:`MyExtensionType`. 
+:c:type:`MyExtensionType`.
 
 Optional arguments in cdef/cpdef functions
 ============================================
