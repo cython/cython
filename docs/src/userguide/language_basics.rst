@@ -181,7 +181,7 @@ form of exception value declaration::
         ...
 
 The "?" indicates that the value ``-1`` only indicates a possible error. In this
-case, Cython generates a call to :cfunc:`PyErr_Occurred` if the exception value is
+case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value is
 returned, to make sure it really is an error.
 
 There is also a third form of exception value declaration::
@@ -189,7 +189,7 @@ There is also a third form of exception value declaration::
     cdef int spam() except *:
         ...
 
-This form causes Cython to generate a call to :cfunc:`PyErr_Occurred` after
+This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
 every call to spam, regardless of what value it returns. If you have a
 function returning void that needs to propagate errors, you will have to use
 this form, since there isn't any return value to test.
