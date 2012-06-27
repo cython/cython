@@ -134,19 +134,19 @@ Boolean int type (e.g. it acts like a c int, but coerces to/from python as a boo
 ======================================================================================
 
 In C, ints are used for truth values. In python, any object can be used as a
-truth value (using the :meth:`__nonzero__` method, but the canonical choices
-are the two boolean objects ``True`` and ``False``. The :keyword:`bint` of
-"boolean int" object is compiled to a C int, but get coerced to and from
-Cython as booleans. The return type of comparisons and several builtins is a
-:ctype:`bint` as well. This allows one to avoid having to wrap things in
+truth value (using the :meth:`__nonzero__` method), but the canonical choices
+are the two boolean objects ``True`` and ``False``. The :c:type:`bint` (for
+"boolean int") type is compiled to a C int, but coerces to and from
+Python as booleans. The return type of comparisons and several builtins is a
+:c:type:`bint` as well. This reduces the need for wrapping things in
 :func:`bool()`. For example, one can write::
 
     def is_equal(x):
         return x == y
 
 which would return ``1`` or ``0`` in Pyrex, but returns ``True`` or ``False`` in
-python. One can declare variables and return values for functions to be of the
-:ctype:`bint` type.  For example::
+Cython. One can declare variables and return values for functions to be of the
+:c:type:`bint` type.  For example::
 
     cdef int i = x
     cdef bint b = x
