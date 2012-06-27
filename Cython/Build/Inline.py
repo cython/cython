@@ -178,9 +178,9 @@ def __invoke(%(params)s):
             include_dirs = c_include_dirs,
             extra_compile_args = cflags)
         dist = Distribution()
+        # Ensure the build respects distutils configuration by parsing
+        # the configuration files
         config_files = dist.find_config_files()
-        try: config_files.remove('setup.cfg')
-        except ValueError: pass
         dist.parse_config_files(config_files)
         build_extension = build_ext(dist)
         build_extension.finalize_options()
