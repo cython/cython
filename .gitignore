@@ -24,3 +24,5 @@ dist/
 
 tags
 TAGS
+
+.tox
