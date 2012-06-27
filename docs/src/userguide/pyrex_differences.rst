@@ -127,8 +127,9 @@ yields::
     6
     8
 
-.. note:: see :ref:`automatic-range-conversion`
-       
+.. note:: Usage of this syntax is discouraged as it is redundant with the
+          normal Python :keyword:`for` loop.
+          See :ref:`automatic-range-conversion`.
 
 Boolean int type (e.g. it acts like a c int, but coerces to/from python as a boolean)
 ======================================================================================
