@@ -1774,6 +1774,7 @@ class CClassScope(ClassScope):
                 if constructor is not None and \
                         PyrexTypes.best_match([], constructor.all_alternatives()) is None:
                     error(pos, "C++ class must have a no-arg constructor to be a member of an extension type; use a pointer instead")
+                self.use_utility_code(Code.UtilityCode("#include <new>"))
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)

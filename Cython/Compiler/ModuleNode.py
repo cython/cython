@@ -990,6 +990,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
                         scope.get_refcounted_entries(include_weakref=True)
+        cpp_class_attrs = [entry for entry in scope.var_entries if entry.type.is_cpp_class]
 
         new_func_entry = scope.lookup_here("__new__")
         if base_type or (new_func_entry and new_func_entry.is_special
@@ -998,7 +999,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             unused_marker = 'CYTHON_UNUSED '
 
-        need_self_cast = type.vtabslot_cname or have_entries
+        need_self_cast = type.vtabslot_cname or have_entries or cpp_class_attrs
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {"
@@ -1036,9 +1037,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
 
-        for entry in scope.var_entries:
-            if entry.type.is_cpp_class:
-                code.putln("new(&(p->%s)) %s();" % (entry.cname, entry.type.cname));
+        for entry in cpp_class_attrs:
+            code.putln("new((void*)&(p->%s)) %s();" % 
+                       (entry.cname, entry.type.cname));
 
         for entry in py_attrs:
             if scope.is_internal or entry.name == "__weakref__":
@@ -1086,8 +1087,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         weakref_slot = scope.lookup_here("__weakref__")
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
+        cpp_class_attrs = [entry for entry in scope.var_entries if entry.type.is_cpp_class]
 
-        if py_attrs or memoryview_slices or weakref_slot in scope.var_entries:
+        if (py_attrs
+            or cpp_class_attrs
+            or memoryview_slices
+            or weakref_slot in scope.var_entries):
             self.generate_self_cast(scope, code)
 
         # call the user's __dealloc__
@@ -1095,9 +1100,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if weakref_slot in scope.var_entries:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
-        for entry in scope.var_entries:
-            if entry.type.is_cpp_class:
-                code.putln("p->%s.~%s();" % (entry.cname, entry.type.cname));
+        for entry in cpp_class_attrs:
+            class_name = entry.type.cname.split("::")[-1]
+            code.putln("p->%s.~%s();" % (entry.cname, class_name));
 
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type, nanny=False)

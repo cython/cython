@@ -33,6 +33,9 @@ cdef extern from "shapes.h" namespace "shapes":
         int side
         Square(int)
 
+    cdef cppclass Empty(Shape):
+        pass
+
     int constructor_count, destructor_count
 
 def test_new_del():
@@ -81,3 +84,22 @@ def test_value_call(int w):
         return get_area(sqr[0]), get_area(rect[0])
     finally:
         del sqr
+
+cdef class EmptyHolder:
+    cdef Empty empty
+
+def test_class_member():
+    """
+    >>> test_class_member()
+    """
+    start_constructor_count = constructor_count
+    start_destructor_count = destructor_count
+    e1 = EmptyHolder()
+    assert constructor_count - start_constructor_count == 1, \
+           constructor_count - start_constructor_count
+    e2 = EmptyHolder()
+    assert constructor_count - start_constructor_count == 2, \
+           constructor_count - start_constructor_count
+    del e1, e2
+    assert destructor_count - start_destructor_count == 2, \
+           destructor_count - start_destructor_count
