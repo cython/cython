@@ -70,8 +70,8 @@ typedef struct arrayobject {
  * 
  *  fast creation of a new array
  */
- 
-CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t size,
+
+static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t size,
     struct arraydescr *descr) {
     arrayobject *op;
     size_t nbytes;
@@ -115,7 +115,7 @@ PyObject* newarrayobject(PyTypeObject *type, Py_ssize_t size,
 
 /* fast resize (reallocation to the point) 
    not designed for filing small increments (but for fast opaque array apps) */
-int resize(arrayobject *self, Py_ssize_t n) {
+static int resize(arrayobject *self, Py_ssize_t n) {
     void *item= (void*) self->ob_item;
     PyMem_Resize(item, char, (size_t)(n * self->ob_descr->itemsize));
     if (item == NULL) {
@@ -132,7 +132,7 @@ int resize(arrayobject *self, Py_ssize_t n) {
 
 /* suitable for small increments; over allocation 50% ;
    Remains non-smart in Python 2.3- ; but exists for compatibility */
-int resize_smart(arrayobject *self, Py_ssize_t n) {
+static int resize_smart(arrayobject *self, Py_ssize_t n) {
 #if PY_VERSION_HEX >= 0x02040000
     void *item = (void*) self->ob_item;
     Py_ssize_t newsize;
