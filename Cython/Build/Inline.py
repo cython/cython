@@ -178,7 +178,12 @@ def __invoke(%(params)s):
             sources = [pyx_file],
             include_dirs = c_include_dirs,
             extra_compile_args = cflags)
-        build_extension = build_ext(Distribution())
+        dist = Distribution()
+        # Ensure the build respects distutils configuration by parsing
+        # the configuration files
+        config_files = dist.find_config_files()
+        dist.parse_config_files(config_files)
+        build_extension = build_ext(dist)
         build_extension.finalize_options()
         build_extension.extensions = cythonize([extension], ctx=ctx, quiet=quiet)
         build_extension.build_temp = os.path.dirname(pyx_file)
