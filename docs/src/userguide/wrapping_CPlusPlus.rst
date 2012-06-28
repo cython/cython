@@ -32,12 +32,17 @@ main new features of Cython v0.13 regarding C++ support:
 
 Procedure Overview
 -------------------
-The general procedure for wrapping a C++ file can now be described as follow:
+The general procedure for wrapping a C++ file can now be described as follows:
 
-* Specify C++ language in :file:`setup.py` script
-* Create ``cdef extern from`` blocks with the optional namespace (if exists) and the namespace name as string
-* Declare classes as ``cdef cppclass`` blocks
-* Declare public attributes (variables, methods and constructors) 
+* Specify C++ language in :file:`setup.py` script or locally in a source file.
+* Create one or more .pxd files with ``cdef extern from`` blocks and
+  (if existing) the C++ namespace name.  In these blocks,
+
+  * declare classes as ``cdef cppclass`` blocks
+  * declare public names (variables, methods and constructors)
+
+* Write an extension modules, ``cimport`` from the .pxd file and use
+  the declarations.
 
 A simple Tutorial
 ==================
