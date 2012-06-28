@@ -2297,7 +2297,7 @@ supported_overloaded_operators = set([
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
-    '[]', '()',
+    '[]', '()', '!',
 ])
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,

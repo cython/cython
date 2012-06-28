@@ -13,6 +13,7 @@ cdef extern from "cpp_operators_helper.h":
         char* operator-()
         char* operator*()
         char* operator~()
+        char* operator!()
 
         char* operator++()
         char* operator--()
@@ -50,12 +51,14 @@ def test_unops():
     unary -
     unary ~
     unary *
+    unary !
     """
     cdef TestOps* t = new TestOps()
     out(+t[0])
     out(-t[0])
     out(~t[0])
     out(deref(t[0]))
+    out(not t[0])
     del t
 
 def test_incdec():

@@ -337,9 +337,9 @@ syntax as C++. Cython provides functions replacing these operators in
 a special module ``cython.operator``. The functions provided are:
 
 * ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
-  will produce the C++ code ``*foo``
+  will produce the C++ code ``*(foo)``
 * ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
-  will produce the C++ code ``++foo``
+  will produce the C++ code ``++(foo)``
 * ...
 
 These functions need to be cimported. Of course, one can use a
