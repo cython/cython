@@ -6939,7 +6939,20 @@ class NotNode(ExprNode):
 
     def analyse_types(self, env):
         self.operand.analyse_types(env)
-        self.operand = self.operand.coerce_to_boolean(env)
+        if self.operand.type.is_cpp_class:
+            type = self.operand.type
+            function = type.scope.lookup("operator!")
+            if not function:
+                error(self.pos, "'!' operator not defined for %s"
+                    % (type))
+                self.type = PyrexTypes.error_type
+                return
+            func_type = function.type
+            if func_type.is_ptr:
+                func_type = func_type.base_type
+            self.type = func_type.return_type
+        else:
+            self.operand = self.operand.coerce_to_boolean(env)
 
     def calculate_result_code(self):
         return "(!%s)" % self.operand.result()
@@ -7020,20 +7033,6 @@ class CUnopNode(UnopNode):
 
     def is_py_operation(self):
         return False
-
-class BangNode(CUnopNode):
-    #  unary ! operator
-
-    operator = '!'
-
-    def analyse_c_operation(self, env):
-        if self.operand.type.is_ptr or self.operand.type.is_numeric:
-            self.type = PyrexTypes.c_bint_type
-        else:
-            self.type_error()
-
-    def calculate_result_code(self):
-        return "(!%s)" % self.operand.result()
 
 class DereferenceNode(CUnopNode):
     #  unary * operator

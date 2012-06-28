@@ -58,7 +58,7 @@ def test_unops():
     out(-t[0])
     out(~t[0])
     out(deref(t[0]))
-    out(cython.operator.bang(t[0]))
+    out(not t[0])
     del t
 
 def test_incdec():

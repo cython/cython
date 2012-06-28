@@ -333,8 +333,6 @@ a special module ``cython.operator``. The functions provided are:
 
 * ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
   will produce the C++ code ``*(foo)``
-* ``cython.operator.bang`` for not. ``bang(foo)``
-  will produce the C++ code ``!(foo)``
 * ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
   will produce the C++ code ``++(foo)``
 * ...
