@@ -494,8 +494,8 @@ Access to C-only functions
 ---------------------------
 
 Whenever generating C++ code, Cython generates declarations of and calls
-to functions assuming these functions are C++ (ie, not declared as extern "C"
-{...} . This is ok if the C functions have C++ entry points, but if they're C
+to functions assuming these functions are C++ (ie, not declared as ``extern "C"
+{...}``. This is ok if the C functions have C++ entry points, but if they're C
 only, you will hit a roadblock. If you have a C++ Cython module needing
 to make calls to pure-C functions, you will need to write a small C++ shim
 module which:
