@@ -1,17 +1,5 @@
 # tag: cpp
 
-__doc__ = u"""
-    >>> test_new_del()
-    (2, 2)
-    >>> test_rect_area(3, 4)
-    12.0
-    >>> test_square_area(15)
-    (225.0, 225.0)
-    >>> test_overload_bint_int()
-    202
-    201
-"""
-
 cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Shape:
@@ -39,12 +27,23 @@ cdef extern from "shapes.h" namespace "shapes":
     int constructor_count, destructor_count
 
 def test_new_del():
+    """
+    >>> test_new_del()
+    2 0
+    2 2
+    """
+    c,d = constructor_count, destructor_count
     cdef Rectangle *rect = new Rectangle(10, 20)
     cdef Circle *circ = new Circle(15)
+    print constructor_count-c, destructor_count-d
     del rect, circ
-    return constructor_count, destructor_count
+    print constructor_count-c, destructor_count-d
 
 def test_rect_area(w, h):
+    """
+    >>> test_rect_area(3, 4)
+    12.0
+    """
     cdef Rectangle *rect = new Rectangle(w, h)
     try:
         return rect.area()
@@ -52,6 +51,11 @@ def test_rect_area(w, h):
         del rect
 
 def test_overload_bint_int():
+    """
+    >>> test_overload_bint_int()
+    202
+    201
+    """
     cdef Rectangle *rect1 = new Rectangle(10, 20)
     cdef Rectangle *rect2 = new Rectangle(10, 20)
 
@@ -63,6 +67,10 @@ def test_overload_bint_int():
         del rect2
 
 def test_square_area(w):
+    """
+    >>> test_square_area(15)
+    (225.0, 225.0)
+    """
     cdef Square *sqr = new Square(w)
     cdef Rectangle *rect = sqr
     try:
