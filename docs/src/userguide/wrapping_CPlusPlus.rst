@@ -504,25 +504,6 @@ module which:
 * contains minimal forwarding functions in C++, each of which calls the
   respective pure-C function 
 
-Inherited C++ methods
-----------------------
-
-If you have a class ``Foo`` with a child class ``Bar``, and ``Foo`` has a
-method :meth:`fred`, then you'll have to cast to access this method from
-``Bar`` objects.
-For example::
-
-    cdef class MyClass:
-        Bar *b
-        ...
-        def myfunc(self):
-            ...
-            b.fred()   # wrong, won't work
-            (<Foo *>(self.b)).fred() # should work, Cython now thinks it's a 'Foo'
-
-It might take some experimenting by others (you?) to find the most elegant
-ways of handling this issue.
-
 Declaring/Using References
 ---------------------------
 
