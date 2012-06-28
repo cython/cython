@@ -614,6 +614,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'typeof': ExprNodes.TypeofNode,
 
         'operator.address': ExprNodes.AmpersandNode,
+        'operator.bang': ExprNodes.BangNode,
         'operator.dereference': ExprNodes.DereferenceNode,
         'operator.preincrement' : ExprNodes.inc_dec_constructor(True, '++'),
         'operator.predecrement' : ExprNodes.inc_dec_constructor(True, '--'),

@@ -7021,6 +7021,20 @@ class CUnopNode(UnopNode):
     def is_py_operation(self):
         return False
 
+class BangNode(CUnopNode):
+    #  unary ! operator
+
+    operator = '!'
+
+    def analyse_c_operation(self, env):
+        if self.operand.type.is_ptr or self.operand.type.is_numeric:
+            self.type = PyrexTypes.c_bint_type
+        else:
+            self.type_error()
+
+    def calculate_result_code(self):
+        return "(!%s)" % self.operand.result()
+
 class DereferenceNode(CUnopNode):
     #  unary * operator
 
