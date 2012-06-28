@@ -85,6 +85,22 @@ def test_value_call(int w):
     finally:
         del sqr
 
+def get_destructor_count():
+    return destructor_count
+
+def test_stack_allocation(int w, int h):
+    """
+    >>> d = test_stack_allocation(10, 12)
+    125
+    >>> get_destructor_count() - d
+    1
+    """
+    cdef Rectangle rect
+    rect.width = w
+    rect.height = h
+    print rect.method(<int>5)
+    return destructor_count
+
 cdef class EmptyHolder:
     cdef Empty empty
 
