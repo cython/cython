@@ -185,16 +185,22 @@ class name from Rectangle.h and adjust for Cython syntax, so now it becomes::
 Add public attributes
 ^^^^^^^^^^^^^^^^^^^^^^
 
-We now need to declare the attributes for use on Cython::
+We now need to declare the attributes and methods for use on Cython::
 
     cdef extern from "Rectangle.h" namespace "shapes":
         cdef cppclass Rectangle:
-            Rectangle(int, int, int, int)
+            Rectangle(int, int, int, int) except +
             int x0, y0, x1, y1
             int getLength()
             int getHeight()
             int getArea()
             void move(int, int)
+
+Note that the constructor is declared as "except +".  If the C++ code or
+the initial memory allocation raises an exception due to a failure, this
+will let Cython safely raise an appropriate Python exception instead
+(see below).  Without this declaration, C++ exceptions originating from
+the constructor will not be handled by Cython.
 
 Declare a var with the wrapped C++ class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
