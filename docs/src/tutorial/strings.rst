@@ -87,7 +87,7 @@ not modify a string they return, for example:
     int process_string(const char* s);
     const unsigned char* look_up_cached_string(const unsigned char* key);
 
-Cython does not currently have support for the "const" modifier in
+Cython does not currently have support for the ``const`` modifier in
 the language, but it allows users to make the necessary declarations
 at a textual level.
 
