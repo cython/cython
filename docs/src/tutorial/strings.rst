@@ -84,6 +84,7 @@ not modify a string they return, for example:
 
 .. code-block:: c
 
+    typedef const char specialChar;
     int process_string(const char* s);
     const unsigned char* look_up_cached_string(const unsigned char* key);
 
@@ -94,18 +95,28 @@ at a textual level.
 In general, for arguments of external C functions, the ``const``
 modifier does not matter and can be left out in the Cython
 declaration (e.g. in a .pxd file).  The C compiler will still do
-the right thing.
+the right thing, even if you declare this to Cython::
 
-However, in most other situations, e.g. for return values and
-specifically typedef-ed API types, it does matter and the C compiler
-will emit a warning if used incorrectly.  To help with this, you can
-use the type definitions in the ``libc.string`` module, e.g.::
+    cdef extern from "someheader.h":
+        int process_string(char* s)   # note: looses API information!
+
+However, in most other situations, such as for return values and
+variables that use specifically typedef-ed API types, it does matter
+and the C compiler will emit a warning if used incorrectly.  To help
+with this, you can use the type definitions in the ``libc.string``
+module, e.g.::
 
     from libc.string cimport const_char, const_uchar
 
     cdef extern from "someheader.h":
+        ctypedef const_char specialChar
         int process_string(const_char* s)
         const_uchar* look_up_cached_string(const_uchar* key)
+
+Note: even if the API only uses ``const`` for function arguments,
+it is still preferable to properly declare them using the
+:c:type:`const_char` types in order to simplify adaptations, e.g.
+if Cython ever gains language support for ``const``.
 
 Decoding bytes to text
 ----------------------
