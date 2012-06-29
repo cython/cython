@@ -324,17 +324,18 @@ can have is 1114111 (``0x10FFFF``).  On platforms with 32bit or more,
 Narrow Unicode builds
 ----------------------
 
-In narrow Unicode builds of CPython, i.e. builds where
-``sys.maxunicode`` is 65535 (such as all Windows builds, as opposed to
-1114111 in wide builds), it is still possible to use Unicode character
-code points that do not fit into the 16 bit wide :c:type:`Py_UNICODE`
-type. For example, such a CPython build will accept the unicode literal
-``u'\U00012345'``.  However, the underlying system level encoding
-leaks into Python space in this case, so that the length of this
-literal becomes 2 instead of 1.  This also shows when iterating over
-it or when indexing into it.  The visible substrings are ``u'\uD808'``
-and ``u'\uDF45'`` in this example.  They form a so-called surrogate
-pair that represents the above character.
+In narrow Unicode builds of CPython before version 3.3, i.e. builds
+where ``sys.maxunicode`` is 65535 (such as all Windows builds, as
+opposed to 1114111 in wide builds), it is still possible to use
+Unicode character code points that do not fit into the 16 bit wide
+:c:type:`Py_UNICODE` type.  For example, such a CPython build will
+accept the unicode literal ``u'\U00012345'``.  However, the
+underlying system level encoding leaks into Python space in this
+case, so that the length of this literal becomes 2 instead of 1.
+This also shows when iterating over it or when indexing into it.
+The visible substrings are ``u'\uD808'`` and ``u'\uDF45'`` in this
+example.  They form a so-called surrogate pair that represents the
+above character.
 
 For more information on this topic, it is worth reading the `Wikipedia
 article about the UTF-16 encoding`_.
@@ -376,6 +377,22 @@ platforms::
     cdef Py_UCS4 uchar = u'\U00012345'
     assert uchar == 0x12345
 
+In CPython 3.3 and later, the :c:type:`Py_UNICODE` type is an alias
+for the system specific :c:type:`wchar_t` type and is no longer tied
+to the internal representation of the Unicode string.  Instead, any
+Unicode character can be represented on all platforms without
+resorting to surrogate pairs.  This implies that narrow builds no
+longer exist from that version on, regardless of the size of
+:c:type:`Py_UNICODE`.  See
+`PEP 393 <http://www.python.org/dev/peps/pep-0393/>`_  for details.
+
+Cython 0.16 and later handles this change internally and does the right
+thing also for single character values as long as either type inference
+is applied to untyped variables or the portable :c:type:`Py_UCS4` type
+is explicitly used in the source code instead of the platform specific
+:c:type:`Py_UNICODE` type.  Optimisations that Cython applies to the
+Python unicode type will automatically adapt to PEP 393 at C compile
+time, as usual.
 
 Iteration
 ---------
