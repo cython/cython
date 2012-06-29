@@ -94,6 +94,9 @@ cdef extern from "<string>" namespace "std":
         #string& operator= (char*)
         #string& operator= (char)
 
+        string operator+ (string& rhs) nogil
+        string operator+ (char* rhs) nogil
+
         bint operator==(string&) nogil
         bint operator==(char*) nogil
 

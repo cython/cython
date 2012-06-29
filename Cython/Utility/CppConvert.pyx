@@ -153,6 +153,14 @@ cdef object {{cname}}(pair[{{T0}},{{T1}}]& p):
 #################### map.from_py ####################
 
 cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    ctypedef struct Y "{{T1}}":
+        pass
+    cdef X X_from_py "{{T0_from_py}}" (object) except *
+    cdef Y Y_from_py "{{T1_from_py}}" (object) except *
+
+cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         pair(T&, U&)
     cdef cppclass map "std::map" [T, U]:
@@ -165,11 +173,11 @@ cdef extern from *:
 
 
 @cname("{{cname}}")
-cdef map[{{T0}},{{T1}}] {{cname}}(object o) except *:
+cdef map[X,Y] {{cname}}(object o) except *:
     cdef dict d = o
-    cdef map[{{T0}},{{T1}}] m
+    cdef map[X,Y] m
     for key, value in d.iteritems():
-        m.insert(pair[{{T0}},{{T1}}](<{{T0}}>key, <{{T1}}>value))
+        m.insert(pair[X,Y](X_from_py(key), Y_from_py(value)))
     return m
 
 
@@ -179,6 +187,13 @@ cdef map[{{T0}},{{T1}}] {{cname}}(object o) except *:
 
 cimport cython
 
+cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    ctypedef struct Y "{{T1}}":
+        pass
+    cdef object X_to_py "{{T0_to_py}}" (X)
+    cdef object Y_to_py "{{T1_to_py}}" (Y)
 
 cdef extern from *:
     cdef cppclass map "std::map" [T, U]:
@@ -193,12 +208,12 @@ cdef extern from *:
         iterator end()
 
 @cname("{{cname}}")
-cdef object {{cname}}(map[{{T0}},{{T1}}] s):
+cdef object {{cname}}(map[X,Y] s):
     o = {}
-    cdef map[{{T0}},{{T1}}].value_type *key_value
-    cdef map[{{T0}},{{T1}}].iterator iter = s.begin()
+    cdef map[X,Y].value_type *key_value
+    cdef map[X,Y].iterator iter = s.begin()
     while iter != s.end():
         key_value = &cython.operator.dereference(iter)
-        o[key_value.first] = key_value.second
+        o[X_to_py(key_value.first)] = Y_to_py(key_value.second)
         cython.operator.preincrement(iter)
     return o

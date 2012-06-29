@@ -30,7 +30,6 @@ class BaseType(object):
                 all.append(c)
             else:
                 all.append('_%x_' % ord(c))
-        print self.declaration_code(""), ''.join(all)
         return ''.join(all)
 
     def base_declaration_code(self, base_code, entity_code):
@@ -3026,9 +3025,12 @@ class CppClassType(CType):
                 if not T.create_from_py_utility_code(env):
                     return False
                 tags.append(T.specialization_name())
-                context["T%s" % ix] = T.declaration_code("", for_display=True)
+                # TODO: exception values
+                context["T%s" % ix] = T.declaration_code("")
+                context["T%s_from_py" % ix] = T.from_py_function
             cls = self.cname[5:]
             cname = "__pyx_convert_%s_from_py_%s" % (cls, "____".join(tags))
+            print cls, "->", cname
             context['cname'] = cname
             from UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(cls + ".from_py", "CppConvert.pyx", context=context))
@@ -3045,7 +3047,8 @@ class CppClassType(CType):
                 if not T.create_to_py_utility_code(env):
                     return False
                 tags.append(T.specialization_name())
-                context["T%s" % ix] = T.declaration_code("", for_display=True)
+                context["T%s" % ix] = T.declaration_code("")
+                context["T%s_to_py" % ix] = T.to_py_function
             cls = self.cname[5:]
             cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
             context['cname'] = cname
