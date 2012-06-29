@@ -29,18 +29,28 @@ cdef object {{cname}}(string& s):
 #################### vector.from_py ####################
 
 cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    cdef X X_from_py "{{T0_from_py}}" (object) except *
+
+cdef extern from *:
     cdef cppclass vector "std::vector" [T]:
         void push_back(T&)
 
 @cname("{{cname}}")
-cdef vector[{{T0}}] {{cname}}(object o) except *:
-    cdef vector[{{T0}}] v
+cdef vector[X] {{cname}}(object o) except *:
+    cdef vector[X] v
     for item in o:
-        v.push_back(item)
+        v.push_back(X_from_py(item))
     return v
 
 
 #################### vector.to_py ####################
+
+cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    cdef object X_to_py "{{T0_to_py}}" (X)
 
 cdef extern from *:
     cdef cppclass vector "const std::vector" [T]:
@@ -48,11 +58,16 @@ cdef extern from *:
         T& operator[](size_t)
 
 @cname("{{cname}}")
-cdef object {{cname}}(vector[{{T0}}]& v):
-    return [v[i] for i in range(v.size())]
+cdef object {{cname}}(vector[X]& v):
+    return [X_to_py(v[i]) for i in range(v.size())]
 
 
 #################### list.from_py ####################
+
+cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    cdef X X_from_py "{{T0_from_py}}" (object) except *
 
 cdef extern from *:
     cdef cppclass cpp_list "std::list" [T]:
@@ -62,11 +77,16 @@ cdef extern from *:
 cdef cpp_list[{{T0}}] {{cname}}(object o) except *:
     cdef cpp_list[{{T0}}] l
     for item in o:
-        l.push_back(item)
+        l.push_back(X_from_py(item))
     return l
 
 
 #################### list.to_py ####################
+
+cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    cdef object X_to_py "{{T0_to_py}}" (X)
 
 cdef extern from *:
     cdef cppclass cpp_list "std::list" [T]:
@@ -79,11 +99,11 @@ cdef extern from *:
     cdef cppclass const_cpp_list "const std::list" [T] (cpp_list)
 
 @cname("{{cname}}")
-cdef object {{cname}}(const_cpp_list[{{T0}}]& v):
+cdef object {{cname}}(const_cpp_list[X]& v):
     o = []
-    cdef cpp_list[{{T0}}].const_iterator iter = s.begin()
+    cdef cpp_list[X].const_iterator iter = s.begin()
     while iter != s.end():
-        o.append(cython.operator.dereference(iter))
+        o.append(X_to_py(cython.operator.dereference(iter)))
         cython.operator.preincrement(iter)
     return o
 
@@ -91,20 +111,30 @@ cdef object {{cname}}(const_cpp_list[{{T0}}]& v):
 #################### set.from_py ####################
 
 cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    cdef X X_from_py "{{T0_from_py}}" (object) except *
+
+cdef extern from *:
     cdef cppclass set "std::set" [T]:
         void insert(T&)
 
 @cname("{{cname}}")
-cdef set[{{T0}}] {{cname}}(object o) except *:
-    cdef set[{{T0}}] s
+cdef set[X] {{cname}}(object o) except *:
+    cdef set[X] s
     for item in o:
-        s.insert(item)
+        s.insert(X_from_py(item))
     return s
 
 
 #################### set.to_py ####################
 
 cimport cython
+
+cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    cdef object X_to_py "{{T0_to_py}}" (X)
 
 cdef extern from *:
     cdef cppclass cpp_set "std::set" [T]:
@@ -118,27 +148,43 @@ cdef extern from *:
         pass
 
 @cname("{{cname}}")
-cdef object {{cname}}(const_cpp_set[{{T0}}]& s):
+cdef object {{cname}}(const_cpp_set[X]& s):
     o = set()
-    cdef cpp_set[{{T0}}].const_iterator iter = s.begin()
+    cdef cpp_set[X].const_iterator iter = s.begin()
     while iter != s.end():
-        o.add(cython.operator.dereference(iter))
+        o.add(X_to_py(cython.operator.dereference(iter)))
         cython.operator.preincrement(iter)
     return o
 
 #################### pair.from_py ####################
 
 cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    ctypedef struct Y "{{T1}}":
+        pass
+    cdef X X_from_py "{{T0_from_py}}" (object) except *
+    cdef Y Y_from_py "{{T1_from_py}}" (object) except *
+
+cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         pair(T&, U&)
 
 @cname("{{cname}}")
-cdef pair[{{T0}},{{T1}}] {{cname}}(object o) except *:
+cdef pair[X,Y] {{cname}}(object o) except *:
     x, y = o
-    return pair[{{T0}},{{T1}}](x, y)
+    return pair[X,Y](X_from_py(x), Y_from_py(y))
 
 
 #################### pair.to_py ####################
+
+cdef extern from *:
+    ctypedef struct X "{{T0}}":
+        pass
+    ctypedef struct Y "{{T1}}":
+        pass
+    cdef object X_to_py "{{T0_to_py}}" (X)
+    cdef object Y_to_py "{{T1_to_py}}" (Y)
 
 cdef extern from *:
     cdef cppclass pair "const std::pair" [T, U]:
@@ -146,8 +192,8 @@ cdef extern from *:
         U second
 
 @cname("{{cname}}")
-cdef object {{cname}}(pair[{{T0}},{{T1}}]& p):
-    return p.first, p.second
+cdef object {{cname}}(pair[X,Y]& p):
+    return X_to_py(p.first), Y_to_py(p.second)
 
 
 #################### map.from_py ####################

@@ -3030,7 +3030,6 @@ class CppClassType(CType):
                 context["T%s_from_py" % ix] = T.from_py_function
             cls = self.cname[5:]
             cname = "__pyx_convert_%s_from_py_%s" % (cls, "____".join(tags))
-            print cls, "->", cname
             context['cname'] = cname
             from UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(cls + ".from_py", "CppConvert.pyx", context=context))
