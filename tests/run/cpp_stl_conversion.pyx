@@ -41,10 +41,10 @@ def test_int_vector(o):
     [1, 2, 3]
     >>> test_int_vector((1, 10, 100))
     [1, 10, 100]
-    >>> test_int_vector([10**20])
+    >>> test_int_vector([10**20])       #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    OverflowError: Python int too large to convert to C long
+    OverflowError: ...
     """
     cdef vector[int] v = o
     return v
