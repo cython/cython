@@ -3022,7 +3022,7 @@ class CppClassType(CType):
             tags = []
             context = {}
             for ix, T in enumerate(self.templates or []):
-                if not T.create_from_py_utility_code(env):
+                if T.is_pyobject or not T.create_from_py_utility_code(env):
                     return False
                 tags.append(T.specialization_name())
                 # TODO: exception values
