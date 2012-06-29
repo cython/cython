@@ -22,7 +22,16 @@ class BaseType(object):
         return "((%s)%s)" % (self.declaration_code(""), expr_code)
 
     def specialization_name(self):
-        return self.declaration_code("").replace(" ", "__")
+        # This is not entirely robust.
+        safe = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789'
+        all = []
+        for c in self.declaration_code("").replace(" ", "__"):
+            if c in safe:
+                all.append(c)
+            else:
+                all.append('_%x_' % ord(c))
+        print self.declaration_code(""), ''.join(all)
+        return ''.join(all)
 
     def base_declaration_code(self, base_code, entity_code):
         if entity_code:
@@ -2978,6 +2987,9 @@ class CStructOrUnionType(CType):
             return expr_code
         return super(CStructOrUnionType, self).cast_code(expr_code)
 
+
+builtin_cpp_conversions = ("std::string", "std::vector", "std::set", "std::map", "std::pair")
+
 class CppClassType(CType):
     #  name          string
     #  cname         string
@@ -3000,6 +3012,47 @@ class CppClassType(CType):
         self.templates = templates
         self.template_type = template_type
         self.specializations = {}
+
+    def use_conversion_utility(self, from_or_to):
+        pass
+    
+    def create_from_py_utility_code(self, env):
+        if self.from_py_function is not None:
+            return True
+        if self.cname in builtin_cpp_conversions:
+            tags = []
+            context = {}
+            for ix, T in enumerate(self.templates or []):
+                if not T.create_from_py_utility_code(env):
+                    return False
+                tags.append(T.specialization_name())
+                context["T%s" % ix] = T.declaration_code("", for_display=True)
+            cls = self.cname[5:]
+            cname = "__pyx_convert_%s_from_py_%s" % (cls, "____".join(tags))
+            context['cname'] = cname
+            from UtilityCode import CythonUtilityCode
+            env.use_utility_code(CythonUtilityCode.load(cls + ".from_py", "CppConvert.pyx", context=context))
+            self.from_py_function = cname
+            return True
+    
+    def create_to_py_utility_code(self, env):
+        if self.to_py_function is not None:
+            return True
+        if self.cname in builtin_cpp_conversions:
+            tags = []
+            context = {}
+            for ix, T in enumerate(self.templates or []):
+                if not T.create_to_py_utility_code(env):
+                    return False
+                tags.append(T.specialization_name())
+                context["T%s" % ix] = T.declaration_code("", for_display=True)
+            cls = self.cname[5:]
+            cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
+            context['cname'] = cname
+            from UtilityCode import CythonUtilityCode
+            env.use_utility_code(CythonUtilityCode.load(cls + ".to_py", "CppConvert.pyx", context=context))
+            self.to_py_function = cname
+            return True
 
     def specialize_here(self, pos, template_values = None):
         if self.templates is None:
@@ -3035,7 +3088,11 @@ class CppClassType(CType):
         if self.templates:
             template_strings = [param.declaration_code('', for_display, None, pyrex)
                                 for param in self.templates]
-            templates = "<%s>" % ",".join(template_strings)
+            if for_display:
+                brackets = "[%s]"
+            else:
+                brackets = "<%s>"
+            templates = brackets % ",".join(template_strings)
             if templates[-2:] == ">>":
                 templates = templates[:-2] + "> >"
         else:

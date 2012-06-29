@@ -7084,7 +7084,7 @@ class AmpersandNode(ExprNode):
     def analyse_types(self, env):
         self.operand.analyse_types(env)
         argtype = self.operand.type
-        if not (argtype.is_cfunction or self.operand.is_addressable()):
+        if not (argtype.is_cfunction or argtype.is_reference or self.operand.is_addressable()):
             if argtype.is_memoryviewslice:
                 self.error("Cannot take address of memoryview slice")
             else:
