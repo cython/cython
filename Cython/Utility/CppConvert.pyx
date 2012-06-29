@@ -18,12 +18,12 @@ cdef string {{cname}}(object o) except *:
 #from libcpp.string cimport string
 cdef extern from *:
     cdef cppclass string "const std::string":
-        char* c_str()
+        char* data()
         size_t size()
 
 @cname("{{cname}}")
 cdef object {{cname}}(string& s):
-    return s.c_str()[:s.size()]
+    return s.data()[:s.size()]
 
 
 #################### vector.from_py ####################
