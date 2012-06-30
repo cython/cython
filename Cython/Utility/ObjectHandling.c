@@ -99,9 +99,9 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2(PyObject* tuple, PyObject** pvalue1
             goto bad;
         }
 #if CYTHON_COMPILING_IN_PYPY
-        value1 = PySequence_GetItem(tuple, 0);
+        value1 = PySequence_ITEM(tuple, 0);
         if (unlikely(!value1)) goto bad;
-        value2 = PySequence_GetItem(tuple, 1);
+        value2 = PySequence_ITEM(tuple, 1);
         if (unlikely(!value2)) goto bad;
 #else
         value1 = PyTuple_GET_ITEM(tuple, 0);
