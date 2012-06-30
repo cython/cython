@@ -2055,6 +2055,7 @@ class IteratorNode(ExprNode):
             inc_dec = '--'
         else:
             inc_dec = '++'
+        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
         code.putln(
             "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s;" % (
                 result_name,
@@ -2064,6 +2065,16 @@ class IteratorNode(ExprNode):
                 result_name,
                 self.counter_cname,
                 inc_dec))
+        code.putln("#else")
+        code.putln(
+            "%s = PySequence_ITEM(%s, %s); %s%s; %s;" % (
+                result_name,
+                self.py_result(),
+                self.counter_cname,
+                self.counter_cname,
+                inc_dec,
+                code.error_goto_if_null(result_name, self.pos)))
+        code.putln("#endif")
 
     def generate_iter_next_result_code(self, result_name, code):
         sequence_type = self.sequence.type
