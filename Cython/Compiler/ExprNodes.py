@@ -10011,7 +10011,11 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         }
     } else
 #endif
+#if CYTHON_COMPILING_IN_PYPY
+    if (PySequence_Check(o) && !PyDict_Check(o)) {
+#else
     if (PySequence_Check(o)) {
+#endif
         return PySequence_SetItem(o, i, v);
     }
     return __Pyx_SetItemInt_Generic(o, PyInt_FromSsize_t(i), v);
