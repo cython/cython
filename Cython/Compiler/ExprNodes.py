@@ -10004,13 +10004,15 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             Py_DECREF(old);
             return 1;
         }
-    } else
-#endif
-    if (likely(i >= 0)) {
+    } else if (likely(i >= 0)) {
         PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
         if (likely(m && m->sq_ass_item)) {
             return m->sq_ass_item(o, i, v);
         }
+    } else
+#endif
+    if (PySequence_Check(o)) {
+        return PySequence_SetItem(o, i, v);
     }
     return __Pyx_SetItemInt_Generic(o, PyInt_FromSsize_t(i), v);
 }
@@ -10035,12 +10037,17 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 }
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i) {
+#if CYTHON_COMPILING_IN_PYPY
+    if (PySequence_Check(o))
+        return PySequence_DelItem(o, i);
+#else
     if (likely(i >= 0)) {
         PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
         if (likely(m && m->sq_ass_item)) {
             return m->sq_ass_item(o, i, (PyObject *)NULL);
         }
     }
+#endif
     return __Pyx_DelItem_Generic(o, PyInt_FromSsize_t(i));
 }
 """,
