@@ -126,7 +126,7 @@ Cython code.  Here is the list of currently supported directives:
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
-    raised. Lists, tuples, and stings are affected only if the index
+    raised. Lists, tuples, and strings are affected only if the index
     can be determined to be non-negative (or if ``wraparound`` is False). 
     Conditions
     which would normally trigger an IndexError may instead cause
