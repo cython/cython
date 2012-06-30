@@ -5135,7 +5135,7 @@ class SequenceNode(ExprNode):
                 # resize the list the hard way
                 code.putln("((PyVarObject*)%s)->ob_size--;" % target_list)
                 code.putln('#else')
-                code.putln("%s = PySequence_GetItem(%s, %s-%d); " % (
+                code.putln("%s = PySequence_ITEM(%s, %s-%d); " % (
                     item.py_result(), target_list, length_temp, i+1))
                 code.putln('#endif')
                 code.put_gotref(item.py_result())
