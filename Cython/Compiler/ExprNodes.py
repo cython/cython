@@ -4941,7 +4941,8 @@ class SequenceNode(ExprNode):
         long_enough_for_a_loop = len(self.unpacked_items) > 3
 
         if special_unpack:
-            self.generate_special_parallel_unpacking_code(code, rhs)
+            self.generate_special_parallel_unpacking_code(
+                code, rhs, use_loop=long_enough_for_a_loop)
         code.putln("{")
         self.generate_generic_parallel_unpacking_code(
             code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
@@ -4953,7 +4954,7 @@ class SequenceNode(ExprNode):
             self.args[i].generate_assignment_code(
                 self.coerced_unpacked_items[i], code)
 
-    def generate_special_parallel_unpacking_code(self, code, rhs):
+    def generate_special_parallel_unpacking_code(self, code, rhs, use_loop):
         tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
         list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
         sequence_type_test = '1'
@@ -4969,21 +4970,25 @@ class SequenceNode(ExprNode):
             sequence_types = ['Tuple', 'List']
             sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
 
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
         code.putln("if (%s) {" % sequence_type_test)
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
 
         # CPython list/tuple => check size
+        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
         code.putln("Py_ssize_t size = Py_SIZE(sequence);")
+        code.putln("#else")
+        code.putln("Py_ssize_t size = PySequence_Size(sequence);")  # < 0 => exception
+        code.putln("#endif")
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
         code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
         code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
             len(self.args), len(self.args)))
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-        code.putln("else __Pyx_RaiseNeedMoreValuesError(size);")
+        code.putln("else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);")
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
+        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
         # unpack items from list/tuple in unrolled loop (can't fail)
         if len(sequence_types) == 2:
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
@@ -4998,6 +5003,26 @@ class SequenceNode(ExprNode):
             code.putln("}")
         for item in self.unpacked_items:
             code.put_incref(item.result(), item.ctype())
+
+        code.putln("#else")
+        # in non-CPython, use the PySequence protocol (which can fail)
+        if not use_loop:
+            for i, item in enumerate(self.unpacked_items):
+                code.putln("%s = PySequence_ITEM(sequence, %d); %s" % (
+                    item.result(), i,
+                    code.error_goto_if_null(item.result(), self.pos)))
+        else:
+            code.putln("Py_ssize_t i;")
+            code.putln("PyObject** temps[%s] = {%s};" % (
+                len(self.unpacked_items),
+                ','.join(['&%s' % item.result() for item in self.unpacked_items])))
+            code.putln("for (i=0; i < %s; i++) {" % len(self.unpacked_items))
+            code.putln("PyObject* item = PySequence_ITEM(sequence, i); %s" % (
+                code.error_goto_if_null('item', self.pos)))
+            code.putln("*(temps[i]) = item;")
+            code.putln("}")
+
+        code.putln("#endif")
         rhs.generate_disposal_code(code)
 
         if rhs.type is tuple_type:
@@ -5007,7 +5032,6 @@ class SequenceNode(ExprNode):
                 UtilityCode.load_cached("RaiseNoneIterError", "ObjectHandling.c"))
             code.putln("__Pyx_RaiseNoneNotIterableError(); %s" % code.error_goto(self.pos))
         code.putln("} else")
-        code.putln("#endif")
 
     def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
