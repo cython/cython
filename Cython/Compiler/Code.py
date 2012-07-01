@@ -392,6 +392,8 @@ def sub_tempita(s, context, file=None, name=None):
 
 class TempitaUtilityCode(UtilityCode):
     def __init__(self, name=None, proto=None, impl=None, file=None, context=None, **kwargs):
+        if context is None:
+            context = {}
         proto = sub_tempita(proto, context, file, name)
         impl = sub_tempita(impl, context, file, name)
         super(TempitaUtilityCode, self).__init__(
