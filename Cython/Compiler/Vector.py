@@ -18,7 +18,7 @@ _context_debug = False
 class TypeMapper(minitypes.TypeMapper):
     def map_type(self, type, wrap=False):
         if type.is_typedef:
-            return minitypes.TypeWrapper(type)
+            return minitypes.TypeWrapper(type, self.context)
         elif type.is_memoryviewslice:
             dtype = self.map_type(type.dtype, wrap=wrap)
             return minitypes.ArrayType(dtype, len(type.axes),
@@ -26,48 +26,54 @@ class TypeMapper(minitypes.TypeMapper):
                                        is_f_contig=type.is_f_contig)
         elif type.is_float:
             if type == PyrexTypes.c_float_type:
-                return minitypes.FloatType()
+                return minitypes.float_
             elif type == PyrexTypes.c_double_type:
-                return minitypes.DoubleType()
+                return minitypes.double
+            elif type == PyrexTypes.c_longdouble_type:
+                return minitypes.longdouble
         elif type.is_int:
             if type == PyrexTypes.c_char_type:
-                return minitypes.CharType()
+                return minitypes.char
             elif type == PyrexTypes.c_int_type:
-                return minitypes.IntType()
-
+                signed_types = [minitypes.int8, minitypes.short,
+                                minitypes.int_, minitypes.long_,
+                                minitypes.longlong]
+                unsigned_types = [minitypes.uint8, minitypes.ushort,
+                                  minitypes.uint, minitypes.ulong,
+                                  minitypes.ulonglong]
+                if type.signed:
+                    return signed_types[type.rank]
+                else:
+                    return unsigned_types[type.rank]
         elif type.is_pyobject:
-            return minitypes.object_type
+            return minitypes.object_
 
         if wrap:
-            return minitypes.TypeWrapper(type)
+            return minitypes.TypeWrapper(type, self.context)
         else:
             raise minierror.UnmappableTypeError(type)
 
 class CythonSpecializerMixin(object):
     is_partial_mapping = False
     def visit_FunctionNode(self, node):
-        node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
 
-        qualifiers = [
-            "const",
-            "CYTHON_RESTRICT",
-        ]
-        data_qualifiers = ["const"]
+        def qualify(type):
+            type = type.qualify("const", "CYTHON_RESTRICT")
+            type.base_type = type.base_type.qualify("const")
+            return type
 
-        node.shape.type.qualifiers.update(qualifiers)
+        node.shape.type = qualify(node.shape.type)
         for idx, arg in enumerate(arg for arg in node.arguments
-                                           if arg.is_array_funcarg):
-            arg.data_pointer.type.qualifiers.update(qualifiers)
-            if arg.strides_pointer:
-                arg.strides_pointer.type.qualifiers.update(qualifiers)
-
+                                          if arg.is_array_funcarg):
             if idx > 0:
-                arg.data_pointer.type.base_type.qualifiers.update(
-                                                            data_qualifiers)
-                if arg.strides_pointer:
-                    arg.strides_pointer.type.base_type.qualifiers.update(
-                                                            data_qualifiers)
+                arg.data_pointer.type = qualify(arg.data_pointer.type)
+            else:
+                arg.data_pointer.type = arg.data_pointer.type.qualify(
+                                            "const", "CYTHON_RESTRICT")
+            if arg.strides_pointer:
+                arg.strides_pointer.type = qualify(arg.strides_pointer.type)
 
+        node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
         return node
 
     def visit_NodeWrapper(self, node):
@@ -320,6 +326,10 @@ class CheckOverlappingMemoryNode(ExprNodes.ExprNode):
 
         code.putln("%s = %s;" % (
             self.result(), " || ".join(condition(op) for op in self.operands)))
+
+        if _context_debug:
+            code.putln('printf("overlapping memory: %%d\\n", %s);' %
+                                                            self.result())
 
 class BroadcastNode(ExprNodes.ExprNode):
     """
@@ -1185,7 +1195,8 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
     may_error = False
 
     def visit_ModuleNode(self, node):
-        self.minicontext = Context(typemapper=TypeMapper())
+        self.minicontext = Context()
+        self.minicontext.typemapper = TypeMapper(self.minicontext)
         self.visitchildren(node)
         return node
 
@@ -1212,8 +1223,8 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             if astmapper.may_error:
                 pos_args = (
                     b.variable(minitypes.c_string_type.pointer(), 'filename'),
-                    b.variable(minitypes.int_type.pointer(), 'lineno'),
-                    b.variable(minitypes.int_type.pointer(), 'column'))
+                    b.variable(minitypes.int_.pointer(), 'lineno'),
+                    b.variable(minitypes.int_.pointer(), 'column'))
                 posinfo = b.funcarg(b.variable(None, 'position'), *pos_args)
                 self.may_error = False
             else:
