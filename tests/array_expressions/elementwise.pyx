@@ -1,4 +1,5 @@
 # tag: numpy
+# tag: openmp
 # mode: run
 
 include "utils.pxi"

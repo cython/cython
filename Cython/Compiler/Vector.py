@@ -55,8 +55,9 @@ class TypeMapper(minitypes.TypeMapper):
 
 class CythonSpecializerMixin(object):
     is_partial_mapping = False
-    def visit_FunctionNode(self, node):
+    has_error_handler = False
 
+    def visit_FunctionNode(self, node):
         def qualify(type):
             type = type.qualify("const", "CYTHON_RESTRICT")
             type.base_type = type.base_type.qualify("const")
@@ -81,6 +82,18 @@ class CythonSpecializerMixin(object):
         for op in node.operands:
             op.variable = self.visit(op.variable)
         return node
+
+    def visit_ErrorHandler(self, node):
+        self.has_error_handler = True
+        return super(CythonSpecializerMixin, self).visit_ErrorHandler(node)
+
+    def visit_OpenMPLoopNode(self, node):
+        self.visitchildren(node)
+        if self.has_error_handler:
+            # In case of any potential gotos, don't use OpenMP loops
+            return node.for_node
+        return node
+
 
 def create_hybrid_code(codegen, old_minicode):
     minicode = codegen.context.codewriter_cls(codegen.context)
