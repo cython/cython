@@ -3000,7 +3000,8 @@ class IndexNode(ExprNode):
         if self.index.type.is_int:
             function = "__Pyx_SetItemInt"
             index_code = self.index.result()
-            code.globalstate.use_utility_code(setitem_int_utility_code)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("SetItemInt", "ObjectHandling.c"))
         else:
             index_code = self.index.py_result()
             if self.base.type is dict_type:
@@ -3081,7 +3082,8 @@ class IndexNode(ExprNode):
         if self.index.type.is_int:
             function = "__Pyx_DelItemInt"
             index_code = self.index.result()
-            code.globalstate.use_utility_code(delitem_int_utility_code)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("DelItemInt", "ObjectHandling.c"))
         else:
             index_code = self.index.py_result()
             if self.base.type is dict_type:
@@ -9980,98 +9982,6 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) 
 """)
 
 
-
-#------------------------------------------------------------------------------------
-
-setitem_int_utility_code = UtilityCode(
-proto = """
-#define __Pyx_SetItemInt(o, i, v, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_SetItemInt_Fast(o, i, v) : \\
-                                                    __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
-
-static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
-    int r;
-    if (!j) return -1;
-    r = PyObject_SetItem(o, j, v);
-    Py_DECREF(j);
-    return r;
-}
-
-static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v) {
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (PyList_CheckExact(o)) {
-        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
-        if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
-            PyObject* old = PyList_GET_ITEM(o, n);
-            Py_INCREF(v);
-            PyList_SET_ITEM(o, n, v);
-            Py_DECREF(old);
-            return 1;
-        }
-    } else {  /* inlined PySequence_SetItem() */
-        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
-        if (likely(m && m->sq_ass_item)) {
-            if (unlikely(i < 0) && likely(m->sq_length)) {
-                Py_ssize_t l = m->sq_length(o);
-                if (unlikely(l < 0)) return -1;
-                i += l;
-            }
-            return m->sq_ass_item(o, i, v);
-        }
-    }
-#else
-#if CYTHON_COMPILING_IN_PYPY
-    if (PySequence_Check(o) && !PyDict_Check(o)) {
-#else
-    if (PySequence_Check(o)) {
-#endif
-        return PySequence_SetItem(o, i, v);
-    }
-#endif
-    return __Pyx_SetItemInt_Generic(o, PyInt_FromSsize_t(i), v);
-}
-""",
-impl = """
-""")
-
-#------------------------------------------------------------------------------------
-
-delitem_int_utility_code = UtilityCode(
-proto = """
-#define __Pyx_DelItemInt(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_DelItemInt_Fast(o, i) : \\
-                                                    __Pyx_DelItem_Generic(o, to_py_func(i)))
-
-static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
-    int r;
-    if (!j) return -1;
-    r = PyObject_DelItem(o, j);
-    Py_DECREF(j);
-    return r;
-}
-
-static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i) {
-#if CYTHON_COMPILING_IN_PYPY
-    if (PySequence_Check(o)) {
-        return PySequence_DelItem(o, i);
-    }
-#else
-    /* inlined PySequence_DelItem() */
-    PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
-    if (likely(m && m->sq_ass_item)) {
-        if (unlikely(i < 0) && likely(m->sq_length)) {
-            Py_ssize_t l = m->sq_length(o);
-            if (unlikely(l < 0)) return -1;
-            i += l;
-        }
-        return m->sq_ass_item(o, i, (PyObject *)NULL);
-    }
-#endif
-    return __Pyx_DelItem_Generic(o, PyInt_FromSsize_t(i));
-}
-""",
-impl = """
-""")
 
 #------------------------------------------------------------------------------------
 
