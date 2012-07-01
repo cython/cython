@@ -2962,7 +2962,8 @@ class IndexNode(ExprNode):
                         function = "__Pyx_GetItemInt_Tuple"
                     else:
                         function = "__Pyx_GetItemInt"
-                    code.globalstate.use_utility_code(getitem_int_utility_code)
+                    code.globalstate.use_utility_code(
+                        TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c"))
                 else:
                     index_code = self.index.py_result()
                     if self.base.type is dict_type:
@@ -9902,86 +9903,6 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring,
     return uchar;
 }
 ''')
-
-getitem_int_utility_code = UtilityCode(
-proto = """
-
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
-    PyObject *r;
-    if (!j) return NULL;
-    r = PyObject_GetItem(o, j);
-    Py_DECREF(j);
-    return r;
-}
-
-""" + ''.join([
-"""
-#define __Pyx_GetItemInt_%(type)s(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_GetItemInt_%(type)s_Fast(o, i) : \\
-                                                    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
-
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i) {
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
-        PyObject *r = Py%(type)s_GET_ITEM(o, i);
-        Py_INCREF(r);
-        return r;
-    }
-    else if ((-Py%(type)s_GET_SIZE(o) <= i) & (i < 0)) {
-        PyObject *r = Py%(type)s_GET_ITEM(o, Py%(type)s_GET_SIZE(o) + i);
-        Py_INCREF(r);
-        return r;
-    }
-    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
-#else
-    return PySequence_GetItem(o, i);
-#endif
-}
-""" % {'type' : type_name} for type_name in ('List', 'Tuple')
-]) + """
-
-#define __Pyx_GetItemInt(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_GetItemInt_Fast(o, i) : \\
-                                                    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
-
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) {
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (PyList_CheckExact(o)) {
-        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
-        if (likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
-            PyObject *r = PyList_GET_ITEM(o, n);
-            Py_INCREF(r);
-            return r;
-        }
-    }
-    else if (PyTuple_CheckExact(o)) {
-        Py_ssize_t n = (likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
-        if (likely((n >= 0) & (n < PyTuple_GET_SIZE(o)))) {
-            PyObject *r = PyTuple_GET_ITEM(o, n);
-            Py_INCREF(r);
-            return r;
-        }
-    } else {  /* inlined PySequence_GetItem() */
-        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
-        if (likely(m && m->sq_item)) {
-            if (unlikely(i < 0) && likely(m->sq_length)) {
-                Py_ssize_t l = m->sq_length(o);
-                if (unlikely(l < 0)) return NULL;
-                i += l;
-            }
-            return m->sq_item(o, i);
-        }
-    }
-#else
-    if (PySequence_Check(o)) {
-        return PySequence_GetItem(o, i);
-    }
-#endif
-    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
-}
-""")
-
-
 
 #------------------------------------------------------------------------------------
 
