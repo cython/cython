@@ -1997,6 +1997,18 @@ class IteratorNode(ExprNode):
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None),
             ]))
+
+    def infer_type(self, env):
+        sequence_type = self.sequence.infer_type(env)
+        if (sequence_type.is_array or sequence_type.is_ptr) and \
+                not sequence_type.is_string:
+            return sequence_type
+        elif sequence_type.is_cpp_class:
+            begin = sequence_type.scope.lookup("begin")
+            if begin is not None:
+                return begin.type.base_type.return_type
+        return py_object_type
+    
     def analyse_cpp_types(self, env):
         begin = self.sequence.type.scope.lookup("begin")
         end = self.sequence.type.scope.lookup("end")
@@ -2179,15 +2191,22 @@ class NextNode(AtomicExprNode):
     def __init__(self, iterator):
         self.pos = iterator.pos
         self.iterator = iterator
-        iterator_type = iterator.type
+        
+    def infer_type(self, env, iterator_type = None):
+        if iterator_type is None:
+            iterator_type = self.iterator.infer_type(env)
         if iterator_type.is_ptr or iterator_type.is_array:
-            self.type = iterator_type.base_type
+            return iterator_type.base_type
         elif iterator_type.is_cpp_class:
-            self.type = iterator_type.scope.lookup("operator*").type.base_type.return_type
-            if self.type.is_reference:
-                self.type = self.type.ref_base_type
+            item_type = iterator_type.scope.lookup("operator*").type.base_type.return_type
+            if item_type.is_reference:
+                item_type = item_type.ref_base_type
+            return item_type
         else:
-            self.type = py_object_type
+            return py_object_type
+
+    def analyse_types(self, env):
+        self.type = self.infer_type(env, self.iterator.type)
         self.is_temp = 1
 
     def generate_result_code(self, code):

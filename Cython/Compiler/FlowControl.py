@@ -915,10 +915,8 @@ class ControlFlowAnalysis(CythonTransform):
             # naturally infer the base type of pointers, C arrays,
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
-            self.mark_assignment(target, ExprNodes.IndexNode(
-                node.pos,
-                base = sequence,
-                index = ExprNodes.IntNode(node.pos, value = '0')))
+
+            self.mark_assignment(target, node.item)
 
     def visit_ForInStatNode(self, node):
         condition_block = self.flow.nextblock()

@@ -26,6 +26,4 @@ def test_ptrs():
     v.push_back(&a)
     v.push_back(&b)
     v.push_back(&c)
-    cdef double* item
     return [item[0] for item in v]
-        
