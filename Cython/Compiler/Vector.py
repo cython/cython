@@ -1089,6 +1089,35 @@ def elemental_dispatcher(f):
     wrapper_method.__doc__ = f.__doc__
     return wrapper_method
 
+def resolve_node(node):
+    # Only resolve rhs operands
+    #if isinstance(node, UnbroadcastDestNode):
+    #    return resolve_node(node.lhs)
+    if isinstance(node, ExprNodes.CoerceToTempNode):
+        return resolve_node(node.arg)
+    elif node.is_memview_slice and node.is_ellipsis_noop:
+        return resolve_node(node.base)
+    else:
+        return node
+
+def equal_operands(node1, node2):
+    node1 = resolve_node(node1)
+    node2 = resolve_node(node2)
+
+    if node1.is_name and node2.is_name and node1.name == node2.name:
+        return True
+    elif node1.is_memview_slice and node2.is_memview_slice:
+        print node1.is_ellipsis_noop, node2.is_ellipsis_noop
+        return Utils.all(
+            equal_operands(index1, index2)
+                for index1, index2 in zip(node1.indices, node2.indices))
+    elif node1.is_literal and node2.is_literal:
+        return node1.value == node2.value
+    elif node1.is_none and node2.is_none:
+        return True
+
+    return False
+
 class ElementalMapper(specializers.ASTMapper):
     """
     When some elementwise expression is found in the Cython AST, convert that
@@ -1104,6 +1133,7 @@ class ElementalMapper(specializers.ASTMapper):
         self.operands = []
         # scalar operands to the function in callee space
         self.scalar_operands = []
+
         # miniast function arguments to the function
         self.funcargs = []
         self.error = False
@@ -1126,6 +1156,10 @@ class ElementalMapper(specializers.ASTMapper):
         assert not node.is_elemental
 
         b = self.astbuilder
+
+        for i, seen_operand in enumerate(self.operands):
+            if equal_operands(seen_operand, node):
+                return self.funcargs[i].variable
 
         minitype = self.map_type(node, wrap=True)
         if node.type.is_memoryviewslice:
@@ -1246,8 +1280,8 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             function = b.function(name, body, astmapper.funcargs,
                                   posinfo=posinfo)
 
-            #astmapper.operands.remove(lhs)
             astmapper.operands.pop(0)
+
             node = ElementalNode(node.pos,
                                  operands=astmapper.operands,
                                  scalar_operands=astmapper.scalar_operands,
