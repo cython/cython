@@ -14,14 +14,13 @@ cdef extern from "stdlib.h":
     void free(void *) nogil
 
 # cache tile size in this global, and in the module
-cdef bint __pyx_have_tile_size = False
-cdef size_t __pyx_tile_size
+cdef bint have_tile_size = False
+cdef size_t tile_size
 
-@cname('__pyx_get_tile_size')
-cdef size_t __pyx_get_tile_size() except 0:
-    if not __pyx_have_tile_size:
+cdef size_t get_tile_size() except 0:
+    if not have_tile_size:
         create_tile_size()
-    return __pyx_tile_size
+    return tile_size
 
 cdef int create_tile_size() except -1:
     modname = '__pyx_array_expressions'
@@ -29,17 +28,17 @@ cdef int create_tile_size() except -1:
     if not mod:
         mod = types.ModuleType(modname)
         import time; t = time.time()
-        mod.tile_size = get_tile_size()
+        mod.tile_size = compute_tile_size()
         if _DEBUG:
             print "total time:", time.time() - t, "tile size:", mod.tile_size
         sys.modules[modname] = mod
 
     # assigning to globals is broken in utility codes
-    (&__pyx_have_tile_size)[0] = True
-    (&__pyx_tile_size)[0] = mod.tile_size
+    (&have_tile_size)[0] = True
+    (&tile_size)[0] = mod.tile_size
     return 0
 
-cdef size_t get_tile_size() except 0:
+cdef size_t compute_tile_size() except 0:
     cdef float *a = <float *> malloc(SIZE * SIZE * sizeof(float))
     cdef float *b = <float *> malloc(SIZE * SIZE * sizeof(float))
 

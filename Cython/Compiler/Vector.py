@@ -736,7 +736,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
 
         args.extend(scalar_arg.result() for scalar_arg in self.scalar_operands)
         if specializer.is_tiled_specializer:
-            args.append("__pyx_get_tile_size()")
+            args.append("__pyx_vector_get_tile_size()")
         call = "%s(%s)" % (specialized_function.mangled_name, ", ".join(args))
 
         if self.may_error:
@@ -1403,8 +1403,9 @@ def load_vector_utility(name, context, **kwargs):
     return Code.TempitaUtilityCode.load(name, "Vector.c", context=context, **kwargs)
 
 def load_vector_cy_utility(name, context, **kwargs):
-    return UtilityCode.CythonUtilityCode.load(name, "Vector.pyx",
-                                              context=context, **kwargs)
+    return UtilityCode.CythonUtilityCode.load(
+                name, "Vector.pyx", context=context,
+                prefix='__pyx_vector_', **kwargs)
 
 context = MemoryView.context
 
