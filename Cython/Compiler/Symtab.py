@@ -758,6 +758,13 @@ class Scope(object):
             return None
         return PyrexTypes.best_match(operands, function.all_alternatives())
 
+    def lookup_operator_for_types(self, pos, operator, types):
+        from Nodes import Node
+        class FakeOperand(Node):
+            pass
+        operands = [FakeOperand(pos, type=type) for type in types]
+        return self.lookup_operator(operator, operands)
+
     def use_utility_code(self, new_code):
         self.global_scope().use_utility_code(new_code)
 
