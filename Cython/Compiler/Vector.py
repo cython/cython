@@ -2,7 +2,8 @@ import copy
 
 from Cython import Utils
 from Cython.Compiler import (ExprNodes, Nodes, PyrexTypes, Visitor,
-                             Code, Naming, MemoryView, Errors, UtilNodes)
+                             Code, Naming, MemoryView, Errors, UtilNodes,
+                             UtilityCode)
 from Cython.Compiler.Errors import error, CompileError
 
 from Cython.minivect import miniast
@@ -74,6 +75,12 @@ class CythonSpecializerMixin(object):
             if arg.strides_pointer:
                 arg.strides_pointer.type = qualify(arg.strides_pointer.type)
 
+        if self.is_tiled_specializer:
+            type = minitypes.size_t.qualify("const")
+            self._blocksize_var = self.astbuilder.variable(type, 'blocksize')
+            node.scalar_arguments.append(
+                        self.astbuilder.funcarg(self._blocksize_var))
+
         node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
         return node
 
@@ -94,6 +101,8 @@ class CythonSpecializerMixin(object):
             return node.for_node
         return node
 
+    def get_blocksize(self):
+        return self._blocksize_var
 
 def create_hybrid_code(codegen, old_minicode):
     minicode = codegen.context.codewriter_cls(codegen.context)
@@ -726,6 +735,8 @@ class SpecializationCaller(ExprNodes.ExprNode):
                 args.append(result)
 
         args.extend(scalar_arg.result() for scalar_arg in self.scalar_operands)
+        if specializer.is_tiled_specializer:
+            args.append("__pyx_get_tile_size()")
         call = "%s(%s)" % (specialized_function.mangled_name, ", ".join(args))
 
         if self.may_error:
@@ -1107,7 +1118,6 @@ def equal_operands(node1, node2):
     if node1.is_name and node2.is_name and node1.name == node2.name:
         return True
     elif node1.is_memview_slice and node2.is_memview_slice:
-        print node1.is_ellipsis_noop, node2.is_ellipsis_noop
         return Utils.all(
             equal_operands(index1, index2)
                 for index1, index2 in zip(node1.indices, node2.indices))
@@ -1387,9 +1397,14 @@ def load_utilities(env):
     env.use_utility_code(overlap_utility)
     env.use_utility_code(array_order_utility)
     env.use_utility_code(restrict_utility)
+    env.use_utility_code(tile_size_utility)
 
 def load_vector_utility(name, context, **kwargs):
     return Code.TempitaUtilityCode.load(name, "Vector.c", context=context, **kwargs)
+
+def load_vector_cy_utility(name, context, **kwargs):
+    return UtilityCode.CythonUtilityCode.load(name, "Vector.pyx",
+                                              context=context, **kwargs)
 
 context = MemoryView.context
 
@@ -1401,3 +1416,4 @@ overlap_utility = MemoryView.load_memview_c_utility("ReadAfterWrite",
 array_order_utility = load_vector_utility("GetOrder", context)
 restrict_utility = load_vector_utility(
     "RestrictUtility", context, proto_block='utility_code_proto_before_types')
+tile_size_utility = load_vector_cy_utility("GetTileSize", context)

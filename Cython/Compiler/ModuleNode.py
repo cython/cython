@@ -60,11 +60,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # CodeGenerator, and tell that CodeGenerator to generate code
         # from multiple sources.
         assert isinstance(self.body, Nodes.StatListNode)
-        if isinstance(tree, Nodes.StatListNode):
-            self.body.stats.extend(tree.stats)
-        else:
-            self.body.stats.append(tree)
-
+        self.body.stats.insert(0, tree)
         self.scope.utility_code_list.extend(scope.utility_code_list)
 
         def extend_if_not_in(L1, L2):
