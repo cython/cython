@@ -2184,6 +2184,8 @@ class NextNode(AtomicExprNode):
             self.type = iterator_type.base_type
         elif iterator_type.is_cpp_class:
             self.type = iterator_type.scope.lookup("operator*").type.base_type.return_type
+            if self.type.is_reference:
+                self.type = self.type.ref_base_type
         else:
             self.type = py_object_type
         self.is_temp = 1
