@@ -15,9 +15,9 @@ cdef extern from "stdlib.h":
 
 # cache tile size in this global, and in the module
 cdef bint have_tile_size = False
-cdef size_t tile_size
+cdef Py_ssize_t tile_size
 
-cdef size_t get_tile_size() except 0:
+cdef Py_ssize_t get_tile_size() except 0:
     if not have_tile_size:
         create_tile_size()
     return tile_size
@@ -38,7 +38,7 @@ cdef int create_tile_size() except -1:
     (&tile_size)[0] = mod.tile_size
     return 0
 
-cdef size_t compute_tile_size() except 0:
+cdef Py_ssize_t compute_tile_size() except 0:
     cdef float *a = <float *> malloc(SIZE * SIZE * sizeof(float))
     cdef float *b = <float *> malloc(SIZE * SIZE * sizeof(float))
 
@@ -47,8 +47,8 @@ cdef size_t compute_tile_size() except 0:
         free(b)
         raise MemoryError
 
-    cdef size_t blocksize = MIN_BLOCKSIZE
-    cdef size_t best_blocksize
+    cdef Py_ssize_t blocksize = MIN_BLOCKSIZE
+    cdef Py_ssize_t best_blocksize
 
     best_time = try_blocksize(a, b, blocksize)
     t = try_blocksize(a, b, blocksize * 8)
@@ -85,7 +85,7 @@ cdef size_t compute_tile_size() except 0:
 
     return best_blocksize
 
-cdef try_blocksize(float *a, float *b, size_t blocksize):
+cdef try_blocksize(float *a, float *b, Py_ssize_t blocksize):
     cdef int i
 
     # warm up
@@ -98,7 +98,7 @@ cdef try_blocksize(float *a, float *b, size_t blocksize):
 
     return time.time() - t
 
-cdef inline tile(float *a, float *b, size_t blocksize):
+cdef inline tile(float *a, float *b, Py_ssize_t blocksize):
     cdef Py_ssize_t i, j, tiled_i, tiled_j, upper_i, upper_j
 
     for tiled_i in range(0, SIZE, blocksize):

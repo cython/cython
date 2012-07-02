@@ -76,7 +76,7 @@ class CythonSpecializerMixin(object):
                 arg.strides_pointer.type = qualify(arg.strides_pointer.type)
 
         if self.is_tiled_specializer:
-            type = minitypes.size_t.qualify("const")
+            type = minitypes.Py_ssize_t.qualify("const")
             self._blocksize_var = self.astbuilder.variable(type, 'blocksize')
             node.scalar_arguments.append(
                         self.astbuilder.funcarg(self._blocksize_var))
