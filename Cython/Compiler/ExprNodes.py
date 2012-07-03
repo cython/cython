@@ -2003,8 +2003,7 @@ class IteratorNode(ExprNode):
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
-        if (sequence_type.is_array or sequence_type.is_ptr) and \
-                not sequence_type.is_string:
+        if sequence_type.is_array or sequence_type.is_ptr:
             return sequence_type
         elif sequence_type.is_cpp_class:
             begin = sequence_type.scope.lookup("begin")
