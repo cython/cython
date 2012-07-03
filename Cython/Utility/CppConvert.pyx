@@ -74,14 +74,16 @@ cdef extern from *:
         void push_back(T&)
 
 @cname("{{cname}}")
-cdef cpp_list[{{T0}}] {{cname}}(object o) except *:
-    cdef cpp_list[{{T0}}] l
+cdef cpp_list[X] {{cname}}(object o) except *:
+    cdef cpp_list[X] l
     for item in o:
         l.push_back(X_from_py(item))
     return l
 
 
 #################### list.to_py ####################
+
+cimport cython
 
 cdef extern from *:
     ctypedef struct X "{{T0}}":
@@ -96,13 +98,14 @@ cdef extern from *:
             bint operator!=(const_iterator)
         const_iterator begin()
         const_iterator end()
-    cdef cppclass const_cpp_list "const std::list" [T] (cpp_list)
+    cdef cppclass const_cpp_list "const std::list" [T] (cpp_list):
+        pass
 
 @cname("{{cname}}")
 cdef object {{cname}}(const_cpp_list[X]& v):
     o = []
-    cdef cpp_list[X].const_iterator iter = s.begin()
-    while iter != s.end():
+    cdef cpp_list[X].const_iterator iter = v.begin()
+    while iter != v.end():
         o.append(X_to_py(cython.operator.dereference(iter)))
         cython.operator.preincrement(iter)
     return o

@@ -2987,7 +2987,7 @@ class CStructOrUnionType(CType):
         return super(CStructOrUnionType, self).cast_code(expr_code)
 
 
-builtin_cpp_conversions = ("std::string", "std::vector", "std::set", "std::map", "std::pair")
+builtin_cpp_conversions = ("std::string", "std::vector", "std::list", "std::set", "std::map", "std::pair")
 
 class CppClassType(CType):
     #  name          string

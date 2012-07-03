@@ -6,6 +6,7 @@ from libcpp.set cimport set as cpp_set
 from libcpp.string cimport string
 from libcpp.pair cimport pair
 from libcpp.vector cimport vector
+from libcpp.list cimport list as cpp_list
 
 py_set = set
 
@@ -66,6 +67,14 @@ def test_pair(o):
     """
     cdef pair[long, double] p = o
     return p
+
+def test_list(o):
+    """
+    >>> test_list([1, 2, 3])
+    [1, 2, 3]
+    """
+    cdef cpp_list[int] l = o
+    return l
 
 def test_set(o):
     """
