@@ -5381,6 +5381,10 @@ class ForInStatNode(LoopNode, StatNode):
     def analyse_expressions(self, env):
         self.target.analyse_target_types(env)
         self.iterator.analyse_expressions(env)
+        if self.item is None:
+            # Hack. Sometimes analyse_declarations not called.
+            import ExprNodes
+            self.item = ExprNodes.NextNode(self.iterator)
         self.item.analyse_expressions(env)
         if (self.iterator.type.is_ptr or self.iterator.type.is_array) and \
             self.target.type.assignable_from(self.iterator.type):
