@@ -3150,9 +3150,8 @@ class IndexNode(ExprNode):
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
             code.put_gotref("*%s" % ptr)
-            code.putln("__Pyx_DECREF(*%s); __Pyx_INCREF(%s);" % (
-                ptr, rhs_code
-                ))
+            code.putln("__Pyx_INCREF(%s); __Pyx_DECREF(*%s);" % (
+                rhs_code, ptr))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
             code.put_giveref("*%s" % ptr)
             code.funcstate.release_temp(ptr)
