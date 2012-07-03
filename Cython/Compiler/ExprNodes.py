@@ -2226,8 +2226,11 @@ class NextNode(AtomicExprNode):
         else:
             # Avoid duplication of complicated logic.
             fake_index_node = IndexNode(self.pos,
-                                        base=self.iterator,
+                                        base=self.iterator.sequence,
                                         index=IntNode(self.pos, value='0'))
+            # TODO(vile hack): infer_type should be side-effect free
+            if isinstance(self.iterator.sequence, SimpleCallNode):
+                return py_object_type
             return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
