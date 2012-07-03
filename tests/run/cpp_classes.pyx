@@ -7,19 +7,19 @@ cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Circle(Shape):
         int radius
-        Circle(int)
+        Circle(int) except +
 
     cdef cppclass Rectangle(Shape):
         int width
         int height
-        Rectangle()
-        Rectangle(int, int)
+        Rectangle() except +
+        Rectangle(int, int) except +
         int method(int)
         int method(bint)
 
     cdef cppclass Square(Rectangle):
         int side
-        Square(int)
+        Square(int) except +
 
     cdef cppclass Empty(Shape):
         pass
@@ -38,6 +38,17 @@ def test_new_del():
     print constructor_count-c, destructor_count-d
     del rect, circ
     print constructor_count-c, destructor_count-d
+
+def test_default_constructor():
+    """
+    >>> test_default_constructor()
+    0.0
+    """
+    shape = new Empty()
+    try:
+        return shape.area()
+    finally:
+        del shape
 
 def test_rect_area(w, h):
     """

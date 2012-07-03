@@ -1329,7 +1329,7 @@ class NewExprNode(AtomicExprNode):
         self.cpp_check(env)
         constructor = type.scope.lookup(u'<init>')
         if constructor is None:
-            return_type = PyrexTypes.CFuncType(type, [])
+            return_type = PyrexTypes.CFuncType(type, [], exception_check='+')
             return_type = PyrexTypes.CPtrType(return_type)
             type.scope.declare_cfunction(u'<init>', return_type, self.pos)
             constructor = type.scope.lookup(u'<init>')

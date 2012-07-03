@@ -49,6 +49,7 @@ namespace shapes {
     };
 
     class Empty : public Shape {
+    public:
         float area() { return 0; }
     };
 
