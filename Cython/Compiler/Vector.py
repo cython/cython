@@ -736,7 +736,8 @@ class SpecializationCaller(ExprNodes.ExprNode):
 
         args.extend(scalar_arg.result() for scalar_arg in self.scalar_operands)
         if specializer.is_tiled_specializer:
-            args.append("__pyx_vector_get_tile_size()")
+            dtype_decl = self.type.dtype.declaration_code("")
+            args.append("__pyx_vector_get_tile_size() / sizeof(%s)" % dtype_decl)
         call = "%s(%s)" % (specialized_function.mangled_name, ", ".join(args))
 
         if self.may_error:

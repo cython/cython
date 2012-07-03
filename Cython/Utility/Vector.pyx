@@ -2,7 +2,7 @@
 
 DEF _DEBUG = False
 
-DEF MIN_BLOCKSIZE = 64
+DEF MIN_BLOCKSIZE = 256
 DEF SIZE = 1600
 DEF MAX_TRIES = 4
 DEF N_SAMPLES = 10
@@ -48,18 +48,8 @@ cdef Py_ssize_t compute_tile_size() except 0:
         raise MemoryError
 
     cdef Py_ssize_t blocksize = MIN_BLOCKSIZE
-    cdef Py_ssize_t best_blocksize
-
-    best_time = try_blocksize(a, b, blocksize)
-    t = try_blocksize(a, b, blocksize * 8)
-
-    if t < best_time:
-        best_time = t
-        blocksize *= 8
-        best_blocksize = blocksize
-    else:
-        best_blocksize = blocksize
-        blocksize *= 2
+    cdef Py_ssize_t best_blocksize = blocksize
+    best_time = float('inf')
 
     cdef int i
     cdef int seen_worse_blocksizes = 0
@@ -77,8 +67,6 @@ cdef Py_ssize_t compute_tile_size() except 0:
                 best_time = t
 
             blocksize *= 2
-            if blocksize == MIN_BLOCKSIZE * 8:
-                blocksize *= 2
     finally:
         free(a)
         free(b)
