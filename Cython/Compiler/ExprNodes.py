@@ -2010,7 +2010,10 @@ class IteratorNode(ExprNode):
             begin = sequence_type.scope.lookup("begin")
             if begin is not None:
                 return begin.type.base_type.return_type
-        return py_object_type
+        elif sequence_type.is_pyobject:
+            return sequence_type
+        else:
+            return py_object_type
     
     def analyse_cpp_types(self, env):
         sequence_type = self.sequence.type
@@ -2222,7 +2225,11 @@ class NextNode(AtomicExprNode):
                 item_type = item_type.ref_base_type
             return item_type
         else:
-            return py_object_type
+            # Avoid duplication of complicated logic.
+            fake_index_node = IndexNode(self.pos,
+                                        base=self.iterator,
+                                        index=IntNode(self.pos, value='0'))
+            return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
         self.type = self.infer_type(env, self.iterator.type)
