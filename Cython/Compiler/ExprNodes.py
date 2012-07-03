@@ -3122,11 +3122,11 @@ class IndexNode(ExprNode):
                 function = "PyDict_SetItem"
             # It would seem that we could specialized lists/tuples, but that
             # shouldn't happen here.
-            # Both PyList_SetItem PyTuple_SetItem and a Py_ssize_t as input,
-            # not a PyObject*, and bad conversion here would give the wrong
-            # exception. Also, tuples are supposed to be immutable, and raise
-            # TypeErrors when trying to set their entries (PyTuple_SetItem
-            # is for creating new tuples from).
+            # Both PyList_SetItem() and PyTuple_SetItem() take a Py_ssize_t as
+            # index instead of an object, and bad conversion here would give
+            # the wrong exception. Also, tuples are supposed to be immutable,
+            # and raise a TypeError when trying to set their entries
+            # (PyTuple_SetItem() is for creating new tuples from scratch).
             else:
                 function = "PyObject_SetItem"
         code.putln(
