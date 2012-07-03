@@ -28,10 +28,7 @@ cdef object {{cname}}(string& s):
 
 #################### vector.from_py ####################
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    cdef X X_from_py "{{T0_from_py}}" (object) except *
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass vector "std::vector" [T]:
@@ -47,10 +44,7 @@ cdef vector[X] {{cname}}(object o) except *:
 
 #################### vector.to_py ####################
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    cdef object X_to_py "{{T0_to_py}}" (X)
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass vector "const std::vector" [T]:
@@ -64,10 +58,7 @@ cdef object {{cname}}(vector[X]& v):
 
 #################### list.from_py ####################
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    cdef X X_from_py "{{T0_from_py}}" (object) except *
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass cpp_list "std::list" [T]:
@@ -85,10 +76,7 @@ cdef cpp_list[X] {{cname}}(object o) except *:
 
 cimport cython
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    cdef object X_to_py "{{T0_to_py}}" (X)
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass cpp_list "std::list" [T]:
@@ -113,10 +101,7 @@ cdef object {{cname}}(const_cpp_list[X]& v):
 
 #################### set.from_py ####################
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    cdef X X_from_py "{{T0_from_py}}" (object) except *
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass set "std::set" [T]:
@@ -134,10 +119,7 @@ cdef set[X] {{cname}}(object o) except *:
 
 cimport cython
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    cdef object X_to_py "{{T0_to_py}}" (X)
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass cpp_set "std::set" [T]:
@@ -161,13 +143,7 @@ cdef object {{cname}}(const_cpp_set[X]& s):
 
 #################### pair.from_py ####################
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    ctypedef struct Y "{{T1}}":
-        pass
-    cdef X X_from_py "{{T0_from_py}}" (object) except *
-    cdef Y Y_from_py "{{T1_from_py}}" (object) except *
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
@@ -181,13 +157,7 @@ cdef pair[X,Y] {{cname}}(object o) except *:
 
 #################### pair.to_py ####################
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    ctypedef struct Y "{{T1}}":
-        pass
-    cdef object X_to_py "{{T0_to_py}}" (X)
-    cdef object Y_to_py "{{T1_to_py}}" (Y)
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass pair "const std::pair" [T, U]:
@@ -201,13 +171,7 @@ cdef object {{cname}}(pair[X,Y]& p):
 
 #################### map.from_py ####################
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    ctypedef struct Y "{{T1}}":
-        pass
-    cdef X X_from_py "{{T0_from_py}}" (object) except *
-    cdef Y Y_from_py "{{T1_from_py}}" (object) except *
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
@@ -236,13 +200,7 @@ cdef map[X,Y] {{cname}}(object o) except *:
 
 cimport cython
 
-cdef extern from *:
-    ctypedef struct X "{{T0}}":
-        pass
-    ctypedef struct Y "{{T1}}":
-        pass
-    cdef object X_to_py "{{T0_to_py}}" (X)
-    cdef object Y_to_py "{{T1_to_py}}" (Y)
+{{template_type_declarations}}
 
 cdef extern from *:
     cdef cppclass map "std::map" [T, U]:
