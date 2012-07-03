@@ -1998,6 +1998,9 @@ class IteratorNode(ExprNode):
             PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None),
             ]))
 
+    def type_dependencies(self, env):
+        return self.sequence.type_dependencies(env)
+
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
         if (sequence_type.is_array or sequence_type.is_ptr) and \
@@ -2204,7 +2207,10 @@ class NextNode(AtomicExprNode):
     def __init__(self, iterator):
         self.pos = iterator.pos
         self.iterator = iterator
-        
+
+    def type_dependencies(self, env):
+        return self.iterator.type_dependencies(env)
+
     def infer_type(self, env, iterator_type = None):
         if iterator_type is None:
             iterator_type = self.iterator.infer_type(env)
