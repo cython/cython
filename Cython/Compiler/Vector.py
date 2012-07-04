@@ -59,6 +59,8 @@ class CythonSpecializerMixin(object):
     has_error_handler = False
 
     def visit_FunctionNode(self, node):
+        b = self.astbuilder
+
         def qualify(type):
             type = type.qualify("const", "CYTHON_RESTRICT")
             type.base_type = type.base_type.qualify("const")
@@ -75,12 +77,13 @@ class CythonSpecializerMixin(object):
             if arg.strides_pointer:
                 arg.strides_pointer.type = qualify(arg.strides_pointer.type)
 
+        type = minitypes.Py_ssize_t.qualify("const")
         if self.is_tiled_specializer:
-            type = minitypes.Py_ssize_t.qualify("const")
-            self._blocksize_var = self.astbuilder.variable(type, 'blocksize')
-            node.scalar_arguments.append(
-                        self.astbuilder.funcarg(self._blocksize_var))
+            self._blocksize_var = b.variable(type, 'blocksize')
+            node.scalar_arguments.append(b.funcarg(self._blocksize_var))
 
+        node.omp_size = b.variable(type, 'omp_size')
+        node.scalar_arguments.append(b.funcarg(node.omp_size))
         node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
         return node
 
@@ -735,9 +738,14 @@ class SpecializationCaller(ExprNodes.ExprNode):
                 args.append(result)
 
         args.extend(scalar_arg.result() for scalar_arg in self.scalar_operands)
+
+        n_operands = len(self.operands)
         if specializer.is_tiled_specializer:
             dtype_decl = self.type.dtype.declaration_code("")
-            args.append("__pyx_vector_get_tile_size() / sizeof(%s)" % dtype_decl)
+            args.append("__pyx_vector_get_tile_size(sizeof(%s), %d)" % (
+                                                dtype_decl, n_operands))
+        args.append("__pyx_vector_get_omp_size(%d)" % n_operands)
+
         call = "%s(%s)" % (specialized_function.mangled_name, ", ".join(args))
 
         if self.may_error:
@@ -1418,4 +1426,6 @@ overlap_utility = MemoryView.load_memview_c_utility("ReadAfterWrite",
 array_order_utility = load_vector_utility("GetOrder", context)
 restrict_utility = load_vector_utility(
     "RestrictUtility", context, proto_block='utility_code_proto_before_types')
-tile_size_utility = load_vector_cy_utility("GetTileSize", context)
+omp_size_utility = load_vector_utility("OpenMPAutoTune", context)
+tile_size_utility = load_vector_cy_utility("GetTileSize", context,
+                                           requires=[omp_size_utility])

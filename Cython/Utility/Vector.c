@@ -76,3 +76,39 @@ __pyx_get_arrays_ordering(const {{memviewslice_name}} **ops, const int *ndims,
     #define CYTHON_RESTRICT
   #endif
 #endif
+
+////////// OpenMPAutoTune.proto /////////
+static CYTHON_INLINE int __pyx_compiled_with_openmp(void);
+static CYTHON_INLINE void __pyx_test_sequential(double *a, int upper_limit);
+static CYTHON_INLINE void __pyx_test_parallel(double *a, int upper_limit);
+
+////////// OpenMPAutoTune /////////
+static CYTHON_INLINE
+int __pyx_compiled_with_openmp(void)
+{
+#ifdef _OPENMP
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+static CYTHON_INLINE
+void __pyx_test_sequential(double *a, const int upper_limit)
+{
+    int i;
+    for (i = 0; i < upper_limit - 1; i++) {
+        a[i] = a[i] + a[i + 1];
+    }
+}
+static CYTHON_INLINE
+void __pyx_test_parallel(double *a, const int upper_limit)
+{
+    int i;
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+    for (i = 0; i < upper_limit - 1; i++) {
+        a[i] = a[i] + a[i + 1];
+    }
+}
