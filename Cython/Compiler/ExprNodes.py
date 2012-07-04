@@ -5088,7 +5088,7 @@ class SequenceNode(ExprNode):
         code.putln("if (%s) {" % sequence_type_test)
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
 
-        # CPython list/tuple => check size
+        # list/tuple => check size
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
         code.putln("Py_ssize_t size = Py_SIZE(sequence);")
         code.putln("#else")
