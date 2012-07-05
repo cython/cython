@@ -67,6 +67,8 @@ def benchmark(N):
         times.append(t)
     return times
 
+main = benchmark
+
 if __name__ == "__main__":
     import optparse
     parser = optparse.OptionParser(

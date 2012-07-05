@@ -178,6 +178,8 @@ def test_bpnn(iterations):
         times.append(t)
     return times
 
+main = test_bpnn
+
 if __name__ == "__main__":
     import optparse
     parser = optparse.OptionParser(
