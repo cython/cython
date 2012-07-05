@@ -402,7 +402,7 @@ def entry_point(iterations):
     endTime = time.time()
     return result, startTime, endTime
 
-def main(entry_point = entry_point, iterations = 10):
+def main(iterations = 10, entry_point = entry_point):
     print("Richards benchmark (Python) starting... [%r]" % entry_point)
     result, startTime, endTime = entry_point(iterations)
     if not result:
