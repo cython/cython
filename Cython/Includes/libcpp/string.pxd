@@ -1,3 +1,5 @@
+from libc.string cimport const_char
+
 cdef extern from "<string>" namespace "std":
 
     size_t npos = -1
@@ -10,7 +12,8 @@ cdef extern from "<string>" namespace "std":
         # as a string formed by a repetition of character c, n times.
         string(size_t, char)
 
-        char* c_str() nogil
+        const_char* c_str() nogil
+        const_char* data() nogil
         size_t size() nogil
         size_t max_size() nogil
         size_t length() nogil
