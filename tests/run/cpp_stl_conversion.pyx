@@ -31,7 +31,7 @@ def test_string(o):
 
 def test_string_call(a, b):
     """
-    >>> normalize(test_string_call("abc", "xyz"))
+    >>> normalize(test_string_call("abc".encode('ascii'), "xyz".encode('ascii')))
     'abcxyz'
     """
     return add_strings(a, b)
