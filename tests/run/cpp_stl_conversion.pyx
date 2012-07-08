@@ -21,13 +21,13 @@ def normalize(bytes b):
 
 def test_string(o):
     """
-    >>> normalize(test_string(b"abc"))
+    >>> normalize(test_string("abc".encode('ascii')))
     'abc'
-    >>> normalize(test_string(b"abc\\x00def"))
+    >>> normalize(test_string("abc\\x00def".encode('ascii')))
     'abc\\x00def'
     """
     cdef string s = o
-    return o
+    return s
 
 def test_string_call(a, b):
     """
