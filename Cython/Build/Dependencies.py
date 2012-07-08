@@ -21,7 +21,7 @@ from Cython import Utils
 from Cython.Utils import cached_function, cached_method, path_exists
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
     
-os.path.join = cached_function(os.path.join)
+join_path = cached_function(os.path.join)
 
 if sys.version_info[0] < 3:
     # stupid Py2 distutils enforces str type in list of sources
@@ -43,11 +43,11 @@ def extended_iglob(pattern):
         if first == '':
             first = '.'
         for root in glob(first + "/"):
-            for path in extended_iglob(os.path.join(root, rest)):
+            for path in extended_iglob(join_path(root, rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path
-            for path in extended_iglob(os.path.join(root, '*', '**', rest)):
+            for path in extended_iglob(join_path(root, '*', '**', rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path
@@ -284,7 +284,7 @@ def normalize_existing(base_path, rel_paths):
 def normalize_existing0(base_dir, rel_paths):
     filtered = []
     for rel in rel_paths:
-        path = os.path.join(base_dir, rel)
+        path = join_path(base_dir, rel)
         if os.path.exists(path):
             filtered.append(os.path.normpath(path))
     return filtered
@@ -335,7 +335,7 @@ class DependencyTree(object):
         # cimports (and other includes) relative to the including file.
         all = set()
         for include in self.parse_dependencies(filename)[1]:
-            include_path = os.path.join(os.path.dirname(filename), include)
+            include_path = join_path(os.path.dirname(filename), include)
             if not path_exists(include_path):
                 include_path = self.context.find_include_file(include, None)
             if include_path:
@@ -364,7 +364,7 @@ class DependencyTree(object):
     @cached_method
     def package(self, filename):
         dir = os.path.dirname(os.path.abspath(str(filename)))
-        if dir != filename and path_exists(os.path.join(dir, '__init__.py')):
+        if dir != filename and path_exists(join_path(dir, '__init__.py')):
             return self.package(dir) + (os.path.basename(dir),)
         else:
             return ()
@@ -646,7 +646,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
                     raise
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
-        fingerprint_file = os.path.join(
+        fingerprint_file = join_path(
             options.cache, "%s-%s.gz" % (os.path.basename(c_file), fingerprint))
         if os.path.exists(fingerprint_file):
             if not quiet:
@@ -705,7 +705,7 @@ def cleanup_cache(cache, target_size, ratio=.85):
     total_size = 0
     all = []
     for file in os.listdir(cache):
-        path = os.path.join(cache, file)
+        path = join_path(cache, file)
         s = os.stat(path)
         total_size += s.st_size
         all.append((s.st_atime, s.st_size, path))
