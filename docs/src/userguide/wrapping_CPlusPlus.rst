@@ -410,6 +410,45 @@ For example::
 The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
 how to declare C++ classes.
 
+Since Cython 0.17, the STL containers coerce from and to the
+corresponding Python builtin types.  The conversion is triggered
+either by an assignment to a typed variable (including typed function
+arguments) or by an explicit cast, e.g.::
+
+    from libcpp.string cimport string
+    from libcpp.vector cimport vector
+
+    cdef string s = py_bytes_object
+    print(s)
+    cpp_string = <string> py_unicode_object.encode('utf-8')
+
+    cdef vector[int] vect = xrange(1, 10, 2)
+    print(vect)              # [1, 3, 5, 7, 9]
+
+    cdef vector[string] cpp_strings = b'ab cd ef gh'.split()
+    print(cpp_strings.get(1))   # b'cd'
+
+The following coercions are available:
+
++------------------+----------------+-----------------+
+| Python type =>   | *C++ type*     | => Python type  |
++==================+================+=================+
+| bytes            | std::string    | bytes           |
++------------------+----------------+-----------------+
+| iterable         | std::vector    | list            |
++------------------+----------------+-----------------+
+| iterable         | std::list      | list            |
++------------------+----------------+-----------------+
+| iterable         | std::set       | set             |
++------------------+----------------+-----------------+
+| iterable (len 2) | std::pair      | tuple (len 2)   |
++------------------+----------------+-----------------+
+
+All conversions create a new container and copy the data into it.
+The items in the containers are converted to a corresponding type
+automatically, which includes recursively converting containers
+inside of containers, e.g. a C++ vector of maps of strings.
+
 Exceptions
 -----------
 
