@@ -4,7 +4,7 @@
 #include <new>
 #include <typeinfo>
 #include <stdexcept>
-#include <iostream>
+#include <ios>
 
 static void __Pyx_CppExn2PyErr() {
   // Catch a handful of different errors here and turn them into the
