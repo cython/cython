@@ -143,6 +143,14 @@ def test_cstr(char *a):
     cdef string b = string(a)
     return b.c_str()
 
+def test_decode(char* a):
+    """
+    >>> test_decode(b_asdf) == 'asdf'
+    True
+    """
+    cdef string b = string(a)
+    return b.decode('ascii')
+
 def test_equals_operator(char *a, char *b):
     """
     >>> test_equals_operator(b_asdf, b_asdf)
