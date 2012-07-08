@@ -10027,8 +10027,7 @@ proto="""
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
 
-binding_cfunc_utility_code = TempitaUtilityCode.load(
-    "CythonFunction", context=vars(Naming))
+binding_cfunc_utility_code = UtilityCode.load_cached("CythonFunction", "CythonFunction.c")
 fused_function_utility_code = TempitaUtilityCode.load(
         "FusedFunction",
         "CythonFunction.c",

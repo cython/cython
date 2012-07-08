@@ -59,6 +59,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *m,
 static int __Pyx_CyFunction_init(void);
 
 //////////////////// CythonFunction ////////////////////
+//@substitute: naming
 
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
@@ -181,7 +182,7 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
 static PyObject *
 __Pyx_CyFunction_get_globals(CYTHON_UNUSED __pyx_CyFunctionObject *op)
 {
-    PyObject* dict = PyModule_GetDict({{module_cname}});
+    PyObject* dict = PyModule_GetDict(${module_cname});
     Py_XINCREF(dict);
     return dict;
 }
