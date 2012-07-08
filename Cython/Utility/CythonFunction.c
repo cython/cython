@@ -501,6 +501,10 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __Pyx_CyFunction_init(void) {
+#if !CYTHON_COMPILING_IN_PYPY
+    // avoid a useless level of call indirection
+    __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;
+#endif
     if (PyType_Ready(&__pyx_CyFunctionType_type) < 0)
         return -1;
     __pyx_CyFunctionType = &__pyx_CyFunctionType_type;
