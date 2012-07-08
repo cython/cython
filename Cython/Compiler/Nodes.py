@@ -3560,8 +3560,7 @@ class GeneratorDefNode(DefNode):
         code.putln('}')
 
     def generate_function_definitions(self, env, code):
-        from ExprNodes import generator_utility_code
-        env.use_utility_code(generator_utility_code)
+        env.use_utility_code(UtilityCode.load_cached("Generator", "Generator.c"))
 
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)

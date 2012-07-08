@@ -10029,9 +10029,3 @@ proto="""
 #define UNARY_NEG_WOULD_OVERFLOW(x)    \
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
-
-generator_utility_code = UtilityCode.load(
-    "Generator",
-    "Generator.c",
-    requires=[Nodes.raise_utility_code, Nodes.swap_exception_utility_code],
-)
