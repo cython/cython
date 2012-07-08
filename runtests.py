@@ -223,6 +223,7 @@ COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 CCACHE = os.getenv('CYTHON_RUNTESTS_CCACHE', '').split()
+TEST_SUPPORT_DIR = 'testsupport'
 
 BACKENDS = ['c', 'cpp']
 
@@ -329,7 +330,7 @@ class TestBuilder(object):
         filenames.sort()
         for filename in filenames:
             path = os.path.join(self.rootdir, filename)
-            if os.path.isdir(path):
+            if os.path.isdir(path) and filename != TEST_SUPPORT_DIR:
                 if filename == 'pyregr' and not self.with_pyregr:
                     continue
                 if filename == 'broken' and not self.test_bugs:
@@ -566,7 +567,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def run_cython(self, test_directory, module, targetdir, incdir, annotate,
                    extra_compile_options=None):
-        include_dirs = INCLUDE_DIRS[:]
+        include_dirs = INCLUDE_DIRS + [os.path.join(test_directory, '..', TEST_SUPPORT_DIR)]
         if incdir:
             include_dirs.append(incdir)
         source = self.find_module_source_file(
