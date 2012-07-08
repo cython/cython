@@ -9873,6 +9873,11 @@ bad:
 cpp_exception_utility_code = UtilityCode(
 proto = """
 #ifndef __Pyx_CppExn2PyErr
+#include <new>
+#include <typeinfo>
+#include <stdexcept>
+#include <iostream>
+
 static void __Pyx_CppExn2PyErr() {
   // Catch a handful of different errors here and turn them into the
   // equivalent Python errors.
@@ -9911,9 +9916,7 @@ static void __Pyx_CppExn2PyErr() {
   }
 }
 #endif
-""",
-impl = ""
-)
+""")
 
 pyerr_occurred_withgil_utility_code= UtilityCode(
 proto = """
