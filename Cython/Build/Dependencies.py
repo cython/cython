@@ -1,5 +1,3 @@
-# cython: profile=True
-
 import cython
 from Cython import __version__
 
