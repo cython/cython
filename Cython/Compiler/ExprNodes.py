@@ -6233,7 +6233,8 @@ class ClassCellInjectorNode(ExprNode):
 
     def analyse_expressions(self, env):
         if self.is_active:
-            env.use_utility_code(cyfunction_class_cell_utility_code)
+            env.use_utility_code(
+                UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
 
     def generate_evaluation_code(self, code):
         if self.is_active:
@@ -6375,9 +6376,11 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     def analyse_types(self, env):
         if self.binding:
             if self.specialized_cpdefs or self.is_specialization:
-                env.use_utility_code(fused_function_utility_code)
+                env.use_utility_code(
+                    UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
             else:
-                env.use_utility_code(binding_cfunc_utility_code)
+                env.use_utility_code(
+                    UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             self.analyse_default_args(env)
 
         #TODO(craig,haoyu) This should be moved to a better place
@@ -10026,17 +10029,6 @@ proto="""
 #define UNARY_NEG_WOULD_OVERFLOW(x)    \
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
-
-binding_cfunc_utility_code = UtilityCode.load_cached("CythonFunction", "CythonFunction.c")
-fused_function_utility_code = TempitaUtilityCode.load(
-        "FusedFunction",
-        "CythonFunction.c",
-        context=vars(Naming),
-        requires=[binding_cfunc_utility_code])
-cyfunction_class_cell_utility_code = UtilityCode.load(
-    "CyFunctionClassCell",
-    "CythonFunction.c",
-    requires=[binding_cfunc_utility_code])
 
 generator_utility_code = UtilityCode.load(
     "Generator",
