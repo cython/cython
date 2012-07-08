@@ -9,6 +9,8 @@ from libcpp.vector cimport vector
 from libcpp.list cimport list as cpp_list
 
 py_set = set
+py_xrange = xrange
+py_unicode = unicode
 
 cdef string add_strings(string a, string b):
     return a + b
@@ -49,11 +51,11 @@ def test_encode_to_string_cast(o):
     s = <string>o.encode('ascii')
     return s
 
-def test_bytes_encode_to_string(bytes o):
+def test_unicode_encode_to_string(unicode o):
     """
-    >>> normalize(test_bytes_encode_to_string('abc'))
+    >>> normalize(test_unicode_encode_to_string(py_unicode('abc')))
     'abc'
-    >>> normalize(test_bytes_encode_to_string('abc\\x00def'))
+    >>> normalize(test_unicode_encode_to_string(py_unicode('abc\\x00def')))
     'abc\\x00def'
     """
     cdef string s = o.encode('ascii')
@@ -72,6 +74,8 @@ def test_int_vector(o):
     [1, 2, 3]
     >>> test_int_vector((1, 10, 100))
     [1, 10, 100]
+    >>> test_int_vector(py_xrange(1,10,2))
+    [1, 3, 5, 7, 9]
     >>> test_int_vector([10**20])       #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
@@ -82,7 +86,7 @@ def test_int_vector(o):
 
 def test_string_vector(s):
     """
-    >>> map(normalize, test_string_vector('ab cd ef gh'.encode('ascii')))
+    >>> list(map(normalize, test_string_vector('ab cd ef gh'.encode('ascii'))))
     ['ab', 'cd', 'ef', 'gh']
     """
     cdef vector[string] cpp_strings = s.split()
@@ -93,7 +97,7 @@ cdef list convert_string_vector(vector[string] vect):
 
 def test_string_vector_temp_funcarg(s):
     """
-    >>> map(normalize, test_string_vector_temp_funcarg('ab cd ef gh'.encode('ascii')))
+    >>> list(map(normalize, test_string_vector_temp_funcarg('ab cd ef gh'.encode('ascii'))))
     ['ab', 'cd', 'ef', 'gh']
     """
     return convert_string_vector(s.split())
