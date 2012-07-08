@@ -80,6 +80,24 @@ def test_int_vector(o):
     cdef vector[int] v = o
     return v
 
+def test_string_vector(s):
+    """
+    >>> map(normalize, test_string_vector('ab cd ef gh'.encode('ascii')))
+    ['ab', 'cd', 'ef', 'gh']
+    """
+    cdef vector[string] cpp_strings = s.split()
+    return cpp_strings
+
+cdef list convert_string_vector(vector[string] vect):
+    return vect
+
+def test_string_vector_temp_funcarg(s):
+    """
+    >>> map(normalize, test_string_vector_temp_funcarg('ab cd ef gh'.encode('ascii')))
+    ['ab', 'cd', 'ef', 'gh']
+    """
+    return convert_string_vector(s.split())
+
 def test_double_vector(o):
     """
     >>> test_double_vector([1, 2, 3])
