@@ -3099,7 +3099,8 @@ class IndexNode(ExprNode):
                 assert self.index.type.is_int
                 index_code = self.index.result()
                 function = "__Pyx_GetItemInt_Unicode"
-                code.globalstate.use_utility_code(getitem_int_pyunicode_utility_code)
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c"))
                 code.putln(
                     "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UCS4)-1)) %s;" % (
                         self.result(),
@@ -9928,49 +9929,6 @@ static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
 }
 """,
 requires = [raise_unbound_local_error_utility_code])
-
-#------------------------------------------------------------------------------------
-
-getitem_int_pyunicode_utility_code = UtilityCode(
-proto = '''
-#define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
-                                               __Pyx_GetItemInt_Unicode_Fast(o, i) : \\
-                                               __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
-
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
-    Py_ssize_t length;
-#if CYTHON_PEP393_ENABLED
-    if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return (Py_UCS4)-1;
-#endif
-    length = __Pyx_PyUnicode_GET_LENGTH(ustring);
-    if (likely((0 <= i) & (i < length))) {
-        return __Pyx_PyUnicode_READ_CHAR(ustring, i);
-    } else if ((-length <= i) & (i < 0)) {
-        return __Pyx_PyUnicode_READ_CHAR(ustring, i + length);
-    } else {
-        PyErr_SetString(PyExc_IndexError, "string index out of range");
-        return (Py_UCS4)-1;
-    }
-}
-
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
-    Py_UCS4 uchar;
-    PyObject *uchar_string;
-    if (!j) return (Py_UCS4)-1;
-    uchar_string = PyObject_GetItem(ustring, j);
-    Py_DECREF(j);
-    if (!uchar_string) return (Py_UCS4)-1;
-#if CYTHON_PEP393_ENABLED
-    if (unlikely(__Pyx_PyUnicode_READY(uchar_string) < 0)) {
-        Py_DECREF(uchar_string);
-        return (Py_UCS4)-1;
-    }
-#endif
-    uchar = __Pyx_PyUnicode_READ_CHAR(uchar_string, 0);
-    Py_DECREF(uchar_string);
-    return uchar;
-}
-''')
 
 #------------------------------------------------------------------------------------
 
