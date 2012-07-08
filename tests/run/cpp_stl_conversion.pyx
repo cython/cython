@@ -39,6 +39,16 @@ def test_encode_to_string(o):
     cdef string s = o.encode('ascii')
     return s
 
+def test_encode_to_string_cast(o):
+    """
+    >>> normalize(test_encode_to_string_cast('abc'))
+    'abc'
+    >>> normalize(test_encode_to_string_cast('abc\\x00def'))
+    'abc\\x00def'
+    """
+    s = <string>o.encode('ascii')
+    return s
+
 def test_bytes_encode_to_string(bytes o):
     """
     >>> normalize(test_bytes_encode_to_string('abc'))
