@@ -51,27 +51,13 @@ pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
     p+'/*.pyx' for p in pxd_include_dirs ]
 
-if sys.version_info < (2,4):
-    install_base_dir = get_python_lib(prefix='')
-    import glob
-    patterns = pxd_include_patterns + [
-        'Cython/Plex/*.pxd',
-        'Cython/Compiler/*.pxd',
-        'Cython/Runtime/*.pyx'
-        ]
-    setup_args['data_files'] = [
-        (os.path.dirname(os.path.join(install_base_dir, pattern)),
-         [ f for f in glob.glob(pattern) ])
-        for pattern in patterns
-        ]
-else:
-    setup_args['package_data'] = {
-        'Cython.Plex'     : ['*.pxd'],
-        'Cython.Compiler' : ['*.pxd'],
-        'Cython.Runtime'  : ['*.pyx', '*.pxd'],
-        'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '.cpp'],
-        'Cython'          : [ p[7:] for p in pxd_include_patterns ],
-        }
+setup_args['package_data'] = {
+    'Cython.Plex'     : ['*.pxd'],
+    'Cython.Compiler' : ['*.pxd'],
+    'Cython.Runtime'  : ['*.pyx', '*.pxd'],
+    'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ],
+    }
 
 # This dict is used for passing extra arguments that are setuptools
 # specific to setup
