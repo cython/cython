@@ -2064,7 +2064,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     PyObject_Size_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
-            ])
+            ],
+        exception_value="-1")
 
     _map_to_capi_len_function = {
         Builtin.unicode_type   : "__Pyx_PyUnicode_GET_LENGTH",
