@@ -10014,12 +10014,19 @@ static int __Pyx_cdivision_warning(const char *, int); /* proto */
 """,
 impl="""
 static int __Pyx_cdivision_warning(const char *filename, int lineno) {
+#if CYTHON_COMPILING_IN_PYPY
+    filename++; // avoid compiler warnings
+    lineno++;
+    return PyErr_Warn(PyExc_RuntimeWarning,
+                     "division with oppositely signed operands, C and Python semantics differ");
+#else
     return PyErr_WarnExplicit(PyExc_RuntimeWarning,
                               "division with oppositely signed operands, C and Python semantics differ",
                               filename,
                               lineno,
                               __Pyx_MODULE_NAME,
                               NULL);
+#endif
 }
 """)
 
