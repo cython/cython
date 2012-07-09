@@ -78,9 +78,11 @@ cdef struct MyStruct:
     float f
     char *s
 
+bhello = b"hello"  # must hold a C reference in PyPy
+
 def test_obj_to_struct(MyStruct mystruct):
     """
-    >>> test_obj_to_struct(dict(c=10, i=20, f=6.7, s=b"hello"))
+    >>> test_obj_to_struct(dict(c=10, i=20, f=6.7, s=bhello))
     c=10 i=20 f=6.70 s=hello
     >>> test_obj_to_struct(None)
     Traceback (most recent call last):
@@ -95,7 +97,7 @@ def test_obj_to_struct(MyStruct mystruct):
        ...
     TypeError: an integer is required
     """
-    print 'c=%d i=%d f=%.2f s=%s' % (mystruct.c, mystruct.i, mystruct.f, mystruct.s.decode('UTF-8'))
+    print 'c=%d i=%d f=%.2f s=%s' % (mystruct.c, mystruct.i, mystruct.f, mystruct.s.decode('ascii'))
 
 cdef struct NestedStruct:
     MyStruct mystruct
@@ -103,7 +105,7 @@ cdef struct NestedStruct:
 
 def test_nested_obj_to_struct(NestedStruct nested):
     """
-    >>> test_nested_obj_to_struct(dict(mystruct=dict(c=10, i=20, f=6.7, s=b"hello"), d=4.5))
+    >>> test_nested_obj_to_struct(dict(mystruct=dict(c=10, i=20, f=6.7, s=bhello), d=4.5))
     c=10 i=20 f=6.70 s=hello d=4.50
     >>> test_nested_obj_to_struct(dict(d=7.6))
     Traceback (most recent call last):
