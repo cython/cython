@@ -191,6 +191,7 @@ class Context(miniast.CContext):
 
     def may_error(self, node):
         return (node.type.resolve().is_pyobject or
+                node.type.resolve().is_complex or
                 (node.type.is_memoryviewslice and node.type.dtype.is_pyobject))
 
 class CythonCCodeWriter(Code.CCodeWriter):

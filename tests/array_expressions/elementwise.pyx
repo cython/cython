@@ -170,3 +170,144 @@ def test_unop_simple(fused_dtype_t[:] m):
     """
     m[:] = -m --m - 2
     return np.asarray(m)
+
+#
+### Test binary operators
+#
+cdef fused dt:
+    double complex
+    object
+    double
+
+cdef fused dt2:
+    object
+    double
+    np.int32_t
+
+c_a = np.arange(4*5*6, dtype=np.complex128).reshape(4, 5, 6)
+c_b = np.arange(4*5*1, dtype=np.complex128).reshape(4, 5, 1)
+
+o_a = np.arange(4*5*6, dtype=np.object).reshape(4, 5, 6)
+o_b = np.arange(4*5*1, dtype=np.object).reshape(4, 5, 1)
+
+d_a = np.arange(4*5*6, dtype=np.double).reshape(4, 5, 6)
+d_b = np.arange(4*5*1, dtype=np.double).reshape(4, 5, 1)
+
+i_a = np.arange(4*5*6, dtype=np.int32).reshape(4, 5, 6)
+i_b = np.arange(4*5*1, dtype=np.int32).reshape(4, 5, 1)
+
+def equal(our_result, numpy_result):
+    our_result = np.asarray(our_result).astype(int)
+    numpy_result = numpy_result.astype(int)
+    if not np.all(our_result == numpy_result):
+        print our_result
+        print
+        print 'Expected'
+        print
+        print numpy_result
+
+@testcase
+def test_operator_plus(dt[:, :, :] a, dt[:, :, :] b, result):
+    """
+    >>> r = d_a + d_b
+    >>> test_operator_plus(c_a, c_b, r)
+    >>> test_operator_plus(c_a, c_b.copy(order='F'), r)
+    >>> test_operator_plus(o_a, o_b, r)
+    >>> test_operator_plus(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_plus(d_a, d_b, r)
+    >>> test_operator_plus(d_a, d_b.copy(order='F'), r)
+    """
+    equal(a + b, result)
+
+@testcase
+def test_operator_mul(dt[:, :, :] a, dt[:, :, :] b, result):
+    """
+    >>> r = d_a * d_b
+    >>> test_operator_mul(c_a, c_b, r)
+    >>> test_operator_mul(c_a, c_b.copy(order='F'), r)
+    >>> test_operator_mul(o_a, o_b, r)
+    >>> test_operator_mul(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_mul(d_a, d_b, r)
+    >>> test_operator_mul(d_a, d_b.copy(order='F'), r)
+    """
+    equal(a * b, result)
+
+@testcase
+def test_operator_sub(dt[:, :, :] a, dt[:, :, :] b, result):
+    """
+    >>> r = d_a - d_b
+    >>> test_operator_sub(c_a, c_b, r)
+    >>> test_operator_sub(c_a, c_b.copy(order='F'), r)
+    >>> test_operator_sub(o_a, o_b, r)
+    >>> test_operator_sub(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_sub(d_a, d_b, r)
+    >>> test_operator_sub(d_a, d_b.copy(order='F'), r)
+    """
+    equal(a - b, result)
+
+@testcase
+def test_operator_div(dt[:, :, :] a, dt[:, :, :] b, result):
+    """
+    c_b = c_b + 1; o_b = o_b + 1; d_b = d_b + 1
+    >>> r = d_a / (d_b + 1)
+    >>> test_operator_div(c_a, c_b, r)
+    >>> test_operator_div(c_a, c_b.copy(order='F'), r)
+    >>> test_operator_div(o_a, o_b, r)
+    >>> test_operator_div(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_div(d_a, d_b, r)
+    >>> test_operator_div(d_a, d_b.copy(order='F'), r)
+    """
+    equal(a / (b + 1), result)
+
+@testcase
+def test_operator_mod(dt2[:, :, :] a, dt2[:, :, :] b, result):
+    """
+    >>> r = d_a % (d_b + 5)
+    >>> test_operator_mod(i_a, i_b, r)
+    >>> test_operator_mod(i_a, i_b.copy(order='F'), r)
+    >>> test_operator_mod(o_a, o_b, r)
+    >>> test_operator_mod(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_mod(d_a, d_b, r)
+    >>> test_operator_mod(d_a, d_b.copy(order='F'), r)
+    """
+    equal(a % (b + 5), result)
+
+#
+### Bitwise binary operators
+#
+cdef fused bt:
+    object
+    np.int32_t
+
+@testcase
+def test_operator_and(bt[:, :, :] a, bt[:, :, :] b, result):
+    """
+    >>> r = i_a & i_b
+    >>> test_operator_and(o_a, o_b, r)
+    >>> test_operator_and(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_and(i_a, i_b, r)
+    >>> test_operator_and(i_a, i_b.copy(order='F'), r)
+    """
+    equal(a & b, result)
+
+@testcase
+def test_operator_or(bt[:, :, :] a, bt[:, :, :] b, result):
+    """
+    >>> r = i_a | i_b
+    >>> test_operator_or(o_a, o_b, r)
+    >>> test_operator_or(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_or(i_a, i_b, r)
+    >>> test_operator_or(i_a, i_b.copy(order='F'), r)
+    """
+    equal(a | b, result)
+
+@testcase
+def test_operator_xor(bt[:, :, :] a, bt[:, :, :] b, result):
+    """
+    >>> r = i_a ^ i_b
+    >>> test_operator_xor(o_a, o_b, r)
+    >>> test_operator_xor(o_a, o_b.copy(order='F'), r)
+    >>> test_operator_xor(i_a, i_b, r)
+    >>> test_operator_xor(i_a, i_b.copy(order='F'), r)
+    """
+    equal(a ^ b, result)
