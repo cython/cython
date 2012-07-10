@@ -442,14 +442,22 @@ static CYTHON_INLINE int __Pyx_init_unicode_iteration(
 
 /////////////// pyobject_as_double.proto ///////////////
 
+#if CYTHON_COMPILING_IN_PYPY
+// currently works because PyPy calls float() internally
+#define __Pyx_PyObject_AsDouble(obj) PyFloat_AsDouble(obj)
+#else
+
 static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 
 #define __Pyx_PyObject_AsDouble(obj) \
 ((likely(PyFloat_CheckExact(obj))) ? \
  PyFloat_AS_DOUBLE(obj) : __Pyx__PyObject_AsDouble(obj))
 
+#endif
+
 /////////////// pyobject_as_double ///////////////
 
+#if !CYTHON_COMPILING_IN_PYPY
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     PyObject* float_value;
     if (Py_TYPE(obj)->tp_as_number && Py_TYPE(obj)->tp_as_number->nb_float) {
@@ -476,3 +484,4 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
 bad:
     return (double)-1;
 }
+#endif
