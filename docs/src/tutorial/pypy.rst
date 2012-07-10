@@ -112,6 +112,15 @@ doing.  And if you find a better way of doing something in PyPy and cpyext
 than Cython currently does, it's best to fix Cython for everyone's benefit.
 
 
+Known problems
+---------------
+
+* As of PyPy 1.9, subtyping builtin types can result in infinite recursion
+  on method calls.
+
+* Docstrings of special methods are not properly propagated to Python space.
+
+
 Bugs and crashes
 -----------------
 
