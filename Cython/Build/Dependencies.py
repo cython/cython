@@ -330,7 +330,7 @@ class DependencyTree(object):
     @cached_method
     def included_files(self, filename):
         # This is messy because included files are textually included, resolving
-        # cimports (and other includes) relative to the including file.
+        # cimports (but not includes) relative to the including file.
         all = set()
         for include in self.parse_dependencies(filename)[1]:
             include_path = join_path(os.path.dirname(filename), include)
@@ -340,20 +340,22 @@ class DependencyTree(object):
                 if '.' + os.path.sep in include_path:
                     include_path = os.path.normpath(include_path)
                 all.add(include_path)
+                all.update(self.included_files(include_path))
             else:
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
     
     @cached_method
     def cimports_and_externs(self, filename):
+        # This is really ugly. Nested cimports are resolved with respect to the
+        # includer, but includes are resolved with respect to the includee.
         cimports, includes, externs = self.parse_dependencies(filename)[:3]
         cimports = set(cimports)
         externs = set(externs)
         for include in self.included_files(filename):
-            # include file recursion resolved by self.included_files(source_filename)
-            deps = self.parse_dependencies(filename)
-            cimports.update(deps[0])
-            externs.update(deps[2])
+            included_cimports, included_externs = self.cimports_and_externs(include)
+            cimports.update(included_cimports)
+            externs.update(included_externs)
         return tuple(cimports), normalize_existing(filename, externs)
 
     def cimports(self, filename):
