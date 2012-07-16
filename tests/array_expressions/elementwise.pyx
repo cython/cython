@@ -2,6 +2,8 @@
 # tag: openmp
 # mode: run
 
+from libc.math cimport sin, cos
+
 include "utils.pxi"
 
 @testcase
@@ -311,3 +313,32 @@ def test_operator_xor(bt[:, :, :] a, bt[:, :, :] b, result):
     >>> test_operator_xor(i_a, i_b.copy(order='F'), r)
     """
     equal(a ^ b, result)
+
+@testcase
+def test_function_calls(double[:, :, :] a, double[:, :, :] b):
+    """
+    >>> operands = d_a, d_b
+    >>> numpy_result = np.sin(d_a) + np.cos(d_b)
+    >>> our_result = test_function_calls(d_a, d_b)
+    >>> np.allclose(numpy_result, our_result)
+    True
+    """
+    return sin(a) + cos(b)
+
+cdef int getarg():
+    print "getarg called"
+    return 10
+
+cdef double elementwise_func(double a, int arg):
+    return a * 10
+
+@testcase
+def test_partial_function_call(double[:, :, :] a):
+    """
+    >>> numpy_result = d_a * 10 + 1
+    >>> our_result = test_partial_function_call(d_a)
+    getarg called
+    >>> np.allclose(numpy_result, our_result)
+    True
+    """
+    return elementwise_func(a, getarg()) + 1

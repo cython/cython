@@ -667,9 +667,9 @@ class SpecializationCaller(ExprNodes.ExprNode):
         if_clause = "if"
         if_clause = self._put_contig_specialization(code, if_clause,
                                                     contig, mixed_contig)
-        if_clause = self._put_tiled_specialization(code, if_clause,
-                                                   mixed_contig)
         if self.target.type.ndim > 1:
+            if_clause = self._put_tiled_specialization(code, if_clause,
+                                                       mixed_contig)
             if_clause = self._put_inner_contig_specializations(code, if_clause,
                                                                mixed_contig)
         self._put_strided_specializations(code, if_clause, mixed_contig)
@@ -1240,6 +1240,22 @@ class ElementalMapper(specializers.ASTMapper):
                                       self.visit(node.rhs))
 
     @elemental_dispatcher
+    def visit_SimpleCallNode(self, node, minitype):
+        b = self.astbuilder
+        miniargs = []
+        elemental_args = set(node.elemental_args)
+        for arg in node.args:
+            if arg in elemental_args:
+                # elementwise argument
+                miniargs.append(self.visit(arg))
+            else:
+                # normal function argument, create partial function
+                miniargs.append(self.register_operand(arg))
+
+        minifunc = b.funcname(minitype, node.function.entry.cname)
+        return b.funccall(minifunc, miniargs)
+
+    @elemental_dispatcher
     def visit_UnopNode(self, node, minitype):
         return self.astbuilder.unop(minitype, node.operator,
                                     self.visit(node.operand))
@@ -1273,6 +1289,8 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
         self.in_elemental -= 1
 
         if not self.in_elemental:
+            # Convert the Cython AST to a minivect AST and generate code
+            # to select the right specialization
             load_utilities(self.current_env())
 
             b = self.minicontext.astbuilder
@@ -1337,8 +1355,12 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
     def visit_ExprNode(self, node):
         if node.is_elemental:
             if self.in_elemental:
+                # We are already in an elemental expression, just recursve
                 return self.visit_elemental(node)
 
+            # We are an outer expression which is not a direct assignment
+            # We have to create a new array to store the result of the
+            # expression, and convert to a minivect AST
             env = self.current_env()
             tmp_lhs, elemental_node = self._create_new_array_node(node, env)
             result = ElementalNodeWrapper(node.pos, slice_result=tmp_lhs,
