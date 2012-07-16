@@ -668,8 +668,9 @@ class SpecializationCaller(ExprNodes.ExprNode):
         if_clause = self._put_contig_specialization(code, if_clause,
                                                     contig, mixed_contig)
         if self.target.type.ndim > 1:
-            if_clause = self._put_tiled_specialization(code, if_clause,
-                                                       mixed_contig)
+            if not c_contig and not f_contig:
+                if_clause = self._put_tiled_specialization(code, if_clause,
+                                                           mixed_contig)
             if_clause = self._put_inner_contig_specializations(code, if_clause,
                                                                mixed_contig)
         self._put_strided_specializations(code, if_clause, mixed_contig)
