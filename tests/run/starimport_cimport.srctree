@@ -1,0 +1,39 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import star_cimport_test"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Distutils import build_ext
+from Cython.Distutils.extension import Extension
+
+setup(
+    ext_modules = [
+        Extension("star_cimport_ext",  ["star_cimport_ext.pyx"]),
+        Extension("star_cimport_test", ["star_cimport_test.pyx"]),
+        ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## star_cimport_ext.pyx ########
+
+cdef class test_pxd:
+    pass
+
+######## star_cimport_ext.pxd ########
+
+cdef class test_pxd:
+    pass
+
+######## star_cimport.py ########
+
+class test_py:
+    pass
+
+######## star_cimport_test.pyx ########
+
+# Tests a Python star import followed by a cimport
+from star_cimport import *
+from star_cimport_ext cimport test_pxd
+
+cdef test_pxd t = test_pxd()
