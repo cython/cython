@@ -6514,7 +6514,7 @@ class FromImportStatNode(StatNode):
             if name == '*':
                 for _, entry in env.entries.items():
                     if not entry.is_type and entry.type.is_extension_type:
-                        env.use_utility_code(ExprNodes.type_test_utility_code)
+                        env.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
                         break
             else:
                 entry =  env.lookup(target.name)
