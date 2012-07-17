@@ -6520,7 +6520,7 @@ class FromImportStatNode(StatNode):
                 entry =  env.lookup(target.name)
                 # check whether or not entry is already cimported
                 if (entry.is_type and entry.type.name == name
-                    and hasattr(entry.type, 'module_name')):
+                        and hasattr(entry.type, 'module_name')):
                     if entry.type.module_name == self.module.module_name.value:
                         # cimported with absolute name
                         continue
