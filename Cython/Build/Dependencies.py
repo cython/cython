@@ -392,7 +392,7 @@ class DependencyTree(object):
         else:
             pxd_list = []
         for module in self.cimports(filename):
-            if module[:7] == 'cython.':
+            if module[:7] == 'cython.' or module == 'cython':
                 continue
             pxd_file = self.find_pxd(module, filename)
             if pxd_file is None:
