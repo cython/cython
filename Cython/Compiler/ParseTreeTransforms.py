@@ -2591,14 +2591,12 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         elif fused_t in other_fused_type:
             ...
     """
-
-    # Defer the import until now to avoid circularity...
-    from Cython.Compiler import Optimize
-    transform = Optimize.ConstantFolding(reevaluate=True)
-
     def __init__(self, local_scope):
         super(ReplaceFusedTypeChecks, self).__init__()
         self.local_scope = local_scope
+        # defer the import until now to avoid circular import time dependencies
+        from Cython.Compiler import Optimize
+        self.transform = Optimize.ConstantFolding(reevaluate=True)
 
     def visit_IfStatNode(self, node):
         """
