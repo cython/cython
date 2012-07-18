@@ -95,13 +95,13 @@ cdef extern from "arrayarray.h":
             # requirements, and does not yet fullfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
-            cdef unsigned rows, columns, itemsize
+            cdef unsigned rows, columns
             
             info.suboffsets = NULL
             info.buf = self._c
             info.readonly = 0
             info.ndim = 1
-            info.itemsize = itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
+            info.itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
             
             info.strides = <Py_ssize_t*> \
                            stdlib.malloc(sizeof(Py_ssize_t) * info.ndim * 2 + 2)
