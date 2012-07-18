@@ -2355,9 +2355,11 @@ class PyTempNode(TempNode):
 class RawCNameExprNode(ExprNode):
     subexprs = []
 
-    def __init__(self, pos, type=None):
+    def __init__(self, pos, type=None, cname=None):
         self.pos = pos
         self.type = type
+        if cname is not None:
+            self.cname = cname
 
     def analyse_types(self, env):
         return self.type
@@ -3319,7 +3321,7 @@ class SliceIndexNode(ExprNode):
 
     def infer_type(self, env):
         base_type = self.base.infer_type(env)
-        if base_type.is_string:
+        if base_type.is_string or base_type.is_cpp_class:
             return bytes_type
         elif base_type in (bytes_type, str_type, unicode_type,
                            list_type, tuple_type):
@@ -3383,7 +3385,7 @@ class SliceIndexNode(ExprNode):
         if self.stop:
             self.stop.analyse_types(env)
         base_type = self.base.type
-        if base_type.is_string:
+        if base_type.is_string or base_type.is_cpp_string:
             self.type = bytes_type
         elif base_type.is_ptr:
             self.type = base_type
@@ -9357,7 +9359,7 @@ class CoerceToPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         if type is py_object_type:
             # be specific about some known types
-            if arg.type.is_string:
+            if arg.type.is_string or arg.type.is_cpp_string:
                 self.type = bytes_type
             elif arg.type.is_unicode_char:
                 self.type = unicode_type

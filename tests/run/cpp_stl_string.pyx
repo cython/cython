@@ -1,5 +1,7 @@
 # tag: cpp
 
+cimport cython
+
 from libcpp.string cimport string
 
 b_asdf = b'asdf'
@@ -143,13 +145,45 @@ def test_cstr(char *a):
     cdef string b = string(a)
     return b.c_str()
 
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def test_decode(char* a):
     """
-    >>> test_decode(b_asdf) == 'asdf'
-    True
+    >>> print(test_decode(b_asdf))
+    asdf
     """
     cdef string b = string(a)
     return b.decode('ascii')
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_decode_sliced(char* a):
+    """
+    >>> print(test_decode_sliced(b_asdf))
+    sd
+    """
+    cdef string b = string(a)
+    return b[1:3].decode('ascii')
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_decode_sliced_end(char* a):
+    """
+    >>> print(test_decode_sliced_end(b_asdf))
+    asd
+    """
+    cdef string b = string(a)
+    return b[:3].decode('ascii')
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_decode_sliced_start(char* a):
+    """
+    >>> print(test_decode_sliced_start(b_asdf))
+    df
+    """
+    cdef string b = string(a)
+    return b[2:].decode('ascii')
 
 def test_equals_operator(char *a, char *b):
     """

@@ -2699,106 +2699,116 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             'encode', is_unbound_method,
             [string_node, encoding_node, error_handling_node])
 
-    PyUnicode_DecodeXyz_func_type = PyrexTypes.CFuncType(
+    PyUnicode_DecodeXyz_func_ptr_type = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
         Builtin.unicode_type, [
             PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("size", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ])
+            ]))
 
-    PyUnicode_Decode_func_type = PyrexTypes.CFuncType(
+    _decode_c_string_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
             PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_char_ptr_type, None),
-            PyrexTypes.CFuncTypeArg("size", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("decode_func", PyUnicode_DecodeXyz_func_ptr_type, None),
             ])
+
+    _decode_cpp_string_func_type = None # lazy init
 
     def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
         """Replace char*.decode() by a direct C-API call to the
         corresponding codec, possibly resoving a slice on the char*.
         """
-        if len(args) < 1 or len(args) > 3:
+        if not (1 <= len(args) <= 3):
             self._error_wrong_arg_count('bytes.decode', node, args, '1-3')
             return node
-        temps = []
+
+        # normalise input nodes
         if isinstance(args[0], ExprNodes.SliceIndexNode):
             index_node = args[0]
             string_node = index_node.base
-            if not string_node.type.is_string:
-                # nothing to optimise here
-                return node
             start, stop = index_node.start, index_node.stop
             if not start or start.constant_result == 0:
                 start = None
-            else:
-                if start.type.is_pyobject:
-                    start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
-                if stop:
-                    start = UtilNodes.LetRefNode(start)
-                    temps.append(start)
-                string_node = ExprNodes.AddNode(pos=start.pos,
-                                                operand1=string_node,
-                                                operator='+',
-                                                operand2=start,
-                                                is_temp=False,
-                                                type=string_node.type
-                                                )
-            if stop and stop.type.is_pyobject:
-                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
-        elif isinstance(args[0], ExprNodes.CoerceToPyTypeNode) \
-                 and args[0].arg.type.is_string:
-            # use strlen() to find the string length, just as CPython would
-            start = stop = None
+        elif isinstance(args[0], ExprNodes.CoerceToPyTypeNode):
             string_node = args[0].arg
+            start = stop = None
         else:
-            # let Python do its job
             return node
 
-        if not stop:
-            if start or not string_node.is_name:
-                string_node = UtilNodes.LetRefNode(string_node)
-                temps.append(string_node)
-            stop = ExprNodes.PythonCapiCallNode(
-                string_node.pos, "strlen", self.Pyx_strlen_func_type,
-                    args = [string_node],
-                    is_temp = False,
-                    utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
-                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
-        elif start:
-            stop = ExprNodes.SubNode(
-                pos = stop.pos,
-                operand1 = stop,
-                operator = '-',
-                operand2 = start,
-                is_temp = False,
-                type = PyrexTypes.c_py_ssize_t_type
-                )
+        if not string_node.type.is_string and not string_node.type.is_cpp_string:
+            # nothing to optimise here
+            return node
 
         parameters = self._unpack_encoding_and_error_mode(node.pos, args)
         if parameters is None:
             return node
         encoding, encoding_node, error_handling, error_handling_node = parameters
 
+        if not start:
+            start = ExprNodes.IntNode(node.pos, value='0', constant_result=0)
+        elif not start.type.is_int:
+            start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+        if stop and not stop.type.is_int:
+            stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+
         # try to find a specific encoder function
         codec_name = None
         if encoding is not None:
             codec_name = self._find_special_codec_name(encoding)
         if codec_name is not None:
-            decode_function = "PyUnicode_Decode%s" % codec_name
-            node = ExprNodes.PythonCapiCallNode(
-                node.pos, decode_function,
-                self.PyUnicode_DecodeXyz_func_type,
-                args = [string_node, stop, error_handling_node],
-                is_temp = node.is_temp,
-                )
+            decode_function = ExprNodes.RawCNameExprNode(
+                node.pos, type=self.PyUnicode_DecodeXyz_func_ptr_type,
+                cname="PyUnicode_Decode%s" % codec_name)
+            encoding_node = ExprNodes.NullNode(node.pos)
         else:
-            node = ExprNodes.PythonCapiCallNode(
-                node.pos, "PyUnicode_Decode",
-                self.PyUnicode_Decode_func_type,
-                args = [string_node, stop, encoding_node, error_handling_node],
-                is_temp = node.is_temp,
-                )
+            decode_function = ExprNodes.NullNode(node.pos)
+
+        # build the helper function call
+        temps = []
+        if string_node.type.is_string:
+            # C string
+            if not stop:
+                # use strlen() to find the string length, just as CPython would
+                if not string_node.is_name:
+                    string_node = UtilNodes.LetRefNode(string_node) # used twice
+                    temps.append(string_node)
+                stop = ExprNodes.PythonCapiCallNode(
+                    string_node.pos, "strlen", self.Pyx_strlen_func_type,
+                    args = [string_node],
+                    is_temp = False,
+                    utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
+                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+            helper_func_type = self._decode_c_string_func_type
+            utility_code_name = 'decode_c_string'
+        else:
+            # C++ std::string
+            if not stop:
+                stop = ExprNodes.IntNode(node.pos, value='PY_SSIZE_T_MAX',
+                                         constant_result=ExprNodes.not_a_constant)
+            if self._decode_cpp_string_func_type is None:
+                # lazy init to reuse the C++ string type
+                self._decode_cpp_string_func_type = PyrexTypes.CFuncType(
+                    Builtin.unicode_type, [
+                        PyrexTypes.CFuncTypeArg("string", string_node.type, None),
+                        PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+                        PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
+                        PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
+                        PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
+                        PyrexTypes.CFuncTypeArg("decode_func", self.PyUnicode_DecodeXyz_func_ptr_type, None),
+                        ])
+            helper_func_type = self._decode_cpp_string_func_type
+            utility_code_name = 'decode_cpp_string'
+
+        node = ExprNodes.PythonCapiCallNode(
+            node.pos, '__Pyx_%s' % utility_code_name, helper_func_type,
+            args = [string_node, start, stop, encoding_node, error_handling_node, decode_function],
+            is_temp = node.is_temp,
+            utility_code=UtilityCode.load_cached(utility_code_name, 'Optimize.c'),
+            )
 
         for temp in temps[::-1]:
             node = UtilNodes.EvalWithTempExprNode(temp, node)

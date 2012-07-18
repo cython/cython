@@ -100,6 +100,21 @@ def slice_charptr_dynamic_bounds():
             cstring[return1():return5()].decode('UTF-8'),
             cstring[return4():return9()].decode('UTF-8'))
 
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def slice_charptr_dynamic_bounds_non_name():
+    """
+    >>> print(str(slice_charptr_dynamic_bounds_non_name()).replace("u'", "'"))
+    ('bcA', 'bcA', 'BCqtp', 'ABCqtp', 'bcABCqtp', 'bcABCqtp', 'cABC')
+    """
+    return ((cstring+1)[:return3()].decode('UTF-8'),
+            (cstring+1)[0:return3()].decode('UTF-8'),
+            (cstring+1)[return3():].decode('UTF-8'),
+            (cstring+1)[2:].decode('UTF-8'),
+            (cstring+1)[0:].decode('UTF-8'),
+            (cstring+1)[:].decode('UTF-8'),
+            (cstring+1)[return1():return5()].decode('UTF-8'))
+
 cdef return1(): return 1
 cdef return3(): return 3
 cdef return4(): return 4

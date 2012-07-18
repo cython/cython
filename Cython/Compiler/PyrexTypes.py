@@ -144,7 +144,7 @@ class PyrexType(BaseType):
     #  is_enum               boolean     Is a C enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
-    #  is_unicode            boolean     Is a UTF-8 encoded C char * type
+    #  is_cpp_string         boolean     Is a C++ std::string type
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
@@ -195,11 +195,11 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_cpp_string = 0
     is_struct = 0
     is_enum = 0
     is_typedef = 0
     is_string = 0
-    is_unicode = 0
     is_unicode_char = 0
     is_returncode = 0
     is_error = 0
@@ -3011,6 +3011,7 @@ class CppClassType(CType):
         self.templates = templates
         self.template_type = template_type
         self.specializations = {}
+        self.is_cpp_string = cname == 'std::string'
 
     def use_conversion_utility(self, from_or_to):
         pass

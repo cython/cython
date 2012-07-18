@@ -487,3 +487,61 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
 bad:
     return (double)-1;
 }
+
+/////////////// decode_cpp_string.proto ///////////////
+
+#include <string>
+
+static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
+         std::string cppstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
+
+/////////////// decode_cpp_string ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
+         std::string cppstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    const char* cstring = cppstring.data();
+    Py_ssize_t length = cppstring.size();
+
+    if (start < 0)
+        start += length;
+    if (stop < 0)
+        length += stop;
+    else if (length > stop)
+        length = stop;
+    if ((start < 0) | (start >= length))
+        return PyUnicode_FromUnicode(NULL, 0);
+    cstring += start;
+    length -= start;
+
+    if (decode_func) {
+        return decode_func(cstring, length, errors);
+    } else {
+        return PyUnicode_Decode(cstring, length, encoding, errors);
+    }
+}
+
+/////////////// decode_c_string.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
+         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
+
+/////////////// decode_c_string ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
+         const char* cstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    Py_ssize_t length = stop - start;
+    cstring += start;
+    if (decode_func) {
+        return decode_func(cstring, length, errors);
+    } else {
+        return PyUnicode_Decode(cstring, length, encoding, errors);
+    }
+}
