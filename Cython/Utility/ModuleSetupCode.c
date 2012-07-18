@@ -252,7 +252,9 @@
 
 /////////////// InitThreads.init ///////////////
 
+#ifdef WITH_THREAD
 PyEval_InitThreads();
+#endif
 
 /////////////// CodeObjectCache.proto ///////////////
 
