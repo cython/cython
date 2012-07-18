@@ -373,8 +373,6 @@ class MethodDispatcherTransform(EnvTransform):
     * builtin methods: _handle_(general|simple|any)_method_TYPENAME_METHODNAME
     """
     # only visit call nodes
-    visit_Node = VisitorTransform.recurse_to_children
-
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
         function = node.function
