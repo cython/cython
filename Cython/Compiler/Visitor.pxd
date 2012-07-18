@@ -28,6 +28,10 @@ cdef class ScopeTrackingTransform(CythonTransform):
 cdef class EnvTransform(CythonTransform):
     cdef public list env_stack
 
+cdef class MethodDispatcherTransform(EnvTransform):
+    cdef _find_handler(self, match_name, bint has_kwargs)
+    cdef _dispatch_to_handler(self, node, function, arg_list, kwargs=*)
+
 cdef class RecursiveNodeReplacer(VisitorTransform):
      cdef public orig_node
      cdef public new_node

@@ -4,6 +4,8 @@
 #   Tree visitor and transform framework
 #
 import inspect
+import TypeSlots
+import Builtin
 import Nodes
 import ExprNodes
 import Errors
@@ -356,6 +358,114 @@ class EnvTransform(CythonTransform):
         else:
             self.visitchildren(node)
         return node
+
+
+class MethodDispatcherTransform(EnvTransform):
+    """
+    Base class for transformations that want to intercept on specific
+    builtin functions or methods of builtin types.  Must run after
+    declaration analysis when entries were assigned.
+
+    Naming pattern for handler methods is as follows:
+
+    * builtin functions: _handle_(general|simple|any)_function_NAME
+
+    * builtin methods: _handle_(general|simple|any)_method_TYPENAME_METHODNAME
+    """
+    # only visit call nodes
+    visit_Node = VisitorTransform.recurse_to_children
+
+    def visit_GeneralCallNode(self, node):
+        self.visitchildren(node)
+        function = node.function
+        if not function.type.is_pyobject:
+            return node
+        arg_tuple = node.positional_args
+        if not isinstance(arg_tuple, ExprNodes.TupleNode):
+            return node
+        keyword_args = node.keyword_args
+        if keyword_args and not isinstance(keyword_args, ExprNodes.DictNode):
+            # can't handle **kwargs
+            return node
+        args = arg_tuple.args
+        return self._dispatch_to_handler(
+            node, function, args, keyword_args)
+
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        function = node.function
+        if function.type.is_pyobject:
+            arg_tuple = node.arg_tuple
+            if not isinstance(arg_tuple, ExprNodes.TupleNode):
+                return node
+            args = arg_tuple.args
+        else:
+            args = node.args
+        return self._dispatch_to_handler(
+            node, function, args)
+
+    ### dispatch to specific handlers
+
+    def _find_handler(self, match_name, has_kwargs):
+        call_type = has_kwargs and 'general' or 'simple'
+        handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
+        if handler is None:
+            handler = getattr(self, '_handle_any_%s' % match_name, None)
+        return handler
+
+    def _dispatch_to_handler(self, node, function, arg_list, kwargs=None):
+        if function.is_name:
+            # we only consider functions that are either builtin
+            # Python functions or builtins that were already replaced
+            # into a C function call (defined in the builtin scope)
+            if not function.entry:
+                return node
+            is_builtin = function.entry.is_builtin or\
+                         function.entry is self.current_env().builtin_scope().lookup_here(function.name)
+            if not is_builtin:
+                return node
+            function_handler = self._find_handler(
+                "function_%s" % function.name, kwargs)
+            if function_handler is None:
+                return node
+            if kwargs:
+                return function_handler(node, arg_list, kwargs)
+            else:
+                return function_handler(node, arg_list)
+        elif function.is_attribute and function.type.is_pyobject:
+            attr_name = function.attribute
+            self_arg = function.obj
+            obj_type = self_arg.type
+            is_unbound_method = False
+            if obj_type.is_builtin_type:
+                if obj_type is Builtin.type_type and arg_list and\
+                   arg_list[0].type.is_pyobject:
+                    # calling an unbound method like 'list.append(L,x)'
+                    # (ignoring 'type.mro()' here ...)
+                    type_name = function.obj.name
+                    self_arg = None
+                    is_unbound_method = True
+                else:
+                    type_name = obj_type.name
+            else:
+                type_name = "object" # safety measure
+            method_handler = self._find_handler(
+                "method_%s_%s" % (type_name, attr_name), kwargs)
+            if method_handler is None:
+                if attr_name in TypeSlots.method_name_to_slot\
+                or attr_name == '__new__':
+                    method_handler = self._find_handler(
+                        "slot%s" % attr_name, kwargs)
+                if method_handler is None:
+                    return node
+            if self_arg is not None:
+                arg_list = [self_arg] + list(arg_list)
+            if kwargs:
+                return method_handler(node, arg_list, kwargs, is_unbound_method)
+            else:
+                return method_handler(node, arg_list, is_unbound_method)
+        else:
+            return node
 
 
 class RecursiveNodeReplacer(VisitorTransform):
