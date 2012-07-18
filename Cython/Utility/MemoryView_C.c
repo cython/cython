@@ -653,7 +653,7 @@ __pyx_memviewslice_is_contig2(const {{memviewslice_name}} mvs,
 
     for (i = 0; i < ndim; i++) {
         index = start + step * i;
-        if (mvs.suboffsets[index] >= 0 || mvs.strides[index] != itemsize)
+        if (mvs.strides[index] != itemsize)
             return 0;
 
         itemsize *= mvs.shape[index];
@@ -666,6 +666,11 @@ static int
 __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
                              char order, int ndim)
 {
+    int i;
+    for (i = 0; i < ndim; i++)
+        if (mvs.suboffsets[i] >= 0)
+            return 0;
+
     return __pyx_memviewslice_is_contig2(mvs, order, ndim, mvs.memview->view.itemsize);
 }
 

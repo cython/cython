@@ -29,7 +29,7 @@ __pyx_get_arrays_ordering(const {{memviewslice_name}} **ops, const int *ndims,
 
     for (i = 0; i < nops; i++) {
         char order = __pyx_get_best_slice_order(*ops[i], ndims[i]);
-        int contig = __pyx_memviewslice_is_contig2(*ops[i], 'C', ndims[i], itemsizes[i]);
+        int contig = __pyx_memviewslice_is_contig2(*ops[i], order, ndims[i], itemsizes[i]);
 
         if (order == 'C') {
             all_f_contig = 0;
@@ -51,12 +51,24 @@ __pyx_get_arrays_ordering(const {{memviewslice_name}} **ops, const int *ndims,
     } else if (seen_c_ish && seen_f_ish) {
         return __PYX_ARRAYS_ARE_MIXED_STRIDED | (seen_c_ish > seen_f_ish);
     } else {
+        /*
+           Check whether the operands are strided or inner contiguous.
+           We check whether the stride in the first or last (F/C) dimension equals
+           the itemsize, and we verify that no operand is broadcasting in the
+           first or last (F/C) dimension (that they all have the same extent).
+        */
+        Py_ssize_t extent;
+
+        if (seen_c_ish) extent = ops[0]->shape[ndims[0] - 1];
+        else extent = ops[0]->shape[0];
+
         for (i = 0; i < nops; i++) {
             int dim = 0;
             if (seen_c_ish)
                 dim = ndims[i] - 1;
 
-            if (ops[i]->strides[dim] != itemsizes[i])
+            if (ops[i]->strides[dim] != itemsizes[i] ||
+                ops[i]->shape[dim] != extent)
                 return __PYX_ARRAYS_ARE_STRIDED | !!seen_c_ish;
         }
     }
@@ -75,6 +87,18 @@ __pyx_get_arrays_ordering(const {{memviewslice_name}} **ops, const int *ndims,
   #else
     #define CYTHON_RESTRICT
   #endif
+#endif
+
+////////// VectorizedUtility.proto //////////
+#ifndef {{cython_vector_size}}
+    #define {{cython_vector_size}} 0
+#endif
+
+////////// VectorHeaderUtility.proto ////////////
+#if {{cython_vector_size}} == 4
+#include <xmmintrin.h>
+#elif {{cython_vector_size}} == 8
+#include <smmintrin.h>
 #endif
 
 ////////// OpenMPAutoTune.proto /////////
@@ -112,3 +136,4 @@ void __pyx_test_parallel(double *a, const int upper_limit)
         a[i] = a[i] + a[i + 1];
     }
 }
+

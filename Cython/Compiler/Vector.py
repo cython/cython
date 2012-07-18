@@ -16,6 +16,8 @@ from Cython.minivect import specializers
 _debug = False
 _context_debug = False
 
+cython_vector_size = "CYTHON_VECTOR_SIZE"
+
 class TypeMapper(minitypes.TypeMapper):
     def map_type(self, type, wrap=False):
         if type.is_typedef:
@@ -116,7 +118,7 @@ def create_hybrid_code(codegen, old_minicode):
     code.codegen = codegen.clone(codegen.context, code)
     return code
 
-class CCodeGen(codegen.CCodeGen):
+class CCodeGen(codegen.VectorCodegen):
 
     def __init__(self, context, codewriter):
         super(CCodeGen, self).__init__(context, codewriter)
@@ -543,6 +545,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
                                           axes=axes)
             self.target.analyse_types(env)
 
+        self.max_ndim = max(self.dst.type.ndim, self.target.type.ndim)
         self.type = self.target.type
 
     def align_with_lhs(self, code):
@@ -583,21 +586,109 @@ class SpecializationCaller(ExprNodes.ExprNode):
     def result(self):
         return self.target.result()
 
-    def run_specializer(self, specializer):
+    def run_specializer(self, code, specializer, guard=None, counter=None):
+        """
+        Run a given minivect specializer and optionally surround the prototype
+        and implementation code with a preprocessor guard.
+        """
         codes = self.context.run(self.function, [specializer])
-        return iter(codes).next()
+        specializer, ast, codewriter, (proto, impl) = iter(codes).next()
 
-    def put_specialization(self, code, specializer):
-        self.put_specialized_call(code, *self.run_specializer(specializer))
+        if guard is not None:
+            proto = "%s\n%s\n#endif\n" % (guard, proto)
+            impl = "%s\n%s\n#endif\n" % (guard, impl)
+
+        if counter is None:
+            counter = self.get_function_counter(proto, impl)
+
+        self.put_specialization(code, specializer, ast, codewriter,
+                                proto, impl, counter)
+        return specializer, ast, codewriter, (proto, impl), counter
+
+    def get_function_counter(self, proto, impl):
+        code_counter = self.code_counter
+        filename = getattr(self.pos[0], 'filename', None)
+        if filename is not None:
+            key = self.pos[0].filename, proto, impl
+            if key in self._code_cache:
+                code_counter = self._code_cache[key]
+            else:
+                self._code_cache[key] = code_counter
+                SpecializationCaller.code_counter += 1
+        else:
+            SpecializationCaller.code_counter += 1
+
+        return code_counter
+
+    def put_specialization(self, code, specializer, specialized_function,
+                           codewriter, proto, impl, code_counter):
+        "Insert generated minivect code into the Cython module"
+        # print id(specialized_function), specialized_function.mangled_name
+        specialized_function.mangled_name = (
+                    specialized_function.mangled_name % (code_counter,))
+        proto = proto % code_counter
+        impl = impl % ((code_counter,) * impl.count("%d"))
+
+        utility = Code.UtilityCode(proto=proto, impl=impl)
+        code.globalstate.use_utility_code(utility)
+
+        if _debug:
+            marker =  '-' * 20
+            print marker, 'proto', marker
+            print proto
+            print marker, 'impl', marker
+            print impl
+
+    def put_specialization_and_call(self, code, specializer, guard=None,
+                                    counter=None, can_vectorize=True):
+        "Generate code, inject it into the Cython module and generate a call"
+        if specializer.vectorized_equivalents and can_vectorize:
+            self.put_vectorized_specializations(code, specializer)
+        else:
+            # Generate code
+            result = self.run_specializer(code, specializer, guard, counter)
+            # Generate call to the generated code
+            self.put_specialized_call(code, *result)
+
+    def put_vectorized_specializations(self, code, normal_specializer):
+        """
+        Generate several versions of the code, one for SSE*, one for AVX
+        and one unvectorized version.
+        """
+        sse_specializer, avx_specializer = (
+                                normal_specializer.vectorized_equivalents)
+
+        can_vectorize = sse_specializer.can_vectorize(self.context,
+                                                      self.function)
+
+        if can_vectorize:
+            guard = "#if %s == %%d" % cython_vector_size
+            sse_size = sse_specializer.vector_size
+            avx_size = avx_specializer.vector_size
+            sse_guard = guard % sse_size
+            avx_guard = guard % avx_size
+            normal_guard = "#if !(%s == %d || %s == %d)" % (
+                    cython_vector_size, sse_size, cython_vector_size, avx_size)
+
+            _, _, _, _, counter = self.run_specializer(
+                            code, normal_specializer, guard=normal_guard)
+            self.run_specializer(code, sse_specializer, guard=sse_guard,
+                                 counter=counter)
+            self.put_specialization_and_call(code, avx_specializer,
+                                             guard=avx_guard, counter=counter)
+        else:
+            self.put_specialization_and_call(code, normal_specializer,
+                                             can_vectorize=False)
 
     def is_c_order_code(self):
         return "%s & __PYX_ARRAY_C_ORDER" % self.array_layout.result()
 
-    def put_ordered_specializations(self, code, c_specialization, f_specialization):
+    def put_ordered_specializations(self, code, c_specialization,
+                                                f_specialization):
         code.putln("if (%s) {" % self.is_c_order_code())
-        self.put_specialization(code, c_specialization)
+        self.put_specialization_and_call(code, c_specialization)
         code.putln("} else {")
-        self.put_specialization(code, f_specialization)
+        self.put_specialization_and_call(code, f_specialization)
         code.putln("}")
 
     def _put_contig_specialization(self, code, if_clause, contig, mixed_contig):
@@ -611,7 +702,10 @@ class SpecializationCaller(ExprNodes.ExprNode):
                     self.array_layout.result(), not_broadcasting)
 
             code.putln("%s (%s) {" % (if_clause, condition))
-            self.put_specialization(code, specializers.ContigSpecializer)
+
+            self.put_specialization_and_call(code,
+                                             specializers.ContigSpecializer)
+
             code.putln("}")
             if_clause = "else if"
 
@@ -624,8 +718,9 @@ class SpecializationCaller(ExprNodes.ExprNode):
                                  (if_clause, self.array_layout.result()))
 
         code.putln("/* Tiled specializations */")
-        self.put_ordered_specializations(code, specializers.CTiledStridedSpecializer,
-                                         specializers.FTiledStridedSpecializer)
+        self.put_ordered_specializations(code,
+             specializers.CTiledStridedSpecializer,
+             specializers.FTiledStridedSpecializer)
 
         if not mixed_contig:
             code.putln("}")
@@ -633,11 +728,16 @@ class SpecializationCaller(ExprNodes.ExprNode):
         return if_clause
 
     def _put_inner_contig_specializations(self, code, if_clause, mixed_contig):
-        if not mixed_contig:
+        """
+        Insert the inner contiguous specialization, if we have more than two
+        dimensions. We the rhs is 2D but the LHS 1D, it means the actual
+        pattern is 1D.
+        """
+        if (not mixed_contig and self.dst.type.ndim > 1 and
+                self.target.type.ndim > 1):
             code.putln("%s (%s & __PYX_ARRAYS_ARE_INNER_CONTIG) {" %
                                     (if_clause, self.array_layout.result()))
-            self.put_ordered_specializations(
-                    code,
+            self.put_ordered_specializations(code,
                     specializers.StridedCInnerContigSpecializer,
                     specializers.StridedFortranInnerContigSpecializer)
             code.putln("}")
@@ -686,39 +786,11 @@ class SpecializationCaller(ExprNodes.ExprNode):
         return MemoryView.get_best_slice_order(self.target)
 
     def put_specialized_call(self, code, specializer, specialized_function,
-                             codewriter, result_code):
-        proto, impl = result_code
-
-        code_counter = self.code_counter
-        filename = getattr(self.pos[0], 'filename', None)
-        if filename is not None:
-            key = self.pos[0].filename, proto, impl
-            if key in self._code_cache:
-                code_counter = self._code_cache[key]
-            else:
-                self._code_cache[key] = code_counter
-                SpecializationCaller.code_counter += 1
-        else:
-            SpecializationCaller.code_counter += 1
-
-        specialized_function.mangled_name = (
-            specialized_function.mangled_name % code_counter)
-        proto = proto % code_counter
-        impl = impl % ((code_counter,) * impl.count("%d"))
-
-        function = self.function
-        ndim = function.ndim
-
-        utility = Code.UtilityCode(proto=proto, impl=impl)
-        code.globalstate.use_utility_code(utility)
-
-        if _debug:
-            marker =  '-' * 20
-            print marker, 'proto', marker
-            print proto
-            print marker, 'impl', marker
-            print impl
-
+                             codewriter, result_code, code_counter=None):
+        """
+        Generate a call to a given specializer and specialized
+        minivect function.
+        """
         # all function call arguments
         offset = max(self.target.type.ndim - self.function.ndim, 0)
         args = ["&%s.shape[%d]" % (self.result(), offset)]
@@ -1431,6 +1503,8 @@ def load_utilities(env):
     env.use_utility_code(array_order_utility)
     env.use_utility_code(restrict_utility)
     env.use_utility_code(tile_size_utility)
+    env.use_utility_code(vector_size_utility)
+    env.use_utility_code(vector_header_utility)
 
 def load_vector_utility(name, context, **kwargs):
     return Code.TempitaUtilityCode.load(name, "Vector.c", context=context, **kwargs)
@@ -1440,7 +1514,7 @@ def load_vector_cy_utility(name, context, **kwargs):
                 name, "Vector.pyx", context=context,
                 prefix='__pyx_vector_', **kwargs)
 
-context = MemoryView.context
+context = dict(MemoryView.context, cython_vector_size=cython_vector_size)
 
 broadcast_utility = MemoryView.load_memview_cy_utility("Broadcasting",
                                                        context=context)
@@ -1453,3 +1527,9 @@ restrict_utility = load_vector_utility(
 omp_size_utility = load_vector_utility("OpenMPAutoTune", context)
 tile_size_utility = load_vector_cy_utility("GetTileSize", context,
                                            requires=[omp_size_utility])
+vector_size_utility = load_vector_utility(
+            "VectorizedUtility", context=context,
+            proto_block='utility_code_proto_before_types')
+
+vector_header_utility = load_vector_utility("VectorHeaderUtility",
+                                            context=context)

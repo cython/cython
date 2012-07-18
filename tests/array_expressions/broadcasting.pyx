@@ -71,15 +71,19 @@ def test_broadcasting_c_contig(fused_dtype_t[::1] m1, fused_dtype_t[:, ::1] m2):
 def test_broadcasting_larger_rhs_ndim(double[:] m):
     """
     >>> test_broadcasting_larger_rhs_ndim(np.arange(10, dtype=np.double))
+    array([ 18.,  16.,  14.,  12.,  10.,   8.,   6.,   4.,   2.,   0.])
     """
     m[:] = m[None, ::-1] + m[None, ::-1]
+    return np.asarray(m)
 
 @testcase
 def test_broadcasting_larger_rhs_ndim_contig(double[::1] m):
     """
     >>> test_broadcasting_larger_rhs_ndim_contig(np.arange(10, dtype=np.double))
+    array([ 18.,  16.,  14.,  12.,  10.,   8.,   6.,   4.,   2.,   0.])
     """
     m[:] = m[None, ::-1] + m[None, ::-1]
+    return np.asarray(m)
 
 @testcase
 def test_broadcasting_runtime(double[:, :] m1, double[:, :] m2):
