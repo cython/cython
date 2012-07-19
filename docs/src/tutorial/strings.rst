@@ -44,7 +44,9 @@ slicing the C string::
 
 Here, no additional byte counting is required and ``length`` bytes from
 the ``c_string`` will be copied into the Python bytes object, including
-any null bytes.
+any null bytes.  Keep in mind that the slice indices are assumed to be
+accurate in this case and no bounds checking is done, so incorrect
+slice indices will lead to data corruption and crashes.
 
 Note that the creation of the Python bytes string can fail with an
 exception, e.g. due to insufficient memory.  If you need to
@@ -138,7 +140,7 @@ contains no null bytes::
     cdef char* some_c_string = c_call_returning_a_c_string()
     ustring = some_c_string.decode('UTF-8')
 
-And for strings where the length is known::
+And, more efficiently, for strings where the length is known::
 
     cdef char* c_string = NULL
     cdef Py_ssize_t length = 0
@@ -151,6 +153,32 @@ And for strings where the length is known::
 The same should be used when the string contains null bytes, e.g. when
 it uses an encoding like UCS-4, where each character is encoded in four
 bytes most of which tend to be 0.
+
+Again, no bounds checking is done if slice indices are provided, so
+incorrect indices lead to data corruption and crashes.  However, using
+negative indices is possible since Cython 0.17 and will inject a call
+to :c:func:`strlen()` in order to determine the string length.
+Obviously, this only works for 0-terminated strings without internal
+null bytes.  Text encoded in UTF-8 or one of the ISO-8859 encodings is
+usually a good candidate.  If in doubt, it's better to pass indices
+that are 'obviously' correct than to rely on the data to be as expected.
+
+When wrapping a C++ library, strings will usually come in the form of
+the :c:type:`std::string` class.  Efficient decoding support is
+available in Cython 0.17 and later::
+
+    # cython: language = c++
+
+    from libcpp.string cimport string
+
+    s = string('abcdefg')
+
+    ustring1 = s.decode('UTF-8')
+    ustring2 = s[2:-2].decode('UTF-8')
+
+For C++ strings, decoding slices will always take the proper length
+of the string into account and apply Python slicing semantics (e.g.
+return empty strings for out-of-bounds indices).
 
 It is common practice to wrap string conversions (and non-trivial type
 conversions in general) in dedicated functions, as this needs to be
