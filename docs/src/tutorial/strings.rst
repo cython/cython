@@ -163,23 +163,6 @@ null bytes.  Text encoded in UTF-8 or one of the ISO-8859 encodings is
 usually a good candidate.  If in doubt, it's better to pass indices
 that are 'obviously' correct than to rely on the data to be as expected.
 
-When wrapping a C++ library, strings will usually come in the form of
-the :c:type:`std::string` class.  Efficient decoding support is
-available in Cython 0.17 and later::
-
-    # distutils: language = c++
-
-    from libcpp.string cimport string
-
-    cdef string s = string('abcdefg')
-
-    ustring1 = s.decode('UTF-8')
-    ustring2 = s[2:-2].decode('UTF-8')
-
-For C++ strings, decoding slices will always take the proper length
-of the string into account and apply Python slicing semantics (e.g.
-return empty strings for out-of-bounds indices).
-
 It is common practice to wrap string conversions (and non-trivial type
 conversions in general) in dedicated functions, as this needs to be
 done in exactly the same way whenever receiving text from C.  This
@@ -230,6 +213,49 @@ temporary string result that will be garbage collected after the
 assignment.  Later access to the invalidated pointer will read invalid
 memory and likely result in a segfault.  Cython will therefore refuse
 to compile this code.
+
+C++ strings
+-----------
+
+When wrapping a C++ library, strings will usually come in the form of
+the :c:type:`std::string` class.  As with C strings, Python byte strings
+automatically coerce from and to C++ strings::
+
+    # distutils: language = c++
+
+    from libcpp.string cimport string
+
+    cdef string s = py_bytes_object
+    try:
+        s.append('abc')
+        py_bytes_object = s
+    finally:
+        del s
+
+The memory management situation is different than in C because the
+creation of a C++ string makes an independent copy of the string
+buffer which the string object then owns.  It is therefore possible
+to convert temporarily created Python objects directly into C++
+strings.  A common way to make use of this is when encoding a Python
+unicode string into a C++ string::
+
+    cdef string cpp_string = py_unicode_string.encode('UTF-8')
+
+Note that this involves a bit of overhead because it first encodes
+the Unicode string into a temporarily created Python bytes object
+and then copies its buffer into a new C++ string.
+
+For the other direction, efficient decoding support is available
+in Cython 0.17 and later::
+
+    cdef string s = string('abcdefg')
+
+    ustring1 = s.decode('UTF-8')
+    ustring2 = s[2:-2].decode('UTF-8')
+
+For C++ strings, decoding slices will always take the proper length
+of the string into account and apply Python slicing semantics (e.g.
+return empty strings for out-of-bounds indices).
 
 Source code encoding
 --------------------
