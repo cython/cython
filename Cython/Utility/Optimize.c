@@ -506,16 +506,19 @@ static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
     const char* cstring = cppstring.data();
     Py_ssize_t length = cppstring.size();
 
-    if (start < 0)
+    if (unlikely(start < 0)) {
         start += length;
-    if (stop < 0)
-        length += stop;
-    else if (length > stop)
-        length = stop;
-    if ((start < 0) | (start >= length))
+        if (unlikely(start < 0))
+            start = 0;
+    }
+    if (unlikely(stop < 0))
+        stop += length;
+    else if (stop >= length)
+        stop = length;
+    if (unlikely(start >= stop))
         return PyUnicode_FromUnicode(NULL, 0);
     cstring += start;
-    length -= start;
+    length = stop - start;
 
     if (decode_func) {
         return decode_func(cstring, length, errors);
@@ -532,12 +535,26 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
 
 /////////////// decode_c_string ///////////////
+//@requires StringTools.c::IncludeStringH
 
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
          const char* cstring, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
-    Py_ssize_t length = stop - start;
+    Py_ssize_t length;
+    if (unlikely((start < 0) | (stop < 0))) {
+        length = strlen(cstring);
+        if (start < 0) {
+            start += length;
+            if (start < 0)
+                start = 0;
+        }
+        if (stop < 0)
+            stop += length;
+    }
+    length = stop - start;
+    if (unlikely(length <= 0))
+        return PyUnicode_FromUnicode(NULL, 0);
     cstring += start;
     if (decode_func) {
         return decode_func(cstring, length, errors);

@@ -60,11 +60,14 @@ def slice_charptr_decode_slice2():
 def slice_charptr_decode_strlen():
     """
     >>> print(str(slice_charptr_decode_strlen()).replace("u'", "'"))
-    ('abcABCqtp', 'bcABCqtp', '')
+    ('abcABCqtp', 'bcABCqtp', '', 'BCq', 'abcA', '')
     """
     return (cstring.decode('UTF-8'),
             cstring[1:].decode('UTF-8'),
-            cstring[9:].decode('UTF-8'))
+            cstring[9:].decode('UTF-8'),
+            cstring[-5:-2].decode('UTF-8'),
+            cstring[:-5].decode('UTF-8'),
+            cstring[:-9].decode('UTF-8'))
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")

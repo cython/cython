@@ -167,13 +167,48 @@ def test_decode_sliced(char* a):
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
-def test_decode_sliced_end(char* a):
+def test_decode_sliced_negative(char* a):
     """
-    >>> print(test_decode_sliced_end(b_asdf))
-    asd
+    >>> a,b,c,d = test_decode_sliced_negative(b_asdf)
+    >>> print(a)
+    sd
+    >>> print(b)
+    a
+    >>> print(c)
+    <BLANKLINE>
+    >>> print(d)
+    <BLANKLINE>
     """
     cdef string b = string(a)
-    return b[:3].decode('ascii')
+    return b[-3:-1].decode('ascii'), b[-5:-3].decode('ascii'), b[-20:-4].decode('ascii'), b[-2:-20].decode('ascii')
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_decode_sliced_end(char* a):
+    """
+    >>> a,b = test_decode_sliced_end(b_asdf)
+    >>> print(a)
+    asd
+    >>> print(b)
+    asdf
+    """
+    cdef string b = string(a)
+    return b[:3].decode('ascii'), b[:42].decode('ascii')
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_decode_sliced_end_negative(char* a):
+    """
+    >>> a,b,c = test_decode_sliced_end_negative(b_asdf)
+    >>> print(a)
+    asd
+    >>> print(b)
+    a
+    >>> print(c)
+    <BLANKLINE>
+    """
+    cdef string b = string(a)
+    return b[:-1].decode('ascii'), b[:-3].decode('ascii'), b[:-4].decode('ascii')
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -184,6 +219,19 @@ def test_decode_sliced_start(char* a):
     """
     cdef string b = string(a)
     return b[2:].decode('ascii')
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def test_decode_sliced_start_negative(char* a):
+    """
+    >>> a,b = test_decode_sliced_start_negative(b_asdf)
+    >>> print(a)
+    df
+    >>> print(b)
+    asdf
+    """
+    cdef string b = string(a)
+    return b[-2:].decode('ascii'), b[-20:].decode('ascii')
 
 def test_equals_operator(char *a, char *b):
     """
