@@ -171,7 +171,7 @@ available in Cython 0.17 and later::
 
     from libcpp.string cimport string
 
-    s = string('abcdefg')
+    cdef string s = string('abcdefg')
 
     ustring1 = s.decode('UTF-8')
     ustring2 = s[2:-2].decode('UTF-8')
