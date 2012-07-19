@@ -2712,7 +2712,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             node.pos, '__Pyx_%s' % utility_code_name, helper_func_type,
             args = [string_node, start, stop, encoding_node, error_handling_node, decode_function],
             is_temp = node.is_temp,
-            utility_code=UtilityCode.load_cached(utility_code_name, 'Optimize.c'),
+            utility_code=UtilityCode.load_cached(utility_code_name, 'StringTools.c'),
             )
 
         for temp in temps[::-1]:
