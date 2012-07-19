@@ -3,6 +3,10 @@
 
 #include <string.h>
 
+//////////////////// IncludeCppStringH.proto ////////////////////
+
+#include <string>
+
 //////////////////// BytesContains.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /*proto*/
@@ -225,8 +229,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring,
 }
 
 /////////////// decode_cpp_string.proto ///////////////
-
-#include <string>
+//@requires IncludeCppStringH
 
 static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
          std::string cppstring, Py_ssize_t start, Py_ssize_t stop,
