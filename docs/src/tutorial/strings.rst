@@ -167,7 +167,7 @@ When wrapping a C++ library, strings will usually come in the form of
 the :c:type:`std::string` class.  Efficient decoding support is
 available in Cython 0.17 and later::
 
-    # cython: language = c++
+    # distutils: language = c++
 
     from libcpp.string cimport string
 
