@@ -1057,6 +1057,7 @@ class CVarDefNode(StatNode):
     #  in_pxd        boolean
     #  api           boolean
     #  overridable   boolean        whether it is a cpdef
+    #  modifiers     ['inline']
 
     #  decorators    [cython.locals(...)] or None
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
@@ -1102,7 +1103,7 @@ class CVarDefNode(StatNode):
             if type.is_cfunction:
                 self.entry = dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
-                    api = self.api)
+                    api = self.api, modifiers = self.modifiers)
                 if self.entry is not None:
                     self.entry.is_overridable = self.overridable
                     self.entry.directive_locals = copy.copy(self.directive_locals)

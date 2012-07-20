@@ -8,7 +8,7 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
 
-ext_modules = cythonize("*.pyx", exclude="numpy_*.pyx")
+ext_modules = cythonize("**/*.pyx", exclude="numpy_*.pyx")
 
 # Only compile the following if numpy is installed.
 try:

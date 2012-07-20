@@ -812,10 +812,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 declaration = method_entry.type.declaration_code(
                     method_entry.final_func_cname)
                 if method_entry.func_modifiers:
-                    modifiers = "%s " % ' '.join(method_entry.func_modifiers).upper()
+                    modifiers = " %s " % ' '.join(method_entry.func_modifiers).upper()
+                    modifiers = modifiers.replace(" INLINE ", " CYTHON_INLINE ")
                 else:
-                    modifiers = ''
-                code.putln("static %s%s;" % (modifiers, declaration))
+                    modifiers = " "
+                code.putln("static%s%s;" % (modifiers, declaration))
 
     def generate_objstruct_predeclaration(self, type, code):
         if not type.scope:

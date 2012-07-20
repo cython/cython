@@ -2736,6 +2736,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             declarators = declarators,
             in_pxd = ctx.level in ('module_pxd', 'c_class_pxd'),
             api = ctx.api,
+            modifiers = modifiers,
             overridable = ctx.overridable)
     return result
 
