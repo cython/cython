@@ -190,12 +190,11 @@ VER_DEP_MODULES = {
                                           'run.pure_py', # decorators, with statement
                                           'run.purecdef',
                                           'run.struct_conversion',
-                                          'run.cythonarray',
-                                          'run.memslice',
-                                          'run.numpy_memoryview',
-                                          'run.memoryviewattrs',
-                                          'run.memoryview',
-                                          'compile.memview_declaration',
+                                          'memoryview.cythonarray',
+                                          'memoryview.memslice',
+                                          'memoryview.numpy_memoryview',
+                                          'memoryview.memoryviewattrs',
+                                          'memoryview.memoryview',
                                           ]),
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
                                           'run.yield_inside_lambda',
