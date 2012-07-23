@@ -15,16 +15,18 @@ from Cython.minivect import codegen
 from Cython.minivect import specializers
 from Cython.minivect import graphviz
 
-_debug = True
+# Print generated minivect code
+_debug = False
+# Generate debug calls from specialized functions
 _context_debug = False
 
 #
-### Graphviz related things. .dot files are only written when _debug is true
+### Graphviz related things. .dot files are only written when write_graphviz
+### is true.
 #
-graphviz_counter = 0
 graphviz_out_filename_unspecialized = os.path.expanduser("~/ast.dot")
-graphviz_out_filename = os.path.expanduser("~/ast%d.dot")
-
+graphviz_out_filename = os.path.expanduser("~/ast%s.dot")
+write_graphviz = True
 
 # Macro that should be defined to enable explicit vectorization
 cython_vector_size = "CYTHON_VECTOR_SIZE"
@@ -663,13 +665,12 @@ class SpecializationCaller(ExprNodes.ExprNode):
     def run_specializer(self, code, specializer, guard=None, counter=None):
         """
         Run a given minivect specializer and optionally surround the prototype
-        and implementation code with a preprocessor guard.
+        and implementation code with a preprocessor guard. Also generate
+        Graphviz .dot files, depending on the 'write_graphviz' flag.
         """
-        if graphviz_out_filename:
-            global graphviz_counter
-
-            filename = graphviz_out_filename % graphviz_counter
-            graphviz_counter += 1
+        if write_graphviz and 'array_expression' in self.function.name:
+            mangled_name = "_%s" % specializer.specialization_name
+            filename = graphviz_out_filename % mangled_name
 
             print "Writing to", filename
             graphviz_outfile = open(filename, 'w')
@@ -1477,7 +1478,8 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             function = b.function(name, body, astmapper.funcargs,
                                   posinfo=posinfo)
 
-            if _debug:
+            if write_graphviz:
+                print "Writing", graphviz_out_filename_unspecialized
                 f = open(graphviz_out_filename_unspecialized, 'w')
                 f.write(self.minicontext.graphviz(function))
                 f.close()
