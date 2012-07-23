@@ -2168,10 +2168,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # table pointer if any.
         if type in env.types_imported:
             return
-        if type.typedef_flag:
-            objstruct = type.objstruct_cname
-        else:
-            objstruct = "struct %s" % type.objstruct_cname
         self.generate_type_import_call(type, code,
                                        code.error_goto_if_null(type.typeptr_cname, pos))
         self.use_type_import_utility_code(env)
