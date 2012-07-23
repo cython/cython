@@ -2187,10 +2187,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
-        # Some builtin types have a tp_basicsize which differs from sizeof(...):
-        objstruct = Code.basicsize_builtins_map.get(objstruct, objstruct)
+        sizeof_objstruct = objstruct
         module_name = type.module_name
-        condition = None
+        condition = replacement = None
         if module_name not in ('__builtin__', 'builtins'):
             module_name = '"%s"' % module_name
         else:
@@ -2198,22 +2197,38 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if type.name in Code.non_portable_builtins_map:
                 condition, replacement = Code.non_portable_builtins_map[type.name]
                 code.putln("#if %s" % condition)
-                code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), 1); %s' % (
-                        type.typeptr_cname,
-                        module_name,
-                        replacement,
-                        objstruct,
-                        error_code))
-                code.putln("#else")
-        code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), %i); %s' % (
-                type.typeptr_cname,
-                module_name,
-                type.name,
-                objstruct,
-                not type.is_external or type.is_subclassed,
-                error_code))
-        if condition:
+            if objstruct in Code.basicsize_builtins_map:
+                # Some builtin types have a tp_basicsize which differs from sizeof(...):
+                sizeof_objstruct = Code.basicsize_builtins_map[objstruct]
+
+        code.put('%s = __Pyx_ImportType(%s,' % (
+            type.typeptr_cname,
+            module_name))
+
+        if condition and replacement:
+            code.putln("")  # start in new line
+            code.putln("#if %s" % condition)
+            code.putln('"%s",' % replacement)
+            code.putln("#else")
+            code.putln('"%s",' % type.name)
             code.putln("#endif")
+        else:
+            code.put(' "%s", ' % type.name)
+
+        if sizeof_objstruct != objstruct:
+            if not condition:
+                code.putln("")  # start in new line
+            code.putln("#if CYTHON_COMPILING_IN_PYPY")
+            code.putln('sizeof(%s),' % objstruct)
+            code.putln("#else")
+            code.putln('sizeof(%s),' % sizeof_objstruct)
+            code.putln("#endif")
+        else:
+            code.put('sizeof(%s), ' % objstruct)
+
+        code.putln('%i); %s' % (
+            not type.is_external or type.is_subclassed,
+            error_code))
 
     def generate_type_ready_code(self, env, entry, code):
         # Generate a call to PyType_Ready for an extension
