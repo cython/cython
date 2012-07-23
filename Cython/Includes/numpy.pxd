@@ -19,6 +19,7 @@ DEF _buffer_format_string_len = 255
 cimport cpython.buffer as pybuf
 from cpython.ref cimport Py_INCREF, Py_XDECREF
 from cpython.object cimport PyObject
+from cpython.type cimport type
 cimport libc.stdlib as stdlib
 cimport libc.stdio as stdio
 
