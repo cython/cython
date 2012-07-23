@@ -40,6 +40,11 @@ non_portable_builtins_map = {
     'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
     }
 
+basicsize_builtins_map = {
+    # builtins whose type has a different tp_basicsize than sizeof(...)
+    'PyTypeObject' : 'PyHeapTypeObject',
+    }
+
 uncachable_builtins = [
     # builtin names that cannot be cached because they may or may not
     # be available at import time
