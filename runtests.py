@@ -180,8 +180,6 @@ VER_DEP_MODULES = {
                                           'run.generator_frame_cycle', # yield in try-finally
                                           'run.relativeimport_T542',
                                           'run.relativeimport_star_T542',
-                                          'memoryview.numpy_memoryview',  # FIXME: feature is currently broken in Py2.4
-                                          'memoryview.memslice'           # FIXME: feature is currently broken in Py2.4
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
@@ -190,6 +188,7 @@ VER_DEP_MODULES = {
                                           'run.pure_py', # decorators, with statement
                                           'run.purecdef',
                                           'run.struct_conversion',
+                                          # memory views require buffer protocol
                                           'memoryview.cythonarray',
                                           'memoryview.memslice',
                                           'memoryview.numpy_memoryview',
