@@ -1,3 +1,4 @@
+import os
 import copy
 
 from Cython import Utils
@@ -12,10 +13,20 @@ from Cython.minivect import miniutils
 from Cython.minivect import minierror
 from Cython.minivect import codegen
 from Cython.minivect import specializers
+from Cython.minivect import graphviz
 
-_debug = False
+_debug = True
 _context_debug = False
 
+#
+### Graphviz related things. .dot files are only written when _debug is true
+#
+graphviz_counter = 0
+graphviz_out_filename_unspecialized = os.path.expanduser("~/ast.dot")
+graphviz_out_filename = os.path.expanduser("~/ast%d.dot")
+
+
+# Macro that should be defined to enable explicit vectorization
 cython_vector_size = "CYTHON_VECTOR_SIZE"
 
 class TypeMapper(minitypes.TypeMapper):
@@ -174,6 +185,65 @@ class CCodeGenCleanup(codegen.CodeGenCleanup):
         node.opaque_node.generate_disposal_code(code)
         self.code.putln(code.getvalue())
 
+class CythonGraphvizGenerator(graphviz.GraphvizGenerator):
+    """
+    Generate a graphviz graph for our Cython AST.
+    """
+
+    def __init__(self, context, name):
+        super(CythonGraphvizGenerator, self).__init__(context, name)
+        self.set_mini_colors()
+
+    def format_node(self, node):
+        if isinstance(node, miniast.Node):
+            return super(CythonGraphvizGenerator, self).format_node(node)
+
+        result = type(node).__name__
+        if isinstance(node, (ExprNodes.BinopNode, ExprNodes.UnopNode)):
+            format_value = node.operator
+        else:
+            return result
+
+        return "%s(%s)" % (result, format_value)
+
+    def set_mini_colors(self):
+        self.node_color = 'purple'
+        self.edge_color = 'black'
+        self.edge_fontcolor = 'black'
+
+    def set_cython_colors(self):
+        self.node_color = 'magenta'
+        self.edge_color = 'black'
+        self.edge_fontcolor = 'black'
+
+    def visit_NodeWrapper(self, node):
+        self.node_color = 'red'
+        pydot_node = self.create_node(node)
+        self.set_cython_colors()
+
+        # monkey patch children so we visit the Cython AST
+        # Note: it would be cleaner to start a new transform from this point,
+        #       but this works since Context.getchildren() works the same for
+        #       minivect and Cython
+        node.child_attrs = ['opaque_node']
+        result = self.visit_Node(node, pydot_node)
+        node.child_attrs = []
+
+        self.set_mini_colors()
+        return result
+
+    def visit_OperandNode(self, node):
+        self.node_color = 'red'
+        pydot_node = self.create_node(node)
+        self.set_mini_colors()
+
+        node.subexprs = ['variable']
+        result = self.visit_Node(node, pydot_node)
+        node.subexprs = []
+
+        self.set_cython_colors()
+        return result
+
 class Context(miniast.CContext):
 
     debug = _context_debug
@@ -181,6 +251,7 @@ class Context(miniast.CContext):
     codegen_cls = CCodeGen
     cleanup_codegen_cls = CCodeGenCleanup
     specializer_mixin_cls = CythonSpecializerMixin
+    graphviz_cls = CythonGraphvizGenerator
 
     def getchildren(self, node):
         return node.child_attrs
@@ -195,6 +266,9 @@ class Context(miniast.CContext):
         return (node.type.resolve().is_pyobject or
                 node.type.resolve().is_complex or
                 (node.type.is_memoryviewslice and node.type.dtype.is_pyobject))
+
+    def str_tree(self, node):
+        return Visitor.PrintTree()(node)
 
 class CythonCCodeWriter(Code.CCodeWriter):
 
@@ -591,7 +665,19 @@ class SpecializationCaller(ExprNodes.ExprNode):
         Run a given minivect specializer and optionally surround the prototype
         and implementation code with a preprocessor guard.
         """
-        codes = self.context.run(self.function, [specializer])
+        if graphviz_out_filename:
+            global graphviz_counter
+
+            filename = graphviz_out_filename % graphviz_counter
+            graphviz_counter += 1
+
+            print "Writing to", filename
+            graphviz_outfile = open(filename, 'w')
+        else:
+            graphviz_outfile = None
+
+        codes = self.context.run(self.function, [specializer],
+                                 graphviz_outfile=graphviz_outfile)
         specializer, ast, codewriter, (proto, impl) = iter(codes).next()
 
         if guard is not None:
@@ -1390,6 +1476,11 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
 
             function = b.function(name, body, astmapper.funcargs,
                                   posinfo=posinfo)
+
+            if _debug:
+                f = open(graphviz_out_filename_unspecialized, 'w')
+                f.write(self.minicontext.graphviz(function))
+                f.close()
 
             astmapper.operands.pop(0)
 
