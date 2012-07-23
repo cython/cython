@@ -38,3 +38,16 @@ def type_type():
     True
     """
     return type
+
+cpdef type pass_type(type x):
+    """
+    >>> pass_type(int) == int
+    True
+    >>> class MyType(object): pass
+    >>> pass_type(MyType) == MyType
+    True
+    >>> pass_type(object())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected type, got object)
+    """
+    return x
