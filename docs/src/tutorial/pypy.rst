@@ -64,12 +64,13 @@ the C-API view on it alive.  Entries in a Python class dict will obviously
 not work either.
 
 One of the more visible places where this may happen is when accessing the
-``char*`` buffer of a byte string.  In PyPy, this will only work as long as
-the Cython code holds a direct reference to the byte string object itself.
+:c:type:`char*` buffer of a byte string.  In PyPy, this will only work as
+long as the Cython code holds a direct reference to the byte string object
+itself.
 
 Another point is when CPython C-API functions are used directly that return
-borrowed references, e.g. ``PyTuple_GET_ITEM()`` and similar functions, but
-also some functions that return borrowed references to built-in modules or
+borrowed references, e.g. :c:func:`PyTuple_GET_ITEM()` and similar functions,
+but also some functions that return borrowed references to built-in modules or
 low-level objects of the runtime environment.  The GIL in PyPy only guarantees
 that the borrowed reference stays valid up to the next call into PyPy (or
 its C-API), but not necessarily longer.
@@ -82,8 +83,31 @@ variables in a function or in the attributes of an extension type.
 
 When in doubt, avoid using C-API functions that return borrowed references,
 or surround the usage of a borrowed reference explicitly by a pair of calls
-to ``Py_INCREF()`` when getting the reference and ``Py_DECREF()`` when done
-with it to convert it into an owned reference.
+to :c:func:`Py_INCREF()` when getting the reference and :c:func:`Py_DECREF()`
+when done with it to convert it into an owned reference.
+
+
+Builtin types, slots and fields
+--------------------------------
+
+The following builtin types are not currently available in cpyext in
+form of their C level representation: :c:type:`PyComplexObject`,
+:c:type:`PyFloatObject` and :c:type:`PyBoolObject`.
+
+Many of the type slot functions of builtin types are not initialised
+in cpyext and can therefore not be used directly.
+
+Similarly, almost none of the (implementation) specific struct fields of
+builtin types is exposed at the C level, such as the ``ob_digit`` field
+of :c:type:`PyLongObject` or the ``allocated`` field of the
+:c:type:`PyListObject` struct etc.  Although the ``ob_size`` field of
+containers (used by the :c:func:`Py_SIZE()` macro) is available, it is
+not guaranteed to be accurate.
+
+It is best not to access any of these struct fields and slots and to
+use the normal Python types instead as well as the normal Python
+protocols for object operations.  Cython will map them to an appropriate
+usage of the C-API in both CPython and cpyext.
 
 
 Efficiency
@@ -95,15 +119,15 @@ may exhibit substantially different performance characteristics in cpyext.
 Functions returning borrowed references were already mentioned as requiring
 special care, but they also induce substantially more runtime overhead because
 they often create weak references in PyPy where they only return a plain
-pointer in CPython.  A visible example is ``PyTuple_GET_ITEM()``.
+pointer in CPython.  A visible example is :c:func:``PyTuple_GET_ITEM()`.
 
 Some more high-level functions may also show entirely different performance
-characteristics, e.g. ``PyDict_Next()`` for dict iteration.  While being the
-fastest way to iterate over a dict in CPython, having linear time complexity
-and a low overhead, it currently has quadratic runtime in PyPy because it
-maps to normal dict iteration, which cannot keep track of the current
-position between two calls and thus needs to restart the iteration on each
-call.
+characteristics, e.g. :c:func:`PyDict_Next()` for dict iteration.  While
+being the fastest way to iterate over a dict in CPython, having linear time
+complexity and a low overhead, it currently has quadratic runtime in PyPy
+because it maps to normal dict iteration, which cannot keep track of the
+current position between two calls and thus needs to restart the iteration
+on each call.
 
 The general advice applies here even more than in CPython, that it is always
 best to rely on Cython generating appropriately adapted C-API handling code
@@ -116,9 +140,9 @@ Known problems
 ---------------
 
 * As of PyPy 1.9, subtyping builtin types can result in infinite recursion
-  on method calls.
+  on method calls in some rare cases.
 
-* Docstrings of special methods are not properly propagated to Python space.
+* Docstrings of special methods are not propagated to Python space.
 
 
 Bugs and crashes
