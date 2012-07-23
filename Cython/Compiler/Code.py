@@ -46,6 +46,10 @@ uncachable_builtins = [
     'WindowsError',
     ]
 
+modifier_output_mapper = {
+    'inline': 'CYTHON_INLINE'
+}.get
+
 def get_utility_dir():
     # make this a function and not global variables:
     # http://trac.cython.org/cython_trac/ticket/475
@@ -1565,6 +1569,11 @@ class CCodeWriter(object):
             return 'unlikely(%s)' % cond
         else:
             return cond
+
+    def build_function_modifiers(self, modifiers, mapper=modifier_output_mapper):
+        if not modifiers:
+            return ''
+        return '%s ' % ' '.join([mapper(m,m) for m in modifiers])
 
     # Python objects and reference counting
 

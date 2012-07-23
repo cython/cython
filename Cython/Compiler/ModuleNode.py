@@ -811,12 +811,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not method_entry.is_inherited and method_entry.final_func_cname:
                 declaration = method_entry.type.declaration_code(
                     method_entry.final_func_cname)
-                if method_entry.func_modifiers:
-                    modifiers = " %s " % ' '.join(method_entry.func_modifiers).upper()
-                    modifiers = modifiers.replace(" INLINE ", " CYTHON_INLINE ")
-                else:
-                    modifiers = " "
-                code.putln("static%s%s;" % (modifiers, declaration))
+                modifiers = code.build_function_modifiers(method_entry.func_modifiers)
+                code.putln("static %s%s;" % (modifiers, declaration))
 
     def generate_objstruct_predeclaration(self, type, code):
         if not type.scope:
@@ -2336,31 +2332,28 @@ def generate_cfunction_declaration(entry, env, code, definition):
     if entry.used and entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
             or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
         if entry.visibility == 'extern':
-            storage_class = "%s " % Naming.extern_c_macro
+            storage_class = Naming.extern_c_macro
             dll_linkage = "DL_IMPORT"
         elif entry.visibility == 'public':
-            storage_class = "%s " % Naming.extern_c_macro
+            storage_class = Naming.extern_c_macro
             dll_linkage = "DL_EXPORT"
         elif entry.visibility == 'private':
-            storage_class = "static "
+            storage_class = "static"
             dll_linkage = None
         else:
-            storage_class = "static "
+            storage_class = "static"
             dll_linkage = None
         type = entry.type
 
         if entry.defined_in_pxd and not definition:
-            storage_class = "static "
+            storage_class = "static"
             dll_linkage = None
             type = CPtrType(type)
 
-        header = type.declaration_code(entry.cname,
-                                       dll_linkage = dll_linkage)
-        if entry.func_modifiers:
-            modifiers = "%s " % ' '.join(entry.func_modifiers).upper()
-        else:
-            modifiers = ''
-        code.putln("%s%s%s; /*proto*/" % (
+        header = type.declaration_code(
+            entry.cname, dll_linkage = dll_linkage)
+        modifiers = code.build_function_modifiers(entry.func_modifiers)
+        code.putln("%s %s%s; /*proto*/" % (
             storage_class,
             modifiers,
             header))

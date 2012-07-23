@@ -2135,11 +2135,7 @@ class CFuncDefNode(FuncDefNode):
         else:
             storage_class = ""
         dll_linkage = None
-        modifiers = ""
-        if 'inline' in self.modifiers:
-            self.modifiers[self.modifiers.index('inline')] = 'cython_inline'
-        if self.modifiers:
-            modifiers = "%s " % ' '.join(self.modifiers).upper()
+        modifiers = code.build_function_modifiers(self.entry.func_modifiers)
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)
