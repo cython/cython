@@ -2292,6 +2292,11 @@ class CPtrType(CPointerBaseType):
     def invalid_value(self):
         return "1"
 
+    def find_cpp_operation_type(self, operator, operand_type=None):
+        if self.base_type.is_cpp_class:
+            return self.base_type.find_cpp_operation_type(operator, operand_type=None)
+        return None
+
 class CNullPtrType(CPtrType):
 
     is_null_ptr = 1
@@ -3163,6 +3168,19 @@ class CppClassType(CType):
 
     def attributes_known(self):
         return self.scope is not None
+
+    def find_cpp_operation_type(self, operator, operand_type=None):
+        operands = [self]
+        if operand_type is not None:
+            operands.append(operand_type)
+        # pos == None => no errors
+        operator_entry = self.scope.lookup_operator_for_types(None, operator, operands)
+        if not operator_entry:
+            return None
+        func_type = operator_entry.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        return func_type.return_type
 
 
 class TemplatePlaceholderType(CType):

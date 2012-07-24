@@ -2966,11 +2966,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return node
         if not node.operand.is_literal:
             return node
-        if isinstance(node.operand, ExprNodes.BoolNode):
-            return ExprNodes.IntNode(node.pos, value = str(node.constant_result),
+        if isinstance(node, ExprNodes.NotNode):
+            return ExprNodes.BoolNode(node.pos, value = bool(node.constant_result),
+                                      constant_result = bool(node.constant_result))
+        elif isinstance(node.operand, ExprNodes.BoolNode):
+            return ExprNodes.IntNode(node.pos, value = str(int(node.constant_result)),
                                      type = PyrexTypes.c_int_type,
-                                     constant_result = node.constant_result)
-        if node.operator == '+':
+                                     constant_result = int(node.constant_result))
+        elif node.operator == '+':
             return self._handle_UnaryPlusNode(node)
         elif node.operator == '-':
             return self._handle_UnaryMinusNode(node)

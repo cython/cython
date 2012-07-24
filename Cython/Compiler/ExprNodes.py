@@ -6988,6 +6988,13 @@ class UnopNode(ExprNode):
 
     def infer_type(self, env):
         operand_type = self.operand.infer_type(env)
+        if operand_type.is_cpp_class or operand_type.is_ptr:
+            cpp_type = operand_type.find_cpp_operation_type(self.operator)
+            if cpp_type is not None:
+                return cpp_type
+        return self.infer_unop_type(env, operand_type)
+
+    def infer_unop_type(self, env, operand_type):
         if operand_type.is_pyobject:
             return py_object_type
         else:
@@ -7042,29 +7049,22 @@ class UnopNode(ExprNode):
         self.type = PyrexTypes.error_type
 
     def analyse_cpp_operation(self, env):
-        type = self.operand.type
-        if type.is_ptr:
-            type = type.base_type
-        function = type.scope.lookup("operator%s" % self.operator)
-        if not function:
-            error(self.pos, "'%s' operator not defined for %s"
-                % (self.operator, type))
+        cpp_type = self.operand.type.find_cpp_operation_type(self.operator)
+        if cpp_type is None:
+            error(self.pos, "'%s' operator not defined for %s" % (
+                self.operator, type))
             self.type_error()
             return
-        func_type = function.type
-        if func_type.is_ptr:
-            func_type = func_type.base_type
-        self.type = func_type.return_type
+        self.type = cpp_type
 
 
-class NotNode(ExprNode):
+class NotNode(UnopNode):
     #  'not' operator
     #
     #  operand   ExprNode
+    operator = '!'
 
     type = PyrexTypes.c_bint_type
-
-    subexprs = ['operand']
 
     def calculate_constant_result(self):
         self.constant_result = not self.operand.constant_result
@@ -7076,23 +7076,19 @@ class NotNode(ExprNode):
         except Exception, e:
             self.compile_time_value_error(e)
 
-    def infer_type(self, env):
+    def infer_unop_type(self, env, operand_type):
         return PyrexTypes.c_bint_type
 
     def analyse_types(self, env):
         self.operand.analyse_types(env)
-        if self.operand.type.is_cpp_class:
-            type = self.operand.type
-            function = type.scope.lookup("operator!")
-            if not function:
-                error(self.pos, "'!' operator not defined for %s"
-                    % (type))
+        operand_type = self.operand.type
+        if operand_type.is_cpp_class:
+            cpp_type = operand_type.find_cpp_operation_type(self.operator)
+            if not cpp_type:
+                error(self.pos, "'!' operator not defined for %s" % operand_type)
                 self.type = PyrexTypes.error_type
                 return
-            func_type = function.type
-            if func_type.is_ptr:
-                func_type = func_type.base_type
-            self.type = func_type.return_type
+            self.type = cpp_type
         else:
             self.operand = self.operand.coerce_to_boolean(env)
 
@@ -7181,6 +7177,12 @@ class DereferenceNode(CUnopNode):
 
     operator = '*'
 
+    def infer_unop_type(self, env, operand_type):
+        if operand_type.is_ptr:
+            return operand_type.base_type
+        else:
+            return PyrexTypes.error_type
+
     def analyse_c_operation(self, env):
         if self.operand.type.is_ptr:
             self.type = self.operand.type.base_type
@@ -7213,19 +7215,23 @@ def inc_dec_constructor(is_prefix, operator):
     return lambda pos, **kwds: DecrementIncrementNode(pos, is_prefix=is_prefix, operator=operator, **kwds)
 
 
-class AmpersandNode(ExprNode):
+class AmpersandNode(CUnopNode):
     #  The C address-of operator.
     #
     #  operand  ExprNode
+    operator = '&'
 
-    subexprs = ['operand']
-
-    def infer_type(self, env):
-        return PyrexTypes.c_ptr_type(self.operand.infer_type(env))
+    def infer_unop_type(self, env, operand_type):
+        return PyrexTypes.c_ptr_type(operand_type)
 
     def analyse_types(self, env):
         self.operand.analyse_types(env)
         argtype = self.operand.type
+        if argtype.is_cpp_class:
+            cpp_type = argtype.find_cpp_operation_type(self.operator)
+            if cpp_type is not None:
+                self.type = cpp_type
+                return
         if not (argtype.is_cfunction or argtype.is_reference or self.operand.is_addressable()):
             if argtype.is_memoryviewslice:
                 self.error("Cannot take address of memoryview slice")
@@ -7931,6 +7937,16 @@ class CBinopNode(BinopNode):
             self.operand1.result(),
             self.operator,
             self.operand2.result())
+
+    def compute_c_result_type(self, type1, type2):
+        cpp_type = None
+        if type1.is_cpp_class or type1.is_ptr:
+            cpp_type = type1.find_cpp_operation_type(self.operator, type2)
+        # FIXME: handle the reversed case?
+        #if cpp_type is None and (type2.is_cpp_class or type2.is_ptr):
+        #    cpp_type = type2.find_cpp_operation_type(self.operator, type1)
+        # FIXME: do we need to handle other cases here?
+        return cpp_type
 
 
 def c_binop_constructor(operator):
