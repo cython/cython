@@ -488,11 +488,6 @@ def recursively_replace_node(tree, old_node, new_node):
 
 
 # Utils
-def ensure_statlist(node):
-    if not isinstance(node, Nodes.StatListNode):
-        node = Nodes.StatListNode(pos=node.pos, stats=[node])
-    return node
-
 def replace_node(ptr, value):
     """Replaces a node. ptr is of the form used on the access path stack
     (parent, attrname, listidx|None)
