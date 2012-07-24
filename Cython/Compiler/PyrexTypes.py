@@ -2294,7 +2294,7 @@ class CPtrType(CPointerBaseType):
 
     def find_cpp_operation_type(self, operator, operand_type=None):
         if self.base_type.is_cpp_class:
-            return self.base_type.find_cpp_operation_type(operator, operand_type=None)
+            return self.base_type.find_cpp_operation_type(operator, operand_type)
         return None
 
 class CNullPtrType(CPtrType):
