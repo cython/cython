@@ -237,7 +237,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
-        if not target_type.is_int:
+        if not target_type.is_int and target_type is not Builtin.bytes_type:
             # bytes iteration returns bytes objects in Py2, but
             # integers in Py3
             return node
