@@ -10,6 +10,19 @@ import sys
 if sys.version_info[0] < 3:
     __doc__ = __doc__.replace(u"b'", u"'")
 
+def repeated_literals():
+    """
+    >>> repeated_literals()
+    p1: [4, 4]
+    p2: [5, 5]
+    """
+    cdef int i
+    cdef int* p1 = [4, 4]
+    cdef int* p2 = [5, 5]
+
+    print "p1: %s" % [ p1[i] for i in range(2) ]
+    print "p2: %s" % [ p2[i] for i in range(2) ]
+
 def test_ints(int x):
     """
     >>> test_ints(100)
