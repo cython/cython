@@ -184,7 +184,7 @@ class FusedCFuncDefNode(StatListNode):
             if arg.type.is_fused:
                 arg.type = arg.type.specialize(fused_to_specific)
                 if arg.type.is_memoryviewslice:
-                    MemoryView.validate_memslice_dtype(arg.pos, arg.type.dtype)
+                    arg.type.validate_memslice_dtype(arg.pos)
 
     def create_new_local_scope(self, node, env, f2s):
         """

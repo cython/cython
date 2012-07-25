@@ -886,8 +886,8 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
         if not MemoryView.validate_axes(self.pos, axes_specs):
             self.type = error_type
         else:
-            MemoryView.validate_memslice_dtype(self.pos, base_type)
             self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs)
+            self.type.validate_memslice_dtype(self.pos)
             self.use_memview_utilities(env)
 
         return self.type
@@ -4356,22 +4356,12 @@ class SingleAssignmentNode(AssignmentNode):
         self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
 
-        if self.lhs.memslice_broadcast or self.rhs.memslice_broadcast:
-            self.lhs.memslice_broadcast = True
-            self.rhs.memslice_broadcast = True
-
         is_index_node = isinstance(self.lhs, ExprNodes.IndexNode)
-        if (is_index_node and not self.rhs.type.is_memoryviewslice and
-            (self.lhs.memslice_slice or self.lhs.is_memslice_copy) and
-            (self.lhs.type.dtype.assignable_from(self.rhs.type) or
-             self.rhs.type.is_pyobject)):
-            # scalar slice assignment
-            self.lhs.is_memslice_scalar_assignment = True
-            dtype = self.lhs.type.dtype
-        else:
-            dtype = self.lhs.type
+        if is_index_node:
+            self.lhs.analyse_broadcast_operation(self.rhs)
+            self.lhs.analyse_as_memview_scalar_assignment(self.rhs)
 
-        self.rhs = self.rhs.coerce_to(dtype, env)
+        self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)
 
@@ -4525,8 +4515,8 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.analyse_target_types(env)
 
         # When assigning to a fully indexed buffer or memoryview, coerce the rhs
-        if (isinstance(self.lhs, ExprNodes.IndexNode) and
-                (self.lhs.memslice_index or self.lhs.is_buffer_access)):
+        if (isinstance(self.lhs, ExprNodes.BufferIndexNode) and
+                (self.lhs.is_memview_index or self.lhs.is_buffer_access)):
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
 
     def generate_execution_code(self, code):
@@ -4538,12 +4528,15 @@ class InPlaceAssignmentNode(AssignmentNode):
             c_op = "/"
         elif c_op == "**":
             error(self.pos, "No C inplace power operator")
-        if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
-            if self.lhs.type.is_pyobject:
-                error(self.pos, "In-place operators not allowed on object buffers in this release.")
-            if c_op in ('/', '%') and self.lhs.type.is_int and not code.directives['cdivision']:
-                error(self.pos, "In-place non-c divide operators not allowed on int buffers.")
-            self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
+        if isinstance(self.lhs, ExprNodes.BufferIndexNode):
+            if self.lhs.is_buffer_access or self.lhs.is_memview_index:
+                if self.lhs.type.is_pyobject:
+                    error(self.pos, "In-place operators not allowed on object buffers in this release.")
+                if c_op in ('/', '%') and self.lhs.type.is_int and not code.directives['cdivision']:
+                    error(self.pos, "In-place non-c divide operators not allowed on int buffers.")
+                self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
+            elif self.lhs.is_memview_slice:
+                error(self.pos, "Inplace operators not supported on memoryview slices")
         else:
             # C++
             # TODO: make sure overload is declared
@@ -5518,8 +5511,9 @@ class ForFromStatNode(LoopNode, StatNode):
                 "for-from loop variable must be c numeric type or Python object")
         if target_type.is_numeric:
             self.is_py_target = False
-            if isinstance(self.target, ExprNodes.IndexNode) and self.target.is_buffer_access:
-                raise error(self.pos, "Buffer indexing not allowed as for loop target.")
+            if isinstance(self.target, ExprNodes.BufferIndexNode):
+                raise error(self.pos, "Buffer or memoryview indexing or "
+                                      "slicing not allowed as for loop target.")
             self.loopvar_node = self.target
             self.py_loopvar_node = None
         else:

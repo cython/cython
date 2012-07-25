@@ -594,23 +594,23 @@ __pyx_slices_overlap({{memviewslice_name}} *slice1,
 
 ////////// MemviewSliceIsCContig.proto //////////
 #define __pyx_memviewslice_is_c_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(&slice, 'C', {{ndim}})
+        __pyx_memviewslice_is_contig(slice, 'C', {{ndim}})
 
 ////////// MemviewSliceIsFContig.proto //////////
 #define __pyx_memviewslice_is_f_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(&slice, 'F', {{ndim}})
+        __pyx_memviewslice_is_contig(slice, 'F', {{ndim}})
 
 ////////// MemviewSliceIsContig.proto //////////
-static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
+static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
                                         char order, int ndim);
 
 ////////// MemviewSliceIsContig //////////
 static int
-__pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
+__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
                              char order, int ndim)
 {
     int i, index, step, start;
-    Py_ssize_t itemsize = mvs->memview->view.itemsize;
+    Py_ssize_t itemsize = mvs.memview->view.itemsize;
 
     if (order == 'F') {
         step = 1;
@@ -622,10 +622,10 @@ __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
 
     for (i = 0; i < ndim; i++) {
         index = start + step * i;
-        if (mvs->suboffsets[index] >= 0 || mvs->strides[index] != itemsize)
+        if (mvs.suboffsets[index] >= 0 || mvs.strides[index] != itemsize)
             return 0;
 
-        itemsize *= mvs->shape[index];
+        itemsize *= mvs.shape[index];
     }
 
     return 1;

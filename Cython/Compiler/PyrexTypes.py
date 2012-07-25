@@ -468,7 +468,7 @@ class MemoryViewSliceType(PyrexType):
         the *first* axis' packing spec and 'follow' for all other packing
         specs.
         '''
-        import MemoryView
+        import Buffer, MemoryView
 
         self.dtype = base_dtype
         self.axes = axes
@@ -482,7 +482,7 @@ class MemoryViewSliceType(PyrexType):
         self.writable_needed = False
 
         if not self.dtype.is_fused:
-            self.dtype_name = MemoryView.mangle_dtype_name(self.dtype)
+            self.dtype_name = Buffer.mangle_dtype_name(self.dtype)
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
@@ -556,25 +556,27 @@ class MemoryViewSliceType(PyrexType):
         elif attribute in ("copy", "copy_fortran"):
             ndim = len(self.axes)
 
-            to_axes_c = [('direct', 'contig')]
-            to_axes_f = [('direct', 'contig')]
-            if ndim - 1:
-                to_axes_c = [('direct', 'follow')]*(ndim-1) + to_axes_c
-                to_axes_f = to_axes_f + [('direct', 'follow')]*(ndim-1)
+            follow_dim = [('direct', 'follow')]
+            contig_dim = [('direct', 'contig')]
+            to_axes_c = follow_dim * (ndim - 1) + contig_dim
+            to_axes_f = contig_dim + follow_dim * (ndim -1)
 
             to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
             to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
 
             for to_memview, cython_name in [(to_memview_c, "copy"),
                                             (to_memview_f, "copy_fortran")]:
-                entry = scope.declare_cfunction(cython_name,
-                            CFuncType(self, [CFuncTypeArg("memviewslice", self, None)]),
-                            pos=pos,
-                            defining=1,
-                            cname=MemoryView.copy_c_or_fortran_cname(to_memview))
+                copy_func_type = CFuncType(to_memview,
+                            [CFuncTypeArg("memviewslice", self, None)])
+                copy_cname = MemoryView.copy_c_or_fortran_cname(to_memview)
 
-                #entry.utility_code_definition = \
-                env.use_utility_code(MemoryView.get_copy_new_utility(pos, self, to_memview))
+                entry = scope.declare_cfunction(cython_name,
+                            copy_func_type, pos=pos, defining=1,
+                            cname=copy_cname)
+
+                utility = MemoryView.get_copy_new_utility(pos, self,
+                                                          to_memview)
+                env.use_utility_code(utility)
 
             MemoryView.use_cython_array_utility_code(env)
 
@@ -601,6 +603,101 @@ class MemoryViewSliceType(PyrexType):
                                             attribute == 'is_c_contig', self.ndim)
 
         return True
+
+    def get_entry(self, node, cname=None, type=None):
+        import MemoryView, Symtab
+
+        if cname is None:
+            assert node.is_simple() or node.is_temp or node.is_elemental
+            cname = node.result()
+
+        if type is None:
+            type = node.type
+
+        entry = Symtab.Entry(cname, cname, type, node.pos)
+        return MemoryView.MemoryViewSliceBufferEntry(entry)
+
+    def conforms_to(self, dst, broadcast=False, copying=False):
+        '''
+        returns True if src conforms to dst, False otherwise.
+
+        If conformable, the types are the same, the ndims are equal, and each axis spec is conformable.
+
+        Any packing/access spec is conformable to itself.
+
+        'direct' and 'ptr' are conformable to 'full'.
+        'contig' and 'follow' are conformable to 'strided'.
+        Any other combo is not conformable.
+        '''
+        import MemoryView
+
+        src = self
+
+        if src.dtype != dst.dtype:
+            return False
+
+        if src.ndim != dst.ndim:
+            if broadcast:
+                src, dst = MemoryView.broadcast_types(src, dst)
+            else:
+                return False
+
+        for src_spec, dst_spec in zip(src.axes, dst.axes):
+            src_access, src_packing = src_spec
+            dst_access, dst_packing = dst_spec
+            if src_access != dst_access and dst_access != 'full':
+                return False
+            if (src_packing != dst_packing and
+                dst_packing != 'strided' and not copying):
+                return False
+
+        return True
+
+    def valid_dtype(self, dtype, i=0):
+        """
+        Return whether type dtype can be used as the base type of a
+        memoryview slice.
+
+        We support structs, numeric types and objects
+        """
+        if dtype.is_complex and dtype.real_type.is_int:
+            return False
+
+        if dtype.is_struct and dtype.kind == 'struct':
+            for member in dtype.scope.var_entries:
+                if not self.valid_dtype(member.type):
+                    return False
+
+            return True
+
+        return (
+            dtype.is_error or
+            # Pointers are not valid (yet)
+            # (dtype.is_ptr and valid_memslice_dtype(dtype.base_type)) or
+            (dtype.is_array and i < 8 and
+             self.valid_dtype(dtype.base_type, i + 1)) or
+            dtype.is_numeric or
+            dtype.is_pyobject or
+            dtype.is_fused or # accept this as it will be replaced by specializations later
+            (dtype.is_typedef and self.valid_dtype(dtype.typedef_base_type))
+            )
+
+    def validate_memslice_dtype(self, pos):
+        if not self.valid_dtype(self.dtype):
+            error(pos, "Invalid base type for memoryview slice: %s" % self.dtype)
+
+    def assert_direct_dims(self, pos):
+        for access, packing in self.axes:
+            if access != 'direct':
+                error(pos, "All dimensions must be direct")
+                return False
+        return True
+
+    def transpose(self, pos):
+        if not self.assert_direct_dims(pos):
+            return error_type
+
+        return MemoryViewSliceType(self.dtype, self.axes[::-1])
 
     def specialization_suffix(self):
         return "%s_%s" % (self.axes_to_name(), self.dtype_name)
@@ -789,6 +886,11 @@ class BufferType(BaseType):
             return BufferType(self.base, dtype, self.ndim, self.mode,
                               self.negative_indices, self.cast)
         return self
+
+    def get_entry(self, node):
+        import Buffer
+        assert node.is_name
+        return Buffer.BufferEntry(node.entry)
 
     def __getattr__(self, name):
         return getattr(self.base, name)
