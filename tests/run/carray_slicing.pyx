@@ -57,9 +57,9 @@ def slice_charptr_for_loop_c_to_bytes():
     ['B', 'C', 'q', 't', 'p']
     """
     cdef bytes b
-    print [ b for b in cstring[:3] ]
-    print [ b for b in cstring[1:5] ]
-    print [ b for b in cstring[4:9] ]
+    print str([ b for b in cstring[:3] ]).replace(" b'", " '").replace("[b'", "['")
+    print str([ b for b in cstring[1:5] ]).replace(" b'", " '").replace("[b'", "['")
+    print str([ b for b in cstring[4:9] ]).replace(" b'", " '").replace("[b'", "['")
 
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//IndexNode")
