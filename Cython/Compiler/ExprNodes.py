@@ -5453,13 +5453,13 @@ class ListNode(SequenceNode):
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         return self
 
-    def release_temp(self, env):
+    def release_temp_result(self, env):
         if self.type.is_array:
             # To be valid C++, we must allocate the memory on the stack
             # manually and be sure not to reuse it for something else.
             pass
         else:
-            SequenceNode.release_temp(self, env)
+            SequenceNode.release_temp_result(self, env)
 
     def calculate_constant_result(self):
         if self.mult_factor:
