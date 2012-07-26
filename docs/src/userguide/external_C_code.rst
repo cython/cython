@@ -320,8 +320,8 @@ If there are any public declarations in a Cython module, a header file called
 :file:`modulename.h` file is generated containing equivalent C declarations for
 inclusion in other C code.
 
-When including the :file:`modulename.h` file and using functions declared in it, you must
-call Py_Initialize() and Py_Finalize() if you are interacting with any Python functions::
+Users who are embedding Python in C with Cython need to make sure to call Py_Initialize()
+and Py_Finalize(). For example, in the following snippet that includes :file:`modulename.h`::
 
     #include <Python.h>
     #include "modulename.h"
