@@ -29,8 +29,6 @@ if sys.version_info[0] < 3:
 else:
     to_unicode = lambda x: x
 
-_code_cache = {}
-
 
 class AllSymbols(CythonTransform, SkipDeclarations):
     def __init__(self):
@@ -94,6 +92,16 @@ def safe_type(arg, context=None):
                     return '%s.%s' % (base_type.__module__, base_type.__name__)
         return 'object'
 
+def _get_build_extension():
+    dist = Distribution()
+    # Ensure the build respects distutils configuration by parsing
+    # the configuration files
+    config_files = dist.find_config_files()
+    dist.parse_config_files(config_files)
+    build_extension = build_ext(dist)
+    build_extension.finalize_options()
+    return build_extension
+
 def cython_inline(code,
                   get_type=unsafe_type,
                   lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
@@ -139,8 +147,13 @@ def cython_inline(code,
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
 
-    so_ext = [ ext for ext,_,mod_type in imp.get_suffixes() if mod_type == imp.C_EXTENSION ][0]
-    module_path = os.path.join(lib_dir, module_name+so_ext)
+    build_extension = None
+    if cython_inline.so_ext is None:
+        # Figure out and cache current extension suffix
+        build_extension = _get_build_extension()
+        cython_inline.so_ext = build_extension.get_ext_filename('')
+
+    module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
 
     if not os.path.exists(lib_dir):
         os.makedirs(lib_dir)
@@ -178,22 +191,20 @@ def __invoke(%(params)s):
             sources = [pyx_file],
             include_dirs = c_include_dirs,
             extra_compile_args = cflags)
-        dist = Distribution()
-        # Ensure the build respects distutils configuration by parsing
-        # the configuration files
-        config_files = dist.find_config_files()
-        dist.parse_config_files(config_files)
-        build_extension = build_ext(dist)
-        build_extension.finalize_options()
+        if build_extension is None:
+            build_extension = _get_build_extension()
         build_extension.extensions = cythonize([extension], ctx=ctx, quiet=quiet)
         build_extension.build_temp = os.path.dirname(pyx_file)
         build_extension.build_lib  = lib_dir
         build_extension.run()
-        _code_cache[key] = module_name
 
     module = imp.load_dynamic(module_name, module_path)
     arg_list = [kwds[arg] for arg in arg_names]
     return module.__invoke(*arg_list)
+
+# Cached suffix used by cython_inline above.  None should get
+# overridden with actual value upon the first cython_inline invocation
+cython_inline.so_ext = None
 
 non_space = re.compile('[^ ]')
 def strip_common_indent(code):
