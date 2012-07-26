@@ -314,11 +314,25 @@ the public keyword::
     cdef public int spam # public variable declaration
 
     cdef public void grail(Bunny *): # public function declaration
-        ...
+        print "Ready the holy hand grenade"
 
 If there are any public declarations in a Cython module, a header file called
 :file:`modulename.h` file is generated containing equivalent C declarations for
 inclusion in other C code.
+
+When including the :file:`modulename.h` file and using functions declared in it, you must
+call Py_Initialize() and Py_Finalize() if you are interacting with any Python functions::
+
+    #include <Python.h>
+    #include "modulename.h"
+
+    void grail() {
+        Py_Initialize();
+        initmodulename();
+        Bunny b;
+        grail(b);
+        Py_Finalize();
+    }
 
 Any C code wanting to make use of these declarations will need to be linked,
 either statically or dynamically, with the extension module.
