@@ -102,6 +102,10 @@ def _get_build_extension():
     build_extension.finalize_options()
     return build_extension
 
+@cached_function
+def _create_context(cython_include_dirs):
+    return Context(list(cython_include_dirs), default_options)
+
 def cython_inline(code,
                   get_type=unsafe_type,
                   lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
@@ -117,7 +121,7 @@ def cython_inline(code,
     orig_code = code
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
-    ctx = Context(cython_include_dirs, default_options)
+    ctx = _create_context(tuple(cython_include_dirs))
     if locals is None:
         locals = inspect.currentframe().f_back.f_back.f_locals
     if globals is None:
