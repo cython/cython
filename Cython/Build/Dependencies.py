@@ -3,7 +3,13 @@ from Cython import __version__
 
 from glob import glob
 import re, os, sys
-import gzip
+try:
+    import gzip
+    gzip_open = gz.open
+    gzip_ext = '.gz'
+except ImportError:
+    gzip_open = open
+    gzip_ext = ''
 import shutil
 import subprocess
 
@@ -647,12 +653,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         fingerprint_file = join_path(
-            options.cache, "%s-%s.gz" % (os.path.basename(c_file), fingerprint))
+            options.cache, "%s-%s%s" % (os.path.basename(c_file), fingerprint, gzip_ext))
         if os.path.exists(fingerprint_file):
             if not quiet:
                 print("Found compiled %s in cache" % pyx_file)
             os.utime(fingerprint_file, None)
-            g = gzip.open(fingerprint_file)
+            g = gzip_open(fingerprint_file, 'rb')
             try:
                 f = open(c_file, 'wb')
                 try:
@@ -681,7 +687,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
     if fingerprint:
         f = open(c_file, 'rb')
         try:
-            g = gzip.open(fingerprint_file, 'wb')
+            g = gzip_open(fingerprint_file, 'wb')
             try:
                 shutil.copyfileobj(f, g)
             finally:
