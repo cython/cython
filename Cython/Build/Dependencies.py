@@ -5,7 +5,7 @@ from glob import glob
 import re, os, sys
 try:
     import gzip
-    gzip_open = gz.open
+    gzip_open = gzip.open
     gzip_ext = '.gz'
 except ImportError:
     gzip_open = open
