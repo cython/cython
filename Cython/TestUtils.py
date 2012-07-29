@@ -172,8 +172,10 @@ def unpack_source_tree(tree_file, dir=None):
     header = []
     cur_file = None
     f = open(tree_file)
-    lines = f.readlines()
-    f.close()
+    try:
+        lines = f.readlines()
+    finally:
+        f.close()
     f = None
     for line in lines:
         if line[:5] == '#####':
@@ -186,7 +188,7 @@ def unpack_source_tree(tree_file, dir=None):
             cur_file = open(path, 'w')
         elif cur_file is not None:
             cur_file.write(line)
-        else:
+        elif line.strip() and not line.lstrip().startswith('#'):
             header.append(line)
     if cur_file is not None:
         cur_file.close()

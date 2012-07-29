@@ -376,7 +376,8 @@ class TestBuilder(object):
                 mode = 'pyregr'
 
             if ext == '.srctree':
-                suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir))
+                if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
+                    suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir))
                 continue
 
             # Choose the test suite.
