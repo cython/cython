@@ -1443,8 +1443,8 @@ cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
     else:
         fmt = __Pyx_TypeInfoToFormat(type)
         if type.arraysize[0]:
-            extents = [str(type.arraysize[i]) for i in range(type.ndim)]
-            result = ("(%s)" % ','.join(extents)).encode('ascii') + fmt.string
+            extents = [unicode(type.arraysize[i]) for i in range(type.ndim)]
+            result = (u"(%s)" % u','.join(extents)).encode('ascii') + fmt.string
         else:
             result = fmt.string
 
