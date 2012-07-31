@@ -25,7 +25,7 @@ class BaseType(object):
         # This is not entirely robust.
         safe = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789'
         all = []
-        for c in self.declaration_code("").replace(" ", "__"):
+        for c in self.declaration_code("").replace("unsigned ", "unsigned_").replace("long long", "long_long").replace(" ", "__"):
             if c in safe:
                 all.append(c)
             else:
@@ -1547,6 +1547,30 @@ class CIntType(CNumericType):
             # a 32-bit literal and rely on casting to final type. It will
             # be negative for signed ints, which is good.
             return "0xbad0bad0";
+
+    def overflow_check_binop(self, binop, env):
+        env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
+        type = self.declaration_code("")
+        name = self.specialization_name()
+        if type in ('int', 'long', 'long long'):
+            env.use_utility_code(TempitaUtilityCode.load("BaseCaseSigned", "Overflow.c", context={'INT': type, 'NAME': name}))
+        elif type in ('unsigned int', 'unsigned long', 'unsigned long long'):
+            env.use_utility_code(TempitaUtilityCode.load("BaseCaseUnsigned", "Overflow.c", context={'UINT': type, 'NAME': name}))
+        elif self.rank <= 1:
+            # sizeof(short) < sizeof(int)
+            return "__Pyx_%s_%s_no_overflow" % (binop, name)
+        else:
+            _load_overflow_base(env)
+            env.use_utility_code(TempitaUtilityCode.load("Binop", "Overflow.c", context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
+        return "__Pyx_%s_%s_checking_overflow" % (binop, name)
+
+def _load_overflow_base(env):
+    env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
+    for type in ('int', 'long', 'long long'):
+        env.use_utility_code(TempitaUtilityCode.load("BaseCaseSigned", "Overflow.c", context={'INT': type, 'NAME': type.replace(' ', '_')}))
+    for type in ('unsigned int', 'unsigned long', 'unsigned long long'):
+        env.use_utility_code(TempitaUtilityCode.load("BaseCaseUnsigned", "Overflow.c", context={'UINT': type, 'NAME': type.replace(' ', '_')}))
+
 
 class CAnonEnumType(CIntType):
 

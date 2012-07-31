@@ -7997,6 +7997,7 @@ class NumBinopNode(BinopNode):
     #  Binary operation taking numeric arguments.
 
     infix = True
+    overflow_check = False
 
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
@@ -8007,6 +8008,11 @@ class NumBinopNode(BinopNode):
             return
         if self.type.is_complex:
             self.infix = False
+        if self.type.is_int and self.operator in ('+', '-', '*', '/'):
+            self.overflow_check = True
+            binop = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div'}[self.operator]
+            self.func = self.type.overflow_check_binop(binop, env)
+            self.is_temp = True
         if not self.infix or (type1.is_numeric and type2.is_numeric):
             self.operand1 = self.operand1.coerce_to(self.type, env)
             self.operand2 = self.operand2.coerce_to(self.type, env)
@@ -8048,8 +8054,26 @@ class NumBinopNode(BinopNode):
         return (type1.is_numeric  or type1.is_enum) \
             and (type2.is_numeric  or type2.is_enum)
 
+    def generate_result_code(self, code):
+        super(NumBinopNode, self).generate_result_code(code)
+        if self.overflow_check:
+            self.overflow_bit = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+            code.putln("%s = 0;" % self.overflow_bit);
+            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
+            code.putln("if (unlikely(%s)) {" % self.overflow_bit)
+            code.putln('PyErr_Format(PyExc_OverflowError, "value too large");')
+            code.putln(code.error_goto(self.pos))
+            code.putln("}")
+            code.funcstate.release_temp(self.overflow_bit)
+
     def calculate_result_code(self):
-        if self.infix:
+        if self.overflow_check:
+            return "%s(%s, %s, &%s)" % (
+                self.func,
+                self.operand1.result(),
+                self.operand2.result(),
+                self.overflow_bit)
+        elif self.infix:
             return "(%s %s %s)" % (
                 self.operand1.result(),
                 self.operator,
