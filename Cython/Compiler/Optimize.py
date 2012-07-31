@@ -2736,53 +2736,45 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         null_node = ExprNodes.NullNode(pos)
 
         if len(args) >= 2:
-            encoding_node = args[1]
-            if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
-                encoding_node = encoding_node.arg
-            if isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                                          ExprNodes.BytesNode)):
-                encoding = encoding_node.value
-                encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
-                                                     type=PyrexTypes.c_char_ptr_type)
-            elif encoding_node.type is Builtin.bytes_type:
-                encoding = None
-                encoding_node = encoding_node.coerce_to(
-                    PyrexTypes.c_char_ptr_type, self.current_env())
-            elif encoding_node.type.is_string:
-                encoding = None
-            else:
+            encoding, encoding_node = self._unpack_string_and_cstring_node(args[1])
+            if encoding_node is None:
                 return None
         else:
             encoding = None
             encoding_node = null_node
 
         if len(args) == 3:
-            error_handling_node = args[2]
-            if isinstance(error_handling_node, ExprNodes.CoerceToPyTypeNode):
-                error_handling_node = error_handling_node.arg
-            if isinstance(error_handling_node,
-                          (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                           ExprNodes.BytesNode)):
-                error_handling = error_handling_node.value
-                if error_handling == 'strict':
-                    error_handling_node = null_node
-                else:
-                    error_handling_node = ExprNodes.BytesNode(
-                        error_handling_node.pos, value=error_handling,
-                        type=PyrexTypes.c_char_ptr_type)
-            elif error_handling_node.type is Builtin.bytes_type:
-                error_handling = None
-                error_handling_node = error_handling_node.coerce_to(
-                    PyrexTypes.c_char_ptr_type, self.current_env())
-            elif error_handling_node.type.is_string:
-                error_handling = None
-            else:
+            error_handling, error_handling_node = self._unpack_string_and_cstring_node(args[2])
+            if error_handling_node is None:
                 return None
+            if error_handling == 'strict':
+                error_handling_node = null_node
         else:
             error_handling = 'strict'
             error_handling_node = null_node
 
         return (encoding, encoding_node, error_handling, error_handling_node)
+
+    def _unpack_string_and_cstring_node(self, node):
+        if isinstance(node, ExprNodes.CoerceToPyTypeNode):
+            node = node.arg
+        if isinstance(node, ExprNodes.UnicodeNode):
+            encoding = node.value
+            node = ExprNodes.BytesNode(
+                node.pos, value=BytesLiteral(encoding.utf8encode()),
+                type=PyrexTypes.c_char_ptr_type)
+        elif isinstance(node, (ExprNodes.StringNode, ExprNodes.BytesNode)):
+            encoding = node.value.decode('ISO-8859-1')
+            node = ExprNodes.BytesNode(
+                node.pos, value=node.value, type=PyrexTypes.c_char_ptr_type)
+        elif node.type is Builtin.bytes_type:
+            encoding = None
+            node = node.coerce_to(PyrexTypes.c_char_ptr_type, self.current_env())
+        elif node.type.is_string:
+            encoding = None
+        else:
+            node = None
+        return encoding, node
 
     def _handle_simple_method_str_endswith(self, node, args, is_unbound_method):
         return self._inject_tailmatch(
