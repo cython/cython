@@ -1418,38 +1418,34 @@ cdef extern from *:
 
 
 @cname('__pyx_format_from_typeinfo')
-cdef format_from_typeinfo(__Pyx_TypeInfo *type):
-    """
-    We want to return bytes, but python 3 doesn't allow you to do anything
-    useful with bytes. So use str and convert back and forth to/from unicode.
-    Thank you python 3 for making bytes the most useless thing ever!
-    """
+cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
     cdef __Pyx_StructField *field
     cdef __pyx_typeinfo_string fmt
+    cdef bytes part, result
 
     if type.typegroup == 'S':
         assert type.fields != NULL and type.fields.type != NULL
 
         if type.flags & __PYX_BUF_FLAGS_PACKED_STRUCT:
-            alignment = '^'
+            alignment = b'^'
         else:
-            alignment = ''
+            alignment = b''
 
-        parts = ["T{"]
+        parts = [b"T{"]
         field = type.fields
 
         while field.type:
-            part = format_from_typeinfo(field.type).decode('ascii')
-            parts.append('%s:%s:' % (part, (<char *> field.name).decode('ascii')))
+            part = format_from_typeinfo(field.type)
+            parts.append(part + b':' + field.name + b':')
             field += 1
 
-        result = alignment.join(parts) + '}'
+        result = alignment.join(parts) + b'}'
     else:
         fmt = __Pyx_TypeInfoToFormat(type)
         if type.arraysize[0]:
             extents = [str(type.arraysize[i]) for i in range(type.ndim)]
-            result = "(%s)%s" % (','.join(extents), fmt.string.decode('ascii'))
+            result = ("(%s)" % ','.join(extents)).encode('ascii') + fmt.string
         else:
-            result = fmt.string.decode('ascii')
+            result = fmt.string
 
-    return result.encode('ascii')
+    return result
