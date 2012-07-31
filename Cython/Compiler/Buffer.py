@@ -680,32 +680,25 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         rep = str(dtype)
 
         flags = "0"
-
+        is_unsigned = "0"
         if dtype.is_int:
-            if dtype.signed == 0:
-                typegroup = 'U'
-            else:
-                typegroup = 'I'
+            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            typegroup = "%s ? 'U' : 'I'" % is_unsigned
         elif complex_possible or dtype.is_complex:
-            typegroup = 'C'
+            typegroup = "'C'"
         elif dtype.is_float:
-            typegroup = 'R'
+            typegroup = "'R'"
         elif dtype.is_struct:
-            typegroup = 'S'
+            typegroup = "'S'"
             if dtype.packed:
                 flags = "__PYX_BUF_FLAGS_PACKED_STRUCT"
         elif dtype.is_pyobject:
-            typegroup = 'O'
+            typegroup = "'O'"
         else:
             assert False
 
-        if dtype.is_int:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
-        else:
-            is_unsigned = "0"
-
         typeinfo = ('static __Pyx_TypeInfo %s = '
-                        '{ "%s", %s, sizeof(%s), { %s }, %s, \'%s\', %s, %s };')
+                        '{ "%s", %s, sizeof(%s), { %s }, %s, %s, %s, %s };')
         tup = (name, rep, structinfo_name, declcode,
                ', '.join([str(x) for x in arraysizes]) or '0', len(arraysizes),
                typegroup, is_unsigned, flags)
