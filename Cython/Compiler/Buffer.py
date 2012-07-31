@@ -722,12 +722,6 @@ buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare",
 raise_indexerror_code = load_buffer_utility("BufferIndexError")
 raise_indexerror_nogil = load_buffer_utility("BufferIndexErrorNogil")
 
-parse_typestring_repeat_code = UtilityCode(
-proto = """
-""",
-impl = """
-""")
-
 raise_buffer_fallback_code = load_buffer_utility("BufferFallbackError")
 buffer_structs_code = load_buffer_utility(
         "BufferFormatStructs", proto_block='utility_code_proto_before_types')
