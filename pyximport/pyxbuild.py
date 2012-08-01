@@ -21,7 +21,8 @@ DEBUG = 0
 _reloads={}
 
 def pyx_to_dll(filename, ext = None, force_rebuild = 0,
-               build_in_temp=False, pyxbuild_dir=None, setup_args={}, reload_support=False):
+               build_in_temp=False, pyxbuild_dir=None, setup_args={},
+               reload_support=False, inplace=False):
     """Compile a PYX file to a DLL and return the name of the generated .so 
        or .dll ."""
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
@@ -82,10 +83,16 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
 
 
     try:
-        dist.run_commands()
         obj_build_ext = dist.get_command_obj("build_ext")
+        orig_inplace = obj_build_ext.inplace
+        if inplace:
+            obj_build_ext.inplace = True
+        try:
+            dist.run_commands()
+        finally:
+            obj_build_ext.inplace = orig_inplace
         so_path = obj_build_ext.get_outputs()[0]
-        if obj_build_ext.inplace:
+        if orig_inplace or inplace:
             # Python distutils get_outputs()[ returns a wrong so_path 
             # when --inplace ; see http://bugs.python.org/issue5977
             # workaround:
