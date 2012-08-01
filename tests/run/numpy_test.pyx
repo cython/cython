@@ -565,7 +565,7 @@ def test_fused_external(np.ndarray[fused_external, ndim=1] a):
     >>> test_fused_external["int32_t"](int32_array)
     int32
 
-    >>> test_fused_external(np.arange(100))
+    >>> test_fused_external(np.arange(100, dtype=np.int64))
     int64
     """
     print a.dtype
@@ -604,17 +604,19 @@ def test_fused_ndarray_integral_dtype(np.ndarray[cython.integral, ndim=1] a):
     ['int', 'long', 'short']
 
     >>> test_fused_ndarray_integral_dtype[cython.int](np.arange(10, dtype=np.dtype('i')))
-    ndarray[int,ndim=1] ndarray[int,ndim=1] 5 6
+    5 6
     >>> test_fused_ndarray_integral_dtype(np.arange(10, dtype=np.dtype('i')))
-    ndarray[int,ndim=1] ndarray[int,ndim=1] 5 6
+    5 6
 
-    >>> test_fused_ndarray_integral_dtype[cython.long](np.arange(10, dtype=np.long))
-    ndarray[long,ndim=1] ndarray[long,ndim=1] 5 6
-    >>> test_fused_ndarray_integral_dtype(np.arange(10, dtype=np.long))
-    ndarray[long,ndim=1] ndarray[long,ndim=1] 5 6
+    >>> test_fused_ndarray_integral_dtype[cython.long](np.arange(10, dtype='l'))
+    5 6
+    >>> test_fused_ndarray_integral_dtype(np.arange(10, dtype='l'))
+    5 6
     """
     cdef np.ndarray[cython.integral, ndim=1] b = a
-    print cython.typeof(a), cython.typeof(b), a[5], b[6]
+    # Don't print the types, the platform specific sizes can make the dispatcher
+    # select different integer types with equal sizeof()
+    print a[5], b[6]
 
 cdef fused fused_dtype:
     float complex
