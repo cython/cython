@@ -2773,7 +2773,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         elif node.type.is_string:
             encoding = None
         else:
-            node = None
+            encoding = node = None
         return encoding, node
 
     def _handle_simple_method_str_endswith(self, node, args, is_unbound_method):
