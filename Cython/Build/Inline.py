@@ -201,7 +201,7 @@ def __invoke(%(params)s):
                 extra_compile_args = cflags)
             if build_extension is None:
                 build_extension = _get_build_extension()
-            build_extension.extensions = cythonize([extension], ctx=ctx, quiet=quiet)
+            build_extension.extensions = cythonize([extension], include_path=cython_include_dirs, quiet=quiet)
             build_extension.build_temp = os.path.dirname(pyx_file)
             build_extension.build_lib  = lib_dir
             build_extension.run()
