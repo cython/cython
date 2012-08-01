@@ -26,7 +26,7 @@ _context_debug = False
 #
 graphviz_out_filename_unspecialized = os.path.expanduser("~/ast.dot")
 graphviz_out_filename = os.path.expanduser("~/ast%s.dot")
-write_graphviz = True
+write_graphviz = False
 
 # Macro that should be defined to enable explicit vectorization
 cython_vector_size = "CYTHON_VECTOR_SIZE"
@@ -719,7 +719,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
         utility = Code.UtilityCode(proto=proto, impl=impl)
         code.globalstate.use_utility_code(utility)
 
-        if _debug:
+        if _debug and 'array_expression' in specialized_function.mangled_name:
             marker =  '-' * 20
             print marker, 'proto', marker
             print proto
