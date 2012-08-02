@@ -80,17 +80,18 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {
         unsigned long big_r = ((unsigned long) a) * ((unsigned long) b);
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
-        return ({{UINT}}) r;
+        return r;
     } else if (sizeof({{UINT}}) < sizeof(long long)) {
         unsigned long long big_r = ((unsigned long long) a) * ((unsigned long long) b);
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
-        return ({{UINT}}) r;
+        return r;
     } else {
         {{UINT}} prod = a * b;
         double dprod = ((double) a) * ((double) b);
-        // False positives.  Yes, the equality is required to avoid false negatives.
-        *overflow |= dprod >= (double) __PYX_MAX({{UINT}});
+        // Overflow results in an error of at least 2^sizeof(UINT),
+        // whereas rounding represents an error on the order of 2^(sizeof(UINT)-53).
+        *overflow |= fabs(dprod - prod) > (__PYX_MAX({{UINT}}) / 2);
         return prod;
     }
 }
@@ -128,22 +129,22 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
 
 /////////////// BaseCaseSigned ///////////////
 
-#define TOP_TWO_BITS(value, type) (value & ((unsigned type)3 << (sizeof(type) * 8 - 2)))
-
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     if (sizeof({{INT}}) < sizeof(long)) {
         long big_r = ((long) a) + ((long) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
-        return ({{INT}}) r;
+        return r;
     } else if (sizeof({{INT}}) < sizeof(long long)) {
         long long big_r = ((long long) a) + ((long long) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
-        return ({{INT}}) r;
+        return r;
     } else {
-        // Signed overflow undefined, but unsigned is well defined.
+        // Signed overflow undefined, but unsigned overflow is well defined.
         {{INT}} r = ({{INT}}) ((unsigned {{INT}}) a + (unsigned {{INT}}) b);
+        // Overflow happened if the operands have the same sign, but the result
+        // has opposite sign.
         // sign(a) == sign(b) != sign(r)
         {{INT}} sign_a = __PYX_SIGN_BIT({{INT}}) & a;
         {{INT}} sign_b = __PYX_SIGN_BIT({{INT}}) & b;
@@ -186,8 +187,9 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
     } else {
         {{INT}} prod = a * b;
         double dprod = ((double) a) * ((double) b);
-        // False positives.
-        *overflow |= fabs(dprod) > (double) __PYX_MAX({{INT}});
+        // Overflow results in an error of at least 2^sizeof(INT),
+        // whereas rounding represents an error on the order of 2^(sizeof(INT)-53).
+        *overflow |= fabs(dprod - prod) > (__PYX_MAX({{INT}}) / 2);
         return prod;
     }
 }
