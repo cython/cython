@@ -326,8 +326,9 @@ def parse_dependencies(source_filename):
 
 class DependencyTree(object):
 
-    def __init__(self, context):
+    def __init__(self, context, quiet=False):
         self.context = context
+        self.quiet = quiet
         self._transitive_cache = {}
 
     def parse_dependencies(self, source_filename):
@@ -347,7 +348,7 @@ class DependencyTree(object):
                     include_path = os.path.normpath(include_path)
                 all.add(include_path)
                 all.update(self.included_files(include_path))
-            else:
+            elif not self.quiet:
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
     
@@ -401,11 +402,10 @@ class DependencyTree(object):
             if module[:7] == 'cython.' or module == 'cython':
                 continue
             pxd_file = self.find_pxd(module, filename)
-            if pxd_file is None:
-                print("missing cimport: %s" % filename)
-                print(module)
-            else:
+            if pxd_file is not None:
                 pxd_list.append(pxd_file)
+            elif not self.quiet:
+                print("missing cimport in module '%s': %s" % (module, filename))
         return tuple(pxd_list)
 
     @cached_method
@@ -490,19 +490,19 @@ class DependencyTree(object):
             del stack[node]
 
 _dep_tree = None
-def create_dependency_tree(ctx=None):
+def create_dependency_tree(ctx=None, quiet=False):
     global _dep_tree
     if _dep_tree is None:
         if ctx is None:
             ctx = Context(["."], CompilationOptions(default_options))
-        _dep_tree = DependencyTree(ctx)
+        _dep_tree = DependencyTree(ctx, quiet=quiet)
     return _dep_tree
 
 # This may be useful for advanced users?
-def create_extension_list(patterns, exclude=[], ctx=None, aliases=None):
+def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False):
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
-    deps = create_dependency_tree(ctx)
+    deps = create_dependency_tree(ctx, quiet=quiet)
     to_exclude = set()
     if not isinstance(exclude, list):
         exclude = [exclude]
@@ -575,8 +575,9 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         module_list,
         exclude=exclude,
         ctx=ctx,
+        quiet=quiet,
         aliases=aliases)
-    deps = create_dependency_tree(ctx)
+    deps = create_dependency_tree(ctx, quiet=quiet)
     to_compile = []
     for m in module_list:
         new_sources = []
