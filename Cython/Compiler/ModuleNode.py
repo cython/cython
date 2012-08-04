@@ -1111,11 +1111,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is None:
-                # This is an externally defined type.  Calling through the
-                # cimported base type pointer directly interacts badly with
-                # the module cleanup, which may already have cleared it.
-                # Instead, play safe by going through Py_TYPE() again.
-                tp_dealloc = "Py_TYPE(o)->tp_base->tp_dealloc"
+                tp_dealloc = "%s->tp_dealloc" % base_type.typeptr_cname
             code.putln(
                     "%s(o);" % tp_dealloc)
         else:
