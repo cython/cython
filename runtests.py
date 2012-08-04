@@ -1492,7 +1492,7 @@ def main():
         Options.generate_cleanup_code = 3   # complete cleanup code
         from Cython.Compiler import DebugFlags
         DebugFlags.debug_temp_code_comments = 1
-    
+
     if options.shard_count > 1 and options.shard_num == -1:
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
@@ -1560,6 +1560,10 @@ def runtests(options, cmd_args, coverage=None):
         options.cleanup_workdir = False
         options.cleanup_sharedlibs = False
         options.fork = False
+        if WITH_CYTHON:
+            from Cython.Compiler.Main import default_options as compiler_default_options
+            compiler_default_options['gdb_debug'] = True
+            compiler_default_options['output_dir'] = os.getcwd()
 
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll
