@@ -1102,7 +1102,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("p->%s.~%s();" % (entry.cname, class_name));
 
         for entry in py_attrs:
-            code.put_xdecref("p->%s" % entry.cname, entry.type, nanny=False)
+            code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
+                                   clear_before_decref=True)
 
         for entry in memoryview_slices:
             code.put_xdecref_memoryviewslice("p->%s" % entry.cname,
