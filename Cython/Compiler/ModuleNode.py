@@ -1077,10 +1077,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
             return # never used
+
+        slot_func_cname = scope.mangle_internal("tp_dealloc")
         code.putln("")
         code.putln(
-            "static void %s(PyObject *o) {"
-                % scope.mangle_internal("tp_dealloc"))
+            "static void %s(PyObject *o) {" % slot_func_cname)
 
         weakref_slot = scope.lookup_here("__weakref__")
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
@@ -1111,10 +1112,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if base_type:
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
-            if tp_dealloc is None:
-                tp_dealloc = "%s->tp_dealloc" % base_type.typeptr_cname
-            code.putln(
-                    "%s(o);" % tp_dealloc)
+            if tp_dealloc is not None:
+                code.putln("%s(o);" % tp_dealloc)
+            else:
+                # This is an externally defined type.  Calling through the
+                # cimported base type pointer directly interacts badly with
+                # the module cleanup, which may already have cleared it.
+                # In that case, fall back to traversing the type hierarchy.
+                base_cname = base_type.typeptr_cname
+                code.putln("if (likely(%s)) %s->tp_dealloc(o); else __Pyx_call_next_tp_dealloc(o, %s);" % (
+                    base_cname, base_cname, slot_func_cname))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("CallNextTpDealloc", "ExtensionTypes.c"))
         else:
             code.putln(
                     "(*Py_TYPE(o)->tp_free)(o);")
@@ -1170,11 +1179,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if static_call:
                 code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
             else:
-                code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
-                code.putln(
-                        "e = %s->tp_traverse(o, v, a); if (e) return e;" %
-                            base_type.typeptr_cname)
-                code.putln("}")
+                # This is an externally defined type.  Calling through the
+                # cimported base type pointer directly interacts badly with
+                # the module cleanup, which may already have cleared it.
+                # In that case, fall back to traversing the type hierarchy.
+                base_cname = base_type.typeptr_cname
+                code.putln("e = ((likely(%s)) ? ((%s->tp_traverse) ? %s->tp_traverse(o, v, a) : 0) : __Pyx_call_next_tp_traverse(o, v, a, %s)); if (e) return e;" % (
+                    base_cname, base_cname, base_cname, slot_func))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
 
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
@@ -1231,9 +1244,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if static_call:
                 code.putln("%s(o);" % static_call)
             else:
-                code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
-                code.putln("%s->tp_clear(o);" % base_type.typeptr_cname)
-                code.putln("}")
+                # This is an externally defined type.  Calling through the
+                # cimported base type pointer directly interacts badly with
+                # the module cleanup, which may already have cleared it.
+                # In that case, fall back to traversing the type hierarchy.
+                base_cname = base_type.typeptr_cname
+                code.putln("if (likely(%s)) { if (%s->tp_clear) %s->tp_clear(o); } else __Pyx_call_next_tp_clear(o, %s);" % (
+                    base_cname, base_cname, base_cname, slot_func))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("CallNextTpClear", "ExtensionTypes.c"))
 
         for entry in py_attrs:
             name = "p->%s" % entry.cname
