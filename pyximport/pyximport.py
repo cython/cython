@@ -456,7 +456,7 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     if pyimport and not has_py_importer:
         py_importer = PyImporter(pyxbuild_dir=build_dir, inplace=inplace)
         # make sure we import Cython before we install the import hook
-        import pyxbuild, Cython.Compiler.Main, Cython.Compiler.Pipeline, Cython.Compiler.Optimize
+        import pyximport.pyxbuild, Cython.Compiler.Main, Cython.Compiler.Pipeline, Cython.Compiler.Optimize
         sys.meta_path.insert(0, py_importer)
 
     if pyximport and not has_pyx_importer:
