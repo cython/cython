@@ -69,8 +69,18 @@ class TypeMapper(minitypes.TypeMapper):
         else:
             raise minierror.UnmappableTypeError(type)
 
-class CythonSpecializerMixin(object):
+class VariableResolvingMixin(object):
+
     is_partial_mapping = False
+
+    def visit_NodeWrapper(self, node):
+        self.is_partial_mapping = True
+        for op in node.operands:
+            op.variable = self.visit(op.variable)
+        return node
+
+class CythonSpecializerMixin(VariableResolvingMixin):
+
     has_error_handler = False
 
     def visit_FunctionNode(self, node):
@@ -100,12 +110,6 @@ class CythonSpecializerMixin(object):
         node.omp_size = b.variable(type, 'omp_size')
         node.scalar_arguments.append(b.funcarg(node.omp_size))
         node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
-        return node
-
-    def visit_NodeWrapper(self, node):
-        self.is_partial_mapping = True
-        for op in node.operands:
-            op.variable = self.visit(op.variable)
         return node
 
     def visit_ErrorHandler(self, node):
@@ -253,6 +257,8 @@ class Context(miniast.CContext):
     codegen_cls = CCodeGen
     cleanup_codegen_cls = CCodeGenCleanup
     specializer_mixin_cls = CythonSpecializerMixin
+    variable_resolving_mixin_cls = VariableResolvingMixin
+
     graphviz_cls = CythonGraphvizGenerator
 
     def getchildren(self, node):
