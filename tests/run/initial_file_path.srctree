@@ -1,0 +1,41 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import my_test_package, my_test_package.a; my_test_package.test(); my_test_package.a.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("my_test_package/*.py"),
+)
+
+######## my_test_package/__init__.py ########
+
+# cython: set_initial_path_from_source=True
+
+initial_path = __path__
+initial_file = __file__
+
+import a
+
+def test():
+    assert initial_path[0].endswith('my_test_package'), initial_path
+    assert initial_file.endswith('__init__.py'), initial_file
+
+######## my_test_package/a.py ########
+
+# cython: set_initial_path_from_source=True
+
+initial_file = __file__
+
+try:
+    initial_path = __path__
+except NameError:
+    got_name_error = True
+else:
+    got_name_error = False
+
+def test():
+    assert initial_file.endswith('a.py'), initial_file
+    assert got_name_error, "looks like __path__ was set at module init time: " + initial_path

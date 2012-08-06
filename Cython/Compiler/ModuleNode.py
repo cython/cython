@@ -22,7 +22,7 @@ import PyrexTypes
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix
+from Cython.Utils import open_new_file, replace_suffix, decode_filename
 from Code import UtilityCode
 from StringEncoding import EncodedString
 
@@ -1828,6 +1828,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 __main__name.cname,
                 code.error_goto(self.pos)))
         code.putln("}")
+
+        if env.directives['set_initial_path_from_source'] and self.pos[0]:
+            source_path = self.pos[0].filename
+            if source_path:
+                code.putln('if (__Pyx_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
+                    env.module_cname,
+                    code.globalstate.get_py_string_const(
+                        EncodedString(decode_filename(source_path))).cname,
+                code.error_goto(self.pos)))
+                if os.path.splitext(os.path.basename(source_path))[0] == '__init__':
+                    # compiling a package => set __path__ as well
+                    temp = code.funcstate.allocate_temp(py_object_type, True)
+                    code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
+                        temp,
+                        code.globalstate.get_py_string_const(
+                            EncodedString(decode_filename(os.path.dirname(source_path)))).cname,
+                        code.error_goto_if_null(temp, self.pos)))
+                    code.putln('if (__Pyx_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
+                        env.module_cname,
+                        temp,
+                        code.error_goto(self.pos)))
+                    code.funcstate.release_temp(temp)
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
