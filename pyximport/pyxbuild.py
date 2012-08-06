@@ -27,7 +27,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
        or .dll ."""
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
 
-    path, name = os.path.split(filename)
+    path, name = os.path.split(os.path.abspath(filename))
 
     if not ext:
         modname, extension = os.path.splitext(name)
@@ -40,7 +40,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
         pyxbuild_dir = os.path.join(path, "_pyxbld")
 
     package_base_dir = path
-    for package_name in ext.name.split('.')[1::-1]:
+    for package_name in ext.name.split('.')[-2::-1]:
         package_base_dir, pname = os.path.split(package_base_dir)
         if pname != package_name:
             # something is wrong - package path doesn't match file path

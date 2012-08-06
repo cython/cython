@@ -205,7 +205,7 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
                                    inplace=build_inplace, language_level=language_level)
         mod = imp.load_dynamic(name, so_path)
         if is_package and not hasattr(mod, '__path__'):
-            mod.__path__ = os.path.dirname(so_path)
+            mod.__path__ = [os.path.dirname(so_path)]
         assert mod.__file__ == so_path, (mod.__file__, so_path)
     except Exception:
         if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
@@ -381,6 +381,7 @@ class LibLoader(object):
             source_path, so_path, is_package = self._libs[fullname]
         except KeyError:
             raise ValueError("invalid module %s" % fullname)
+        _debug("Loading shared library module '%s' from %s", fullname, so_path)
         return load_module(fullname, source_path, so_path=so_path, is_package=is_package)
 
     def add_lib(self, fullname, path, so_path, is_package):
