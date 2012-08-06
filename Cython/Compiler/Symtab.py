@@ -997,8 +997,8 @@ class ModuleScope(Scope):
         self.cached_builtins = []
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
-        for name in ['__builtins__', '__name__', '__file__', '__doc__']:
-            self.declare_var(EncodedString(name), py_object_type, None)
+        for var_name in ['__builtins__', '__name__', '__file__', '__doc__']:
+            self.declare_var(EncodedString(var_name), py_object_type, None)
 
     def qualifying_scope(self):
         return self.parent_module
