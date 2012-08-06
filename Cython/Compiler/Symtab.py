@@ -971,13 +971,7 @@ class ModuleScope(Scope):
         self.parent_module = parent_module
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
-        if name != "__init__":
-            self.module_name = name
-        else:
-            # Treat Spam/__init__.pyx specially, so that when Python loads
-            # Spam/__init__.so, initSpam() is defined.
-            self.module_name = parent_module.module_name
-        self.module_name = EncodedString(self.module_name)
+        self.module_name = EncodedString(name)
         self.context = context
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
