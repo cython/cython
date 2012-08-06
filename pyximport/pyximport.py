@@ -346,6 +346,7 @@ class PyImporter(PyxImporter):
                     _debug("importer found path %s for module %s", path, real_name)
                     build_module(real_name, path,
                                  pyxbuild_dir=self.pyxbuild_dir,
+                                 language_level=self.language_level,
                                  inplace=self.inplace)
                 except Exception, e:
                     if DEBUG_IMPORT:
