@@ -47,6 +47,8 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
+    if inplace:
+        args.append("--inplace")
     if HAS_CYTHON and build_in_temp:
         args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
@@ -84,15 +86,8 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
 
     try:
         obj_build_ext = dist.get_command_obj("build_ext")
-        orig_inplace = obj_build_ext.inplace
-        if inplace:
-            obj_build_ext.inplace = True
-        try:
-            dist.run_commands()
-        finally:
-            obj_build_ext.inplace = orig_inplace
-        so_path = obj_build_ext.get_outputs()[0]
-        if orig_inplace or inplace:
+        dist.run_commands()
+        if obj_build_ext.inplace:
             # Python distutils get_outputs()[ returns a wrong so_path 
             # when --inplace ; see http://bugs.python.org/issue5977
             # workaround:
