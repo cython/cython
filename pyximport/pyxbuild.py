@@ -39,6 +39,14 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     if not pyxbuild_dir:
         pyxbuild_dir = os.path.join(path, "_pyxbld")
 
+    package_base_dir = path
+    for package_name in ext.name.split('.')[1::-1]:
+        package_base_dir, pname = os.path.split(package_base_dir)
+        if pname != package_name:
+            # something is wrong - package path doesn't match file path
+            package_base_dir = None
+            break
+
     script_args=setup_args.get("script_args",[])
     if DEBUG or "--verbose" in script_args:
         quiet = "--verbose"
@@ -47,8 +55,8 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
-    if inplace:
-        args.append("--inplace")
+    if inplace and package_base_dir:
+        args.extend(['--build_lib', package_base_dir])
     if HAS_CYTHON and build_in_temp:
         args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
@@ -87,6 +95,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     try:
         obj_build_ext = dist.get_command_obj("build_ext")
         dist.run_commands()
+        so_path = obj_build_ext.get_outputs()[0]
         if obj_build_ext.inplace:
             # Python distutils get_outputs()[ returns a wrong so_path 
             # when --inplace ; see http://bugs.python.org/issue5977
