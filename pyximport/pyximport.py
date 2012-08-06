@@ -194,15 +194,18 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     return so_path
 
 def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
-                build_inplace=False, language_level=None):
+                build_inplace=False, language_level=None, so_path=None):
     try:
-        if is_package:
-            module_name = name + '.__init__'
-        else:
-            module_name = name
-        so_path = build_module(module_name, pyxfilename, pyxbuild_dir,
-                               inplace=build_inplace, language_level=language_level)
+        if so_path is None:
+            if is_package:
+                module_name = name + '.__init__'
+            else:
+                module_name = name
+            so_path = build_module(module_name, pyxfilename, pyxbuild_dir,
+                                   inplace=build_inplace, language_level=language_level)
         mod = imp.load_dynamic(name, so_path)
+        if is_package and not hasattr(mod, '__path__'):
+            mod.__path__ = os.path.dirname(so_path)
         assert mod.__file__ == so_path, (mod.__file__, so_path)
     except Exception:
         if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
@@ -309,8 +312,8 @@ class PyImporter(PyxImporter):
         self.super.__init__(extension='.py', pyxbuild_dir=pyxbuild_dir, inplace=inplace,
                             language_level=language_level)
         self.uncompilable_modules = {}
-        self.blocked_modules = ['Cython', 'distutils.extension',
-                                'distutils.sysconfig']
+        self.blocked_modules = ['Cython', 'pyxbuild', 'pyximport.pyxbuild',
+                                'distutils.extension', 'distutils.sysconfig']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
@@ -320,6 +323,8 @@ class PyImporter(PyxImporter):
         if fullname in self.blocked_modules:
             # prevent infinite recursion
             return None
+        if _lib_loader.knows(fullname):
+            return _lib_loader
         _debug("trying import of module '%s'", fullname)
         if fullname in self.uncompilable_modules:
             path, last_modified = self.uncompilable_modules[fullname]
@@ -336,19 +341,23 @@ class PyImporter(PyxImporter):
         try:
             importer = self.super.find_module(fullname, package_path)
             if importer is not None:
+                if importer.init_path:
+                    path = importer.init_path
+                    real_name = fullname + '.__init__'
+                else:
+                    path = importer.path
+                    real_name = fullname
+                _debug("importer found path %s for module %s", path, real_name)
                 try:
-                    if importer.init_path:
-                        path = importer.init_path
-                        real_name = fullname + '.__init__'
-                    else:
-                        path = importer.path
-                        real_name = fullname
-                    _debug("importer found path %s for module %s", path, real_name)
-                    build_module(real_name, path,
-                                 pyxbuild_dir=self.pyxbuild_dir,
-                                 language_level=self.language_level,
-                                 inplace=self.inplace)
-                except Exception, e:
+                    so_path = build_module(
+                        real_name, path,
+                        pyxbuild_dir=self.pyxbuild_dir,
+                        language_level=self.language_level,
+                        inplace=self.inplace)
+                    _lib_loader.add_lib(fullname, path, so_path,
+                                        is_package=bool(importer.init_path))
+                    return _lib_loader
+                except Exception:
                     if DEBUG_IMPORT:
                         import traceback
                         traceback.print_exc()
@@ -362,6 +371,25 @@ class PyImporter(PyxImporter):
         finally:
             self.blocked_modules.pop()
         return importer
+
+class LibLoader(object):
+    def __init__(self):
+        self._libs = {}
+
+    def load_module(self, fullname):
+        try:
+            source_path, so_path, is_package = self._libs[fullname]
+        except KeyError:
+            raise ValueError("invalid module %s" % fullname)
+        return load_module(fullname, source_path, so_path=so_path, is_package=is_package)
+
+    def add_lib(self, fullname, path, so_path, is_package):
+        self._libs[fullname] = (path, so_path, is_package)
+
+    def knows(self, fullname):
+        return fullname in self._libs
+
+_lib_loader = LibLoader()
 
 class PyxLoader(object):
     def __init__(self, fullname, path, init_path=None, pyxbuild_dir=None,
@@ -481,7 +509,7 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
         py_importer = PyImporter(pyxbuild_dir=build_dir, inplace=inplace,
                                  language_level=language_level)
         # make sure we import Cython before we install the import hook
-        import pyximport.pyxbuild, Cython.Compiler.Main, Cython.Compiler.Pipeline, Cython.Compiler.Optimize
+        import Cython.Compiler.Main, Cython.Compiler.Pipeline, Cython.Compiler.Optimize
         sys.meta_path.insert(0, py_importer)
 
     if pyximport and not has_pyx_importer:
