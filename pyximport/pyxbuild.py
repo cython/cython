@@ -56,7 +56,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     if force_rebuild:
         args.append("--force")
     if inplace and package_base_dir:
-        args.extend(['--build_lib', package_base_dir])
+        args.extend(['--build-lib', package_base_dir])
     if HAS_CYTHON and build_in_temp:
         args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
