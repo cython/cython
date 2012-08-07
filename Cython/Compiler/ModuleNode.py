@@ -1114,6 +1114,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
                 code.putln("%s(o);" % tp_dealloc)
+            elif base_type.is_builtin_type:
+                code.putln("%s->tp_dealloc(o);" % base_type.typeptr_cname)
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
@@ -1178,6 +1180,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
             if static_call:
                 code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
+            elif base_type.is_builtin_type:
+                base_cname = base_type.typeptr_cname
+                code.putln("if (!%s->tp_traverse); else { e = %s->tp_traverse(o,v,a); if (e) return e; }" % (
+                    base_cname, base_cname))
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
@@ -1243,6 +1249,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
             if static_call:
                 code.putln("%s(o);" % static_call)
+            elif base_type.is_builtin_type:
+                base_cname = base_type.typeptr_cname
+                code.putln("if (!%s->tp_clear); else %s->tp_clear(o);" % (
+                    base_cname, base_cname))
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
