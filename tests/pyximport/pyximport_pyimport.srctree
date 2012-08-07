@@ -1,5 +1,5 @@
 
-PYTHON -s -S -c "import pyimport_test; pyimport_test.test()"
+PYTHON -S -c "import pyimport_test; pyimport_test.test()"
 
 ######## pyimport_test.py ########
 
