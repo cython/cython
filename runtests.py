@@ -1077,6 +1077,12 @@ class EndToEndTest(unittest.TestCase):
                     break
         os.chdir(self.old_dir)
 
+    def _try_decode(self, content):
+        try:
+            return content.decode()
+        except UnicodeDecodeError:
+            return content.decode('iso-8859-1')
+
     def runTest(self):
         self.success = False
         commands = (self.commands
@@ -1094,8 +1100,8 @@ class EndToEndTest(unittest.TestCase):
                 res = p.returncode
                 if res != 0:
                     print(command)
-                    print(out)
-                    print(err)
+                    print(self._try_decode(out))
+                    print(self._try_decode(err))
                 self.assertEqual(0, res, "non-zero exit status")
         finally:
             if old_path:
