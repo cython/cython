@@ -57,6 +57,13 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
         args.append("--force")
     if inplace and package_base_dir:
         args.extend(['--build-lib', package_base_dir])
+        if ext.name == '__init__' or ext.name.endswith('.__init__'):
+            # package => provide __path__ early
+            if not hasattr(ext, 'cython_directives'):
+                ext.cython_directives = {'set_initial_path_from_source' : True}
+            elif 'set_initial_path_from_source' not in ext.cython_directives:
+                ext.cython_directives['set_initial_path_from_source'] = True
+
     if HAS_CYTHON and build_in_temp:
         args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
