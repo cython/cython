@@ -17,11 +17,20 @@ setup(
 initial_path = __path__
 initial_file = __file__
 
-import a
+try:
+    from . import a
+    import_error = None
+except ImportError as e:
+    import_error = e
+    import traceback
+    traceback.print_exc()
 
 def test():
+    print "FILE: ", initial_file
+    print "PATH: ", initial_path
     assert initial_path[0].endswith('my_test_package'), initial_path
     assert initial_file.endswith('__init__.py'), initial_file
+    assert import_error is None, import_error
 
 ######## my_test_package/a.py ########
 

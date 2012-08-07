@@ -180,6 +180,7 @@ VER_DEP_MODULES = {
                                           'run.generator_frame_cycle', # yield in try-finally
                                           'run.relativeimport_T542',
                                           'run.relativeimport_star_T542',
+                                          'run.initial_file_path',  # relative import
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
