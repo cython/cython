@@ -1845,10 +1845,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.globalstate.get_py_string_const(
                             EncodedString(decode_filename(os.path.dirname(source_path)))).cname,
                         code.error_goto_if_null(temp, self.pos)))
+                    code.put_gotref(temp)
                     code.putln('if (__Pyx_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
                         env.module_cname,
                         temp,
                         code.error_goto(self.pos)))
+                    code.put_decref_clear(temp, py_object_type)
                     code.funcstate.release_temp(temp)
 
         if Options.cache_builtins:
