@@ -210,6 +210,8 @@ VER_DEP_MODULES = {
                                         'compile.extsetslice',
                                         'compile.extdelslice',
                                         'run.special_methods_T561_py2']),
+    (3,3): (operator.ge, lambda x: x in ['run.initial_file_path', # new importlib currently fails to load __init__.so
+                                         ]),
 }
 
 # files that should not be converted to Python 3 code with 2to3
