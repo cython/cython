@@ -8904,7 +8904,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         elif self.find_special_bool_compare_function(env, self.operand1):
             common_type = None # if coercion needed, the method call above has already done it
             self.is_pycmp = False # result is bint
-            self.is_temp = True # must check for error return
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
             self.is_pycmp = common_type.is_pyobject
@@ -8926,7 +8925,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         while cdr:
             cdr.type = self.type
             cdr = cdr.cascade
-        if self.is_pycmp or self.cascade:
+        if self.is_pycmp or self.cascade or self.special_bool_cmp_function:
+            # 1) owned reference, 2) reused value, 3) potential function error return value
             self.is_temp = 1
 
     def analyse_cpp_comparison(self, env):
