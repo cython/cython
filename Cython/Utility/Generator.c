@@ -31,14 +31,14 @@ typedef struct {
     PyObject_HEAD
     __pyx_generator_body_t body;
     PyObject *closure;
-    int is_running;
-    int resume_label;
     PyObject *exc_type;
     PyObject *exc_value;
     PyObject *exc_traceback;
     PyObject *gi_weakreflist;
     PyObject *classobj;
     PyObject *yieldfrom;
+    int resume_label;
+    char is_running;  // using T_BOOL for property below requires char value
 } __pyx_GeneratorObject;
 
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
@@ -538,7 +538,7 @@ static PyMemberDef __pyx_Generator_memberlist[] = {
 #if PY_VERSION_HEX >= 0x02060000
      T_BOOL,
 #else
-     T_INT,
+     T_BYTE,
 #endif
      offsetof(__pyx_GeneratorObject, is_running),
      READONLY,
