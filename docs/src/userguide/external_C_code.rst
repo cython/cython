@@ -132,12 +132,12 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
    be used for this new type. 
 
 5. If the header file uses macros to define constants, translate them into a
-   dummy ``enum`` declaration.
+   dummy :keyword:`enum` declaration.
 
 6. If the header file defines a function using a macro, declare it as though
    it were an ordinary function, with appropriate argument and result types.
 
-7. For archaic reasons C uses the keyword :keyword:`void` to declare a function
+7. For archaic reasons C uses the keyword ``void`` to declare a function
    taking no parameters. In Cython as in Python, simply declare such functions
    as :meth:`foo()`.
 
@@ -156,6 +156,8 @@ A few more tricks and tips:
 
     cdef extern from *:
         ...
+
+.. _struct-union-enum-styles:
 
 Styles of struct, union and enum declaration
 ----------------------------------------------
@@ -341,6 +343,8 @@ If the Cython module resides within a package, then the name of the ``.h``
 file consists of the full dotted name of the module, e.g. a module called
 :mod:`foo.spam` would have a header file called :file:`foo.spam.h`.
 
+.. _api:
+
 C API Declarations
 -------------------
 
@@ -441,7 +445,7 @@ Releasing the GIL
 ^^^^^^^^^^^^^^^^^
 
 You can release the GIL around a section of code using the
-:keyword:`with nogil` statement::
+``with nogil`` statement::
 
     with nogil:
         <code to be executed with the GIL released>
@@ -449,6 +453,8 @@ You can release the GIL around a section of code using the
 Code in the body of the statement must not manipulate Python objects in any
 way, and must not call anything that manipulates Python objects without first
 re-acquiring the GIL. Cython currently does not check this.
+
+.. _gil:
 
 Acquiring the GIL
 ^^^^^^^^^^^^^^^^^

@@ -78,6 +78,9 @@ http://www.python.org/dev/peps/pep-0308/::
        
 Only one of ``X`` and ``Y`` is evaluated, (depending on the value of C). 
 
+
+.. _inline:
+
 cdef inline
 =============
 
@@ -284,7 +287,7 @@ with corresponding ``.pyx`` file::
 Function pointers in structs
 =============================
 
-Functions declared in :keyword:`structs` are automatically converted to
+Functions declared in :keyword:`struct` are automatically converted to
 function pointers for convenience.
 
 C++ Exception handling
@@ -317,7 +320,7 @@ literals like ``u'abcd'`` to unicode objects.
 Automatic ``typecheck``
 ========================
 
-Rather than introducing a new keyword :keyword:`typecheck` as explained in the
+Rather than introducing a new keyword ``typecheck`` as explained in the
 `Pyrex docs
 <http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
 Cython emits a (non-spoofable and faster) typecheck whenever

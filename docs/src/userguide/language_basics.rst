@@ -1,6 +1,11 @@
 .. highlight:: cython
 
 .. _language-basics:
+.. _struct:
+.. _union:
+.. _enum:
+.. _ctypedef:
+
 
 *****************
 Language Basics
@@ -33,6 +38,8 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
         hard = 1
         soft = 2
         runny = 3
+
+See also :ref:`struct-union-enum-styles`
 
 There is currently no special syntax for defining a constant, but you can use
 an anonymous :keyword:`enum` declaration for this purpose, for example,::

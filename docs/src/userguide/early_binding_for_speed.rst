@@ -102,7 +102,7 @@ overheads. Consider this code:
 .. note:: 
 
     in earlier versions of Cython, the :keyword:`cpdef` keyword is
-    :keyword:`rdef` - but has the same effect).
+    ``rdef`` - but has the same effect).
 
 Here, we just have a single area method, declared as :keyword:`cpdef` to make it
 efficiently callable as a C function, but still accessible from pure Python
