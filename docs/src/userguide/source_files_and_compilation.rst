@@ -6,6 +6,8 @@
 Source Files and Compilation
 ****************************
 
+.. note:: See :ref:`compilation-reference` reference section for more details
+
 Cython source file names consist of the name of the module followed by a
 ``.pyx`` extension, for example a module called primes would have a source
 file named :file:`primes.pyx`.

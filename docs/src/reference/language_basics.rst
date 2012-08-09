@@ -112,6 +112,7 @@ However with Cython it is possible to gain significant speed-ups through the use
 
     Providing static typing to parameters and variables is convenience to speed up your code, but it is not a necessity. Optimize where and when needed.
 
+
 The cdef Statement
 ==================
 
@@ -531,12 +532,16 @@ Callable from Python
 * Return Python objects
 * See **Parameters** for special consideration
 
+.. _cdef:
+
 Callable from C
 ================
 
 * Are declared with the ``cdef`` statement.
 * Are called with either Python objects or C values.
 * Can return either Python objects or C values.
+
+.. _cpdef:
 
 Callable from both Python and C
 ================================

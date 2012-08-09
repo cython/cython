@@ -16,7 +16,6 @@ It currently supports OpenMP, but later on more backends might be supported.
 .. NOTE:: Functionality in this module may only be used from the main thread
           or parallel regions due to OpenMP restrictions.
 
-__ nogil_
 
 .. function:: prange([start,] stop[, step][, nogil=False][, schedule=None[, chunksize=None]][, num_threads=None])
 

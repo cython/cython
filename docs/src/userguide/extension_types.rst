@@ -37,6 +37,8 @@ particular extension type), or they may be of any C data type. So you can use
 extension types to wrap arbitrary C data structures and provide a Python-like
 interface to them.  
 
+.. _readonly:
+
 Attributes
 ============
 
@@ -464,7 +466,7 @@ built-in complex object.::
 
        .. sourcecode:: c
 
-        ctypedef struct {
+        typedef struct {
             ...
         } PyComplexObject;
 
@@ -475,7 +477,7 @@ built-in complex object.::
     3. When declaring an external extension type, you don't declare any
        methods.  Declaration of methods is not required in order to call them,
        because the calls are Python method calls. Also, as with
-       :keyword:`structs` and :keyword:`unions`, if your extension class
+       :keyword:`struct` and :keyword:`union`, if your extension class
        declaration is inside a :keyword:`cdef` extern from block, you only need to
        declare those C members which you wish to access.
 

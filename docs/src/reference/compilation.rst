@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. _compilation:
+.. _compilation-reference:
 
 =============
 Compilation

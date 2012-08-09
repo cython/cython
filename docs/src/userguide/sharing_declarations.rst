@@ -59,6 +59,8 @@ corresponding definition file also defines that type (see below).
 If one doesn't need to :keyword:`cimport` anything from this module, then this
 is the only file one needs. 
 
+.. _cimport:
+
 The cimport statement
 =======================
 
