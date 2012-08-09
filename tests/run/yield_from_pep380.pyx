@@ -991,7 +991,7 @@ def test_delegating_generators_claim_to_be_running_close():
         def __next__(self):
             return 42
         next = __next__
-        def close(self_):
+        def close(self):
             assert g1.gi_running
             try:
                 next(g1)
