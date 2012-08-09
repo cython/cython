@@ -8892,7 +8892,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     "argument of type 'NoneType' is not iterable")
             elif self.is_ptr_contains():
                 if self.cascade:
-                    error(self.pos, "Cascading comparison not yet supported for 'val in sliced pointer'.")
+                    error(self.pos, "Cascading comparison not supported for 'val in sliced pointer'.")
                 self.type = PyrexTypes.c_bint_type
                 # Will be transformed by IterationTransform
                 return
