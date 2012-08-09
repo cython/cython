@@ -8696,9 +8696,9 @@ class CmpNode(object):
             return (container_type.is_ptr or container_type.is_array) \
                 and not container_type.is_string
 
-    def find_special_bool_compare_function(self, env):
+    def find_special_bool_compare_function(self, env, operand1):
         if self.operator in ('==', '!='):
-            type1, type2 = self.operand1.type, self.operand2.type
+            type1, type2 = operand1.type, self.operand2.type
             if type1.is_pyobject and type2.is_pyobject:
                 if type1 is Builtin.unicode_type or type2 is Builtin.unicode_type:
                     env.use_utility_code(UtilityCode.load_cached("UnicodeEquals", "StringTools.c"))
@@ -8901,7 +8901,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 common_type = py_object_type
                 self.is_pycmp = True
-        elif self.find_special_bool_compare_function(env):
+        elif self.find_special_bool_compare_function(env, self.operand1):
             common_type = None # if coercion needed, the method call above has already done it
             self.is_pycmp = False # result is bint
             self.is_temp = True # must check for error return
@@ -8916,6 +8916,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
 
         if self.cascade:
             self.operand2 = self.operand2.coerce_to_simple(env)
+            self.cascade.optimise_comparison(env, self.operand2)
             self.cascade.coerce_cascaded_operands_to_temp(env)
         if self.is_python_result():
             self.type = PyrexTypes.py_object_type
@@ -9078,6 +9079,11 @@ class CascadedCmpNode(Node, CmpNode):
 
     def has_python_operands(self):
         return self.operand2.type.is_pyobject
+
+    def optimise_comparison(self, env, operand1):
+        self.find_special_bool_compare_function(env, operand1)
+        if self.cascade:
+            self.cascade.optimise_comparison(env, self.operand2)
 
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
