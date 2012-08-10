@@ -280,7 +280,7 @@ cdef class MyStructMockBuffer(MockBuffer):
         return 0
 
     cdef get_itemsize(self): return sizeof(MyStruct)
-    cdef get_default_format(self): return b"2bq2i"
+    cdef get_default_format(self): return b"2cq2i"
 
 cdef class NestedStructMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:

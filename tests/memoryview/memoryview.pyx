@@ -237,7 +237,7 @@ def basic_struct(MyStruct[:] mslice):
 
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))
     [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
     """
     buf = mslice
