@@ -14,11 +14,12 @@ Contents:
    sharing_declarations
    external_C_code
    source_files_and_compilation
+   early_binding_for_speed
    wrapping_CPlusPlus
    fusedtypes
+   pypy
    limitations
    pyrex_differences
-   early_binding_for_speed
    memoryviews
    parallelism
    debugging
