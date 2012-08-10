@@ -66,7 +66,7 @@ typedef struct {
   size_t size;     /* sizeof(type) */
   size_t arraysize[8]; /* length of array in each dimension */
   int ndim;
-  char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject */
+  char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject, c_H_ar */
   char is_unsigned;
   int flags;
 } __Pyx_TypeInfo;
@@ -290,7 +290,8 @@ static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
 
 static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
   switch (ch) {
-    case 'b': return "'char'";
+    case 'c': return "'char'";
+    case 'b': return "'signed char'";
     case 'B': return "'unsigned char'";
     case 'h': return "'short'";
     case 'H': return "'unsigned short'";
@@ -417,7 +418,9 @@ static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_compl
 
 static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
   switch (ch) {
-    case 'c': case 'b': case 'h': case 'i':
+    case 'c':
+        return 'H';
+    case 'b': case 'h': case 'i':
     case 'l': case 'q': case 's': case 'p':
         return 'I';
     case 'B': case 'H': case 'I': case 'L': case 'Q':
@@ -893,6 +896,9 @@ static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type)
     size_t size = type->size;
 
     switch (type->typegroup) {
+        case 'H':
+            *buf = 'c';
+            break;
         case 'I':
         case 'U':
             if (size == 1)
