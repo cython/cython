@@ -533,8 +533,12 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
         continue;
       }
 
-      __Pyx_BufFmt_RaiseExpected(ctx);
-      return -1;
+      if ((type->typegroup == 'H' || group == 'H') && type->size == size) {
+          /* special case -- chars don't care about sign */
+      } else {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return -1;
+      }
     }
 
     offset = ctx->head->parent_offset + field->offset;
@@ -840,8 +844,14 @@ __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
         return 1;
 
     if (a->size != b->size || a->typegroup != b->typegroup ||
-            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim)
-        return 0;
+            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim) {
+        if (a->typegroup == 'H' || b->typegroup == 'H') {
+            /* Special case for chars */
+            return a->size == b->size;
+        } else {
+            return 0;
+        }
+    }
 
     if (a->ndim) {
         /* Verify multidimensional C arrays */
