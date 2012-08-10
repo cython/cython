@@ -286,7 +286,7 @@ function call.)
 
     Speed comes with some cost. Especially it can be dangerous to set typed
     objects (like ``f``, ``g`` and ``h`` in our sample code) to
-    :keyword:`None`.  Setting such objects to :keyword:`None` is entirely
+    ``None``.  Setting such objects to ``None`` is entirely
     legal, but all you can do with them is check whether they are None. All
     other use (attribute lookup or indexing) can potentially segfault or
     corrupt data (rather than raising exceptions as they would in Python).

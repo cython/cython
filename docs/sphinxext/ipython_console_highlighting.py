@@ -72,4 +72,6 @@ class IPythonConsoleLexer(Lexer):
                                       pylexer.get_tokens_unprocessed(curcode)):
                 yield item
 
-highlighting.lexers['ipython'] = IPythonConsoleLexer()
+
+def setup(app):
+    app.add_lexer('ipython', IPythonConsoleLexer())
