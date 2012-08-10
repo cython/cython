@@ -119,7 +119,7 @@ may exhibit substantially different performance characteristics in cpyext.
 Functions returning borrowed references were already mentioned as requiring
 special care, but they also induce substantially more runtime overhead because
 they often create weak references in PyPy where they only return a plain
-pointer in CPython.  A visible example is :c:func:``PyTuple_GET_ITEM()`.
+pointer in CPython.  A visible example is :c:func:`PyTuple_GET_ITEM()`.
 
 Some more high-level functions may also show entirely different performance
 characteristics, e.g. :c:func:`PyDict_Next()` for dict iteration.  While
