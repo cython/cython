@@ -48,3 +48,17 @@ def test_custom():
         return [x for x in iter[0]]
     finally:
         del iter
+
+def test_iteration_over_heap_vector(L):
+    """
+    >>> test_iteration_over_heap_vector([1,2])
+    (1, 2)
+    """
+    cdef int i
+    cdef vector[int] *vint = new vector[int]()
+    try:
+        for i in L:
+            vint.push_back(i)
+        return [ i for i in vint ]
+    finally:
+        del vint
