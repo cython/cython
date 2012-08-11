@@ -3416,18 +3416,21 @@ class SliceIndexNode(ExprNode):
                   "Slicing is not currently supported for '%s'." % self.type)
             return
         if self.base.type.is_string:
+            base_result = self.base.result()
+            if self.base.type != PyrexTypes.c_char_ptr_type:
+                base_result = '((const char*)%s)' % base_result
             if self.stop is None:
                 code.putln(
                     "%s = PyBytes_FromString(%s + %s); %s" % (
                         self.result(),
-                        self.base.result(),
+                        base_result,
                         self.start_code(),
                         code.error_goto_if_null(self.result(), self.pos)))
             else:
                 code.putln(
                     "%s = PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
                         self.result(),
-                        self.base.result(),
+                        base_result,
                         self.start_code(),
                         self.stop_code(),
                         self.start_code(),
