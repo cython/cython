@@ -253,6 +253,7 @@ class CythonGraphvizGenerator(graphviz.GraphvizGenerator):
 class Context(miniast.CContext):
 
     debug = _context_debug
+    optimize_broadcasting = False
 
     codegen_cls = CCodeGen
     cleanup_codegen_cls = CCodeGenCleanup
@@ -263,6 +264,9 @@ class Context(miniast.CContext):
 
     def getchildren(self, node):
         return node.child_attrs
+
+    def mangle_function_name(self, name):
+        return '%s_{{func_counter}}' % name
 
     def declare_type(self, type):
         if type.is_typewrapper:
@@ -717,10 +721,12 @@ class SpecializationCaller(ExprNodes.ExprNode):
                            codewriter, proto, impl, code_counter):
         "Insert generated minivect code into the Cython module"
         # print id(specialized_function), specialized_function.mangled_name
-        specialized_function.mangled_name = (
-                    specialized_function.mangled_name % (code_counter,))
-        proto = proto % code_counter
-        impl = impl % ((code_counter,) * impl.count("%d"))
+        resolve_name = lambda s: s.replace('{{func_counter}}',
+                                           str(code_counter))
+        specialized_function.mangled_name = resolve_name(
+                                specialized_function.mangled_name)
+        proto = resolve_name(proto)
+        impl = resolve_name(impl)
 
         utility = Code.UtilityCode(proto=proto, impl=impl)
         code.globalstate.use_utility_code(utility)
@@ -1033,7 +1039,7 @@ class ElementalNode(ExprNodes.ExprNode):
             body = b.assign(lhs_var, rhs_var)
 
         args = [b.array_funcarg(lhs_var), b.array_funcarg(rhs_var)]
-        func = b.function('final_assignment%d', body, args)
+        func = b.function('final_assignment', body, args)
         return SpecializationCaller(self.pos, context=self.minicontext,
                                     operands=[self.rhs], function=func,
                                     scalar_operands=[],
@@ -1469,7 +1475,7 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             except minierror.UnmappableTypeError:
                 return None
 
-            name = '__pyx_array_expression%d'
+            name = '__pyx_array_expression'
 
             if astmapper.may_error:
                 pos_args = (
