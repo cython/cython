@@ -1,7 +1,7 @@
 cdef extern from "<stack>" namespace "std":
     cdef cppclass stack[T]:
-        stack()
-        stack(stack&)
+        stack() nogil except +
+        stack(stack&) nogil except +
         #stack(Container&)
         bint empty() nogil
         void pop() nogil

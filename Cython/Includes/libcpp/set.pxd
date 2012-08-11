@@ -18,8 +18,8 @@ cdef extern from "<set>" namespace "std":
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
-        set() nogil
-        set(set&) nogil
+        set() nogil except +
+        set(set&) nogil except +
         #set(key_compare&)
         #set& operator=(set&)
         bint operator==(set&, set&) nogil

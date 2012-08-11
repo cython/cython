@@ -16,9 +16,9 @@ cdef extern from "<list>" namespace "std":
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
-        list()
-        list(list&)
-        list(size_t, T&)
+        list() nogil except +
+        list(list&) nogil except +
+        list(size_t, T&) nogil except +
         #list operator=(list&)
         bint operator==(list&, list&) nogil
         bint operator!=(list&, list&) nogil

@@ -18,8 +18,8 @@ cdef extern from "<map>" namespace "std":
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
-        map()
-        map(map&)
+        map() nogil except +
+        map(map&) nogil except +
         #map(key_compare&)
         U& operator[](T&) nogil
         #map& operator=(map&)
