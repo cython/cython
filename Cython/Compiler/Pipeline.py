@@ -216,7 +216,7 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         test_support.append(TreeAssertVisitor())
 
     if options.gdb_debug:
-        from Cython.Debugger import DebugWriter
+        from Cython.Debugger import DebugWriter # requires Py2.5+
         from ParseTreeTransforms import DebugTransform
         context.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
             options.output_dir)
