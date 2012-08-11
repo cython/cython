@@ -109,3 +109,19 @@ def reverse_iteration_test(L):
             print(a)
     finally:
         del v
+
+def nogil_test(L):
+    """
+    >>> nogil_test([1,2,3])
+    3
+    """
+    cdef int a
+    with nogil:
+        v = new vector[int]()
+    try:
+        for a in L:
+            with nogil:
+                v.push_back(a)
+        return v.size()
+    finally:
+        del v
