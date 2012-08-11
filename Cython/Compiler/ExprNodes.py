@@ -34,7 +34,7 @@ import Symtab
 import Options
 from Cython import Utils
 from Annotate import AnnotationItem
-
+from Cython.Compiler import Future
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
@@ -1933,7 +1933,8 @@ class ImportNode(ExprNode):
 
     def analyse_types(self, env):
         if self.level is None:
-            if env.directives['language_level'] < 3 or env.directives['py2_import']:
+            if (env.directives['py2_import'] or
+                Future.absolute_import not in env.global_scope().context.future_directives):
                 self.level = -1
             else:
                 self.level = 0
