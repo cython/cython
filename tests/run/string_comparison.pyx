@@ -65,7 +65,6 @@ def unicode_cascade(unicode s1, unicode s2):
     """
     return s1 == s2 == u"abcdefg"
 
-''' # NOTE: currently crashes
 def unicode_cascade_untyped_end(unicode s1, unicode s2):
     """
     >>> unicode_cascade_untyped_end(ustring1, ustring1)
@@ -76,7 +75,6 @@ def unicode_cascade_untyped_end(unicode s1, unicode s2):
     False
     """
     return s1 == s2 == u"abcdefg" == (<object>ustring1) == ustring1
-'''
 
 # str
 
@@ -135,6 +133,17 @@ def str_cascade(str s1, str s2):
     """
     return s1 == s2 == "abcdefg"
 
+def str_cascade_untyped_end(str s1, str s2):
+    """
+    >>> str_cascade_untyped_end(string1, string1)
+    True
+    >>> str_cascade_untyped_end(string1, (string1+string2)[:len(string1)])
+    True
+    >>> str_cascade_untyped_end(string1, string2)
+    False
+    """
+    return s1 == s2 == "abcdefg" == (<object>string1) == string1
+
 # bytes
 
 def bytes_eq(bytes s1, bytes s2):
@@ -191,3 +200,14 @@ def bytes_cascade(bytes s1, bytes s2):
     False
     """
     return s1 == s2 == b"abcdefg"
+
+def bytes_cascade_untyped_end(bytes s1, bytes s2):
+    """
+    >>> bytes_cascade_untyped_end(bstring1, bstring1)
+    True
+    >>> bytes_cascade_untyped_end(bstring1, (bstring1+bstring2)[:len(bstring1)])
+    True
+    >>> bytes_cascade_untyped_end(bstring1, bstring2)
+    False
+    """
+    return s1 == s2 == b"abcdefg" == (<object>bstring1) == bstring1
