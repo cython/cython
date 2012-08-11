@@ -1569,7 +1569,7 @@ def runtests(options, cmd_args, coverage=None):
         options.cleanup_workdir = False
         options.cleanup_sharedlibs = False
         options.fork = False
-        if WITH_CYTHON:
+        if WITH_CYTHON and include_debugger:
             from Cython.Compiler.Main import default_options as compiler_default_options
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
