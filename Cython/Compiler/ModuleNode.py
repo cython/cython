@@ -1036,7 +1036,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in cpp_class_attrs:
             code.putln("new((void*)&(p->%s)) %s();" % 
-                       (entry.cname, entry.type.cname));
+                       (entry.cname, entry.type.declaration_code("")));
 
         for entry in py_attrs:
             if scope.is_internal or entry.name == "__weakref__":
