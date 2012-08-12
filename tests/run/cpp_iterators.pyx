@@ -1,6 +1,7 @@
 # tag: cpp
 
 from libcpp.vector cimport vector
+from cython.operator cimport dereference as deref
 
 cdef extern from "cpp_iterators_simple.h":
     cdef cppclass DoublePointerIter:
@@ -52,13 +53,13 @@ def test_custom():
 def test_iteration_over_heap_vector(L):
     """
     >>> test_iteration_over_heap_vector([1,2])
-    (1, 2)
+    [1, 2]
     """
     cdef int i
     cdef vector[int] *vint = new vector[int]()
     try:
         for i in L:
             vint.push_back(i)
-        return [ i for i in vint ]
+        return [ i for i in deref(vint) ]
     finally:
         del vint
