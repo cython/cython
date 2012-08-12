@@ -1346,7 +1346,7 @@ def flush_and_terminate(status):
 
 def main():
 
-    global DISTDIR
+    global DISTDIR, WITH_CYTHON
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
 
     from optparse import OptionParser

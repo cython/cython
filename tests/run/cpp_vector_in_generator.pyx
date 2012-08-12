@@ -10,3 +10,9 @@ def stack_vector_in_generator(vector[int] vint):
     """
     for i in vint:
         yield i
+
+def vector_arg_in_function(py_v):
+    """
+    >>> print "Unneeded function with side effect."
+    """
+    cdef vector[int] v = py_v
