@@ -200,9 +200,10 @@ class CythonGraphvizGenerator(graphviz.GraphvizGenerator):
         super(CythonGraphvizGenerator, self).__init__(context, name)
         self.set_mini_colors()
 
-    def format_node(self, node):
+    def format_node(self, node, want_type_info=True):
         if isinstance(node, miniast.Node):
-            return super(CythonGraphvizGenerator, self).format_node(node)
+            return super(CythonGraphvizGenerator, self).format_node(
+                                                node, want_type_info)
 
         result = type(node).__name__
         if isinstance(node, (ExprNodes.BinopNode, ExprNodes.UnopNode)):
@@ -680,6 +681,9 @@ class SpecializationCaller(ExprNodes.ExprNode):
         """
         if write_graphviz and 'array_expression' in self.function.name:
             mangled_name = "_%s" % specializer.specialization_name
+            if specializer.is_vectorizing_specializer:
+                mangled_name = "%s_vector%d" % (mangled_name,
+                                                specializer.vector_size)
             filename = graphviz_out_filename % mangled_name
 
             print "Writing to", filename
