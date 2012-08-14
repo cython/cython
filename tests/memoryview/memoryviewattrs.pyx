@@ -30,13 +30,13 @@ def test_shape_stride_suboffset():
     77 11 1
     -1 -1 -1
     '''
-    cdef char[:,:,:] larr = array((5,7,11), 1, 'b')
+    cdef char[:,:,:] larr = array((5,7,11), 1, 'c')
     print larr.shape[0], larr.shape[1], larr.shape[2]
     print larr.strides[0], larr.strides[1], larr.strides[2]
     print larr.suboffsets[0], larr.suboffsets[1], larr.suboffsets[2]
     print
 
-    larr = array((5,7,11), 1, 'b', mode='fortran')
+    larr = array((5,7,11), 1, 'c', mode='fortran')
     print larr.shape[0], larr.shape[1], larr.shape[2]
     print larr.strides[0], larr.strides[1], larr.strides[2]
     print larr.suboffsets[0], larr.suboffsets[1], larr.suboffsets[2]

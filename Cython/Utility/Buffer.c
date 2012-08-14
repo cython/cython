@@ -66,7 +66,7 @@ typedef struct {
   size_t size;     /* sizeof(type) */
   size_t arraysize[8]; /* length of array in each dimension */
   int ndim;
-  char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject */
+  char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject, c_H_ar */
   char is_unsigned;
   int flags;
 } __Pyx_TypeInfo;
@@ -290,7 +290,8 @@ static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
 
 static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
   switch (ch) {
-    case 'b': return "'char'";
+    case 'c': return "'char'";
+    case 'b': return "'signed char'";
     case 'B': return "'unsigned char'";
     case 'h': return "'short'";
     case 'H': return "'unsigned short'";
@@ -417,7 +418,9 @@ static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_compl
 
 static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
   switch (ch) {
-    case 'c': case 'b': case 'h': case 'i':
+    case 'c':
+        return 'H';
+    case 'b': case 'h': case 'i':
     case 'l': case 'q': case 's': case 'p':
         return 'I';
     case 'B': case 'H': case 'I': case 'L': case 'Q':
@@ -530,8 +533,12 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
         continue;
       }
 
-      __Pyx_BufFmt_RaiseExpected(ctx);
-      return -1;
+      if ((type->typegroup == 'H' || group == 'H') && type->size == size) {
+          /* special case -- chars don't care about sign */
+      } else {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return -1;
+      }
     }
 
     offset = ctx->head->parent_offset + field->offset;
@@ -837,8 +844,14 @@ __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
         return 1;
 
     if (a->size != b->size || a->typegroup != b->typegroup ||
-            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim)
-        return 0;
+            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim) {
+        if (a->typegroup == 'H' || b->typegroup == 'H') {
+            /* Special case for chars */
+            return a->size == b->size;
+        } else {
+            return 0;
+        }
+    }
 
     if (a->ndim) {
         /* Verify multidimensional C arrays */
@@ -893,6 +906,9 @@ static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type)
     size_t size = type->size;
 
     switch (type->typegroup) {
+        case 'H':
+            *buf = 'c';
+            break;
         case 'I':
         case 'U':
             if (size == 1)

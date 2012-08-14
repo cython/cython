@@ -1008,7 +1008,7 @@ def basic_struct(MyStruct[:] buf):
 
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))
     1 2 3 4 5
     """
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e

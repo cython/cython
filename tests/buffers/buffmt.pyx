@@ -63,7 +63,7 @@ def _int(fmt):
     >>> _int("b")
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch, expected 'int' but got 'char'
+    ValueError: Buffer dtype mismatch, expected 'int' but got 'signed char'
 
     >>> _int("if")
     Traceback (most recent call last):
@@ -184,13 +184,13 @@ def char3int(fmt):
 def unpacked_struct(fmt):
     """
     Native formats:
-    >>> unpacked_struct("biZffbiii")
-    >>> unpacked_struct("@bi3fb3i")
-    >>> unpacked_struct("@biZffbi2i")
-    >>> unpacked_struct("biZffT{biii}")
-    >>> unpacked_struct("bT{ifffb2i}i")
-    >>> unpacked_struct("biZffb3T{i}")
-    >>> unpacked_struct("T{b}T{T{iZffT{bi}}}2T{T{i}}")
+    >>> unpacked_struct("ciZffciii")
+    >>> unpacked_struct("@ci3fc3i")
+    >>> unpacked_struct("@ciZffci2i")
+    >>> unpacked_struct("ciZffT{ciii}")
+    >>> unpacked_struct("cT{ifffc2i}i")
+    >>> unpacked_struct("ciZffc3T{i}")
+    >>> unpacked_struct("T{c}T{T{iZffT{ci}}}2T{T{i}}")
     """
 
     assert (sizeof(UnpackedStruct1) == sizeof(UnpackedStruct2)
@@ -303,7 +303,7 @@ def packed_struct(fmt):
     Assuming int is four bytes:
 
     >>> packed_struct("^cici")
-    >>> packed_struct("=cibi")
+    >>> packed_struct("=cici")
 
     However aligned access won't work:
 
