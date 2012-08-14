@@ -172,6 +172,7 @@ basic ``cdef extern from`` block::
     cdef extern from "Rectangle.h" namespace "shapes":
 
 This will make the C++ class def for Rectangle available. Note the namespace declaration.
+Namespaces are simply used to make the fully qualified name of the object, and can be nested (e.g. ``"outer::inner"``) or even refer to classes (e.g. ``"namespace::MyClass`` to declare static members on MyClass).
 
 Declare class with cdef cppclass
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
