@@ -1170,7 +1170,7 @@ class CppClassNode(CStructOrUnionDefNode):
     #  in_pxd        boolean
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
-    #  base_classes  [string]
+    #  base_classes  [CBaseTypeNode]
     #  templates     [string] or None
 
     def declare(self, env):
@@ -1185,16 +1185,8 @@ class CppClassNode(CStructOrUnionDefNode):
     def analyse_declarations(self, env):
         scope = None
         if self.attributes is not None:
-            scope = CppClassScope(self.name, env)
-        base_class_types = []
-        for base_class_name in self.base_classes:
-            base_class_entry = env.lookup(base_class_name)
-            if base_class_entry is None:
-                error(self.pos, "'%s' not found" % base_class_name)
-            elif not base_class_entry.is_type or not base_class_entry.type.is_cpp_class:
-                error(self.pos, "'%s' is not a cpp class type" % base_class_name)
-            else:
-                base_class_types.append(base_class_entry.type)
+            scope = CppClassScope(self.name, env, templates = self.templates)
+        base_class_types = [b.analyse(scope) for b in self.base_classes]
         if self.templates is None:
             template_types = None
         else:

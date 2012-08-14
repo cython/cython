@@ -3041,10 +3041,10 @@ def p_cpp_class_definition(s, pos,  ctx):
         templates = None
     if s.sy == '(':
         s.next()
-        base_classes = [p_dotted_name(s, False)[2]]
+        base_classes = [p_c_base_type(s, templates = templates)]
         while s.sy == ',':
             s.next()
-            base_classes.append(p_dotted_name(s, False)[2])
+            base_classes.append(p_c_base_type(s, templates = templates))
         s.expect(')')
     else:
         base_classes = []

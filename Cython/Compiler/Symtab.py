@@ -514,10 +514,6 @@ class Scope(object):
             if templates or entry.type.templates:
                 if templates != entry.type.templates:
                     error(pos, "Template parameters do not match previous declaration")
-        if templates is not None and entry.type.scope is not None:
-            for T in templates:
-                template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
-                template_entry.is_type = 1
 
         def declare_inherited_attributes(entry, base_classes):
             for base_class in base_classes:
@@ -1993,10 +1989,15 @@ class CppClassScope(Scope):
 
     default_constructor = None
 
-    def __init__(self, name, outer_scope):
+    def __init__(self, name, outer_scope, templates=None):
         Scope.__init__(self, name, outer_scope, None)
         self.directives = outer_scope.directives
         self.inherited_var_entries = []
+        if templates is not None:
+            for T in templates:
+                template_entry = self.declare(
+                    T, T, PyrexTypes.TemplatePlaceholderType(T), None, 'extern')
+                template_entry.is_type = 1
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'extern',
