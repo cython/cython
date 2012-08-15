@@ -426,9 +426,10 @@ class TestBuilder(object):
 
     def build_test(self, test_class, path, workdir, module,
                    language, expect_errors, warning_errors):
-        workdir = os.path.join(workdir, language)
-        if not os.path.exists(workdir):
-            os.makedirs(workdir)
+        language_workdir = os.path.join(workdir, language)
+        if not os.path.exists(language_workdir):
+            os.makedirs(language_workdir)
+        workdir = os.path.join(language_workdir, module)
         return test_class(path, workdir, module,
                           language=language,
                           expect_errors=expect_errors,
@@ -471,6 +472,8 @@ class CythonCompileTestCase(unittest.TestCase):
         self._saved_default_directives = Options.directive_defaults.items()
         Options.warning_errors = self.warning_errors
 
+        if not os.path.exists(self.workdir):
+            os.makedirs(self.workdir)
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
 
@@ -492,24 +495,25 @@ class CythonCompileTestCase(unittest.TestCase):
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
         cleanup_lib_files = self.cleanup_sharedlibs and cleanup
         if os.path.exists(self.workdir):
-            for rmfile in os.listdir(self.workdir):
-                if not cleanup_c_files:
-                    if (rmfile[-2:] in (".c", ".h") or
-                        rmfile[-4:] == ".cpp" or
-                        rmfile.endswith(".html")):
+            if cleanup_c_files and cleanup_lib_files:
+                shutil.rmtree(self.workdir, ignore_errors=True)
+            else:
+                for rmfile in os.listdir(self.workdir):
+                    if not cleanup_c_files:
+                        if (rmfile[-2:] in (".c", ".h") or
+                            rmfile[-4:] == ".cpp" or
+                            rmfile.endswith(".html")):
+                            continue
+                    if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
                         continue
-                if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
-                    continue
-                try:
-                    rmfile = os.path.join(self.workdir, rmfile)
-                    if os.path.isdir(rmfile):
-                        shutil.rmtree(rmfile, ignore_errors=True)
-                    else:
-                        os.remove(rmfile)
-                except IOError:
-                    pass
-        else:
-            os.makedirs(self.workdir)
+                    try:
+                        rmfile = os.path.join(self.workdir, rmfile)
+                        if os.path.isdir(rmfile):
+                            shutil.rmtree(rmfile, ignore_errors=True)
+                        else:
+                            os.remove(rmfile)
+                    except IOError:
+                        pass
 
     def runTest(self):
         self.success = False
