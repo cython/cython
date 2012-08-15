@@ -183,6 +183,7 @@ VER_DEP_MODULES = {
                                           'run.initial_file_path',  # relative import
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
+                                          'run.language_level', # print function
                                           'run.cython3',
                                           'run.property_decorator_T593', # prop.setter etc.
                                           'run.generators_py', # generators, with statement

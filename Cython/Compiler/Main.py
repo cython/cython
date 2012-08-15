@@ -473,6 +473,8 @@ class CompilationOptions(object):
             defaults = default_options
         self.__dict__.update(defaults)
         self.__dict__.update(kw)
+        if 'language_level' not in kw and 'language_level' in self.compiler_directives:
+            self.language_level = int(self.compiler_directives['language_level'])
 
     def create_context(self):
         return Context(self.include_path, self.compiler_directives,
