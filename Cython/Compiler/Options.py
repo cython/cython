@@ -98,8 +98,8 @@ directive_defaults = {
     'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
     'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
 
-    # set __file__ and/or __path__ to source file path at import time (instead of not having them available)
-    'set_initial_path_from_source' : False,
+    # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
+    'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
 
     'warn': None,
     'warn.undeclared': False,
@@ -143,6 +143,7 @@ directive_types = {
     'ccall' : None,
     'cclass' : None,
     'returns' : type,
+    'set_initial_path': str,
     }
 
 for key, val in directive_defaults.items():
@@ -156,7 +157,7 @@ directive_scopes = { # defaults to available everywhere
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),
     'autotestdict.cdef' : ('module',),
-    'set_initial_path_from_source' : ('module',),
+    'set_initial_path' : ('module',),
     'test_assert_path_exists' : ('function', 'class', 'cclass'),
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
 }

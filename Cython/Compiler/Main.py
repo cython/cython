@@ -332,8 +332,6 @@ class Context(object):
         module_name, _ = os.path.splitext(filename)
         if "." in module_name:
             return module_name
-        if module_name == "__init__":
-            dir, module_name = os.path.split(dir)
         names = [module_name]
         while self.is_package_dir(dir):
             parent, package_name = os.path.split(dir)
