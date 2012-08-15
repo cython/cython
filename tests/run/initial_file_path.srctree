@@ -1,5 +1,6 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import my_test_package, my_test_package.a; my_test_package.test(); my_test_package.a.test()"
+PYTHON -c "import my_test_package; assert not my_test_package.__file__.rstrip('co').endswith('.py'), my_test_package.__file__; my_test_package.test()"
+PYTHON -c "import my_test_package.a; my_test_package.a.test()"
 
 ######## setup.py ########
 
@@ -12,7 +13,7 @@ setup(
 
 ######## my_test_package/__init__.py ########
 
-# cython: set_initial_path_from_source=True
+# cython: set_initial_path=SOURCEFILE
 
 initial_path = __path__
 initial_file = __file__
@@ -34,7 +35,7 @@ def test():
 
 ######## my_test_package/a.py ########
 
-# cython: set_initial_path_from_source=True
+# cython: set_initial_path=SOURCEFILE
 
 initial_file = __file__
 

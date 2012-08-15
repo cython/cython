@@ -332,8 +332,6 @@ class Context(object):
         module_name, _ = os.path.splitext(filename)
         if "." in module_name:
             return module_name
-        if module_name == "__init__":
-            dir, module_name = os.path.split(dir)
         names = [module_name]
         while self.is_package_dir(dir):
             parent, package_name = os.path.split(dir)
@@ -384,10 +382,11 @@ def create_default_resultobj(compilation_source, options):
         result.c_file = Utils.replace_suffix(source_desc.filename, c_suffix)
     return result
 
-def run_pipeline(source, options, full_module_name = None):
+def run_pipeline(source, options, full_module_name=None, context=None):
     import Pipeline
 
-    context = options.create_context()
+    if context is None:
+        context = options.create_context()
 
     # Set up source object
     cwd = os.getcwd()
@@ -551,16 +550,20 @@ def compile_multiple(sources, options):
     if timestamps is None:
         timestamps = recursive
     verbose = options.verbose or ((recursive or timestamps) and not options.quiet)
+    context = None
     for source in sources:
         if source not in processed:
-            # Compiling multiple sources in one context doesn't quite
-            # work properly yet.
+            if context is None:
+                context = options.create_context()
             if not timestamps or context.c_file_out_of_date(source):
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
 
-                result = run_pipeline(source, options)
+                result = run_pipeline(source, options, context=context)
                 results.add(source, result)
+                # Compiling multiple sources in one context doesn't quite
+                # work properly yet.
+                context = None
             processed.add(source)
             if recursive:
                 for module_name in context.find_cimported_module_names(source):

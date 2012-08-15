@@ -1840,29 +1840,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto(self.pos)))
         code.putln("}")
 
-        if env.directives['set_initial_path_from_source'] and self.pos[0]:
-            source_path = self.pos[0].filename
-            if source_path:
-                code.putln('if (__Pyx_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
-                    env.module_cname,
-                    code.globalstate.get_py_string_const(
-                        EncodedString(decode_filename(source_path))).cname,
-                code.error_goto(self.pos)))
-                if os.path.splitext(os.path.basename(source_path))[0] == '__init__':
-                    # compiling a package => set __path__ as well
-                    temp = code.funcstate.allocate_temp(py_object_type, True)
-                    code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
-                        temp,
-                        code.globalstate.get_py_string_const(
-                            EncodedString(decode_filename(os.path.dirname(source_path)))).cname,
-                        code.error_goto_if_null(temp, self.pos)))
-                    code.put_gotref(temp)
-                    code.putln('if (__Pyx_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
-                        env.module_cname,
-                        temp,
-                        code.error_goto(self.pos)))
-                    code.put_decref_clear(temp, py_object_type)
-                    code.funcstate.release_temp(temp)
+        self.generate_module_path_setup(env, code)
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
@@ -1931,6 +1909,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         tempdecl_code.put_temp_declarations(code.funcstate)
 
         code.exit_cfunc_scope()
+
+    def generate_module_path_setup(self, env, code):
+        if not env.directives['set_initial_path']:
+            return
+        module_path = env.directives['set_initial_path']
+        if module_path == 'SOURCEFILE':
+            module_path = self.pos[0].filename
+            if not module_path:
+                return
+        code.putln('if (__Pyx_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
+            env.module_cname,
+            code.globalstate.get_py_string_const(
+                EncodedString(decode_filename(module_path))).cname,
+            code.error_goto(self.pos)))
+        if os.path.splitext(os.path.basename(module_path))[0] == '__init__':
+            # compiling a package => set __path__ as well
+            temp = code.funcstate.allocate_temp(py_object_type, True)
+            code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
+                temp,
+                code.globalstate.get_py_string_const(
+                    EncodedString(decode_filename(os.path.dirname(module_path)))).cname,
+                code.error_goto_if_null(temp, self.pos)))
+            code.put_gotref(temp)
+            code.putln('if (__Pyx_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
+                env.module_cname,
+                temp,
+                code.error_goto(self.pos)))
+            code.put_decref_clear(temp, py_object_type)
+            code.funcstate.release_temp(temp)
 
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
@@ -2038,6 +2045,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "if (!%s) %s;" % (
                 env.module_cname,
                 code.error_goto(self.pos)))
+        if env.is_package:
+            # some CPython versions have not registered us in sys.modules yet
+            code.putln("{")
+            code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
+                       code.error_goto_if_null("modules", self.pos))
+            code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % env.module_name)
+            code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, "%s", %s)' % (
+                env.module_name, env.module_cname), self.pos))
+            code.putln("}")
+            code.putln("}")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
             "Py_INCREF(%s);" %
