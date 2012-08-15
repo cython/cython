@@ -508,7 +508,7 @@ class Scope(object):
                     entry.type.scope = scope
                     self.type_entries.append(entry)
             if base_classes:
-                if entry.type.base_classes and not entry.type.base_classes == base_classes:
+                if entry.type.base_classes and entry.type.base_classes != base_classes:
                     error(pos, "Base type does not match previous declaration")
                 else:
                     entry.type.base_classes = base_classes
