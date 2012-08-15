@@ -2030,11 +2030,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = "0"
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
-            '%s = Py_InitModule4(__Pyx_NAMESTR("%s"), %s, %s, 0, PYTHON_API_VERSION);' % (
+            '%s = Py_InitModule4(__Pyx_NAMESTR("%s"), %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
                 env.module_cname,
                 env.module_name,
                 env.method_table_cname,
-                doc))
+                doc,
+                env.module_cname))
         code.putln("#else")
         code.putln(
             "%s = PyModule_Create(&%s);" % (
@@ -2046,7 +2047,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 code.error_goto(self.pos)))
         if env.is_package:
-            # some CPython versions have not registered us in sys.modules yet
+            # CPython may not have put us into sys.modules yet, but relative imports require it
             code.putln("{")
             code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
                        code.error_goto_if_null("modules", self.pos))
@@ -2055,11 +2056,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_name, env.module_cname), self.pos))
             code.putln("}")
             code.putln("}")
-        code.putln("#if PY_MAJOR_VERSION < 3")
-        code.putln(
-            "Py_INCREF(%s);" %
-                env.module_cname)
-        code.putln("#endif")
         code.putln(
             '%s = PyImport_AddModule(__Pyx_NAMESTR(__Pyx_BUILTIN_MODULE_NAME));' %
                 Naming.builtins_cname)
