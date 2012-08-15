@@ -1695,7 +1695,7 @@ cdef struct TestAttrs:
 def test_struct_attributes_format():
     """
     >>> test_struct_attributes_format()
-    T{i:int_attrib:b:char_attrib:}
+    T{i:int_attrib:c:char_attrib:}
     """
     cdef TestAttrs[10] array
     cdef TestAttrs[:] struct_memview = array
@@ -1703,7 +1703,7 @@ def test_struct_attributes_format():
     if sys.version_info[:2] >= (2, 7):
         print builtins.memoryview(struct_memview).format
     else:
-        print "T{i:int_attrib:b:char_attrib:}"
+        print "T{i:int_attrib:c:char_attrib:}"
 
 
 # Test padding at the end of structs in the buffer support
