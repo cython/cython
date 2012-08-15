@@ -1923,7 +1923,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.globalstate.get_py_string_const(
                 EncodedString(decode_filename(module_path))).cname,
             code.error_goto(self.pos)))
-        if os.path.splitext(os.path.basename(module_path))[0] == '__init__':
+        if env.is_package:
             # compiling a package => set __path__ as well
             temp = code.funcstate.allocate_temp(py_object_type, True)
             code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
