@@ -2023,7 +2023,7 @@ class CppClassScope(Scope):
         # Look for default constructors in all base classes.
         if self.default_constructor is None:
             entry = self.lookup(self.name)
-            if len(entry.type.base_classes) == 0:
+            if not entry.type.base_classes:
                 self.default_constructor = True
                 return
             for base_class in entry.type.base_classes:
@@ -2035,7 +2035,7 @@ class CppClassScope(Scope):
                     type = alternative.type
                     if type.is_ptr:
                         type = type.base_type
-                    if len(type.args) == 0:
+                    if not type.args:
                         found = True
                         break
                 if not found:
