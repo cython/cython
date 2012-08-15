@@ -2042,10 +2042,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.pymoduledef_cname))
         code.putln("#endif")
-        code.putln(
-            "if (!%s) %s;" % (
-                env.module_cname,
-                code.error_goto(self.pos)))
+        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         if env.is_package:
             # CPython may not have put us into sys.modules yet, but relative imports require it
             code.putln("{")
@@ -2057,12 +2054,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("}")
             code.putln("}")
         code.putln(
-            '%s = PyImport_AddModule(__Pyx_NAMESTR(__Pyx_BUILTIN_MODULE_NAME));' %
-                Naming.builtins_cname)
-        code.putln(
-            "if (!%s) %s;" % (
+            '%s = PyImport_AddModule(__Pyx_NAMESTR(__Pyx_BUILTIN_MODULE_NAME)); %s' % (
                 Naming.builtins_cname,
-                code.error_goto(self.pos)))
+                code.error_goto_if_null(Naming.builtins_cname, self.pos)))
         code.putln('#if CYTHON_COMPILING_IN_PYPY')
         code.putln('Py_INCREF(%s);' % Naming.builtins_cname)
         code.putln('#endif')
@@ -2073,13 +2067,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
-                '%s = PyImport_AddModule(__Pyx_NAMESTR("%s"));' % (
+                '%s = PyImport_AddModule(__Pyx_NAMESTR("%s")); %s' % (
                     Naming.preimport_cname,
-                    Options.pre_import))
-            code.putln(
-                "if (!%s) %s;" % (
-                    Naming.preimport_cname,
-                    code.error_goto(self.pos)))
+                    Options.pre_import,
+                    code.error_goto_if_null(Naming.preimport_cname, self.pos)))
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *
