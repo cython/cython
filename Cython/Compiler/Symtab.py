@@ -484,12 +484,13 @@ class Scope(object):
         return entry
 
     def declare_cpp_class(self, name, scope,
-            pos, cname = None, base_classes = [],
+            pos, cname = None, base_classes = (),
             visibility = 'extern', templates = None):
         if visibility != 'extern':
             error(pos, "C++ classes may only be extern")
         if cname is None:
             cname = name
+        base_classes = list(base_classes)
         entry = self.lookup_here(name)
         if not entry:
             type = PyrexTypes.CppClassType(
