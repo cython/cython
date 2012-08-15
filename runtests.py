@@ -555,7 +555,6 @@ class CythonCompileTestCase(unittest.TestCase):
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
                               'w', encoding='ISO-8859-1')
             for line in source_and_output:
-                last_line = line
                 if line.startswith("_ERRORS"):
                     out.close()
                     out = ErrorWriter()
