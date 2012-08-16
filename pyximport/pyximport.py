@@ -93,6 +93,10 @@ def get_distutils_extension(modname, pyxfilename, language_level=None):
 #    modname = modname + extra
     extension_mod,setup_args = handle_special_build(modname, pyxfilename)
     if not extension_mod:
+        if not isinstance(pyxfilename, str):
+            # distutils is stupid in Py2 and requires exactly 'str'
+            # => encode accidentally coerced unicode strings back to str
+            pyxfilename = pyxfilename.encode(sys.getfilesystemencoding())
         from distutils.extension import Extension
         extension_mod = Extension(name = modname, sources=[pyxfilename])
         if language_level is not None:
