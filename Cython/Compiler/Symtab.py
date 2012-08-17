@@ -2028,6 +2028,8 @@ class CppClassScope(Scope):
                 self.default_constructor = True
                 return
             for base_class in entry.type.base_classes:
+                if base_class is PyrexTypes.error_type:
+                    continue
                 temp_entry = base_class.scope.lookup_here("<init>")
                 found = False
                 if temp_entry is None:

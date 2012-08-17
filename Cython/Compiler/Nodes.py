@@ -1186,7 +1186,7 @@ class CppClassNode(CStructOrUnionDefNode):
         scope = None
         if self.attributes is not None:
             scope = CppClassScope(self.name, env, templates = self.templates)
-        base_class_types = [b.analyse(scope) for b in self.base_classes]
+        base_class_types = [b.analyse(scope or env) for b in self.base_classes]
         if self.templates is None:
             template_types = None
         else:
