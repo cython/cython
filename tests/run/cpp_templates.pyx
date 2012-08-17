@@ -19,7 +19,7 @@ cdef extern from "cpp_templates_helper.h":
     cdef cppclass SuperClass[T1, T2]:
         pass
 
-    cdef cppclass SubClass[T2, T3]:
+    cdef cppclass SubClass[T2, T3](SuperClass[T2, T3]):
         pass
 
 def test_int(int x, int y):
