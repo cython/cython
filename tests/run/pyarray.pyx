@@ -15,7 +15,7 @@ def test_len(a):
     >>> assert len(a) == test_len(a)
     """
     cdef array.array ca = a  # for C-fast array usage
-    return ca.length
+    return len(ca)
 
 def test_copy(a):
     """
@@ -42,14 +42,14 @@ def test_fast_access(a):
     
     cdef float value
     with nogil:
-        value = ca._f[1]
+        value = ca.data.as_floats[1]
     assert value == 2.0, value
 
     #assert ca._c[:5] == b'\x00\x00\x80?\x00', repr(ca._c[:5])
 
     with nogil:
-        ca._f[1] += 2.0
-    assert ca._f[1] == 4.0
+        ca.data.as_floats[1] += 2.0
+    assert ca.data.as_floats[1] == 4.0
 
 
 def test_fast_buffer_access(a):
@@ -77,7 +77,7 @@ def test_new_zero(a):
     array('f', [0.0, 0.0, 0.0])
     """
     cdef array.array cb = array.clone(a, len(a), True)
-    assert cb.length == len(a)
+    assert len(cb) == len(a)
     return cb
 
 
@@ -101,9 +101,9 @@ def test_resize(a):
     cdef array.array cb = array.copy(a)
     array.resize(cb, 10)
     for i in range(10):
-        cb._f[i] = i
-    assert cb.length == 10
-    assert cb[9] == cb[-1] == cb._f[9] == 9
+        cb.data.as_floats[i] = i
+    assert len(cb) == 10
+    assert cb[9] == cb[-1] == cb.data.as_floats[9] == 9
 
 def test_buffer():
     """
@@ -158,7 +158,7 @@ def test_likes(a):
     """
     cdef array.array z = array.clone(a, len(a), True)
     cdef array.array e = array.clone(a, len(a), False)
-    assert e.length == len(a)
+    assert len(e) == len(a)
     return z
 
 def test_extend_buffer():
@@ -172,6 +172,6 @@ def test_extend_buffer():
     s[1] = 5077
     array.extend_buffer(ca, <char*> &s, 2)
 
-    assert ca._L[3] == 5077
+    assert ca.data.as_ulongs[3] == 5077
     assert len(ca) == 4
     return ca

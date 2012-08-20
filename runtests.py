@@ -83,10 +83,6 @@ def update_numpy_extension(ext):
     import numpy
     ext.include_dirs.append(numpy.get_include())
 
-def update_pyarray_extension(ext):
-    # See http://gcc.gnu.org/onlinedocs/gcc/Unnamed-Fields.html#Unnamed-Fields
-    ext.extra_compile_args.append('-fms-extensions')
-
 def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
@@ -162,7 +158,6 @@ EXCLUDE_EXT = object()
 
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
-    'tag:array' : update_pyarray_extension,
     'tag:openmp': update_openmp_extension,
 }
 

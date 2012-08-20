@@ -1982,6 +1982,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         Builtin.frozenset_type : "PySet_Size",
         }.get
 
+    _ext_types_with_pysize = set(["cpython.array.array"])
+
     def _handle_simple_function_len(self, node, pos_args):
         """Replace len(char*) by the equivalent call to strlen() and
         len(known_builtin_type) by an equivalent C-API call.
@@ -2001,7 +2003,12 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         elif arg.type.is_pyobject:
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:
-                return node
+                arg_type = arg.type
+                if ((arg_type.is_extension_type or arg_type.is_builtin_type)
+                    and arg_type.entry.qualified_name in self._ext_types_with_pysize):
+                    cfunc_name = 'Py_SIZE'
+                else:
+                    return node
             arg = arg.as_none_safe_node(
                 "object of type 'NoneType' has no len()")
             new_node = ExprNodes.PythonCapiCallNode(
