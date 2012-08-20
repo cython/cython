@@ -2758,6 +2758,15 @@ class DefNodeWrapper(FuncDefNode):
 
         self.signature = target_entry.signature
 
+        # This is only really required for Cython utility code at this time,
+        # everything else can be done during code generation.  But we expand
+        # all utility code here, simply because we cannot easily distinguish
+        # different code types.
+        for arg in self.args:
+            if not arg.type.is_pyobject:
+                if not arg.type.create_from_py_utility_code(env):
+                    pass # will fail later
+
     def signature_has_nongeneric_args(self):
         argcount = len(self.args)
         if argcount == 0 or (
