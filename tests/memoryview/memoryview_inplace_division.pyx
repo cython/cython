@@ -1,5 +1,5 @@
 # mode: run
-# tag: memoryview, cdivision
+# tag: memoryview, cdivision, array
 
 cimport cython
 from cpython.array cimport array  # make Cython aware of the array type
