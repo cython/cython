@@ -2634,6 +2634,8 @@ class DefNode(FuncDefNode):
             for decorator in self.decorators[::-1]:
                 decorator.decorator.analyse_expressions(env)
 
+        self.py_wrapper.prepare_argument_coercion(env)
+
     def needs_assignment_synthesis(self, env, code=None):
         if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
             return False
@@ -2758,6 +2760,7 @@ class DefNodeWrapper(FuncDefNode):
 
         self.signature = target_entry.signature
 
+    def prepare_argument_coercion(self, env):
         # This is only really required for Cython utility code at this time,
         # everything else can be done during code generation.  But we expand
         # all utility code here, simply because we cannot easily distinguish
