@@ -1,25 +1,23 @@
 /////////////// ArrayAPI.proto ///////////////
 
-/* arrayarray.h  
-
-    Artificial C-API for Python's <array.array> type,
-    used by array.pxd
-    
-    last changes: 2009-05-15 rk
-                  2012-05-02 andreasvc
-                  (see revision control)
-
-*/
+// arrayarray.h
+//
+//    Artificial C-API for Python's <array.array> type,
+//    used by array.pxd
+//
+//    last changes: 2009-05-15 rk
+//                  2012-05-02 andreasvc
+//                  (see revision control)
+//
 
 #ifndef _ARRAYARRAY_H
 #define _ARRAYARRAY_H
 
 struct arrayobject; /* Forward */
 
-/* All possible arraydescr values are defined in the vector "descriptors"
- * below.  That's defined later because the appropriate get and set
- * functions aren't visible yet.
- */
+// All possible arraydescr values are defined in the vector "descriptors"
+// below.  That's defined later because the appropriate get and set
+// functions aren't visible yet.
 typedef struct arraydescr {
     int typecode;
     int itemsize;
@@ -66,11 +64,7 @@ typedef struct arrayobject {
 
 
 #ifndef NO_NEWARRAY_INLINE
-/* 
- * 
- *  fast creation of a new array
- */
-
+//  fast creation of a new array
 static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t size,
     struct arraydescr *descr) {
     arrayobject *op;
@@ -113,8 +107,8 @@ PyObject* newarrayobject(PyTypeObject *type, Py_ssize_t size,
     struct arraydescr *descr);
 #endif /* ifndef NO_NEWARRAY_INLINE */
 
-/* fast resize (reallocation to the point) 
-   not designed for filing small increments (but for fast opaque array apps) */
+// fast resize (reallocation to the point)
+// not designed for filing small increments (but for fast opaque array apps)
 static int resize(arrayobject *self, Py_ssize_t n) {
     void *item= (void*) self->ob_item;
     PyMem_Resize(item, char, (size_t)(n * self->ob_descr->itemsize));
@@ -130,8 +124,8 @@ static int resize(arrayobject *self, Py_ssize_t n) {
     return 0;
 }
 
-/* suitable for small increments; over allocation 50% ;
-   Remains non-smart in Python 2.3- ; but exists for compatibility */
+// suitable for small increments; over allocation 50% ;
+// Remains non-smart in Python 2.3- ; but exists for compatibility
 static int resize_smart(arrayobject *self, Py_ssize_t n) {
 #if PY_VERSION_HEX >= 0x02040000
     void *item = (void*) self->ob_item;
@@ -156,7 +150,6 @@ static int resize_smart(arrayobject *self, Py_ssize_t n) {
     return resize(self, n)   /* Python 2.3 has no 'allocated' */
 #endif
 }
-
 
 #endif
 /* _ARRAYARRAY_H */
