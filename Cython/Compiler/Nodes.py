@@ -6358,6 +6358,12 @@ class EnsureGILNode(GILExitNode):
     def generate_execution_code(self, code):
         code.put_ensure_gil(declare_gilstate=False)
 
+utility_code_for_cimports = {
+    # utility code (or inlining c) in a pxd (or pyx) file.
+    # TODO: Consider a generic user-level mechanism for importing
+    'cpython.array'         : ("ArrayAPI", "arrayarray.h"),
+    'cpython.array.array'   : ("ArrayAPI", "arrayarray.h"),
+}
 
 class CImportStatNode(StatNode):
     #  cimport statement
@@ -6389,10 +6395,9 @@ class CImportStatNode(StatNode):
         else:
             name = self.as_name or self.module_name
             env.declare_module(name, module_scope, self.pos)
-        if self.module_name == "cpython.array":
-            # TODO: Consider a generic user-level mechanism for importing
-            # utility code (or inlining c) in a pxd (or pyx) file.
-            env.use_utility_code(UtilityCode.load("ArrayAPI", "arrayarray.h"))
+        if self.module_name in utility_code_for_cimports:
+            env.use_utility_code(UtilityCode.load_cached(
+                *utility_code_for_cimports[self.module_name]))
 
     def analyse_expressions(self, env):
         pass
@@ -6443,12 +6448,16 @@ class FromCImportStatNode(StatNode):
                 if entry:
                     local_name = as_name or name
                     env.add_imported_entry(local_name, entry, pos)
-        if self.module_name == "cpython":
-            # TODO: Consider a generic user-level mechanism for importing
-            # utility code (or inlining c) in a pxd (or pyx) file.
+
+        if self.module_name.startswith('cpython'): # enough for now
+            if self.module_name in utility_code_for_cimports:
+                env.use_utility_code(UtilityCode.load_cached(
+                    *utility_code_for_cimports[self.module_name]))
             for _, name, _, _ in self.imported_names:
-                if name == "array":
-                    env.use_utility_code(UtilityCode.load("ArrayAPI", "arrayarray.h"))
+                fqname = '%s.%s' % (self.module_name, name)
+                if fqname in utility_code_for_cimports:
+                    env.use_utility_code(UtilityCode.load_cached(
+                        *utility_code_for_cimports[fqname]))
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:
