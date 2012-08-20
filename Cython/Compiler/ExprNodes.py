@@ -8723,7 +8723,7 @@ class CmpNode(object):
         # note: currently operand1 must get coerced to a Python object if we succeed here!
         if self.operator in ('==', '!='):
             type1, type2 = operand1.type, self.operand2.type
-            if type1.is_pyobject and type2.is_pyobject:
+            if type1.is_builtin_type and type2.is_builtin_type:
                 if type1 is Builtin.unicode_type or type2 is Builtin.unicode_type:
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
