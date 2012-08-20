@@ -4533,7 +4533,8 @@ class InPlaceAssignmentNode(AssignmentNode):
         if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
             if self.lhs.type.is_pyobject:
                 error(self.pos, "In-place operators not allowed on object buffers in this release.")
-            if c_op in ('/', '%') and self.lhs.type.is_int and not code.directives['cdivision']:
+            if (c_op in ('/', '%') and self.lhs.type.is_int
+                and not code.globalstate.directives['cdivision']):
                 error(self.pos, "In-place non-c divide operators not allowed on int buffers.")
             self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
         else:
