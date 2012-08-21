@@ -34,8 +34,12 @@ cython_vector_size = "CYTHON_VECTOR_SIZE"
 class TypeMapper(minitypes.TypeMapper):
     def map_type(self, type, wrap=False):
         if type.is_typedef:
-            return minitypes.TypeWrapper(type, self.context)
-        elif type.is_memoryviewslice:
+            if type.typedef_is_external:
+                return minitypes.TypeWrapper(type, self.context)
+            else:
+                type = type.resolve()
+
+        if type.is_memoryviewslice:
             dtype = self.map_type(type.dtype, wrap=wrap)
             return minitypes.ArrayType(dtype, len(type.axes),
                                        is_c_contig=type.is_c_contig,
