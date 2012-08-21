@@ -1187,7 +1187,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     Introducing C function calls here may not be a good idea.  Move
     them to the OptimizeBuiltinCalls transform instead, which runs
-    after type analyis.
+    after type analysis.
     """
     # only intercept on call nodes
     visit_Node = Visitor.VisitorTransform.recurse_to_children
