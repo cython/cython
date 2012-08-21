@@ -23,14 +23,14 @@ def test_Poly(int n, float radius=1):
     """
     >>> test_Poly(4)
     2.0
-    >>> test_Poly(3)
-    1.299038052558899
-    >>> test_Poly(3, 10.0)
-    129.90380859375
-    >>> test_Poly(100)
-    3.139525890350342
-    >>> test_Poly(1000)
-    3.1415719985961914
+    >>> test_Poly(3)         #doctest: +ELLIPSIS
+    1.29903...
+    >>> test_Poly(3, 10.0)   #doctest: +ELLIPSIS
+    129.903...
+    >>> test_Poly(100)       #doctest: +ELLIPSIS
+    3.13952...
+    >>> test_Poly(1000)      #doctest: +ELLIPSIS
+    3.14157...
     """
     cdef RegularPolygon* poly
     try:
