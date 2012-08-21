@@ -1256,8 +1256,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
             return # never used
-        code.putln("")
-        code.putln("static int %s(PyObject *o) {" % slot_func)
 
         py_attrs = []
         py_buffers = []
@@ -1266,6 +1264,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 py_attrs.append(entry)
             if entry.type == PyrexTypes.c_py_buffer_type:
                 py_buffers.append(entry)
+
+        if py_attrs or py_buffers or base_type:
+            unused = ''
+        else:
+            unused = 'CYTHON_UNUSED '
+
+        code.putln("")
+        code.putln("static int %s(%sPyObject *o) {" % (slot_func, unused))
 
         if py_attrs or py_buffers:
             self.generate_self_cast(scope, code)
