@@ -13,3 +13,12 @@ class TestClassDecorator(object):
     """
     def hello(self):
         return "Hello, world!"
+
+
+@decorate(lambda x: x)
+def test_function():
+    """
+    >>> test_function()
+    123
+    """
+    return 123

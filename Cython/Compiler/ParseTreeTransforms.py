@@ -1611,6 +1611,7 @@ if VALUE is not None:
                     decorator.pos,
                     function = decorator.decorator,
                     args = [rhs])
+            def_node.decorators = None
 
         assmt = Nodes.SingleAssignmentNode(
             def_node.pos,
