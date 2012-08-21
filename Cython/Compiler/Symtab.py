@@ -486,10 +486,11 @@ class Scope(object):
     def declare_cpp_class(self, name, scope,
             pos, cname = None, base_classes = (),
             visibility = 'extern', templates = None):
-        if visibility != 'extern':
-            error(pos, "C++ classes may only be extern")
         if cname is None:
-            cname = name
+            if self.in_cinclude or (visibility != 'private'):
+                cname = name
+            else:
+                cname = self.mangle(Naming.type_prefix, name)
         base_classes = list(base_classes)
         entry = self.lookup_here(name)
         if not entry:
@@ -497,6 +498,7 @@ class Scope(object):
                 name, scope, cname, base_classes, templates = templates)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
+            self.sue_entries.append(entry)
         else:
             if not (entry.is_type and entry.type.is_cpp_class):
                 error(pos, "'%s' redeclared " % name)
@@ -525,6 +527,7 @@ class Scope(object):
                     entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
         if entry.type.scope:
             declare_inherited_attributes(entry, base_classes)
+            entry.type.scope.declare_var(name="this", cname="this", type=PyrexTypes.CPtrType(entry.type), pos=entry.pos)
         if self.is_cpp_class_scope:
             entry.type.namespace = self.outer_scope.lookup(self.name).type
         return entry
@@ -1992,6 +1995,7 @@ class CppClassScope(Scope):
     is_cpp_class_scope = 1
 
     default_constructor = None
+    class_namespace = None
 
     def __init__(self, name, outer_scope, templates=None):
         Scope.__init__(self, name, outer_scope, None)
@@ -2010,10 +2014,10 @@ class CppClassScope(Scope):
         # Add an entry for an attribute.
         if not cname:
             cname = name
-        if type.is_cfunction:
-            type = PyrexTypes.CPtrType(type)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
+        if type.is_cfunction and self.class_namespace:
+            entry.func_cname = "%s::%s" % (self.class_namespace, cname)
         self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:
             error(pos,

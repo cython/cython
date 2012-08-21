@@ -2010,7 +2010,7 @@ class IteratorNode(ExprNode):
         elif sequence_type.is_cpp_class:
             begin = sequence_type.scope.lookup("begin")
             if begin is not None:
-                return begin.type.base_type.return_type
+                return begin.type.return_type
         elif sequence_type.is_pyobject:
             return sequence_type
         return py_object_type
@@ -2022,25 +2022,23 @@ class IteratorNode(ExprNode):
         begin = sequence_type.scope.lookup("begin")
         end = sequence_type.scope.lookup("end")
         if (begin is None
-            or not begin.type.is_ptr
-            or not begin.type.base_type.is_cfunction
-            or begin.type.base_type.args):
+            or not begin.type.is_cfunction
+            or begin.type.args):
             error(self.pos, "missing begin() on %s" % self.sequence.type)
             self.type = error_type
             return
         if (end is None
-            or not end.type.is_ptr
-            or not end.type.base_type.is_cfunction
-            or end.type.base_type.args):
+            or not end.type.is_cfunction
+            or end.type.args):
             error(self.pos, "missing end() on %s" % self.sequence.type)
             self.type = error_type
             return
-        iter_type = begin.type.base_type.return_type
+        iter_type = begin.type.return_type
         if iter_type.is_cpp_class:
             if env.lookup_operator_for_types(
                     self.pos,
                     "!=",
-                    [iter_type, end.type.base_type.return_type]) is None:
+                    [iter_type, end.type.return_type]) is None:
                 error(self.pos, "missing operator!= on result of begin() on %s" % self.sequence.type)
                 self.type = error_type
                 return
@@ -2054,7 +2052,7 @@ class IteratorNode(ExprNode):
                 return
             self.type = iter_type
         elif iter_type.is_ptr:
-            if not (iter_type == end.type.base_type.return_type):
+            if not (iter_type == end.type.return_type):
                 error(self.pos, "incompatible types for begin() and end()")
             self.type = iter_type
         else:
@@ -2234,7 +2232,7 @@ class NextNode(AtomicExprNode):
         if iterator_type.is_ptr or iterator_type.is_array:
             return iterator_type.base_type
         elif iterator_type.is_cpp_class:
-            item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.base_type.return_type
+            item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             if item_type.is_reference:
                 item_type = item_type.ref_base_type
             return item_type
@@ -2587,7 +2585,7 @@ class IndexNode(ExprNode):
             ]
             index_func = env.lookup_operator('[]', operands)
             if index_func is not None:
-                return index_func.type.base_type.return_type
+                return index_func.type.return_type
 
         # may be slicing or indexing, we don't know
         if base_type in (unicode_type, str_type):

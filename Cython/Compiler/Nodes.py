@@ -1162,7 +1162,7 @@ class CStructOrUnionDefNode(StatNode):
         pass
 
 
-class CppClassNode(CStructOrUnionDefNode):
+class CppClassNode(CStructOrUnionDefNode, BlockNode):
 
     #  name          string
     #  cname         string or None
@@ -1197,11 +1197,30 @@ class CppClassNode(CStructOrUnionDefNode):
         if self.entry is None:
             return
         self.entry.is_cpp_class = 1
+        scope.class_namespace = self.entry.type.declaration_code("")
+        defined_funcs = []
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
                 attr.analyse_declarations(scope)
+                if isinstance(attr, CFuncDefNode):
+                    defined_funcs.append(attr)
+        self.body = StatListNode(self.pos, stats=defined_funcs)
+        self.scope = scope
+
+    def analyse_expressions(self, env):
+        self.body.analyse_expressions(self.entry.type.scope)
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(self.entry.type.scope, code)
+
+    def generate_execution_code(self, code):
+        self.body.generate_execution_code(code)
+
+    def annotate(self, code):
+        self.body.annotate(code)
+
 
 class CEnumDefNode(StatNode):
     #  name           string or None
@@ -2122,7 +2141,7 @@ class CFuncDefNode(FuncDefNode):
         if cname is None:
             cname = self.entry.func_cname
         entity = type.function_header_code(cname, ', '.join(arg_decls))
-        if self.entry.visibility == 'private':
+        if self.entry.visibility == 'private' and '::' not in cname:
             storage_class = "static "
         else:
             storage_class = ""

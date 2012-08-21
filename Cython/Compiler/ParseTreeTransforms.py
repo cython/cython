@@ -1640,6 +1640,12 @@ if VALUE is not None:
         node.analyse_declarations(self.env_stack[-1])
         return node
 
+    def visit_CppClassNode(self, node):
+        if node.visibility == 'extern':
+            return None
+        else:
+            return self.visit_ClassDefNode(node)
+    
     def visit_CStructOrUnionDefNode(self, node):
         # Create a wrapper node if needed.
         # We want to use the struct type information (so it can't happen

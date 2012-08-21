@@ -3004,6 +3004,11 @@ class CppClassType(CType):
     has_attributes = 1
     exception_check = True
     namespace = None
+    
+    # For struct-like declaration.
+    kind = "struct"
+    packed = False
+    typedef_flag = False
 
     subtypes = ['templates']
 

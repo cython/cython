@@ -350,6 +350,12 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
         return node
 
+    def visit_CStructOrUnionDefNode(self, node):
+        self.env_stack.append((node, node.scope))
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
+
     def visit_ScopedExprNode(self, node):
         if node.expr_scope:
             self.env_stack.append((node, node.expr_scope))

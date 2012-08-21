@@ -612,7 +612,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type = entry.type
                 if type.is_typedef: # Must test this first!
                     pass
-                elif type.is_struct_or_union:
+                elif type.is_struct_or_union or type.is_cpp_class:
                     self.generate_struct_union_predeclaration(entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_predeclaration(type, code)
@@ -627,6 +627,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
+                elif type.is_cpp_class:
+                    self.generate_cpp_class_definition(entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_definition(type, code)
 
@@ -666,6 +668,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_struct_union_predeclaration(self, entry, code):
         type = entry.type
+        if type.is_cpp_class and type.templates:
+            code.putln("template <class %s>" % ", class ".join([T.declaration_code("") for T in type.templates]))
         code.putln(self.sue_predeclaration(type, type.kind, type.cname))
 
     def sue_header_footer(self, type, kind, name):
@@ -708,6 +712,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#elif !defined(__GNUC__)")
                 code.putln("  #pragma pack(pop)")
                 code.putln("#endif")
+
+    def generate_cpp_class_definition(self, entry, code):
+        code.mark_pos(entry.pos)
+        type = entry.type
+        scope = type.scope
+        if scope:
+            if type.templates:
+                code.putln("template <class %s>" % ", class ".join([T.declaration_code("") for T in type.templates]))
+            # Just let everything be public.
+            code.put("struct %s" % type.cname)
+            if type.base_classes:
+                base_class_decl = ", public ".join(
+                    [base_class.declaration_code("") for base_class in type.base_classes])
+                code.put(" : public %s" % base_class_decl)
+            code.putln(" {")
+            for attr in scope.var_entries:
+                if attr.type.is_cfunction:
+                    code.put("virtual ")
+                code.putln(
+                    "%s;" %
+                        attr.type.declaration_code(attr.cname))
+            code.putln("};")
 
     def generate_enum_definition(self, entry, code):
         code.mark_pos(entry.pos)
