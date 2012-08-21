@@ -1199,7 +1199,8 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
         if self.entry is None:
             return
         self.entry.is_cpp_class = 1
-        scope.type = self.entry.type
+        if scope is not None:
+            scope.type = self.entry.type
         defined_funcs = []
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
