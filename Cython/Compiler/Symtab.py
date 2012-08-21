@@ -730,6 +730,10 @@ class Scope(object):
         # Look up in this scope only, return None if not found.
         return self.entries.get(name, None)
 
+    def lookup_relative(self, name, pos):
+        # Like lookup(): look up a name, relative to the current source position.
+        return self.lookup(name)
+
     def lookup_target(self, name):
         # Look up name in this scope only. Declare as Python
         # variable if not found.
@@ -1694,6 +1698,14 @@ class PyClassScope(ClassScope):
     def lookup_here(self, name):
         name = self.mangle_special_name(name)
         return ClassScope.lookup_here(self, name)
+
+    def lookup_relative(self, name, pos):
+        entry = self.lookup_here(name)
+        if entry is not None and entry.pos[1:] <= pos[1:]:
+            return entry
+        if self.outer_scope:
+            return self.outer_scope.lookup_relative(name, pos)
+        return None
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',

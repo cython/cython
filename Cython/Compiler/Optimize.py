@@ -1215,7 +1215,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if not function.is_name:
             return False
         env = self.current_env()
-        entry = env.lookup(function.name)
+        entry = env.lookup_relative(function.name, function.pos)
         if entry is not env.builtin_scope().lookup_here(function.name):
             return False
         # if entry is None, it's at least an undeclared name, so likely builtin
