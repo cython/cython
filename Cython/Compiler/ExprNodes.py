@@ -2132,17 +2132,20 @@ class IteratorNode(ExprNode):
             inc_dec = '++'
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
         code.putln(
-            "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s;" % (
+            "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s; %s" % (
                 result_name,
                 test_name,
                 self.py_result(),
                 self.counter_cname,
                 result_name,
                 self.counter_cname,
-                inc_dec))
+                inc_dec,
+                # use the error label to avoid C compiler warnings if we only use it below
+                code.error_goto_if_neg('0', self.pos)
+                ))
         code.putln("#else")
         code.putln(
-            "%s = PySequence_ITEM(%s, %s); %s%s; %s;" % (
+            "%s = PySequence_ITEM(%s, %s); %s%s; %s" % (
                 result_name,
                 self.py_result(),
                 self.counter_cname,
