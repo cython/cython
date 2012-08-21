@@ -519,9 +519,9 @@ def test_structarray_errors(StructArray[:] a):
     """
 
 cdef struct StringStruct:
-    char c[4][4]
+    signed char c[4][4]
 
-ctypedef char String[4][4]
+ctypedef signed char String[4][4]
 
 def stringstructtest(StringStruct[:] view):
     pass
