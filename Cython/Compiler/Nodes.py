@@ -3793,7 +3793,7 @@ class PyClassDefNode(ClassDefNode):
     #  target   NameNode   Variable to assign class object to
 
     child_attrs = ["body", "dict", "metaclass", "mkw", "bases", "class_result",
-                   "target", "class_cell"]
+                   "target", "class_cell", "decorators"]
     decorators = None
     class_result = None
     py3_style_class = False # Python3 style class (bases+kwargs)
@@ -3910,6 +3910,7 @@ class PyClassDefNode(ClassDefNode):
                     decorator.pos,
                     function = decorator.decorator,
                     args = [class_result])
+            self.decorators = None
         self.class_result = class_result
         self.class_result.analyse_declarations(env)
         self.target.analyse_target_declaration(env)
