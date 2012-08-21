@@ -669,7 +669,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_struct_union_predeclaration(self, entry, code):
         type = entry.type
         if type.is_cpp_class and type.templates:
-            code.putln("template <class %s>" % ", class ".join([T.declaration_code("") for T in type.templates]))
+            code.putln("template <typename %s>" % ", typename ".join([T.declaration_code("") for T in type.templates]))
         code.putln(self.sue_predeclaration(type, type.kind, type.cname))
 
     def sue_header_footer(self, type, kind, name):
@@ -728,7 +728,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
             for attr in scope.var_entries:
-                if attr.type.is_cfunction:
+                if attr.type.is_cfunction and attr.name != "<init>":
                     code.put("virtual ")
                 code.putln(
                     "%s;" %

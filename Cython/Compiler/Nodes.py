@@ -1197,7 +1197,7 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
         if self.entry is None:
             return
         self.entry.is_cpp_class = 1
-        scope.class_namespace = self.entry.type.declaration_code("")
+        scope.type = self.entry.type
         defined_funcs = []
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
@@ -1206,6 +1206,8 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
                 attr.analyse_declarations(scope)
                 if isinstance(attr, CFuncDefNode):
                     defined_funcs.append(attr)
+                    if self.templates is not None:
+                        attr.template_declaration = "template <typename %s>" % ", typename ".join(self.templates)
         self.body = StatListNode(self.pos, stats=defined_funcs)
         self.scope = scope
 
@@ -1935,6 +1937,7 @@ class CFuncDefNode(FuncDefNode):
     #  py_func       wrapper for calling from Python
     #  overridable   whether or not this is a cpdef function
     #  inline_in_pxd whether this is an inline function in a pxd file
+    #  template_declaration  String or None   Used for c++ class methods
 
     child_attrs = ["base_type", "declarator", "body", "py_func"]
 
@@ -1943,6 +1946,7 @@ class CFuncDefNode(FuncDefNode):
     directive_locals = None
     directive_returns = None
     override = None
+    template_declaration = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -2150,6 +2154,8 @@ class CFuncDefNode(FuncDefNode):
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)
+        if self.template_declaration:
+            code.putln(self.template_declaration)
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
 
     def generate_argument_declarations(self, env, code):

@@ -1995,7 +1995,7 @@ class CppClassScope(Scope):
     is_cpp_class_scope = 1
 
     default_constructor = None
-    class_namespace = None
+    type = None
 
     def __init__(self, name, outer_scope, templates=None):
         Scope.__init__(self, name, outer_scope, None)
@@ -2010,15 +2010,21 @@ class CppClassScope(Scope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'extern',
                     api = 0, in_pxd = 0, is_cdef = 0,
-                    allow_pyobject = 0):
+                    allow_pyobject = 0, defining = 0):
         # Add an entry for an attribute.
         if not cname:
             cname = name
-        entry = self.declare(name, cname, type, pos, visibility)
+        entry = self.lookup_here(name)
+        if defining and entry is not None:
+            if not entry.type.same_as(type):
+                error(pos, "Function signature does not match previous declaration")
+        else:
+            entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
-        if type.is_cfunction and self.class_namespace:
-            entry.func_cname = "%s::%s" % (self.class_namespace, cname)
-        self.var_entries.append(entry)
+        if type.is_cfunction and self.type:
+            entry.func_cname = "%s::%s" % (self.type.declaration_code(""), cname)
+        if name != "this" and (defining or name != "<init>"):
+            self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:
             error(pos,
                 "C++ class member cannot be a Python object")
@@ -2056,14 +2062,20 @@ class CppClassScope(Scope):
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'extern', api = 0, in_pxd = 0,
                           defining = 0, modifiers = (), utility_code = None):
-        if name == self.name.split('::')[-1] and cname is None:
+        if name in (self.name.split('::')[-1], '__init__') and cname is None:
             self.check_base_default_constructor(pos)
+            cname = self.type.cname
             name = '<init>'
-            type.return_type = self.lookup(self.name).type
+            type.return_type = PyrexTypes.InvisibleVoidType()
+        elif name == '__dealloc__' and cname is None:
+            cname = "~%s" % self.type.cname
+            name = '<del>'
+            type.return_type = PyrexTypes.InvisibleVoidType()
         prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos,
+                                 defining=defining,
                                  cname=cname, visibility=visibility)
-        if prev_entry:
+        if prev_entry and not defining:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
         type.entry = entry

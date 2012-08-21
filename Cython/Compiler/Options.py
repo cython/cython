@@ -125,6 +125,7 @@ directive_defaults = {
 
 # experimental, subject to change
     'binding': False,
+    'experimental_cpp_class_def': False
 }
 
 # Extra warning directives

@@ -1329,9 +1329,8 @@ class NewExprNode(AtomicExprNode):
         self.cpp_check(env)
         constructor = type.scope.lookup(u'<init>')
         if constructor is None:
-            return_type = PyrexTypes.CFuncType(type, [], exception_check='+')
-            return_type = PyrexTypes.CPtrType(return_type)
-            type.scope.declare_cfunction(u'<init>', return_type, self.pos)
+            func_type = PyrexTypes.CFuncType(type, [], exception_check='+')
+            type.scope.declare_cfunction(u'<init>', func_type, self.pos)
             constructor = type.scope.lookup(u'<init>')
         self.class_type = type
         self.entry = constructor
@@ -3705,6 +3704,7 @@ class CallNode(ExprNode):
             self.function.entry = constructor
             self.function.set_cname(type.declaration_code(""))
             self.analyse_c_function_call(env)
+            self.type = type
             return True
 
     def is_lvalue(self):

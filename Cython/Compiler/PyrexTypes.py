@@ -1213,6 +1213,19 @@ class CVoidType(CType):
     def is_complete(self):
         return 0
 
+class InvisibleVoidType(CVoidType):
+    #
+    #   For use with C++ constructors and destructors return types.
+    #   Acts like void, but does not print out a declaration.
+    #
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            base_code = "[void]"
+        else:
+            base_code = public_decl("", dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
+
 
 class CNumericType(CType):
     #
