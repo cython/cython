@@ -1,3 +1,10 @@
+"""
+This is the main module for vector/array expressions in Cython. We take our
+Cython representation of the AST and map it to a minivect AST. We also generate
+the code to check for overlapping memory, to broadcast the shape, and
+to select the right specialization.
+"""
+
 import os
 import copy
 
@@ -32,6 +39,10 @@ write_graphviz = False
 cython_vector_size = "CYTHON_VECTOR_SIZE"
 
 class TypeMapper(minitypes.TypeMapper):
+    """
+    Map Cython types to minitypes.
+    """
+
     def map_type(self, type, wrap=False):
         if type.is_typedef:
             if type.typedef_is_external:
@@ -74,6 +85,10 @@ class TypeMapper(minitypes.TypeMapper):
             raise minierror.UnmappableTypeError(type)
 
 class VariableResolvingMixin(object):
+    """
+    When wrapping a miniast in a wrapped Cython AST, be sure to visit those
+    leaves to resolve the Variables to data elements.
+    """
 
     is_partial_mapping = False
 
@@ -84,12 +99,19 @@ class VariableResolvingMixin(object):
         return node
 
 class CythonSpecializerMixin(VariableResolvingMixin):
+    """
+    Cython-specific specializer mixin. Qualifies the data pointer types with
+    const and restrict, sets the auto-tuned OpenMP and tiling sizes and adds
+    it as function arguments. Also drops OpenMP for-loop nodes when dealing
+    with potential exceptions (cannot jump from a parallel block).
+    """
 
     has_error_handler = False
 
     def visit_FunctionNode(self, node):
         b = self.astbuilder
 
+        # qualify all the pointers for shape, strides and the data pointers
         def qualify(type):
             type = type.qualify("const", "CYTHON_RESTRICT")
             type.base_type = type.base_type.qualify("const")
@@ -108,9 +130,11 @@ class CythonSpecializerMixin(VariableResolvingMixin):
 
         type = minitypes.Py_ssize_t.qualify("const")
         if self.is_tiled_specializer:
+            # Add the tiling blocksize as an argument
             self._blocksize_var = b.variable(type, 'blocksize')
             node.scalar_arguments.append(b.funcarg(self._blocksize_var))
 
+        # Add the OpenMP size as an argument
         node.omp_size = b.variable(type, 'omp_size')
         node.scalar_arguments.append(b.funcarg(node.omp_size))
         node = super(CythonSpecializerMixin, self).visit_FunctionNode(node)
@@ -131,6 +155,17 @@ class CythonSpecializerMixin(VariableResolvingMixin):
         return self._blocksize_var
 
 def create_hybrid_code(codegen, old_minicode):
+    """
+    Return a CodeWriter compatible with both Cython and minivect. This is
+    slightly insane, but minivect currently returns the code as strings,
+    which is somewhat cleaner, but more of a pain when wrapping Cython
+    ASTs in miniasts. OTOH, it's more consistent with how the LLVM backend
+    operates.
+
+    TODO: just pass minivect a minivect-compatible Cython codewriter
+          and write everything in there. Adapt minivect's Context class
+          accordingly...
+    """
     minicode = codegen.context.codewriter_cls(codegen.context)
     minicode.indent = old_minicode.indent
     code = CythonCCodeWriter(codegen.context, minicode)
@@ -140,18 +175,28 @@ def create_hybrid_code(codegen, old_minicode):
     return code
 
 class CCodeGen(codegen.VectorCodegen):
+    """
+    Generate C code for our mapped array expressions.
+    """
 
     def __init__(self, context, codewriter):
         super(CCodeGen, self).__init__(context, codewriter)
         self.error_handlers = []
 
     def visit_ErrorHandler(self, node):
+        """
+        Keep track of error handlers for CythonCCodeWriter.
+        """
         self.error_handlers.append(node)
         result = super(CCodeGen, self).visit_ErrorHandler(node)
         self.error_handlers.pop()
         return result
 
     def visit_FunctionNode(self, node):
+        """
+        Make sure to insert Refnanny declarations when we are using object
+        arrays.
+        """
         result = super(CCodeGen, self).visit_FunctionNode(node)
         if self.specializer.is_partial_mapping:
             self.code.function_declarations.putln("__Pyx_RefNannyDeclarations")
@@ -159,6 +204,12 @@ class CCodeGen(codegen.VectorCodegen):
                     '__Pyx_RefNannySetupContext("%s", 1);' % node.mangled_name)
 
     def visit_NodeWrapper(self, node):
+        """
+        Cython AST in a miniast. Let Cython generate code in a new codewriter
+        and capture the result. The evaluation code is written to the
+        minivect CodeWriter, and the result of the expression returned as a
+        string.
+        """
         for operand in node.operands:
             operand.codegen = self
 
@@ -181,7 +232,12 @@ class CCodeGen(codegen.VectorCodegen):
         return node.result()
 
 class CCodeGenCleanup(codegen.CodeGenCleanup):
+    """
+    Generate disposal code for wrapped Cython ASTs.
+    """
+
     error_handler_level = 0
+
     def visit_ErrorHandler(self, node):
         self.error_handler_level += 1
         super(CCodeGenCleanup, self).visit_ErrorHandler(node)
@@ -256,6 +312,10 @@ class CythonGraphvizGenerator(graphviz.GraphvizGenerator):
         return result
 
 class Context(miniast.CContext):
+    """
+    A Cython context for minivect. Sets all our classes for minivect to
+    instantiate.
+    """
 
     debug = _context_debug
     optimize_broadcasting = False
@@ -288,6 +348,11 @@ class Context(miniast.CContext):
         return Visitor.PrintTree()(node)
 
 class CythonCCodeWriter(Code.CCodeWriter):
+    """
+    Cython codewriter for writing code for Cython node in minivect functions.
+    We have to take special care with handling error gotos. Sets the minivect
+    positional info for the caller on error.
+    """
 
     def __init__(self, context, minicode):
         super(CythonCCodeWriter, self).__init__()
@@ -331,10 +396,11 @@ class OperandNode(ExprNodes.ExprNode):
 
     Summary:
 
-        miniast
-            -> cython ast
-                -> operand node
-                    -> miniast
+        -> miniast
+            -> NodeWrapper
+                -> cython ast
+                    -> operand node
+                        -> miniast
     """
 
     subexprs = []
@@ -350,6 +416,7 @@ class OperandNode(ExprNodes.ExprNode):
 
 
 class MemoryAllocationNode(ExprNodes.ExprNode):
+    "Allocate some memory, raise an exception in case of an error."
     subexprs = ['size']
 
     def analyse_types(self, env):
@@ -419,6 +486,10 @@ class TempSliceMemory(ExprNodes.ExprNode):
         return self.target.result()
 
 class CheckOverlappingMemoryNode(ExprNodes.ExprNode):
+    """
+    Check for overlapping memory between a source array and a destination
+    array.
+    """
     subexprs = ['dst']
 
     def analyse_types(self, env):
@@ -501,7 +572,14 @@ def slice_type(type, ndim):
     return PyrexTypes.MemoryViewSliceType(type.dtype, type.axes[-ndim:])
 
 class UnbroadcastDestNode(ExprNodes.ExprNode):
+    """
+    This node is used to pretend that the LHS has the same dimensionality
+    as the RHS while mapping to minivect. This allows us to avoid
+    re-computation when we know at compile-time the assignment would broadcast.
+    """
+
     subexprs = []
+
     def analyse_types(self, env):
         self.type = slice_type(self.lhs.type, self.rhs.type.ndim)
         self.is_temp = True
@@ -511,9 +589,14 @@ class UnbroadcastDestNode(ExprNodes.ExprNode):
 
 class TempSliceStruct(ExprNodes.ExprNode):
     """
-    Alloate a temporary memoryview slice (only the struct temporary).
+    Alloate a temporary memoryview slice (only the struct temporary). This is
+    useful for instance to broadcast the RHS in, and set LHS to before the
+    final broadcast kicks in. When used as the LHS of an assignment it
+    replicates the RHS struct.
     """
+
     subexprs = []
+
     def analyse_types(self, env):
         self.type = PyrexTypes.MemoryViewSliceType(
             self.dtype, self.axes[-self.ndim:])
@@ -531,11 +614,16 @@ class TempSliceStruct(ExprNodes.ExprNode):
 
 class TempCythonArrayNode(ExprNodes.ExprNode):
     """
+    Create a temporary cython.view.array. This is used for expressions like
+    a = b[:, :] + c[:, :], where we have to allocate a new array.
+
     Attributes:
         dest_array_type
         rhs: the broadcasted rhs node
     """
+
     subexprs = ['format_string']
+
     def analyse_types(self, env):
         self.dtype = self.dest_array_type.dtype
         self.type = PyrexTypes.py_object_type
@@ -554,6 +642,10 @@ class TempCythonArrayNode(ExprNodes.ExprNode):
         code.put_gotref(self.result())
 
 class DetermineArrayLayoutNode(ExprNodes.ExprNode):
+    """
+    Determines the data layouts of all array operands in the expression, and
+    sets flags accordingly. See Cython/Utility/Vector.c
+    """
     subexprs = []
     def analyse_types(self, env):
         self.type = PyrexTypes.c_int_type
@@ -603,6 +695,8 @@ class SpecializationCaller(ExprNodes.ExprNode):
     operands: all participating array views
     scalar_operands: non-array operands
     function: miniast function wrapping the array expression
+    target: the memoryview slice used for assignment. If not given, a temporary
+            memoryview slice struct is allocated.
 
     During code generation:
         broadcasting: result code indicating whether the operation is
@@ -643,12 +737,14 @@ class SpecializationCaller(ExprNodes.ExprNode):
         """
         Remove a broadcasting offset for the RHS and remove that offset. E.g.
 
-            a1d[:] = b2d[:] + 1
+            a1d[:] = b2d[:, :] + 1
 
         Here b2d is demoted to a 1d array, and shape[0] is asserted to be 1.
 
         Note: we never broadcast the LHS with the RHS since we only want to
         evaluate the RHS once, and then broadcast the result along the LHS.
+        This would be better generalized in an optimizing hoister pass in
+        minivect.
         """
         if self.type.ndim <= self.dst.type.ndim:
             return
@@ -711,6 +807,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
         return specializer, ast, codewriter, (proto, impl), counter
 
     def get_function_counter(self, proto, impl):
+        "Get a function counter for name mangling. Consult the code cache first."
         code_counter = self.code_counter
         filename = getattr(self.pos[0], 'filename', None)
         if filename is not None:
@@ -788,10 +885,12 @@ class SpecializationCaller(ExprNodes.ExprNode):
                                              can_vectorize=False)
 
     def is_c_order_code(self):
+        "Return whether the common array layout is more C than Fortran oriented"
         return "%s & __PYX_ARRAY_C_ORDER" % self.array_layout.result()
 
     def put_ordered_specializations(self, code, c_specialization,
                                                 f_specialization):
+        "Put a branch on C/F order and call the respective specialization"
         code.putln("if (%s) {" % self.is_c_order_code())
         self.put_specialization_and_call(code, c_specialization)
         code.putln("} else {")
@@ -837,7 +936,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
     def _put_inner_contig_specializations(self, code, if_clause, mixed_contig):
         """
         Insert the inner contiguous specialization, if we have more than two
-        dimensions. We the rhs is 2D but the LHS 1D, it means the actual
+        dimensions. If the rhs is 2D but the LHS 1D, it means the actual
         pattern is 1D.
         """
         if (not mixed_contig and self.dst.type.ndim > 1 and
@@ -867,6 +966,7 @@ class SpecializationCaller(ExprNodes.ExprNode):
             code.putln("}")
 
     def generate_result_code(self, code):
+        "Generate a branch and call to each specialization"
         contig, mixed_contig, c_contig, f_contig = all_c_or_f_contig(self.operands)
 
         self.context.original_cython_code = code
@@ -881,16 +981,6 @@ class SpecializationCaller(ExprNodes.ExprNode):
             if_clause = self._put_inner_contig_specializations(code, if_clause,
                                                                mixed_contig)
         self._put_strided_specializations(code, if_clause, mixed_contig)
-
-    def contig_condition(self, specializer):
-        if specializer.is_contig_specializer:
-            if not self.all_contig:
-                # todo: implement a memoryview flag to quickly check whether
-                #       it is contig for each operand
-                return "0"
-            return "!%s" % self.broadcasting
-
-        return MemoryView.get_best_slice_order(self.target)
 
     def put_specialized_call(self, code, specializer, specialized_function,
                              codewriter, result_code, code_counter=None):
@@ -937,6 +1027,10 @@ class SpecializationCaller(ExprNodes.ExprNode):
             code.putln("(void) %s;" % call)
 
 def offsets(lhs, rhs):
+    """
+    Get the LHS and RHS offsets in order to obtain a dimensional correspondence.
+    These broadcasting rules are tiresome :)
+    """
     lhs_ndim = lhs.type.ndim
     rhs_ndim = rhs.type.ndim
     lhs_offset = max(lhs_ndim - rhs_ndim, 0)
@@ -989,6 +1083,7 @@ class ElementalNode(ExprNodes.ExprNode):
 
         self.lhs = self.lhs.coerce_to_simple(env)
 
+        # Create the code to branch and call a specialization
         self.rhs = SpecializationCaller(
             self.operands[0].pos, context=self.minicontext,
             dst=self.lhs, operands=self.operands,
@@ -1027,6 +1122,7 @@ class ElementalNode(ExprNodes.ExprNode):
         self.broadcast.analyse_types(env)
 
     def final_assignment(self):
+        "Generate a minivect data copy function"
         b = self.minicontext.astbuilder
         typemapper = self.minicontext.typemapper
 
@@ -1055,6 +1151,7 @@ class ElementalNode(ExprNodes.ExprNode):
                                     target=self.lhs.wrap_in_clone_node())
 
     def overlap(self):
+        "Check for overlapping memory using the CheckOverlappingMemoryNode"
         if self.may_error:
             return "1"
         return "unlikely(%s)" % self.check_overlap.result()
@@ -1103,12 +1200,17 @@ class ElementalNode(ExprNodes.ExprNode):
                 code.putln("}")
 
     def verify_final_shape(self, code):
+        """
+        Check whether the LHS and RHS have compatible shapes before executing
+        the first expression.
+        """
         call = "__pyx_verify_shapes(%s, %s, %d, %d)" % (
             self.lhs.result(), self.rhs.result(),
             self.lhs.type.ndim, self.rhs.type.ndim)
         code.putln(code.error_goto_if_neg(call, self.pos))
 
     def generate_evaluation_code(self, code):
+        "Set everything in motion... Part of this should be moved to minivect"
         code.mark_pos(self.pos)
 
         code.putln("/* LHS */")
@@ -1181,6 +1283,7 @@ class ElementalNode(ExprNodes.ExprNode):
             code.putln("}")
 
     def generate_disposal_code(self, code):
+        "Let our children dispose of any garbage"
         for child_attr in self.child_attrs:
             if child_attr == 'acquire_slice':
                 continue
@@ -1248,6 +1351,11 @@ def get_dtype(type):
     return type
 
 class CythonASTInMiniastTransform(Visitor.VisitorTransform):
+    """
+    Process a wrapped Cython AST. This means we have to turn memoryview slice
+    types in the corresponding scalar types. The leaves are OperandNodes which
+    bridge back to minivect.
+    """
 
     def __init__(self, env):
         super(CythonASTInMiniastTransform, self).__init__()
@@ -1275,6 +1383,7 @@ class CythonASTInMiniastTransform(Visitor.VisitorTransform):
         return node
 
 def elemental_dispatcher(f):
+    "Register any non-elemental sub-expression as an operand to the function"
     def wrapper_method(self, node):
         if not node.is_elemental:
             return self.register_operand(node)
@@ -1291,6 +1400,7 @@ def elemental_dispatcher(f):
     return wrapper_method
 
 def resolve_node(node):
+    "Normalize nodes for equality comparison"
     # Only resolve rhs operands
     #if isinstance(node, UnbroadcastDestNode):
     #    return resolve_node(node.lhs)
@@ -1302,6 +1412,10 @@ def resolve_node(node):
         return node
 
 def equal_operands(node1, node2):
+    """
+    Compare two array operand nodes. If they are equal, they share the passed
+    in data pointer and strides in the minivect function.
+    """
     node1 = resolve_node(node1)
     node2 = resolve_node(node2)
 
@@ -1411,6 +1525,10 @@ class ElementalMapper(specializers.ASTMapper):
         """
         return self.register_operand(node)
 
+    #
+    ### Map the Cython AST to a minivect AST
+    #
+
     def visit_SingleAssignmentNode(self, node):
         if isinstance(node.lhs, ExprNodes.MemoryCopySlice):
             lhs = node.lhs.dst
@@ -1448,7 +1566,7 @@ class ElementalMapper(specializers.ASTMapper):
 
 class ElementWiseOperationsTransform(Visitor.EnvTransform):
     """
-    Find elementwise expressions and run ElementalMapper to turn it into
+    Find element-wise expressions and run ElementalMapper to turn it into
     a minivect AST. Our Cython tree ends here in an ElementalNode, which
     responsibility is to call the function generated by minivect (as well
     as to perform broadcasting and selection of the right specialization).
@@ -1463,58 +1581,72 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
         self.visitchildren(node)
         return node
 
+    def register_array_expression(self, node, lhs, acquire_slice):
+        """
+        Start the mapping process for the outmost node in the array expression.
+
+        lhs: the memoryview slice temporary struct we assign the result of the
+        array expression to
+
+        acquire_slice: is the node that creates a memoryview slice from the new
+        Cython array for expression where we have to create new arrays.
+        """
+        load_utilities(self.current_env())
+
+        b = self.minicontext.astbuilder
+        b.pos = node.pos
+        astmapper = ElementalMapper(self.minicontext, self.current_env(),
+                                    max_ndim=lhs.type.ndim)
+
+        try:
+            body = astmapper.visit(node)
+        except minierror.UnmappableTypeError:
+            return None
+
+        name = '__pyx_array_expression'
+
+        if astmapper.may_error:
+            pos_args = (
+                b.variable(minitypes.c_string_type.pointer(), 'filename'),
+                b.variable(minitypes.int_.pointer(), 'lineno'),
+                b.variable(minitypes.int_.pointer(), 'column'))
+            posinfo = b.funcarg(b.variable(None, 'position'), *pos_args)
+            self.may_error = False
+        else:
+            posinfo = None
+
+        function = b.function(name, body, astmapper.funcargs,
+                              posinfo=posinfo)
+
+        if write_graphviz:
+            print "Writing", graphviz_out_filename_unspecialized
+            f = open(graphviz_out_filename_unspecialized, 'w')
+            f.write(self.minicontext.graphviz(function))
+            f.close()
+
+        astmapper.operands.pop(0)
+
+        node = ElementalNode(node.pos,
+                             operands=astmapper.operands,
+                             scalar_operands=astmapper.scalar_operands,
+                             rhs_function=function,
+                             minicontext=self.minicontext,
+                             lhs=lhs,
+                             acquire_slice=acquire_slice)
+        node.analyse_expressions(self.current_env())
+        #node = Nodes.ExprStatNode(node.pos, expr=node)
+        return node
+
     def visit_elemental(self, node, lhs=None, acquire_slice=None):
         self.in_elemental += 1
         self.visitchildren(node)
         self.in_elemental -= 1
 
         if not self.in_elemental:
-            # Convert the Cython AST to a minivect AST and generate code
-            # to select the right specialization
-            load_utilities(self.current_env())
+            # Outermost AST node in the array expression. Replace the AST
+            # here by convert the Cython AST etc
+            node = self.register_array_expression(node, lhs, acquire_slice)
 
-            b = self.minicontext.astbuilder
-            b.pos = node.pos
-            astmapper = ElementalMapper(self.minicontext, self.current_env(),
-                                        max_ndim=lhs.type.ndim)
-
-            try:
-                body = astmapper.visit(node)
-            except minierror.UnmappableTypeError:
-                return None
-
-            name = '__pyx_array_expression'
-
-            if astmapper.may_error:
-                pos_args = (
-                    b.variable(minitypes.c_string_type.pointer(), 'filename'),
-                    b.variable(minitypes.int_.pointer(), 'lineno'),
-                    b.variable(minitypes.int_.pointer(), 'column'))
-                posinfo = b.funcarg(b.variable(None, 'position'), *pos_args)
-                self.may_error = False
-            else:
-                posinfo = None
-
-            function = b.function(name, body, astmapper.funcargs,
-                                  posinfo=posinfo)
-
-            if write_graphviz:
-                print "Writing", graphviz_out_filename_unspecialized
-                f = open(graphviz_out_filename_unspecialized, 'w')
-                f.write(self.minicontext.graphviz(function))
-                f.close()
-
-            astmapper.operands.pop(0)
-
-            node = ElementalNode(node.pos,
-                                 operands=astmapper.operands,
-                                 scalar_operands=astmapper.scalar_operands,
-                                 rhs_function=function,
-                                 minicontext=self.minicontext,
-                                 lhs=lhs,
-                                 acquire_slice=acquire_slice)
-            node.analyse_expressions(self.current_env())
-            #node = Nodes.ExprStatNode(node.pos, expr=node)
         return node
 
     def visit_SingleAssignmentNode(self, node):
@@ -1522,6 +1654,7 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
         if (isinstance(node.lhs, ExprNodes.MemoryCopySlice) and
                 node.lhs.is_elemental):
             assert not self.in_elemental
+            # assignment to the memory of an array
             node.is_elemental = True
 
             node.lhs.dst = UnbroadcastDestNode(
@@ -1530,18 +1663,22 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
             node.lhs.dst.analyse_types(env)
 
             elemental_node = self.visit_elemental(node, node.lhs.dst)
+            # Turn our expression node into a statement
             return Nodes.ExprStatNode(node.pos, expr=elemental_node)
         else:
+            # Normal assignment, or assignment of new array. Just recurse...
             is_elemental = node.rhs.is_elemental
             self.visitchildren(node)
             if is_elemental:
+                # If a new assignment, re-analyse the types since the RHS type
+                # may have changed (it may suddenly be contiguous)
                 node.analyse_types(env)
             return node
 
     def visit_ExprNode(self, node):
         if node.is_elemental:
             if self.in_elemental:
-                # We are already in an elemental expression, just recursve
+                # We are already in an element-wise expression, just recurse
                 return self.visit_elemental(node)
 
             # We are an outer expression which is not a direct assignment
@@ -1606,6 +1743,9 @@ class ElementWiseOperationsTransform(Visitor.EnvTransform):
         #elemental_node.final_lhs_assignment = final_assignment
         return tmp_lhs, elemental_node
 
+#
+### Utility codes for array expressions
+#
 def load_utilities(env):
     from Cython.Compiler import CythonScope
     cython_scope = CythonScope.get_cython_scope(env)
