@@ -119,11 +119,18 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar)
 static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
                                      Py_ssize_t start, Py_ssize_t end, int direction) {
     if (unlikely(PyTuple_Check(substr))) {
-        int result;
-        Py_ssize_t i;
-        for (i = 0; i < PyTuple_GET_SIZE(substr); i++) {
+        Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
+        for (i = 0; i < count; i++) {
+            int result;
+#if CYTHON_COMPILING_IN_CPYTHON
             result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
                                          start, end, direction);
+#else
+            PyObject* sub = PySequence_GetItem(substr, i);
+            if (unlikely(!sub)) return -1;
+            result = PyUnicode_Tailmatch(s, sub, start, end, direction);
+            Py_DECREF(sub);
+#endif
             if (result) {
                 return result;
             }
@@ -206,11 +213,18 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t 
                                    Py_ssize_t end, int direction)
 {
     if (unlikely(PyTuple_Check(substr))) {
-        int result;
-        Py_ssize_t i;
-        for (i = 0; i < PyTuple_GET_SIZE(substr); i++) {
+        Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
+        for (i = 0; i < count; i++) {
+            int result;
+#if CYTHON_COMPILING_IN_CPYTHON
             result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
                                                    start, end, direction);
+#else
+            PyObject* sub = PySequence_GetItem(substr, i);
+            if (unlikely(!sub)) return -1;
+            result = __Pyx_PyBytes_SingleTailmatch(s, sub, start, end, direction);
+            Py_DECREF(sub);
+#endif
             if (result) {
                 return result;
             }
@@ -226,8 +240,8 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t 
 
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
     if (check_bounds) {
-        if (unlikely(index >= PyBytes_GET_SIZE(bytes)) |
-            ((index < 0) & unlikely(index < -PyBytes_GET_SIZE(bytes)))) {
+        Py_ssize_t size = PyBytes_GET_SIZE(bytes);
+        if (unlikely(index >= size) | ((index < 0) & unlikely(index < -size))) {
             PyErr_Format(PyExc_IndexError, "string index out of range");
             return -1;
         }
