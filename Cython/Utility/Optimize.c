@@ -222,7 +222,7 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t 
 #else
             PyObject* sub = PySequence_GetItem(substr, i);
             if (unlikely(!sub)) return -1;
-            result = __Pyx_PyBytes_SingleTailmatch(s, sub, start, end, direction);
+            result = __Pyx_PyBytes_SingleTailmatch(self, sub, start, end, direction);
             Py_DECREF(sub);
 #endif
             if (result) {
