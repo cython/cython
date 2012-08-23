@@ -1670,17 +1670,15 @@ class NameNode(AtomicExprNode):
                         self.result(),
                         namespace,
                         interned_cname))
-            if self.cf_maybe_null:
-                if not self.cf_is_null:
-                    code.putln('if (unlikely(!%s)) {' % self.result())
-                    code.putln('PyErr_Clear();')
-                code.putln(
-                    '%s = __Pyx_GetName(%s, %s);' % (
+                code.putln('if (unlikely(!%s)) {' % self.result())
+                code.putln('PyErr_Clear();')
+            code.putln(
+                '%s = __Pyx_GetName(%s, %s);' % (
                     self.result(),
                     Naming.module_cname,
                     interned_cname))
-                if not self.cf_is_null:
-                    code.putln("}");
+            if not self.cf_is_null:
+                code.putln("}");
             code.putln(code.error_goto_if_null(self.result(), self.pos))
             code.put_gotref(self.py_result())
 
