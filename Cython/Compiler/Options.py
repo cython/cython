@@ -124,7 +124,7 @@ directive_defaults = {
     'test_fail_if_path_exists' : [],
 
 # experimental, subject to change
-    'binding': False,
+    'binding': None,
     'experimental_cpp_class_def': False
 }
 
@@ -140,6 +140,7 @@ directive_types = {
     'final' : bool,  # final cdef classes and methods
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool, # values can be True/None/False
+    'binding' : bool,
     'cfunc' : None, # decorators do not take directive value
     'ccall' : None,
     'cclass' : None,

@@ -385,13 +385,14 @@ def create_default_resultobj(compilation_source, options):
 def run_pipeline(source, options, full_module_name=None, context=None):
     import Pipeline
 
+    source_ext = os.path.splitext(source)[1]
+    options.configure_language_defaults(source_ext[1:]) # py/pyx
     if context is None:
         context = options.create_context()
 
     # Set up source object
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
-    source_ext = os.path.splitext(source)[1]
     full_module_name = full_module_name or context.extract_module_name(source, options)
 
     if options.relative_path_in_code_position_comments:
@@ -471,10 +472,21 @@ class CompilationOptions(object):
                 defaults = defaults.__dict__
         else:
             defaults = default_options
-        self.__dict__.update(defaults)
-        self.__dict__.update(kw)
-        if 'language_level' not in kw and 'language_level' in self.compiler_directives:
-            self.language_level = int(self.compiler_directives['language_level'])
+
+        options = dict(defaults)
+        options.update(kw)
+
+        directives = dict(options['compiler_directives']) # copy mutable field
+        options['compiler_directives'] = directives
+        if 'language_level' in directives and 'language_level' not in kw:
+            options['language_level'] = int(directives['language_level'])
+
+        self.__dict__.update(options)
+
+    def configure_language_defaults(self, source_extension):
+        if source_extension == 'py':
+            if self.compiler_directives.get('binding') is None:
+                self.compiler_directives['binding'] = True
 
     def create_context(self):
         return Context(self.include_path, self.compiler_directives,
