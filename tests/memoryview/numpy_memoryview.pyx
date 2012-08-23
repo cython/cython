@@ -300,7 +300,7 @@ def test_coerce_to_numpy():
     cdef NestedStruct nestedstructs[20]
     cdef PackedStruct packedstructs[20]
 
-    cdef char chars[20]
+    cdef signed char chars[20]
     cdef short shorts[20]
     cdef int ints[20]
     cdef long long longlongs[20]
@@ -369,7 +369,7 @@ def test_coerce_to_numpy():
     index(<NestedStruct[:4, :5]> <NestedStruct *> nestedstructs)
     index(<PackedStruct[:4, :5]> <PackedStruct *> packedstructs)
 
-    index(<char[:4, :5]> <char *> chars)
+    index(<signed char[:4, :5]> <signed char *> chars)
     index(<short[:4, :5]> <short *> shorts)
     index(<int[:4, :5]> <int *> ints)
     index(<long long[:4, :5]> <long long *> longlongs)
@@ -424,7 +424,7 @@ def acquire_release_cycle(obj):
 
 cdef packed struct StructArray:
     int a[4]
-    char b[5]
+    signed char b[5]
 
 @testcase_numpy_1_5
 def test_memslice_structarray(data, dtype):

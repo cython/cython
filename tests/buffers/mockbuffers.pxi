@@ -247,8 +247,8 @@ cdef class ErrorBuffer:
 # Structs
 #
 cdef struct MyStruct:
-    char a
-    char b
+    signed char a
+    signed char b
     long long int c
     int d
     int e
@@ -263,11 +263,11 @@ cdef struct NestedStruct:
     int z
 
 cdef packed struct PackedStruct:
-    char a
+    signed char a
     int b
 
 cdef struct NestedPackedStruct:
-    char a
+    signed char a
     int b
     PackedStruct sub
     int c
