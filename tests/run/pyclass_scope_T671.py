@@ -78,25 +78,3 @@ def name_error_deleted():
     """
     class X(object):
         C = C
-
-_set = set
-
-def name_lookup_order():
-    """
-    >>> Scope = name_lookup_order()
-    >>> Scope().set(2)
-    42
-    >>> Scope.test1 == _set()
-    True
-    >>> Scope.test2 == _set()
-    True
-
-    """
-    class Scope(object):
-        test1 = set()
-        test2 = set()
-
-        def set(self, x):
-            return 42
-
-    return Scope

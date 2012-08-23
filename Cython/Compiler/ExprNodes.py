@@ -1379,7 +1379,7 @@ class NameNode(AtomicExprNode):
 
     def type_dependencies(self, env):
         if self.entry is None:
-            self.entry = env.lookup_relative(self.name, self.pos)
+            self.entry = env.lookup(self.name)
         if self.entry is not None and self.entry.type.is_unspecified:
             return (self.entry,)
         else:
@@ -1387,7 +1387,7 @@ class NameNode(AtomicExprNode):
 
     def infer_type(self, env):
         if self.entry is None:
-            self.entry = env.lookup_relative(self.name, self.pos)
+            self.entry = env.lookup(self.name)
         if self.entry is None:
             return py_object_type
         elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
@@ -1440,7 +1440,7 @@ class NameNode(AtomicExprNode):
         # Returns the module scope, or None.
         entry = self.entry
         if not entry:
-            entry = env.lookup_relative(self.name, self.pos)
+            entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
         return None
@@ -1454,7 +1454,7 @@ class NameNode(AtomicExprNode):
             return type
         entry = self.entry
         if not entry:
-            entry = env.lookup_relative(self.name, self.pos)
+            entry = env.lookup(self.name)
         if entry and entry.is_type:
             return entry.type
         else:
@@ -1465,7 +1465,7 @@ class NameNode(AtomicExprNode):
         # Returns the extension type, or None.
         entry = self.entry
         if not entry:
-            entry = env.lookup_relative(self.name, self.pos)
+            entry = env.lookup(self.name)
         if entry and entry.is_type and entry.type.is_extension_type:
             return entry.type
         else:
@@ -1488,7 +1488,7 @@ class NameNode(AtomicExprNode):
     def analyse_types(self, env):
         self.initialized_check = env.directives['initializedcheck']
         if self.entry is None:
-            self.entry = env.lookup_relative(self.name, self.pos)
+            self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
         if not self.entry:
