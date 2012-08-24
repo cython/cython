@@ -29,6 +29,7 @@ pyregr.test_pep3131
 pyregr.test_multiprocessing
 pyregr.test_tempfile
 pyregr.test_ctypes
+pyregr.test_ioctl
 
 # CPython regression tests with threading issues
 pyregr.test_threadsignals
