@@ -5006,7 +5006,7 @@ class ReraiseStatNode(StatNode):
     is_terminator = True
 
     def analyse_expressions(self, env):
-        env.use_utility_code(restore_exception_utility_code)
+        pass
 
     nogil_check = Node.gil_error
     gil_message = "Raising exception"
@@ -5014,6 +5014,7 @@ class ReraiseStatNode(StatNode):
     def generate_execution_code(self, code):
         vars = code.funcstate.exc_vars
         if vars:
+            code.globalstate.use_utility_code(restore_exception_utility_code)
             for varname in vars:
                 code.put_giveref(varname)
             code.putln("__Pyx_ErrRestore(%s, %s, %s);" % tuple(vars))
@@ -5022,8 +5023,9 @@ class ReraiseStatNode(StatNode):
             code.putln()
             code.putln(code.error_goto(self.pos))
         else:
-            error(self.pos, "Reraise not inside except clause")
-
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ReRaiseException", "Exceptions.c"))
+            code.putln("__Pyx_ReraiseException(); %s" % code.error_goto(self.pos))
 
 class AssertStatNode(StatNode):
     #  assert statement

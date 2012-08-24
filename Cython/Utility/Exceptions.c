@@ -255,6 +255,41 @@ bad:
     return -1;
 }
 
+/////////////// ReRaiseException.proto ///////////////
+
+static CYTHON_INLINE void __Pyx_ReraiseException(void); /*proto*/
+
+/////////////// ReRaiseException.proto ///////////////
+
+static CYTHON_INLINE void __Pyx_ReraiseException(void) {
+    PyObject *type = NULL, *value = NULL, *tb = NULL;
+#if CYTHON_COMPILING_IN_CPYTHON
+    PyThreadState *tstate = PyThreadState_GET();
+    type = tstate->exc_type;
+    value = tstate->exc_value;
+    tb = tstate->exc_traceback;
+#else
+    PyErr_GetExcInfo(type, value, tb);
+#endif
+    if (!type || type == Py_None) {
+#if !CYTHON_COMPILING_IN_CPYTHON
+        Py_XDECREF(type);
+        Py_XDECREF(value);
+        Py_XDECREF(tb);
+#endif
+        PyErr_SetString(PyExc_RuntimeError,
+            "No active exception to reraise"); // message copied from Py3
+    } else {
+#if CYTHON_COMPILING_IN_CPYTHON
+        Py_INCREF(type);
+        Py_XINCREF(value);
+        Py_XINCREF(tb);
+
+#endif
+        PyErr_Restore(type, value, tb);
+    }
+}
+
 /////////////// SaveResetException.proto ///////////////
 
 static CYTHON_INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
