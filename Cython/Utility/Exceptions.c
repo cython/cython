@@ -269,7 +269,7 @@ static CYTHON_INLINE void __Pyx_ReraiseException(void) {
     value = tstate->exc_value;
     tb = tstate->exc_traceback;
 #else
-    PyErr_GetExcInfo(type, value, tb);
+    PyErr_GetExcInfo(&type, &value, &tb);
 #endif
     if (!type || type == Py_None) {
 #if !CYTHON_COMPILING_IN_CPYTHON
