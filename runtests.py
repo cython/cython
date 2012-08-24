@@ -902,7 +902,9 @@ class CythonPyregrTestCase(CythonRunTestCase):
         CythonRunTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
-        Options.directive_defaults.update(dict(binding=True, always_allow_keywords=True))
+        Options.directive_defaults.update(dict(
+            binding=True, always_allow_keywords=True,
+            set_initial_path="SOURCEFILE"))
 
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
