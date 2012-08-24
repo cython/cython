@@ -4448,7 +4448,6 @@ class AttributeNode(ExprNode):
                 # builtin types cannot be inferred as C functions as
                 # that would prevent their use as bound methods
                 self.type = py_object_type
-                return py_object_type
             return self.type
 
     def analyse_target_declaration(self, env):
@@ -4574,6 +4573,7 @@ class AttributeNode(ExprNode):
 
     def analyse_attribute(self, env, obj_type = None):
         # Look up attribute and set self.type and self.member.
+        immutable_obj = obj_type is not None # used during type inference
         self.is_py_attr = 0
         self.member = self.attribute
         if obj_type is None:
@@ -4635,9 +4635,9 @@ class AttributeNode(ExprNode):
         # type, or it is an extension type and the attribute is either not
         # declared or is declared as a Python method. Treat it as a Python
         # attribute reference.
-        self.analyse_as_python_attribute(env, obj_type)
+        self.analyse_as_python_attribute(env, obj_type, immutable_obj)
 
-    def analyse_as_python_attribute(self, env, obj_type = None):
+    def analyse_as_python_attribute(self, env, obj_type=None, immutable_obj=False):
         if obj_type is None:
             obj_type = self.obj.type
         # mangle private '__*' Python attributes used inside of a class
@@ -4647,12 +4647,14 @@ class AttributeNode(ExprNode):
         self.is_py_attr = 1
         if not obj_type.is_pyobject and not obj_type.is_error:
             if obj_type.can_coerce_to_pyobject(env):
-                self.obj = self.obj.coerce_to_pyobject(env)
+                if not immutable_obj:
+                    self.obj = self.obj.coerce_to_pyobject(env)
             elif (obj_type.is_cfunction and self.obj.is_name
                   and self.obj.entry.as_variable
                   and self.obj.entry.as_variable.type.is_pyobject):
                 # might be an optimised builtin function => unpack it
-                self.obj = self.obj.coerce_to_pyobject(env)
+                if not immutable_obj:
+                    self.obj = self.obj.coerce_to_pyobject(env)
             else:
                 error(self.pos,
                       "Object of type '%s' has no attribute '%s'" %
