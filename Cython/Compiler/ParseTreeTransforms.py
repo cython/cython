@@ -1997,13 +1997,12 @@ class AlignFunctionDefinitions(CythonTransform):
         if pxd_def:
             if pxd_def.is_cclass:
                 return self.visit_CClassDefNode(node.as_cclass(), pxd_def)
-            else:
+            elif not pxd_def.scope or not pxd_def.scope.is_builtin_scope:
                 error(node.pos, "'%s' redeclared" % node.name)
                 if pxd_def.pos:
                     error(pxd_def.pos, "previous declaration here")
                 return None
-        else:
-            return node
+        return node
 
     def visit_CClassDefNode(self, node, pxd_def=None):
         if pxd_def is None:
