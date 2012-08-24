@@ -277,8 +277,9 @@ static CYTHON_INLINE void __Pyx_ReraiseException(void) {
         Py_XDECREF(value);
         Py_XDECREF(tb);
 #endif
+        // message copied from Py3
         PyErr_SetString(PyExc_RuntimeError,
-            "No active exception to reraise"); // message copied from Py3
+            "No active exception to reraise");
     } else {
 #if CYTHON_COMPILING_IN_CPYTHON
         Py_INCREF(type);
