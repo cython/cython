@@ -4648,6 +4648,11 @@ class AttributeNode(ExprNode):
         if not obj_type.is_pyobject and not obj_type.is_error:
             if obj_type.can_coerce_to_pyobject(env):
                 self.obj = self.obj.coerce_to_pyobject(env)
+            elif (obj_type.is_cfunction and self.obj.is_name
+                  and self.obj.entry.as_variable
+                  and self.obj.entry.as_variable.type.is_pyobject):
+                # might be an optimised builtin function => unpack it
+                self.obj = self.obj.coerce_to_pyobject(env)
             else:
                 error(self.pos,
                       "Object of type '%s' has no attribute '%s'" %
