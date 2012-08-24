@@ -7291,8 +7291,8 @@ def unop_node(pos, operator, operand):
     # given operator.
     if isinstance(operand, IntNode) and operator == '-':
         return IntNode(pos = operand.pos, value = str(-Utils.str_to_number(operand.value)))
-    elif isinstance(operand, UnopNode) and operand.operator == operator:
-        warning(pos, "Python has no increment/decrement operator: %s%sx = %s(%sx) = x" % ((operator,)*4), 5)
+    elif isinstance(operand, UnopNode) and operand.operator == operator in '+-':
+        warning(pos, "Python has no increment/decrement operator: %s%sx == %s(%sx) == x" % ((operator,)*4), 5)
     return unop_node_classes[operator](pos,
         operator = operator,
         operand = operand)
