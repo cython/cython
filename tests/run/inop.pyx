@@ -349,3 +349,30 @@ def constant_empty_sequence(a):
     False
     """
     return a in ()
+
+def test_error_non_iterable(x):
+    """
+    >>> test_error_non_iterable(1)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    """
+    return x in 42
+
+def test_error_non_iterable_cascaded(x):
+    """
+    >>> test_error_non_iterable_cascaded(1)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    """
+    return 1 == x in 42
+
+def test_inop_cascaded(x):
+    """
+    >>> test_inop_cascaded(1)
+    False
+    >>> test_inop_cascaded(2)
+    True
+    >>> test_inop_cascaded(3)
+    False
+    """
+    return 1 != x in [2]

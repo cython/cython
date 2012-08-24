@@ -8741,7 +8741,9 @@ class CmpNode(object):
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_Contains"
                 return True
-            elif self.operand2.type.is_pyobject:
+            else:
+                if not self.operand2.type.is_pyobject:
+                    self.operand2 = self.operand2.coerce_to_pyobject(env)
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PySequenceContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PySequence_Contains"
                 return True
