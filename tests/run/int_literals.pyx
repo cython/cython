@@ -18,11 +18,6 @@ import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u'L', u'')
 
-import sys
-
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u'L', u'')
-
 def c_longs():
     cdef long a = 1L
     cdef unsigned long ua = 1UL
