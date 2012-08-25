@@ -1913,7 +1913,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.generate_cleanup_code:
             # this should be replaced by the module's tp_clear in Py3
-            env.use_utility_code(import_module_utility_code)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
 
         code.put_goto(code.return_label)
@@ -1974,8 +1975,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
             return
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
         code.putln('static PyObject *%s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused) {' %
                    Naming.cleanup_cname)
         if Options.generate_cleanup_code >= 2:

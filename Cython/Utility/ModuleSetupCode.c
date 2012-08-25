@@ -578,6 +578,7 @@ static PyObject* ${cleanup_cname}(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED Py
 
 /////////////// RegisterModuleCleanup ///////////////
 //@substitute: naming
+//@requires: ModuleImport
 
 static int __Pyx_RegisterCleanup(void) {
     // Don't use Py_AtExit because that has a 32-call limit and is called
