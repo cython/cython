@@ -569,3 +569,51 @@ end:
     return (__Pyx_RefNannyAPIStruct *)r;
 }
 #endif /* CYTHON_REFNANNY */
+
+/////////////// RegisterModuleCleanup.proto ///////////////
+//@substitute: naming
+
+static int __Pyx_RegisterCleanup(void); /*proto*/
+static PyObject* ${cleanup_cname}(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused); /*proto*/
+
+/////////////// RegisterModuleCleanup ///////////////
+//@substitute: naming
+
+static int __Pyx_RegisterCleanup(void) {
+    // Don't use Py_AtExit because that has a 32-call limit
+    // and is called after python finalization.
+
+    static PyMethodDef cleanup_def = {__Pyx_NAMESTR("__cleanup"), (PyCFunction)${cleanup_cname}, METH_NOARGS, 0};
+
+    PyObject *cleanup_func = 0;
+    PyObject *atexit = 0;
+    PyObject *reg = 0;
+    PyObject *args = 0;
+    PyObject *res = 0;
+    int ret = -1;
+
+    cleanup_func = PyCFunction_New(&cleanup_def, 0);
+    args = PyTuple_New(1);
+    if (!cleanup_func || !args)
+        goto bad;
+    PyTuple_SET_ITEM(args, 0, cleanup_func);
+    cleanup_func = 0;
+
+    atexit = __Pyx_ImportModule("atexit");
+    if (!atexit)
+        goto bad;
+    reg = __Pyx_GetAttrString(atexit, "register");
+    if (!reg)
+        goto bad;
+    res = PyObject_CallObject(reg, args);
+    if (!res)
+        goto bad;
+    ret = 0;
+bad:
+    Py_XDECREF(cleanup_func);
+    Py_XDECREF(atexit);
+    Py_XDECREF(reg);
+    Py_XDECREF(args);
+    Py_XDECREF(res);
+    return ret;
+}

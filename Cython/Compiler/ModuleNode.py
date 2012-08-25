@@ -1974,7 +1974,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
             return
-        code.globalstate.use_utility_code(register_cleanup_utility_code)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
         code.putln('static PyObject *%s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused) {' %
                    Naming.cleanup_cname)
         if Options.generate_cleanup_code >= 2:
@@ -2676,52 +2677,6 @@ bad:
 )
 
 #------------------------------------------------------------------------------------
-
-register_cleanup_utility_code = UtilityCode(
-proto = """
-static int __Pyx_RegisterCleanup(void); /*proto*/
-static PyObject* %(module_cleanup)s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused); /*proto*/
-static PyMethodDef cleanup_def = {__Pyx_NAMESTR("__cleanup"), (PyCFunction)&%(module_cleanup)s, METH_NOARGS, 0};
-""" % {'module_cleanup': Naming.cleanup_cname},
-impl = """
-static int __Pyx_RegisterCleanup(void) {
-    /* Don't use Py_AtExit because that has a 32-call limit
-     * and is called after python finalization.
-     */
-
-    PyObject *cleanup_func = 0;
-    PyObject *atexit = 0;
-    PyObject *reg = 0;
-    PyObject *args = 0;
-    PyObject *res = 0;
-    int ret = -1;
-
-    cleanup_func = PyCFunction_New(&cleanup_def, 0);
-    args = PyTuple_New(1);
-    if (!cleanup_func || !args)
-        goto bad;
-    PyTuple_SET_ITEM(args, 0, cleanup_func);
-    cleanup_func = 0;
-
-    atexit = __Pyx_ImportModule("atexit");
-    if (!atexit)
-        goto bad;
-    reg = __Pyx_GetAttrString(atexit, "register");
-    if (!reg)
-        goto bad;
-    res = PyObject_CallObject(reg, args);
-    if (!res)
-        goto bad;
-    ret = 0;
-bad:
-    Py_XDECREF(cleanup_func);
-    Py_XDECREF(atexit);
-    Py_XDECREF(reg);
-    Py_XDECREF(args);
-    Py_XDECREF(res);
-    return ret;
-}
-""")
 
 import_star_utility_code = """
 
