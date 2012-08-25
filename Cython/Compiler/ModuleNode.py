@@ -2054,7 +2054,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
         if Options.generate_cleanup_code:
-            cleanup_func = Naming.cleanup_cname
+            cleanup_func = "(freefunc)%s" % Naming.cleanup_cname
             code.putln("static void %s(PyObject *self); /*proto*/" % Naming.cleanup_cname)
         else:
             cleanup_func = 'NULL'
@@ -2067,7 +2067,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  NULL, /* m_reload */")
         code.putln("  NULL, /* m_traverse */")
         code.putln("  NULL, /* m_clear */")
-        code.putln("  (freefunc)%s /* m_free */" % cleanup_func)
+        code.putln("  %s /* m_free */" % cleanup_func)
         code.putln("};")
         code.putln("#endif")
 
