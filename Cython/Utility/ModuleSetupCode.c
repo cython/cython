@@ -478,8 +478,8 @@ end:
 /////////////// RegisterModuleCleanup.proto ///////////////
 //@substitute: naming
 
-#if PY_MAJOR_VERSION < 3
 static int __Pyx_RegisterCleanup(void); /*proto*/
+#if PY_MAJOR_VERSION < 3
 static PyObject* ${cleanup_cname}(PyObject *self, PyObject *unused); /*proto*/
 #endif
 
@@ -551,5 +551,11 @@ bad:
     Py_XDECREF(args);
     Py_XDECREF(res);
     return ret;
+}
+#else
+// fake call purely to work around "unused function" warning for __Pyx_ImportModule()
+static int __Pyx_RegisterCleanup(void) {
+    if (0) __Pyx_ImportModule(NULL);
+    return 0;
 }
 #endif

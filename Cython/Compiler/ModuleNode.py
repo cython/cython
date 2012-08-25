@@ -1912,12 +1912,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.body.generate_execution_code(code)
 
         if Options.generate_cleanup_code:
-            # this should be replaced by the module's tp_clear in Py3
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
-            code.putln("#if PY_MAJOR_VERSION < 3")
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
-            code.putln("#endif")
 
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
