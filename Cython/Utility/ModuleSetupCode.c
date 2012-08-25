@@ -580,8 +580,12 @@ static PyObject* ${cleanup_cname}(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED Py
 //@substitute: naming
 
 static int __Pyx_RegisterCleanup(void) {
-    // Don't use Py_AtExit because that has a 32-call limit
-    // and is called after python finalization.
+    // Don't use Py_AtExit because that has a 32-call limit and is called
+    // after python finalization.
+    // Also, we try to prepend the cleanup function to "atexit._exithandlers"
+    // because CPython runs them last-to-first. Being run last allows
+    // user exit code to run before us that may depend on the globals
+    // and cached objects that we are about to clean up.
 
     static PyMethodDef cleanup_def = {__Pyx_NAMESTR("__cleanup"), (PyCFunction)${cleanup_cname}, METH_NOARGS, 0};
 
@@ -593,22 +597,43 @@ static int __Pyx_RegisterCleanup(void) {
     int ret = -1;
 
     cleanup_func = PyCFunction_New(&cleanup_def, 0);
-    args = PyTuple_New(1);
-    if (!cleanup_func || !args)
+    if (!cleanup_func)
         goto bad;
-    PyTuple_SET_ITEM(args, 0, cleanup_func);
-    cleanup_func = 0;
 
     atexit = __Pyx_ImportModule("atexit");
     if (!atexit)
         goto bad;
-    reg = __Pyx_GetAttrString(atexit, "register");
-    if (!reg)
-        goto bad;
-    res = PyObject_CallObject(reg, args);
-    if (!res)
-        goto bad;
-    ret = 0;
+    reg = __Pyx_GetAttrString(atexit, "_exithandlers");
+    if (reg && PyList_Check(reg)) {
+        PyObject *a, *kw;
+        a = PyTuple_New(0);
+        kw = PyDict_New();
+        if (!a || !kw) {
+            Py_XDECREF(a);
+            Py_XDECREF(kw);
+            goto bad;
+        }
+        args = PyTuple_Pack(3, cleanup_func, a, kw);
+        Py_DECREF(a);
+        Py_DECREF(kw);
+        if (!args)
+            goto bad;
+        ret = PyList_Insert(reg, 0, args);
+    } else {
+        if (!reg)
+            PyErr_Clear();
+        Py_XDECREF(reg);
+        reg = __Pyx_GetAttrString(atexit, "register");
+        if (!reg)
+            goto bad;
+        args = PyTuple_Pack(1, cleanup_func);
+        if (!args)
+            goto bad;
+        res = PyObject_CallObject(reg, args);
+        if (!res)
+            goto bad;
+        ret = 0;
+    }
 bad:
     Py_XDECREF(cleanup_func);
     Py_XDECREF(atexit);
