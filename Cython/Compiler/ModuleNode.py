@@ -237,14 +237,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname = env.mangle(Naming.varptr_prefix, entry.name)
                     h_code.putln("static %s = 0;" %  type.declaration_code(cname))
                     h_code.putln("#define %s (*%s)" % (entry.name, cname))
-            h_code.put(UtilityCode.load_cached("PyIdentifierFromString", "ModuleSetupCode.c").proto)
-            h_code.put(import_module_utility_code.impl)
+            h_code.put(UtilityCode.load_cached("PyIdentifierFromString", "ImportExport.c").proto)
+            h_code.put(UtilityCode.load_cached("ModuleImport", "ImportExport.c").impl)
             if api_vars:
-                h_code.put(voidptr_import_utility_code.impl)
+                h_code.put(UtilityCode.load_cached("VoidPtrImport", "ImportExport.c").impl)
             if api_funcs:
-                h_code.put(function_import_utility_code.impl)
+                h_code.put(UtilityCode.load_cached("FunctionImport", "ImportExport.c").impl)
             if api_extension_types:
-                h_code.put(type_import_utility_code.impl)
+                h_code.put(UtilityCode.load_cached("TypeImport", "ImportExport.c").impl)
             h_code.putln("")
             h_code.putln("static int import_%s(void) {" % self.api_name(env))
             h_code.putln("PyObject *module = 0;")
@@ -2139,7 +2139,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
                 entries.append(entry)
         if entries:
-            env.use_utility_code(voidptr_export_utility_code)
+            env.use_utility_code(UtilityCode.load_cached("VoidPtrExport", "ImportExport.c"))
             for entry in entries:
                 signature = entry.type.declaration_code("")
                 code.putln('if (__Pyx_ExportVoidPtr("%s", (void *)&%s, "%s") < 0) %s' % (
@@ -2155,7 +2155,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
                 entries.append(entry)
         if entries:
-            env.use_utility_code(function_export_utility_code)
+            env.use_utility_code(
+                UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
             for entry in entries:
                 signature = entry.type.signature_string()
                 code.putln('if (__Pyx_ExportFunction("%s", (void (*)(void))%s, "%s") < 0) %s' % (
@@ -2191,8 +2192,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.defined_in_pxd:
                 entries.append(entry)
         if entries:
-            env.use_utility_code(import_module_utility_code)
-            env.use_utility_code(voidptr_import_utility_code)
+            env.use_utility_code(
+                UtilityCode.load_cached("ModuleImport", "ImportExport.c"))
+            env.use_utility_code(
+                UtilityCode.load_cached("VoidPtrImport", "ImportExport.c"))
             temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln(
                 '%s = __Pyx_ImportModule("%s"); if (!%s) %s' % (
@@ -2219,8 +2222,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.defined_in_pxd and entry.used:
                 entries.append(entry)
         if entries:
-            env.use_utility_code(import_module_utility_code)
-            env.use_utility_code(function_import_utility_code)
+            env.use_utility_code(
+                UtilityCode.load_cached("ModuleImport", "ImportExport.c"))
+            env.use_utility_code(
+                UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
             temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln(
                 '%s = __Pyx_ImportModule("%s"); if (!%s) %s' % (
@@ -2256,19 +2261,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                base_type.is_builtin_type and not entry.utility_code_definition):
             self.generate_type_import_code(env, base_type, self.pos, code)
 
-    def use_type_import_utility_code(self, env):
-        env.use_utility_code(type_import_utility_code)
-        env.use_utility_code(import_module_utility_code)
-
     def generate_type_import_code(self, env, type, pos, code):
         # If not already done, generate code to import the typeobject of an
         # extension type defined in another module, and extract its C method
         # table pointer if any.
         if type in env.types_imported:
             return
+        env.use_utility_code(UtilityCode.load_cached("TypeImport", "ImportExport.c"))
         self.generate_type_import_call(type, code,
                                        code.error_goto_if_null(type.typeptr_cname, pos))
-        self.use_type_import_utility_code(env)
         if type.vtabptr_cname:
             env.use_utility_code(Nodes.get_vtable_utility_code)
             code.putln("%s = (struct %s*)__Pyx_GetVtable(%s->tp_dict); %s" % (
@@ -2485,213 +2486,6 @@ static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
      return *s1 == *s2;
 }
 """)
-
-#------------------------------------------------------------------------------------
-
-import_module_utility_code = UtilityCode.load_cached("ModuleImport", "ModuleSetupCode.c")
-type_import_utility_code = UtilityCode.load_cached("TypeImport", "ModuleSetupCode.c")
-
-#------------------------------------------------------------------------------------
-
-voidptr_export_utility_code = UtilityCode(
-proto = """
-static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig); /*proto*/
-""",
-impl = r"""
-static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig) {
-    PyObject *d = 0;
-    PyObject *cobj = 0;
-
-    d = PyObject_GetAttrString(%(MODULE)s, (char *)"%(API)s");
-    if (!d) {
-        PyErr_Clear();
-        d = PyDict_New();
-        if (!d)
-            goto bad;
-        Py_INCREF(d);
-        if (PyModule_AddObject(%(MODULE)s, (char *)"%(API)s", d) < 0)
-            goto bad;
-    }
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
-    cobj = PyCapsule_New(p, sig, 0);
-#else
-    cobj = PyCObject_FromVoidPtrAndDesc(p, (void *)sig, 0);
-#endif
-    if (!cobj)
-        goto bad;
-    if (PyDict_SetItemString(d, name, cobj) < 0)
-        goto bad;
-    Py_DECREF(cobj);
-    Py_DECREF(d);
-    return 0;
-bad:
-    Py_XDECREF(cobj);
-    Py_XDECREF(d);
-    return -1;
-}
-""" % {'MODULE': Naming.module_cname, 'API': Naming.api_name}
-)
-
-function_export_utility_code = UtilityCode(
-proto = """
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig); /*proto*/
-""",
-impl = r"""
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
-    PyObject *d = 0;
-    PyObject *cobj = 0;
-    union {
-        void (*fp)(void);
-        void *p;
-    } tmp;
-
-    d = PyObject_GetAttrString(%(MODULE)s, (char *)"%(API)s");
-    if (!d) {
-        PyErr_Clear();
-        d = PyDict_New();
-        if (!d)
-            goto bad;
-        Py_INCREF(d);
-        if (PyModule_AddObject(%(MODULE)s, (char *)"%(API)s", d) < 0)
-            goto bad;
-    }
-    tmp.fp = f;
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
-    cobj = PyCapsule_New(tmp.p, sig, 0);
-#else
-    cobj = PyCObject_FromVoidPtrAndDesc(tmp.p, (void *)sig, 0);
-#endif
-    if (!cobj)
-        goto bad;
-    if (PyDict_SetItemString(d, name, cobj) < 0)
-        goto bad;
-    Py_DECREF(cobj);
-    Py_DECREF(d);
-    return 0;
-bad:
-    Py_XDECREF(cobj);
-    Py_XDECREF(d);
-    return -1;
-}
-""" % {'MODULE': Naming.module_cname, 'API': Naming.api_name}
-)
-
-voidptr_import_utility_code = UtilityCode(
-proto = """
-static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, const char *sig); /*proto*/
-""",
-impl = """
-#ifndef __PYX_HAVE_RT_ImportVoidPtr
-#define __PYX_HAVE_RT_ImportVoidPtr
-static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, const char *sig) {
-    PyObject *d = 0;
-    PyObject *cobj = 0;
-
-    d = PyObject_GetAttrString(module, (char *)"%(API)s");
-    if (!d)
-        goto bad;
-    cobj = PyDict_GetItemString(d, name);
-    if (!cobj) {
-        PyErr_Format(PyExc_ImportError,
-            "%%s does not export expected C variable %%s",
-                PyModule_GetName(module), name);
-        goto bad;
-    }
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
-    if (!PyCapsule_IsValid(cobj, sig)) {
-        PyErr_Format(PyExc_TypeError,
-            "C variable %%s.%%s has wrong signature (expected %%s, got %%s)",
-             PyModule_GetName(module), name, sig, PyCapsule_GetName(cobj));
-        goto bad;
-    }
-    *p = PyCapsule_GetPointer(cobj, sig);
-#else
-    {const char *desc, *s1, *s2;
-    desc = (const char *)PyCObject_GetDesc(cobj);
-    if (!desc)
-        goto bad;
-    s1 = desc; s2 = sig;
-    while (*s1 != '\\0' && *s1 == *s2) { s1++; s2++; }
-    if (*s1 != *s2) {
-        PyErr_Format(PyExc_TypeError,
-            "C variable %%s.%%s has wrong signature (expected %%s, got %%s)",
-             PyModule_GetName(module), name, sig, desc);
-        goto bad;
-    }
-    *p = PyCObject_AsVoidPtr(cobj);}
-#endif
-    if (!(*p))
-        goto bad;
-    Py_DECREF(d);
-    return 0;
-bad:
-    Py_XDECREF(d);
-    return -1;
-}
-#endif
-""" % dict(API = Naming.api_name)
-)
-
-function_import_utility_code = UtilityCode(
-proto = """
-static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
-""",
-impl = """
-#ifndef __PYX_HAVE_RT_ImportFunction
-#define __PYX_HAVE_RT_ImportFunction
-static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
-    PyObject *d = 0;
-    PyObject *cobj = 0;
-    union {
-        void (*fp)(void);
-        void *p;
-    } tmp;
-
-    d = PyObject_GetAttrString(module, (char *)"%(API)s");
-    if (!d)
-        goto bad;
-    cobj = PyDict_GetItemString(d, funcname);
-    if (!cobj) {
-        PyErr_Format(PyExc_ImportError,
-            "%%s does not export expected C function %%s",
-                PyModule_GetName(module), funcname);
-        goto bad;
-    }
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
-    if (!PyCapsule_IsValid(cobj, sig)) {
-        PyErr_Format(PyExc_TypeError,
-            "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
-             PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
-        goto bad;
-    }
-    tmp.p = PyCapsule_GetPointer(cobj, sig);
-#else
-    {const char *desc, *s1, *s2;
-    desc = (const char *)PyCObject_GetDesc(cobj);
-    if (!desc)
-        goto bad;
-    s1 = desc; s2 = sig;
-    while (*s1 != '\\0' && *s1 == *s2) { s1++; s2++; }
-    if (*s1 != *s2) {
-        PyErr_Format(PyExc_TypeError,
-            "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
-             PyModule_GetName(module), funcname, sig, desc);
-        goto bad;
-    }
-    tmp.p = PyCObject_AsVoidPtr(cobj);}
-#endif
-    *f = tmp.fp;
-    if (!(*f))
-        goto bad;
-    Py_DECREF(d);
-    return 0;
-bad:
-    Py_XDECREF(d);
-    return -1;
-}
-#endif
-""" % dict(API = Naming.api_name)
-)
 
 #------------------------------------------------------------------------------------
 
