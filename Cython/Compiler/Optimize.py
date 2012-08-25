@@ -1258,7 +1258,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     # specific handlers for simple call nodes
 
     def _handle_simple_function_float(self, node, pos_args):
-        if len(pos_args) == 0:
+        if not pos_args:
             return ExprNodes.FloatNode(node.pos, value='0.0')
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
