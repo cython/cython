@@ -583,7 +583,7 @@ static int __Pyx_RegisterCleanup(void) {
     // Don't use Py_AtExit because that has a 32-call limit and is called
     // after python finalization.
     // Also, we try to prepend the cleanup function to "atexit._exithandlers"
-    // because CPython runs them last-to-first. Being run last allows
+    // in Py2 because CPython runs them last-to-first. Being run last allows
     // user exit code to run before us that may depend on the globals
     // and cached objects that we are about to clean up.
 
@@ -603,6 +603,7 @@ static int __Pyx_RegisterCleanup(void) {
     atexit = __Pyx_ImportModule("atexit");
     if (!atexit)
         goto bad;
+#if PY_MAJOR_VERSION < 3
     reg = __Pyx_GetAttrString(atexit, "_exithandlers");
     if (reg && PyList_Check(reg)) {
         PyObject *a, *kw;
@@ -619,7 +620,9 @@ static int __Pyx_RegisterCleanup(void) {
         if (!args)
             goto bad;
         ret = PyList_Insert(reg, 0, args);
-    } else {
+    } else
+#endif
+    {
         if (!reg)
             PyErr_Clear();
         Py_XDECREF(reg);
