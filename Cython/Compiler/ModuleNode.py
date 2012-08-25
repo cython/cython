@@ -1915,7 +1915,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # this should be replaced by the module's tp_clear in Py3
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
+            code.putln("#if PY_MAJOR_VERSION < 3")
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
+            code.putln("#endif")
 
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
@@ -1975,8 +1977,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
             return
-        code.putln('static PyObject *%s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused) {' %
+
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln('static void %s(CYTHON_UNUSED PyObject *self)' %
                    Naming.cleanup_cname)
+        code.putln("#else")
+        code.putln('static PyObject *%s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused)' %
+                   Naming.cleanup_cname)
+        code.putln("#endif")
+        code.putln("{")
+
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -2018,7 +2028,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#if CYTHON_COMPILING_IN_PYPY')
         code.putln('Py_CLEAR(%s);' % Naming.builtins_cname)
         code.putln('#endif')
+
+        code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("Py_INCREF(Py_None); return Py_None;")
+        code.putln('#endif')
 
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
@@ -2040,6 +2053,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = "0"
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
+        if Options.generate_cleanup_code:
+            cleanup_func = Naming.cleanup_cname
+            code.putln("static void %s(PyObject *self); /*proto*/" % Naming.cleanup_cname)
+        else:
+            cleanup_func = 'NULL'
         code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  __Pyx_NAMESTR("%s"),' % env.module_name)
@@ -2049,7 +2067,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  NULL, /* m_reload */")
         code.putln("  NULL, /* m_traverse */")
         code.putln("  NULL, /* m_clear */")
-        code.putln("  NULL /* m_free */")
+        code.putln("  (freefunc)%s /* m_free */" % cleanup_func)
         code.putln("};")
         code.putln("#endif")
 

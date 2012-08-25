@@ -573,13 +573,16 @@ end:
 /////////////// RegisterModuleCleanup.proto ///////////////
 //@substitute: naming
 
+#if PY_MAJOR_VERSION < 3
 static int __Pyx_RegisterCleanup(void); /*proto*/
-static PyObject* ${cleanup_cname}(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyObject* ${cleanup_cname}(PyObject *self, PyObject *unused); /*proto*/
+#endif
 
 /////////////// RegisterModuleCleanup ///////////////
 //@substitute: naming
 //@requires: ModuleImport
 
+#if PY_MAJOR_VERSION < 3
 static int __Pyx_RegisterCleanup(void) {
     // Don't use Py_AtExit because that has a 32-call limit and is called
     // after python finalization.
@@ -604,7 +607,6 @@ static int __Pyx_RegisterCleanup(void) {
     atexit = __Pyx_ImportModule("atexit");
     if (!atexit)
         goto bad;
-#if PY_MAJOR_VERSION < 3
     reg = __Pyx_GetAttrString(atexit, "_exithandlers");
     if (reg && PyList_Check(reg)) {
         PyObject *a, *kw;
@@ -622,7 +624,6 @@ static int __Pyx_RegisterCleanup(void) {
             goto bad;
         ret = PyList_Insert(reg, 0, args);
     } else
-#endif
     {
         if (!reg)
             PyErr_Clear();
@@ -646,3 +647,4 @@ bad:
     Py_XDECREF(res);
     return ret;
 }
+#endif
