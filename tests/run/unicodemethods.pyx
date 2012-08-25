@@ -279,6 +279,10 @@ def startswith_start_end(unicode s, sub, start, end):
     True
     >>> startswith_start_end(text, 'b ', 1, 5)
     'MATCH'
+    >>> text.startswith('ab ', -1000, 5000)
+    True
+    >>> startswith_start_end(text, 'ab ', -1000, 5000)
+    'MATCH'
     >>> text.startswith('b X', 1, 5)
     False
     >>> startswith_start_end(text, 'b X', 1, 5)
@@ -339,6 +343,11 @@ def endswith_start_end(unicode s, sub, start, end):
     False
     >>> endswith_start_end(text, 'fsdf ', 10, len(text)-1)
     'NO MATCH'
+
+    >>> text.endswith('fsdf ', -1000, 5000)
+    True
+    >>> endswith_start_end(text, 'fsdf ', -1000, 5000)
+    'MATCH'
 
     >>> PY_VERSION < (2,5) or text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
     True
