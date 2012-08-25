@@ -19,6 +19,7 @@ class_scope_T671
 slice2_T636
 builtin_subtype_methods_T653
 dict_values_in_expression
+builtin_float
 
 # CPython regression tests that don't current work:
 pyregr.test_signal
