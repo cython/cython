@@ -478,16 +478,19 @@ end:
 /////////////// RegisterModuleCleanup.proto ///////////////
 //@substitute: naming
 
+static void ${cleanup_cname}(PyObject *self); /*proto*/
 static int __Pyx_RegisterCleanup(void); /*proto*/
-#if PY_MAJOR_VERSION < 3
-static PyObject* ${cleanup_cname}(PyObject *self, PyObject *unused); /*proto*/
-#endif
 
 /////////////// RegisterModuleCleanup ///////////////
 //@substitute: naming
 //@requires: ImportExport.c::ModuleImport
 
 #if PY_MAJOR_VERSION < 3
+static PyObject* ${cleanup_cname}_atexit(PyObject *module, CYTHON_UNUSED PyObject *unused) {
+    ${cleanup_cname}(module);
+    Py_INCREF(Py_None); return Py_None;
+}
+
 static int __Pyx_RegisterCleanup(void) {
     // Don't use Py_AtExit because that has a 32-call limit and is called
     // after python finalization.
@@ -496,7 +499,8 @@ static int __Pyx_RegisterCleanup(void) {
     // user exit code to run before us that may depend on the globals
     // and cached objects that we are about to clean up.
 
-    static PyMethodDef cleanup_def = {__Pyx_NAMESTR("__cleanup"), (PyCFunction)${cleanup_cname}, METH_NOARGS, 0};
+    static PyMethodDef cleanup_def = {
+        __Pyx_NAMESTR("__cleanup"), (PyCFunction)${cleanup_cname}_atexit, METH_NOARGS, 0};
 
     PyObject *cleanup_func = 0;
     PyObject *atexit = 0;
@@ -528,8 +532,7 @@ static int __Pyx_RegisterCleanup(void) {
         if (!args)
             goto bad;
         ret = PyList_Insert(reg, 0, args);
-    } else
-    {
+    } else {
         if (!reg)
             PyErr_Clear();
         Py_XDECREF(reg);

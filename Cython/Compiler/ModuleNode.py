@@ -1975,15 +1975,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not Options.generate_cleanup_code:
             return
 
-        code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln('static void %s(CYTHON_UNUSED PyObject *self)' %
+        code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
                    Naming.cleanup_cname)
-        code.putln("#else")
-        code.putln('static PyObject *%s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused)' %
-                   Naming.cleanup_cname)
-        code.putln("#endif")
-        code.putln("{")
-
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -2026,10 +2019,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_CLEAR(%s);' % Naming.builtins_cname)
         code.putln('#endif')
 
-        code.putln("#if PY_MAJOR_VERSION < 3")
-        code.putln("Py_INCREF(Py_None); return Py_None;")
-        code.putln('#endif')
-
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
         if Options.embed == "main":
@@ -2048,13 +2037,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = "__Pyx_DOCSTR(%s)" % code.get_string_const(env.doc)
         else:
             doc = "0"
-        code.putln("")
-        code.putln("#if PY_MAJOR_VERSION >= 3")
         if Options.generate_cleanup_code:
             cleanup_func = "(freefunc)%s" % Naming.cleanup_cname
-            code.putln("static void %s(PyObject *self); /*proto*/" % Naming.cleanup_cname)
         else:
             cleanup_func = 'NULL'
+
+        code.putln("")
+        code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  __Pyx_NAMESTR("%s"),' % env.module_name)
