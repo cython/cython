@@ -27,7 +27,7 @@ static PyObject* __Pyx_Globals(void) {
     for (i = 0; i < PyList_GET_SIZE(names); i++) {
         PyObject* name = PyList_GET_ITEM(names, i);
         if (!PyDict_Contains(globals, name)) {
-            PyObject* value = PyObject_GetAttr($module_cname, PyList_GET_ITEM(names, i));
+            PyObject* value = PyObject_GetAttr($module_cname, name);
             if (!value)
                 goto bad;
             if (PyDict_SetItem(globals, name, value) < 0) {
