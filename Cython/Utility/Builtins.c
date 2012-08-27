@@ -13,7 +13,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 
 static PyObject* __Pyx_Globals(void) {
     Py_ssize_t i;
-    /*PyObject *d;*/
+    //PyObject *d;
     PyObject *names = NULL;
     PyObject *globals = PyObject_GetAttrString($module_cname, "__dict__");
     if (!globals) {
@@ -24,17 +24,33 @@ static PyObject* __Pyx_Globals(void) {
     names = PyObject_Dir($module_cname);
     if (!names)
         goto bad;
-    for (i = 0; i < PyList_GET_SIZE(names); i++) {
+    for (i = PyList_GET_SIZE(names)-1; i >= 0; i--) {
+#if CYTHON_COMPILING_IN_PYPY
+        PyObject* name = PySequence_GetItem(names, i);
+        if (!name)
+            goto bad;
+#else
         PyObject* name = PyList_GET_ITEM(names, i);
+#endif
         if (!PyDict_Contains(globals, name)) {
             PyObject* value = PyObject_GetAttr($module_cname, name);
-            if (!value)
+            if (!value) {
+#if CYTHON_COMPILING_IN_PYPY
+                Py_DECREF(name);
+#endif
                 goto bad;
+            }
             if (PyDict_SetItem(globals, name, value) < 0) {
+#if CYTHON_COMPILING_IN_PYPY
+                Py_DECREF(name);
+#endif
                 Py_DECREF(value);
                 goto bad;
             }
         }
+#if CYTHON_COMPILING_IN_PYPY
+        Py_DECREF(name);
+#endif
     }
     Py_DECREF(names);
     return globals;
