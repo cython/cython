@@ -4685,7 +4685,7 @@ class ExecStatNode(StatNode):
             args.append( arg.py_result() )
         args = tuple(args + ['0', '0'][:3-len(args)])
         temp_result = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-        code.putln("%s = __Pyx_PyRun(%s, %s, %s);" % (
+        code.putln("%s = __Pyx_PyRun3(%s, %s, %s);" % (
                 (temp_result,) + args))
         for arg in self.args:
             arg.generate_disposal_code(code)
