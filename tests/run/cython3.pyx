@@ -4,14 +4,6 @@
 
 cimport cython
 
-try:
-    sorted
-except NameError:
-    def sorted(seq):
-        seq = list(seq)
-        seq.sort()
-        return seq
-
 __doc__ = """
 >>> items = list(locals_function(1).items())
 >>> items.sort()
