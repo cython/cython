@@ -55,6 +55,7 @@ bad:
 
 globals_utility_code = UtilityCode.load_cached("Globals", "Builtins.c")
 pyexec_utility_code = UtilityCode.load_cached("PyExec", "Builtins.c")
+pyexec_globals_utility_code = UtilityCode.load_cached("PyExecGlobals", "Builtins.c")
 
 intern_utility_code = UtilityCode(
 proto = """
@@ -215,10 +216,12 @@ builtin_function_table = [
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod"),
-    BuiltinFunction('exec',       "OOO",  "O",     "__Pyx_PyRun3",
+    BuiltinFunction('exec',       "OOO",  "O",     "__Pyx_PyExec3",
                     utility_code = pyexec_utility_code),
-    BuiltinFunction('exec',       "OO",   "O",     "__Pyx_PyRun2",
+    BuiltinFunction('exec',       "OO",   "O",     "__Pyx_PyExec2",
                     utility_code = pyexec_utility_code),
+    BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
+                    utility_code = pyexec_globals_utility_code),
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),

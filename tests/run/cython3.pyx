@@ -5,8 +5,7 @@
 cimport cython
 
 __doc__ = """
->>> items = list(locals_function(1).items())
->>> items.sort()
+>>> items = sorted(locals_function(1).items())
 >>> for item in items:
 ...     print('%s = %r' % item)
 a = 1
@@ -48,6 +47,17 @@ def exec2_function(cmd):
     g = {}
     exec(cmd, g)
     return g
+
+EXEC_GLOBAL = [5]
+
+def exec1_function(cmd):
+    """
+    >>> exec1_function('EXEC_GLOBAL.append(1)')
+    [1]
+    """
+    old = len(EXEC_GLOBAL)
+    exec(cmd)
+    return EXEC_GLOBAL[old:]
 
 ustring = "abcdefg"
 

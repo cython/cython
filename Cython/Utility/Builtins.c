@@ -11,7 +11,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // of Python names.  Supporting cdef names in the module and write
 // access requires a rewrite as a dedicated class.
 
-static PyObject* __Pyx_Globals() {
+static PyObject* __Pyx_Globals(void) {
     Py_ssize_t i;
     /*PyObject *d;*/
     PyObject *names = NULL;
@@ -47,19 +47,37 @@ bad:
     return NULL;
 }
 
+//////////////////// PyExecGlobals.proto ////////////////////
+
+static PyObject* __Pyx_PyExecGlobals(PyObject*);
+
+//////////////////// PyExecGlobals ////////////////////
+//@requires: Globals
+//@requires: PyExec
+
+static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
+    PyObject* result;
+    PyObject* globals = __Pyx_Globals();
+    if (unlikely(!globals))
+        return NULL;
+    result = __Pyx_PyExec2(code, globals);
+    Py_DECREF(globals);
+    return result;
+}
+
 //////////////////// PyExec.proto ////////////////////
 
-static PyObject* __Pyx_PyRun3(PyObject*, PyObject*, PyObject*);
-static CYTHON_INLINE PyObject* __Pyx_PyRun2(PyObject*, PyObject*);
+static PyObject* __Pyx_PyExec3(PyObject*, PyObject*, PyObject*);
+static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject*, PyObject*);
 
 //////////////////// PyExec ////////////////////
 //@substitute: naming
 
-static CYTHON_INLINE PyObject* __Pyx_PyRun2(PyObject* o, PyObject* globals) {
-    return __Pyx_PyRun3(o, globals, NULL);
+static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
+    return __Pyx_PyExec3(o, globals, NULL);
 }
 
-static PyObject* __Pyx_PyRun3(PyObject* o, PyObject* globals, PyObject* locals) {
+static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
     PyObject* s = 0;
     char *code = 0;
