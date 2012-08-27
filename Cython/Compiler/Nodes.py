@@ -7627,7 +7627,6 @@ class ParallelRangeNode(ParallelStatNode):
         # target index uninitialized
         code.putln("if (%(nsteps)s > 0)" % fmt_dict)
         code.begin_block() # if block
-        code.putln("%(target)s = 0;" % fmt_dict)
         self.generate_loop(code, fmt_dict)
         code.end_block() # end if block
 
