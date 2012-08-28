@@ -1500,8 +1500,6 @@ class NameNode(AtomicExprNode):
             if entry.type.is_buffer:
                 import Buffer
                 Buffer.used_buffer_aux_vars(entry)
-            if entry.utility_code:
-                env.use_utility_code(entry.utility_code)
         self.analyse_rvalue_entry(env)
 
     def analyse_target_types(self, env):
