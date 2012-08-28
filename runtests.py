@@ -16,6 +16,14 @@ import traceback
 import warnings
 
 try:
+    import platform
+    IS_PYPY = platform.python_implementation() == 'PyPy'
+    IS_CPYTHON = platform.python_implementation() == 'CPython'
+except (ImportError, AttributeError):
+    IS_CPYTHON = True
+    IS_PYPY = False
+
+try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
@@ -949,7 +957,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
 
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
-include_debugger = sys.version_info[:2] > (2, 5)
+include_debugger = IS_CPYTHON and sys.version_info[:2] > (2, 5)
 
 def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
     def file_matches(filename):
