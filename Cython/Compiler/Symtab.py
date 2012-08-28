@@ -683,7 +683,9 @@ class Scope(object):
             entry.is_implemented = True
         if modifiers:
             entry.func_modifiers = modifiers
-        entry.utility_code = utility_code
+        if utility_code:
+            assert not entry.utility_code, "duplicate utility code definition in entry %s (%s)" % (name, cname)
+            entry.utility_code = utility_code
         type.entry = entry
         return entry
 
