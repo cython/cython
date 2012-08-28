@@ -79,14 +79,21 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb,
     }
 
     #if PY_VERSION_HEX < 0x02050000
-    if (PyClass_Check(type))
+    if (PyClass_Check(type)) {
     #else
-    if (PyType_Check(type))
+    if (PyType_Check(type)) {
     #endif
         /* instantiate the type now (we don't know when and how it will be caught) */
+#if CYTHON_COMPILING_IN_PYPY
+        /* PyPy can't handle value == NULL */
+        if (!value) {
+            Py_INCREF(Py_None);
+            value = Py_None;
+        }
+#endif
         PyErr_NormalizeException(&type, &value, &tb);
 
-    else {
+    } else {
         /* Raising an instance.  The value should be a dummy. */
         if (value) {
             PyErr_SetString(PyExc_TypeError,
