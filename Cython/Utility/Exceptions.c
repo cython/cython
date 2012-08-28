@@ -60,39 +60,40 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
 #if PY_MAJOR_VERSION < 3
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb,
                         CYTHON_UNUSED PyObject *cause) {
-    /* cause is unused */
+    /* 'cause' is only used in Py3 */
     Py_XINCREF(type);
-    Py_XINCREF(value);
-    Py_XINCREF(tb);
-    /* First, check the traceback argument, replacing None with NULL. */
-    if (tb == Py_None) {
-        Py_DECREF(tb);
-        tb = 0;
-    }
-    else if (tb != NULL && !PyTraceBack_Check(tb)) {
-        PyErr_SetString(PyExc_TypeError,
-            "raise: arg 3 must be a traceback or None");
-        goto raise_error;
-    }
-    /* Next, replace a missing value with None */
-    if (value == NULL) {
-        value = Py_None;
+    if (!value || value == Py_None)
+        value = NULL;
+    else
         Py_INCREF(value);
+
+    if (!tb || tb == Py_None)
+        tb = NULL;
+    else {
+        Py_INCREF(tb);
+        if (!PyTraceBack_Check(tb)) {
+            PyErr_SetString(PyExc_TypeError,
+                "raise: arg 3 must be a traceback or None");
+            goto raise_error;
+        }
     }
+
     #if PY_VERSION_HEX < 0x02050000
-    if (!PyClass_Check(type))
+    if (PyClass_Check(type))
     #else
-    if (!PyType_Check(type))
+    if (PyType_Check(type))
     #endif
-    {
+        /* instantiate the type now (we don't know when and how it will be caught) */
+        PyErr_NormalizeException(&type, &value, &tb);
+
+    else {
         /* Raising an instance.  The value should be a dummy. */
-        if (value != Py_None) {
+        if (value) {
             PyErr_SetString(PyExc_TypeError,
                 "instance exception may not have a separate value");
             goto raise_error;
         }
         /* Normalize to raise <class>, <instance> */
-        Py_DECREF(value);
         value = type;
         #if PY_VERSION_HEX < 0x02050000
             if (PyInstance_Check(type)) {
@@ -128,6 +129,7 @@ raise_error:
 #else /* Python 3+ */
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
+    PyObject* owned_instance = NULL;
     if (tb == Py_None) {
         tb = 0;
     } else if (tb && !PyTraceBack_Check(tb)) {
@@ -146,13 +148,38 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         }
         value = type;
         type = (PyObject*) Py_TYPE(value);
-    } else if (!PyExceptionClass_Check(type)) {
+    } else if (PyExceptionClass_Check(type)) {
+        // instantiate the type now (we don't know when and how it will be caught)
+        PyObject *args;
+        if (!value)
+            args = PyTuple_New(0);
+        else if (PyTuple_Check(value)) {
+            Py_INCREF(value);
+            args = value;
+        }
+        else
+            args = PyTuple_Pack(1, value);
+        if (!args)
+            goto bad;
+        owned_instance = PyEval_CallObject(type, args);
+        Py_DECREF(args);
+        if (!owned_instance)
+            goto bad;
+        value = owned_instance;
+        if (!PyExceptionInstance_Check(value)) {
+            PyErr_Format(PyExc_TypeError,
+                         "calling %R should have returned an instance of "
+                         "BaseException, not %R",
+                         type, Py_TYPE(value));
+            goto bad;
+        }
+    } else {
         PyErr_SetString(PyExc_TypeError,
             "raise: exception class must be a subclass of BaseException");
         goto bad;
     }
 
-    if (cause) {
+    if (cause && cause != Py_None) {
         PyObject *fixed_cause;
         if (PyExceptionClass_Check(cause)) {
             fixed_cause = PyObject_CallObject(cause, NULL);
@@ -168,9 +195,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
                             "exception causes must derive from "
                             "BaseException");
             goto bad;
-        }
-        if (!value) {
-            value = PyObject_CallObject(type, NULL);
         }
         PyException_SetCause(value, fixed_cause);
     }
@@ -188,6 +212,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     }
 
 bad:
+    Py_XDECREF(owned_instance);
     return;
 }
 #endif
