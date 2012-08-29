@@ -130,10 +130,9 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(
     while (PyDict_Next(kwdict, &pos, &key, 0)) {
         #if PY_MAJOR_VERSION < 3
         if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key)))
-        #else
-        if (unlikely(!PyUnicode_Check(key)))
         #endif
-            goto invalid_keyword_type;
+            if (unlikely(!PyUnicode_Check(key)))
+                goto invalid_keyword_type;
     }
     if ((!kw_allowed) && unlikely(key))
         goto invalid_keyword;
