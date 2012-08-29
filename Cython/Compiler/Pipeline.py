@@ -105,15 +105,19 @@ class UseUtilityCodeDefinitions(CythonTransform):
         self.scope = node.scope
         return super(UseUtilityCodeDefinitions, self).__call__(node)
 
+    def process_entry(self, entry):
+        if entry:
+            for utility_code in (entry.utility_code, entry.utility_code_definition):
+                if utility_code:
+                    self.scope.use_utility_code(utility_code)
+
     def visit_AttributeNode(self, node):
-        if node.entry and node.entry.utility_code_definition:
-            self.scope.use_utility_code(node.entry.utility_code_definition)
+        self.process_entry(node.entry)
         return node
 
     def visit_NameNode(self, node):
-        for e in (node.entry, node.type_entry):
-            if e and e.utility_code_definition:
-                self.scope.use_utility_code(e.utility_code_definition)
+        self.process_entry(node.entry)
+        self.process_entry(node.type_entry)
         return node
                      
 #
