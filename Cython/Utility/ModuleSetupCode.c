@@ -244,6 +244,12 @@
   #define __Pyx_DOCSTR(n)  (n)
 #endif
 
+#if defined(_WIN64) && defined(_MSC_VER)
+  #define CYTHON_FORMAT_SSIZE_T "z"
+#else
+  #define CYTHON_FORMAT_SSIZE_T PY_FORMAT_SIZE_T
+#endif
+
 /////////////// ForceInitThreads.proto ///////////////
 
 #ifndef __PYX_FORCE_INIT_THREADS
