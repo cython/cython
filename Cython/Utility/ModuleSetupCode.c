@@ -45,6 +45,7 @@
   #define PY_SSIZE_T_MAX INT_MAX
   #define PY_SSIZE_T_MIN INT_MIN
   #define PY_FORMAT_SIZE_T ""
+  #define CYTHON_FORMAT_SSIZE_T ""
   #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
   #define PyInt_AsSsize_t(o)   __Pyx_PyInt_AsInt(o)
   #define PyNumber_Index(o)    ((PyNumber_Check(o) && !PyFloat_Check(o)) ? PyNumber_Int(o) : \
@@ -56,6 +57,7 @@
   #define __PYX_BUILD_PY_SSIZE_T "i"
 #else
   #define __PYX_BUILD_PY_SSIZE_T "n"
+  #define CYTHON_FORMAT_SSIZE_T "z"
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
@@ -242,18 +244,6 @@
 #else
   #define __Pyx_NAMESTR(n) (n)
   #define __Pyx_DOCSTR(n)  (n)
-#endif
-
-#if defined(_WIN64) && defined(_MSC_VER)
-  // CPython misdefines the format as "I", but the
-  // "ll" prefix is only supported in Py2.7 and later
-  #if PY_VERSION_HEX >= 0x02070000
-  #define CYTHON_FORMAT_SSIZE_T "ll"
-  #else
-  #define CYTHON_FORMAT_SSIZE_T "z"
-  #endif
-#else
-  #define CYTHON_FORMAT_SSIZE_T PY_FORMAT_SIZE_T
 #endif
 
 /////////////// ForceInitThreads.proto ///////////////
