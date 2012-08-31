@@ -245,7 +245,13 @@
 #endif
 
 #if defined(_WIN64) && defined(_MSC_VER)
+  // CPython misdefines the format as "I", but the
+  // "ll" prefix is only supported in Py2.7 and later
+  #if PY_VERSION_HEX >= 0x02070000
+  #define CYTHON_FORMAT_SSIZE_T "ll"
+  #else
   #define CYTHON_FORMAT_SSIZE_T "z"
+  #endif
 #else
   #define CYTHON_FORMAT_SSIZE_T PY_FORMAT_SIZE_T
 #endif
