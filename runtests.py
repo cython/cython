@@ -1057,14 +1057,14 @@ class EndToEndTest(unittest.TestCase):
         self.treefile = treefile
         self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
-        cython_syspath = self.cython_root
-        for path in sys.path[::-1]:
-            if path.startswith(self.cython_root):
+        cython_syspath = [self.cython_root]
+        for path in sys.path:
+            if path.startswith(self.cython_root) and path not in cython_syspath:
                 # Py3 installation and refnanny build prepend their
                 # fixed paths to sys.path => prefer that over the
-                # generic one
-                cython_syspath = path + os.pathsep + cython_syspath
-        self.cython_syspath = cython_syspath
+                # generic one (cython_root itself goes last)
+                cython_syspath.append(path)
+        self.cython_syspath = os.pathsep.join(cython_syspath[::-1])
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1100,9 +1100,9 @@ class EndToEndTest(unittest.TestCase):
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
+        old_path = os.environ.get('PYTHONPATH')
+        os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
         try:
-            old_path = os.environ.get('PYTHONPATH')
-            os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + os.path.join(self.cython_syspath, (old_path or ''))
             for command in commands.split('\n'):
                 p = subprocess.Popen(commands,
                                      stderr=subprocess.PIPE,
