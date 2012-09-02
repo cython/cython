@@ -1,5 +1,5 @@
 all:
-	python Setup.py build_ext --inplace
+	python setup.py build_ext --inplace
 
 test:	all
 	python run_primes.py 20
