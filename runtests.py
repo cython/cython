@@ -750,14 +750,14 @@ class CythonRunTestCase(CythonCompileTestCase):
             tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
-
 def run_forked_test(result, run_func, test_name, fork=True):
     if not fork or sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
         run_func(result)
+        sys.stdout.flush()
+        sys.stderr.flush()
         gc.collect()
         return
 
-    module_name = test_name.split()[-1]
     # fork to make sure we do not keep the tested module loaded
     result_handle, result_file = tempfile.mkstemp()
     os.close(result_handle)
@@ -770,6 +770,8 @@ def run_forked_test(result, run_func, test_name, fork=True):
                 try:
                     partial_result = PartialTestResult(result)
                     run_func(partial_result)
+                    sys.stdout.flush()
+                    sys.stderr.flush()
                     gc.collect()
                 except Exception:
                     if tests is None:
@@ -798,7 +800,7 @@ def run_forked_test(result, run_func, test_name, fork=True):
         if result_code & 255:
             raise Exception("Tests in module '%s' were unexpectedly killed by signal %d"%
                             (module_name, result_code & 255))
-        result_code = result_code >> 8
+        result_code >>= 8
         if result_code in (0,1):
             input = open(result_file, 'rb')
             try:
@@ -947,15 +949,22 @@ class CythonPyregrTestCase(CythonRunTestCase):
             def run_doctest(module, verbosity=None):
                 return self._run_doctest(result, module)
 
+            backup = (support.run_unittest, support.run_doctest)
             support.run_unittest = run_unittest
             support.run_doctest = run_doctest
 
             try:
-                module = __import__(self.module)
-                if hasattr(module, 'test_main'):
-                    module.test_main()
-            except (unittest.SkipTest, support.ResourceDenied):
-                result.addSkip(self, 'ok')
+                try:
+                    sys.stdout.flush() # helps in case of crashes
+                    module = __import__(self.module)
+                    sys.stdout.flush() # helps in case of crashes
+                    if hasattr(module, 'test_main'):
+                        module.test_main()
+                        sys.stdout.flush() # helps in case of crashes
+                except (unittest.SkipTest, support.ResourceDenied):
+                    result.addSkip(self, 'ok')
+            finally:
+                support.run_unittest, support.run_doctest = backup
 
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
