@@ -1,4 +1,4 @@
-__version__ = "0.17"
+__version__ = "0.18-pre"
 
 # Void cython.* directives (for case insensitive operating systems).
 from Cython.Shadow import *
