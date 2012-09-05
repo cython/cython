@@ -2961,13 +2961,14 @@ def p_property_decl(s):
 
 def p_doc_string(s):
     if s.sy == 'BEGIN_STRING':
+        quote_string = s.systring
         pos = s.position()
         kind, bytes_result, unicode_result = p_cat_string_literal(s)
         if s.sy != 'EOF':
             if s.sy != 'NEWLINE':
-                s.put_back('END_STRING', '"')
+                s.put_back('END_STRING', quote_string)
                 s.put_back('CHARS', unicode(bytes_result.byteencode()))
-                s.put_back('BEGIN_STRING', '"')
+                s.put_back('BEGIN_STRING', quote_string)
                 return None
             else:
                 s.next()
