@@ -2964,7 +2964,13 @@ def p_doc_string(s):
         pos = s.position()
         kind, bytes_result, unicode_result = p_cat_string_literal(s)
         if s.sy != 'EOF':
-            s.expect_newline("Syntax error in doc string")
+            if s.sy != 'NEWLINE':
+                s.put_back('END_STRING', '"')
+                s.put_back('CHARS', unicode(bytes_result.byteencode()))
+                s.put_back('BEGIN_STRING', '"')
+                return None
+            else:
+                s.next()
         if kind in ('u', ''):
             return unicode_result
         warning(pos, "Python 3 requires docstrings to be unicode strings")
