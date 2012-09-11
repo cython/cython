@@ -3122,6 +3122,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         node.if_clauses = if_clauses
         return node
 
+    def visit_ForInStatNode(self, node):
+        self.visitchildren(node)
+        # iterating over a list literal? => tuples are more efficient
+        sequence = node.iterator.sequence
+        if isinstance(sequence, ExprNodes.ListNode):
+            node.iterator.sequence = ExprNodes.TupleNode(
+                sequence.pos, args=sequence.args, mult_factor=sequence.mult_factor)
+        return node
+
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
 

@@ -2,6 +2,7 @@
 # tag: forin
 
 import sys
+import cython
 
 try:
     from builtins import next
@@ -35,6 +36,18 @@ def for_in_list():
     >>> for_in_pyiter([1,2,3,4,5])
     [1, 2, 3, 4, 5]
     """
+
+@cython.test_assert_path_exists('//TupleNode//IntNode')
+@cython.test_fail_if_path_exists('//ListNode//IntNode')
+def for_in_literal_list():
+    """
+    >>> for_in_literal_list()
+    [1, 2, 3, 4]
+    """
+    l = []
+    for i in [1,2,3,4]:
+        l.append(i)
+    return l
 
 class Iterable(object):
     """
