@@ -20,7 +20,6 @@ Options:
   -o, --output-file <filename>   Specify name of generated C file
   -t, --timestamps               Only compile newer source files
   -f, --force                    Compile all source files (overrides implied -t)
-  -q, --quiet                    Don't print module names in recursive mode
   -v, --verbose                  Be verbose, print file names on multiple compilation
   -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
@@ -38,7 +37,7 @@ Options:
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
   --fast-fail                    Abort the compilation on the first error
-  --warning-error, -Werror       Make all warnings into errors
+  --warning-errors, -Werror      Make all warnings into errors
   --warning-extra, -Wextra       Enable extra warnings
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
