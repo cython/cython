@@ -2958,26 +2958,6 @@ def p_property_decl(s):
     doc, body = p_suite(s, Ctx(level = 'property'), with_doc = 1)
     return Nodes.PropertyNode(pos, name = name, doc = doc, body = body)
 
-def p_doc_string(s):
-    if s.sy == 'BEGIN_STRING':
-        quote_string = s.systring
-        pos = s.position()
-        kind, bytes_result, unicode_result = p_cat_string_literal(s)
-        if s.sy != 'EOF':
-            if s.sy != 'NEWLINE':
-                s.put_back('END_STRING', quote_string)
-                s.put_back('CHARS', unicode(bytes_result.byteencode()))
-                s.put_back('BEGIN_STRING', quote_string)
-                return None
-            else:
-                s.next()
-        if kind in ('u', ''):
-            return unicode_result
-        warning(pos, "Python 3 requires docstrings to be unicode strings")
-        return bytes_result
-    else:
-        return None
-
 def p_code(s, level=None, ctx=Ctx):
     body = p_statement_list(s, ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
