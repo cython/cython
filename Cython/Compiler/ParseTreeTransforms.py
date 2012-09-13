@@ -1646,7 +1646,7 @@ if VALUE is not None:
             return None
         else:
             return self.visit_ClassDefNode(node)
-    
+
     def visit_CStructOrUnionDefNode(self, node):
         # Create a wrapper node if needed.
         # We want to use the struct type information (so it can't happen

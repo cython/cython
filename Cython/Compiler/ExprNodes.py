@@ -1117,6 +1117,9 @@ class BytesNode(ConstNode):
         else:
             self.result_code = code.get_string_const(self.value)
 
+    def generate_execution_code(self, code):
+        pass
+
     def get_constant_c_result_code(self):
         return None # FIXME
 
@@ -1179,6 +1182,9 @@ class UnicodeNode(PyConstNode):
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
 
+    def generate_execution_code(self, code):
+        pass
+
     def calculate_result_code(self):
         return self.result_code
 
@@ -1216,6 +1222,9 @@ class StringNode(PyConstNode):
         self.result_code = code.get_py_string_const(
             self.value, identifier=self.is_identifier, is_str=True,
             unicode_value=self.unicode_value)
+
+    def generate_execution_code(self, code):
+        pass
 
     def get_constant_c_result_code(self):
         return None
@@ -2009,7 +2018,7 @@ class IteratorNode(ExprNode):
         elif sequence_type.is_pyobject:
             return sequence_type
         return py_object_type
-    
+
     def analyse_cpp_types(self, env):
         sequence_type = self.sequence.type
         if sequence_type.is_ptr:

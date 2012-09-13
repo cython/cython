@@ -1100,7 +1100,7 @@ def p_expression_or_assignment(s):
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
         expr = expr_list[0]
         if isinstance(expr, (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)):
-            return Nodes.PassStatNode(expr.pos)
+            return expr
         else:
             return Nodes.ExprStatNode(expr.pos, expr = expr)
 
@@ -1870,8 +1870,7 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
     if s.sy == 'NEWLINE':
         s.next()
         s.expect_indent()
-        if with_doc or with_pseudo_doc:
-            doc = p_doc_string(s)
+        sy = s.sy
         body = p_statement_list(s, ctx)
         s.expect_dedent()
     else:
@@ -3004,7 +3003,7 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     if 'language_level' in directive_comments:
         s.context.set_language_level(directive_comments['language_level'])
 
-    doc = p_doc_string(s)
+    doc = None
     if pxd:
         level = 'module_pxd'
     else:
