@@ -442,10 +442,14 @@ def aggressive_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
     if result_type.is_reference:
         result_type = result_type.ref_base_type
+    if result_type.is_const:
+        result_type = result_type.const_base_type
     return result_type
 
 def safe_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
+    if result_type.is_const:
+        result_type = result_type.const_base_type
     if result_type.is_reference:
         result_type = result_type.ref_base_type
     if result_type.is_pyobject:

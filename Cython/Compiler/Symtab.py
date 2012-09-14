@@ -2,6 +2,7 @@
 #   Symbol Table
 #
 
+import copy
 import re
 from Errors import warning, error, InternalError
 from StringEncoding import EncodedString
@@ -2151,3 +2152,20 @@ class PropertyScope(Scope):
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
                 "in a property declaration")
             return None
+
+class CConstScope(Scope):
+
+    def __init__(self, const_base_type_scope):
+        Scope.__init__(
+            self,
+            'const_' + const_base_type_scope.name,
+            const_base_type_scope.outer_scope,
+            const_base_type_scope.parent_scope)
+        self.const_base_type_scope = const_base_type_scope
+
+    def lookup_here(self, name):
+        entry = self.const_base_type_scope.lookup_here(name)
+        if entry is not None:
+            entry = copy.copy(entry)
+            entry.type = PyrexTypes.c_const_type(entry.type)
+            return entry

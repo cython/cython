@@ -1048,6 +1048,19 @@ class FusedTypeNode(CBaseTypeNode):
         return PyrexTypes.FusedType(types, name=self.name)
 
 
+class CConstTypeNode(CBaseTypeNode):
+    # base_type     CBaseTypeNode
+
+    child_attrs = ["base_type"]
+
+    def analyse(self, env, could_be_name = False):
+        base = self.base_type.analyse(env, could_be_name)
+        if base.is_pyobject:
+            error(self.pos,
+                  "Const base type cannot be a Python object")
+        return PyrexTypes.c_const_type(base)
+
+
 class CVarDefNode(StatNode):
     #  C variable definition or forward/extern function declaration.
     #
@@ -1941,6 +1954,7 @@ class CFuncDefNode(FuncDefNode):
     #  overridable   whether or not this is a cpdef function
     #  inline_in_pxd whether this is an inline function in a pxd file
     #  template_declaration  String or None   Used for c++ class methods
+    #  is_const_method whether this is a const method
 
     child_attrs = ["base_type", "declarator", "body", "py_func"]
 
@@ -1950,6 +1964,7 @@ class CFuncDefNode(FuncDefNode):
     directive_returns = None
     override = None
     template_declaration = None
+    is_const_method = False
 
     def unqualified_name(self):
         return self.entry.name
@@ -2021,6 +2036,7 @@ class CFuncDefNode(FuncDefNode):
         name = name_declarator.name
         cname = name_declarator.cname
 
+        type.is_const_method = self.is_const_method
         self.entry = env.declare_cfunction(
             name, type, self.pos,
             cname = cname, visibility = self.visibility, api = self.api,
