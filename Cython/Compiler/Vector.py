@@ -1550,7 +1550,10 @@ class ElementalMapper(specializers.ASTMapper):
                 # normal function argument, create partial function
                 miniargs.append(self.register_operand(arg))
 
-        minifunc = b.funcname(minitype, node.function.entry.cname)
+        arg_types = [arg.type for arg in miniargs]
+        func_type = minitypes.FunctionType(return_type=minitype,
+                                           arg_types=arg_types)
+        minifunc = b.funcname(func_type, node.function.entry.cname)
         return b.funccall(minifunc, miniargs)
 
     @elemental_dispatcher
