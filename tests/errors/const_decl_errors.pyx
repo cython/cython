@@ -7,15 +7,20 @@ cdef const object o
 # as it's not needed for agreeing with external libraries.
 cdef const int x = 10
 
-cdef func(const int a, const int* b, const (int*) c):
+cdef struct S:
+    int member
+
+cdef func(const int a, const int* b, const (int*) c, const S s):
     a = 10
-    b[0] = 100
     c = NULL
+    b[0] = 100
+    s.member = 1000
 
 _ERRORS = """
 3:5: Const base type cannot be a Python object
 8:5: Assignment to const 'x'
-11:6: Assignment to const 'a'
-12:5: Assignment to const dereference
-13:6: Assignment to const 'c'
+14:6: Assignment to const 'a'
+15:6: Assignment to const 'c'
+16:5: Assignment to const dereference
+17:5: Assignment to const attribute 'member'
 """
