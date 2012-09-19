@@ -1982,6 +1982,11 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
     pos = s.position()
     if not s.sy == 'IDENT':
         error(pos, "Expected an identifier, found '%s'" % s.sy)
+    if s.systring == 'const':
+        s.next()
+        base_type = p_c_base_type(s,
+            self_flag = self_flag, nonempty = nonempty, templates = templates)
+        return Nodes.CConstTypeNode(pos, base_type = base_type)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
@@ -2703,6 +2708,11 @@ def p_c_func_or_var_declaration(s, pos, ctx):
     declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
+    if s.sy == 'IDENT' and s.systring == 'const' and ctx.level == 'cpp_class':
+        s.next()
+        is_const_method = 1
+    else:
+        is_const_method = 0
     if s.sy == ':':
         if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd', 'cpp_class') and not ctx.templates:
             s.error("C function definition not allowed here")
@@ -2715,7 +2725,8 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             doc = doc,
             modifiers = modifiers,
             api = ctx.api,
-            overridable = ctx.overridable)
+            overridable = ctx.overridable,
+            is_const_method = is_const_method)
     else:
         #if api:
         #    s.error("'api' not allowed with variable declaration")

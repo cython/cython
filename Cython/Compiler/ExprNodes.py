@@ -618,6 +618,9 @@ class ExprNode(Node):
         if dst_type.is_reference and not src_type.is_reference:
             dst_type = dst_type.ref_base_type
 
+        if src_type.is_const:
+            src_type = src_type.const_base_type
+
         if src_type.is_fused or dst_type.is_fused:
             # See if we are coercing a fused function to a pointer to a
             # specialized function
@@ -1511,6 +1514,10 @@ class NameNode(AtomicExprNode):
             self.entry = self.entry.as_variable
             self.type = self.entry.type
 
+        if self.type.is_const:
+            error(self.pos, "Assignment to const '%s'" % self.name)
+        if self.type.is_reference:
+            error(self.pos, "Assignment to reference '%s'" % self.name)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'"
                 % self.name)
@@ -2233,6 +2240,8 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             if item_type.is_reference:
                 item_type = item_type.ref_base_type
+            if item_type.is_const:
+                item_type = item_type.const_base_type
             return item_type
         else:
             # Avoid duplication of complicated logic.
@@ -2598,6 +2607,8 @@ class IndexNode(ExprNode):
 
     def analyse_target_types(self, env):
         self.analyse_base_and_index_types(env, setting = 1)
+        if self.type.is_const:
+            error(self.pos, "Assignment to const dereference")
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue of type '%s'" % self.type)
 
@@ -4453,6 +4464,8 @@ class AttributeNode(ExprNode):
 
     def analyse_target_types(self, env):
         self.analyse_types(env, target = 1)
+        if self.type.is_const:
+            error(self.pos, "Assignment to const attribute '%s'" % self.attribute)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue of type '%s'" % self.type)
 
