@@ -207,12 +207,6 @@ static int __Pyx_ValidateAndInit_memviewslice(
         goto fail;
     }
 
-    if (!buf->strides) {
-        PyErr_SetString(PyExc_ValueError,
-            "buffer does not supply strides necessary for memoryview.");
-        goto fail;
-    }
-
     for(i=0; i<ndim; i++) {
         spec = axes_specs[i];
 
@@ -320,8 +314,19 @@ __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
         goto fail;
     }
 
+    if (buf->strides) {
+        for (i = 0; i < ndim; i++) {
+            memviewslice->strides[i] = buf->strides[i];
+        }
+    } else {
+        Py_ssize_t stride = buf->itemsize;
+        for (i = ndim - 1; i >= 0; i--) {
+            memviewslice->strides[i] = stride;
+            stride *= buf->shape[i];
+        }
+    }
+
     for (i = 0; i < ndim; i++) {
-        memviewslice->strides[i] = buf->strides[i];
         memviewslice->shape[i]   = buf->shape[i];
         if (buf->suboffsets) {
             memviewslice->suboffsets[i] = buf->suboffsets[i];
