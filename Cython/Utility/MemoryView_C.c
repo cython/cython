@@ -207,30 +207,48 @@ static int __Pyx_ValidateAndInit_memviewslice(
         goto fail;
     }
 
-    for(i=0; i<ndim; i++) {
+    for (i = 0; i < ndim; i++) {
         spec = axes_specs[i];
 
-        if (spec & __Pyx_MEMVIEW_CONTIG) {
-            if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL)) {
-                if (buf->strides[i] != sizeof(void *)) {
-                    PyErr_Format(PyExc_ValueError,
-                        "Buffer is not indirectly contiguous in dimension %d.", i);
+        if (buf->strides) {
+            if (spec & __Pyx_MEMVIEW_CONTIG) {
+                if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL)) {
+                    if (buf->strides[i] != sizeof(void *)) {
+                        PyErr_Format(PyExc_ValueError,
+                            "Buffer is not indirectly contiguous in dimension %d.", i);
+                        goto fail;
+                    }
+                } else if (buf->strides[i] != buf->itemsize) {
+                    PyErr_SetString(PyExc_ValueError,
+                        "Buffer and memoryview are not contiguous in the same dimension.");
                     goto fail;
                 }
-            } else if (buf->strides[i] != buf->itemsize) {
-                PyErr_SetString(PyExc_ValueError,
-                    "Buffer and memoryview are not contiguous in the same dimension.");
-                goto fail;
             }
-        }
 
-        if (spec & __Pyx_MEMVIEW_FOLLOW) {
-            Py_ssize_t stride = buf->strides[i];
-            if (stride < 0)
-                stride = -stride;
-            if (stride < buf->itemsize) {
+            if (spec & __Pyx_MEMVIEW_FOLLOW) {
+                Py_ssize_t stride = buf->strides[i];
+                if (stride < 0)
+                    stride = -stride;
+                if (stride < buf->itemsize) {
+                    PyErr_SetString(PyExc_ValueError,
+                        "Buffer and memoryview are not contiguous in the same dimension.");
+                    goto fail;
+                }
+            }
+        } else {
+            if (spec & __Pyx_MEMVIEW_CONTIG && i != ndim - 1) {
+                PyErr_Format(PyExc_ValueError,
+                             "C-contiguous buffer is not contiguous in "
+                             "dimension %d", i);
+                goto fail;
+            } else if (spec & (__Pyx_MEMVIEW_PTR)) {
+                PyErr_Format(PyExc_ValueError,
+                             "C-contiguous buffer is not indirect in "
+                             "dimension %d", i);
+                goto fail;
+            } else if (buf->suboffsets) {
                 PyErr_SetString(PyExc_ValueError,
-                    "Buffer and memoryview are not contiguous in the same dimension.");
+                                "Buffer exposes suboffsets but no strides");
                 goto fail;
             }
         }
@@ -254,25 +272,27 @@ static int __Pyx_ValidateAndInit_memviewslice(
         }
     }
 
-    if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
-        Py_ssize_t stride = 1;
-        for(i=0; i<ndim; i++) {
-            if(stride * buf->itemsize != buf->strides[i]) {
-                PyErr_SetString(PyExc_ValueError,
-                    "Buffer not fortran contiguous.");
-                goto fail;
+    if (buf->strides) {
+        if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
+            Py_ssize_t stride = 1;
+            for (i=0; i<ndim; i++) {
+                if (stride * buf->itemsize != buf->strides[i]) {
+                    PyErr_SetString(PyExc_ValueError,
+                        "Buffer not fortran contiguous.");
+                    goto fail;
+                }
+                stride = stride * buf->shape[i];
             }
-            stride = stride * buf->shape[i];
-        }
-    } else if (c_or_f_flag & __Pyx_IS_C_CONTIG) {
-        Py_ssize_t stride = 1;
-        for(i=ndim-1; i>-1; i--) {
-            if(stride * buf->itemsize != buf->strides[i]) {
-                PyErr_SetString(PyExc_ValueError,
-                    "Buffer not C contiguous.");
-                goto fail;
+        } else if (c_or_f_flag & __Pyx_IS_C_CONTIG) {
+            Py_ssize_t stride = 1;
+            for (i = ndim-1; i>-1; i--) {
+                if(stride * buf->itemsize != buf->strides[i]) {
+                    PyErr_SetString(PyExc_ValueError,
+                        "Buffer not C contiguous.");
+                    goto fail;
+                }
+                stride = stride * buf->shape[i];
             }
-            stride = stride * buf->shape[i];
         }
     }
 
