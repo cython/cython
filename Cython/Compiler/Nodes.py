@@ -5314,24 +5314,21 @@ class DictIterationNextNode(Node):
             type = PyrexTypes.c_bint_type)
 
     def analyse_expressions(self, env):
-        import UtilNodes
+        import ExprNodes
         self.dict_obj.analyse_types(env)
         self.expected_size.analyse_types(env)
         if self.pos_index_var: self.pos_index_var.analyse_types(env)
         if self.key_target:
             self.key_target.analyse_target_types(env)
-            self.key_ref = UtilNodes.ResultRefNode(pos=self.key_target.pos, is_temp=True,
-                                                   type=PyrexTypes.py_object_type)
+            self.key_ref = ExprNodes.TempNode(self.key_target.pos, PyrexTypes.py_object_type)
             self.coerced_key_var = self.key_ref.coerce_to(self.key_target.type, env)
         if self.value_target:
             self.value_target.analyse_target_types(env)
-            self.value_ref = UtilNodes.ResultRefNode(pos=self.value_target.pos, is_temp=True,
-                                                     type=PyrexTypes.py_object_type)
+            self.value_ref = ExprNodes.TempNode(self.value_target.pos, type=PyrexTypes.py_object_type)
             self.coerced_value_var = self.value_ref.coerce_to(self.value_target.type, env)
         if self.tuple_target:
             self.tuple_target.analyse_target_types(env)
-            self.tuple_ref = UtilNodes.ResultRefNode(pos=self.tuple_target.pos, is_temp=True,
-                                                     type=PyrexTypes.py_object_type)
+            self.tuple_ref = ExprNodes.TempNode(self.tuple_target.pos, PyrexTypes.py_object_type)
             self.coerced_tuple_var = self.tuple_ref.coerce_to(self.tuple_target.type, env)
         self.is_dict_flag.analyse_types(env)
 
@@ -5350,10 +5347,9 @@ class DictIterationNextNode(Node):
             if target is None:
                 addr = 'NULL'
             else:
-                temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, True)
-                var.result_code = temp
-                assignments.append((temp, result, target))
-                addr = '&%s' % temp
+                assignments.append((var, result, target))
+                var.allocate(code)
+                addr = '&%s' % var.result()
             temp_addresses.append(addr)
 
         result_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, False)
@@ -5372,17 +5368,13 @@ class DictIterationNextNode(Node):
         code.funcstate.release_temp(result_temp)
 
         # evaluate all coercions before the assignments
-        for temp, result, target in assignments:
-            code.put_gotref(temp)
+        for var, result, target in assignments:
+            code.put_gotref(var.result())
             result.generate_evaluation_code(code)
-            if not result.type.is_pyobject:
-                code.put_decref_clear(temp, PyrexTypes.py_object_type)
-                code.funcstate.release_temp(temp)
 
-        for temp, result, target in assignments:
+        for var, result, target in assignments:
             target.generate_assignment_code(result, code)
-            if result.type.is_pyobject:
-                code.funcstate.release_temp(temp)
+            var.release(code)
 
 def ForStatNode(pos, **kw):
     if 'iterator' in kw:
