@@ -5370,8 +5370,8 @@ class DictIterationNextNode(Node):
         # evaluate all coercions before the assignments
         for var, result, target in assignments:
             code.put_gotref(var.result())
+        for var, result, target in assignments:
             result.generate_evaluation_code(code)
-
         for var, result, target in assignments:
             target.generate_assignment_code(result, code)
             var.release(code)
