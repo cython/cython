@@ -19,7 +19,6 @@ import Options
 import TypeSlots
 import Version
 import PyrexTypes
-import ExprNodes
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
@@ -85,30 +84,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.type.module_name = self.full_module_name
 
             self.scope.merge_in(scope)
-
-    def assign_docstring(self):
-        """
-            Browse statement tree, check if module/function nodes have a string
-            as the first sub-statement. If so, assign it as the docstring of the
-            node.
-        """
-        stringNodes = (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)
-        toDocNodes = (ModuleNode, Nodes.DefNode, Nodes.PyClassDefNode)
-
-        def browse(node):
-            body = node.body
-            if isinstance(body, Nodes.StatListNode):
-                if isinstance(body.stats[0], stringNodes):
-                    node.doc = body.stats[0].value
-                for (index, item) in enumerate(body.stats):
-                    if isinstance(item, toDocNodes):
-                        body.stats[index] = browse(item)
-            elif isinstance(body, stringNodes):
-                node.doc = body.value
-            return node
-
-        if isinstance(self, toDocNodes):
-            self = browse(self)
 
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:

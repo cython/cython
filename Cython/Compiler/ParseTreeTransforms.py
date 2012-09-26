@@ -138,6 +138,9 @@ class PostParseError(CompileError): pass
 ERR_CDEF_INCLASS = 'Cannot assign default value to fields in cdef classes, structs or unions'
 ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
 ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
+
+# Nodes that can represent a literal string
+STRING_NODES = (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)
 class PostParse(ScopeTrackingTransform):
     """
     Basic interpretation of the parse tree, as well as validity
@@ -179,10 +182,35 @@ class PostParse(ScopeTrackingTransform):
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
 
+    def visit_FuncDefNode(self, node):
+        result = super(PostParse, self).visit_FuncDefNode(node)
+        if result.body.stats:
+            firstNode = result.body.stats[0]
+            if isinstance(firstNode, Nodes.ExprStatNode) and isinstance(firstNode.expr, STRING_NODES):
+                self.doc = firstNode.expr.value
+                result.doc = self.doc
+        return result
+
+    def visit_PyClassDefNode(self, node):
+        result = super(PostParse, self).visit_PyClassDefNode(node)
+        if result.body.stats:
+            firstNode = result.body.stats[0]
+            if isinstance(firstNode, Nodes.ExprStatNode) and isinstance(firstNode.expr, STRING_NODES):
+                self.doc = firstNode.expr.value
+                result.doc = self.doc
+                result.classobj.doc = firstNode.expr
+        return result
+
     def visit_ModuleNode(self, node):
         self.lambda_counter = 1
         self.genexpr_counter = 1
-        return super(PostParse, self).visit_ModuleNode(node)
+        result = super(PostParse, self).visit_ModuleNode(node)
+        if result.body.stats:
+            firstNode = result.body.stats[0]
+            if isinstance(firstNode, Nodes.ExprStatNode) and isinstance(firstNode.expr, STRING_NODES):
+                self.doc = firstNode.expr.value
+                result.doc = self.doc
+        return result
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode

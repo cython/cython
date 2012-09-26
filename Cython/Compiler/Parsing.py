@@ -1099,10 +1099,7 @@ def p_expression_or_assignment(s):
                 rhs = p_testlist(s)
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
         expr = expr_list[0]
-        if isinstance(expr, (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)):
-            return expr
-        else:
-            return Nodes.ExprStatNode(expr.pos, expr = expr)
+        return Nodes.ExprStatNode(expr.pos, expr = expr)
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:

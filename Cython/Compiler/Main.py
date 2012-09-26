@@ -297,7 +297,6 @@ class Context(object):
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
-                tree.assign_docstring()
             finally:
                 f.close()
         except UnicodeDecodeError, e:

@@ -574,7 +574,7 @@ class GetAndReleaseBufferUtilityCode(object):
         proto_code = output['utility_code_proto']
         env = output.module_node.scope
         cython_scope = env.context.cython_scope
-        
+
         # Search all types for __getbuffer__ overloads
         types = []
         visited_scopes = set()
