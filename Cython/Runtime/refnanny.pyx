@@ -63,7 +63,7 @@ cdef class Context(object):
                 msg += u"\n  (%d) acquired on lines: %s" % (count, u", ".join([u"%d" % x for x in linenos]))
             self.errors.append(msg)
         if self.errors:
-            return u"\n".join(['REFNANNY: '+error for error in self.errors])
+            return u"\n".join([u'REFNANNY: '+error for error in self.errors])
         else:
             return None
 
