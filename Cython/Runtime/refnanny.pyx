@@ -58,12 +58,12 @@ cdef class Context(object):
 
     cdef end(self):
         if self.refs:
-            msg = u""
+            msg = u"References leaked:"
             for count, linenos in self.refs.itervalues():
-                msg += u"\n  Acquired on lines: " + u", ".join([u"%d" % x for x in linenos])
-            self.errors.append(u"References leaked: %s" % msg)
+                msg += u"\n  (%d) acquired on lines: %s" % (count, u", ".join([u"%d" % x for x in linenos]))
+            self.errors.append(msg)
         if self.errors:
-            return u"\n".join(self.errors)
+            return u"\n".join(['REFNANNY: '+error for error in self.errors])
         else:
             return None
 
