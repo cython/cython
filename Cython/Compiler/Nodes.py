@@ -240,6 +240,8 @@ class Node(object):
             return pos
 
     def dump(self, level=0, filter_out=("pos",), cutoff=100, encountered=None):
+        """Debug helper method that returns a recursive string representation of this node.
+        """
         if cutoff == 0:
             return "<...nesting level cutoff...>"
         if encountered is None:
@@ -267,6 +269,24 @@ class Node(object):
                 res += "%s  %s: %s\n" % (indent, key, dump_child(value, level + 1))
             res += "%s>" % indent
             return res
+
+    def dump_pos(self, mark_column=False, marker='(#)'):
+        """Debug helper method that returns the source code context of this node as a string.
+        """
+        if not self.pos:
+            return u''
+        source_desc, line, col = self.pos
+        contents = source_desc.get_lines(encoding='ASCII',
+                                         error_handling='ignore')
+        # line numbers start at 1
+        lines = contents[max(0,line-3):line]
+        current = lines[-1]
+        if mark_column:
+            current = current[:col] + marker + current[col:]
+        lines[-1] = current.rstrip() + u'             # <<<<<<<<<<<<<<\n'
+        lines += contents[line:line+2]
+        return u'"%s":%d:%d\n%s\n' % (
+            source_desc.get_escaped_description(), line, col, u''.join(lines))
 
 class CompilerDirectivesNode(Node):
     """
