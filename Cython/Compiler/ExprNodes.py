@@ -389,7 +389,7 @@ class ExprNode(Node):
     def nonlocally_immutable(self):
         # Returns whether this variable is a safe reference, i.e.
         # can't be modified as part of globals or closures.
-        return self.is_temp or self.type.is_array or self.type.is_cfunction
+        return self.is_literal or self.is_temp or self.type.is_array or self.type.is_cfunction
 
     # --------------- Type Analysis ------------------
 
