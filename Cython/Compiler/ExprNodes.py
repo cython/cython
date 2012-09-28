@@ -9296,7 +9296,7 @@ class PyTypeTestNode(CoercionNode):
         return self.arg.is_ephemeral()
 
     def nonlocally_immutable(self):
-        return super(PyTypeTestNode, self).nonlocally_immutable() or self.arg.nonlocally_immutable()
+        return self.arg.nonlocally_immutable()
 
     def calculate_constant_result(self):
         # FIXME
@@ -9355,7 +9355,7 @@ class NoneCheckNode(CoercionNode):
         return self.arg.result_in_temp()
 
     def nonlocally_immutable(self):
-        return super(NoneCheckNode, self).nonlocally_immutable() or self.arg.nonlocally_immutable()
+        return self.arg.nonlocally_immutable()
 
     def calculate_result_code(self):
         return self.arg.result()
