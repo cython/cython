@@ -1617,7 +1617,9 @@ class NameNode(AtomicExprNode):
         if ExprNode.nonlocally_immutable(self):
             return True
         entry = self.entry
-        return entry and (entry.is_local or entry.is_arg) and not entry.in_closure
+        if not entry or entry.in_closure:
+            return False
+        return entry.is_local or entry.is_arg or entry.is_builtin or entry.is_readonly
 
     def calculate_target_results(self, env):
         pass
