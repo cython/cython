@@ -7390,7 +7390,7 @@ class TypecastNode(ExprNode):
         return self.operand.is_simple()
 
     def nonlocally_immutable(self):
-        return self.operand.nonlocally_immutable()
+        return self.is_temp or self.operand.nonlocally_immutable()
 
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
@@ -9295,6 +9295,9 @@ class PyTypeTestNode(CoercionNode):
     def is_ephemeral(self):
         return self.arg.is_ephemeral()
 
+    def nonlocally_immutable(self):
+        return super(PyTypeTestNode, self).nonlocally_immutable() or self.arg.nonlocally_immutable()
+
     def calculate_constant_result(self):
         # FIXME
         pass
@@ -9350,6 +9353,9 @@ class NoneCheckNode(CoercionNode):
 
     def result_in_temp(self):
         return self.arg.result_in_temp()
+
+    def nonlocally_immutable(self):
+        return super(NoneCheckNode, self).nonlocally_immutable() or self.arg.nonlocally_immutable()
 
     def calculate_result_code(self):
         return self.arg.result()
