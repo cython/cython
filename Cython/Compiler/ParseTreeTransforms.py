@@ -190,18 +190,15 @@ class PostParse(ScopeTrackingTransform):
                 return firstNode.expr, result
         return None, result
 
-    def _visit_Class(self, node, nodeName):
-        docNode, result = self._visit_DocString(node, nodeName)
-        if docNode:
-            result.classobj.doc = docNode
-        return result
-
     def visit_FuncDefNode(self, node):
         docNode, result = self._visit_DocString(node, 'visit_FuncDefNode')
         return result
 
     def visit_PyClassDefNode(self, node):
-        return self._visit_Class(node, 'visit_PyClassDefNode')
+        docNode, result = self._visit_DocString(node, 'visit_PyClassDefNode')
+        if docNode:
+            result.classobj.doc = docNode
+        return result
 
     def visit_CClassDefNode(self, node):
         docNode, result = self._visit_DocString(node, 'visit_CClassDefNode')

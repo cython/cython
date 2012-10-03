@@ -1867,7 +1867,6 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
     if s.sy == 'NEWLINE':
         s.next()
         s.expect_indent()
-        sy = s.sy
         body = p_statement_list(s, ctx)
         s.expect_dedent()
     else:
