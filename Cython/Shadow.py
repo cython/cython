@@ -1,4 +1,5 @@
 # cython.* namespace for pure mode.
+__version__ = "0.18-pre"
 
 compiled = False
 
