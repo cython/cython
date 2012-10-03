@@ -203,8 +203,9 @@ class PostParse(ScopeTrackingTransform):
     def visit_PyClassDefNode(self, node):
         return self._visit_Class(node, 'visit_PyClassDefNode')
 
-    def visit_ClassDefNode(self, node):
-        return self._visit_Class(node, 'visit_ClassDefNode')
+    def visit_CClassDefNode(self, node):
+        docNode, result = self._visit_DocString(node, 'visit_CClassDefNode')
+        return result
 
     def visit_ModuleNode(self, node):
         self.lambda_counter = 1
