@@ -2599,7 +2599,7 @@ class CFuncType(CType):
 
         result = CFuncType(self.return_type.specialize(values),
                            [arg.specialize(values) for arg in self.args],
-                           has_varargs = 0,
+                           has_varargs = self.has_varargs,
                            exception_value = self.exception_value,
                            exception_check = self.exception_check,
                            calling_convention = self.calling_convention,
