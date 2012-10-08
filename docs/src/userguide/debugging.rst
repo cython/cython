@@ -20,8 +20,8 @@ script by passing ``pyrex_gdb=True`` to your Cython Extenion class::
 
     from Cython.Distutils import extension
 
-    ext = extension.Extension('source', 'source.pyx', pyrex_gdb=True)
-    setup(..., ext_modules=[ext)]
+    ext = extension.Extension('source', ['source.pyx'], pyrex_gdb=True)
+    setup(..., ext_modules=[ext])
 
 With this approach debug information can be enabled on a per-module basis.
 Another (easier) way is to simply pass the ``--pyrex-gdb`` flag as a command
