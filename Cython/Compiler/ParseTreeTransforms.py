@@ -179,9 +179,8 @@ class PostParse(ScopeTrackingTransform):
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
 
-    def _visit_DocString(self, node, nodeName):
-        result = getattr(super(PostParse, self), nodeName)(node)
-        if result.body.stats:
+    def _visit_DocString(self, result):
+        if hasattr(result.body, 'stats') and result.body.stats:
             firstNode = result.body.stats[0]
             if isinstance(firstNode, Nodes.ExprStatNode) and firstNode.expr.is_string_literal:
                 result.body.stats = result.body.stats[1:]
@@ -191,23 +190,23 @@ class PostParse(ScopeTrackingTransform):
         return None, result
 
     def visit_FuncDefNode(self, node):
-        docNode, result = self._visit_DocString(node, 'visit_FuncDefNode')
+        docNode, result = self._visit_DocString(super(PostParse, self).visit_FuncDefNode(node))
         return result
 
     def visit_PyClassDefNode(self, node):
-        docNode, result = self._visit_DocString(node, 'visit_PyClassDefNode')
+        docNode, result = self._visit_DocString(super(PostParse, self).visit_PyClassDefNode(node))
         if docNode:
             result.classobj.doc = docNode
         return result
 
     def visit_CClassDefNode(self, node):
-        docNode, result = self._visit_DocString(node, 'visit_CClassDefNode')
+        docNode, result = self._visit_DocString(super(PostParse, self).visit_CClassDefNode(node))
         return result
 
     def visit_ModuleNode(self, node):
         self.lambda_counter = 1
         self.genexpr_counter = 1
-        docNode, result = self._visit_DocString(node, 'visit_ModuleNode')
+        docNode, result = self._visit_DocString(super(PostParse, self).visit_ModuleNode(node))
         return result
 
     def visit_LambdaNode(self, node):
