@@ -2413,7 +2413,7 @@ class TransformBuiltinMethods(EnvTransform):
         if attribute:
             if attribute == u'compiled':
                 node = ExprNodes.BoolNode(node.pos, value=True)
-            if attribute == u'__version__':
+            elif attribute == u'__version__':
                 import Cython
                 node = ExprNodes.StringNode(node.pos, value=EncodedString(Cython.__version__))
             elif attribute == u'NULL':
