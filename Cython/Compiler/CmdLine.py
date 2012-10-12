@@ -36,6 +36,7 @@ Options:
   --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
+  --capi-reexport-cincludes      Add cincluded headers to any auto-generated header files.
   --fast-fail                    Abort the compilation on the first error
   --warning-errors, -Werror      Make all warnings into errors
   --warning-extra, -Wextra       Enable extra warnings
@@ -128,6 +129,8 @@ def parse_command_line(args):
                 options.language_level = 2
             elif option == '-3':
                 options.language_level = 3
+            elif option == "--capi-reexport-cincludes":
+                options.capi_reexport_cincludes = True
             elif option == "--fast-fail":
                 Options.fast_fail = True
             elif option in ('-Werror', '--warning-errors'):
