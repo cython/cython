@@ -1099,10 +1099,7 @@ def p_expression_or_assignment(s):
                 rhs = p_testlist(s)
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
         expr = expr_list[0]
-        if isinstance(expr, (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)):
-            return Nodes.PassStatNode(expr.pos)
-        else:
-            return Nodes.ExprStatNode(expr.pos, expr = expr)
+        return Nodes.ExprStatNode(expr.pos, expr = expr)
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:
@@ -1870,8 +1867,6 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
     if s.sy == 'NEWLINE':
         s.next()
         s.expect_indent()
-        if with_doc or with_pseudo_doc:
-            doc = p_doc_string(s)
         body = p_statement_list(s, ctx)
         s.expect_dedent()
     else:
@@ -2970,19 +2965,6 @@ def p_property_decl(s):
     doc, body = p_suite(s, Ctx(level = 'property'), with_doc = 1)
     return Nodes.PropertyNode(pos, name = name, doc = doc, body = body)
 
-def p_doc_string(s):
-    if s.sy == 'BEGIN_STRING':
-        pos = s.position()
-        kind, bytes_result, unicode_result = p_cat_string_literal(s)
-        if s.sy != 'EOF':
-            s.expect_newline("Syntax error in doc string")
-        if kind in ('u', ''):
-            return unicode_result
-        warning(pos, "Python 3 requires docstrings to be unicode strings")
-        return bytes_result
-    else:
-        return None
-
 def p_code(s, level=None, ctx=Ctx):
     body = p_statement_list(s, ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
@@ -3015,7 +2997,7 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     if 'language_level' in directive_comments:
         s.context.set_language_level(directive_comments['language_level'])
 
-    doc = p_doc_string(s)
+    doc = None
     if pxd:
         level = 'module_pxd'
     else:
