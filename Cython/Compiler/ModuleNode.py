@@ -152,6 +152,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.put_h_guard(h_guard)
             h_code.putln("")
             self.generate_type_header_code(h_types, h_code)
+            if options.capi_reexport_cincludes:
+                self.generate_includes(env, [], h_code)
             h_code.putln("")
             api_guard = Naming.api_guard_prefix + self.api_name(env)
             h_code.putln("#ifndef %s" % api_guard)

@@ -453,6 +453,9 @@ class CompilationOptions(object):
     include_path      [string]  Directories to search for include files
     output_file       string    Name of generated .c file
     generate_pxi      boolean   Generate .pxi file for public declarations
+    capi_reexport_cincludes  
+                      boolean   Add cincluded headers to any auto-generated 
+                                header files.
     recursive         boolean   Recursively find and compile dependencies
     timestamps        boolean   Only compile changed source files. If None,
                                 defaults to true when recursive is true.
@@ -654,6 +657,7 @@ default_options = dict(
     output_file = None,
     annotate = None,
     generate_pxi = 0,
+    capi_reexport_cincludes = 0,
     working_path = "",
     recursive = 0,
     timestamps = None,
