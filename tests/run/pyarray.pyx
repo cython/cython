@@ -25,7 +25,7 @@ def test_copy(a):
     """
     cdef array.array ca = a
     cdef array.array b
-    b = array.copy(a)
+    b = array.copy(ca)
     assert a == b
     a[2] = 3.5
     assert b[2] != a[2]
