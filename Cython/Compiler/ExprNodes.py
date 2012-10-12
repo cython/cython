@@ -2018,7 +2018,7 @@ class IteratorNode(ExprNode):
         elif sequence_type.is_pyobject:
             return sequence_type
         return py_object_type
-    
+
     def analyse_cpp_types(self, env):
         sequence_type = self.sequence.type
         if sequence_type.is_ptr:
