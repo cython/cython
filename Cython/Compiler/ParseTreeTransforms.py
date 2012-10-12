@@ -179,35 +179,10 @@ class PostParse(ScopeTrackingTransform):
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
 
-    def _visit_DocString(self, result):
-        if hasattr(result.body, 'stats') and result.body.stats:
-            firstNode = result.body.stats[0]
-            if isinstance(firstNode, Nodes.ExprStatNode) and firstNode.expr.is_string_literal:
-                result.body.stats = result.body.stats[1:]
-                self.doc = firstNode.expr.value
-                result.doc = self.doc
-                return firstNode.expr, result
-        return None, result
-
-    def visit_FuncDefNode(self, node):
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_FuncDefNode(node))
-        return result
-
-    def visit_PyClassDefNode(self, node):
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_PyClassDefNode(node))
-        if docNode:
-            result.classobj.doc = docNode
-        return result
-
-    def visit_CClassDefNode(self, node):
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_CClassDefNode(node))
-        return result
-
     def visit_ModuleNode(self, node):
         self.lambda_counter = 1
         self.genexpr_counter = 1
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_ModuleNode(node))
-        return result
+        return super(PostParse, self).visit_ModuleNode(node)
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -1671,7 +1646,7 @@ if VALUE is not None:
             return None
         else:
             return self.visit_ClassDefNode(node)
-
+    
     def visit_CStructOrUnionDefNode(self, node):
         # Create a wrapper node if needed.
         # We want to use the struct type information (so it can't happen
