@@ -179,34 +179,40 @@ class PostParse(ScopeTrackingTransform):
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
 
-    def _visit_DocString(self, result):
+    def extract_docstring(self, result):
         if hasattr(result.body, 'stats') and result.body.stats:
-            firstNode = result.body.stats[0]
-            if isinstance(firstNode, Nodes.ExprStatNode) and firstNode.expr.is_string_literal:
-                result.body.stats = result.body.stats[1:]
-                self.doc = firstNode.expr.value
-                result.doc = self.doc
-                return firstNode.expr, result
+            first_node = result.body.stats[0]
+            if isinstance(first_node, Nodes.ExprStatNode) and first_node.expr.is_string_literal:
+                string_node = first_node.expr
+                result.body.stats[:] = result.body.stats[1:]
+                if isinstance(string_node, ExprNodes.BytesNode):
+                    warning(string_node.pos, "Python 3 requires docstrings to be unicode strings")
+                    result.doc = string_node.value
+                elif getattr(string_node, 'unicode_value', None) is not None:
+                    result.doc = string_node.unicode_value
+                else:
+                    result.doc = string_node.value
+                return string_node, result
         return None, result
 
     def visit_FuncDefNode(self, node):
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_FuncDefNode(node))
+        doc_node, result = self.extract_docstring(super(PostParse, self).visit_FuncDefNode(node))
         return result
 
     def visit_PyClassDefNode(self, node):
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_PyClassDefNode(node))
-        if docNode:
-            result.classobj.doc = docNode
+        doc_node, result = self.extract_docstring(super(PostParse, self).visit_PyClassDefNode(node))
+        if doc_node:
+            result.classobj.doc = doc_node
         return result
 
     def visit_CClassDefNode(self, node):
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_CClassDefNode(node))
+        doc_node, result = self.extract_docstring(super(PostParse, self).visit_CClassDefNode(node))
         return result
 
     def visit_ModuleNode(self, node):
         self.lambda_counter = 1
         self.genexpr_counter = 1
-        docNode, result = self._visit_DocString(super(PostParse, self).visit_ModuleNode(node))
+        doc_node, result = self.extract_docstring(super(PostParse, self).visit_ModuleNode(node))
         return result
 
     def visit_LambdaNode(self, node):
