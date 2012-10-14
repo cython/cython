@@ -1000,7 +1000,12 @@ class SpecializationCaller(ExprNodes.ExprNode):
         for operand in [self] + self.operands:
             result = operand.result()
             if operand.type.is_memoryviewslice:
-                dtype_pointer_decl = operand.type.dtype.declaration_code("")
+                dtype = operand.type.dtype
+                if dtype.is_typedef and not dtype.typedef_is_external:
+                    # We mapped to the resolved version of the typedef
+                    dtype = dtype.resolve()
+
+                dtype_pointer_decl = dtype.declaration_code("")
                 args.append('(%s *) %s.data' % (dtype_pointer_decl, result))
                 if not specializer.is_contig_specializer:
                     offset = max(operand.type.ndim - self.function.ndim, 0)
