@@ -7341,6 +7341,9 @@ class TypecastNode(ExprNode):
         if self.type is None:
             base_type = self.base_type.analyse(env)
             _, self.type = self.declarator.analyse(base_type, env)
+        if self.operand.has_constant_result():
+            # Must be done after self.type is resolved.
+            self.calculate_constant_result()
         if self.type.is_cfunction:
             error(self.pos,
                 "Cannot cast to a function type")
@@ -7400,11 +7403,11 @@ class TypecastNode(ExprNode):
         return self.operand.check_const()
 
     def calculate_constant_result(self):
-        # we usually do not know the result of a type cast at code
-        # generation time
-        pass
+        self.constant_result = self.calculate_result_code(self.operand.constant_result)
 
-    def calculate_result_code(self):
+    def calculate_result_code(self, operand_result = None):
+        if operand_result is None:
+            operand_result = self.operand.result()
         if self.type.is_complex:
             operand_result = self.operand.result()
             if self.operand.type.is_complex:
@@ -7418,7 +7421,7 @@ class TypecastNode(ExprNode):
                     real_part,
                     imag_part)
         else:
-            return self.type.cast_code(self.operand.result())
+            return self.type.cast_code(operand_result)
 
     def get_constant_c_result_code(self):
         operand_result = self.operand.get_constant_c_result_code()
