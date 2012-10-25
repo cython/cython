@@ -402,6 +402,15 @@ class CTypedefType(BaseType):
         # delegation
         return self.typedef_base_type.create_from_py_utility_code(env)
 
+    def overflow_check_binop(self, binop, env):
+        env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
+        type = self.declaration_code("")
+        name = self.specialization_name()
+        _load_overflow_base(env)
+        env.use_utility_code(TempitaUtilityCode.load("SizeCheck", "Overflow.c", context={'TYPE': type, 'NAME': name}))
+        env.use_utility_code(TempitaUtilityCode.load("Binop", "Overflow.c", context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
+        return "__Pyx_%s_%s_checking_overflow" % (binop, name)
+
     def error_condition(self, result_code):
         if self.typedef_is_external:
             if self.exception_value:
@@ -1546,7 +1555,7 @@ class CIntType(CNumericType):
             # We do not really know the size of the type, so return
             # a 32-bit literal and rely on casting to final type. It will
             # be negative for signed ints, which is good.
-            return "0xbad0bad0";
+            return "0xbad0bad0"
 
     def overflow_check_binop(self, binop, env):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
@@ -1561,6 +1570,7 @@ class CIntType(CNumericType):
             return "__Pyx_%s_%s_no_overflow" % (binop, name)
         else:
             _load_overflow_base(env)
+            env.use_utility_code(TempitaUtilityCode.load("SizeCheck", "Overflow.c", context={'TYPE': type, 'NAME': name}))
             env.use_utility_code(TempitaUtilityCode.load("Binop", "Overflow.c", context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
         return "__Pyx_%s_%s_checking_overflow" % (binop, name)
 

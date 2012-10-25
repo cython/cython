@@ -68,10 +68,18 @@ class UtilityCodeBase(object):
     Code sections in the file can be specified as follows:
 
         ##### MyUtility.proto #####
+        
+        [proto declarations]
+        
+        ##### MyUtility.init #####
+        
+        [code run at module initialization]
 
         ##### MyUtility #####
         #@requires: MyOtherUtility
         #@substitute: naming
+        
+        [definitions]
 
     for prototypes and implementation respectively.  For non-python or
     -cython files backslashes should be used instead.  5 to 30 comment
@@ -374,10 +382,13 @@ class UtilityCode(UtilityCodeBase):
             output['utility_code_def'].put(self.format_code(self.impl))
         if self.init:
             writer = output['init_globals']
+            writer.putln("/* %s.init */" % self.name)
             if isinstance(self.init, basestring):
                 writer.put(self.format_code(self.init))
             else:
                 self.init(writer, output.module_pos)
+            writer.putln(writer.error_goto_if_PyErr(output.module_pos))
+            writer.putln()
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             if isinstance(self.cleanup, basestring):
@@ -400,13 +411,14 @@ def sub_tempita(s, context, file=None, name=None):
     return sub(s, **context)
 
 class TempitaUtilityCode(UtilityCode):
-    def __init__(self, name=None, proto=None, impl=None, file=None, context=None, **kwargs):
+    def __init__(self, name=None, proto=None, impl=None, init=None, file=None, context=None, **kwargs):
         if context is None:
             context = {}
         proto = sub_tempita(proto, context, file, name)
         impl = sub_tempita(impl, context, file, name)
+        init = sub_tempita(init, context, file, name)
         super(TempitaUtilityCode, self).__init__(
-            proto, impl, name=name, file=file, **kwargs)
+            proto, impl, init=init, name=name, file=file, **kwargs)
 
     def none_or_sub(self, s, context):
         """

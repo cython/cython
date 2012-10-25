@@ -46,7 +46,9 @@ static int __Pyx_check_twos_complement() {
 #define __Pyx_div_no_overflow(a, b, overflow) ((a) / (b))
 #define __Pyx_div_const_no_overflow(a, b, overflow) ((a) / (b))
 
+/////////////// Common.init ///////////////
 
+__Pyx_check_twos_complement();
 
 /////////////// BaseCaseUnsigned.proto ///////////////
 
@@ -217,10 +219,14 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
 }
 
 
+/////////////// SizeCheck.init ///////////////
+
+__Pyx_check_sane_{{NAME}}();
+
 /////////////// SizeCheck.proto ///////////////
 
-static int __Pyx_check_sane_{{TYPE}}() {
-    if (sizeof({{TYPE}}) == sizeof(int) ||
+static int __Pyx_check_sane_{{NAME}}() {
+    if (sizeof({{TYPE}}) <= sizeof(int) ||
         sizeof({{TYPE}}) == sizeof(long) ||
         sizeof({{TYPE}}) == sizeof(long long)) {
         return 0;
