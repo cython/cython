@@ -402,7 +402,9 @@ class CTypedefType(BaseType):
         # delegation
         return self.typedef_base_type.create_from_py_utility_code(env)
 
-    def overflow_check_binop(self, binop, env):
+    def overflow_check_binop(self, binop, env, const_rhs=False):
+        if const_rhs:
+            binop += "_const"
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
         type = self.declaration_code("")
         name = self.specialization_name()
@@ -1557,10 +1559,12 @@ class CIntType(CNumericType):
             # be negative for signed ints, which is good.
             return "0xbad0bad0"
 
-    def overflow_check_binop(self, binop, env):
+    def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
         type = self.declaration_code("")
         name = self.specialization_name()
+        if const_rhs:
+            binop += "_const"
         if type in ('int', 'long', 'long long'):
             env.use_utility_code(TempitaUtilityCode.load("BaseCaseSigned", "Overflow.c", context={'INT': type, 'NAME': name}))
         elif type in ('unsigned int', 'unsigned long', 'unsigned long long'):

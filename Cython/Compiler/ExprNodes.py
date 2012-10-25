@@ -8013,7 +8013,10 @@ class NumBinopNode(BinopNode):
             self.infix = False
         if self.type.is_int and env.directives['overflowcheck'] and self.operator in ('+', '-', '*'):
             self.overflow_check = True
-            self.func = self.type.overflow_check_binop(self.op_names[self.operator], env)
+            self.func = self.type.overflow_check_binop(
+                self.op_names[self.operator],
+                env,
+                const_rhs = self.operand2.has_constant_result())
             self.is_temp = True
         if not self.infix or (type1.is_numeric and type2.is_numeric):
             self.operand1 = self.operand1.coerce_to(self.type, env)
