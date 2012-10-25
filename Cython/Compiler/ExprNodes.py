@@ -8011,10 +8011,10 @@ class NumBinopNode(BinopNode):
             return
         if self.type.is_complex:
             self.infix = False
-        if self.type.is_int and env.directives['overflowcheck'] and self.operator in ('+', '-', '*'):
+        if self.type.is_int and env.directives['overflowcheck'] and self.operator in self.overflow_op_names:
             self.overflow_check = True
             self.func = self.type.overflow_check_binop(
-                self.op_names[self.operator],
+                self.overflow_op_names[self.operator],
                 env,
                 const_rhs = self.operand2.has_constant_result())
             self.is_temp = True
@@ -8118,10 +8118,11 @@ class NumBinopNode(BinopNode):
         "**":       "PyNumber_Power"
     }
     
-    op_names = {
+    overflow_op_names = {
        "+":  "add",
        "-":  "sub",
        "*":  "mul",
+       "<<":  "lshift",
     }
 
 class IntBinopNode(NumBinopNode):

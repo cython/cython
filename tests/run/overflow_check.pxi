@@ -206,3 +206,19 @@ def test_mul_const(INT a):
     True
     """
     return int(a * <INT>100)
+
+@cython.overflowcheck(True)
+def test_lshift(INT a, int b):
+    """
+    >>> test_lshift(1, 10)
+    1024
+    >>> expect_overflow(test_lshift, 1, 100)
+    >>> expect_overflow(test_lshift, max_value, 1)
+    >>> test_lshift(max_value, 0) == max_value
+    True
+    
+    >>> check(test_lshift, operator.lshift, 10, 15)
+    >>> check(test_lshift, operator.lshift, 10, 30)
+    >>> check(test_lshift, operator.lshift, 100, 60)
+    """
+    return int(a << b)

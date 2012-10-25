@@ -403,14 +403,17 @@ class CTypedefType(BaseType):
         return self.typedef_base_type.create_from_py_utility_code(env)
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
-        if const_rhs:
-            binop += "_const"
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
         type = self.declaration_code("")
         name = self.specialization_name()
-        _load_overflow_base(env)
-        env.use_utility_code(TempitaUtilityCode.load("SizeCheck", "Overflow.c", context={'TYPE': type, 'NAME': name}))
-        env.use_utility_code(TempitaUtilityCode.load("Binop", "Overflow.c", context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
+        if binop == "lshift":
+            env.use_utility_code(TempitaUtilityCode.load("LeftShift", "Overflow.c", context={'TYPE': type, 'NAME': name}))
+        else:
+            if const_rhs:
+                binop += "_const"
+            _load_overflow_base(env)
+            env.use_utility_code(TempitaUtilityCode.load("SizeCheck", "Overflow.c", context={'TYPE': type, 'NAME': name}))
+            env.use_utility_code(TempitaUtilityCode.load("Binop", "Overflow.c", context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
         return "__Pyx_%s_%s_checking_overflow" % (binop, name)
 
     def error_condition(self, result_code):
@@ -1563,19 +1566,22 @@ class CIntType(CNumericType):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
         type = self.declaration_code("")
         name = self.specialization_name()
-        if const_rhs:
-            binop += "_const"
-        if type in ('int', 'long', 'long long'):
-            env.use_utility_code(TempitaUtilityCode.load("BaseCaseSigned", "Overflow.c", context={'INT': type, 'NAME': name}))
-        elif type in ('unsigned int', 'unsigned long', 'unsigned long long'):
-            env.use_utility_code(TempitaUtilityCode.load("BaseCaseUnsigned", "Overflow.c", context={'UINT': type, 'NAME': name}))
-        elif self.rank <= 1:
-            # sizeof(short) < sizeof(int)
-            return "__Pyx_%s_%s_no_overflow" % (binop, name)
+        if binop == "lshift":
+            env.use_utility_code(TempitaUtilityCode.load("LeftShift", "Overflow.c", context={'TYPE': type, 'NAME': name}))
         else:
-            _load_overflow_base(env)
-            env.use_utility_code(TempitaUtilityCode.load("SizeCheck", "Overflow.c", context={'TYPE': type, 'NAME': name}))
-            env.use_utility_code(TempitaUtilityCode.load("Binop", "Overflow.c", context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
+            if const_rhs:
+                binop += "_const"
+            if type in ('int', 'long', 'long long'):
+                env.use_utility_code(TempitaUtilityCode.load("BaseCaseSigned", "Overflow.c", context={'INT': type, 'NAME': name}))
+            elif type in ('unsigned int', 'unsigned long', 'unsigned long long'):
+                env.use_utility_code(TempitaUtilityCode.load("BaseCaseUnsigned", "Overflow.c", context={'UINT': type, 'NAME': name}))
+            elif self.rank <= 1:
+                # sizeof(short) < sizeof(int)
+                return "__Pyx_%s_%s_no_overflow" % (binop, name)
+            else:
+                _load_overflow_base(env)
+                env.use_utility_code(TempitaUtilityCode.load("SizeCheck", "Overflow.c", context={'TYPE': type, 'NAME': name}))
+                env.use_utility_code(TempitaUtilityCode.load("Binop", "Overflow.c", context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
         return "__Pyx_%s_%s_checking_overflow" % (binop, name)
 
 def _load_overflow_base(env):
