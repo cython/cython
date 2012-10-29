@@ -44,9 +44,11 @@ def extended_iglob(pattern):
     if '**/' in pattern:
         seen = set()
         first, rest = pattern.split('**/', 1)
-        if first == '':
-            first = '.'
-        for root in glob(first + "/"):
+        if first:
+            first = glob(first+'/')
+        else:
+            first = ['']
+        for root in first:
             for path in extended_iglob(join_path(root, rest)):
                 if path not in seen:
                     seen.add(path)
