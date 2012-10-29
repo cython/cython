@@ -724,9 +724,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
         import traceback
         traceback.print_exc()
         any_failures = 1
-    if any_failures and raise_on_failure:
-        raise CompileError(None, pyx_file)
-    if fingerprint and not any_failures:
+    if any_failures:
+        if raise_on_failure:
+            raise CompileError(None, pyx_file)
+        elif os.path.exists(c_file):
+            os.remove(c_file)
+    elif fingerprint:
         f = open(c_file, 'rb')
         try:
             g = gzip_open(fingerprint_file, 'wb')
