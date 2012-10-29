@@ -442,8 +442,8 @@ class MethodDispatcherTransform(EnvTransform):
             obj_type = self_arg.type
             is_unbound_method = False
             if obj_type.is_builtin_type:
-                if obj_type is Builtin.type_type and arg_list and\
-                   arg_list[0].type.is_pyobject:
+                if (obj_type is Builtin.type_type and self_arg.is_name and
+                        arg_list and arg_list[0].type.is_pyobject):
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
                     type_name = function.obj.name
