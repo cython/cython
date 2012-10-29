@@ -565,7 +565,29 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
     return module_list
 
 # This is the user-exposed entry point.
-def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, force=False, **options):
+def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, force=False,
+              exclude_failures=False, **options):
+    """
+    Compile a set of source modules into C/C++ files and return a list of distutils
+    Extension objects for them.
+
+    As module list, pass either a glob pattern, a list of glob patterns or a list of
+    Extension objects.  The latter allows you to configure the extensions separately
+    through the normal distutils options.
+
+    When using glob patterns, you can exclude certain module names explicitly
+    by passing them into the 'exclude' option.
+
+    For parallel compilation, set the 'nthreads' option to the number of
+    concurrent builds.
+
+    For a broad 'try to compile' mode that ignores compilation failures and
+    simply excludes the failed extensions, pass 'exclude_failures=True'. Note
+    that this only really makes sense for compiling .py files which can also
+    be used without compilation.
+
+    Additional compilation options can be passed as keyword arguments.
+    """
     if 'include_path' not in options:
         options['include_path'] = ['.']
     c_options = CompilationOptions(**options)
@@ -578,6 +600,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         quiet=quiet,
         aliases=aliases)
     deps = create_dependency_tree(ctx, quiet=quiet)
+    modules_by_cfile = {}
     to_compile = []
     for m in module_list:
         new_sources = []
@@ -614,8 +637,13 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                         fingerprint = deps.transitive_fingerprint(source, extra)
                     else:
                         fingerprint = None
-                    to_compile.append((priority, source, c_file, fingerprint, quiet, options))
+                    to_compile.append((priority, source, c_file, fingerprint, quiet,
+                                       options, not exclude_failures))
                 new_sources.append(c_file)
+                if c_file not in modules_by_cfile:
+                    modules_by_cfile[c_file] = [m]
+                else:
+                    modules_by_cfile[c_file].append(m)
             else:
                 new_sources.append(source)
         m.sources = new_sources
@@ -635,12 +663,19 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args[1:])
+    if exclude_failures:
+        failed_modules = set()
+        for c_file, modules in modules_by_cfile.iteritems():
+            if not os.path.exists(c_file):
+                failed_modules.update(modules)
+        for module in failed_modules:
+            module_list.remove(module)
     if hasattr(options, 'cache'):
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
     return module_list
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
+def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True):
     from Cython.Compiler.Main import compile, default_options
     from Cython.Compiler.Errors import CompileError, PyrexError
 
@@ -683,9 +718,9 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None):
     except (EnvironmentError, PyrexError), e:
         sys.stderr.write('%s\n' % e)
         any_failures = 1
-    if any_failures:
+    if any_failures and raise_on_failure:
         raise CompileError(None, pyx_file)
-    if fingerprint:
+    if fingerprint and not any_failures:
         f = open(c_file, 'rb')
         try:
             g = gzip_open(fingerprint_file, 'wb')
