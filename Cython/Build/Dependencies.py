@@ -718,6 +718,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
     except (EnvironmentError, PyrexError), e:
         sys.stderr.write('%s\n' % e)
         any_failures = 1
+    except Exception:
+        if raise_on_failure:
+            raise
+        import traceback
+        traceback.print_exc()
+        any_failures = 1
     if any_failures and raise_on_failure:
         raise CompileError(None, pyx_file)
     if fingerprint and not any_failures:
