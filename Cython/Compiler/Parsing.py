@@ -278,17 +278,17 @@ def _p_factor(s):
         pos = s.position()
         s.next()
         return ExprNodes.unop_node(pos, op, p_factor(s))
-    elif sy == '&':
-        pos = s.position()
-        s.next()
-        arg = p_factor(s)
-        return ExprNodes.AmpersandNode(pos, operand = arg)
-    elif sy == "<":
-        return p_typecast(s)
-    elif sy == 'IDENT' and s.systring == "sizeof":
-        return p_sizeof(s)
-    else:
-        return p_power(s)
+    elif not s.in_python_file:
+        if sy == '&':
+            pos = s.position()
+            s.next()
+            arg = p_factor(s)
+            return ExprNodes.AmpersandNode(pos, operand = arg)
+        elif sy == "<":
+            return p_typecast(s)
+        elif sy == 'IDENT' and s.systring == "sizeof":
+            return p_sizeof(s)
+    return p_power(s)
 
 def p_typecast(s):
     # s.sy == "<"
