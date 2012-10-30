@@ -1,0 +1,37 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import ttt"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+
+######## tt.pxd ########
+
+from cpython.array cimport array
+
+cdef class Foo:
+    cdef array obj
+
+######## tt.pyx ########
+
+cdef class Foo:
+    def __init__(self, data):
+        self.obj = data
+
+######## ttt.pyx ########
+
+from array import array
+from cpython.array cimport array
+from tt cimport Foo
+
+cdef array a = array('i', [1,2,3])
+cdef Foo x
+print a.data.as_ints[0]
+x = Foo(a)
+print x.obj.data.as_ints[0]

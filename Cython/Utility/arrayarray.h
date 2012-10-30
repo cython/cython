@@ -13,7 +13,11 @@
 #ifndef _ARRAYARRAY_H
 #define _ARRAYARRAY_H
 
-struct arrayobject; /* Forward */
+// These two forward declarations are explicitly handled in the type
+// declaration code, as including them here is too late for cython-defined
+// types to use them.
+// struct arrayobject;
+// typedef struct arrayobject arrayobject;
 
 // All possible arraydescr values are defined in the vector "descriptors"
 // below.  That's defined later because the appropriate get and set
@@ -29,7 +33,7 @@ typedef struct arraydescr {
 } arraydescr;
 
 
-typedef struct arrayobject {
+struct arrayobject {
     PyObject_HEAD
     Py_ssize_t ob_size;
     union {
@@ -54,8 +58,7 @@ typedef struct arrayobject {
 #if PY_VERSION_HEX >= 0x03000000
         int ob_exports;  /* Number of exported buffers */
 #endif
-} arrayobject;
-
+};
 
 #ifndef NO_NEWARRAY_INLINE
 //  fast creation of a new array
