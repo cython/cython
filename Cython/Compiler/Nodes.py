@@ -818,9 +818,21 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 type = py_object_type
         else:
             if self.module_path:
-                scope = env.find_imported_module(self.module_path, self.pos)
-                if scope:
-                    scope.fused_to_specific = env.fused_to_specific
+                # Maybe it's a nested C++ class.
+                scope = env
+                for item in self.module_path:
+                    entry = scope.lookup(item)
+                    if entry.is_cpp_class:
+                        scope = entry.type.scope
+                    else:
+                        scope = None
+                        break
+                
+                if scope is None:
+                    # Maybe it's a cimport.
+                    scope = env.find_imported_module(self.module_path, self.pos)
+                    if scope:
+                        scope.fused_to_specific = env.fused_to_specific
             else:
                 scope = env
 
