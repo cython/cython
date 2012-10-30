@@ -479,6 +479,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         typecode = globalstate['type_declarations']
         typecode.putln("")
         typecode.putln("/*--- Type declarations ---*/")
+        # This is to work around the fact that array.h isn't part of the C-API,
+        # but we need to declare it earlier than utility code.
+        if 'cpython.array' in [m.qualified_name for m in modules]:
+            typecode.putln('#ifndef _ARRAYARRAY_H')
+            typecode.putln('struct arrayobject;')
+            typecode.putln('typedef struct arrayobject arrayobject;')
+            typecode.putln('#endif')
         vtab_list, vtabslot_list = self.sort_type_hierarchy(modules, env)
         self.generate_type_definitions(
             env, modules, vtab_list, vtabslot_list, typecode)
