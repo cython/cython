@@ -40,7 +40,7 @@ static int __Pyx_check_twos_complement() {
 #define __Pyx_add_no_overflow(a, b, overflow) ((a) + (b))
 #define __Pyx_add_const_no_overflow(a, b, overflow) ((a) + (b))
 #define __Pyx_sub_no_overflow(a, b, overflow) ((a) - (b))
-#define __Pyx_sub_no_const_overflow(a, b, overflow) ((a) - (b))
+#define __Pyx_sub_const_no_overflow(a, b, overflow) ((a) - (b))
 #define __Pyx_mul_no_overflow(a, b, overflow) ((a) * (b))
 #define __Pyx_mul_const_no_overflow(a, b, overflow) ((a) * (b))
 #define __Pyx_div_no_overflow(a, b, overflow) ((a) / (b))
@@ -231,7 +231,7 @@ static int __Pyx_check_sane_{{NAME}}() {
         sizeof({{TYPE}}) == sizeof(long long)) {
         return 0;
     } else {
-        PyErr_Format(PyExc_RuntimeError, "Bad size for int type %s: %d", "{{TYPE}}", sizeof({{TYPE}}));
+        PyErr_Format(PyExc_RuntimeError, "Bad size for int type %s: %d", "{{TYPE}}", (int) sizeof({{TYPE}}));
         return 1;
     }
 }
@@ -272,7 +272,11 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
 /////////////// LeftShift.proto ///////////////
 
 static CYTHON_INLINE {{TYPE}} __Pyx_lshift_{{NAME}}_checking_overflow({{TYPE}} a, {{TYPE}} b, int *overflow) {
-    *overflow |= (b < 0) | (b > (8 * sizeof({{TYPE}}))) | (a > (__PYX_MAX({{TYPE}}) >> b));
+    *overflow |=
+#if {{SIGNED}}
+        (b < 0) |
+#endif
+        (b > (8 * sizeof({{TYPE}}))) | (a > (__PYX_MAX({{TYPE}}) >> b));
     return a << b;
 }
 #define __Pyx_lshift_const_{{NAME}}_checking_overflow __Pyx_lshift_{{NAME}}_checking_overflow
