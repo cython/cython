@@ -39,7 +39,7 @@ def test_declare(n):
     y = cython.declare(cython.int, n)
     if cython.compiled:
         cython.declare(xx=cython.int, yy=cython.long)
-        i = sizeof(xx)
+        i = cython.sizeof(xx)
     ptr = cython.declare(cython.p_int, cython.address(y))
     return y, ptr[0]
 
