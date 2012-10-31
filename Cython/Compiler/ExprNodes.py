@@ -8011,7 +8011,13 @@ class NumBinopNode(BinopNode):
             return
         if self.type.is_complex:
             self.infix = False
-        if self.type.is_int and env.directives['overflowcheck'] and self.operator in self.overflow_op_names:
+        if (self.type.is_int
+                and env.directives['overflowcheck']
+                and self.operator in self.overflow_op_names):
+            if (self.operator in ('+', '*')
+                    and self.operand1.has_constant_result()
+                    and not self.operand2.has_constant_result()):
+                self.operand1, self.operand2 = self.operand2, self.operand1
             self.overflow_check = True
             self.func = self.type.overflow_check_binop(
                 self.overflow_op_names[self.operator],
