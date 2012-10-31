@@ -7341,6 +7341,9 @@ class TypecastNode(ExprNode):
         if self.type is None:
             base_type = self.base_type.analyse(env)
             _, self.type = self.declarator.analyse(base_type, env)
+        if self.operand.has_constant_result():
+            # Must be done after self.type is resolved.
+            self.calculate_constant_result()
         if self.type.is_cfunction:
             error(self.pos,
                 "Cannot cast to a function type")
@@ -7400,11 +7403,11 @@ class TypecastNode(ExprNode):
         return self.operand.check_const()
 
     def calculate_constant_result(self):
-        # we usually do not know the result of a type cast at code
-        # generation time
-        pass
+        self.constant_result = self.calculate_result_code(self.operand.constant_result)
 
-    def calculate_result_code(self):
+    def calculate_result_code(self, operand_result = None):
+        if operand_result is None:
+            operand_result = self.operand.result()
         if self.type.is_complex:
             operand_result = self.operand.result()
             if self.operand.type.is_complex:
@@ -7418,7 +7421,7 @@ class TypecastNode(ExprNode):
                     real_part,
                     imag_part)
         else:
-            return self.type.cast_code(self.operand.result())
+            return self.type.cast_code(operand_result)
 
     def get_constant_c_result_code(self):
         operand_result = self.operand.get_constant_c_result_code()
@@ -7997,6 +8000,7 @@ class NumBinopNode(BinopNode):
     #  Binary operation taking numeric arguments.
 
     infix = True
+    overflow_check = False
 
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
@@ -8007,6 +8011,13 @@ class NumBinopNode(BinopNode):
             return
         if self.type.is_complex:
             self.infix = False
+        if self.type.is_int and env.directives['overflowcheck'] and self.operator in self.overflow_op_names:
+            self.overflow_check = True
+            self.func = self.type.overflow_check_binop(
+                self.overflow_op_names[self.operator],
+                env,
+                const_rhs = self.operand2.has_constant_result())
+            self.is_temp = True
         if not self.infix or (type1.is_numeric and type2.is_numeric):
             self.operand1 = self.operand1.coerce_to(self.type, env)
             self.operand2 = self.operand2.coerce_to(self.type, env)
@@ -8048,8 +8059,26 @@ class NumBinopNode(BinopNode):
         return (type1.is_numeric  or type1.is_enum) \
             and (type2.is_numeric  or type2.is_enum)
 
+    def generate_result_code(self, code):
+        super(NumBinopNode, self).generate_result_code(code)
+        if self.overflow_check:
+            self.overflow_bit = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+            code.putln("%s = 0;" % self.overflow_bit);
+            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
+            code.putln("if (unlikely(%s)) {" % self.overflow_bit)
+            code.putln('PyErr_Format(PyExc_OverflowError, "value too large");')
+            code.putln(code.error_goto(self.pos))
+            code.putln("}")
+            code.funcstate.release_temp(self.overflow_bit)
+
     def calculate_result_code(self):
-        if self.infix:
+        if self.overflow_check:
+            return "%s(%s, %s, &%s)" % (
+                self.func,
+                self.operand1.result(),
+                self.operand2.result(),
+                self.overflow_bit)
+        elif self.infix:
             return "(%s %s %s)" % (
                 self.operand1.result(),
                 self.operator,
@@ -8087,6 +8116,13 @@ class NumBinopNode(BinopNode):
         "//":       "PyNumber_FloorDivide",
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
+    }
+    
+    overflow_op_names = {
+       "+":  "add",
+       "-":  "sub",
+       "*":  "mul",
+       "<<":  "lshift",
     }
 
 class IntBinopNode(NumBinopNode):

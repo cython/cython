@@ -148,6 +148,11 @@ Cython code.  Here is the list of currently supported directives:
     set to ``None``. Otherwise a check is inserted and the
     appropriate exception is raised. This is off by default for
     performance reasons.  Default is False.
+    
+``overflowcheck`` (True / False)
+    If set to True, raise errors on overflowing C integer arithmetic
+    operations.  Incurs a slight runtime penalty, but much faster than
+    using Python ints.  Default is False.
 
 ``embedsignature`` (True / False)
     If set to True, Cython will embed a textual copy of the call
