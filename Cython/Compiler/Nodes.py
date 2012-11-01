@@ -706,7 +706,7 @@ class CArgDeclNode(Node):
             # We fix that here.
             if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
                 if nonempty:
-                    self.declarator.name = self.base_type.name
+                    self.declarator.name = EncodedString(self.base_type.name)
                     self.base_type.name = None
                     self.base_type.is_basic_c_type = False
                 could_be_name = True
@@ -850,7 +850,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     ##     type = Builtin.type_type
                     else:
                         type = py_object_type
-                    self.arg_name = self.name
+                    self.arg_name = EncodedString(self.name)
                 else:
                     if self.templates:
                         if not self.name in self.templates:
