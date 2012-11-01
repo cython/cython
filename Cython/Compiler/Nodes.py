@@ -706,7 +706,13 @@ class CArgDeclNode(Node):
             # We fix that here.
             if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
                 if nonempty:
-                    self.declarator.name = EncodedString(self.base_type.name)
+                    if self.base_type.is_basic_c_type:
+                        # char, short, long called "int"
+                        type = self.base_type.analyse(env, could_be_name = True)
+                        arg_name = type.declaration_code("")
+                    else:
+                        arg_name = self.base_type.name
+                    self.declarator.name = EncodedString(arg_name)
                     self.base_type.name = None
                     self.base_type.is_basic_c_type = False
                 could_be_name = True
