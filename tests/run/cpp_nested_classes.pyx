@@ -1,6 +1,6 @@
 # tag: cpp
 
-cdef extern from "cpp_nested_classes_support.cpp":
+cdef extern from "cpp_nested_classes_support.h":
     cdef cppclass A:
         cppclass B:
             int square(int)
