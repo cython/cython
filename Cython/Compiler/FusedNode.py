@@ -580,7 +580,7 @@ class FusedCFuncDefNode(StatListNode):
 
         if all_buffer_types:
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types)
-            env.use_utility_code(ExprNodes.import_utility_code)
+            env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
 
         pyx_code.put_chunk(
             u"""
