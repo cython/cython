@@ -2097,9 +2097,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{")
         code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
                    code.error_goto_if_null("modules", self.pos))
-        code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % env.module_name)
+        code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % env.qualified_name)
         code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, "%s", %s)' % (
-            env.module_name, env.module_cname), self.pos))
+            env.qualified_name, env.module_cname), self.pos))
         code.putln("}")
         code.putln("}")
         code.putln("#endif")
