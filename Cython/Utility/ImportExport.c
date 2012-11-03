@@ -11,12 +11,12 @@
 
 /////////////// Import.proto ///////////////
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /*proto*/
 
 /////////////// Import ///////////////
 //@substitute: naming
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *empty_list = 0;
     PyObject *module = 0;
     PyObject *global_dict = 0;
