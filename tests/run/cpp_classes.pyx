@@ -1,5 +1,7 @@
 # tag: cpp
 
+from libcpp.vector cimport vector
+
 cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Shape:
@@ -136,5 +138,24 @@ def test_class_member():
     assert constructor_count - start_constructor_count == 2, \
            constructor_count - start_constructor_count
     del e1, e2
+    assert destructor_count - start_destructor_count == 2, \
+           destructor_count - start_destructor_count
+
+cdef class TemplateClassMember:
+    cdef vector[int] x
+    cdef vector[vector[Empty]] vec
+
+def test_template_class_member():
+    """
+    >>> test_template_class_member()
+    """
+    cdef vector[Empty] inner
+    inner.push_back(Empty())
+    inner.push_back(Empty())
+    o = TemplateClassMember()
+    o.vec.push_back(inner)
+    
+    start_destructor_count = destructor_count
+    del o
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
