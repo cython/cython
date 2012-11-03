@@ -17,15 +17,17 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level); 
 //@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
-    PyObject *py_import = 0;
     PyObject *empty_list = 0;
     PyObject *module = 0;
     PyObject *global_dict = 0;
     PyObject *empty_dict = 0;
     PyObject *list;
+    #if PY_VERSION_HEX < 0x03030000
+    PyObject *py_import = 0;
     py_import = __Pyx_GetAttrString($builtins_cname, "__import__");
     if (!py_import)
         goto bad;
+    #endif
     if (from_list)
         list = from_list;
     else {
@@ -46,12 +48,17 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
         if (level == -1) {
             if (strchr(__Pyx_MODULE_NAME, '.')) {
                 /* try package relative import first */
+                #if PY_VERSION_HEX < 0x03030000
                 PyObject *py_level = PyInt_FromLong(1);
                 if (!py_level)
                     goto bad;
                 module = PyObject_CallFunctionObjArgs(py_import,
                     name, global_dict, empty_dict, list, py_level, NULL);
                 Py_DECREF(py_level);
+                #else
+                module = PyImport_ImportModuleLevelObject(
+                    name, global_dict, empty_dict, list, 1);
+                #endif
                 if (!module) {
                     if (!PyErr_ExceptionMatches(PyExc_ImportError))
                         goto bad;
@@ -62,12 +69,17 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
         }
         #endif
         if (!module) {
+            #if PY_VERSION_HEX < 0x03030000
             PyObject *py_level = PyInt_FromLong(level);
             if (!py_level)
                 goto bad;
             module = PyObject_CallFunctionObjArgs(py_import,
                 name, global_dict, empty_dict, list, py_level, NULL);
             Py_DECREF(py_level);
+            #else
+            module = PyImport_ImportModuleLevelObject(
+                name, global_dict, empty_dict, list, level);
+            #endif
         }
     }
     #else
@@ -79,8 +91,10 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, long level) {
         name, global_dict, empty_dict, list, NULL);
     #endif
 bad:
-    Py_XDECREF(empty_list);
+    #if PY_VERSION_HEX < 0x03030000
     Py_XDECREF(py_import);
+    #endif
+    Py_XDECREF(empty_list);
     Py_XDECREF(empty_dict);
     return module;
 }
