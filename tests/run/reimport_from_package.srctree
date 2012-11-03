@@ -4,9 +4,6 @@ PYTHON -c "import a"
 ######## setup.py ########
 
 from Cython.Build.Dependencies import cythonize
-import Cython.Compiler.Options
-Cython.Compiler.Options.cimport_from_pyx = True
-
 from distutils.core import setup
 
 setup(
