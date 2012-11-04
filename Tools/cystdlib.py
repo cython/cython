@@ -27,6 +27,8 @@ broken = [
     'multiprocessing/reduction.py',
     'multiprocessing/util.py',
     'threading.py',      # interrupt handling
+    'lib2to3/fixes/fix_sys_exc.py',
+    'traceback.py',
 ]
 
 default_directives = dict(
@@ -36,17 +38,35 @@ default_directives = dict(
 
 special_directives = [
     (['pkgutil.py',
+      'decimal.py',
       'datetime.py',
       'optparse.py',
       'sndhdr.py',
       'opcode.py',
       'ntpath.py',
       'urllib/request.py',
-      'plat-linux/TYPES.py',
+      'plat-*/TYPES.py',
       'tkinter/_fix.py',
       'lib2to3/refactor.py'
       'webbrowser.py',
+      'shutil.py',
       'multiprocessing/forking.py',
+      'xml/sax/expatreader.py',
+      'xmlrpc/client.py',
+      'pydoc.py',
+      'xml/etree/ElementTree.py',
+      'posixpath.py',
+      'inspect.py',
+      'ctypes/util.py',
+      'urllib/parse.py',
+      'warnings.py',
+      'tempfile.py',
+      'trace.py',
+      'heapq.py',
+      'pickletools.py',
+      'multiprocessing/connection.py',
+      'hashlib.py',
+      'getopt.py',
      ], dict(auto_cpdef=False)),
 ]
 
@@ -86,7 +106,7 @@ def build(extensions):
         return extensions, True
     except:
         import traceback
-        print('error building extensions %s' % (extensions,))
+        print('error building extensions %s' % ([ext.name for ext in extensions],))
         traceback.print_exc()
         return extensions, False
 
