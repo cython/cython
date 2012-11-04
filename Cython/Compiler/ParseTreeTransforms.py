@@ -2031,6 +2031,10 @@ class AlignFunctionDefinitions(CythonTransform):
         # self.visitchildren(node)
         return node
 
+    def visit_ExprNode(self, node):
+        # ignore lambdas and everything else that appears in expressions
+        return node
+
 
 class RemoveUnreachableCode(CythonTransform):
     def visit_Node(self, node):

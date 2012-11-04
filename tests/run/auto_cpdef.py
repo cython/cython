@@ -37,3 +37,11 @@ def starstararg_func(**kwargs):
     1
     """
     return kwargs['a']
+
+l = lambda x: 1
+
+def test_lambda():
+    """
+    >>> l(1)
+    1
+    """
