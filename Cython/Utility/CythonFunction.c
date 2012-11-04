@@ -700,7 +700,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             Py_DECREF(string);
         }
 
-        sep = PyUnicode_FromString(", ");
+        sep = PyUnicode_FromString("|");
         if (sep)
             signature = PyUnicode_Join(sep, list);
 __pyx_err:

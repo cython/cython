@@ -48,7 +48,7 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     >>> opt_func[str, float, int]("spam", f, i)
     str object float int
     spam 5.60 9 5.60 9
-    >>> opt_func["str, double, long"]("spam", f, i)
+    >>> opt_func[str, cy.double, long]("spam", f, i)
     str object double long
     spam 5.60 9 5.60 9
     >>> opt_func[str, float, cy.int]("spam", f, i)
@@ -62,7 +62,7 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     >>> opt_func[ExtClassA, float, int](ExtClassA(), f, i)
     ExtClassA float int
     ExtClassA 5.60 9 5.60 9
-    >>> opt_func["ExtClassA, double, long"](ExtClassA(), f, i)
+    >>> opt_func[ExtClassA, cy.double, long](ExtClassA(), f, i)
     ExtClassA double long
     ExtClassA 5.60 9 5.60 9
 

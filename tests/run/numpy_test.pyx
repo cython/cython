@@ -863,6 +863,13 @@ def test_dispatch_ndim(ndim_t array):
     double[:, :] 2
     >>> test_dispatch_ndim(np.empty((5, 5, 5), dtype=np.double))
     double[:, :, :] 3
+
+    Test indexing using Cython.Shadow
+    >>> import cython
+    >>> test_dispatch_ndim[cython.double[:]](np.empty(5, dtype=np.double))
+    double[:] 1
+    >>> test_dispatch_ndim[cython.double[:, :]](np.empty((5, 5), dtype=np.double))
+    double[:, :] 2
     """
     print cython.typeof(array), np.asarray(array).ndim
 

@@ -201,7 +201,6 @@ def ae(result, expected):
 
     assert result == expected
 
-ae(a_mod.public_cpdef["int, float, list"](5, 6, [7]), ("int", "float", "list object"))
 ae(a_mod.public_cpdef[int, float, list](5, 6, [7]), ("int", "float", "list object"))
 
 idx = cy.typeof(0), cy.typeof(0.0), cy.typeof([])
