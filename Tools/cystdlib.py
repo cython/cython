@@ -46,8 +46,9 @@ special_directives = [
       'ntpath.py',
       'urllib/request.py',
       'plat-*/TYPES.py',
+      'plat-*/IN.py',
       'tkinter/_fix.py',
-      'lib2to3/refactor.py'
+      'lib2to3/refactor.py',
       'webbrowser.py',
       'shutil.py',
       'multiprocessing/forking.py',
@@ -67,6 +68,8 @@ special_directives = [
       'multiprocessing/connection.py',
       'hashlib.py',
       'getopt.py',
+      'os.py',
+      'types.py',
      ], dict(auto_cpdef=False)),
 ]
 
