@@ -4986,68 +4986,78 @@ class SequenceNode(ExprNode):
     def generate_sequence_packing_code(self, code, target=None, plain=False):
         if target is None:
             target = self.result()
-        py_multiply = self.mult_factor and not self.mult_factor.type.is_int
-        if plain or py_multiply:
-            mult_factor = None
-        else:
+        size_factor = c_mult = ''
+        mult_factor = None
+
+        if self.mult_factor and not plain:
             mult_factor = self.mult_factor
-        if mult_factor:
-            mult = mult_factor.result()
-            if isinstance(mult_factor.constant_result, (int,long)) \
-                   and mult_factor.constant_result > 0:
-                size_factor = ' * %s' % mult_factor.constant_result
-            else:
-                size_factor = ' * ((%s<0) ? 0:%s)' % (mult, mult)
-        else:
-            size_factor = ''
-            mult = ''
+            if mult_factor.type.is_int:
+                c_mult = mult_factor.result()
+                if isinstance(mult_factor.constant_result, (int,long)) \
+                       and mult_factor.constant_result > 0:
+                    size_factor = ' * %s' % mult_factor.constant_result
+                else:
+                    size_factor = ' * ((%s<0) ? 0:%s)' % (c_mult, c_mult)
 
-        if self.type is Builtin.list_type:
-            create_func, set_item_func = 'PyList_New', 'PyList_SET_ITEM'
-        elif self.type is Builtin.tuple_type:
-            create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
-        else:
-            raise InternalError("sequence packing for unexpected type %s" % self.type)
-        arg_count = len(self.args)
-        code.putln("%s = %s(%s%s); %s" % (
-            target, create_func, arg_count, size_factor,
-            code.error_goto_if_null(target, self.pos)))
-        code.put_gotref(target)
-
-        if mult:
-            # FIXME: can't use a temp variable here as the code may
-            # end up in the constant building function.  Temps
-            # currently don't work there.
-
-            #counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
-            counter = Naming.quick_temp_cname
-            code.putln('{ Py_ssize_t %s;' % counter)
-            if arg_count == 1:
-                offset = counter
-            else:
-                offset = '%s * %s' % (counter, arg_count)
-            code.putln('for (%s=0; %s < %s; %s++) {' % (
-                counter, counter, mult, counter
-                ))
-        else:
-            offset = ''
-        for i in xrange(arg_count):
-            arg = self.args[i]
-            if mult or not arg.result_in_temp():
-                code.put_incref(arg.result(), arg.ctype())
-            code.putln("%s(%s, %s, %s);" % (
-                set_item_func,
+        if self.type is Builtin.tuple_type and self.is_literal and not c_mult:
+            # use PyTuple_Pack() to avoid generating huge amounts of one-time code
+            code.putln('%s = PyTuple_Pack(%d, %s); %s' % (
                 target,
-                (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
-                arg.py_result()))
-            code.put_giveref(arg.py_result())
-        if mult:
-            code.putln('}')
-            #code.funcstate.release_temp(counter)
-            code.putln('}')
-        elif py_multiply and not plain:
+                len(self.args),
+                ', '.join([ arg.py_result() for arg in self.args ]),
+                code.error_goto_if_null(target, self.pos)))
+            code.put_gotref(target)
+        else:
+            # build the tuple/list step by step, potentially multiplying it as we go
+            if self.type is Builtin.list_type:
+                create_func, set_item_func = 'PyList_New', 'PyList_SET_ITEM'
+            elif self.type is Builtin.tuple_type:
+                create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
+            else:
+                raise InternalError("sequence packing for unexpected type %s" % self.type)
+            arg_count = len(self.args)
+            code.putln("%s = %s(%s%s); %s" % (
+                target, create_func, arg_count, size_factor,
+                code.error_goto_if_null(target, self.pos)))
+            code.put_gotref(target)
+
+            if c_mult:
+                # FIXME: can't use a temp variable here as the code may
+                # end up in the constant building function.  Temps
+                # currently don't work there.
+
+                #counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
+                counter = Naming.quick_temp_cname
+                code.putln('{ Py_ssize_t %s;' % counter)
+                if arg_count == 1:
+                    offset = counter
+                else:
+                    offset = '%s * %s' % (counter, arg_count)
+                code.putln('for (%s=0; %s < %s; %s++) {' % (
+                    counter, counter, c_mult, counter
+                    ))
+            else:
+                offset = ''
+
+            for i in xrange(arg_count):
+                arg = self.args[i]
+                if c_mult or not arg.result_in_temp():
+                    code.put_incref(arg.result(), arg.ctype())
+                code.putln("%s(%s, %s, %s);" % (
+                    set_item_func,
+                    target,
+                    (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
+                    arg.py_result()))
+                code.put_giveref(arg.py_result())
+
+            if c_mult:
+                code.putln('}')
+                #code.funcstate.release_temp(counter)
+                code.putln('}')
+
+        if mult_factor is not None and mult_factor.type.is_pyobject:
             code.putln('{ PyObject* %s = PyNumber_InPlaceMultiply(%s, %s); %s' % (
-                Naming.quick_temp_cname, target, self.mult_factor.py_result(),
+                Naming.quick_temp_cname, target, mult_factor.py_result(),
                 code.error_goto_if_null(Naming.quick_temp_cname, self.pos)
                 ))
             code.put_gotref(Naming.quick_temp_cname)
