@@ -31,6 +31,7 @@ broken = [
 
 default_directives = dict(
     auto_cpdef=True,
+    binding=True,
     set_initial_path='SOURCEFILE')
 
 special_directives = [
@@ -44,6 +45,8 @@ special_directives = [
       'plat-linux/TYPES.py',
       'tkinter/_fix.py',
       'lib2to3/refactor.py'
+      'webbrowser.py',
+      'multiprocessing/forking.py',
      ], dict(auto_cpdef=False)),
 ]
 
