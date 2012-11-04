@@ -26,12 +26,28 @@ broken = [
     'email/utils.py',
     'multiprocessing/reduction.py',
     'multiprocessing/util.py',
+    'threading.py',      # interrupt handling
 ]
 
-default_directives = dict(auto_cpdef=True)
+default_directives = dict(
+    auto_cpdef=True,
+    set_initial_path='SOURCEFILE')
+
 special_directives = [
-    (['pkgutil.py'], dict(auto_cpdef=False)),
+    (['pkgutil.py',
+      'datetime.py',
+      'optparse.py',
+      'sndhdr.py',
+      'opcode.py',
+      'ntpath.py',
+      'urllib/request.py',
+      'plat-linux/TYPES.py',
+      'tkinter/_fix.py',
+      'lib2to3/refactor.py'
+     ], dict(auto_cpdef=False)),
 ]
+
+#del special_directives[:]
 
 def build_extensions(includes='**/*.py',
                      excludes=excludes+broken,
@@ -106,6 +122,6 @@ if __name__ == '__main__':
         pool.join()
         for ext, result in results:
             if not result:
-                print("building extension %s failed" % (ext[0],))
+                print("building extension %s failed" % (ext[0].name,))
     else:
         build(extensions)
