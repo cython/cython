@@ -2092,17 +2092,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.pymoduledef_cname))
         code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+
         # CPython may not have put us into sys.modules yet, but relative imports and reimports require it
+        fq_module_name = env.qualified_name
+        if fq_module_name.endswith('.__init__'):
+            fq_module_name = fq_module_name[:-len('.__init__')]
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("{")
         code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
                    code.error_goto_if_null("modules", self.pos))
-        code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % env.qualified_name)
+        code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % fq_module_name)
         code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, "%s", %s)' % (
-            env.qualified_name, env.module_cname), self.pos))
+            fq_module_name, env.module_cname), self.pos))
         code.putln("}")
         code.putln("}")
         code.putln("#endif")
+
         code.putln(
             '%s = PyImport_AddModule(__Pyx_NAMESTR(__Pyx_BUILTIN_MODULE_NAME)); %s' % (
                 Naming.builtins_cname,
