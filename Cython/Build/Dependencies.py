@@ -501,7 +501,7 @@ def create_dependency_tree(ctx=None, quiet=False):
     return _dep_tree
 
 # This may be useful for advanced users?
-def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False):
+def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, exclude_failures=False):
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
     deps = create_dependency_tree(ctx, quiet=quiet)
@@ -543,7 +543,12 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
             else:
                 module_name = name
             if module_name not in seen:
-                kwds = deps.distutils_info(file, aliases, base).values
+                try:
+                    kwds = deps.distutils_info(file, aliases, base).values
+                except Exception:
+                    if exclude_failures:
+                        continue
+                    raise
                 if base is not None:
                     for key, value in base.values.items():
                         if key not in kwds:
@@ -600,6 +605,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         exclude=exclude,
         ctx=ctx,
         quiet=quiet,
+        exclude_failures=exclude_failures,
         aliases=aliases)
     deps = create_dependency_tree(ctx, quiet=quiet)
     modules_by_cfile = {}
