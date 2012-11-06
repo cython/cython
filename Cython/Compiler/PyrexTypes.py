@@ -1454,6 +1454,10 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
         else
             return (%(type)s)__Pyx_PyInt_AsSignedLongLong(x);
     }  else {
+        #if CYTHON_COMPILING_IN_PYPY && !defined(_PyLong_AsByteArray)
+        PyErr_SetString(PyExc_RuntimeError,
+                        "_PyLong_AsByteArray() not available in PyPy, cannot convert large numbers");
+        #else
         %(type)s val;
         PyObject *v = __Pyx_PyNumber_Int(x);
         #if PY_VERSION_HEX < 0x03000000
@@ -1473,6 +1477,7 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
             if (likely(!ret))
                 return val;
         }
+        #endif
         return (%(type)s)-1;
     }
 }
