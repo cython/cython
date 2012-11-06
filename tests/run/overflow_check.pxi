@@ -3,7 +3,7 @@ cimport cython
 cdef object two = 2
 cdef int size_in_bits = sizeof(INT) * 8
 
-cdef bint is_signed_ = (<INT>-1 < 0)
+cdef bint is_signed_ = ((<INT>-1) < 0)
 cdef INT max_value_ = <INT>(two ** (size_in_bits - is_signed_) - 1)
 cdef INT min_value_ = ~max_value_
 cdef INT half_ = max_value_ // 2
