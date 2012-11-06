@@ -28,6 +28,8 @@ Bugs fixed
 Other changes
 -------------
 
+* An experimental distutils script for compiling the CPython standard library was added as Tools/cystdlib.py.
+
 
 0.17.1 (2012-09-26)
 ===================
