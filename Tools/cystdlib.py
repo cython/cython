@@ -32,7 +32,7 @@ broken = [
 ]
 
 default_directives = dict(
-    auto_cpdef=True,
+    auto_cpdef=False,   # enable when it's safe, see long list of failures below
     binding=True,
     set_initial_path='SOURCEFILE')
 
@@ -72,8 +72,7 @@ special_directives = [
       'types.py',
      ], dict(auto_cpdef=False)),
 ]
-
-#del special_directives[:]
+del special_directives[:]  # currently unused
 
 def build_extensions(includes='**/*.py',
                      excludes=excludes+broken,
