@@ -141,11 +141,11 @@ cpdef format(INT value):
         return "max_value"
     elif value == half_:
         return "half"
-    elif max_value_ - value <= max_value_ // 4:
+    elif max_value_ - value <= max_value_ // <INT>4:
         return "half + half - %s" % (half_ + half_ - value)
     elif max_value_ - value <= half_:
         return "half + %s" % (value - half_)
-    elif max_value_ - value <= half_ + max_value_ // 4:
+    elif max_value_ - value <= half_ + max_value_ // <INT>4:
         return "half - %s" % (half_ - value)
     else:
         return "%s" % value
