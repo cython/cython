@@ -6,7 +6,7 @@ cdef int size_in_bits = sizeof(INT) * 8
 cdef bint is_signed_ = ((<INT>-1) < 0)
 cdef INT max_value_ = <INT>(two ** (size_in_bits - is_signed_) - 1)
 cdef INT min_value_ = ~max_value_
-cdef INT half_ = max_value_ // 2
+cdef INT half_ = max_value_ // <INT>2
 
 # Python visible.
 is_signed = is_signed_
@@ -19,7 +19,7 @@ import operator
 from libc.math cimport sqrt
 
 cpdef check(func, op, a, b):
-    cdef INT res, op_res
+    cdef INT res = 0, op_res = 0
     cdef bint func_overflow = False
     cdef bint assign_overflow = False
     try:
@@ -34,7 +34,7 @@ cpdef check(func, op, a, b):
     if not func_overflow:
         assert res == op_res, "Inconsistant values: %s(%s, %s) == %s != %s" % (func, a, b, res, op_res)
 
-medium_values = (max_value_ / 2, max_value_ / 3, min_value_ / 2, <INT>sqrt(max_value_) - 1, <INT>sqrt(max_value_) + 1)
+medium_values = (max_value_ / 2, max_value_ / 3, min_value_ / 2, <INT>sqrt(max_value_) - <INT>1, <INT>sqrt(max_value_) + 1)
 def run_test(func, op):
     cdef INT offset, b
     check(func, op, 300, 200)
@@ -44,8 +44,8 @@ def run_test(func, op):
         check(func, op, min_value_, min_value_)
 
     for offset in range(5):
-        check(func, op, max_value_ - 1, offset)
-        check(func, op, min_value_ + 1, offset)
+        check(func, op, max_value_ - <INT>1, offset)
+        check(func, op, min_value_ + <INT>1, offset)
         if is_signed_:
             check(func, op, max_value_ - 1, 2 - offset)
             check(func, op, min_value_ + 1, 2 - offset)

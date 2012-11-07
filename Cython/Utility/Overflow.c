@@ -19,7 +19,7 @@ TODO: Conditionally support 128-bit with intmax_t?
 
 /////////////// Common.proto ///////////////
 
-static int __Pyx_check_twos_complement() {
+static int __Pyx_check_twos_complement(void) {
     if (-1 != ~0) {
         PyErr_SetString(PyExc_RuntimeError, "Two's complement required for overflow checks.");
         return 1;
@@ -225,7 +225,7 @@ __Pyx_check_sane_{{NAME}}();
 
 /////////////// SizeCheck.proto ///////////////
 
-static int __Pyx_check_sane_{{NAME}}() {
+static int __Pyx_check_sane_{{NAME}}(void) {
     if (sizeof({{TYPE}}) <= sizeof(int) ||
         sizeof({{TYPE}}) == sizeof(long) ||
         sizeof({{TYPE}}) == sizeof(long long)) {
@@ -276,7 +276,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_lshift_{{NAME}}_checking_overflow({{TYPE}} a
 #if {{SIGNED}}
         (b < 0) |
 #endif
-        (b > (8 * sizeof({{TYPE}}))) | (a > (__PYX_MAX({{TYPE}}) >> b));
+        (b > ({{TYPE}}) (8 * sizeof({{TYPE}}))) | (a > (__PYX_MAX({{TYPE}}) >> b));
     return a << b;
 }
 #define __Pyx_lshift_const_{{NAME}}_checking_overflow __Pyx_lshift_{{NAME}}_checking_overflow

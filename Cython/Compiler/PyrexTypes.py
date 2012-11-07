@@ -1580,7 +1580,7 @@ class CIntType(CNumericType):
         if binop == "lshift":
             env.use_utility_code(TempitaUtilityCode.load(
                 "LeftShift", "Overflow.c",
-                context={'TYPE': type, 'NAME': name, 'SIGNED': not self.signed}))
+                context={'TYPE': type, 'NAME': name, 'SIGNED': self.signed}))
         else:
             if const_rhs:
                 binop += "_const"
