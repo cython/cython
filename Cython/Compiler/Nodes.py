@@ -2048,6 +2048,8 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos,
                 "Function cannot return an array")
+        if self.return_type.is_cpp_class:
+            self.return_type.check_nullary_constructor(self.pos, "used as a return value")
 
         if self.overridable and not env.is_module_scope:
             if len(self.args) < 1 or not self.args[0].type.is_pyobject:

@@ -390,7 +390,7 @@ class SimpleAssignmentTypeInferer(object):
                 types = [assmt.rhs.infer_type(scope)
                          for assmt in entry.cf_assignments]
                 if types and Utils.all(types):
-                    entry.type = spanning_type(types, entry.might_overflow)
+                    entry.type = spanning_type(types, entry.might_overflow, entry.pos)
                 else:
                     # FIXME: raise a warning?
                     # print "No assignments", entry.pos, entry
@@ -405,10 +405,10 @@ class SimpleAssignmentTypeInferer(object):
                              for assmt in entry.cf_assignments
                              if assmt.type_dependencies(scope) == ()]
                     if types:
-                        entry.type = spanning_type(types, entry.might_overflow)
+                        entry.type = spanning_type(types, entry.might_overflow, entry.pos)
                         types = [assmt.infer_type(scope)
                                  for assmt in entry.cf_assignments]
-                        entry.type = spanning_type(types, entry.might_overflow) # might be wider...
+                        entry.type = spanning_type(types, entry.might_overflow, entry.pos) # might be wider...
                         resolve_dependancy(entry)
                         del dependancies_by_entry[entry]
                         if ready_to_infer:
@@ -438,16 +438,20 @@ def find_spanning_type(type1, type2):
         return PyrexTypes.c_double_type
     return result_type
 
-def aggressive_spanning_type(types, might_overflow):
+def aggressive_spanning_type(types, might_overflow, pos):
     result_type = reduce(find_spanning_type, types)
     if result_type.is_reference:
         result_type = result_type.ref_base_type
+    if result_type.is_cpp_class:
+        result_type.check_nullary_constructor(pos)
     return result_type
 
-def safe_spanning_type(types, might_overflow):
+def safe_spanning_type(types, might_overflow, pos):
     result_type = reduce(find_spanning_type, types)
     if result_type.is_reference:
         result_type = result_type.ref_base_type
+    if result_type.is_cpp_class:
+        result_type.check_nullary_constructor(pos)
     if result_type.is_pyobject:
         # In theory, any specific Python type is always safe to
         # infer. However, inferring str can cause some existing code
