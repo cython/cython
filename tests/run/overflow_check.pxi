@@ -51,10 +51,10 @@ def run_test(func, op):
             check(func, op, min_value_ + 1, 2 - offset)
 
     for offset in range(9):
-        check(func, op, max_value_ / 2, offset)
-        check(func, op, min_value_ / 3, offset)
-        check(func, op, max_value_ / 4, offset)
-        check(func, op, min_value_ / 5, offset)
+        check(func, op, max_value_ / <INT>2, offset)
+        check(func, op, min_value_ / <INT>3, offset)
+        check(func, op, max_value_ / <INT>4, offset)
+        check(func, op, min_value_ / <INT>5, offset)
         if is_signed_:
             check(func, op, max_value_ / 2, 4 - offset)
             check(func, op, min_value_ / 3, 4 - offset)
