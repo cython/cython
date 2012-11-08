@@ -86,7 +86,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.scope.merge_in(scope)
 
     def analyse_declarations(self, env):
-        if Options.embed_pos_in_docstring:
+        if not Options.docstrings:
+            env.doc = self.doc = None
+        elif Options.embed_pos_in_docstring:
             env.doc = EncodedString(u'File: %s (starting at line %s)' % Nodes.relative_position(self.pos))
             if not self.doc is None:
                 env.doc = EncodedString(env.doc + u'\n' + self.doc)
