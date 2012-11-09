@@ -38,6 +38,28 @@ def cascaded_c(double a, double b, double c):
     """
     return a < b < c
 
+def cascaded_mix_pyleft(a, double b, double c):
+    """
+    >>> cascaded_mix_pyleft(1, 2, 3)
+    True
+    >>> cascaded_mix_pyleft(1, 2, -1)
+    False
+    >>> cascaded_mix_pyleft(10, 2, 3)
+    False
+    """
+    return a < b < c
+
+def cascaded_mix_pyright(double a, double b, c):
+    """
+    >>> cascaded_mix_pyright(1, 2, 3)
+    True
+    >>> cascaded_mix_pyright(1, 2, -1)
+    False
+    >>> cascaded_mix_pyright(10, 2, 3)
+    False
+    """
+    return a < b < c
+
 def typed_cmp(list L):
     """
     >>> typed_cmp([1,2,3])
