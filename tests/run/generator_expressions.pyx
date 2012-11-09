@@ -21,6 +21,16 @@ def genexpr_if():
     assert x == 'abc' # don't leak
     return result
 
+def genexpr_if_false():
+    """
+    >>> genexpr_if_false()
+    []
+    """
+    x = 'abc'
+    result = list( x*2 for x in range(5) if False )
+    assert x == 'abc' # don't leak
+    return result
+
 def genexpr_with_lambda():
     """
     >>> genexpr_with_lambda()
