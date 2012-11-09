@@ -376,3 +376,29 @@ def test_inop_cascaded(x):
     False
     """
     return 1 != x in [2]
+
+def test_inop_cascaded_one():
+    """
+    >>> test_inop_cascaded_one()
+    False
+    """
+    # copied from CPython's test_grammar.py
+    return 1 < 1 > 1 == 1 >= 1 <= 1 != 1 in 1 not in 1 is 1 is not 1
+
+def test_inop_cascaded_int_orig(int x):
+    """
+    >>> test_inop_cascaded_int_orig(1)
+    False
+    """
+    return 1 < 1 > 1 == 1 >= 1 <= 1 != x in 1 not in 1 is 1 is not 1
+
+def test_inop_cascaded_int(int x):
+    """
+    >>> test_inop_cascaded_int(1)
+    False
+    >>> test_inop_cascaded_int(2)
+    True
+    >>> test_inop_cascaded_int(3)
+    False
+    """
+    return 1 != x in [1,2]
