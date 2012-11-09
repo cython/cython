@@ -1206,7 +1206,12 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
         scope = None
         if self.attributes is not None:
             scope = CppClassScope(self.name, env, templates = self.templates)
-        base_class_types = [b.analyse(scope or env) for b in self.base_classes]
+        def base_ok(base_class):
+            if base_class.is_cpp_class or base_class.is_struct:
+                return True
+            else:
+                error(self.pos, "Base class '%s' not a struct or class." % base_class)
+        base_class_types = filter(base_ok, [b.analyse(scope or env) for b in self.base_classes])
         if self.templates is None:
             template_types = None
         else:

@@ -25,6 +25,14 @@ Bugs fixed
 
 * C++ class nesting was broken.
 
+* Better checking for required nullary constructors for stack-allocated C++ instances.
+
+* Remove module docstring in no-docstring mode.
+
+* Fix specialization for varargs function signatures.
+
+* Fix several compiler crashes.
+
 Other changes
 -------------
 
