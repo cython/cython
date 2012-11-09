@@ -211,7 +211,7 @@ class FusedCFuncDefNode(StatListNode):
                 for fused_type in fused_types
         ]
 
-        node.specialized_signature_string = ', '.join(type_strings)
+        node.specialized_signature_string = '|'.join(type_strings)
 
         node.entry.pymethdef_cname = PyrexTypes.get_fused_cname(
                                         cname, node.entry.pymethdef_cname)
@@ -322,7 +322,8 @@ class FusedCFuncDefNode(StatListNode):
 
             for dtype_category, codewriter in dtypes:
                 if dtype_category:
-                    cond = '{{itemsize_match}}'
+                    cond = '{{itemsize_match}} and arg.ndim == %d' % (
+                                                    specialized_type.ndim,)
                     if dtype.is_int:
                         cond += ' and {{signed_match}}'
 
@@ -587,7 +588,7 @@ class FusedCFuncDefNode(StatListNode):
                 candidates = []
                 for sig in signatures:
                     match_found = False
-                    for src_type, dst_type in zip(sig.strip('()').split(', '), dest_sig):
+                    for src_type, dst_type in zip(sig.strip('()').split('|'), dest_sig):
                         if dst_type is not None:
                             if src_type == dst_type:
                                 match_found = True

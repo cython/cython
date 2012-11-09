@@ -5,6 +5,7 @@
 
 cdef extern from *:
     cdef cppclass string "std::string":
+        string()
         string(char* c_str, size_t size)
 
 @cname("{{cname}}")
@@ -147,6 +148,7 @@ cdef object {{cname}}(const_cpp_set[X]& s):
 
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
+        pair()
         pair(T&, U&)
 
 @cname("{{cname}}")

@@ -570,9 +570,7 @@ class Scope(object):
             else:
                 cname = self.mangle(Naming.var_prefix, name)
         if type.is_cpp_class and visibility != 'extern':
-            constructor = type.scope.lookup(u'<init>')
-            if constructor is not None and PyrexTypes.best_match([], constructor.all_alternatives()) is None:
-                error(pos, "C++ class must have a no-arg constructor to be stack allocated")
+            type.check_nullary_constructor(pos)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         if in_pxd and visibility != 'extern':
@@ -1783,10 +1781,7 @@ class CClassScope(ClassScope):
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
             if type.is_cpp_class and visibility != 'extern':
-                constructor = type.scope.lookup(u'<init>')
-                if constructor is not None and \
-                        PyrexTypes.best_match([], constructor.all_alternatives()) is None:
-                    error(pos, "C++ class must have a no-arg constructor to be a member of an extension type; use a pointer instead")
+                type.check_nullary_constructor(pos)
                 self.use_utility_code(Code.UtilityCode("#include <new>"))
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1

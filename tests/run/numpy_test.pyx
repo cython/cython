@@ -849,4 +849,28 @@ def test_dispatch_memoryview_object():
     cdef int[:] m3 = <object> m
     test_fused_memslice(m3)
 
+cdef fused ndim_t:
+    double[:]
+    double[:, :]
+    double[:, :, :]
+
+@testcase
+def test_dispatch_ndim(ndim_t array):
+    """
+    >>> test_dispatch_ndim(np.empty(5, dtype=np.double))
+    double[:] 1
+    >>> test_dispatch_ndim(np.empty((5, 5), dtype=np.double))
+    double[:, :] 2
+    >>> test_dispatch_ndim(np.empty((5, 5, 5), dtype=np.double))
+    double[:, :, :] 3
+
+    Test indexing using Cython.Shadow
+    >>> import cython
+    >>> test_dispatch_ndim[cython.double[:]](np.empty(5, dtype=np.double))
+    double[:] 1
+    >>> test_dispatch_ndim[cython.double[:, :]](np.empty((5, 5), dtype=np.double))
+    double[:, :] 2
+    """
+    print cython.typeof(array), np.asarray(array).ndim
+
 include "numpy_common.pxi"

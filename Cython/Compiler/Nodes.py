@@ -1239,7 +1239,12 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
         scope = None
         if self.attributes is not None:
             scope = CppClassScope(self.name, env, templates = self.templates)
-        base_class_types = [b.analyse(scope or env) for b in self.base_classes]
+        def base_ok(base_class):
+            if base_class.is_cpp_class or base_class.is_struct:
+                return True
+            else:
+                error(self.pos, "Base class '%s' not a struct or class." % base_class)
+        base_class_types = filter(base_ok, [b.analyse(scope or env) for b in self.base_classes])
         if self.templates is None:
             template_types = None
         else:
@@ -2084,6 +2089,8 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos,
                 "Function cannot return an array")
+        if self.return_type.is_cpp_class:
+            self.return_type.check_nullary_constructor(self.pos, "used as a return value")
 
         if self.overridable and not env.is_module_scope:
             if len(self.args) < 1 or not self.args[0].type.is_pyobject:
