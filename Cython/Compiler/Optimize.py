@@ -3117,10 +3117,29 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 break
             else:
                 assert condition_result == False
+                # prevent killing generators, but simplify them as much as possible
+                yield_expr = self._find_genexpr_yield(if_clause.body)
+                if yield_expr is not None:
+                    if_clause.condition = ExprNodes.BoolNode(if_clause.condition.pos, value=False)
+                    yield_expr.arg = ExprNodes.NoneNode(yield_expr.arg.pos)
+                    if_clauses.append(if_clause)
+                else:
+                    # False clauses outside of generators can safely be deleted
+                    pass
         if not if_clauses:
             return node.else_clause
         node.if_clauses = if_clauses
         return node
+
+    def _find_genexpr_yield(self, node):
+        body_node_types = (Nodes.ForInStatNode, Nodes.IfStatNode)
+        while isinstance(node, body_node_types):
+            node = node.body
+        if isinstance(node, Nodes.ExprStatNode):
+            node = node.expr
+            if isinstance(node, ExprNodes.YieldExprNode):
+                return node
+        return None
 
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
