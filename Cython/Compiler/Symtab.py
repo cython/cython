@@ -2117,18 +2117,20 @@ class CppClassScope(Scope):
                                    entry.pos,
                                    entry.cname,
                                    template=1)
-            else:
-#                scope.declare_var(entry.name,
-#                                    entry.type.specialize(values),
-#                                    entry.pos,
-#                                    entry.cname,
-#                                    entry.visibility)
+            elif entry.type.is_cfunction:
                 for e in entry.all_alternatives():
                     scope.declare_cfunction(e.name,
                                             e.type.specialize(values),
                                             e.pos,
                                             e.cname,
                                             utility_code = e.utility_code)
+            else:
+                scope.declare_var(entry.name,
+                                  entry.type.specialize(values),
+                                  entry.pos,
+                                  entry.cname,
+                                  entry.visibility)
+                
         return scope
 
 
