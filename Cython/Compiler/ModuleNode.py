@@ -1139,6 +1139,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Make sure the namespace delimiter was not in a template arg.
             while destructor_name.count('<') != destructor_name.count('>'):
                 destructor_name = split_cname.pop() + '::' + destructor_name
+            destructor_name = destructor_name.split('<',1)[0]
             code.putln("p->%s.%s::~%s();" %
                 (entry.cname, entry.type.declaration_code(""), destructor_name))
 
