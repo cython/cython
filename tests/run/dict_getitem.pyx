@@ -30,6 +30,14 @@ def test(dict d, index):
     """
     return d[index]
 
+def getitem_tuple(dict d, index):
+    """
+    >>> d = {1: 1, (1,): 2}
+    >>> getitem_tuple(d, 1)
+    (1, 2)
+    """
+    return d[index], d[index,]
+
 def getitem_in_condition(dict d, key, expected_result):
     """
     >>> d = dict(a=1, b=2)

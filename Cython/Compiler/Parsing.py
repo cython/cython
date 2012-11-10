@@ -503,14 +503,14 @@ def p_index(s, base):
     # s.sy == '['
     pos = s.position()
     s.next()
-    subscripts = p_subscript_list(s)
-    if len(subscripts) == 1 and len(subscripts[0]) == 2:
+    subscripts, is_single_value = p_subscript_list(s)
+    if is_single_value and len(subscripts[0]) == 2:
         start, stop = subscripts[0]
         result = ExprNodes.SliceIndexNode(pos,
             base = base, start = start, stop = stop)
     else:
         indexes = make_slice_nodes(pos, subscripts)
-        if len(indexes) == 1:
+        if is_single_value:
             index = indexes[0]
         else:
             index = ExprNodes.TupleNode(pos, args = indexes)
@@ -520,13 +520,15 @@ def p_index(s, base):
     return result
 
 def p_subscript_list(s):
+    is_single_value = True
     items = [p_subscript(s)]
     while s.sy == ',':
+        is_single_value = False
         s.next()
         if s.sy == ']':
             break
         items.append(p_subscript(s))
-    return items
+    return items, is_single_value
 
 #subscript: '.' '.' '.' | test | [test] ':' [test] [':' [test]]
 
@@ -2117,7 +2119,7 @@ def p_memoryviewslice_access(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
-    subscripts = p_subscript_list(s)
+    subscripts, _ = p_subscript_list(s)
     # make sure each entry in subscripts is a slice
     for subscript in subscripts:
         if len(subscript) < 2:
