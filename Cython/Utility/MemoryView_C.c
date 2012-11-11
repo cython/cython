@@ -115,12 +115,6 @@ static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(__pyx_atomic_int *ac
 #define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
-
-#if PY_VERSION_HEX < 0x02050000
-    /* NumPy headers define PyIndex_Check incorrectly */
-    #undef PyIndex_Check
-    #define PyIndex_Check(o) (PyNumber_Check(o) && !PyFloat_Check(o) && !PyComplex_Check(o))
-#endif
 /////////////// MemviewSliceIndex.proto ///////////////
 static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
 

@@ -52,12 +52,15 @@
                                 (PyErr_Format(PyExc_TypeError, \
                                               "expected index value, got %.200s", Py_TYPE(o)->tp_name), \
                                  (PyObject*)0))
-  #define PyIndex_Check(o)     (PyNumber_Check(o) && !PyFloat_Check(o) && !PyComplex_Check(o))
+  #define __Pyx_PyIndex_Check(o) (PyNumber_Check(o) && !PyFloat_Check(o) && \
+                                  !PyComplex_Check(o))
+  #define PyIndex_Check __Pyx_PyIndex_Check
   #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)
   #define __PYX_BUILD_PY_SSIZE_T "i"
 #else
   #define __PYX_BUILD_PY_SSIZE_T "n"
   #define CYTHON_FORMAT_SSIZE_T "z"
+  #define __Pyx_PyIndex_Check PyIndex_Check
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
