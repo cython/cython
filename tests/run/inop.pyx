@@ -376,3 +376,52 @@ def test_inop_cascaded(x):
     False
     """
     return 1 != x in [2]
+
+### The following tests are copied from CPython's test_grammar.py.
+### They look stupid, but the nice thing about them is that Cython
+### treats '1' as a C integer constant that triggers Python object
+### coercion for the 'in' operator here, whereas the left side of
+### the cascade can be evaluated entirely in C space.
+
+def test_inop_cascaded_one():
+    """
+    >>> test_inop_cascaded_one()
+    False
+    """
+    return 1 < 1 > 1 == 1 >= 1 <= 1 != 1 in 1 not in 1 is 1 is not 1
+
+def test_inop_cascaded_int_orig(int x):
+    """
+    >>> test_inop_cascaded_int_orig(1)
+    False
+    """
+    return 1 < 1 > 1 == 1 >= 1 <= 1 != x in 1 not in 1 is 1 is not 1
+
+def test_inop_cascaded_one_err():
+    """
+    >>> test_inop_cascaded_one_err()   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:... itera...
+    """
+    return 1 == 1 >= 1 <= 1 in 1 not in 1 is 1 is not 1
+
+def test_inop_cascaded_int_orig_err(int x):
+    """
+    >>> test_inop_cascaded_int_orig_err(1)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:... itera...
+    """
+    return 1 == 1 >= 1 <= 1 == x in 1 not in 1 is 1 is not 1
+
+###
+
+def test_inop_cascaded_int(int x):
+    """
+    >>> test_inop_cascaded_int(1)
+    False
+    >>> test_inop_cascaded_int(2)
+    True
+    >>> test_inop_cascaded_int(3)
+    False
+    """
+    return 1 != x in [1,2]

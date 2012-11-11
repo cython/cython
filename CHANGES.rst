@@ -13,6 +13,10 @@ Features added
 Bugs fixed
 ----------
 
+* C-to-Python type coercions during cascaded comparisons could generate invalid C code, specifically when using the 'in' operator.
+
+* "obj[1,]" passed a single integer into the item getter instead of a tuple.
+
 * Cyclic imports at module init time did not work in Py3.
 
 * The names of C++ destructors for template classes were built incorrectly.
