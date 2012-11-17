@@ -4466,8 +4466,11 @@ class SingleAssignmentNode(AssignmentNode):
             dtype = self.lhs.type
 
         self.rhs = self.rhs.coerce_to(dtype, env)
-        if use_temp:
+        if use_temp or self.rhs.is_attribute:
+            # cdef attribute access traverses pointers
             self.rhs = self.rhs.coerce_to_temp(env)
+        else:
+            self.rhs = self.rhs.coerce_to_simple(env)
 
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
@@ -4506,11 +4509,11 @@ class CascadedAssignmentNode(AssignmentNode):
         from ExprNodes import CloneNode, ProxyNode
 
         self.rhs.analyse_types(env)
-        if not self.rhs.is_simple():
-            if use_temp:
-                self.rhs = self.rhs.coerce_to_temp(env)
-            else:
-                self.rhs = self.rhs.coerce_to_simple(env)
+        if use_temp or self.rhs.is_attribute:
+            # (cdef) attribute access traverses pointers
+            self.rhs = self.rhs.coerce_to_temp(env)
+        else:
+            self.rhs = self.rhs.coerce_to_simple(env)
 
         self.rhs = ProxyNode(self.rhs)
         self.coerced_rhs_list = []
