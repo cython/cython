@@ -4469,7 +4469,7 @@ class SingleAssignmentNode(AssignmentNode):
         if use_temp or self.rhs.is_attribute:
             # (cdef) attribute access is not safe as it traverses pointers
             self.rhs = self.rhs.coerce_to_temp(env)
-        else:
+        elif self.rhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to_simple(env)
 
     def generate_rhs_evaluation_code(self, code):
