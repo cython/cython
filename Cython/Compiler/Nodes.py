@@ -4431,7 +4431,7 @@ class SingleAssignmentNode(AssignmentNode):
 
         self.rhs = self.rhs.coerce_to(dtype, env)
         if use_temp or self.rhs.is_attribute:
-            # cdef attribute access traverses pointers
+            # (cdef) attribute access is not safe as it traverses pointers
             self.rhs = self.rhs.coerce_to_temp(env)
         else:
             self.rhs = self.rhs.coerce_to_simple(env)
@@ -4474,7 +4474,7 @@ class CascadedAssignmentNode(AssignmentNode):
 
         self.rhs.analyse_types(env)
         if use_temp or self.rhs.is_attribute:
-            # (cdef) attribute access traverses pointers
+            # (cdef) attribute access is not safe as it traverses pointers
             self.rhs = self.rhs.coerce_to_temp(env)
         else:
             self.rhs = self.rhs.coerce_to_simple(env)
