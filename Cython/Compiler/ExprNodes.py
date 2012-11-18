@@ -9705,7 +9705,7 @@ class CoerceToTempNode(CoercionNode):
 
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
-        self.type = self.arg.type
+        self.type = self.arg.type.as_argument_type()
         self.constant_result = self.arg.constant_result
         self.is_temp = 1
         if self.type.is_pyobject:

@@ -175,7 +175,7 @@ class PyrexType(BaseType):
     #    as other_type.
     #
     #  as_argument_type():
-    #    Coerces array type into pointer type for use as
+    #    Coerces array and C function types into pointer type for use as
     #    a formal argument type.
     #
 
@@ -2519,6 +2519,9 @@ class CFuncType(CType):
             return cc + " "
         else:
             return ""
+
+    def as_argument_type(self):
+        return c_ptr_type(self)
 
     def same_c_signature_as(self, other_type, as_cmethod = 0):
         return self.same_c_signature_as_resolved_type(
