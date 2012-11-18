@@ -9705,12 +9705,7 @@ class CoerceToTempNode(CoercionNode):
 
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
-        temp_type = self.arg.type
-        if temp_type.is_array:
-            temp_type = PyrexTypes.c_ptr_type(temp_type.base_type)
-        elif temp_type.is_cfunction:
-            temp_type = PyrexTypes.c_ptr_type(temp_type)
-        self.type = temp_type
+        self.type = self.arg.type
         self.constant_result = self.arg.constant_result
         self.is_temp = 1
         if self.type.is_pyobject:
