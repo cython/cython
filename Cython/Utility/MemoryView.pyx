@@ -6,7 +6,7 @@ import cython
 
 # from cpython cimport ...
 cdef extern from "Python.h":
-    int PyIndex_Check(object)
+    int PyIndex_Check "__Pyx_PyIndex_Check" (object)
     object PyLong_FromVoidPtr(void *)
 
 cdef extern from "pythread.h":

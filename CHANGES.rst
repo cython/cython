@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.17.2 (2012-11-??)
+0.17.2 (2012-11-20)
 ===================
 
 Features added
@@ -12,6 +12,12 @@ Features added
 
 Bugs fixed
 ----------
+
+* Replacing an object reference with the value of one of its cdef attributes could generate incorrect C code that accessed the object after deleting its last reference.
+
+* C-to-Python type coercions during cascaded comparisons could generate invalid C code, specifically when using the 'in' operator.
+
+* "obj[1,]" passed a single integer into the item getter instead of a tuple.
 
 * "obj[1,]" passed a single integer into the item getter instead of a tuple.
 
