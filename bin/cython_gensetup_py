@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+
+#
+# Makes a setup.py to build a single Cython extension.
+#
+
+from optparse import OptionParser
+import os
+import sys
+
+
+TEMPLATE = """\
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Distutils import build_ext
+
+setup(
+    cmdclass = {{"build_ext": build_ext}},
+    ext_modules = [{}]
+)
+"""
+
+
+def format_extension(module_name, cplusplus):
+    if cplusplus:
+        cpp = ', language="c++"'
+    else:
+        cpp = ""
+    return 'Extension("{m}", ["{m}.pyx"]{c})'.format(c=cpp, m=module_name)
+
+
+def open_no_overwrite(path):
+    """Open path for writing, failing if it already exists."""
+    # Python 3.3 has the "x" mode for this.
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+    return os.fdopen(fd, "w")
+
+
+op = OptionParser()
+op.add_option("--cplus", action="store_true", dest="cplusplus", default=False,
+              help="enable C++ mode (for all modules)")
+op.add_option("-o", "--output", dest="dest",
+              help="write to <dest> instead of setup.py")
+(options, args) = op.parse_args()
+
+output = options.dest
+if output == "-":
+    output = sys.stdout
+else:
+    if output is None:
+        output = "setup.py"
+    output = open_no_overwrite(output)
+
+output.write(TEMPLATE.format(", ".join(format_extension(m, options.cplusplus)
+                                       for m in args)))
