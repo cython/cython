@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 #
-# Makes a setup.py to build a single Cython extension.
+# Makes a setup.py to build Cython extensions.
 #
 
+import errno
 from optparse import OptionParser
 import os
 import sys
@@ -21,6 +22,11 @@ setup(
 """
 
 
+def fill_template(modules, cplusplus):
+    return TEMPLATE.format(", ".join(format_extension(m, cplusplus)
+                                     for m in args))
+
+
 def format_extension(module_name, cplusplus):
     if cplusplus:
         cpp = ', language="c++"'
@@ -36,20 +42,32 @@ def open_no_overwrite(path):
     return os.fdopen(fd, "w")
 
 
-op = OptionParser()
+usage = "usage: %prog [options] module_name ..."
+op = OptionParser(usage=usage)
 op.add_option("--cplus", action="store_true", dest="cplusplus", default=False,
               help="enable C++ mode (for all modules)")
 op.add_option("-o", "--output", dest="dest",
               help="write to <dest> instead of setup.py")
 (options, args) = op.parse_args()
 
-output = options.dest
-if output == "-":
-    output = sys.stdout
-else:
-    if output is None:
-        output = "setup.py"
-    output = open_no_overwrite(output)
+if len(args) == 0:
+    op.print_usage()
+    sys.exit(1)
 
-output.write(TEMPLATE.format(", ".join(format_extension(m, options.cplusplus)
-                                       for m in args)))
+try:
+    output = options.dest
+    if output == "-":
+        output = sys.stdout
+    else:
+        if output is None:
+            output = "setup.py"
+        output = open_no_overwrite(output)
+except OSError, e:
+    if e.errno == errno.EEXIST:
+        sys.stderr.write("{}: not overwriting {}\n".format(sys.argv[0],
+                                                           output))
+        sys.exit(1)
+    else:
+        raise
+
+output.write(fill_template(args, options.cplusplus))
