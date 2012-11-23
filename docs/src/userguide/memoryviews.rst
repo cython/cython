@@ -6,9 +6,10 @@
 Typed Memoryviews
 *****************
 
-Typed memoryviews can be used for efficient access to buffers, such as NumPy
-arrays, without incurring any Python overhead.  Memoryviews are similar to the
-current numpy array buffer support (``np.ndarray[np.float64_t, ndim=2]``), but
+Typed memoryviews allow efficient access to memory buffers, such as those
+underlying NumPy arrays, without incurring any Python overhead.
+Memoryviews are similar to the current NumPy array buffer support
+(``np.ndarray[np.float64_t, ndim=2]``), but
 they have more features and cleaner syntax.
 
 Memoryviews are more general than the old numpy aray buffer support, because
@@ -26,27 +27,20 @@ Quickstart
 
 ::
 
-    # Import cython view array to make Cython arrays
     from cython.view cimport array as cvarray
 
     import numpy as np
 
-    # A numpy array
+    # Memoryview on a NumPy array
     narr = np.arange(27).reshape((3,3,3))
-
-    # A memoryview round the numpy array
     cdef int [:, :, :] narr_view = narr
 
-    # A C array
+    # Memoryview on a C array
     cdef int carr[3][3][3]
-
-    # A memoryview round the C array
     cdef int [:, :, :] carr_view = carr
 
-    # A Cython array
+    # Memoryview on a Cython array
     cyarr = cvarray(shape=(3, 3, 3), itemsize=sizeof(int), format="i")
-
-    # A memoryview round the Cython array
     cdef int [:, :, :] cyarr_view = cyarr
 
     # Show the sum of all the arrays before altering it
@@ -65,7 +59,7 @@ Quickstart
     carr_view[0, 0, 0] = 100
     cyarr_view[0, 0, 0] = 1000
 
-    # Altering the memoryview of the Numpy array altered the contents in-place
+    # Assigning into the memoryview on the Numpy array alters the latter
     print "Numpy sum of Numpy array after assignments:", narr.sum()
 
     # A function using a memoryview does not usually need the GIL
@@ -80,16 +74,12 @@ Quickstart
                     total += arr[i, j, k]
         return total
 
-    # A function accepting a memoryview knows how to use a Numpy array
+    # A function accepting a memoryview knows how to use a Numpy array,
+    # a C array, a Cython array...
     print "Memoryview sum of Numpy array is", sum3d(narr)
-
-    # And a C array
     print "Memoryview sum of C array is", sum3d(carr)
-
-    # And a Cython array
     print "Memoryview sum of Cython array is", sum3d(cyarr)
-
-    # And of course, a memoryview
+    # ... and of course, a memoryview.
     print "Memoryview sum of C memoryview is", sum3d(carr_view)
 
 This code gives output::
