@@ -47,13 +47,11 @@ Quickstart
     # Show the sum of all the arrays before altering it
     print "Numpy sum of the Numpy array before assignments:", narr.sum()
 
-    # We can set the values in the C array etc using another memory view
-
-    # Ellipsis or
+    # We can copy the values from one memoryview into another using a single
+    # statement, by either indexing with ... or (NumPy-style) with a colon.
     carr_view[...] = narr_view
-    # colon or
     cyarr_view[:] = narr_view
-    # multi-colon syntax for assignemt to the whole block of memory
+    # NumPy-style syntax for assigning a single value to all elements.
     narr_view[:, :, :] = 3
 
     # Just to distinguish the arrays
