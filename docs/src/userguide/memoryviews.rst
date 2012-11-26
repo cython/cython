@@ -28,21 +28,19 @@ Quickstart
 ::
 
     from cython.view cimport array as cvarray
-    from libc.stdint cimport int32_t
-
     import numpy as np
 
     # Memoryview on a NumPy array
-    narr = np.arange(27, dtype=np.int32).reshape((3, 3, 3))
-    cdef int32_t [:, :, :] narr_view = narr
+    narr = np.arange(27, dtype=np.dtype("i")).reshape((3, 3, 3))
+    cdef int [:, :, :] narr_view = narr
 
     # Memoryview on a C array
-    cdef int32_t carr[3][3][3]
-    cdef int32_t [:, :, :] carr_view = carr
+    cdef int carr[3][3][3]
+    cdef int [:, :, :] carr_view = carr
 
     # Memoryview on a Cython array
-    cyarr = cvarray(shape=(3, 3, 3), itemsize=sizeof(int32_t), format="i")
-    cdef int32_t [:, :, :] cyarr_view = cyarr
+    cyarr = cvarray(shape=(3, 3, 3), itemsize=sizeof(int), format="i")
+    cdef int [:, :, :] cyarr_view = cyarr
 
     # Show the sum of all the arrays before altering it
     print "Numpy sum of the Numpy array before assignments:", narr.sum()
@@ -62,8 +60,8 @@ Quickstart
     print "Numpy sum of Numpy array after assignments:", narr.sum()
 
     # A function using a memoryview does not usually need the GIL
-    cpdef int32_t sum3d(int32_t[:, :, :] arr) nogil:
-        cdef int32_t total = 0
+    cpdef int sum3d(int[:, :, :] arr) nogil:
+        cdef int total = 0
         I = arr.shape[0]
         J = arr.shape[1]
         K = arr.shape[2]
