@@ -2,6 +2,21 @@
 Cython Changelog
 ================
 
+0.17.3 (??)
+===================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Negative C integer constants lost their longness suffix in the generated C code.
+
+Other changes
+-------------
+
+
 0.17.2 (2012-11-20)
 ===================
 
