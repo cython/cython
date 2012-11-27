@@ -519,7 +519,7 @@ class PrintTree(TreeVisitor):
 
     def __call__(self, tree, phase=None):
         print("Parse tree dump at phase '%s'" % phase)
-        self._visit(tree)
+        self.visit(tree)
         return tree
 
     # Don't do anything about process_list, the defaults gives
