@@ -160,22 +160,12 @@ class TreeVisitor(object):
     @cython.final
     def _visit(self, obj):
         try:
-            handler_method = self.dispatch_table[type(obj)]
-        except KeyError:
-            handler_method = self.find_handler(obj)
-            self.dispatch_table[type(obj)] = handler_method
-        return handler_method(obj)
-
-    @cython.final
-    def _visitchild(self, child, parent, attrname, idx):
-        self.access_path.append((parent, attrname, idx))
-        try:
             try:
-                handler_method = self.dispatch_table[type(child)]
+                handler_method = self.dispatch_table[type(obj)]
             except KeyError:
-                handler_method = self.find_handler(child)
-                self.dispatch_table[type(child)] = handler_method
-            result = handler_method(child)
+                handler_method = self.find_handler(obj)
+                self.dispatch_table[type(obj)] = handler_method
+            return handler_method(obj)
         except Errors.CompileError:
             raise
         except Errors.AbortError:
@@ -183,7 +173,12 @@ class TreeVisitor(object):
         except Exception, e:
             if DebugFlags.debug_no_exception_intercept:
                 raise
-            self._raise_compiler_error(child, e)
+            self._raise_compiler_error(obj, e)
+
+    @cython.final
+    def _visitchild(self, child, parent, attrname, idx):
+        self.access_path.append((parent, attrname, idx))
+        result = self._visit(child)
         self.access_path.pop()
         return result
 
