@@ -165,6 +165,11 @@ example,:
 
     cdef float cube(float)
 
+:file:`volume.pyx`::
+
+    cdef float cube(float x):
+        return x * x * x
+
 :file:`spammery.pyx`::
 
     from volume cimport cube
@@ -176,11 +181,6 @@ example,:
     menu("Entree", 1)
     menu("Main course", 3)
     menu("Dessert", 2)
-
-:file:`volume.pyx`::
-
-    cdef float cube(float x):
-        return x * x * x
 
 .. note::
 
