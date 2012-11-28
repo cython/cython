@@ -49,15 +49,15 @@ fast for use from Cython and one slower for use from Python. Then::
 Using this, we can now change our integration example::
 
   def integrate(Function f, double a, double b, int N):
-    cdef int i
-    cdef double s, dx
-    if f is None:
-        raise ValueError("f cannot be None")
-    s = 0
-    dx = (b-a)/N
-    for i in range(N):
-        s += f.evaluate(a+i*dx)
-    return s * dx
+      cdef int i
+      cdef double s, dx
+      if f is None:
+          raise ValueError("f cannot be None")
+      s = 0
+      dx = (b-a)/N
+      for i in range(N):
+          s += f.evaluate(a+i*dx)
+      return s * dx
 
   print(integrate(SinOfSquareFunction(), 0, 1, 10000))
 
