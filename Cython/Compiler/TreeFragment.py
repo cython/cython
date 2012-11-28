@@ -26,7 +26,7 @@ class StringParseContext(Main.Context):
         self.module_name = name
 
     def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):
-        if module_name != self.module_name:
+        if module_name not in (self.module_name, 'cython'):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         return ModuleScope(module_name, parent_module = None, context = self)
 
