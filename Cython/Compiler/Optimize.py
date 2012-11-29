@@ -1262,6 +1262,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.FloatNode(node.pos, value='0.0')
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
+        arg_type = getattr(pos_args[0], 'type', None)
+        if arg_type in (PyrexTypes.c_double_type, Builtin.float_type):
+            return pos_args[0]
         return node
 
     class YieldNodeCollector(Visitor.TreeVisitor):
