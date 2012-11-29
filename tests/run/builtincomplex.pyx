@@ -52,3 +52,14 @@ def complex_conjugate_nonsimple_float():
     """
     x = float(1.0).conjugate()
     return x
+
+cdef double float_result():
+    return 1.0
+
+def complex_conjugate_nonsimple():
+    """
+    >>> complex_conjugate_nonsimple()
+    1.0
+    """
+    x = float_result().conjugate()
+    return x
