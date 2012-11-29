@@ -73,8 +73,8 @@ statement::
 
     from module cimport name [as name] [, name [as name] ...]
 
-Here is an example. The file on the left is a definition file which exports a
-C data type. The file on the right is an implementation file which imports and
+Here is an example. :file:`dishes.pxd` is a definition file which exports a
+C data type. :file:`restaurant.pxd` an implementation file which imports and
 uses it.
  
 :file:`dishes.pxd`::
@@ -136,12 +136,12 @@ for an imaginary module, and :keyword:`cimport` that module. You can then
 refer to the C functions by qualifying them with the name of the module.
 Here's an example:
  
-:file:`c_lunch.pxd` ::
+:file:`c_lunch.pxd`::
 
     cdef extern from "lunch.h":
         void eject_tomato(float) 	
 
-:file:`lunch.pyx` ::
+:file:`lunch.pyx`::
 
     cimport c_lunch
 
@@ -205,14 +205,16 @@ definition part, and may not add any further C attributes. It may also define
 Python methods.
 
 Here is an example of a module which defines and exports an extension type,
-and another module which uses it.::
- 
-    # Shrubbing.pxd
+and another module which uses it:
+
+:file:`Shrubbing.pyd`::
+
     cdef class Shrubbery:
         cdef int width
         cdef int length
-        
-    # Shrubbing.pyx
+
+:file:`Shrubbing.pyx`::
+
     cdef class Shrubbery:
         def __cinit__(self, int w, int l):
             self.width = w
@@ -221,8 +223,8 @@ and another module which uses it.::
     def standard_shrubbery():
         return Shrubbery(3, 7)
 
+:file:`Landscaping.pyx`::
 
-    # Landscaping.pyx
     cimport Shrubbing
     import Shrubbing
 
