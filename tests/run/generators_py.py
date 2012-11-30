@@ -350,3 +350,15 @@ def test_generator_cleanup():
         yield 1
     finally:
         print('cleanup')
+
+def test_del_in_generator():
+    """
+    >>> [ s for s in test_del_in_generator() ]
+    ['abcabcabc', 'abcabcabc']
+    """
+    x = len('abc') * 'abc'
+    a = x
+    yield x
+    del x
+    yield a
+    del a
