@@ -59,3 +59,19 @@ def and2_literal():
     5
     """
     return True and 5
+
+def c_int_results(int x):
+    """
+    >>> c_int_results(7)
+    (0, 0)
+    >>> c_int_results(5)
+    (1, 1)
+    """
+    cdef int expr1, expr2, r1, r2
+
+    expr1 = x == 5
+    expr2 = 1
+    r1 = expr1 and expr2
+
+    r2 = (x==5) and 1
+    return r1, r2
