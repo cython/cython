@@ -2353,7 +2353,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # unless we let PyType_Ready create the slot wrappers we have
                 # a significant performance hit. (See trac #561.)
                 for func in entry.type.scope.pyfunc_entries:
-                    if func.is_special and Options.docstrings and func.wrapperbase_cname:
+                    is_buffer = func.name in ('__getbuffer__',
+                                               '__releasebuffer__')
+                    if (func.is_special and Options.docstrings and
+                            func.wrapperbase_cname and not is_buffer):
                         code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                         code.putln("{")
                         code.putln(

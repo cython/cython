@@ -52,3 +52,9 @@ cdef class TestBuffer:
 cdef class TestBufferRelease(TestBuffer):
     def __releasebuffer__(self, Py_buffer* buffer):
         print u"releasing!"
+
+cdef class TestCompileWithDocstring(object):
+    def __getbuffer__(self, Py_buffer* buffer, int flags):
+        "I am a docstring!"
+    def __releasebuffer__(self, Py_buffer* buf):
+        "I am a docstring!"
