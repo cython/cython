@@ -802,7 +802,7 @@ class Scope(object):
 
         for entry in self.var_entries:
             if entry.type.is_pyobject:
-                if include_weakref or entry.name != "weakref":
+                if include_weakref or entry.name != "__weakref__":
                     py_attrs.append(entry)
             elif entry.type == PyrexTypes.c_py_buffer_type:
                 py_buffers.append(entry)
