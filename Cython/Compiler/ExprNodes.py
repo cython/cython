@@ -1867,6 +1867,8 @@ class NameNode(AtomicExprNode):
                     code.put_error_if_unbound(self.pos, self.entry)
 
                 if self.entry.type.is_pyobject:
+                    if self.entry.in_closure:
+                        code.put_gotref(self.result()) # generator
                     code.put_decref(self.result(), self.ctype())
                     code.putln('%s = NULL;' % self.result())
                 else:
