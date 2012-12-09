@@ -447,7 +447,7 @@ class MemoryViewSliceType(PyrexType):
     has_attributes = 1
     scope = None
 
-    # These are specialcased in Defnode
+    # These are special cased in Defnode
     from_py_function = None
     to_py_function = None
 
@@ -457,7 +457,7 @@ class MemoryViewSliceType(PyrexType):
     subtypes = ['dtype']
 
     def __init__(self, base_dtype, axes):
-        '''
+        """
         MemoryViewSliceType(base, axes)
 
         Base is the C base type; axes is a list of (access, packing) strings,
@@ -489,7 +489,7 @@ class MemoryViewSliceType(PyrexType):
         Fortran-contiguous memory has 'direct' as the access spec, 'contig' as
         the *first* axis' packing spec and 'follow' for all other packing
         specs.
-        '''
+        """
         import MemoryView
 
         self.dtype = base_dtype
@@ -684,8 +684,6 @@ class MemoryViewSliceType(PyrexType):
         return "__pyx_memoryview_fromslice(%s, %s, %s, %s, %d);" % tup
 
     def dtype_object_conversion_funcs(self, env):
-        import MemoryView, Code
-
         get_function = "__pyx_memview_get_%s" % self.dtype_name
         set_function = "__pyx_memview_set_%s" % self.dtype_name
 
@@ -724,13 +722,13 @@ class MemoryViewSliceType(PyrexType):
         return get_function, set_function
 
     def axes_to_code(self):
-        "Return a list of code constants for each axis"
+        """Return a list of code constants for each axis"""
         import MemoryView
         d = MemoryView._spec_to_const
         return ["(%s | %s)" % (d[a], d[p]) for a, p in self.axes]
 
     def axes_to_name(self):
-        "Return an abbreviated name for our axes"
+        """Return an abbreviated name for our axes"""
         import MemoryView
         d = MemoryView._spec_to_abbrev
         return "".join(["%s%s" % (d[a], d[p]) for a, p in self.axes])
@@ -763,7 +761,7 @@ class MemoryViewSliceType(PyrexType):
         return "%s[%s]" % (dtype_name, ", ".join(axes_code_list))
 
     def specialize(self, values):
-        "This does not validate the base type!!"
+        """This does not validate the base type!!"""
         dtype = self.dtype.specialize(values)
         if dtype is not self.dtype:
             return MemoryViewSliceType(dtype, self.axes)
@@ -868,7 +866,7 @@ class PyObjectType(PyrexType):
         return True
 
     def default_coerced_ctype(self):
-        "The default C type that this Python type coerces to, or None."
+        """The default C type that this Python type coerces to, or None."""
         return None
 
     def assignable_from(self, src_type):
@@ -990,7 +988,7 @@ class BuiltinObjectType(PyObjectType):
         type_check = self.type_check_function(exact=True)
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
-            check = check + ('||((%s) == Py_None)' % arg)
+            check += '||((%s) == Py_None)' % arg
         error = '(PyErr_Format(PyExc_TypeError, "Expected %s, got %%.200s", Py_TYPE(%s)->tp_name), 0)' % (self.name, arg)
         return check + '||' + error
 
@@ -1198,7 +1196,7 @@ class CConstType(BaseType):
         if base_type == self.const_base_type:
             return self
         else:
-            return ConstType(base_type)
+            return CConstType(base_type)
 
     def create_to_py_utility_code(self, env):
         if self.const_base_type.create_to_py_utility_code(env):
@@ -1330,7 +1328,7 @@ class CNumericType(CType):
                     visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            entry = scope.declare_cfunction(
+            scope.declare_cfunction(
                     "conjugate",
                     CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
@@ -1339,7 +1337,7 @@ class CNumericType(CType):
         return True
 
     def __lt__(self, other):
-        "Sort based on rank, preferring signed over unsigned"
+        """Sort based on rank, preferring signed over unsigned"""
         if other.is_numeric:
             return self.rank > other.rank and self.signed >= other.signed
 
@@ -1928,7 +1926,7 @@ class CComplexType(CNumericType):
             scope.directives = {}
             scope.declare_var("real", self.real_type, None, cname="real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, cname="imag", is_cdef=True)
-            entry = scope.declare_cfunction(
+            scope.declare_cfunction(
                     "conjugate",
                     CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
@@ -2790,7 +2788,7 @@ class CFuncType(CType):
         return result
 
     def get_fused_types(self, result=None, seen=None, subtypes=None):
-        "Return fused types in the order they appear as parameter types"
+        """Return fused types in the order they appear as parameter types"""
         return super(CFuncType, self).get_fused_types(result, seen,
                                                       subtypes=['args'])
 
@@ -3223,8 +3221,8 @@ class CppClassType(CType):
 
     def specialize_here(self, pos, template_values = None):
         if self.templates is None:
-            error(pos, "'%s' type is not a template" % self);
-            return PyrexTypes.error_type
+            error(pos, "'%s' type is not a template" % self)
+            return error_type
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
@@ -3625,8 +3623,6 @@ def best_match(args, functions, pos=None, env=None):
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
     """
-    from Cython import Utils
-
     # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(args)
 
