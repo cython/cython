@@ -11,10 +11,6 @@ Features added
 Bugs fixed
 ----------
 
-* In CPython 3.3, converting a Unicode character to the Py_UNICODE type
-  could fail to raise an overflow for non-BMP characters that do not fit
-  into a wchar_t on the current platform.
-
 Other changes
 -------------
 
@@ -27,6 +23,8 @@ Features added
 
 Bugs fixed
 ----------
+
+* In CPython 3.3, converting a Unicode character to the Py_UNICODE type could fail to raise an overflow for non-BMP characters that do not fit into a wchar_t on the current platform.
 
 * Negative C integer constants lost their longness suffix in the generated C code.
 
