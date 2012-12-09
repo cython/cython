@@ -15,9 +15,6 @@ from TypeSlots import \
 import Code
 import __builtin__ as builtins
 
-possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
-nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
-
 iso_c99_keywords = set(
 ['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
     'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
@@ -1114,8 +1111,6 @@ class ModuleScope(Scope):
                 # name to appear again, and indeed the generated
                 # code compiles fine.
                 return entry
-                warning(pos, "'%s' redeclared  " % name, 0)
-                return None
         else:
             entry = self.declare_var(name, py_object_type, pos)
         entry.as_module = scope
@@ -1140,7 +1135,7 @@ class ModuleScope(Scope):
 
         if not cname:
             defining = not in_pxd
-            if (visibility == 'extern' or (visibility == 'public' and defining)):
+            if visibility == 'extern' or (visibility == 'public' and defining):
                 cname = name
             else:
                 cname = self.mangle(Naming.var_prefix, name)
@@ -1183,7 +1178,7 @@ class ModuleScope(Scope):
                           defining = 0, modifiers = (), utility_code = None):
         # Add an entry for a C function.
         if not cname:
-            if (visibility == 'extern' or (visibility == 'public' and defining)):
+            if visibility == 'extern' or (visibility == 'public' and defining):
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
@@ -2090,7 +2085,7 @@ class CppClassScope(Scope):
                     continue
                 #print base_entry.name, self.entries
                 if base_entry.name in self.entries:
-                    base_entry.name
+                    base_entry.name    # FIXME: is there anything to do in this case?
                 entry = self.declare(base_entry.name, base_entry.cname,
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
