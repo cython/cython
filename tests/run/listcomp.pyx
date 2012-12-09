@@ -87,3 +87,23 @@ def sorted_listcomp(sequence):
     [3, 4, 5]
     """
     return sorted([ n+1 for n in sequence ])
+
+@cython.test_fail_if_path_exists("//IfStatNode",
+                                 "//ComprehensionAppendNode")
+@cython.test_assert_path_exists("//ComprehensionNode")
+def listcomp_const_condition_false():
+    """
+    >>> listcomp_const_condition_false()
+    []
+    """
+    return [x*2 for x in range(3) if False]
+
+@cython.test_fail_if_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//ComprehensionNode",
+                                "//ComprehensionAppendNode")
+def listcomp_const_condition_true():
+    """
+    >>> listcomp_const_condition_true()
+    [0, 2, 4]
+    """
+    return [x*2 for x in range(3) if True]
