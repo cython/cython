@@ -188,6 +188,10 @@ Features added
 Bugs fixed
 ----------
 
+* In CPython 3.3, converting a Unicode character to the Py_UNICODE type
+  could fail to raise an overflow for non-BMP characters that do not fit
+  into a wchar_t on the current platform.
+
 Other changes
 -------------
 
