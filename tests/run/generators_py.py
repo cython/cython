@@ -372,7 +372,7 @@ def test_yield_in_const_conditional_false():
     []
     """
     if False:
-        print(yield 1)
+        print((yield 1))
 
 @cython.test_fail_if_path_exists("//IfStatNode")
 @cython.test_assert_path_exists("//PrintStatNode")
@@ -383,4 +383,4 @@ def test_yield_in_const_conditional_true():
     [1]
     """
     if True:
-        print(yield 1)
+        print((yield 1))
