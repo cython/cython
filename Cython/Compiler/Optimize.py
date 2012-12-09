@@ -3120,11 +3120,17 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 break
             else:
                 assert condition_result == False
-                # prevent killing generators, but simplify them as much as possible
-                yield_expr = self._find_genexpr_yield(if_clause.body)
-                if yield_expr is not None:
-                    if_clause.condition = ExprNodes.BoolNode(if_clause.condition.pos, value=False)
+                # prevent killing generator expressions,
+                # but simplify them as much as possible
+                yield_expr_stat = self._find_genexpr_yield_stat(if_clause.body)
+                if yield_expr_stat is not None:
+                    # => if False: yield None
+                    yield_expr = yield_expr_stat.expr
+                    if_clause.condition = ExprNodes.BoolNode(
+                        if_clause.condition.pos,
+                        value=False, constant_result=False)
                     yield_expr.arg = ExprNodes.NoneNode(yield_expr.arg.pos)
+                    if_clause.body = yield_expr_stat
                     if_clauses.append(if_clause)
                 else:
                     # False clauses outside of generators can safely be deleted
@@ -3143,13 +3149,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 sequence.pos, args=sequence.args, mult_factor=sequence.mult_factor)
         return node
 
-    def _find_genexpr_yield(self, node):
+    def _find_genexpr_yield_stat(self, node):
         body_node_types = (Nodes.ForInStatNode, Nodes.IfStatNode)
         while isinstance(node, body_node_types):
             node = node.body
         if isinstance(node, Nodes.ExprStatNode):
-            node = node.expr
-            if isinstance(node, ExprNodes.YieldExprNode):
+            expr = node.expr
+            if isinstance(expr, ExprNodes.YieldExprNode):
                 return node
         return None
 
