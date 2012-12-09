@@ -209,7 +209,11 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject*);
 static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     long ival;
     #if CYTHON_PEP393_ENABLED
+    #if Py_UNICODE_SIZE > 2
     const long maxval = 1114111;
+    #else
+    const long maxval = 65535;
+    #endif
     #else
     static long maxval = 0;
     #endif
