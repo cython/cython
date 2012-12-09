@@ -913,8 +913,7 @@ class GlobalState(object):
         # utility_code_def
         #
         code = self.parts['utility_code_def']
-        import PyrexTypes
-        code.put(PyrexTypes.type_conversion_functions)
+        code.put(UtilityCode.load_cached("TypeConversions", "TypeConversion.c").impl)
         code.putln("")
 
     def __getitem__(self, key):
