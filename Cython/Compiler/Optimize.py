@@ -3119,26 +3119,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 node.else_clause = if_clause.body
                 break
             else:
+                # False clauses can safely be deleted
                 assert condition_result == False
-                # prevent killing generator expressions,
-                # but simplify them as much as possible
-                yield_expr_stat = self._find_genexpr_yield_stat(if_clause.body)
-                if yield_expr_stat is not None:
-                    # => if False: yield None
-                    yield_expr = yield_expr_stat.expr
-                    if_clause.condition = ExprNodes.BoolNode(
-                        if_clause.condition.pos,
-                        value=False, constant_result=False)
-                    yield_expr.arg = ExprNodes.NoneNode(yield_expr.arg.pos)
-                    if_clause.body = yield_expr_stat
-                    if_clauses.append(if_clause)
-                else:
-                    # False clauses outside of generators can safely be deleted
-                    pass
-        if not if_clauses:
+        if if_clauses:
+            node.if_clauses = if_clauses
+            return node
+        elif node.else_clause:
             return node.else_clause
-        node.if_clauses = if_clauses
-        return node
+        else:
+            return Nodes.StatListNode(node.pos, stats=[])
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
