@@ -2976,8 +2976,15 @@ class DefNodeWrapper(FuncDefNode):
                 "PyObject *%s, PyObject *%s"
                     % (Naming.args_cname, Naming.kwds_cname))
         arg_code = ", ".join(arg_code_list)
+
+        # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
+        mf = ""
+        if (entry.name in ("__getbuffer__", "__releasebuffer__")
+            and entry.scope.is_c_class_scope):
+            mf = "CYTHON_UNUSED "
+
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s(%s)" % (dc, arg_code)
+        header = "static %s%s(%s)" % (mf, dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
