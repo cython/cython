@@ -13,6 +13,8 @@ Bugs fixed
 
 * During final interpreter cleanup (with types cleanup enabled at compile time), extension types that inherit from base types over more than one level that were cimported from other modules could lead to a crash.
 
+* Weak-reference support in extension types (with a ``cdef __weakref__`` attribute) generated incorrect deallocation code.
+
 * In CPython 3.3, converting a Unicode character to the Py_UNICODE type could fail to raise an overflow for non-BMP characters that do not fit into a wchar_t on the current platform.
 
 * Negative C integer constants lost their longness suffix in the generated C code.
