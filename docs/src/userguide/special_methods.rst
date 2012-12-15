@@ -99,6 +99,11 @@ You don't need to worry about deallocating Python attributes of your object,
 because that will be done for you by Cython after your :meth:`__dealloc__` method
 returns. 
 
+When subclassing extension types, be aware that the :meth:`__dealloc__` method
+of the superclass will always be called, even if it is overridden.  This is in
+contrast to typical Python behavior where superclass methods will not be
+executed unless they are explicitly called by the subclass.
+
 .. Note: There is no :meth:`__del__` method for extension types.
 
 Arithmetic methods
