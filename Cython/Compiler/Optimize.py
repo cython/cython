@@ -33,10 +33,6 @@ except ImportError:
 def load_c_utility(name):
     return UtilityCode.load_cached(name, "Optimize.c")
 
-class FakePythonEnv(object):
-    "A fake environment for creating type test nodes etc."
-    nogil = False
-
 def unwrap_coerced_node(node, coercion_nodes=(ExprNodes.CoerceToPyTypeNode, ExprNodes.CoerceFromPyTypeNode)):
     if isinstance(node, coercion_nodes):
         return node.arg
@@ -89,8 +85,6 @@ class IterationTransform(Visitor.VisitorTransform):
             #     res = False
 
             pos = node.pos
-            res_handle = UtilNodes.TempHandle(PyrexTypes.c_bint_type)
-            res = res_handle.ref(pos)
             result_ref = UtilNodes.ResultRefNode(node)
             if isinstance(node.operand2, ExprNodes.IndexNode):
                 base_type = node.operand2.base.type.base_type
@@ -740,12 +734,12 @@ class IterationTransform(Visitor.VisitorTransform):
 
         result_code = [
             Nodes.SingleAssignmentNode(
-                pos = node.pos,
+                node.pos,
                 lhs = pos_temp,
                 rhs = ExprNodes.IntNode(node.pos, value='0',
                                         constant_result=0)),
             Nodes.SingleAssignmentNode(
-                pos = dict_obj.pos,
+                dict_obj.pos,
                 lhs = dict_temp,
                 rhs = ExprNodes.PythonCapiCallNode(
                     dict_obj.pos,
@@ -758,7 +752,7 @@ class IterationTransform(Visitor.VisitorTransform):
                     is_temp=True,
                 )),
             Nodes.WhileStatNode(
-                pos = node.pos,
+                node.pos,
                 condition = None,
                 body = body,
                 else_clause = node.else_clause
@@ -2633,7 +2627,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
     def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
         """Replace char*.decode() by a direct C-API call to the
-        corresponding codec, possibly resoving a slice on the char*.
+        corresponding codec, possibly resolving a slice on the char*.
         """
         if not (1 <= len(args) <= 3):
             self._error_wrong_arg_count('bytes.decode', node, args, '1-3')
