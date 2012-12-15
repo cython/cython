@@ -10,8 +10,6 @@ import PyrexTypes
 import Visitor
 import Builtin
 import UtilNodes
-import TypeSlots
-import Symtab
 import Options
 import Naming
 
