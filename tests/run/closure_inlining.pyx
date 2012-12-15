@@ -75,3 +75,13 @@ def test_starred(a):
     def inner(a, *args, **kwargs):
         return a, args, kwargs
     return inner(a)
+
+
+def test_global_calls_still_work():
+    """
+    >>> global_call_result
+    123
+    """
+    return 123
+
+global_call_result = test_global_calls_still_work()
