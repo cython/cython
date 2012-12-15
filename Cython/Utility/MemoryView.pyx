@@ -836,7 +836,7 @@ cdef int slice_memviewslice(
         with cython.cdivision(True):
             new_shape = (stop - start) // step
 
-            if (stop - start) % step:
+            if (stop - start) - step * new_shape:
                 new_shape += 1
 
         if new_shape < 0:
