@@ -1661,8 +1661,8 @@ class InlineDefNodeCalls(Visitor.CythonTransform):
         function_name = node.function
         if not function_name.is_name:
             return node
-        if (function_name.cf_state is None or
-            not function_name.cf_state.is_single):
+        if (function_name.cf_state is None   # global scope
+                or not function_name.cf_state.is_single):
             return node
         function = function_name.cf_state.one().rhs
         if not isinstance(function, ExprNodes.PyCFunctionNode):
