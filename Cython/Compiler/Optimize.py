@@ -2623,6 +2623,16 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("decode_func", PyUnicode_DecodeXyz_func_ptr_type, None),
             ])
 
+    _decode_bytes_func_type = PyrexTypes.CFuncType(
+        Builtin.unicode_type, [
+            PyrexTypes.CFuncTypeArg("string", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("decode_func", PyUnicode_DecodeXyz_func_ptr_type, None),
+            ])
+
     _decode_cpp_string_func_type = None # lazy init
 
     def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
@@ -2634,19 +2644,29 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             return node
 
         # normalise input nodes
-        if isinstance(args[0], ExprNodes.SliceIndexNode):
-            index_node = args[0]
+        string_node = args[0]
+        start = stop = None
+        if isinstance(string_node, ExprNodes.SliceIndexNode):
+            index_node = string_node
             string_node = index_node.base
             start, stop = index_node.start, index_node.stop
             if not start or start.constant_result == 0:
                 start = None
-        elif isinstance(args[0], ExprNodes.CoerceToPyTypeNode):
-            string_node = args[0].arg
-            start = stop = None
-        else:
-            return node
+        if isinstance(string_node, ExprNodes.CoerceToPyTypeNode):
+            string_node = string_node.arg
 
-        if not string_node.type.is_string and not string_node.type.is_cpp_string:
+        string_type = string_node.type
+        if string_type is Builtin.bytes_type:
+            if is_unbound_method:
+                string_node = string_node.as_none_safe_node(
+                    "descriptor '%s' requires a '%s' object but received a 'NoneType'",
+                    format_args = ['decode', 'bytes'])
+            else:
+                string_node = string_node.as_none_safe_node(
+                    "'NoneType' object has no attribute '%s'",
+                    error = "PyExc_AttributeError",
+                    format_args = ['decode'])
+        elif not string_type.is_string and not string_type.is_cpp_string:
             # nothing to optimise here
             return node
 
@@ -2676,7 +2696,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
         # build the helper function call
         temps = []
-        if string_node.type.is_string:
+        if string_type.is_string:
             # C string
             if not stop:
                 # use strlen() to find the string length, just as CPython would
@@ -2691,7 +2711,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                     ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
             helper_func_type = self._decode_c_string_func_type
             utility_code_name = 'decode_c_string'
-        else:
+        elif string_type.is_cpp_string:
             # C++ std::string
             if not stop:
                 stop = ExprNodes.IntNode(node.pos, value='PY_SSIZE_T_MAX',
@@ -2700,7 +2720,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 # lazy init to reuse the C++ string type
                 self._decode_cpp_string_func_type = PyrexTypes.CFuncType(
                     Builtin.unicode_type, [
-                        PyrexTypes.CFuncTypeArg("string", string_node.type, None),
+                        PyrexTypes.CFuncTypeArg("string", string_type, None),
                         PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
                         PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
                         PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
@@ -2709,6 +2729,13 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                         ])
             helper_func_type = self._decode_cpp_string_func_type
             utility_code_name = 'decode_cpp_string'
+        else:
+            # Python bytes object
+            if not stop:
+                stop = ExprNodes.IntNode(node.pos, value='PY_SSIZE_T_MAX',
+                                         constant_result=ExprNodes.not_a_constant)
+            helper_func_type = self._decode_bytes_func_type
+            utility_code_name = 'decode_bytes'
 
         node = ExprNodes.PythonCapiCallNode(
             node.pos, '__Pyx_%s' % utility_code_name, helper_func_type,

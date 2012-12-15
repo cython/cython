@@ -3,8 +3,11 @@ cimport cython
 b_a = b'a'
 b_b = b'b'
 
+
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
 def bytes_startswith(bytes s, sub, start=None, stop=None):
     """
     >>> bytes_startswith(b_a, b_a)
@@ -30,8 +33,11 @@ def bytes_startswith(bytes s, sub, start=None, stop=None):
     else:
       return s.startswith(sub, start, stop)
 
+
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
 def bytes_endswith(bytes s, sub, start=None, stop=None):
     """
     >>> bytes_endswith(b_a, b_a)
@@ -56,3 +62,131 @@ def bytes_endswith(bytes s, sub, start=None, stop=None):
       return s.endswith(sub, start)
     else:
       return s.endswith(sub, start, stop)
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
+def bytes_decode(bytes s, start=None, stop=None):
+    """
+    >>> s = b_a+b_b+b_a+b_a+b_b
+    >>> print(bytes_decode(s))
+    abaab
+
+    >>> print(bytes_decode(s, 2))
+    aab
+    >>> print(bytes_decode(s, -3))
+    aab
+
+    >>> print(bytes_decode(s, None, 4))
+    abaa
+    >>> print(bytes_decode(s, None, 400))
+    abaab
+    >>> print(bytes_decode(s, None, -2))
+    aba
+    >>> print(bytes_decode(s, None, -4))
+    a
+    >>> print(bytes_decode(s, None, -5))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, None, -200))
+    <BLANKLINE>
+
+    >>> print(bytes_decode(s, 2, 5))
+    aab
+    >>> print(bytes_decode(s, 2, 500))
+    aab
+    >>> print(bytes_decode(s, 2, -1))
+    aa
+    >>> print(bytes_decode(s, 2, -3))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, 2, -300))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, -3, -1))
+    aa
+    >>> print(bytes_decode(s, -300, 300))
+    abaab
+    >>> print(bytes_decode(s, -300, -4))
+    a
+    >>> print(bytes_decode(s, -300, -5))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, -300, -6))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, -300, -500))
+    <BLANKLINE>
+
+    >>> s[:'test']                       # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:...
+    >>> print(bytes_decode(s, 'test'))   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:...
+    >>> print(bytes_decode(s, None, 'test'))    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:...
+    >>> print(bytes_decode(s, 'test', 'test'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:...
+
+    >>> print(bytes_decode(None))
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'decode'
+    >>> print(bytes_decode(None, 1))
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'decode'
+    >>> print(bytes_decode(None, None, 1))
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'decode'
+    >>> print(bytes_decode(None, 0, 1))
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'decode'
+    """
+    if start is None:
+        if stop is None:
+            return s.decode('utf8')
+        else:
+            return s[:stop].decode('utf8')
+    elif stop is None:
+        return s[start:].decode('utf8')
+    else:
+        return s[start:stop].decode('utf8')
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
+def bytes_decode_unbound_method(bytes s, start=None, stop=None):
+    """
+    >>> s = b_a+b_b+b_a+b_a+b_b
+    >>> print(bytes_decode_unbound_method(s))
+    abaab
+    >>> print(bytes_decode_unbound_method(s, 1))
+    baab
+    >>> print(bytes_decode_unbound_method(s, None, 3))
+    aba
+    >>> print(bytes_decode_unbound_method(s, 1, 4))
+    baa
+
+    >>> print(bytes_decode_unbound_method(None))
+    Traceback (most recent call last):
+    TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
+    >>> print(bytes_decode_unbound_method(None, 1))
+    Traceback (most recent call last):
+    TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
+    >>> print(bytes_decode_unbound_method(None, None, 1))
+    Traceback (most recent call last):
+    TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
+    >>> print(bytes_decode_unbound_method(None, 0, 1))
+    Traceback (most recent call last):
+    TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
+    """
+    if start is None:
+        if stop is None:
+            return bytes.decode(s, 'utf8')
+        else:
+            return bytes.decode(s[:stop], 'utf8')
+    elif stop is None:
+        return bytes.decode(s[start:], 'utf8')
+    else:
+        return bytes.decode(s[start:stop], 'utf8')

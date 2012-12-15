@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* ``py_bytes_string.decode(...)`` is optimised.
+
 Bugs fixed
 ----------
 
