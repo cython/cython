@@ -2249,9 +2249,6 @@ class NextNode(AtomicExprNode):
             fake_index_node = IndexNode(self.pos,
                                         base=self.iterator.sequence,
                                         index=IntNode(self.pos, value='0'))
-            # TODO(vile hack): infer_type should be side-effect free
-            if isinstance(self.iterator.sequence, SimpleCallNode):
-                return py_object_type
             return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
@@ -4453,7 +4450,7 @@ class AttributeNode(ExprNode):
                 # special case: C-API replacements for C methods of
                 # builtin types cannot be inferred as C functions as
                 # that would prevent their use as bound methods
-                self.type = py_object_type
+                return py_object_type
             return self.type
 
     def analyse_target_declaration(self, env):
