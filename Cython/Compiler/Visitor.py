@@ -488,6 +488,27 @@ def recursively_replace_node(tree, old_node, new_node):
     replace_in(tree)
 
 
+class NodeFinder(TreeVisitor):
+    """
+    Find out if a node appears in a subtree.
+    """
+    def __init__(self, node):
+        super(NodeFinder, self).__init__()
+        self.node = node
+        self.found = False
+
+    def visit_Node(self, node):
+        if node is self.node:
+            self.found = True
+        else:
+            self.visitchildren(node)
+
+def tree_contains(tree, node):
+    finder = NodeFinder(node)
+    finder.visit(tree)
+    return finder.found
+
+
 # Utils
 def replace_node(ptr, value):
     """Replaces a node. ptr is of the form used on the access path stack

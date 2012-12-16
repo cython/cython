@@ -35,3 +35,7 @@ cdef class MethodDispatcherTransform(EnvTransform):
 cdef class RecursiveNodeReplacer(VisitorTransform):
      cdef public orig_node
      cdef public new_node
+
+cdef class NodeFinder(TreeVisitor):
+    cdef node
+    cdef public bint found

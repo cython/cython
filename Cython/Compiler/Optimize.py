@@ -1,4 +1,3 @@
-
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -977,7 +976,19 @@ class SwitchTransform(Visitor.VisitorTransform):
                                            test = common_var,
                                            cases = cases,
                                            else_clause = false_body)
-        return UtilNodes.TempResultFromStatNode(result_ref, switch_node)
+        replacement = UtilNodes.TempResultFromStatNode(result_ref, switch_node)
+        return replacement
+
+    def visit_EvalWithTempExprNode(self, node):
+        # drop unused expression temp from FlattenInListTransform
+        orig_expr = node.subexpression
+        temp_ref = node.lazy_temp
+        self.visitchildren(node)
+        if node.subexpression is not orig_expr:
+            # node was restructured => check if temp is still used
+            if not Visitor.tree_contains(node.subexpression, temp_ref):
+                return node.subexpression
+        return node
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
