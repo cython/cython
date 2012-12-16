@@ -31,12 +31,12 @@ cdef class MyDict(dict):
         l.sort()
         return l
 
-    def test_iteritems(self):
+    def test_values(self):
         """
-        >>> MyDict(a=1, b=2).test_iteritems()
-        [('a', 1), ('b', 2)]
+        >>> MyDict(a=1, b=2).test_values()
+        [1, 2]
         """
-        l = [ (key, value) for key, value in self.iteritems() ]
+        l = [ v for v in self.values() ]
         l.sort()
         return l
 
@@ -52,12 +52,12 @@ cdef class MyDictFinal(dict):
         l.sort()
         return l
 
-    def test_iteritems(self):
+    def test_values(self):
         """
-        >>> MyDictFinal(a=1, b=2).test_iteritems()
-        [('a', 1), ('b', 2)]
+        >>> MyDictFinal(a=1, b=2).test_values()
+        [1, 2]
         """
-        l = [ (key, value) for key, value in self.iteritems() ]
+        l = [ v for v in self.values() ]
         l.sort()
         return l
 
@@ -74,12 +74,12 @@ cdef class MyDict2(MyDict):
         l.sort()
         return l
 
-    def test_iteritems(self):
+    def test_values(self):
         """
-        >>> MyDict2(a=1, b=2).test_iteritems()
-        [('a', 1), ('b', 2)]
+        >>> MyDict2(a=1, b=2).test_values()
+        [1, 2]
         """
-        l = [ (key, value) for key, value in self.iteritems() ]
+        l = [ v for v in self.values() ]
         l.sort()
         return l
 
@@ -95,12 +95,12 @@ cdef class MyDict2Final(MyDict):
         l.sort()
         return l
 
-    def test_iteritems(self):
+    def test_values(self):
         """
-        >>> MyDict2Final(a=1, b=2).test_iteritems()
-        [('a', 1), ('b', 2)]
+        >>> MyDict2Final(a=1, b=2).test_values()
+        [1, 2]
         """
-        l = [ (key, value) for key, value in self.iteritems() ]
+        l = [ v for v in self.values() ]
         l.sort()
         return l
 
@@ -121,12 +121,12 @@ cdef class MyDictOverride(dict):
         l.sort()
         return l
 
-    def test_iteritems(self):
+    def test_values(self):
         """
-        >>> MyDictOverride(a=1, b=2).test_iteritems()
-        [('a', 1), ('b', 2)]
+        >>> MyDictOverride(a=1, b=2).test_values()
+        [1, 2]
         """
-        l = [ (key, value) for key, value in self.iteritems() ]
+        l = [ v for v in self.values() ]
         l.sort()
         return l
 
@@ -147,11 +147,11 @@ cdef class MyDictOverride2(MyDict):
         l.sort()
         return l
 
-    def test_iteritems(self):
+    def test_values(self):
         """
-        >>> MyDictOverride2(a=1, b=2).test_iteritems()
-        [('a', 1), ('b', 2)]
+        >>> MyDictOverride2(a=1, b=2).test_values()
+        [1, 2]
         """
-        l = [ (key, value) for key, value in self.iteritems() ]
+        l = [ v for v in self.values() ]
         l.sort()
         return l

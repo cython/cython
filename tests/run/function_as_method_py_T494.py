@@ -2,7 +2,7 @@
 
 __doc__ = """
     >>> A.foo = foo
-    >>> print A().foo()
+    >>> A().foo()
     True
 """
 
