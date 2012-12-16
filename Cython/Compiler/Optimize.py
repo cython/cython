@@ -3109,11 +3109,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_PrimaryCmpNode(self, node):
         self._calculate_const(node)
-        if node.constant_result is ExprNodes.not_a_constant:
-            return node
-        bool_result = bool(node.constant_result)
-        return ExprNodes.BoolNode(node.pos, value=bool_result,
-                                  constant_result=bool_result)
+        if node.constant_result is not ExprNodes.not_a_constant:
+            bool_result = bool(node.constant_result)
+            return ExprNodes.BoolNode(node.pos, value=bool_result,
+                                      constant_result=bool_result)
+        if node.operator in ('in', 'not_in') and not node.cascade:
+            if isinstance(node.operand2, ExprNodes.ListNode):
+                node.operand2 = node.operand2.as_tuple()
+        return node
 
     def visit_CondExprNode(self, node):
         self._calculate_const(node)
@@ -3153,8 +3156,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # iterating over a list literal? => tuples are more efficient
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.ListNode):
-            node.iterator.sequence = ExprNodes.TupleNode(
-                sequence.pos, args=sequence.args, mult_factor=sequence.mult_factor)
+            node.iterator.sequence = sequence.as_tuple()
         return node
 
     def _find_genexpr_yield_stat(self, node):

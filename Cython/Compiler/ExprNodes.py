@@ -5496,6 +5496,9 @@ class ListNode(SequenceNode):
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         return self
 
+    def as_tuple(self):
+        return TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
+
     def release_temp_result(self, env):
         if self.type.is_array:
             # To be valid C++, we must allocate the memory on the stack
