@@ -5497,7 +5497,10 @@ class ListNode(SequenceNode):
         return self
 
     def as_tuple(self):
-        return TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
+        t = TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
+        if isinstance(self.constant_result, list):
+            t.constant_result = tuple(self.constant_result)
+        return t
 
     def release_temp_result(self, env):
         if self.type.is_array:
