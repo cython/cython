@@ -1781,7 +1781,7 @@ class CClassScope(ClassScope):
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
-            if type.is_pyobject:
+            if type.is_pyobject and name != '__weakref__':
                 self.has_pyobject_attrs = 1
             if visibility not in ('private', 'public', 'readonly'):
                 error(pos,
