@@ -1008,7 +1008,9 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
 
         args = node.operand2.args
         if len(args) == 0:
-            return ExprNodes.BoolNode(pos = node.pos, value = node.operator == 'not_in')
+            constant_result = node.operator == 'not_in'
+            return ExprNodes.BoolNode(pos = node.pos, value = constant_result,
+                                      constant_result = constant_result)
 
         lhs = UtilNodes.ResultRefNode(node.operand1)
 
