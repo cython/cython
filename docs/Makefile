@@ -25,6 +25,12 @@ help:
 clean:
 	-rm -rf build/*
 
+pdf:
+	mkdir -p build/pdf
+	$(SPHINXBUILD) -b pdf $(ALLSPHINXOPTS) build/pdf
+	@echo
+	@echo "Build finished. The PDF is in build/pdf."
+
 html:
 	mkdir -p build/html build/doctrees
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) build/html
