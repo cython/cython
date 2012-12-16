@@ -274,6 +274,13 @@ class ExprNode(Node):
 
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
+        if (self.is_temp and self.type.is_pyobject and
+                type != py_object_type):
+            # Allocated temporaries are always PyObject *, which may not
+            # reflect the actual type (e.g. an extension type)
+            return typecast(type, py_object_type, self.result())
+        return typecast(type, self.ctype(), self.result())
+
         return typecast(type, self.ctype(), self.result())
 
     def py_result(self):
@@ -3080,8 +3087,11 @@ class IndexNode(ExprNode):
             buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
             if self.type.is_pyobject:
                 # is_temp is True, so must pull out value and incref it.
-                code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
-                code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+                # NOTE: object temporary results for nodes are declared
+                #       as PyObject *, so we need a cast
+                code.putln("%s = (PyObject *) *%s;" % (self.temp_code,
+                                                       self.buffer_ptr_code))
+                code.putln("__Pyx_INCREF((PyObject*)%s);" % self.temp_code)
 
         elif self.memslice_slice:
             self.put_memoryviewslice_slice_code(code)
