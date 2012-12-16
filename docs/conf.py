@@ -55,7 +55,7 @@ copyright = '2011, Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ew
 release = '0.15'
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
-    with open(os.path.join(os.path.dirname(__file__), '..', 'Cython', '__init__.py')) as _f:
+    with open(os.path.join(os.path.dirname(__file__), '..', 'Cython', 'Shadow.py')) as _f:
         for line in _f:
             _m = _match_version(line)
             if _m:
