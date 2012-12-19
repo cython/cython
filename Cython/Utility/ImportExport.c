@@ -141,6 +141,8 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     PyObject *result = 0;
     PyObject *py_name = 0;
     char warning[200];
+    PyObject *py_basicsize;
+    Py_ssize_t basicsize;
 
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
@@ -161,7 +163,18 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
             module_name, class_name);
         goto bad;
     }
-    if (!strict && (size_t)((PyTypeObject *)result)->tp_basicsize > size) {
+#ifndef Py_LIMITED_API
+    basicsize = ((PyTypeObject *)result)->tp_basicsize;
+#else
+    py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
+    if (!py_basicsize)
+        goto bad;
+    basicsize = PyLong_AsSsize_t(py_basicsize);
+    Py_DECREF(py_basicsize);
+    if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        goto bad;
+#endif
+    if (!strict && (size_t)basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
@@ -171,7 +184,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
         #endif
     }
-    else if ((size_t)((PyTypeObject *)result)->tp_basicsize != size) {
+    else if ((size_t)basicsize != size) {
         PyErr_Format(PyExc_ValueError,
             "%s.%s has the wrong size, try recompiling",
             module_name, class_name);
