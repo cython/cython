@@ -27,7 +27,7 @@ class sdist(sdist_orig):
         self.force_manifest = 1
         if (sys.platform != "win32" and 
             os.path.isdir('.git')):
-            assert os.system("git show-ref -s HEAD > .gitrev") == 0
+            assert os.system("git rev-parse --verify HEAD > .gitrev") == 0
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
