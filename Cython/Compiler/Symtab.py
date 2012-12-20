@@ -1568,6 +1568,7 @@ class GeneratorExpressionScope(Scope):
         cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name or self.next_id()))
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
+        entry.is_local = 1
         self.var_entries.append(entry)
         self.entries[name] = entry
         return entry
