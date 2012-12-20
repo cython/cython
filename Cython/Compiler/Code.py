@@ -913,7 +913,7 @@ class GlobalState(object):
         # utility_code_def
         #
         code = self.parts['utility_code_def']
-        code.put(UtilityCode.load_cached("TypeConversions", "TypeConversion.c").impl)
+        code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[1])
         code.putln("")
 
     def __getitem__(self, key):
