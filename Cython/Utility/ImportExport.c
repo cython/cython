@@ -141,8 +141,10 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     PyObject *result = 0;
     PyObject *py_name = 0;
     char warning[200];
-    PyObject *py_basicsize;
     Py_ssize_t basicsize;
+#ifdef Py_LIMITED_API
+    PyObject *py_basicsize;
+#endif
 
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
@@ -171,6 +173,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         goto bad;
     basicsize = PyLong_AsSsize_t(py_basicsize);
     Py_DECREF(py_basicsize);
+    py_basicsize = 0;
     if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
         goto bad;
 #endif
