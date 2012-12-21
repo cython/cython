@@ -355,11 +355,11 @@ class Scope(object):
             return '%d' % count
 
     def global_scope(self):
-        # Return the module-level scope containing this scope.
+        """ Return the module-level scope containing this scope. """
         return self.outer_scope.global_scope()
 
     def builtin_scope(self):
-        # Return the module-level scope containing this scope.
+        """ Return the module-level scope containing this scope. """
         return self.outer_scope.builtin_scope()
 
     def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0):
