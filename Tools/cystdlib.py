@@ -35,6 +35,7 @@ default_directives = dict(
     auto_cpdef=False,   # enable when it's safe, see long list of failures below
     binding=True,
     set_initial_path='SOURCEFILE')
+default_directives['optimize.inline_defnode_calls'] = True
 
 special_directives = [
     (['pkgutil.py',
