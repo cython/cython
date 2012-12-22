@@ -909,16 +909,17 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return self.visit_with_directives(body, directives)
 
     def visit_CVarDefNode(self, node):
-        if not node.decorators:
+        directives = self._extract_directives(node, 'function')
+        if not directives:
             return node
-        for dec in node.decorators:
-            for directive in self.try_to_parse_directives(dec.decorator) or ():
-                if directive is not None and directive[0] == u'locals':
-                    node.directive_locals = directive[1]
-                else:
-                    self.context.nonfatal_error(PostParseError(dec.pos,
-                        "Cdef functions can only take cython.locals() decorator."))
-        return node
+        for name, value in directives.iteritems():
+            if name == 'locals':
+                node.directive_locals = value
+            elif name != 'final':
+                self.context.nonfatal_error(PostParseError(dec.pos,
+                    "Cdef functions can only take cython.locals() or final decorators, got %s." % name))
+        body = Nodes.StatListNode(node.pos, stats=[node])
+        return self.visit_with_directives(body, directives)
 
     def visit_CClassDefNode(self, node):
         directives = self._extract_directives(node, 'cclass')
@@ -948,7 +949,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                         directives.append(directive)
             else:
                 realdecs.append(dec)
-        if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode)):
+        if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode)):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         else:
             node.decorators = realdecs
