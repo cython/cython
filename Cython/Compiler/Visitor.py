@@ -234,7 +234,7 @@ class VisitorTransform(TreeVisitor):
     def visitchildren(self, parent, attrs=None):
         result = self._visitchildren(parent, attrs)
         for attr, newnode in result.iteritems():
-            if not type(newnode) is list:
+            if type(newnode) is not list:
                 setattr(parent, attr, newnode)
             else:
                 # Flatten the list one level and remove any None
