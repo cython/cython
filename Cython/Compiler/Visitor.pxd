@@ -8,7 +8,6 @@ cdef class TreeVisitor:
     cdef _visit(self, obj)
     cdef find_handler(self, obj)
     cdef _visitchild(self, child, parent, attrname, idx)
-    @cython.locals(idx=int)
     cdef dict _visitchildren(self, parent, attrs)
     cpdef visitchildren(self, parent, attrs=*)
 

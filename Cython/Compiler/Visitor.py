@@ -186,6 +186,7 @@ class TreeVisitor(object):
         return self._visitchildren(parent, attrs)
 
     @cython.final
+    @cython.locals(idx=int)
     def _visitchildren(self, parent, attrs):
         """
         Visits the children of the given parent. If parent is None, returns
