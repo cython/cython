@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* Calls to nested Python functions are resolved at compile time.
+
+* Type inference works across nested functions.
+
 * ``py_bytes_string.decode(...)`` is optimised.
 
 Bugs fixed
