@@ -401,7 +401,13 @@ class SimpleAssignmentTypeInferer(object):
                     entry_type = py_object_type
                 # propagate entry type to all nested scopes
                 for e in entry.all_entries():
-                    e.type = entry_type
+                    if e.type is unspecified_type:
+                        e.type = entry_type
+                    else:
+                        # FIXME: can this actually happen?
+                        assert e.type == entry_type, (
+                            'unexpected type mismatch between closures for inferred type %s: %s vs. %s' %
+                            entry_type, e, entry)
                 if verbose:
                     message(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type))
                 resolve_dependancy(entry)
