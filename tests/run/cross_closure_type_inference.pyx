@@ -72,6 +72,23 @@ def test_outer_inner_incompatible():
     return cython.typeof(x)
 
 
+def test_outer_inner_ptr():
+    """
+    >>> print(test_outer_inner_ptr())
+    double *
+    """
+    x = 1.0
+    xptr_outer = &x
+    def inner():
+        nonlocal x
+        x = 1
+        xptr_inner = &x
+        assert cython.typeof(xptr_inner) == cython.typeof(xptr_outer), (
+            '%s != %s' % (cython.typeof(xptr_inner), cython.typeof(xptr_outer)))
+    inner()
+    return cython.typeof(xptr_outer)
+
+
 def test_outer_inner2_double():
     """
     >>> print(test_outer_inner2_double())
