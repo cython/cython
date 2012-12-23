@@ -501,7 +501,7 @@ def test_attempting_to_send_to_non_generator():
         next(gi)
         for x in range(3):
             y = gi.send(42)
-            trace.append("Should not have yielded:", y)
+            trace.append("Should not have yielded: %s" % y)
     except AttributeError:
         pass
     else:
