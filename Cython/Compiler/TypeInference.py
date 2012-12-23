@@ -335,6 +335,9 @@ class PyObjectTypeInferer(object):
 class SimpleAssignmentTypeInferer(object):
     """
     Very basic type inference.
+
+    Note: in order to support cross-closure type inference, this must be
+    applies to nested scopes in top-down order.
     """
     # TODO: Implement a real type inference algorithm.
     # (Something more powerful than just extending this one...)
@@ -357,13 +360,11 @@ class SimpleAssignmentTypeInferer(object):
         ready_to_infer = []
         for name, entry in scope.entries.items():
             if entry.type is unspecified_type:
-                if entry.in_closure or entry.from_closure:
-                    # cross-closure type inference is not currently supported
-                    entry.type = py_object_type
-                    continue
+                entries = entry.all_entries()
                 all = set()
-                for assmt in entry.cf_assignments:
-                    all.update(assmt.type_dependencies(scope))
+                for e in entries:
+                    for assmt in e.cf_assignments:
+                        all.update(assmt.type_dependencies(e.scope))
                 if all:
                     dependancies_by_entry[entry] = all
                     for dep in all:
@@ -387,14 +388,20 @@ class SimpleAssignmentTypeInferer(object):
         while True:
             while ready_to_infer:
                 entry = ready_to_infer.pop()
-                types = [assmt.rhs.infer_type(scope)
-                         for assmt in entry.cf_assignments]
+                types = [
+                    assmt.rhs.infer_type(scope)
+                    for e in entry.all_entries()
+                    for assmt in e.cf_assignments
+                    ]
                 if types and Utils.all(types):
-                    entry.type = spanning_type(types, entry.might_overflow, entry.pos)
+                    entry_type = spanning_type(types, entry.might_overflow, entry.pos)
                 else:
                     # FIXME: raise a warning?
                     # print "No assignments", entry.pos, entry
-                    entry.type = py_object_type
+                    entry_type = py_object_type
+                # propagate entry type to all nested scopes
+                for e in entry.all_entries():
+                    e.type = entry_type
                 if verbose:
                     message(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type))
                 resolve_dependancy(entry)

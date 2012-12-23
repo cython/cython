@@ -186,6 +186,7 @@ class Entry(object):
     from_cython_utility_code = None
     error_on_uninitialized = False
     cf_used = True
+    outer_entry = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -196,6 +197,7 @@ class Entry(object):
         self.overloaded_alternatives = []
         self.cf_assignments = []
         self.cf_references = []
+        self.inner_entries = []
 
     def __repr__(self):
         return "Entry(name=%s, type=%s)" % (self.name, self.type)
@@ -206,6 +208,22 @@ class Entry(object):
 
     def all_alternatives(self):
         return [self] + self.overloaded_alternatives
+
+    def all_entries(self):
+        """
+        Returns all entries for this entry, including the equivalent ones
+        in other closures.
+        """
+        if self.from_closure:
+            return self.outer_entry.all_entries()
+
+        entries = []
+        def collect_inner_entries(entry):
+            entries.append(entry)
+            for e in entry.inner_entries:
+                collect_inner_entries(e)
+        collect_inner_entries(self)
+        return entries
 
 
 class Scope(object):
@@ -1524,6 +1542,7 @@ class LocalScope(Scope):
                 inner_entry.from_closure = True
                 inner_entry.is_declared_generic = entry.is_declared_generic
                 self.entries[name] = inner_entry
+                entry.inner_entries.append(inner_entry)
                 return inner_entry
         return entry
 
