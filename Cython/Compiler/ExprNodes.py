@@ -3692,6 +3692,13 @@ class CallNode(ExprNode):
         # the case of function overloading.
         return self.function.type_dependencies(env)
 
+    def is_simple(self):
+        # C function calls could be considered simple, but they may
+        # have side-effects that may hit when multiple operations must
+        # be effected in order, e.g. when constructing the argument
+        # sequence for a function call or comparing values.
+        return False
+
     def may_be_none(self):
         if self.may_return_none is not None:
             return self.may_return_none
@@ -3856,13 +3863,6 @@ class SimpleCallNode(CallNode):
             func_type = func_type.base_type
 
         return func_type
-
-    def is_simple(self):
-        # C function calls could be considered simple, but they may
-        # have side-effects that may hit when multiple operations must
-        # be effected in order, e.g. when constructing the argument
-        # sequence for a function call or comparing values.
-        return False
 
     def analyse_c_function_call(self, env):
         if self.function.type is error_type:
