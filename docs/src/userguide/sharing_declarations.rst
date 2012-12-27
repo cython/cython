@@ -8,7 +8,7 @@ Sharing Declarations Between Cython Modules
 
 This section describes a new set of facilities for making C declarations,
 functions and extension types in one Cython module available for use in
-another Cython module. These facilities are closely modelled on the Python
+another Cython module. These facilities are closely modeled on the Python
 import mechanism, and can be thought of as a compile-time version of it.
 
 Definition and Implementation files
@@ -24,7 +24,8 @@ statement.
 A ``.pxd`` file that consists solely of extern declarations does not need
 to correspond to an actual ``.pyx`` file or Python module. This can make it a
 convenient place to put common declarations, for example declarations of 
-functions from  an :ref:`external library <external-C-code>` that one wants to use in several modules. 
+functions from  an :ref:`external library <external-C-code>` that one
+wants to use in several modules. 
 
 What a Definition File contains
 ================================
@@ -113,7 +114,7 @@ you imported it. Using :keyword:`cimport` to import extension types is covered i
 detail below.  
 
 If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be 
-recompiled. 
+recompiled.  The ``Cython.Build.cythonize`` utility can take care of this for you.
 
 Search paths for definition files 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -207,7 +208,7 @@ Python methods.
 Here is an example of a module which defines and exports an extension type,
 and another module which uses it:
 
-:file:`Shrubbing.pyd`::
+:file:`Shrubbing.pxd`::
 
     cdef class Shrubbery:
         cdef int width
@@ -231,7 +232,15 @@ and another module which uses it:
     cdef Shrubbing.Shrubbery sh
     sh = Shrubbing.standard_shrubbery()
     print "Shrubbery size is %d x %d" % (sh.width, sh.length)
- 
+
+One would then need to compile both of these modules, e.g. using
+
+:file:`setup.py`::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+    setup(ext_modules = cythonize(["Landscaping.pyx", "Shrubbing.pyx"]))
+
 Some things to note about this example:
 
 * There is a :keyword:`cdef` class Shrubbery declaration in both
