@@ -144,6 +144,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from Optimize import InlineDefNodeCalls
     from Optimize import ConstantFolding, FinalOptimizePhase
     from Optimize import DropRefcountingTransform
+    from Optimize import ConsolidateOverflowCheck
     from Buffer import IntroduceBufferAuxiliaryVars
     from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
@@ -196,6 +197,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         CreateClosureClasses(context),  ## After all lookups and type inference
         ExpandInplaceOperators(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
+        ConsolidateOverflowCheck(context),
         IterationTransform(),
         SwitchTransform(),
         DropRefcountingTransform(),

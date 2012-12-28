@@ -7980,6 +7980,8 @@ class BinopNode(ExprNode):
                     extra_args,
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+        elif self.is_temp:
+            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
 
     def type_error(self):
         if not (self.operand1.type.is_error
@@ -8027,6 +8029,7 @@ class NumBinopNode(BinopNode):
 
     infix = True
     overflow_check = False
+    overflow_bit_node = None
 
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
@@ -8091,12 +8094,13 @@ class NumBinopNode(BinopNode):
         return (type1.is_numeric  or type1.is_enum) \
             and (type2.is_numeric  or type2.is_enum)
 
-    def generate_result_code(self, code):
-        super(NumBinopNode, self).generate_result_code(code)
+    def generate_evaluation_code(self, code):
         if self.overflow_check:
+            self.overflow_bit_node = self
             self.overflow_bit = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
             code.putln("%s = 0;" % self.overflow_bit)
-            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
+        super(NumBinopNode, self).generate_evaluation_code(code)
+        if self.overflow_check:
             code.putln("if (unlikely(%s)) {" % self.overflow_bit)
             code.putln('PyErr_Format(PyExc_OverflowError, "value too large");')
             code.putln(code.error_goto(self.pos))
@@ -8104,12 +8108,12 @@ class NumBinopNode(BinopNode):
             code.funcstate.release_temp(self.overflow_bit)
 
     def calculate_result_code(self):
-        if self.overflow_check:
+        if self.overflow_bit_node is not None:
             return "%s(%s, %s, &%s)" % (
                 self.func,
                 self.operand1.result(),
                 self.operand2.result(),
-                self.overflow_bit)
+                self.overflow_bit_node.overflow_bit)
         elif self.infix:
             return "(%s %s %s)" % (
                 self.operand1.result(),
