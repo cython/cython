@@ -78,12 +78,12 @@ static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {
 }
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
-    if (sizeof({{UINT}}) < sizeof(long)) {
+    if (sizeof({{UINT}}) < sizeof(unsigned long)) {
         unsigned long big_r = ((unsigned long) a) * ((unsigned long) b);
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
         return r;
-    } else if (sizeof({{UINT}}) < sizeof(long long)) {
+    } else if (sizeof({{UINT}}) < sizeof(unsigned long long)) {
         unsigned long long big_r = ((unsigned long long) a) * ((unsigned long long) b);
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
@@ -247,11 +247,11 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
     if (sizeof({{TYPE}}) < sizeof(int)) {
         return __Pyx_{{BINOP}}_no_overflow(a, b, overflow);
     } else if (__PYX_IS_UNSIGNED({{TYPE}})) {
-        if (sizeof({{TYPE}}) == sizeof(int)) {
+        if (sizeof({{TYPE}}) == sizeof(unsigned int)) {
             return __Pyx_{{BINOP}}_unsigned_int_checking_overflow(a, b, overflow);
-        } else if (sizeof({{TYPE}}) == sizeof(long)) {
+        } else if (sizeof({{TYPE}}) == sizeof(unsigned long)) {
             return __Pyx_{{BINOP}}_unsigned_long_checking_overflow(a, b, overflow);
-        } else if (sizeof({{TYPE}}) == sizeof(long long)) {
+        } else if (sizeof({{TYPE}}) == sizeof(unsigned long long)) {
             return __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
         } else {
             abort(); return 0; // handled elsewhere
