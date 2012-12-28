@@ -8048,6 +8048,7 @@ class NumBinopNode(BinopNode):
                     and not self.operand2.has_constant_result()):
                 self.operand1, self.operand2 = self.operand2, self.operand1
             self.overflow_check = True
+            self.overflow_fold = env.directives['overflowcheck.fold']
             self.func = self.type.overflow_check_binop(
                 self.overflow_op_names[self.operator],
                 env,

@@ -3265,7 +3265,7 @@ class ConsolidateOverflowCheck(Visitor.CythonTransform):
         return node
     
     def visit_NumBinopNode(self, node):
-        if node.overflow_check:
+        if node.overflow_check and node.overflow_fold:
             top_level_overflow = self.overflow_bit_node is None
             if top_level_overflow:
                 self.overflow_bit_node = node
