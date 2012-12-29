@@ -1657,8 +1657,19 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         return kwargs
 
-class InlineDefNodeCalls(Visitor.CythonTransform):
+class InlineDefNodeCalls(Visitor.EnvTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+    def get_constant_value_node(self, name_node):
+        if not name_node.cf_state or not name_node.cf_state.is_single:
+            # no single assignment in the current scope
+            return None
+        entry = self.current_env().lookup(name_node.name)
+        if not entry or (not entry.cf_assignments
+                         or len(entry.cf_assignments) != 1):
+            # not just a single assignment in all closures
+            return None
+        return name_node.cf_state.one().rhs
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
@@ -1667,10 +1678,7 @@ class InlineDefNodeCalls(Visitor.CythonTransform):
         function_name = node.function
         if not function_name.is_name:
             return node
-        if (function_name.cf_state is None   # global scope
-                or not function_name.cf_state.is_single):
-            return node
-        function = function_name.cf_state.one().rhs
+        function = self.get_constant_value_node(function_name)
         if not isinstance(function, ExprNodes.PyCFunctionNode):
             return node
         inlined = ExprNodes.InlinedDefNodeCallNode(

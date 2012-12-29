@@ -14,7 +14,7 @@ def test_outer_inner_double():
         nonlocal x
         x = 2.0
     inner()
-    assert x == 2.0
+    assert x == 2.0, str(x)
     return cython.typeof(x)
 
 

@@ -161,15 +161,15 @@ class ControlFlow(object):
             self.block.positions.add(node.pos[:2])
 
     def mark_assignment(self, lhs, rhs, entry):
-        if self.block:
-            if not self.is_tracked(entry):
-                return
+        entry = entry.defining_entry
+        if self.block and self.is_tracked(entry):
             assignment = NameAssignment(lhs, rhs, entry)
             self.block.stats.append(assignment)
             self.block.gen[entry] = assignment
             self.entries.add(entry)
 
     def mark_argument(self, lhs, rhs, entry):
+        entry = entry.defining_entry
         if self.block and self.is_tracked(entry):
             assignment = Argument(lhs, rhs, entry)
             self.block.stats.append(assignment)
@@ -177,6 +177,7 @@ class ControlFlow(object):
             self.entries.add(entry)
 
     def mark_deletion(self, node, entry):
+        entry = entry.defining_entry
         if self.block and self.is_tracked(entry):
             assignment = NameDeletion(node, entry)
             self.block.stats.append(assignment)
@@ -184,6 +185,7 @@ class ControlFlow(object):
             self.entries.add(entry)
 
     def mark_reference(self, node, entry):
+        entry = entry.defining_entry
         if self.block and self.is_tracked(entry):
             self.block.stats.append(NameReference(node, entry))
             # Local variable is definitely bound after this reference
@@ -534,6 +536,8 @@ def check_definitions(flow, compiler_directives):
                 node.cf_is_null = True
             if node.allow_null or entry.from_closure or entry.is_pyclass_attr:
                 pass # Can be uninitialized here
+            elif entry.in_closure:
+                pass # not smart enough to get this right
             elif node.cf_is_null:
                 if (entry.type.is_pyobject or entry.type.is_unspecified or
                         entry.error_on_uninitialized):

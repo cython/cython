@@ -360,11 +360,9 @@ class SimpleAssignmentTypeInferer(object):
         ready_to_infer = []
         for name, entry in scope.entries.items():
             if entry.type is unspecified_type:
-                entries = entry.all_entries()
                 all = set()
-                for e in entries:
-                    for assmt in e.cf_assignments:
-                        all.update(assmt.type_dependencies(e.scope))
+                for assmt in entry.cf_assignments:
+                    all.update(assmt.type_dependencies(entry.scope))
                 if all:
                     dependancies_by_entry[entry] = all
                     for dep in all:
@@ -390,8 +388,7 @@ class SimpleAssignmentTypeInferer(object):
                 entry = ready_to_infer.pop()
                 types = [
                     assmt.rhs.infer_type(scope)
-                    for e in entry.all_entries()
-                    for assmt in e.cf_assignments
+                    for assmt in entry.cf_assignments
                     ]
                 if types and Utils.all(types):
                     entry_type = spanning_type(types, entry.might_overflow, entry.pos)

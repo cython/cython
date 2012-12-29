@@ -198,9 +198,10 @@ class Entry(object):
         self.cf_assignments = []
         self.cf_references = []
         self.inner_entries = []
+        self.defining_entry = self
 
     def __repr__(self):
-        return "Entry(name=%s, type=%s)" % (self.name, self.type)
+        return "%s(name=%s, type=%s)" % (type(self).__name__, self.name, self.type)
 
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
@@ -210,20 +211,36 @@ class Entry(object):
         return [self] + self.overloaded_alternatives
 
     def all_entries(self):
-        """
-        Returns all entries for this entry, including the equivalent ones
-        in other closures.
-        """
-        if self.from_closure:
-            return self.outer_entry.all_entries()
+        return [self] + self.inner_entries
 
-        entries = []
-        def collect_inner_entries(entry):
-            entries.append(entry)
-            for e in entry.inner_entries:
-                collect_inner_entries(e)
-        collect_inner_entries(self)
-        return entries
+
+class InnerEntry(Entry):
+    """
+    An entry in a closure scope that represents the real outer Entry.
+    """
+    from_closure = True
+
+    def __init__(self, outer_entry, scope):
+        Entry.__init__(self, outer_entry.name,
+                       outer_entry.cname,
+                       outer_entry.type,
+                       outer_entry.pos)
+        self.outer_entry = outer_entry
+        self.scope = scope
+
+        # share state with (outermost) defining entry
+        outermost_entry = outer_entry
+        while outermost_entry.outer_entry:
+            outermost_entry = outermost_entry.outer_entry
+        self.defining_entry = outermost_entry
+        self.inner_entries = outermost_entry.inner_entries
+        self.cf_assignments = outermost_entry.cf_assignments
+        self.cf_references = outermost_entry.cf_references
+        self.overloaded_alternatives = outermost_entry.overloaded_alternatives
+        self.inner_entries.append(self)
+
+    def __getattr__(self, name):
+        return getattr(self.defining_entry, name)
 
 
 class Scope(object):
@@ -1534,15 +1551,9 @@ class LocalScope(Scope):
                 # The actual c fragment for the different scopes differs
                 # on the outside and inside, so we make a new entry
                 entry.in_closure = True
-                # Would it be better to declare_var here?
-                inner_entry = Entry(entry.name, entry.cname, entry.type, entry.pos)
-                inner_entry.scope = self
+                inner_entry = InnerEntry(entry, self)
                 inner_entry.is_variable = True
-                inner_entry.outer_entry = entry
-                inner_entry.from_closure = True
-                inner_entry.is_declared_generic = entry.is_declared_generic
                 self.entries[name] = inner_entry
-                entry.inner_entries.append(inner_entry)
                 return inner_entry
         return entry
 

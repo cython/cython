@@ -106,3 +106,25 @@ def test_sideeffect_call_order():
         pass
     call(1, sideeffect(2), 3, sideeffect(4), sideeffect(5))
     return L
+
+
+def test_redef(redefine):
+    """
+    >>> test_redef(False)
+    1
+    >>> test_redef(True)
+    2
+    """
+    def inner():
+        return 1
+    def inner2():
+        return 2
+    def redef():
+        nonlocal inner
+        inner = inner2
+    if redefine:
+        redef()
+        assert inner == inner2
+    else:
+        assert inner != inner2
+    return inner()
