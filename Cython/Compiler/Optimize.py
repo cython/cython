@@ -1657,7 +1657,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         return kwargs
 
-class InlineDefNodeCalls(Visitor.CythonTransform):
+class InlineDefNodeCalls(Visitor.EnvTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_SimpleCallNode(self, node):
@@ -1665,12 +1665,13 @@ class InlineDefNodeCalls(Visitor.CythonTransform):
         if not self.current_directives.get('optimize.inline_defnode_calls'):
             return node
         function_name = node.function
-        if not function_name.is_name:
+        if not function_name.is_name or function_name.cf_state is None:
             return node
-        if (function_name.cf_state is None   # global scope
-                or not function_name.cf_state.is_single):
+        entry = self.current_env().lookup(function_name.name)
+        if not entry or (not entry.cf_assignments
+                         or len(entry.cf_assignments) != 1):
             return node
-        function = function_name.cf_state.one().rhs
+        function = entry.cf_assignments[0].rhs
         if not isinstance(function, ExprNodes.PyCFunctionNode):
             return node
         inlined = ExprNodes.InlinedDefNodeCallNode(

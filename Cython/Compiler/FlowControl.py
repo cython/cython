@@ -536,6 +536,8 @@ def check_definitions(flow, compiler_directives):
                 node.cf_is_null = True
             if node.allow_null or entry.from_closure or entry.is_pyclass_attr:
                 pass # Can be uninitialized here
+            elif entry.in_closure:
+                pass # not smart enough to get this right
             elif node.cf_is_null:
                 if (entry.type.is_pyobject or entry.type.is_unspecified or
                         entry.error_on_uninitialized):
