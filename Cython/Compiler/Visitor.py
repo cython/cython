@@ -361,6 +361,18 @@ class EnvTransform(CythonTransform):
             self.visitchildren(node)
         return node
 
+    def visit_CArgDeclNode(self, node):
+        # default arguments are evaluated in the outer scope
+        if node.default:
+            attrs = [ attr for attr in node.child_attrs if attr != 'default' ]
+            self.visitchildren(node, attrs)
+            self.env_stack.append((node, self.current_env().outer_scope))
+            self.visitchildren(node, ('default',))
+            self.env_stack.pop()
+        else:
+            self.visitchildren(node)
+        return node
+
 
 class MethodDispatcherTransform(EnvTransform):
     """
