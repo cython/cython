@@ -91,7 +91,7 @@ class ExitBlock(ControlBlock):
         return False
 
 
-class AssignmentList:
+class AssignmentList(object):
     def __init__(self):
         self.stats = []
 
@@ -458,7 +458,7 @@ class GV(object):
         fp.write(' }\n')
 
 
-class MessageCollection:
+class MessageCollection(object):
     """Collect error/warnings messages first then sort"""
     def __init__(self):
         self.messages = []
