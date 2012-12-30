@@ -242,6 +242,9 @@ class InnerEntry(Entry):
     def __getattr__(self, name):
         return getattr(self.defining_entry, name)
 
+    def all_entries(self):
+        return self.defining_entry.all_entries()
+
 
 class Scope(object):
     # name              string             Unqualified name
