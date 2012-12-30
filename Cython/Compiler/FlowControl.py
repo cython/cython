@@ -106,15 +106,16 @@ class ControlFlow(object):
        entries     set    tracked entries
        loops       list   stack for loop descriptors
        exceptions  list   stack for exception descriptors
-
+       outer_flow  ControlFlow  the ControlFlow instance of the outer closure
     """
 
-    def __init__(self):
+    def __init__(self, outer_flow=None):
         self.blocks = set()
         self.entries = set()
         self.loops = []
         self.exceptions = []
 
+        self.outer_flow = outer_flow
         self.entry_point = ControlBlock()
         self.exit_point = ExitBlock()
         self.blocks.add(self.exit_point)
@@ -161,7 +162,6 @@ class ControlFlow(object):
             self.block.positions.add(node.pos[:2])
 
     def mark_assignment(self, lhs, rhs, entry):
-        entry = entry.defining_entry
         if self.block and self.is_tracked(entry):
             assignment = NameAssignment(lhs, rhs, entry)
             self.block.stats.append(assignment)
@@ -169,7 +169,6 @@ class ControlFlow(object):
             self.entries.add(entry)
 
     def mark_argument(self, lhs, rhs, entry):
-        entry = entry.defining_entry
         if self.block and self.is_tracked(entry):
             assignment = Argument(lhs, rhs, entry)
             self.block.stats.append(assignment)
@@ -177,7 +176,6 @@ class ControlFlow(object):
             self.entries.add(entry)
 
     def mark_deletion(self, node, entry):
-        entry = entry.defining_entry
         if self.block and self.is_tracked(entry):
             assignment = NameDeletion(node, entry)
             self.block.stats.append(assignment)
@@ -185,7 +183,6 @@ class ControlFlow(object):
             self.entries.add(entry)
 
     def mark_reference(self, node, entry):
-        entry = entry.defining_entry
         if self.block and self.is_tracked(entry):
             self.block.stats.append(NameReference(node, entry))
             # Local variable is definitely bound after this reference
@@ -257,7 +254,10 @@ class ControlFlow(object):
         ret = set()
         assmts = self.assmts[entry]
         if istate & assmts.bit:
-            ret.add(Uninitialized)
+            if entry.from_closure:
+                ret.add(Unknown)
+            else:
+                ret.add(Uninitialized)
         for assmt in assmts.stats:
             if istate & assmt.bit:
                 ret.add(assmt)
@@ -342,7 +342,12 @@ class NameDeletion(NameAssignment):
 
 
 class Uninitialized(object):
-    pass
+    """Definitely not initialised yet."""
+
+
+class Unknown(object):
+    """Coming from outer closure, might be initialised or not."""
+
 
 class NameReference(object):
     def __init__(self, node, entry):
@@ -373,6 +378,9 @@ class ControlFlowState(list):
             self.cf_maybe_null = True
             if not state:
                 self.cf_is_null = True
+        elif Unknown in state:
+            state.discard(Unknown)
+            self.cf_maybe_null = True
         else:
             if len(state) == 1:
                 self.is_single = True
@@ -504,7 +512,9 @@ def check_definitions(flow, compiler_directives):
                 stat.node.cf_state.update(state)
                 if not stat.node.allow_null:
                     i_state &= ~i_assmts.bit
+                # after successful read, the state is known to be initialised
                 state.discard(Uninitialized)
+                state.discard(Unknown)
                 for assmt in state:
                     assmt.refs.add(stat)
 
@@ -524,6 +534,8 @@ def check_definitions(flow, compiler_directives):
                 node.cf_is_null = True
             else:
                 node.cf_is_null = False
+        elif Unknown in node.cf_state:
+            node.cf_maybe_null = True
         else:
             node.cf_is_null = False
             node.cf_maybe_null = False
@@ -536,8 +548,6 @@ def check_definitions(flow, compiler_directives):
                 node.cf_is_null = True
             if node.allow_null or entry.from_closure or entry.is_pyclass_attr:
                 pass # Can be uninitialized here
-            elif entry.in_closure:
-                pass # not smart enough to get this right
             elif node.cf_is_null:
                 if (entry.type.is_pyobject or entry.type.is_unspecified or
                         entry.error_on_uninitialized):
@@ -555,6 +565,12 @@ def check_definitions(flow, compiler_directives):
                     node.pos,
                     "local variable '%s' might be referenced before assignment"
                     % entry.name)
+        elif Unknown in node.cf_state:
+            # TODO: better cross-closure analysis to know when inner functions
+            #       are being called before a variable is being set, and when
+            #       a variable is known to be set before even defining the
+            #       inner function, etc.
+            node.cf_maybe_null = True
         else:
             node.cf_is_null = False
             node.cf_maybe_null = False
@@ -645,7 +661,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.env_stack.append(self.env)
         self.env = node.local_scope
         self.stack.append(self.flow)
-        self.flow = ControlFlow()
+        self.flow = ControlFlow(self.flow)
 
         # Collect all entries
         for entry in node.local_scope.entries.values():
