@@ -1408,14 +1408,13 @@ class FuncDefNode(StatNode, BlockNode):
     is_cyfunction = False
 
     def analyse_default_values(self, env):
-        genv = env.global_scope()
         default_seen = 0
         for arg in self.args:
             if arg.default:
                 default_seen = 1
                 if arg.is_generic:
                     arg.default.analyse_types(env)
-                    arg.default = arg.default.coerce_to(arg.type, genv)
+                    arg.default = arg.default.coerce_to(arg.type, env)
                 else:
                     error(arg.pos,
                         "This argument cannot have a default value")
