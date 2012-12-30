@@ -106,16 +106,14 @@ class ControlFlow(object):
        entries     set    tracked entries
        loops       list   stack for loop descriptors
        exceptions  list   stack for exception descriptors
-       outer_flow  ControlFlow  the ControlFlow instance of the outer closure
     """
 
-    def __init__(self, outer_flow=None):
+    def __init__(self):
         self.blocks = set()
         self.entries = set()
         self.loops = []
         self.exceptions = []
 
-        self.outer_flow = outer_flow
         self.entry_point = ControlBlock()
         self.exit_point = ExitBlock()
         self.blocks.add(self.exit_point)
@@ -661,7 +659,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.env_stack.append(self.env)
         self.env = node.local_scope
         self.stack.append(self.flow)
-        self.flow = ControlFlow(self.flow)
+        self.flow = ControlFlow()
 
         # Collect all entries
         for entry in node.local_scope.entries.values():
