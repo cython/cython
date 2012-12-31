@@ -330,6 +330,9 @@ class EnvTransform(CythonTransform):
     def current_scope_node(self):
         return self.env_stack[-1][0]
 
+    def global_scope(self):
+        return self.current_env().global_scope()
+
     def visit_FuncDefNode(self, node):
         self.env_stack.append((node, node.local_scope))
         self.visitchildren(node)
