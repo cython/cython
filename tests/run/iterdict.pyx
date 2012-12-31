@@ -470,3 +470,15 @@ def optimistic_iterdict_change_size(d):
         if count > 5:
             break # safety
     return "DONE"
+
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode")
+def values_of_expression(**kwargs):
+    """
+    >>> sorted(values_of_expression(a=3, b=4))
+    [3, 4]
+    """
+    # this can be optimised even in Py2
+    return [ arg for arg in dict(kwargs.items()).values() ]
