@@ -351,7 +351,7 @@ Single bytes and characters
 The Python C-API uses the normal C :c:type:`char` type to represent
 a byte value, but it has two special integer types for a Unicode code
 point value, i.e. a single Unicode character: :c:type:`Py_UNICODE`
-and :c:type:`Py_UCS4``.  Since version 0.13, Cython supports the
+and :c:type:`Py_UCS4`.  Since version 0.13, Cython supports the
 first natively, support for :c:type:`Py_UCS4` is new in Cython 0.15.
 :c:type:`Py_UNICODE` is either defined as an unsigned 2-byte or
 4-byte integer, or as :c:type:`wchar_t`, depending on the platform.
