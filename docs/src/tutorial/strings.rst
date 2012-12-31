@@ -10,13 +10,48 @@ strings (except for what Python 2 does in string operations).  All
 encoding and decoding must pass through an explicit encoding/decoding
 step.
 
-It is, however, very easy to pass byte strings between C code and Python.
+General notes about C strings
+-----------------------------
+
+In many use cases, C strings (a.k.a. character pointers) are slow
+and cumbersome.  For one, they usually require manual memory
+management in one way or another, which makes it more likely to
+introduce bugs into your code.
+
+Then, Python string objects cache their length, so requesting it
+(e.g. to validate the bounds of index access or when concatenating
+two strings into one) is an efficient constant time operation.
+In contrast, calling :c:func:`strlen()` to get this information
+from a C string takes linear time, which makes many operations on
+C strings rather costly.
+
+Regarding text processing, Python has built-in support for Unicode,
+which C lacks completely.  If you are dealing with Unicode text,
+you are usually better off using Python Unicode string objects than
+trying to work with encoded data in C strings.  Cython makes this
+quite easy and efficient.
+
+Generally speaking: unless you know what you are doing, avoid
+using C strings where possible and use Python string objects instead.
+The obvious exception to this is when passing them back and forth
+from and to external C code.  Also, C++ strings remember their length
+as well, so they can provide a suitable alternative to Python bytes
+objects in some cases.
+
+Passing byte strings
+--------------------
+
+It is very easy to pass byte strings between C code and Python.
 When receiving a byte string from a C library, you can let Cython
 convert it into a Python byte string by simply assigning it to a
 Python variable::
 
     cdef char* c_string = c_call_returning_a_c_string()
     cdef bytes py_string = c_string
+
+A type cast to ``object`` or ``bytes`` will do the same thing::
+
+    py_string = <bytes> c_string
 
 This creates a Python byte string object that holds a copy of the
 original C string.  It can be safely passed around in Python code, and
