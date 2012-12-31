@@ -128,3 +128,22 @@ def test_redef(redefine):
     else:
         assert inner != inner2
     return inner()
+
+
+def test_with_statement():
+    """
+    >>> test_with_statement()
+    enter
+    running
+    exit
+    """
+    def make_context_manager():
+        class CM(object):
+            def __enter__(self):
+                print "enter"
+            def __exit__(self, *args):
+                print "exit"
+        return CM()
+
+    with make_context_manager():
+        print "running"

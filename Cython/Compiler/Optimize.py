@@ -1668,7 +1668,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         return kwargs
 
-class InlineDefNodeCalls(Visitor.EnvTransform):
+
+class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def get_constant_value_node(self, name_node):
@@ -1696,7 +1697,7 @@ class InlineDefNodeCalls(Visitor.EnvTransform):
             node.pos, function_name=function_name,
             function=function, args=node.args)
         if inlined.can_be_inlined():
-            return inlined
+            return self.replace(node, inlined)
         return node
 
 

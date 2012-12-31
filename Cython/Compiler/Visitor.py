@@ -374,6 +374,42 @@ class EnvTransform(CythonTransform):
         return node
 
 
+class NodeRefCleanupMixin(object):
+    """
+    Clean up references to nodes that were replaced.
+
+    NOTE: this implementation assumes that the replacement is
+    done first, before hitting any further references during
+    normal tree traversal.  This needs to be arranged by calling
+    "self.visitchildren()" at a proper place in the transform
+    and by ordering the "child_attrs" of nodes appropriately.
+    """
+    def __init__(self, *args):
+        super(NodeRefCleanupMixin, self).__init__(*args)
+        self._replacements = {}
+
+    def visit_CloneNode(self, node):
+        arg = node.arg
+        if arg not in self._replacements:
+            self.visitchildren(node)
+            arg = node.arg
+        node.arg = self._replacements.get(arg, arg)
+        return node
+
+    def visit_ResultRefNode(self, node):
+        expr = node.expression
+        if expr is None or expr not in self._replacements:
+            self.visitchildren(node)
+            expr = node.expression
+        if expr is not None:
+            node.expression = self._replacements.get(expr, expr)
+        return node
+
+    def replace(self, node, replacement):
+        self._replacements[node] = replacement
+        return replacement
+
+
 class MethodDispatcherTransform(EnvTransform):
     """
     Base class for transformations that want to intercept on specific
