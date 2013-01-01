@@ -1714,7 +1714,7 @@ if VALUE is not None:
             property.name = entry.name
             wrapper_class.body.stats.append(property)
 
-        wrapper_class.analyse_declarations(self.env_stack[-1])
+        wrapper_class.analyse_declarations(self.current_env())
         return self.visit_CClassDefNode(wrapper_class)
 
     # Some nodes are no longer needed after declaration
@@ -1740,7 +1740,7 @@ if VALUE is not None:
 
     def visit_CNameDeclaratorNode(self, node):
         if node.name in self.seen_vars_stack[-1]:
-            entry = self.env_stack[-1].lookup(node.name)
+            entry = self.current_env().lookup(node.name)
             if (entry is None or entry.visibility != 'extern'
                 and not entry.scope.is_c_class_scope):
                 warning(node.pos, "cdef variable '%s' declared after it is used" % node.name, 2)
