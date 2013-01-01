@@ -550,10 +550,12 @@ class NodeFinder(TreeVisitor):
         self.found = False
 
     def visit_Node(self, node):
-        if node is self.node:
+        if self.found:
+            pass  # short-circuit
+        elif node is self.node:
             self.found = True
         else:
-            self.visitchildren(node)
+            self._visitchildren(node, None)
 
 def tree_contains(tree, node):
     finder = NodeFinder(node)
