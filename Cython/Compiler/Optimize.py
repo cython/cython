@@ -96,7 +96,7 @@ class IterationTransform(Visitor.EnvTransform):
                     body=if_node,
                     else_clause=Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=0))))
             for_loop.analyse_expressions(self.current_env())
-            for_loop = self(for_loop)
+            for_loop = self.visit(for_loop)
             new_node = UtilNodes.TempResultFromStatNode(result_ref, for_loop)
 
             if node.operator == 'not_in':
