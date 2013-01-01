@@ -3358,8 +3358,15 @@ class SliceIndexNode(ExprNode):
         return py_object_type
 
     def calculate_constant_result(self):
-        self.constant_result = self.base.constant_result[
-            self.start.constant_result : self.stop.constant_result]
+        if self.start is None:
+            start = None
+        else:
+            start = self.start.constant_result
+        if self.stop is None:
+            stop = None
+        else:
+            stop = self.stop.constant_result
+        self.constant_result = self.base.constant_result[start:stop]
 
     def compile_time_value(self, denv):
         base = self.base.compile_time_value(denv)

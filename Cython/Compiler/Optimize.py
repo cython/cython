@@ -51,6 +51,11 @@ def is_common_value(a, b):
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
+def filter_none_node(node):
+    if node is not None and node.constant_result is None:
+        return None
+    return node
+
 class IterationTransform(Visitor.EnvTransform):
     """Transform some common for-in loop patterns into efficient C loops:
 
@@ -349,8 +354,8 @@ class IterationTransform(Visitor.EnvTransform):
         neg_step = False
         if isinstance(slice_node, ExprNodes.SliceIndexNode):
             slice_base = slice_node.base
-            start = slice_node.start
-            stop = slice_node.stop
+            start = filter_none_node(slice_node.start)
+            stop = filter_none_node(slice_node.stop)
             step = None
             if not stop:
                 if not slice_base.type.is_pyobject:
@@ -361,13 +366,11 @@ class IterationTransform(Visitor.EnvTransform):
             assert isinstance(slice_node.index, ExprNodes.SliceNode)
             slice_base = slice_node.base
             index = slice_node.index
-            start = index.start
-            stop = index.stop
-            step = index.step
+            start = filter_none_node(index.start)
+            stop = filter_none_node(index.stop)
+            step = filter_none_node(index.step)
             if step:
-                if step.constant_result is None:
-                    step = None
-                elif not isinstance(step.constant_result, (int,long)) \
+                if not isinstance(step.constant_result, (int,long)) \
                        or step.constant_result == 0 \
                        or step.constant_result > 0 and not stop \
                        or step.constant_result < 0 and not start:
@@ -401,15 +404,9 @@ class IterationTransform(Visitor.EnvTransform):
             return node
 
         if start:
-            if start.constant_result is None:
-                start = None
-            else:
-                start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+            start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
         if stop:
-            if stop.constant_result is None:
-                stop = None
-            else:
-                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+            stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
         if stop is None:
             if neg_step:
                 stop = ExprNodes.IntNode(
@@ -3169,6 +3166,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return node.else_clause
         else:
             return Nodes.StatListNode(node.pos, stats=[])
+
+    def visit_SliceIndexNode(self, node):
+        self._calculate_const(node)
+        # normalise start/stop values
+        if node.start and node.start.constant_result is None:
+            node.start = None
+        if node.stop and node.stop.constant_result is None:
+            node.stop = None
+        return node
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
