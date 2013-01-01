@@ -321,7 +321,8 @@ class EnvTransform(CythonTransform):
     This transformation keeps a stack of the environments.
     """
     def __call__(self, root):
-        self.env_stack = [(root, root.scope)]
+        self.env_stack = []
+        self.enter_scope(root, root.scope)
         return super(EnvTransform, self).__call__(root)
 
     def current_env(self):
@@ -333,10 +334,16 @@ class EnvTransform(CythonTransform):
     def global_scope(self):
         return self.current_env().global_scope()
 
-    def visit_FuncDefNode(self, node):
-        self.env_stack.append((node, node.local_scope))
-        self.visitchildren(node)
+    def enter_scope(self, node, scope):
+        self.env_stack.append((node, scope))
+
+    def exit_scope(self):
         self.env_stack.pop()
+
+    def visit_FuncDefNode(self, node):
+        self.enter_scope(node, node.local_scope)
+        self.visitchildren(node)
+        self.exit_scope()
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -344,22 +351,22 @@ class EnvTransform(CythonTransform):
         return node
 
     def visit_ClassDefNode(self, node):
-        self.env_stack.append((node, node.scope))
+        self.enter_scope(node, node.scope)
         self.visitchildren(node)
-        self.env_stack.pop()
+        self.exit_scope()
         return node
 
     def visit_CStructOrUnionDefNode(self, node):
-        self.env_stack.append((node, node.scope))
+        self.enter_scope(node, node.scope)
         self.visitchildren(node)
-        self.env_stack.pop()
+        self.exit_scope()
         return node
 
     def visit_ScopedExprNode(self, node):
         if node.expr_scope:
-            self.env_stack.append((node, node.expr_scope))
+            self.enter_scope(node, node.expr_scope)
             self.visitchildren(node)
-            self.env_stack.pop()
+            self.exit_scope()
         else:
             self.visitchildren(node)
         return node
@@ -369,9 +376,9 @@ class EnvTransform(CythonTransform):
         if node.default:
             attrs = [ attr for attr in node.child_attrs if attr != 'default' ]
             self.visitchildren(node, attrs)
-            self.env_stack.append((node, self.current_env().outer_scope))
+            self.enter_scope(node, self.current_env().outer_scope)
             self.visitchildren(node, ('default',))
-            self.env_stack.pop()
+            self.exit_scope()
         else:
             self.visitchildren(node)
         return node

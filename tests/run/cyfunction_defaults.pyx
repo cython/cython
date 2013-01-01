@@ -1,6 +1,6 @@
 # cython: binding=True
 # mode: run
-# tag: cyfunction
+# tag: cyfunction, closures
 
 cimport cython
 import sys
@@ -131,3 +131,59 @@ def test_dynamic_defaults_fused():
     for i, f in enumerate(funcs):
         print "i", i, "func result", f(1.0), "defaults", get_defaults(f)
 
+
+@cython.test_fail_if_path_exists(
+    '//NameNode[@entry.in_closure = True]',
+    '//NameNode[@entry.from_closure = True]')
+def test_func_default_inlined():
+    """
+    Make sure we don't accidentally generate a closure.
+
+    >>> func = test_func_default_inlined()
+    >>> func()
+    1
+    >>> func(2)
+    2
+    """
+    def default():
+        return 1
+    def func(arg=default()):
+        return arg
+    return func
+
+
+@cython.test_fail_if_path_exists(
+    '//NameNode[@entry.in_closure = True]',
+    '//NameNode[@entry.from_closure = True]')
+def test_func_default_scope():
+    """
+    Test that the default value expression is evaluated in the outer scope.
+
+    >>> func = test_func_default_scope()
+    3
+    >>> func()
+    [0, 1, 2, 3]
+    >>> func(2)
+    2
+    """
+    i = -1
+    def func(arg=[ i for i in range(4) ]):
+        return arg
+    print i  # list comps leak in Py2 mode => i == 3
+    return func
+
+
+def test_func_default_scope_local():
+    """
+    >>> func = test_func_default_scope_local()
+    -1
+    >>> func()
+    [0, 1, 2, 3]
+    >>> func(2)
+    2
+    """
+    i = -1
+    def func(arg=list(i for i in range(4))):
+        return arg
+    print i  # genexprs don't leak
+    return func

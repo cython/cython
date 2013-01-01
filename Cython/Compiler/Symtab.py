@@ -201,7 +201,7 @@ class Entry(object):
         self.defining_entry = self
 
     def __repr__(self):
-        return "%s(name=%s, type=%s)" % (type(self).__name__, self.name, self.type)
+        return "%s(<%x>, name=%s, type=%s)" % (type(self).__name__, id(self), self.name, self.type)
 
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)

@@ -1349,7 +1349,7 @@ class ForwardDeclareTypes(CythonTransform):
         return node
 
 
-class AnalyseDeclarationsTransform(CythonTransform):
+class AnalyseDeclarationsTransform(EnvTransform):
 
     basic_property = TreeFragment(u"""
 property NAME:
@@ -1398,11 +1398,12 @@ if VALUE is not None:
     in_lambda = 0
 
     def __call__(self, root):
-        self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
         self.seen_vars_stack = []
         self.fused_error_funcs = set()
-        return super(AnalyseDeclarationsTransform, self).__call__(root)
+        super_class = super(AnalyseDeclarationsTransform, self)
+        self._super_visit_FuncDefNode = super_class.visit_FuncDefNode
+        return super_class.__call__(root)
 
     def visit_NameNode(self, node):
         self.seen_vars_stack[-1].add(node.name)
@@ -1410,22 +1411,16 @@ if VALUE is not None:
 
     def visit_ModuleNode(self, node):
         self.seen_vars_stack.append(set())
-        node.analyse_declarations(self.env_stack[-1])
+        node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.seen_vars_stack.pop()
         return node
 
     def visit_LambdaNode(self, node):
         self.in_lambda += 1
-        node.analyse_declarations(self.env_stack[-1])
+        node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.in_lambda -= 1
-        return node
-
-    def visit_ClassDefNode(self, node):
-        self.env_stack.append(node.scope)
-        self.visitchildren(node)
-        self.env_stack.pop()
         return node
 
     def visit_CClassDefNode(self, node):
@@ -1548,7 +1543,7 @@ if VALUE is not None:
         analyse its children (which are in turn normal functions). If we're a
         normal function, just analyse the body of the function.
         """
-        env = self.env_stack[-1]
+        env = self.current_env()
 
         self.seen_vars_stack.append(set())
         lenv = node.local_scope
@@ -1567,22 +1562,22 @@ if VALUE is not None:
         else:
             node.body.analyse_declarations(lenv)
             self._handle_nogil_cleanup(lenv, node)
-
-            self.env_stack.append(lenv)
-            self.visitchildren(node)
-            self.env_stack.pop()
+            self._super_visit_FuncDefNode(node)
 
         self.seen_vars_stack.pop()
         return node
 
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
-        env = self.env_stack[-1]
+        env = self.current_env()
         if (not isinstance(node, Nodes.DefNode) or
             node.fused_py_func or node.is_generator_body or
             not node.needs_assignment_synthesis(env)):
             return node
         return [node, self._synthesize_assignment(node, env)]
+
+    def visit_GeneratorBodyDefNode(self, node):
+        return self.visit_FuncDefNode(node)
 
     def _synthesize_assignment(self, node, env):
         # Synthesize assignment node and put it right after defnode
@@ -1622,15 +1617,15 @@ if VALUE is not None:
         return assmt
 
     def visit_ScopedExprNode(self, node):
-        env = self.env_stack[-1]
+        env = self.current_env()
         node.analyse_declarations(env)
         # the node may or may not have a local scope
         if node.has_local_scope:
             self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
-            self.env_stack.append(node.expr_scope)
+            self.enter_scope(node, node.expr_scope)
             node.analyse_scoped_declarations(node.expr_scope)
             self.visitchildren(node)
-            self.env_stack.pop()
+            self.exit_scope()
             self.seen_vars_stack.pop()
         else:
             node.analyse_scoped_declarations(env)
@@ -1639,7 +1634,7 @@ if VALUE is not None:
 
     def visit_TempResultFromStatNode(self, node):
         self.visitchildren(node)
-        node.analyse_declarations(self.env_stack[-1])
+        node.analyse_declarations(self.current_env())
         return node
 
     def visit_CppClassNode(self, node):
@@ -1804,18 +1799,15 @@ if VALUE is not None:
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
-        self.env_stack = [node.scope]
         node.scope.infer_types()
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
-        self.env_stack.append(node.local_scope)
         node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
-        self.env_stack.pop()
         return node
 
     def visit_ScopedExprNode(self, node):
