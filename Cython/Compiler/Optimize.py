@@ -523,9 +523,6 @@ class IterationTransform(Visitor.EnvTransform):
         if len(targets) != 2:
             # leave this untouched for now
             return node
-        if not isinstance(targets[0], ExprNodes.NameNode):
-            # leave this untouched for now
-            return node
 
         enumerate_target, iterable_target = targets
         counter_type = enumerate_target.type

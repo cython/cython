@@ -15,6 +15,19 @@ def go_py_enumerate():
         print i, k
 
 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+def py_enumerate_list_index_target():
+    """
+    >>> py_enumerate_list_index_target()
+    [0] 1
+    [1] 2
+    [2] 3
+    [3] 4
+    """
+    target = [None]
+    for target[0],k in enumerate(range(1,5)):
+        print target, k
+
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_py_enumerate_start():
     """
     >>> go_py_enumerate_start()
@@ -38,6 +51,20 @@ def go_c_enumerate():
     cdef int i,k
     for i,k in enumerate(range(1,5)):
         print i, k
+
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+def c_enumerate_carray_target():
+    """
+    >>> c_enumerate_carray_target()
+    0 1
+    1 2
+    2 3
+    3 4
+    """
+    cdef int k
+    cdef int i[1]
+    for i[0],k in enumerate(range(1,5)):
+        print i[0], k
 
 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_c_enumerate_step():
