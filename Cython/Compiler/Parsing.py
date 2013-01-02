@@ -1091,7 +1091,13 @@ def p_expression_or_assignment(s):
     if len(expr_list) == 1:
         if re.match(r"([+*/\%^\&|-]|<<|>>|\*\*|//)=", s.sy):
             lhs = expr_list[0]
-            if not isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode, ExprNodes.NameNode) ):
+            if isinstance(lhs, ExprNodes.SliceIndexNode):
+                # implementation requires IndexNode
+                lhs = ExprNodes.IndexNode(
+                    lhs.pos,
+                    base=lhs.base,
+                    index=make_slice_node(lhs.pos, lhs.start, lhs.stop))
+            elif not isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode, ExprNodes.NameNode) ):
                 error(lhs.pos, "Illegal operand for inplace operation.")
             operator = s.sy[:-1]
             s.next()
