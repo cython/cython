@@ -1,4 +1,4 @@
-include MANIFEST.in README.txt INSTALL.txt ToDo.txt USAGE.txt
+include MANIFEST.in README.txt INSTALL.txt ToDo.txt USAGE.txt CHANGES.rst
 include COPYING.txt LICENSE.txt Makefile
 include .gitrev
 include setup.py

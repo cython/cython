@@ -1129,6 +1129,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             or memoryview_slices
             or weakref_slot in scope.var_entries):
             self.generate_self_cast(scope, code)
+        
+        # We must mark ths object as (gc) untracked while tearing it down, lest
+        # the garbage collection is invoked while running this destructor.
+        if scope.needs_gc():
+            code.putln("PyObject_GC_UnTrack(o);");
 
         # call the user's __dealloc__
         self.generate_usr_dealloc_call(scope, code)
@@ -1152,6 +1157,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in memoryview_slices:
             code.put_xdecref_memoryviewslice("p->%s" % entry.cname,
                                              have_gil=True)
+
+        # The base class deallocator probably expects this to be tracked, so
+        # undo the untracking above.
+        if scope.needs_gc():
+            code.putln("PyObject_GC_Track(o);");
 
         if base_type:
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
