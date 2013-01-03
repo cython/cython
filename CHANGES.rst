@@ -21,6 +21,15 @@ Other changes
 -------------
 
 
+0.17.4 (2013-01-03)
+===================
+
+Bugs fixed
+----------
+
+* Garbage collection triggered during deallocation of container classes could lead to a double-deallocation.
+
+
 0.17.3 (2012-12-14)
 ===================
 
