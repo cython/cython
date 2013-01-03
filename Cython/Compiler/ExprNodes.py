@@ -8696,7 +8696,10 @@ class CmpNode(object):
                 return type2
         elif type1_can_be_int:
             if type2_can_be_int:
-                return PyrexTypes.c_uchar_type
+                if Builtin.unicode_type in (type1, type2):
+                    return PyrexTypes.c_py_ucs4_type
+                else:
+                    return PyrexTypes.c_uchar_type
 
         return None
 

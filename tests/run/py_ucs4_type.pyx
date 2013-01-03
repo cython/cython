@@ -29,6 +29,14 @@ def compare_klingon():
     print(char_KLINGON == u'B')
 
 
+def single_uchar_compare():
+    """
+    >>> single_uchar_compare()
+    """
+    assert u'\u0100' < u'\u0101'
+    assert u'\u0101' > u'\u0100'
+
+
 from cpython.unicode cimport PyUnicode_FromOrdinal
 import sys
 
