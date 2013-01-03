@@ -151,8 +151,15 @@ Cython code.  Here is the list of currently supported directives:
     
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
-    operations.  Incurs a slight runtime penalty, but much faster than
+    operations.  Incurs a modest runtime penalty, but is much faster than
     using Python ints.  Default is False.
+    
+``overflowcheck.fold`` (True / False)
+    If set to True, and overflowcheck is True, check the overflow bit for
+    nested, side-effect-free arithmetic expressions once rather than at every
+    step.  Depending on the compiler, architecture, and optimization settings,
+    this may help or hurt performance.  A simple suite of benchmarks can be
+    found in ``Demos/overflow_perf.pyx``.  Default is True.
 
 ``embedsignature`` (True / False)
     If set to True, Cython will embed a textual copy of the call

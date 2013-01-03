@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* Added a directive ``overflowcheck`` which raises an OverflowException when
+  arithmetic with C ints overflow.  This has a modest performance penalty, but
+  is much faster than using Python ints.
+
 * Calls to nested Python functions are resolved at compile time.
 
 * Type inference works across nested functions.
