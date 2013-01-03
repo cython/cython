@@ -1,4 +1,5 @@
 # mode: run
+# tag: genexpr
 # cython: language_level=3
 
 """

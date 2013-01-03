@@ -1,4 +1,6 @@
+# mode: run
 # ticket: 600
+# tag: genexpr
 
 cimport cython
 
