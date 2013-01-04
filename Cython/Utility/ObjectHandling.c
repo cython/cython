@@ -443,17 +443,19 @@ static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
 /////////////// CreateClass.proto ///////////////
 
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
-                                   PyObject *modname); /*proto*/
+                                   PyObject *qualname, PyObject *modname); /*proto*/
 
 /////////////// CreateClass ///////////////
 //@requires: FindPy2Metaclass
 
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
-                                   PyObject *modname) {
+                                   PyObject *qualname, PyObject *modname) {
     PyObject *result;
     PyObject *metaclass;
 
     if (PyDict_SetItemString(dict, "__module__", modname) < 0)
+        return NULL;
+    if (PyDict_SetItemString(dict, "__qualname__", qualname) < 0)
         return NULL;
 
     /* Python2 __metaclass__ */
@@ -470,13 +472,13 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 
 /////////////// Py3ClassCreate.proto ///////////////
 
-static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
-                                           PyObject *mkw, PyObject *modname, PyObject *doc) {
+                                           PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
     PyObject *prep;
     PyObject *pargs;
     PyObject *ns;
@@ -519,6 +521,24 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
         return NULL;
     }
     Py_DECREF(str);
+
+    #if PY_MAJOR_VERSION >= 3
+    str = PyUnicode_FromString("__qualname__");
+    #else
+    str = PyString_FromString("__qualname__");
+    #endif
+    if (!str) {
+        Py_DECREF(ns);
+        return NULL;
+    }
+
+    if (PyObject_SetItem(ns, str, qualname) < 0) {
+        Py_DECREF(ns);
+        Py_DECREF(str);
+        return NULL;
+    }
+    Py_DECREF(str);
+
     if (doc) {
         #if PY_MAJOR_VERSION >= 3
         str = PyUnicode_FromString("__doc__");

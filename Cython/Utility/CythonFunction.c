@@ -25,6 +25,7 @@ typedef struct {
     PyObject *func_dict;
     PyObject *func_weakreflist;
     PyObject *func_name;
+    PyObject *func_qualname;
     PyObject *func_doc;
     PyObject *func_code;
     PyObject *func_closure;
@@ -41,11 +42,11 @@ typedef struct {
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
 
-#define __Pyx_CyFunction_NewEx(ml, flags, self, module, code) \
-    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, self, module, code)
+#define __Pyx_CyFunction_NewEx(ml, flags, qualname, self, module, code) \
+    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, self, module, code)
 
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *,
-                                      PyMethodDef *ml, int flags,
+static PyObject *__Pyx_CyFunction_New(PyTypeObject *, PyMethodDef *ml,
+                                      int flags, PyObject* qualname,
                                       PyObject *self, PyObject *module,
                                       PyObject* code);
 
@@ -123,6 +124,34 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
     tmp = op->func_name;
     Py_INCREF(value);
     op->func_name = value;
+    Py_XDECREF(tmp);
+    return 0;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_qualname(__pyx_CyFunctionObject *op)
+{
+    Py_INCREF(op->func_qualname);
+    return op->func_qualname;
+}
+
+static int
+__Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value)
+{
+    PyObject *tmp;
+
+#if PY_MAJOR_VERSION >= 3
+    if (value == NULL || !PyUnicode_Check(value)) {
+#else
+    if (value == NULL || !PyString_Check(value)) {
+#endif
+        PyErr_SetString(PyExc_TypeError,
+                        "__qualname__ must be set to a string object");
+        return -1;
+    }
+    tmp = op->func_qualname;
+    Py_INCREF(value);
+    op->func_qualname = value;
     Py_XDECREF(tmp);
     return 0;
 }
@@ -230,6 +259,7 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
     {(char *) "func_name", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
     {(char *) "__name__", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
+    {(char *) "__qualname__", (getter)__Pyx_CyFunction_get_qualname, (setter)__Pyx_CyFunction_set_qualname, 0, 0},
     {(char *) "__self__", (getter)__Pyx_CyFunction_get_self, 0, 0, 0},
     {(char *) "func_dict", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
     {(char *) "__dict__", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
@@ -269,7 +299,7 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
 };
 
 
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
+static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* code) {
     __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, type);
     if (op == NULL)
@@ -284,6 +314,8 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->func.m_module = module;
     op->func_dict = NULL;
     op->func_name = NULL;
+    Py_INCREF(qualname);
+    op->func_qualname = qualname;
     op->func_doc = NULL;
     op->func_classobj = NULL;
     Py_XINCREF(code);
@@ -304,6 +336,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func.m_module);
     Py_CLEAR(m->func_dict);
     Py_CLEAR(m->func_name);
+    Py_CLEAR(m->func_qualname);
     Py_CLEAR(m->func_doc);
     Py_CLEAR(m->func_code);
     Py_CLEAR(m->func_classobj);
@@ -338,6 +371,7 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func.m_module);
     Py_VISIT(m->func_dict);
     Py_VISIT(m->func_name);
+    Py_VISIT(m->func_qualname);
     Py_VISIT(m->func_doc);
     Py_VISIT(m->func_code);
     Py_VISIT(m->func_classobj);
@@ -378,14 +412,12 @@ static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObj
 static PyObject*
 __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 {
-    PyObject *func_name = __Pyx_CyFunction_get_name(op);
-
 #if PY_MAJOR_VERSION >= 3
     return PyUnicode_FromFormat("<cyfunction %U at %p>",
-                                func_name, (void *)op);
+                                op->func_qualname, (void *)op);
 #else
     return PyString_FromFormat("<cyfunction %s at %p>",
-                               PyString_AsString(func_name), (void *)op);
+                               PyString_AsString(op->func_qualname), (void *)op);
 #endif
 }
 
@@ -555,11 +587,11 @@ typedef struct {
     PyObject *self;
 } __pyx_FusedFunctionObject;
 
-#define __pyx_FusedFunction_NewEx(ml, flags, self, module, code)         \
-        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, self, module, code)
+#define __pyx_FusedFunction_NewEx(ml, flags, qualname, self, module, code)         \
+        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, qualname, self, module, code)
 static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
                                          PyMethodDef *ml, int flags,
-                                         PyObject *self, PyObject *module,
+                                         PyObject *qualname, PyObject *self, PyObject *module,
                                          PyObject *code);
 
 static PyTypeObject *__pyx_FusedFunctionType = NULL;
@@ -571,11 +603,12 @@ static int __pyx_FusedFunction_init(void);
 //@requires: CythonFunction
 
 static PyObject *
-__pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject *self,
+__pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
+                        PyObject *qualname, PyObject *self,
                         PyObject *module, PyObject *code)
 {
     __pyx_FusedFunctionObject *fusedfunc =
-        (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, flags,
+        (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, flags, qualname,
                                                            self, module, code);
     if (!fusedfunc)
         return NULL;
@@ -632,6 +665,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_NewEx(
                     ((PyCFunctionObject *) func)->m_ml,
                     ((__pyx_CyFunctionObject *) func)->flags,
+                    ((__pyx_CyFunctionObject *) func)->func_qualname,
                     ((__pyx_CyFunctionObject *) func)->func_closure,
                     ((PyCFunctionObject *) func)->m_module,
                     ((__pyx_CyFunctionObject *) func)->func_code);

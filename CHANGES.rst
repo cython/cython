@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* Python functions/classes provide the special attribute "__qualname__"
+  as defined by PEP 3155.
+
 * Added a directive ``overflowcheck`` which raises an OverflowException when
   arithmetic with C ints overflow.  This has a modest performance penalty, but
   is much faster than using Python ints.

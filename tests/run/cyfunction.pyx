@@ -31,6 +31,38 @@ def test_name():
     'foo'
     """
 
+
+def test_qualname():
+    """
+    >>> test_qualname.__qualname__
+    'test_qualname'
+    >>> test_qualname.__qualname__ = 123 #doctest:+ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: __qualname__ must be set to a ... object
+    >>> test_qualname.__qualname__ = 'foo'
+    >>> test_qualname.__qualname__
+    'foo'
+    """
+
+
+def test_nested_qualname():
+    """
+    >>> func = test_nested_qualname()
+    >>> func().__qualname__
+    'test_nested_qualname.outer.Test'
+    >>> func().test.__qualname__
+    'test_nested_qualname.outer.Test.test'
+    >>> func()().test.__qualname__
+    'test_nested_qualname.outer.Test.test'
+    """
+    def outer():
+        class Test(object):
+            def test(self):
+                return 123
+        return Test
+    return outer
+
+
 def test_doc():
     """
     >>> del test_doc.__doc__

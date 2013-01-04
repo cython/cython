@@ -49,7 +49,7 @@ class Py3ClassMCOnly(object, metaclass=Py3MetaclassPlusAttr):
     >>> obj.metaclass_was_here
     True
     >>> obj._order
-    ['__module__', '__doc__', 'bar', 'metaclass_was_here']
+    ['__module__', '__qualname__', '__doc__', 'bar', 'metaclass_was_here']
     """
     bar = 321
 
@@ -76,7 +76,7 @@ class Py3Foo(object, metaclass=Py3Base, foo=123):
     >>> obj.bar
     321
     >>> obj._order
-    ['__module__', '__doc__', 'bar', 'foo']
+    ['__module__', '__qualname__', '__doc__', 'bar', 'foo']
     """
     bar = 321
 

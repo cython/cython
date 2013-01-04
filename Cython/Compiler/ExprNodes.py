@@ -6017,12 +6017,21 @@ class DictItemNode(ExprNode):
 
 
 class ModuleNameMixin(object):
-    def set_mod_name(self, env):
+    def set_qualified_name(self, env, self_name):
         self.module_name = env.global_scope().qualified_name
+        prefix = env.qualified_name[len(self.module_name)+1:]
+        if prefix:
+            self_name = prefix + '.' + self_name
+        self.qualname = StringEncoding.EncodedString(self_name)
 
     def get_py_mod_name(self, code):
         return code.get_py_string_const(
                  self.module_name, identifier=True)
+
+    def get_py_qualified_name(self, code):
+        return code.get_py_string_const(
+            self.qualname, identifier=True)
+
 
 class ClassNode(ExprNode, ModuleNameMixin):
     #  Helper class used in the implementation of Python
@@ -6046,7 +6055,7 @@ class ClassNode(ExprNode, ModuleNameMixin):
         self.is_temp = 1
         env.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
         #TODO(craig,haoyu) This should be moved to a better place
-        self.set_mod_name(env)
+        self.set_qualified_name(env, self.name)
 
     def may_be_none(self):
         return True
@@ -6062,12 +6071,14 @@ class ClassNode(ExprNode, ModuleNameMixin):
                     self.dict.py_result(),
                     self.doc.py_result()))
         py_mod_name = self.get_py_mod_name(code)
+        qualname = self.get_py_qualified_name(code)
         code.putln(
-            '%s = __Pyx_CreateClass(%s, %s, %s, %s); %s' % (
+            '%s = __Pyx_CreateClass(%s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 self.bases.py_result(),
                 self.dict.py_result(),
                 cname,
+                qualname,
                 py_mod_name,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
@@ -6264,7 +6275,7 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
         self.type = py_object_type
         self.is_temp = 1
         #TODO(craig,haoyu) This should be moved to a better place
-        self.set_mod_name(env)
+        self.set_qualified_name(env, self.name)
 
     def may_be_none(self):
         return True
@@ -6272,16 +6283,18 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
     def generate_result_code(self, code):
         cname = code.intern_identifier(self.name)
         py_mod_name = self.get_py_mod_name(code)
+        qualname = self.get_py_qualified_name(code)
         if self.doc:
             doc_code = self.doc.result()
         else:
             doc_code = '(PyObject *) NULL'
         code.putln(
-            "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s); %s" % (
+            "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s, %s); %s" % (
                 self.result(),
                 self.metaclass.result(),
                 self.bases.result(),
                 cname,
+                qualname,
                 self.mkw.result(),
                 py_mod_name,
                 doc_code,
@@ -6449,7 +6462,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             self.analyse_default_args(env)
 
         #TODO(craig,haoyu) This should be moved to a better place
-        self.set_mod_name(env)
+        self.set_qualified_name(env, self.def_node.name)
 
     def analyse_default_args(self, env):
         """
@@ -6575,15 +6588,15 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
                 flags,
+                self.get_py_qualified_name(code),
                 self.self_result_code(),
-                py_mod_name,
+                self.get_py_mod_name(code),
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
 
