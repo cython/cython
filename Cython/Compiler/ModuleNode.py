@@ -2010,24 +2010,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in rev_entries:
                 if entry.visibility != 'extern':
                     if entry.type.is_pyobject and entry.used:
-                        code.put_decref_clear(entry.cname,
-                                              entry.type,
-                                              clear_before_decref=True,
-                                              nanny=False)
+                        code.put_xdecref_clear(
+                            entry.cname, entry.type,
+                            clear_before_decref=True,
+                            nanny=False)
         code.putln("__Pyx_CleanupGlobals();")
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
-            for type, _ in env.types_imported.items():
-                code.put_decref_clear(type.typeptr_cname, type,
-                                      clear_before_decref=True,
-                                      nanny=False)
+            for type in env.types_imported:
+                code.put_xdecref_clear(
+                    type.typeptr_cname, type,
+                    clear_before_decref=True,
+                    nanny=False)
         if Options.cache_builtins:
             code.putln("/*--- Builtin cleanup code ---*/")
             for entry in env.cached_builtins:
-                code.put_decref_clear(entry.cname,
-                                      PyrexTypes.py_object_type,
-                                      clear_before_decref=True,
-                                      nanny=False)
+                code.put_xdecref_clear(
+                    entry.cname, PyrexTypes.py_object_type,
+                    clear_before_decref=True,
+                    nanny=False)
         code.putln("/*--- Intern cleanup code ---*/")
         code.put_decref_clear(Naming.empty_tuple,
                               PyrexTypes.py_object_type,
