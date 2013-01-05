@@ -1127,9 +1127,7 @@ class GlobalState(object):
                     py_strings.append((c.cname, len(py_string.cname), py_string))
 
         if py_strings:
-            import Nodes
-            self.use_utility_code(Nodes.init_string_tab_utility_code)
-
+            self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
