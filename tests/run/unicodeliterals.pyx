@@ -75,6 +75,8 @@ __doc__ = br"""
     True
     >>> h == u'\\ud800' # unescaped by Python (required by doctest)
     True
+    >>> k == u'\\N{SNOWMAN}' == u'\\u2603'
+    True
     >>> add == u'Søk ik' + u'üÖä' + 'abc'
     True
     >>> null == u'\\x00' # unescaped by Python (required by doctest)
@@ -107,6 +109,7 @@ e = u'\x03\x67\xf8\uf8d2Søk ik'
 f = u'\xf8'
 g = u'\udc00'   # lone trail surrogate
 h = u'\ud800'   # lone lead surrogate
+k = u'\N{SNOWMAN}'
 
 add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'

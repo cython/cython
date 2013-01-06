@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* Named Unicode escapes ("\N{...}") are supported.
+
 * Python functions/classes provide the special attribute "__qualname__"
   as defined by PEP 3155.
 

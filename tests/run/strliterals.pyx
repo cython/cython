@@ -132,9 +132,9 @@ __doc__ = ur"""
     >>> len(bytes_uescape)
     28
 
-    >>> (sys.version_info[0] >= 3 and sys.maxunicode == 1114111 and len(str_uescape) == 3 or
-    ...  sys.version_info[0] >= 3 and sys.maxunicode == 65535   and len(str_uescape) == 4 or
-    ...  sys.version_info[0] <  3 and len(str_uescape) == 17 or
+    >>> (sys.version_info[0] >= 3 and sys.maxunicode == 1114111 and len(str_uescape) == 4 or
+    ...  sys.version_info[0] >= 3 and sys.maxunicode == 65535   and len(str_uescape) == 5 or
+    ...  sys.version_info[0] <  3 and len(str_uescape) == 28 or
     ...  len(str_uescape))
     True
     >>> (sys.version_info[0] >= 3 and str_uescape[0] == 'c' or
@@ -143,6 +143,10 @@ __doc__ = ur"""
     True
     >>> print(str_uescape[-1])
     B
+    >>> (sys.version_info[0] >= 3 and ord(str_uescape[-2]) == 0x2603 or
+    ...  sys.version_info[0] <  3 and str_uescape[-12:-1]  == b'\\N{SNOWMAN}' or
+    ...  sys.version_info[0] >= 3 and ord(str_uescape[-2]) or str_uescape[-12:-1])
+    True
 
     >>> newlines == "Aaa\n"
     True
@@ -185,7 +189,7 @@ bresc = br'\12\'\"\\'
 uresc = ur'\12\'\"\\'
 
 bytes_uescape = b'\u1234\U12345678\u\u1\u12\uX'
-str_uescape = '\u0063\U00012345\x42'
+str_uescape = '\u0063\U00012345\N{SNOWMAN}\x42'
 
 newlines = "Aaa\n"
 

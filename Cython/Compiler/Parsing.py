@@ -8,6 +8,7 @@ import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
 
 import re
+import unicodedata
 
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
@@ -803,23 +804,27 @@ def p_string_literal(s, kind_override=None):
                         StringEncoding.char_from_escape_sequence(systr))
                 elif c == u'\n':
                     pass
-                elif c == u'x':
+                elif c == u'x':   # \xXX
                     if len(systr) == 4:
                         chars.append_charval( int(systr[2:], 16) )
                     else:
                         s.error("Invalid hex escape '%s'" % systr)
-                elif c in u'Uu':
-                    if kind in ('u', ''):
-                        if len(systr) in (6,10):
-                            chrval = int(systr[2:], 16)
-                            if chrval > 1114111: # sys.maxunicode:
-                                s.error("Invalid unicode escape '%s'" % systr)
-                        else:
+                elif c in u'NUu' and kind in ('u', ''):   # \uxxxx, \Uxxxxxxxx, \N{...}
+                    chrval = -1
+                    if c == u'N':
+                        try:
+                            chrval = ord(unicodedata.lookup(systr[3:-1]))
+                        except KeyError:
+                            s.error("Unknown Unicode character name %r" % systr[3:-1])
+                    elif len(systr) in (6,10):
+                        chrval = int(systr[2:], 16)
+                        if chrval > 1114111: # sys.maxunicode:
                             s.error("Invalid unicode escape '%s'" % systr)
+                            chrval = -1
                     else:
-                        # unicode escapes in byte strings are not unescaped
-                        chrval = None
-                    chars.append_uescape(chrval, systr)
+                        s.error("Invalid unicode escape '%s'" % systr)
+                    if chrval >= 0:
+                        chars.append_uescape(chrval, systr)
                 else:
                     chars.append(u'\\' + systr[1:])
                     if is_python3_source and not has_non_ASCII_literal_characters \
