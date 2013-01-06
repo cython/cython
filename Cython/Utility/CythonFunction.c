@@ -65,16 +65,19 @@ static int __Pyx_CyFunction_init(void);
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
 {
-    if (op->func_doc == NULL && op->func.m_ml->ml_doc) {
+    if (unlikely(op->func_doc == NULL)) {
+        if (op->func.m_ml->ml_doc) {
 #if PY_MAJOR_VERSION >= 3
-        op->func_doc = PyUnicode_FromString(op->func.m_ml->ml_doc);
+            op->func_doc = PyUnicode_FromString(op->func.m_ml->ml_doc);
 #else
-        op->func_doc = PyString_FromString(op->func.m_ml->ml_doc);
+            op->func_doc = PyString_FromString(op->func.m_ml->ml_doc);
 #endif
-    }
-    if (op->func_doc == 0) {
-        Py_INCREF(Py_None);
-        return Py_None;
+            if (unlikely(op->func_doc == NULL))
+                return NULL;
+        } else {
+            Py_INCREF(Py_None);
+            return Py_None;
+        }
     }
     Py_INCREF(op->func_doc);
     return op->func_doc;
@@ -85,10 +88,9 @@ __Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value)
 {
     PyObject *tmp = op->func_doc;
     if (value == NULL)
-        op->func_doc = Py_None; /* Mark as deleted */
-    else
-        op->func_doc = value;
-    Py_INCREF(op->func_doc);
+        value = Py_None; /* Mark as deleted */
+    Py_INCREF(value);
+    op->func_doc = value;
     Py_XDECREF(tmp);
     return 0;
 }
@@ -96,12 +98,14 @@ __Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value)
 static PyObject *
 __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op)
 {
-    if (op->func_name == NULL) {
+    if (unlikely(op->func_name == NULL)) {
 #if PY_MAJOR_VERSION >= 3
         op->func_name = PyUnicode_InternFromString(op->func.m_ml->ml_name);
 #else
         op->func_name = PyString_InternFromString(op->func.m_ml->ml_name);
 #endif
+        if (unlikely(op->func_name == NULL))
+            return NULL;
     }
     Py_INCREF(op->func_name);
     return op->func_name;
@@ -113,9 +117,9 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (value == NULL || !PyUnicode_Check(value)) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
 #else
-    if (value == NULL || !PyString_Check(value)) {
+    if (unlikely(value == NULL || !PyString_Check(value))) {
 #endif
         PyErr_SetString(PyExc_TypeError,
                         "__name__ must be set to a string object");
@@ -141,9 +145,9 @@ __Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (value == NULL || !PyUnicode_Check(value)) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
 #else
-    if (value == NULL || !PyString_Check(value)) {
+    if (unlikely(value == NULL || !PyString_Check(value))) {
 #endif
         PyErr_SetString(PyExc_TypeError,
                         "__qualname__ must be set to a string object");
@@ -171,9 +175,9 @@ __Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, CYTHON_UNUSED void *closure
 static PyObject *
 __Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op)
 {
-    if (op->func_dict == NULL) {
+    if (unlikely(op->func_dict == NULL)) {
         op->func_dict = PyDict_New();
-        if (op->func_dict == NULL)
+        if (unlikely(op->func_dict == NULL))
             return NULL;
     }
     Py_INCREF(op->func_dict);
@@ -185,12 +189,12 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
 {
     PyObject *tmp;
 
-    if (value == NULL) {
+    if (unlikely(value == NULL)) {
         PyErr_SetString(PyExc_TypeError,
                "function's dictionary may not be deleted");
         return -1;
     }
-    if (!PyDict_Check(value)) {
+    if (unlikely(!PyDict_Check(value))) {
         PyErr_SetString(PyExc_TypeError,
                "setting function's dictionary to a non-dict");
         return -1;
@@ -243,7 +247,7 @@ __Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op)
         PyObject *res = op->defaults_getter((PyObject *) op);
 
         /* Cache result */
-        if (res) {
+        if (likely(res)) {
             Py_INCREF(res);
             op->defaults_tuple = res;
         }
