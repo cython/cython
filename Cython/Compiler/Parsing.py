@@ -815,7 +815,8 @@ def p_string_literal(s, kind_override=None):
                         try:
                             chrval = ord(unicodedata.lookup(systr[3:-1]))
                         except KeyError:
-                            s.error("Unknown Unicode character name %r" % systr[3:-1])
+                            s.error("Unknown Unicode character name %s" %
+                                    repr(systr[3:-1]).lstrip('u'))
                     elif len(systr) in (6,10):
                         chrval = int(systr[2:], 16)
                         if chrval > 1114111: # sys.maxunicode:
