@@ -47,20 +47,24 @@ def test_qualname():
 
 def test_nested_qualname():
     """
-    >>> func = test_nested_qualname()
+    >>> func, lambda_func = test_nested_qualname()
+
     >>> func().__qualname__
-    'test_nested_qualname.outer.Test'
+    'test_nested_qualname.<locals>.outer.<locals>.Test'
     >>> func().test.__qualname__
-    'test_nested_qualname.outer.Test.test'
+    'test_nested_qualname.<locals>.outer.<locals>.Test.test'
     >>> func()().test.__qualname__
-    'test_nested_qualname.outer.Test.test'
+    'test_nested_qualname.<locals>.outer.<locals>.Test.test'
+
+    >>> lambda_func.__qualname__
+    'test_nested_qualname.<locals>.<lambda>'
     """
     def outer():
         class Test(object):
             def test(self):
                 return 123
         return Test
-    return outer
+    return outer, lambda:None
 
 
 def test_doc():
