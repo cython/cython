@@ -991,7 +991,7 @@ class GlobalState(object):
     def get_string_const(self, text, py_version=None):
         # return a C string constant, creating a new one if necessary
         if text.is_unicode:
-            byte_string = text.utf8encode()
+            byte_string = text.escapeencode()
         else:
             byte_string = text.byteencode()
         try:
@@ -1006,7 +1006,7 @@ class GlobalState(object):
         # return a Python string constant, creating a new one if necessary
         py3str_cstring = None
         if is_str and unicode_value is not None \
-               and unicode_value.utf8encode() != text.byteencode():
+               and unicode_value.escapeencode() != text.byteencode():
             py3str_cstring = self.get_string_const(unicode_value, py_version=3)
             c_string = self.get_string_const(text, py_version=2)
         else:

@@ -24,6 +24,13 @@ Features added
 Bugs fixed
 ----------
 
+* Surrogate code points in Unicode string literals failed to compile and/or
+  load in CPython 3.3.  To work around this change introduced by CPython,
+  Cython switched from UTF-8 to Python Unicode escapes ('\u0101') internally
+  for storing literal Unicode strings in C code.  This may add a slight
+  initialisation overhead if a large number of non-Latin1 characters are
+  used in the code.
+
 Other changes
 -------------
 
