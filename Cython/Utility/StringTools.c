@@ -17,7 +17,11 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
         if (t->is_unicode) {
+#if CYTHON_COMPILING_IN_PYPY
+            *t->p = PyUnicode_Decode(t->s, t->n - 1, "unicode-escape", NULL);
+#else
             *t->p = PyUnicode_DecodeUnicodeEscape(t->s, t->n - 1, NULL);
+#endif
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
         } else {
@@ -28,7 +32,11 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             if (unlikely(t->encoding)) {
                 *t->p = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
             } else {
+#if CYTHON_COMPILING_IN_PYPY
+                *t->p = PyUnicode_Decode(t->s, t->n - 1, "unicode-escape", NULL);
+#else
                 *t->p = PyUnicode_DecodeUnicodeEscape(t->s, t->n - 1, NULL);
+#endif
             }
             if (t->intern && likely(*t->p)) {
                 PyUnicode_InternInPlace(t->p);
