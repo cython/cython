@@ -148,9 +148,9 @@ __doc__ = ur"""
     ...  sys.version_info[0] >= 3 and ord(str_uescape[-2]) or str_uescape[-12:-1])
     True
 
-    >>> newlines == "Aaa\n"
-    True
-    
+    >>> newlines
+    'Aaa\n'
+
     >>> len(long_escapes)
     3033
     >>> len(even_lots_of_slashes)
