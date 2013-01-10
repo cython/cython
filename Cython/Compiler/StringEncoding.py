@@ -165,6 +165,9 @@ char_from_escape_sequence = {
     r'\v' : u'\v',
     }.get
 
+_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
+
+
 def _to_escape_sequence(s):
     if s in '\n\r\t':
         return repr(s)[1:-1]
@@ -176,19 +179,23 @@ def _to_escape_sequence(s):
         # within a character sequence, oct passes much better than hex
         return ''.join(['\\%03o' % ord(c) for c in s])
 
-_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
-_c_special_replacements = [(orig.encode('ASCII'),
-                            _to_escape_sequence(orig).encode('ASCII'))
-                           for orig in _c_special ]
 
-def _build_specials_test():
+def _build_specials_replacer():
     subexps = []
+    replacements = {}
     for special in _c_special:
         regexp = ''.join(['[%s]' % c.replace('\\', '\\\\') for c in special])
         subexps.append(regexp)
-    return re.compile('|'.join(subexps).encode('ASCII')).search
+        replacements[special.encode('ASCII')] = _to_escape_sequence(special).encode('ASCII')
+    sub = re.compile(('(%s)' % '|'.join(subexps)).encode('ASCII')).sub
+    def replace_specials(m):
+        return replacements[m.group(1)]
+    def replace(s):
+        return sub(replace_specials, s)
+    return replace
 
-_has_specials = _build_specials_test()
+_replace_specials = _build_specials_replacer()
+
 
 def escape_char(c):
     if IS_PYTHON3:
@@ -210,10 +217,7 @@ def escape_byte_string(s):
     encoded as ISO-8859-1, will result in the correct byte sequence
     being written.
     """
-    if _has_specials(s):
-        for special, replacement in _c_special_replacements:
-            if special in s:
-                s = s.replace(special, replacement)
+    s = _replace_specials(s)
     try:
         return s.decode("ASCII") # trial decoding: plain ASCII => done
     except UnicodeDecodeError:
