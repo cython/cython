@@ -1767,7 +1767,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_import_star(self, env, code):
         env.use_utility_code(streq_utility_code)
         code.putln()
-        code.putln("char* %s_type_names[] = {" % Naming.import_star)
+        code.putln("static char* %s_type_names[] = {" % Naming.import_star)
         for name, entry in env.entries.items():
             if entry.is_type:
                 code.putln('"%s",' % name)
