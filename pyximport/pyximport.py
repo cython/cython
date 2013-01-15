@@ -497,7 +497,7 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     runtime for .py files and Py2 for .pyx files.
     """
     if not build_dir:
-        build_dir = os.path.expanduser('~/.pyxbld')
+        build_dir = os.path.join(os.path.expanduser('~'), '.pyxbld')
         
     global pyxargs
     pyxargs = PyxArgs()  #$pycheck_no
