@@ -1,7 +1,7 @@
 # 7.11 Localization <locale.h>
 
 # deprecated cimport for backwards compatibility:
-from .string cimport const_char
+from libc.string cimport const_char
 
 
 cdef extern from "locale.h" nogil:
