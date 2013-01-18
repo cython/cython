@@ -23,6 +23,8 @@ Features added
 
 * ``py_bytes_string.decode(...)`` is optimised.
 
+* C ``const`` declarations are supported in the language.
+
 Bugs fixed
 ----------
 
