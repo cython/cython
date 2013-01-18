@@ -1,7 +1,8 @@
 # 7.11 Localization <locale.h>
 
-cdef extern from *:
-    ctypedef char const_char "const char"
+# deprecated cimport for backwards compatibility:
+from .string cimport const_char
+
 
 cdef extern from "locale.h" nogil:
 
@@ -39,7 +40,7 @@ cdef extern from "locale.h" nogil:
     enum: LC_TIME
 
     # 7.11.1 Locale control
-    char *setlocale (int CATEGORY, const_char *LOCALE)
+    char *setlocale (int CATEGORY, const char *LOCALE)
 
     # 7.11.2 Numeric formatting convention inquiry
     lconv *localeconv ()
