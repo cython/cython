@@ -259,6 +259,7 @@ def test_handing_exception_while_delegating_close():
     Yielded g2 spam
     Finishing g2
     Finishing g1
+    nybbles have exploded with delight
     """
     trace = []
     def g1():
@@ -283,8 +284,11 @@ def test_handing_exception_while_delegating_close():
             x = next(g)
             trace.append("Yielded %s" % (x,))
         g.close()
-    except ValueError:
-        pass
+    except ValueError as e:
+        trace.append(e.args[0])
+        # FIXME: __context__ is currently not set
+        #if sys.version_info[0] >= 3:
+        #    assert isinstance(e.__context__, GeneratorExit), 'exception context is %r' % e.__context__
     else:
         trace.append("subgenerator failed to raise ValueError")
     return trace
