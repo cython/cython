@@ -383,16 +383,29 @@ class DependencyTree(object):
         module = os.path.splitext(os.path.basename(filename))[0]
         return '.'.join(self.package(filename) + (module,))
 
+    @cached_method
     def find_pxd(self, module, filename=None):
-        if module[0] == '.':
+        is_relative = module[0] == '.'
+        if is_relative and not filename:
             raise NotImplementedError("New relative imports.")
         if filename is not None:
-            relative = '.'.join(self.package(filename) + tuple(module.split('.')))
+            module_path = module.split('.')
+            if is_relative:
+                module_path.pop(0)  # just explicitly relative
+            package_path = list(self.package(filename))
+            while module_path and not module_path[0]:
+                try:
+                    package_path.pop()
+                except IndexError:
+                    return None   # FIXME: error?
+                module_path.pop(0)
+            relative = '.'.join(package_path + module_path)
             pxd = self.context.find_pxd_file(relative, None)
             if pxd:
                 return pxd
+        if is_relative:
+            return None   # FIXME: error?
         return self.context.find_pxd_file(module, None)
-    find_pxd = cached_method(find_pxd)
 
     @cached_method
     def cimported_files(self, filename):
