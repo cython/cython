@@ -1,6 +1,6 @@
 
 # deprecated cimport for backwards compatibility:
-from .string cimport const_char
+from libc.string cimport const_char
 
 
 cdef extern from "<string>" namespace "std":
