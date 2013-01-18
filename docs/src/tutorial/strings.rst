@@ -125,9 +125,18 @@ not modify a string they return, for example:
     int process_string(const char* s);
     const unsigned char* look_up_cached_string(const unsigned char* key);
 
-Cython does not currently have support for the ``const`` modifier in
-the language, but it allows users to make the necessary declarations
-at a textual level.
+Since version 0.18, Cython has support for the ``const`` modifier in
+the language, so you can declare the above functions straight away as
+follows::
+
+    cdef extern from "someheader.h":
+        ctypedef const char specialChar
+        int process_string(const char* s)
+        const unsigned char* look_up_cached_string(const unsigned char* key)
+
+Previous versions required users to make the necessary declarations
+at a textual level.  If you need to support older Cython versions,
+you can use the following approach.
 
 In general, for arguments of external C functions, the ``const``
 modifier does not matter and can be left out in the Cython
@@ -139,9 +148,9 @@ the right thing, even if you declare this to Cython::
 
 However, in most other situations, such as for return values and
 variables that use specifically typedef-ed API types, it does matter
-and the C compiler will emit a warning if used incorrectly.  To help
-with this, you can use the type definitions in the ``libc.string``
-module, e.g.::
+and the C compiler will emit at least a warning if used incorrectly.
+To help with this, you can use the type definitions in the
+``libc.string`` module, e.g.::
 
     from libc.string cimport const_char, const_uchar
 
@@ -151,9 +160,11 @@ module, e.g.::
         const_uchar* look_up_cached_string(const_uchar* key)
 
 Note: even if the API only uses ``const`` for function arguments,
-it is still preferable to properly declare them using the
-:c:type:`const_char` types in order to simplify adaptations, e.g.
-if Cython ever gains language support for ``const``.
+it is still preferable to properly declare them using these
+provided :c:type:`const_char` types in order to simplify adaptations.
+In Cython 0.18, these standard declarations have been changed to
+use the correct ``const`` modifier, so your code will automatically
+benefit from the new ``const`` support if it uses them.
 
 Decoding bytes to text
 ----------------------
