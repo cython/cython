@@ -2,7 +2,7 @@
 
 
 # deprecated cimports for backwards compatibility:
-from .string cimport const_char, const_void
+from libc.string cimport const_char, const_void
 
 
 cdef extern from "stdio.h" nogil:
