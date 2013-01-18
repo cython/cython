@@ -1,23 +1,23 @@
 # 7.20 General utilities <stdlib.h>
 
-cdef extern from *:
-    ctypedef char const_char "const char"
-    ctypedef void const_void "const void"
+# deprecated cimports for backwards compatibility:
+from .string cimport const_char, const_void
+
 
 cdef extern from "stdlib.h" nogil:
 
     # 7.20.1 Numeric conversion functions
-    int atoi (const_char *STRING)
-    long atol (const_char *STRING)
-    long long atoll (const_char *STRING)
-    double atof (const_char *STRING)
-    long strtol (const_char *STRING, char **TAILPTR, int BASE)
-    unsigned long int strtoul (const_char *STRING, char **TAILPTR, int BASE)
-    long long int strtoll (const_char *STRING, char **TAILPTR, int BASE)
-    unsigned long long int strtoull (const_char *STRING, char **TAILPTR, int BASE)
-    float strtof (const_char *STRING, char **TAILPTR)
-    double strtod (const_char *STRING, char **TAILPTR)
-    long double strtold (const_char *STRING, char **TAILPTR)
+    int atoi (const char *STRING)
+    long atol (const char *STRING)
+    long long atoll (const char *STRING)
+    double atof (const char *STRING)
+    long strtol (const char *STRING, char **TAILPTR, int BASE)
+    unsigned long int strtoul (const char *STRING, char **TAILPTR, int BASE)
+    long long int strtoll (const char *STRING, char **TAILPTR, int BASE)
+    unsigned long long int strtoull (const char *STRING, char **TAILPTR, int BASE)
+    float strtof (const char *STRING, char **TAILPTR)
+    double strtod (const char *STRING, char **TAILPTR)
+    long double strtold (const char *STRING, char **TAILPTR)
 
     # 7.20.2 Pseudo-random sequence generation functions
     enum: RAND_MAX
@@ -37,15 +37,15 @@ cdef extern from "stdlib.h" nogil:
     void _Exit (int STATUS)
     int atexit (void (*FUNCTION) ())
     void abort ()
-    char *getenv (const_char *NAME)
-    int system (const_char *COMMAND)
+    char *getenv (const char *NAME)
+    int system (const char *COMMAND)
 
     #7.20.5 Searching and sorting utilities
-    void *bsearch (const_void *KEY, const_void *ARRAY,
+    void *bsearch (const void *KEY, const void *ARRAY,
                    size_t COUNT, size_t SIZE,
-                   int (*COMPARE)(const_void *, const_void *))
+                   int (*COMPARE)(const void *, const void *))
     void qsort (void *ARRAY, size_t COUNT, size_t SIZE,
-                int (*COMPARE)(const_void *, const_void *))
+                int (*COMPARE)(const void *, const void *))
 
     # 7.20.6 Integer arithmetic functions
     int abs (int NUMBER)

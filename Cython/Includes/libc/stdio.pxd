@@ -1,8 +1,9 @@
 # 7.19 Input/output <stdio.h>
 
-cdef extern from *:
-    ctypedef char const_char "const char"
-    ctypedef void const_void "const void"
+
+# deprecated cimports for backwards compatibility:
+from .string cimport const_char, const_void
+
 
 cdef extern from "stdio.h" nogil:
 
@@ -13,11 +14,11 @@ cdef extern from "stdio.h" nogil:
 
     enum: FOPEN_MAX
     enum: FILENAME_MAX
-    FILE *fopen   (const_char *FILENAME, const_char  *OPENTYPE)
-    FILE *freopen (const_char *FILENAME, const_char *OPENTYPE, FILE *STREAM)
+    FILE *fopen   (const char *FILENAME, const char  *OPENTYPE)
+    FILE *freopen (const char *FILENAME, const char *OPENTYPE, FILE *STREAM)
     int  fclose   (FILE *STREAM)
-    int  remove   (const_char *FILENAME)
-    int  rename   (const_char *OLDNAME, const_char *NEWNAME)
+    int  remove   (const char *FILENAME)
+    int  rename   (const char *OLDNAME, const char *NEWNAME)
     FILE *tmpfile ()
 
     enum: _IOFBF
@@ -28,7 +29,7 @@ cdef extern from "stdio.h" nogil:
     void setbuf (FILE *STREAM, char *BUF)
 
     size_t fread  (void *DATA, size_t SIZE, size_t COUNT, FILE *STREAM)
-    size_t fwrite (const_void *DATA, size_t SIZE, size_t COUNT, FILE *STREAM)
+    size_t fwrite (const void *DATA, size_t SIZE, size_t COUNT, FILE *STREAM)
     int    fflush (FILE *STREAM)
 
     enum: EOF
@@ -43,23 +44,23 @@ cdef extern from "stdio.h" nogil:
     long int ftell  (FILE *STREAM)
 
     ctypedef long long int fpos_t
-    ctypedef fpos_t const_fpos_t "const fpos_t"
+    ctypedef const fpos_t const_fpos_t "const fpos_t"
     int fgetpos (FILE *STREAM, fpos_t *POSITION)
-    int fsetpos (FILE *STREAM, const_fpos_t *POSITION)
+    int fsetpos (FILE *STREAM, const fpos_t *POSITION)
 
-    int scanf    (const_char *TEMPLATE, ...)
-    int sscanf   (const_char *S, const_char *TEMPLATE, ...)
-    int fscanf   (FILE *STREAM, const_char *TEMPLATE, ...)
+    int scanf    (const char *TEMPLATE, ...)
+    int sscanf   (const char *S, const char *TEMPLATE, ...)
+    int fscanf   (FILE *STREAM, const char *TEMPLATE, ...)
 
-    int printf   (const_char *TEMPLATE, ...)
-    int sprintf  (char *S, const_char *TEMPLATE, ...)
-    int snprintf (char *S, size_t SIZE, const_char *TEMPLATE, ...)
-    int fprintf  (FILE *STREAM, const_char *TEMPLATE, ...)
+    int printf   (const char *TEMPLATE, ...)
+    int sprintf  (char *S, const char *TEMPLATE, ...)
+    int snprintf (char *S, size_t SIZE, const char *TEMPLATE, ...)
+    int fprintf  (FILE *STREAM, const char *TEMPLATE, ...)
 
-    void perror  (const_char *MESSAGE)
+    void perror  (const char *MESSAGE)
 
     char *gets  (char *S)
     char *fgets (char *S, int COUNT, FILE *STREAM)
 
-    int  puts   (const_char *S)
-    int  fputs  (const_char *S, FILE *STREAM)
+    int  puts   (const char *S)
+    int  fputs  (const char *S, FILE *STREAM)
