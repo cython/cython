@@ -28,10 +28,6 @@ class _ArrayType(object):
         return "%s[%s]" % (self.dtype, ", ".join(axes))
 
 
-class InvalidTypeSpecification(Exception):
-    pass
-
-
 def index_type(base_type, item):
     """
     Support array type creation by slicing, e.g. double[:, :] specifies
@@ -39,6 +35,9 @@ def index_type(base_type, item):
     Cython memoryviews.
     """
     assert isinstance(item, (tuple, slice))
+
+    class InvalidTypeSpecification(Exception):
+        pass
 
     def verify_slice(s):
         if s.start or s.stop or s.step not in (None, 1):
