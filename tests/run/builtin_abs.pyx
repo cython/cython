@@ -38,7 +38,7 @@ def int_abs(int a):
     True
     >>> int_abs(-5.1) == 5
     True
-    >>> long_abs(-max_int-1) > 0
+    >>> int_abs(-max_int-1) > 0
     True
     >>> int_abs(-max_int-1) == abs(-max_int-1)   or (max_int, int_abs(-max_int-1), abs(-max_int-1))
     True
