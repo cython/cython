@@ -40,9 +40,9 @@ def int_abs(int a):
     True
     >>> long_abs(-max_int-1) > 0
     True
-    >>> int_abs(-max_int-1) == abs(-max_int-1)
+    >>> int_abs(-max_int-1) == abs(-max_int-1)   or (max_int, int_abs(-max_int-1), abs(-max_int-1))
     True
-    >>> int_abs(max_int) == abs(max_int)
+    >>> int_abs(max_int) == abs(max_int)         or (max_int, int_abs(max_int), abs(max_int))
     True
     """
     return abs(a)
@@ -57,9 +57,9 @@ def long_abs(long a):
     True
     >>> long_abs(-max_long-1) > 0
     True
-    >>> long_abs(-max_long-1) == abs(-max_long-1)
+    >>> long_abs(-max_long-1) == abs(-max_long-1)   or (max_long, long_abs(-max_long-1), abs(-max_long-1))
     True
-    >>> long_abs(max_long) == abs(max_long)
+    >>> long_abs(max_long) == abs(max_long)         or (max_long, long_abs(max_long), abs(max_long))
     True
     """
     return abs(a)
@@ -70,9 +70,9 @@ def long_long_abs(long long a):
     True
     >>> long_long_abs(-max_long_long-1) > 0
     True
-    >>> long_long_abs(-max_long_long-1) == abs(-max_long_long-1)
+    >>> long_long_abs(-max_long_long-1) == abs(-max_long_long-1)  or (max_long_long, long_long_abs(-max_long_long-1), abs(-max_long_long-1))
     True
-    >>> long_long_abs(max_long_long) == abs(max_long_long)
+    >>> long_long_abs(max_long_long) == abs(max_long_long)        or (max_long_long, long_long_abs(max_long_long), abs(max_long_long))
     True
     """
     return abs(a)
