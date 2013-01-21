@@ -19,16 +19,20 @@ proto = """
 
 abs_int_utility_code = UtilityCode(
 proto = '''
-#if HAVE_LONG_LONG && defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-#define __Pyx_abs_int(x) \
-    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : \
-     ((sizeof(x) <= sizeof(long)) ? ((unsigned long)labs(x)) : \
-      ((unsigned PY_LONG_LONG)llabs(x))))
-#else
-#define __Pyx_abs_int(x) \
-    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : ((unsigned long)labs(x)))
-#endif
-#define __Pyx_abs_long(x) __Pyx_abs_int(x)
+static CYTHON_INLINE unsigned int __Pyx_abs_int(int x) {
+    if (unlikely(x == -INT_MAX-1))
+        return ((unsigned int)INT_MAX) + 1U;
+    return (unsigned int) abs(x);
+}
+''')
+
+abs_long_utility_code = UtilityCode(
+proto = '''
+static CYTHON_INLINE unsigned long __Pyx_abs_long(long x) {
+    if (unlikely(x == -LONG_MAX-1))
+        return ((unsigned long)LONG_MAX) + 1U;
+    return (unsigned long) labs(x);
+}
 ''')
 
 iter_next_utility_code = UtilityCode.load_cached("IterNext", "ObjectHandling.c")
@@ -201,7 +205,7 @@ builtin_function_table = [
                             ],
                         is_strict_signature = True)),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_long",
-                    utility_code = abs_int_utility_code,
+                    utility_code = abs_long_utility_code,
                     func_type = PyrexTypes.CFuncType(
                         PyrexTypes.c_ulong_type, [
                             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_long_type, None)

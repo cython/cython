@@ -8438,8 +8438,10 @@ class PowNode(NumBinopNode):
         else:
             self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
             env.use_utility_code(
-                    int_pow_utility_code.specialize(func_name=self.pow_func,
-                                                type=self.type.declaration_code('')))
+                int_pow_utility_code.specialize(
+                    func_name=self.pow_func,
+                    type=self.type.declaration_code(''),
+                    signed=self.type.signed and 1 or 0))
 
     def calculate_result_code(self):
         # Work around MSVC overloading ambiguity.
@@ -10055,7 +10057,9 @@ static CYTHON_INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
         case 0:
             return 1;
     }
+    #if %(signed)s
     if (unlikely(e<0)) return 0;
+    #endif
     t = 1;
     while (likely(e)) {
         t *= (b * (e&1)) | ((~e)&1);    /* 1 or b */
