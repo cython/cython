@@ -24,6 +24,10 @@ static CYTHON_INLINE unsigned int __Pyx_abs_int(int x) {
         return ((unsigned int)INT_MAX) + 1U;
     return (unsigned int) abs(x);
 }
+''')
+
+abs_long_utility_code = UtilityCode(
+proto = '''
 static CYTHON_INLINE unsigned long __Pyx_abs_long(long x) {
     if (unlikely(x == -LONG_MAX-1))
         return ((unsigned long)LONG_MAX) + 1U;
@@ -201,7 +205,7 @@ builtin_function_table = [
                             ],
                         is_strict_signature = True)),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_long",
-                    utility_code = abs_int_utility_code,
+                    utility_code = abs_long_utility_code,
                     func_type = PyrexTypes.CFuncType(
                         PyrexTypes.c_ulong_type, [
                             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_long_type, None)
