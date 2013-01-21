@@ -47,6 +47,16 @@ def int_abs(int a):
     """
     return abs(a)
 
+@cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']")
+@cython.test_fail_if_path_exists("//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_int']",
+                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_long']")
+def uint_abs(unsigned int a):
+    """
+    >>> uint_abs(max_int) == abs(max_int)         or (max_int, uint_abs(max_int), abs(max_int))
+    True
+    """
+    return abs(a)
+
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_long']")
 def long_abs(long a):
@@ -60,6 +70,16 @@ def long_abs(long a):
     >>> long_abs(-max_long-1) == abs(-max_long-1)   or (max_long, long_abs(-max_long-1), abs(-max_long-1))
     True
     >>> long_abs(max_long) == abs(max_long)         or (max_long, long_abs(max_long), abs(max_long))
+    True
+    """
+    return abs(a)
+
+@cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']")
+@cython.test_fail_if_path_exists("//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_int']",
+                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_long']")
+def ulong_abs(unsigned long a):
+    """
+    >>> ulong_abs(max_long) == abs(max_long)         or (max_int, ulong_abs(max_long), abs(max_long))
     True
     """
     return abs(a)
