@@ -8435,13 +8435,16 @@ class PowNode(NumBinopNode):
                 self.pow_func = "<error>"
         elif self.type.is_float:
             self.pow_func = "pow" + self.type.math_h_modifier
-        else:
+        elif self.type.is_int:
             self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
             env.use_utility_code(
                 int_pow_utility_code.specialize(
                     func_name=self.pow_func,
                     type=self.type.declaration_code(''),
                     signed=self.type.signed and 1 or 0))
+        elif not self.type.is_error:
+            error(self.pos, "got unexpected types for C power operator: %s, %s" %
+                            (self.operand1.type, self.operand2.type))
 
     def calculate_result_code(self):
         # Work around MSVC overloading ambiguity.
