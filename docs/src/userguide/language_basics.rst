@@ -79,7 +79,7 @@ can group them into a :keyword:`cdef` block like this::
         Spam *p
 
         void f(Spam *s):
-        print s.tons, "Tons of spam"
+            print s.tons, "Tons of spam"
 
 
 Python functions vs. C functions
