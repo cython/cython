@@ -84,6 +84,8 @@ def ulong_abs(unsigned long a):
     """
     return abs(a)
 
+@cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
+                                "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_longlong']")
 def long_long_abs(long long a):
     """
     >>> long_long_abs(-(2**33)) == 2**33

@@ -35,6 +35,27 @@ static CYTHON_INLINE unsigned long __Pyx_abs_long(long x) {
 }
 ''')
 
+abs_longlong_utility_code = UtilityCode(
+    proto = '''
+static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
+#ifndef PY_LLONG_MAX
+#ifdef LLONG_MAX
+    const PY_LONG_LONG PY_LLONG_MAX = LLONG_MAX;
+#else
+    // copied from pyport.h in CPython 3.3, missing in 2.4
+    const PY_LONG_LONG PY_LLONG_MAX = (1 + 2 * ((1LL << (CHAR_BIT * sizeof(PY_LONG_LONG) - 2)) - 1));
+#endif
+#endif
+    if (unlikely(x == -PY_LLONG_MAX-1))
+        return ((unsigned PY_LONG_LONG)PY_LLONG_MAX) + 1U;
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    return (unsigned PY_LONG_LONG) llabs(x);
+#else
+    return (x<0) ? (unsigned PY_LONG_LONG)-x : (unsigned PY_LONG_LONG)x;
+#endif
+}
+''')
+
 iter_next_utility_code = UtilityCode.load_cached("IterNext", "ObjectHandling.c")
 
 getattr3_utility_code = UtilityCode(
@@ -210,6 +231,13 @@ builtin_function_table = [
                         PyrexTypes.c_ulong_type, [
                             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_long_type, None)
                             ],
+                        is_strict_signature = True)),
+    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
+                    utility_code = abs_longlong_utility_code,
+                    func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.c_ulonglong_type, [
+                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longlong_type, None)
+                        ],
                         is_strict_signature = True)),
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
