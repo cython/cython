@@ -1770,7 +1770,7 @@ class FuncDefNode(StatNode, BlockNode):
             # If we are using the non-error cleanup section we should
             # jump past it if we have an error. The if-test below determine
             # whether this section is used.
-            if buffers_present or is_getbuffer_slot:
+            if buffers_present or is_getbuffer_slot or self.return_type.is_memoryviewslice:
                 code.put_goto(code.return_from_error_cleanup_label)
 
         # ----- Non-error return cleanup
