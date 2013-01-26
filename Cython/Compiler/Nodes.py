@@ -6093,14 +6093,10 @@ class ExceptClauseNode(Node):
 
         if (not getattr(self.body, 'stats', True)
                 and self.excinfo_target is None
-                and (self.target is None or self.is_except_as)):
+                and self.target is None):
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
             code.putln("PyErr_Restore(0,0,0);")
-            if self.is_except_as and self.target:
-                # "except ... as x" deletes x after use
-                # target is known to be a NameNode
-                self.target.generate_deletion_code(code)
             code.put_goto(end_label)
             code.putln("}")
             return

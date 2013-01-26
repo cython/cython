@@ -384,6 +384,22 @@ def except_as_raise_deletes_target(x, a):
     print(b)  # raises UnboundLocalError if except clause was executed
     return i
 
+def except_as_raise_with_empty_except(x, a):
+    """
+    >>> except_as_raise_with_empty_except(None, TypeError)
+    >>> except_as_raise_with_empty_except(TypeError('test'), TypeError)
+    >>> except_as_raise_with_empty_except(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_with_empty_except(None, TypeError)
+    """
+    try:
+        if x:
+            raise x
+        b = 1
+    except a as b:  # previously raised UnboundLocalError
+        pass
+
 def except_as_deletes_target_in_gen(x, a):
     """
     >>> list(except_as_deletes_target_in_gen(None, TypeError))
