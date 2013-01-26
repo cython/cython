@@ -381,8 +381,35 @@ def except_as_raise_deletes_target(x, a):
     except a as b:
         i = 2
         assert isinstance(b, a)
-    print(b)  # raises NameError if except clause was executed
+    print(b)  # raises UnboundLocalError if except clause was executed
     return i
+
+def except_as_deletes_target_in_gen(x, a):
+    """
+    >>> list(except_as_deletes_target_in_gen(None, TypeError))
+    [(1, 1), (2, 1), (5, 1)]
+    >>> list(except_as_deletes_target_in_gen(TypeError('test'), TypeError))
+    [(1, 1), 3, 6]
+    >>> list(except_as_deletes_target_in_gen(ValueError('test'), TypeError))
+    [(1, 1), (4, 1), (5, 1)]
+    """
+    b = 1
+    try:
+        i = 1
+        yield (1, b)
+        if x:
+            raise x
+        yield (2, b)
+    except a as b:
+        i = 2
+        assert isinstance(b, a)
+        yield 3
+    except:
+        yield (4, b)
+    try:
+        yield (5, b)
+    except UnboundLocalError:
+        yield 6
 
 def complete_except_as_no_raise(a, b):
     """
