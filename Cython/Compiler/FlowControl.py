@@ -1098,8 +1098,6 @@ class ControlFlowAnalysis(CythonTransform):
             if clause.target:
                 self.mark_assignment(clause.target)
             self.visit(clause.body)
-            if clause.is_except_as:
-                self.flow.mark_deletion(clause.target, clause.target.entry)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
 

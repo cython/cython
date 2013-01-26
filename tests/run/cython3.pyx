@@ -62,6 +62,19 @@ no_match_does_not_touch_target = (e == 123)
 
 ### more except-as tests
 
+def except_as_no_raise_does_not_touch_target(a):
+    """
+    >>> except_as_no_raise_does_not_touch_target(TypeError)
+    (1, 1)
+    """
+    b = 1
+    try:
+        i = 1
+    except a as b:
+        i = 2
+    return i, b
+
+
 def except_as_raise_deletes_target(x, a):
     """
     >>> except_as_raise_deletes_target(None, TypeError)
@@ -89,14 +102,79 @@ def except_as_raise_deletes_target(x, a):
     return i
 
 
+def except_as_raise_deletes_target_even_after_del(x, a):
+    """
+    >>> except_as_raise_deletes_target_even_after_del(None, TypeError)
+    1
+    1
+    >>> except_as_raise_deletes_target_even_after_del(TypeError('test'), TypeError)
+    2
+    >>> except_as_raise_deletes_target_even_after_del(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_deletes_target_even_after_del(None, TypeError)
+    1
+    1
+    """
+    b = 1
+    try:
+        i = 1
+        if x:
+            raise x
+    except a as b:
+        i = 2
+        assert isinstance(b, a)
+        del b  # let's see if Cython can still 'del' it after this line!
+    try:
+        print(b)  # raises UnboundLocalError if except clause was executed
+    except UnboundLocalError:
+        pass
+    else:
+        if x:
+            print("UnboundLocalError not raised!")
+    return i
+
+
+def except_as_raise_deletes_target_on_error(x, a):
+    """
+    >>> except_as_raise_deletes_target_on_error(None, TypeError)
+    1
+    1
+    >>> except_as_raise_deletes_target_on_error(TypeError('test'), TypeError)
+    Traceback (most recent call last):
+    UnboundLocalError: local variable 'b' referenced before assignment
+    >>> except_as_raise_deletes_target_on_error(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_deletes_target_on_error(None, TypeError)
+    1
+    1
+    """
+    b = 1
+    try:
+        try:
+            i = 1
+            if x:
+                raise x
+        except a as b:
+            i = 2
+            raise IndexError("TEST")
+    except IndexError as e:
+        assert 'TEST' in str(e), str(e)
+    print(b)  # raises UnboundLocalError if except clause was executed
+    return i
+
+
 def except_as_raise_with_empty_except(x, a):
     """
     >>> except_as_raise_with_empty_except(None, TypeError)
+    1
     >>> except_as_raise_with_empty_except(TypeError('test'), TypeError)
     >>> except_as_raise_with_empty_except(ValueError('test'), TypeError)
     Traceback (most recent call last):
     ValueError: test
     >>> except_as_raise_with_empty_except(None, TypeError)
+    1
     """
     try:
         if x:
@@ -104,6 +182,14 @@ def except_as_raise_with_empty_except(x, a):
         b = 1
     except a as b:  # previously raised UnboundLocalError
         pass
+    try:
+        print(b)  # raises UnboundLocalError if except clause was executed
+    except UnboundLocalError:
+        if not x:
+            print("unexpected UnboundLocalError raised!")
+    else:
+        if x:
+            print("expected UnboundLocalError not raised!")
 
 
 def except_as_deletes_target_in_gen(x, a):

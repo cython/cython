@@ -569,7 +569,7 @@ class ExprNode(Node):
         #  been reported earlier.
         pass
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         #  Stub method for nodes that are not legal as
         #  the argument of a del statement. An error
         #  will have been reported earlier.
@@ -1853,30 +1853,46 @@ class NameNode(AtomicExprNode):
             code.putln("%s = 0;" % rhstmp)
             code.funcstate.release_temp(rhstmp)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         if self.entry is None:
             return # There was an error earlier
         elif self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
-            code.put_error_if_neg(self.pos,
-                'PyObject_DelItem(%s, %s)' % (
-                    namespace,
-                    interned_cname))
+            del_code = 'PyObject_DelItem(%s, %s)' % (namespace, interned_cname)
+            if ignore_nonexisting:
+                code.putln('if (unlikely(%s < 0)) { if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) PyErr_Clear(); else %s }' % (
+                    del_code,
+                    code.error_goto(self.pos)))
+            else:
+                code.put_error_if_neg(self.pos, del_code)
         elif self.entry.is_pyglobal:
-            code.put_error_if_neg(self.pos,
-                '__Pyx_DelAttrString(%s, "%s")' % (
-                    Naming.module_cname,
-                    self.entry.name))
+            py_name = code.get_py_string_const(
+                self.entry.name, is_str=True, identifier=True)
+            del_code = 'PyObject_DelAttr(%s, %s)' % (
+                Naming.module_cname, py_name)
+            if ignore_nonexisting:
+                code.putln('if (unlikely(%s < 0)) { if (likely(PyErr_ExceptionMatches(PyExc_AttributeError))) PyErr_Clear(); else %s }' % (
+                    del_code,
+                    code.error_goto(self.pos)))
+            else:
+                code.put_error_if_neg(self.pos, del_code)
         elif self.entry.type.is_pyobject or self.entry.type.is_memoryviewslice:
             if not self.cf_is_null:
-                if self.cf_maybe_null:
+                if self.cf_maybe_null and not ignore_nonexisting:
                     code.put_error_if_unbound(self.pos, self.entry)
 
                 if self.entry.type.is_pyobject:
                     if self.entry.in_closure:
-                        code.put_gotref(self.result()) # generator
-                    code.put_decref(self.result(), self.ctype())
+                        # generator
+                        if ignore_nonexisting and self.cf_maybe_null:
+                            code.put_xgotref(self.result())
+                        else:
+                            code.put_gotref(self.result())
+                    if ignore_nonexisting and self.cf_maybe_null:
+                        code.put_xdecref(self.result(), self.ctype())
+                    else:
+                        code.put_decref(self.result(), self.ctype())
                     code.putln('%s = NULL;' % self.result())
                 else:
                     code.put_xdecref_memoryviewslice(self.entry.cname,
@@ -3221,7 +3237,7 @@ class IndexNode(ExprNode):
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         self.generate_subexpr_evaluation_code(code)
         #if self.type.is_pyobject:
         if self.index.type.is_int:
@@ -3513,7 +3529,7 @@ class SliceIndexNode(ExprNode):
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         if not self.base.type.is_pyobject:
             error(self.pos,
                   "Deleting slices is only supported for Python types, not '%s'." % self.type)
@@ -4846,7 +4862,7 @@ class AttributeNode(ExprNode):
         self.obj.generate_disposal_code(code)
         self.obj.free_temps(code)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr or (isinstance(self.entry.scope, Symtab.PropertyScope)
                                and u'__del__' in self.entry.scope.entries):

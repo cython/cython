@@ -332,6 +332,25 @@ class PostParse(ScopeTrackingTransform):
         node.args = self._flatten_sequence(node, [])
         return node
 
+    def visit_ExceptClauseNode(self, node):
+        if node.is_except_as:
+            # except-as must delete NameNode target at the end
+            del_target = Nodes.DelStatNode(
+                node.pos,
+                args=[ExprNodes.NameNode(
+                    node.target.pos, name=node.target.name)],
+                ignore_nonexisting=True)
+            node.body = Nodes.StatListNode(
+                node.pos,
+                stats=[Nodes.TryFinallyStatNode(
+                    node.pos,
+                    body=node.body,
+                    finally_clause=Nodes.StatListNode(
+                        node.pos,
+                        stats=[del_target]))])
+        self.visitchildren(node)
+        return node
+
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     """Replace rhs items by LetRefNodes if they appear more than once.

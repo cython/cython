@@ -4774,6 +4774,7 @@ class DelStatNode(StatNode):
     #  args     [ExprNode]
 
     child_attrs = ["args"]
+    ignore_nonexisting = False
 
     def analyse_declarations(self, env):
         for arg in self.args:
@@ -4803,7 +4804,8 @@ class DelStatNode(StatNode):
     def generate_execution_code(self, code):
         for arg in self.args:
             if arg.type.is_pyobject or arg.type.is_memoryviewslice:
-                arg.generate_deletion_code(code)
+                arg.generate_deletion_code(
+                    code, ignore_nonexisting=self.ignore_nonexisting)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
                 arg.generate_result_code(code)
                 code.putln("delete %s;" % arg.result())
@@ -6136,10 +6138,6 @@ class ExceptClauseNode(Node):
             self.excinfo_tuple.generate_disposal_code(code)
         for var in exc_vars:
             code.put_decref_clear(var, py_object_type)
-        if self.is_except_as and self.target:
-            # "except ... as x" deletes x after use
-            # target is known to be a NameNode
-            self.target.generate_deletion_code(code)
         code.put_goto(end_label)
 
         for new_label, old_label in [(code.break_label, old_break_label),
@@ -6150,8 +6148,6 @@ class ExceptClauseNode(Node):
                     self.excinfo_tuple.generate_disposal_code(code)
                 for var in exc_vars:
                     code.put_decref_clear(var, py_object_type)
-                if self.is_except_as and self.target:
-                    self.target.generate_deletion_code(code)
                 code.put_goto(old_label)
         code.break_label = old_break_label
         code.continue_label = old_continue_label
