@@ -28,6 +28,9 @@ Features added
 Bugs fixed
 ----------
 
+* Automatic C++ exception mapping didn't work in nogil functions (only in
+  "with nogil" blocks).
+
 Other changes
 -------------
 
