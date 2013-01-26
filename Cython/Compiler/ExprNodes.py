@@ -4110,21 +4110,23 @@ class SimpleCallNode(CallNode):
                     lhs = ""
                 if func_type.exception_check == '+':
                     if func_type.exception_value is None:
-                        raise_py_exception = "__Pyx_CppExn2PyErr()"
+                        raise_py_exception = "__Pyx_CppExn2PyErr();"
                     elif func_type.exception_value.type.is_pyobject:
-                        raise_py_exception = ' try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
+                        raise_py_exception = 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
                             func_type.exception_value.entry.cname,
                             func_type.exception_value.entry.cname)
                     else:
-                        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.")' % func_type.exception_value.entry.cname
+                        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % func_type.exception_value.entry.cname
+                    code.putln("try {")
+                    code.putln("%s%s;" % (lhs, rhs))
+                    code.putln("} catch(...) {")
                     if self.nogil:
-                        raise_py_exception = 'Py_BLOCK_THREADS; %s; Py_UNBLOCK_THREADS' % raise_py_exception
-                    code.putln(
-                    "try {%s%s;} catch(...) {%s; %s}" % (
-                        lhs,
-                        rhs,
-                        raise_py_exception,
-                        code.error_goto(self.pos)))
+                        code.put_ensure_gil(declare_gilstate=True)
+                    code.putln(raise_py_exception)
+                    if self.nogil:
+                        code.put_release_ensured_gil()
+                    code.putln(code.error_goto(self.pos))
+                    code.putln("}")
                 else:
                     if exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
