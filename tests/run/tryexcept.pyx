@@ -343,6 +343,47 @@ def except_as_raise(x, a):
         assert isinstance(b, a)
     return i
 
+def except_as_no_raise_does_not_touch_target(a):
+    """
+    >>> i,b = except_as_no_raise_does_not_touch_target(TypeError)
+    >>> i
+    1
+    >>> b
+    1
+    """
+    b = 1
+    try:
+        i = 1
+    except a as b:
+        i = 2
+    return i, b
+
+def except_as_raise_deletes_target(x, a):
+    """
+    >>> except_as_raise_deletes_target(None, TypeError)
+    1
+    1
+    >>> except_as_raise_deletes_target(TypeError('test'), TypeError)
+    Traceback (most recent call last):
+    UnboundLocalError: local variable 'b' referenced before assignment
+    >>> except_as_raise_deletes_target(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_deletes_target(None, TypeError)
+    1
+    1
+    """
+    b = 1
+    try:
+        i = 1
+        if x:
+            raise x
+    except a as b:
+        i = 2
+        assert isinstance(b, a)
+    print(b)  # raises NameError if except clause was executed
+    return i
+
 def complete_except_as_no_raise(a, b):
     """
     >>> complete_except_as_no_raise(TypeError, ValueError)

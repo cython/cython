@@ -6033,6 +6033,7 @@ class ExceptClauseNode(Node):
     #  exc_value      ExcValueNode       used internally
     #  function_name  string             qualified name of enclosing function
     #  exc_vars       (string * 3)       local exception variables
+    #  is_except_as   bool               Py3-style "except ... as xyz"
 
     # excinfo_target is never set by the parser, but can be set by a transform
     # in order to extract more extensive information about the exception as a
@@ -6042,6 +6043,7 @@ class ExceptClauseNode(Node):
 
     exc_value = None
     excinfo_target = None
+    is_except_as = False
 
     def analyse_declarations(self, env):
         if self.target:
@@ -6089,11 +6091,16 @@ class ExceptClauseNode(Node):
         else:
             code.putln("/*except:*/ {")
 
-        if not getattr(self.body, 'stats', True) and \
-                self.excinfo_target is None and self.target is None:
+        if (not getattr(self.body, 'stats', True)
+                and self.excinfo_target is None
+                and (self.target is None or self.is_except_as)):
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
             code.putln("PyErr_Restore(0,0,0);")
+            if self.is_except_as and self.target:
+                # "except ... as x" deletes x after use
+                # target is known to be a NameNode
+                self.target.generate_deletion_code(code)
             code.put_goto(end_label)
             code.putln("}")
             return
@@ -6133,6 +6140,10 @@ class ExceptClauseNode(Node):
             self.excinfo_tuple.generate_disposal_code(code)
         for var in exc_vars:
             code.put_decref_clear(var, py_object_type)
+        if self.is_except_as and self.target:
+            # "except ... as x" deletes x after use
+            # target is known to be a NameNode
+            self.target.generate_deletion_code(code)
         code.put_goto(end_label)
 
         if code.label_used(code.break_label):
@@ -6141,6 +6152,8 @@ class ExceptClauseNode(Node):
                 self.excinfo_tuple.generate_disposal_code(code)
             for var in exc_vars:
                 code.put_decref_clear(var, py_object_type)
+            if self.is_except_as and self.target:
+                self.target.generate_deletion_code(code)
             code.put_goto(old_break_label)
         code.break_label = old_break_label
 
@@ -6150,6 +6163,8 @@ class ExceptClauseNode(Node):
                 self.excinfo_tuple.generate_disposal_code(code)
             for var in exc_vars:
                 code.put_decref_clear(var, py_object_type)
+            if self.is_except_as and self.target:
+                self.target.generate_deletion_code(code)
             code.put_goto(old_continue_label)
         code.continue_label = old_continue_label
 

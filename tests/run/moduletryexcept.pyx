@@ -13,6 +13,11 @@ __doc__ = u"""
 'ValueError'
 >>> exc[3] is val
 True
+
+>>> except_as_deletes
+True
+>>> no_match_does_not_delete
+True
 """
 
 a = 0
@@ -48,8 +53,9 @@ except KeyError       as e:
 except IndexError     as e:
     exc[0] = e
 except:
-    exc[0] = e
+    exc[0] = 'SOMETHING ELSE'
 
+e = None
 try:
     raise KeyError
 except AttributeError as e:
@@ -59,7 +65,23 @@ except KeyError       as e:
 except IndexError     as e:
     exc[1] = e
 except:
-    exc[1] = e
+    exc[1] = 'SOMETHING ELSE'
+
+try:
+    e
+except NameError:
+    except_as_deletes = True
+else:
+    except_as_deletes = False
+
+e = 123
+try:
+    raise TypeError
+except NameError as e:
+    pass
+except TypeError:
+    pass
+no_match_does_not_delete = (e == 123)
 
 try:
     raise IndexError
@@ -70,7 +92,7 @@ except KeyError       as e:
 except IndexError     as e:
     exc[2] = e
 except:
-    exc[2] = e
+    exc[2] = 'SOMETHING ELSE'
 
 val = None
 try:

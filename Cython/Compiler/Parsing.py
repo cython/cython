@@ -1565,6 +1565,7 @@ def p_except_clause(s):
     s.next()
     exc_type = None
     exc_value = None
+    is_except_as = False
     if s.sy != ':':
         exc_type = p_test(s)
         # normalise into list of single exception tests
@@ -1572,7 +1573,7 @@ def p_except_clause(s):
             exc_type = exc_type.args
         else:
             exc_type = [exc_type]
-        if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'):
+        if s.sy == ',':
             s.next()
             exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
@@ -1581,9 +1582,11 @@ def p_except_clause(s):
             pos2 = s.position()
             name = p_ident(s)
             exc_value = ExprNodes.NameNode(pos2, name = name)
+            is_except_as = True
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
-        pattern = exc_type, target = exc_value, body = body)
+        pattern = exc_type, target = exc_value,
+        body = body, is_except_as=is_except_as)
 
 def p_include_statement(s, ctx):
     pos = s.position()
