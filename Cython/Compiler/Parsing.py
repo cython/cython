@@ -1573,7 +1573,8 @@ def p_except_clause(s):
             exc_type = exc_type.args
         else:
             exc_type = [exc_type]
-        if s.sy == ',':
+        if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'
+                           and s.context.language_level == 2):
             s.next()
             exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':

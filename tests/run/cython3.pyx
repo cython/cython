@@ -1,6 +1,6 @@
 # cython: language_level=3
 # mode: run
-# tag: generators, python3
+# tag: generators, python3, exceptions
 
 cimport cython
 
@@ -11,6 +11,11 @@ __doc__ = """
 a = 1
 b = 2
 x = u'abc'
+
+>>> except_as_deletes
+True
+>>> no_match_does_not_touch_target
+True
 """
 
 import sys
@@ -22,12 +27,122 @@ def locals_function(a, b=2):
     return locals()
 
 
+### module level except-as tests
+
+exc = [None]
+e = None
+try:
+    raise KeyError
+except AttributeError as e:
+    exc[0] = e
+except KeyError       as e:
+    exc[0] = e
+except IndexError     as e:
+    exc[0] = e
+except:
+    exc[0] = 'SOMETHING ELSE'
+
+try:
+    e
+except NameError:
+    except_as_deletes = True
+else:
+    except_as_deletes = False
+
+
+e = 123
+try:
+    raise TypeError
+except NameError as e:
+    pass
+except TypeError:
+    pass
+no_match_does_not_touch_target = (e == 123)
+
+
+### more except-as tests
+
+def except_as_raise_deletes_target(x, a):
+    """
+    >>> except_as_raise_deletes_target(None, TypeError)
+    1
+    1
+    >>> except_as_raise_deletes_target(TypeError('test'), TypeError)
+    Traceback (most recent call last):
+    UnboundLocalError: local variable 'b' referenced before assignment
+    >>> except_as_raise_deletes_target(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_deletes_target(None, TypeError)
+    1
+    1
+    """
+    b = 1
+    try:
+        i = 1
+        if x:
+            raise x
+    except a as b:
+        i = 2
+        assert isinstance(b, a)
+    print(b)  # raises UnboundLocalError if except clause was executed
+    return i
+
+
+def except_as_raise_with_empty_except(x, a):
+    """
+    >>> except_as_raise_with_empty_except(None, TypeError)
+    >>> except_as_raise_with_empty_except(TypeError('test'), TypeError)
+    >>> except_as_raise_with_empty_except(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_with_empty_except(None, TypeError)
+    """
+    try:
+        if x:
+            raise x
+        b = 1
+    except a as b:  # previously raised UnboundLocalError
+        pass
+
+
+def except_as_deletes_target_in_gen(x, a):
+    """
+    >>> list(except_as_deletes_target_in_gen(None, TypeError))
+    [(1, 1), (2, 1), (5, 1)]
+    >>> list(except_as_deletes_target_in_gen(TypeError('test'), TypeError))
+    [(1, 1), 3, 6]
+    >>> list(except_as_deletes_target_in_gen(ValueError('test'), TypeError))
+    [(1, 1), (4, 1), (5, 1)]
+    """
+    b = 1
+    try:
+        i = 1
+        yield (1, b)
+        if x:
+            raise x
+        yield (2, b)
+    except a as b:
+        i = 2
+        assert isinstance(b, a)
+        yield 3
+    except:
+        yield (4, b)
+    try:
+        yield (5, b)
+    except UnboundLocalError:
+        yield 6
+
+
+### Py3 feature tests
+
 def print_function(*args):
     """
     >>> print_function(1,2,3)
     1 2 3
     """
     print(*args) # this isn't valid Py2 syntax
+
 
 def exec3_function(cmd):
     """

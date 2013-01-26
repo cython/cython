@@ -14,9 +14,9 @@ __doc__ = u"""
 >>> exc[3] is val
 True
 
->>> except_as_deletes
-True
->>> no_match_does_not_delete
+>>> except_as_deletes   # Py2 behaviour
+False
+>>> no_match_does_not_touch_target
 True
 """
 
@@ -81,7 +81,7 @@ except NameError as e:
     pass
 except TypeError:
     pass
-no_match_does_not_delete = (e == 123)
+no_match_does_not_touch_target = (e == 123)
 
 try:
     raise IndexError
