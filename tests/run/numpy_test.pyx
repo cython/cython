@@ -303,7 +303,7 @@ def three_dim():
 
 def obj_array():
     cdef object[object, ndim=1] buf = np.array(["a", 1, {}])
-    print buf
+    print str(buf).replace('"', '').replace("'", '')
     print buf[0], buf[1], buf[2]
 
 
