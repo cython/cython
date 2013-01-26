@@ -6146,26 +6146,18 @@ class ExceptClauseNode(Node):
             self.target.generate_deletion_code(code)
         code.put_goto(end_label)
 
-        if code.label_used(code.break_label):
-            code.put_label(code.break_label)
-            if self.excinfo_target is not None:
-                self.excinfo_tuple.generate_disposal_code(code)
-            for var in exc_vars:
-                code.put_decref_clear(var, py_object_type)
-            if self.is_except_as and self.target:
-                self.target.generate_deletion_code(code)
-            code.put_goto(old_break_label)
+        for new_label, old_label in [(code.break_label, old_break_label),
+                                     (code.continue_label, old_continue_label)]:
+            if code.label_used(new_label):
+                code.put_label(new_label)
+                if self.excinfo_target is not None:
+                    self.excinfo_tuple.generate_disposal_code(code)
+                for var in exc_vars:
+                    code.put_decref_clear(var, py_object_type)
+                if self.is_except_as and self.target:
+                    self.target.generate_deletion_code(code)
+                code.put_goto(old_label)
         code.break_label = old_break_label
-
-        if code.label_used(code.continue_label):
-            code.put_label(code.continue_label)
-            if self.excinfo_target is not None:
-                self.excinfo_tuple.generate_disposal_code(code)
-            for var in exc_vars:
-                code.put_decref_clear(var, py_object_type)
-            if self.is_except_as and self.target:
-                self.target.generate_deletion_code(code)
-            code.put_goto(old_continue_label)
         code.continue_label = old_continue_label
 
         if self.excinfo_target is not None:
