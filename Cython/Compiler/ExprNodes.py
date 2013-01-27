@@ -1867,10 +1867,9 @@ class NameNode(AtomicExprNode):
             else:
                 code.put_error_if_neg(self.pos, del_code)
         elif self.entry.is_pyglobal:
-            py_name = code.get_py_string_const(
-                self.entry.name, is_str=True, identifier=True)
+            interned_cname = code.intern_identifier(self.entry.name)
             del_code = 'PyObject_DelAttr(%s, %s)' % (
-                Naming.module_cname, py_name)
+                Naming.module_cname, interned_cname)
             if ignore_nonexisting:
                 code.putln('if (unlikely(%s < 0)) { if (likely(PyErr_ExceptionMatches(PyExc_AttributeError))) PyErr_Clear(); else %s }' % (
                     del_code,
