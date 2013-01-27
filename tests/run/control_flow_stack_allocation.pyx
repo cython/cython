@@ -21,8 +21,11 @@ cdef stack_alloc_test(int[2] array_arg, S struct_arg):
 
 def test():
     """
-    >>> test()
-    ([0, 1], {'y': 2.0, 'x': 1})
+    >>> a,d = test()
+    >>> a
+    [0, 1]
+    >>> sorted(d.items())
+    [('x', 1), ('y', 2.0)]
     """
     cdef int[2] array_var
     cdef S struct_var
