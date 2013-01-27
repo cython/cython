@@ -2077,7 +2077,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
+        code.putln("#if PY_VERSION_HEX < 0x03020000")
+        # fix C compiler warnings due to missing initialisers
+        code.putln("  { PyObject_HEAD_INIT(NULL) NULL, 0, NULL },")
+        code.putln("#else")
         code.putln("  PyModuleDef_HEAD_INIT,")
+        code.putln("#endif")
         code.putln('  __Pyx_NAMESTR("%s"),' % env.module_name)
         code.putln("  %s, /* m_doc */" % doc)
         code.putln("  -1, /* m_size */")
