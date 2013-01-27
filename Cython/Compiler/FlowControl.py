@@ -16,7 +16,8 @@ from Errors import error, warning, InternalError
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.
-    def __init__(self, type, may_be_none=None):
+    def __init__(self, type, may_be_none=None, pos=None):
+        self.pos = pos
         self.type = type
         self._may_be_none = may_be_none
 
@@ -147,12 +148,18 @@ class ControlFlow(object):
     def is_tracked(self, entry):
         if entry.is_anonymous:
             return False
-        if (entry.type.is_array or entry.type.is_struct_or_union or
-                entry.type.is_cpp_class):
-            return False
         return (entry.is_local or entry.is_pyclass_attr or entry.is_arg or
                 entry.from_closure or entry.in_closure or
                 entry.error_on_uninitialized)
+
+    def is_statically_assigned(self, entry):
+        if (entry.is_local and entry.is_variable and
+                (entry.type.is_struct_or_union or
+                 entry.type.is_array or
+                 entry.type.is_cpp_class)):
+            # stack allocated structured variable => never uninitialised
+            return True
+        return False
 
     def mark_position(self, node):
         """Mark position, will be used to draw graph nodes."""
@@ -252,7 +259,9 @@ class ControlFlow(object):
         ret = set()
         assmts = self.assmts[entry]
         if istate & assmts.bit:
-            if entry.from_closure:
+            if self.is_statically_assigned(entry):
+                ret.add(StaticAssignment(entry))
+            elif entry.from_closure:
                 ret.add(Unknown)
             else:
                 ret.add(Uninitialized)
@@ -318,6 +327,24 @@ class NameAssignment(object):
 
     def type_dependencies(self, scope):
         return self.rhs.type_dependencies(scope)
+
+
+class StaticAssignment(NameAssignment):
+    """Initialised at declaration time, e.g. stack allocation."""
+    def __init__(self, entry):
+        if not entry.type.is_pyobject:
+            may_be_none = False
+        else:
+            may_be_none = None  # unknown
+        lhs = TypedExprNode(
+            entry.type, may_be_none=may_be_none, pos=entry.pos)
+        super(StaticAssignment, self).__init__(lhs, lhs, entry)
+
+    def infer_type(self, scope):
+        return self.entry.type
+
+    def type_dependencies(self, scope):
+        return []
 
 
 class Argument(NameAssignment):
