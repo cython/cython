@@ -476,8 +476,16 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
 #if CYTHON_COMPILING_IN_PYPY
     float_value = PyNumber_Float(obj);
 #else
-    if (Py_TYPE(obj)->tp_as_number && Py_TYPE(obj)->tp_as_number->nb_float) {
-        return PyFloat_AsDouble(obj);
+    PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
+    if (likely(nb) && likely(nb->nb_float)) {
+        float_value = nb->nb_float(obj);
+        if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
+            PyErr_Format(PyExc_TypeError,
+                "__float__ returned non-float (type %.200s)",
+                Py_TYPE(float_value)->tp_name);
+            Py_DECREF(float_value);
+            goto bad;
+        }
     } else if (PyUnicode_CheckExact(obj) || PyBytes_CheckExact(obj)) {
 #if PY_MAJOR_VERSION >= 3
         float_value = PyFloat_FromString(obj);
