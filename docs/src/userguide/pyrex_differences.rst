@@ -245,6 +245,11 @@ type checking. Cython supports the syntax ``<MyExtensionType?>`` to do the cast
 with type checking (i.e. it will throw an error if ``x`` is not a (subclass of)
 :c:type:`MyExtensionType`.
 
+.. note::
+
+    Use caution when trying to coerce a pointer to ``<object>``: Cython will
+    immediately try to increment the refcount, which leads to confusing segfaults.
+
 Optional arguments in cdef/cpdef functions
 ============================================
 
