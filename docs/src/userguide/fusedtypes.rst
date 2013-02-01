@@ -243,7 +243,7 @@ Although the latter will select the biggest types for ``int`` and ``float`` from
 Python space, as they are not type identifiers but builtin types there. Passing
 ``cython.int`` and ``cython.float`` would resolve that, however.
 
-For memoryview indexing from python space we can do the following:
+For memoryview indexing from python space we can do the following::
 
     ctypedef fused my_fused_type:
         int[:, ::1]
