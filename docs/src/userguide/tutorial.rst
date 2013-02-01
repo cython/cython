@@ -63,7 +63,7 @@ interpreter and simply import it as if it was a regular python module::
     >>> import helloworld
     Hello World
 
-Congratulations! You now know how to build a Cython extension. But So Far
+Congratulations! You now know how to build a Cython extension. But so far
 this example doesn't really give a feeling why one would ever want to use Cython, so
 lets create a more realistic example.
 

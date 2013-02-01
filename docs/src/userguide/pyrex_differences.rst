@@ -16,20 +16,20 @@ Differences between Cython and Pyrex
     and complete as Python as reasonable. 
 
 
-Python 3.0 Support
-==================
+Python 3 Support
+================
 
-Cython creates ``.c`` files that can be built and used with both 
-Python 2.x and Python 3.x. In fact, compiling your module with 
-Cython may very well be the easiest way to port code to Python 3.0. 
-We are also working to make the compiler run in both Python 2.x and 3.0. 
+Cython creates ``.c`` files that can be built and used with both
+Python 2.x and Python 3.x. In fact, compiling your module with
+Cython may very well be the easiest way to port code to Python 3.
+We are also working to make the compiler run in both Python 2.x and 3.x.
 
-Many Python 3 constructs are already supported by Cython. 
+Many Python 3 constructs are already supported by Cython.
 
 List/Set/Dict Comprehensions
 ----------------------------
 
-Cython supports the different comprehensions defined by Python 3.0 for
+Cython supports the different comprehensions defined by Python 3 for
 lists, sets and dicts::
 
        [expr(x) for x in A]             # list
@@ -68,7 +68,7 @@ takes exactly two positional parameters and has two required keyword parameters.
 
 
 
-Conditional expressions "x if b else y" (python 2.5)
+Conditional expressions "x if b else y" (Python 2.5)
 =====================================================
 
 Conditional expressions as described in
@@ -76,7 +76,7 @@ http://www.python.org/dev/peps/pep-0308/::
 
     X if C else Y
        
-Only one of ``X`` and ``Y`` is evaluated, (depending on the value of C). 
+Only one of ``X`` and ``Y`` is evaluated (depending on the value of C).
 
 
 .. _inline:

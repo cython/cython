@@ -18,13 +18,13 @@ Cython Profiling Basics
 =======================
 
 Profiling in Cython is controlled by a compiler directive. 
-It can either be set either for an entire file or on a per function
+It can be set either for an entire file or on a per function basis
 via a Cython decorator.
 
-Enable profiling for a complete source file
--------------------------------------------
+Enabling profiling for a complete source file
+---------------------------------------------
 
-Profiling is enable for a complete source file via a global directive to the
+Profiling is enabled for a complete source file via a global directive to the
 Cython compiler at the top of a file::
    
    # cython: profile=True
