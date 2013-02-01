@@ -37,14 +37,14 @@ function on floating point numbers::
 
   cdef class Function:
       cpdef double evaluate(self, double x) except *:
-	  return 0
+          return 0
 
 Like before, cpdef makes two versions of the method available; one
 fast for use from Cython and one slower for use from Python. Then::
 
   cdef class SinOfSquareFunction(Function):
       cpdef double evaluate(self, double x) except *:
-	  return sin(x**2)
+          return sin(x**2)
 
 Using this, we can now change our integration example::
 
@@ -134,8 +134,8 @@ Attributes in cdef classes behave differently from attributes in regular classes
       cdef public double freq
       # Available in Python-space:
       property period:
-	  def __get__(self):
-              return 1.0 / self. freq
-	  def __set__(self, value):
-              self. freq = 1.0 / value
+          def __get__(self):
+              return 1.0 / self.freq
+          def __set__(self, value):
+              self.freq = 1.0 / value
       <...>

@@ -27,8 +27,8 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
         float volume
 
     cdef union Food:
-        char *spam
-        float *eggs
+        char* spam
+        float* eggs
 
     cdef enum CheeseType:
         cheddar, edam, 
@@ -42,7 +42,7 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
 See also :ref:`struct-union-enum-styles`
 
 There is currently no special syntax for defining a constant, but you can use
-an anonymous :keyword:`enum` declaration for this purpose, for example,::
+an anonymous :keyword:`enum` declaration for this purpose, for example::
 
     cdef enum:
         tons_of_spam = 3
@@ -52,17 +52,17 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
     defining a type, not when referring to it. For example, to declare a variable
     pointing to a ``Grail`` you would write::
 
-        cdef Grail *gp
+        cdef Grail* gp
 
     and not::
 
-        cdef struct Grail *gp # WRONG
+        cdef struct Grail* gp # WRONG
 
     There is also a ``ctypedef`` statement for giving names to types, e.g.::
 
         ctypedef unsigned long ULong
 
-        ctypedef int *IntPtr
+        ctypedef int* IntPtr
 
 Grouping multiple C declarations
 --------------------------------
@@ -76,9 +76,9 @@ can group them into a :keyword:`cdef` block like this::
 
         int i
         float f
-        Spam *p
+        Spam* p
 
-        void f(Spam *s):
+        void f(Spam* s):
             print s.tons, "Tons of spam"
 
 
@@ -103,9 +103,9 @@ can be called from anywhere, but uses the faster C calling conventions
 when being called from other Cython code. 
 
 Parameters of either type of function can be declared to have C data types,
-using normal C declaration syntax. For example,::
+using normal C declaration syntax. For example::
 
-    def spam(int i, char *s):
+    def spam(int i, char* s):
         ...
 
     cdef int eggs(unsigned long l, float f):
@@ -144,7 +144,7 @@ parameters and a new reference is returned).
 
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
-as the name of a type, for example,::
+as the name of a type, for example::
 
     cdef ftang(object int):
         ...
@@ -220,7 +220,7 @@ Some things to note:
   example of a pointer-to-function declaration with an exception
   value::
 
-      int (*grail)(int, char *) except -1
+      int (*grail)(int, char*) except -1
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
@@ -234,16 +234,16 @@ It's important to understand that the except clause does not cause an error to
 be raised when the specified value is returned. For example, you can't write
 something like::
 
-    cdef extern FILE *fopen(char *filename, char *mode) except NULL # WRONG!
+    cdef extern FILE *fopen(char* filename, char* mode) except NULL # WRONG!
 
 and expect an exception to be automatically raised if a call to :func:`fopen`
 returns ``NULL``. The except clause doesn't work that way; its only purpose is
 for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
-return value and raise it yourself, for example,::
+return value and raise it yourself, for example::
 
-    cdef FILE *p
+    cdef FILE* p
     p = fopen("spam.txt", "r")
     if p == NULL:
         raise SpamError("Couldn't open the spam file")
@@ -270,7 +270,7 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | float, double, long double | int, long, float   | float            |
 +----------------------------+--------------------+------------------+
-| char *                     | str/bytes          | str/bytes [#]_   |
+| char*                      | str/bytes          | str/bytes [#]_   |
 +----------------------------+--------------------+------------------+
 | struct                     |                    | dict             |
 +----------------------------+--------------------+------------------+
@@ -281,7 +281,7 @@ Caveats when using a Python string in a C context
 -------------------------------------------------
 
 You need to be careful when using a Python string in a context expecting a
-``char *``. In this situation, a pointer to the contents of the Python string is
+``char*``. In this situation, a pointer to the contents of the Python string is
 used, which is only valid as long as the Python string exists. So you need to
 make sure that a reference to the original Python string is held for as long
 as the C string is needed. If you can't guarantee that the Python string will
@@ -290,10 +290,10 @@ live long enough, you will need to copy the C string.
 Cython detects and prevents some mistakes of this kind. For instance, if you
 attempt something like::
 
-    cdef char *s
+    cdef char* s
     s = pystring1 + pystring2
 
-then Cython will produce the error message ``Obtaining char * from temporary
+then Cython will produce the error message ``Obtaining char* from temporary
 Python value``. The reason is that concatenating the two Python strings
 produces a new Python string object that is referenced only by a temporary
 internal variable that Cython generates. As soon as the statement has finished,
@@ -302,9 +302,9 @@ leaving ``s`` dangling. Since this code could not possibly work, Cython refuses 
 compile it.
 
 The solution is to assign the result of the concatenation to a Python
-variable, and then obtain the ``char *`` from that, i.e.::
+variable, and then obtain the ``char*`` from that, i.e.::
 
-    cdef char *s
+    cdef char* s
     p = pystring1 + pystring2
     s = p
 
@@ -349,7 +349,7 @@ direct equivalent in Python.
 * The null C pointer is called ``NULL``, not ``0`` (and ``NULL`` is a reserved word).
 * Type casts are written ``<type>value`` , for example::
 
-        cdef char *p, float *q
+        cdef char* p, float* q
         p = <char*>q
 
 Scope rules

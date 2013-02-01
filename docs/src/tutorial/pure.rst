@@ -99,9 +99,9 @@ would be interpreted as::
         cpdef foo(self, int i):
             print "Big" if i > 1000 else "Small"
 
-The special cython module can also be imported and used within the augmenting
-:file:`.pxd` file. This makes it possible to add types to a pure python file without
-changing the file itself. For example, the following python file
+The special Cython module can also be imported and used within the augmenting
+:file:`.pxd` file. This makes it possible to add types to a pure Python file without
+changing the file itself. For example, the following Python file
 :file:`dostuff.py`::
 
     def dostuff(n):
@@ -128,14 +128,14 @@ signature, for instance.
 Types
 -----
 
-There are numerous types built in to the cython module. One has all the
+There are numerous types built in to the Cython module. One has all the
 standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
 as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 ``ulonglong``.  One also has ``bint`` and ``Py_ssize_t``.  For each type, there
 are pointer types ``p_int``, ``pp_int``, . . ., up to three levels deep in
 interpreted mode, and infinitely deep in compiled mode.  The Python types int,
 long and bool are interpreted as C ``int``, ``long`` and ``bint``
-respectively. Also, the python types ``list``, ``dict``, ``tuple``, . . . may
+respectively. Also, the Python types ``list``, ``dict``, ``tuple``, . . . may
 be used, as well as any user defined types.
 
 Pointer types may be constructed with ``cython.pointer(cython.int)``, and

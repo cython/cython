@@ -19,7 +19,7 @@ Fortran
 =======
 
 =====
-Numpy
+NumPy
 =====
 
 

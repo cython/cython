@@ -12,7 +12,7 @@ Memoryviews are similar to the current NumPy array buffer support
 (``np.ndarray[np.float64_t, ndim=2]``), but
 they have more features and cleaner syntax.
 
-Memoryviews are more general than the old numpy aray buffer support, because
+Memoryviews are more general than the old NumPy aray buffer support, because
 they can handle a wider variety of sources of array data.  For example, they can
 handle C arrays and the Cython array type (:ref:`view_cython_arrays`).
 
@@ -43,7 +43,7 @@ Quickstart
     cdef int [:, :, :] cyarr_view = cyarr
 
     # Show the sum of all the arrays before altering it
-    print "Numpy sum of the Numpy array before assignments:", narr.sum()
+    print "NumPy sum of the NumPy array before assignments:", narr.sum()
 
     # We can copy the values from one memoryview into another using a single
     # statement, by either indexing with ... or (NumPy-style) with a colon.
@@ -56,8 +56,8 @@ Quickstart
     carr_view[0, 0, 0] = 100
     cyarr_view[0, 0, 0] = 1000
 
-    # Assigning into the memoryview on the Numpy array alters the latter
-    print "Numpy sum of Numpy array after assignments:", narr.sum()
+    # Assigning into the memoryview on the NumPy array alters the latter
+    print "NumPy sum of NumPy array after assignments:", narr.sum()
 
     # A function using a memoryview does not usually need the GIL
     cpdef int sum3d(int[:, :, :] arr) nogil:
@@ -71,9 +71,9 @@ Quickstart
                     total += arr[i, j, k]
         return total
 
-    # A function accepting a memoryview knows how to use a Numpy array,
+    # A function accepting a memoryview knows how to use a NumPy array,
     # a C array, a Cython array...
-    print "Memoryview sum of Numpy array is", sum3d(narr)
+    print "Memoryview sum of NumPy array is", sum3d(narr)
     print "Memoryview sum of C array is", sum3d(carr)
     print "Memoryview sum of Cython array is", sum3d(cyarr)
     # ... and of course, a memoryview.
@@ -81,9 +81,9 @@ Quickstart
 
 This code should give the following output::
 
-    Numpy sum of the Numpy array before assignments: 351
-    Numpy sum of Numpy array after assignments: 81
-    Memoryview sum of Numpy array is 81
+    NumPy sum of the NumPy array before assignments: 351
+    NumPy sum of NumPy array after assignments: 81
+    Memoryview sum of NumPy array is 81
     Memoryview sum of C array is 451
     Memoryview sum of Cython array is 1351
     Memoryview sum of C memoryview is 451
@@ -95,7 +95,7 @@ Indexing and Slicing
 --------------------
 
 Indexing and slicing can be done with or without the GIL. It basically works
-like Numpy. If indices are specified for every dimension you will get an element
+like NumPy. If indices are specified for every dimension you will get an element
 of the base type (e.g. `int`), otherwise you will get a new view. An Ellipsis
 means you get consecutive slices for every unspecified dimension::
 
@@ -130,7 +130,7 @@ Transposing
 -----------
 
 In most cases (see below), the memoryview can be transposed in the same way that
-Numpy slices can be transposed::
+NumPy slices can be transposed::
 
     cdef int[:, ::1] c_contig = ...
     cdef int[::1, :] f_contig = c_contig.T
@@ -144,7 +144,7 @@ See :ref:`view_general_layouts` for details.
 Newaxis
 -------
 
-As for Numpy, new axes can be introduced by indexing an array with ``None`` ::
+As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
 
     cdef double[:] myslice = np.linspace(0, 10, num=50)
 
@@ -201,7 +201,7 @@ Python buffer support
 
 Cython memoryviews support nearly all objects exporting the interface of Python
 `new style buffers`_.  This is the buffer interface described in `PEP 3118`_.
-Numpy arrays support this interface, as do :ref:`view_cython_arrays`.  The
+NumPy arrays support this interface, as do :ref:`view_cython_arrays`.  The
 "nearly all" is because the Python buffer interface allows the *elements* in the
 data array to themselves be pointers; Cython memoryviews do not yet support
 this.
@@ -225,7 +225,7 @@ means either direct (no pointer) or indirect (pointer).  Data packing means your
 data may be contiguous or not contiguous in memory, and may use *strides* to
 identify the jumps in memory consecutive indices need to take for each dimension.
 
-Numpy arrays provide a good model of strided direct data access, so we'll use
+NumPy arrays provide a good model of strided direct data access, so we'll use
 them for a refresher on the concepts of C and Fortran contiguous arrays, and
 data strides.
 
@@ -233,10 +233,10 @@ Brief recap on C, Fortran and strided memory layouts
 ----------------------------------------------------
 
 The simplest data layout might be a C contiguous array.  This is the default
-layout in Numpy and Cython arrays.  C contiguous means that the array data is
+layout in NumPy and Cython arrays.  C contiguous means that the array data is
 continuous in memory (see below) and that neighboring elements in the first
 dimension of the array are furthest apart in memory, whereas neighboring
-elements in the last dimension are closest together. For example, in Numpy::
+elements in the last dimension are closest together. For example, in NumPy::
 
     In [2]: arr = np.array([['0', '1', '2'], ['3', '4', '5']], dtype='S1')
 
@@ -275,7 +275,7 @@ An array can be contiguous without being C or Fortran order::
     In [10]: c_contig.transpose((1, 0, 2)).strides
     Out[10]: (4, 12, 1)
 
-Slicing an Numpy array can easily make it not contiguous::
+Slicing an NumPy array can easily make it not contiguous::
 
     In [11]: sliced = c_contig[:,1,:]
     In [12]: sliced.strides
@@ -309,7 +309,7 @@ memoryview will be on top of a 3D C contiguous layout, you could write::
 
     cdef int[:, :, ::1] c_contiguous = c_contig
 
-where ``c_contig`` could be a C contiguous Numpy array.  The ``::1`` at the 3rd
+where ``c_contig`` could be a C contiguous NumPy array.  The ``::1`` at the 3rd
 position means that the elements in this 3rd dimension will be one element apart
 in memory.  If you know you will have a 3D Fortran contiguous array::
 
@@ -589,7 +589,7 @@ Unlike object attributes of extension classes, memoryview slices are not
 initialized to None.
 
 .. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
-.. _new style buffers: http://docs.python.org/dev/c-api/buffers.html
+.. _new style buffers: http://docs.python.org/c-api/buffer.html
 .. _pep 3118: http://www.python.org/peps/pep-3118.html
 .. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
 .. _example: http://www.scipy.org/Numpy_Example_List#newaxis

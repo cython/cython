@@ -129,7 +129,7 @@ Here is a first start for the Queue class::
     cimport cqueue
 
     cdef class Queue:
-        cdef cqueue.Queue *_c_queue
+        cdef cqueue.Queue* _c_queue
         def __cinit__(self):
             self._c_queue = cqueue.queue_new()
 
@@ -169,7 +169,7 @@ We can thus change the init function as follows::
     cimport cqueue
 
     cdef class Queue:
-        cdef cqueue.Queue *_c_queue
+        cdef cqueue.Queue* _c_queue
         def __cinit__(self):
             self._c_queue = cqueue.queue_new()
             if self._c_queue is NULL:
@@ -408,7 +408,7 @@ The following listing shows the complete implementation that uses
         >>> q.pop()
         5
         """
-        cdef cqueue.Queue *_c_queue
+        cdef cqueue.Queue* _c_queue
         def __cinit__(self):
             self._c_queue = cqueue.queue_new()
             if self._c_queue is NULL:
@@ -440,7 +440,7 @@ The following listing shows the complete implementation that uses
                     raise IndexError("Queue is empty")
             return value
 
-        cdef int pop(self) except? -1:
+        cpdef int pop(self) except? -1:
             if cqueue.queue_is_empty(self._c_queue):
                 raise IndexError("Queue is empty")
             return <int>cqueue.queue_pop_head(self._c_queue)

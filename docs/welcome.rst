@@ -98,12 +98,12 @@ Is There a Mail List? How Do I Contact You?
 
 .. rubric:: Footnotes
 
-.. [#Jython] **Jython:** \J. Huginin, B. Warsaw, F. Bock, et al., Jython: Python for the Java platform, http://www.jython.org/
+.. [#Jython] **Jython:** \J. Huginin, B. Warsaw, F. Bock, et al., Jython: Python for the Java platform, http://www.jython.org
 
 .. [#IronPython] **IronPython:** Jim Hugunin et al., http://www.codeplex.com/IronPython.
 
 
-.. [#PyPy] **PyPy:** The PyPy Group, PyPy: a Python implementation written in Python, http://codespeak.net/pypy.
+.. [#PyPy] **PyPy:** The PyPy Group, PyPy: a Python implementation written in Python, http://pypy.org
 
 .. [#Pyrex] **Pyrex:** G. Ewing, Pyrex: C-Extensions for Python, http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 

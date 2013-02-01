@@ -8,7 +8,7 @@ Profiling
 
 This part describes the profiling abilities of Cython. If you are familiar 
 with profiling pure Python code, you can only read the first section
-(:ref:`profiling_basics`). If you are not familiar with python profiling you
+(:ref:`profiling_basics`). If you are not familiar with Python profiling you
 should also read the tutorial (:ref:`profiling_tutorial`) which takes you
 through a complete example step by step.
 
@@ -18,13 +18,13 @@ Cython Profiling Basics
 =======================
 
 Profiling in Cython is controlled by a compiler directive. 
-It can either be set either for an entire file or on a per function
+It can be set either for an entire file or on a per function basis
 via a Cython decorator.
 
-Enable profiling for a complete source file
--------------------------------------------
+Enabling profiling for a complete source file
+---------------------------------------------
 
-Profiling is enable for a complete source file via a global directive to the
+Profiling is enabled for a complete source file via a global directive to the
 Cython compiler at the top of a file::
    
    # cython: profile=True
@@ -58,7 +58,7 @@ function only::
 Profiling Tutorial
 ==================
 
-This will be a complete tutorial, start to finish, of profiling python code,
+This will be a complete tutorial, start to finish, of profiling Python code,
 turning it into Cython code and keep profiling until it is fast enough. 
 
 As a toy example, we would like to evaluate the summation of the reciprocals of
@@ -73,7 +73,7 @@ relation we want to use has been proven by Euler in 1735 and is known as the
          \frac{1}{2^2} + \dots + \frac{1}{k^2}  \big) \approx
    6 \big( \frac{1}{1^2} + \frac{1}{2^2} + \dots + \frac{1}{n^2}  \big)
 
-A simple python code for evaluating the truncated sum looks like this::
+A simple Python code for evaluating the truncated sum looks like this::
 
    #!/usr/bin/env python
    # encoding: utf-8
@@ -90,7 +90,7 @@ A simple python code for evaluating the truncated sum looks like this::
       
 On my box, this needs approximately 4 seconds to run the function with the
 default n. The higher we choose n, the better will be the approximation for
-:math:`\pi`. An experienced python programmer will already see plenty of
+:math:`\pi`. An experienced Python programmer will already see plenty of
 places to optimize this code. But remember the golden rule of optimization:
 Never optimize without having profiled. Let me repeat this: **Never** optimize
 without having profiled your code. Your thoughts about which part of your
@@ -130,7 +130,7 @@ Running this on my box gives the following output::
 This contains the information that the code runs in 6.2 CPU seconds. Note that
 the code got slower by 2 seconds because it ran inside the cProfile module. The
 table contains the real valuable information.  You might want to check the
-python `profiling documentation <http://docs.python.org/library/profile.html>`_
+Python `profiling documentation <http://docs.python.org/library/profile.html>`_
 for the nitty gritty details. The most important columns here are totime (total
 time spent in this function **not** counting functions that were called by this
 function) and cumtime (total time spent in this function **also** counting the
@@ -140,7 +140,7 @@ in recip_square. Also half a second is spent in range ... of course we should
 have used xrange for such a big iteration. And in fact, just changing range to
 xrange makes the code run in 5.8 seconds.
 
-We could optimize a lot in the pure python version, but since we are interested
+We could optimize a lot in the pure Python version, but since we are interested
 in Cython, let's move forward and bring this module to Cython. We would do this
 anyway at some time to get the loop run faster. Here is our first Cython version::
 
@@ -294,7 +294,7 @@ approx_pi with a call to sqrt from the C stdlib; but this is not necessarily
 faster than calling pow(x,0.5).
 
 Even so, the result we achieved here is quite satisfactory: we came up with a
-solution that is much faster then our original python version while retaining
+solution that is much faster then our original Python version while retaining
 functionality and readability.
 
 
