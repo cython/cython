@@ -8,8 +8,7 @@ cdef class Queue:
     def __cinit__(self):
         self._c_queue = cqueue.queue_new()
         if self._c_queue is NULL:
-            # raise MemoryError() allocates memory
-            python_exc.PyErr_NoMemory()
+            raise MemoryError()
 
     def __dealloc__(self):
         if self._c_queue is not NULL:
@@ -17,14 +16,14 @@ cdef class Queue:
 
     cpdef int append(self, int value) except -1:
         if not cqueue.queue_push_tail(self._c_queue, <void*>value):
-            python_exc.PyErr_NoMemory()
+            raise MemoryError()
         return 0
 
     cdef int extend(self, int* values, Py_ssize_t count) except -1:
         cdef Py_ssize_t i
         for i in range(count):
             if not cqueue.queue_push_tail(self._c_queue, <void*>values[i]):
-                python_exc.PyErr_NoMemory()
+                raise MemoryError()
         return 0
 
     cpdef int peek(self) except? 0:
