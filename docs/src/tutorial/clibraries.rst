@@ -20,6 +20,12 @@ decide to use its double ended queue implementation.  To make the
 handling easier, however, you decide to wrap it in a Python extension
 type that can encapsulate all memory management.
 
+.. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
+
+
+Defining external declarations
+------------------------------
+
 The C API of the queue implementation, which is defined in the header
 file ``libcalg/queue.h``, essentially looks like this::
 
@@ -109,6 +115,10 @@ adapted to their use in Cython.  The main packages are ``cpython``,
 Cython's ``Cython/Includes/`` source package for a complete list of
 provided ``.pxd`` files.
 
+
+Writing a wrapper class
+-----------------------
+
 After declaring our C library's API, we can start to design the Queue
 class that should wrap the C queue.  It will live in a file called
 ``queue.pyx``. [#]_
@@ -154,6 +164,10 @@ adding parameters.  If parameters are used in the signature of
 method of classes in the class hierarchy that are used to instantiate
 the type.
 
+
+Memory management
+-----------------
+
 Before we continue implementing the other methods, it is important to
 understand that the above implementation is not safe.  In case
 anything goes wrong in the call to ``queue_new()``, this code will
@@ -173,7 +187,7 @@ We can thus change the init function as follows::
         def __cinit__(self):
             self._c_queue = cqueue.queue_new()
             if self._c_queue is NULL:
-	        raise MemoryError()
+                raise MemoryError()
 
 .. [#] In the specific case of a ``MemoryError``, creating a new
    exception instance in order to raise it may actually fail because
@@ -195,6 +209,10 @@ the init method::
         def __dealloc__(self):
             if self._c_queue is not NULL:
                 cqueue.queue_free(self._c_queue)
+
+
+Compiling and linking
+---------------------
 
 At this point, we have a working Cython module that we can test.  To
 compile it, we need to configure a ``setup.py`` script for distutils.
@@ -243,6 +261,10 @@ it and instantiate a new Queue::
 
 However, this is all our Queue class can do so far, so let's make it
 more usable.
+
+
+Mapping functionality
+---------------------
 
 Before implementing the public interface of this class, it is good
 practice to look at what interfaces Python offers, e.g. in its
@@ -298,9 +320,13 @@ which provide read-only and destructive read access respectively::
     cdef int pop(self):
         return <int>cqueue.queue_pop_head(self._c_queue)
 
-Simple enough.  Now, what happens when the queue is empty?  According
-to the documentation, the functions return a ``NULL`` pointer, which
-is typically not a valid value.  Since we are simply casting to and
+
+Handling errors
+---------------
+
+Now, what happens when the queue is empty?  According to the
+documentation, the functions return a ``NULL`` pointer, which is
+typically not a valid value.  Since we are simply casting to and
 from ints, we cannot distinguish anymore if the return value was
 ``NULL`` because the queue was empty or because the value stored in
 the queue was ``0``.  However, in Cython code, we would expect the
@@ -309,8 +335,7 @@ simply return ``0``.  To deal with this, we need to special case this
 value, and check if the queue really is empty or not::
 
     cdef int peek(self) except? -1:
-        cdef int value = \
-          <int>cqueue.queue_peek_head(self._c_queue)
+        value = <int>cqueue.queue_peek_head(self._c_queue)
         if value == 0:
             # this may mean that the queue is empty, or
             # that it happens to contain a 0 value
@@ -376,8 +401,12 @@ code can use either name)::
         return not cqueue.queue_is_empty(self._c_queue)
 
 Note that this method returns either ``True`` or ``False`` as we
-declared the return type of the ``queue_is_empty`` function as
+declared the return type of the ``queue_is_empty()`` function as
 ``bint`` in ``cqueue.pxd``.
+
+
+Testing the result
+------------------
 
 Now that the implementation is complete, you may want to write some
 tests for it to make sure it works correctly.  Especially doctests are
@@ -473,4 +502,78 @@ loop, and still more than twice as fast as using Python's highly
 optimised ``collections.deque`` type from Cython code with Python
 integers.
 
-.. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
+
+Callbacks
+---------
+
+Let's say you want to provide a way for users to pop values from the
+queue up to a certain user defined event occurs.  To this end, you
+want to allow them to pass a predicate function that determines when
+to stop, e.g.::
+
+    def pop_until(self, predicate):
+        while not predicate(self.peek()):
+            self.pop()
+
+Now, let us assume for the sake of argument that the C queue
+provides such a function that takes a C callback function as
+predicate.  The API could look as follows::
+
+    /* C type of a predicate function that takes a queue value and returns
+     * -1 for errors
+     *  0 for reject
+     *  1 for accept
+     */
+    typedef int (*predicate_func)(void* user_context, QueueValue data);
+
+    /* Pop values as long as the predicate evaluates to true for them,
+     * returns -1 if the predicate failed with an error and 0 otherwise.
+     */
+    int queue_pop_head_until(Queue *queue, predicate_func predicate,
+                             void* user_context);
+
+It is normal for C callback functions to have a generic :c:type:`void*`
+argument that allows passing any kind of context or state through the
+C-API into the callback function.  We will use this to pass our Python
+predicate function.
+
+First, we have to define a callback function with the expected
+signature that we can pass into the C-API function::
+
+    cdef int evaluate_predicate(void* context, cqueue.QueueValue value):
+        "Callback function that can be passed as predicate_func"
+        try:
+            # recover Python function object from void* argument
+            func = <object>context
+            # call function, convert result into 0/1 for True/False
+            return bool(func(<int>value))
+        except:
+            # catch any Python errors and return error indicator
+            return -1
+
+The main idea is to pass a pointer (a.k.a. borrowed reference) to the
+function object as the user context argument. We will call the C-API
+function as follows:
+
+    def pop_until(self, python_predicate_function):
+        result = cqueue.queue_pop_head_until(
+            self._c_queue, evaluate_predicate,
+            <void*>python_predicate_function)
+        if result == -1:
+            raise RuntimeError("an error occurred")
+
+The usual pattern is to first cast the Python object reference into
+a :c:type:`void*` to pass it into the C-API function, and then cast
+it back into a Python object in the C predicate callback function.
+The cast to :c:type:`void*` creates a borrowed reference.  On the cast
+to ``<object>``, Cython increments the reference count of the object
+and thus converts the borrowed reference back into an owned reference.
+At the end of the predicate function, the owned reference goes out
+of scope again and Cython discards it.
+
+The error handling in the code above is a bit simplistic. Specifically,
+any exceptions that the predicate function raises will essentially be
+discarded and only result in a plain ``RuntimeError()`` being raised
+after the fact.  This can be improved by storing away the exception
+in an object passed through the context parameter and re-raising it
+after the C-API function has returned ``-1`` to indicate the error.
