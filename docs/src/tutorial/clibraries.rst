@@ -553,7 +553,7 @@ signature that we can pass into the C-API function::
 
 The main idea is to pass a pointer (a.k.a. borrowed reference) to the
 function object as the user context argument. We will call the C-API
-function as follows:
+function as follows::
 
     def pop_until(self, python_predicate_function):
         result = cqueue.queue_pop_head_until(
