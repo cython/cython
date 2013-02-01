@@ -44,7 +44,7 @@ cdef class Queue:
                 raise IndexError("Queue is empty")
         return value
 
-    def __bool__(self):    # or __nonzero__ for Python 2.x
+    def __bool__(self):    # same as __nonzero__ in Python 2.x
         return not cqueue.queue_is_empty(self._c_queue)
 
 DEF repeat_count=10000
