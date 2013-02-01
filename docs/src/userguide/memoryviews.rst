@@ -589,7 +589,7 @@ Unlike object attributes of extension classes, memoryview slices are not
 initialized to None.
 
 .. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
-.. _new style buffers: http://docs.python.org/dev/c-api/buffers.html
+.. _new style buffers: http://docs.python.org/c-api/buffer.html
 .. _pep 3118: http://www.python.org/peps/pep-3118.html
 .. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
 .. _example: http://www.scipy.org/Numpy_Example_List#newaxis
