@@ -56,7 +56,7 @@ first method, but Cython code can use either method.
 By default, extension type attributes are only accessible by direct access,
 not Python access, which means that they are not accessible from Python code.
 To make them accessible from Python code, you need to declare them as
-:keyword:`public` or :keyword:`readonly`. For example,::
+:keyword:`public` or :keyword:`readonly`. For example::
 
     cdef class Shrubbery:
         cdef public int width, height
@@ -85,7 +85,7 @@ generic Python object. It knows this already in the case of the ``self``
 parameter of the methods of that type, but in other cases you will have to use
 a type declaration.
 
-For example, in the following function,::
+For example, in the following function::
 
     cdef widen_shrubbery(sh, extra_width): # BAD
         sh.width = sh.width + extra_width
@@ -104,7 +104,7 @@ follows::
 
 Now the Cython compiler knows that ``sh`` has a C attribute called
 :attr:`width` and will generate code to access it directly and efficiently.
-The same consideration applies to local variables, for example,::
+The same consideration applies to local variables, for example::
 
     cdef Shrubbery another_shrubbery(Shrubbery sh1):
         cdef Shrubbery sh2
@@ -396,7 +396,7 @@ that need to refer to each other, e.g.::
 
 If you are forward-declaring an extension type that has a base class, you must
 specify the base class in both the forward declaration and its subsequent
-definition, for example,::
+definition, for example::
 
     cdef class A(B)
 
@@ -410,7 +410,7 @@ Making extension types weak-referenceable
 
 By default, extension types do not support having weak references made to
 them. You can enable weak referencing by declaring a C attribute of type
-object called :attr:`__weakref__`. For example,::
+object called :attr:`__weakref__`. For example::
 
     cdef class ExplodingAnimal:
         """This animal will self-destruct when it is
@@ -507,7 +507,7 @@ Implicit importing
 ------------------
 
 Cython requires you to include a module name in an extern extension class
-declaration, for example,::
+declaration, for example::
 
     cdef extern class MyModule.Spam:
         ...
@@ -521,13 +521,13 @@ example an implicit::
 statement will be executed at module load time.
 
 The module name can be a dotted name to refer to a module inside a package
-hierarchy, for example,::
+hierarchy, for example::
 
     cdef extern class My.Nested.Package.Spam:
         ...
 
 You can also specify an alternative name under which to import the type using
-an as clause, for example,::
+an as clause, for example::
 
       cdef extern class My.Nested.Package.Spam as Yummy:
          ... 

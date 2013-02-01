@@ -42,7 +42,7 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
 See also :ref:`struct-union-enum-styles`
 
 There is currently no special syntax for defining a constant, but you can use
-an anonymous :keyword:`enum` declaration for this purpose, for example,::
+an anonymous :keyword:`enum` declaration for this purpose, for example::
 
     cdef enum:
         tons_of_spam = 3
@@ -103,7 +103,7 @@ can be called from anywhere, but uses the faster C calling conventions
 when being called from other Cython code. 
 
 Parameters of either type of function can be declared to have C data types,
-using normal C declaration syntax. For example,::
+using normal C declaration syntax. For example::
 
     def spam(int i, char *s):
         ...
@@ -144,7 +144,7 @@ parameters and a new reference is returned).
 
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
-as the name of a type, for example,::
+as the name of a type, for example::
 
     cdef ftang(object int):
         ...
@@ -241,7 +241,7 @@ returns ``NULL``. The except clause doesn't work that way; its only purpose is
 for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
-return value and raise it yourself, for example,::
+return value and raise it yourself, for example::
 
     cdef FILE *p
     p = fopen("spam.txt", "r")
