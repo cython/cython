@@ -24,7 +24,7 @@ External declarations
 
 By default, C functions and variables declared at the module level are local
 to the module (i.e. they have the C static storage class). They can also be
-declared extern to specify that they are defined elsewhere, for example::
+declared extern to specify that they are defined elsewhere, for example,::
 
     cdef extern int spam_counter
 
@@ -87,7 +87,7 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
    to platform-dependent flavours of numeric types, you will need a
    corresponding :keyword:`ctypedef` statement, but you don't need to match
    the type exactly, just use something of the right general kind (int, float,
-   etc). For example::
+   etc). For example,::
 
        ctypedef int word
 
@@ -185,7 +185,7 @@ Accessing Python/C API routines
 ---------------------------------
 
 One particular use of the ``cdef extern from`` statement is for gaining access to
-routines in the Python/C API. For example::
+routines in the Python/C API. For example,::
 
     cdef extern from "Python.h":
 
@@ -204,7 +204,7 @@ Windows Calling Conventions
 ----------------------------
 
 The ``__stdcall`` and ``__cdecl`` calling convention specifiers can be used in
-Cython, with the same syntax as used by C compilers on Windows, for example::
+Cython, with the same syntax as used by C compilers on Windows, for example,::
 
     cdef extern int __stdcall FrobnicateWindow(long handle)
 
@@ -245,7 +245,7 @@ Cython keywords. For example, if you want to call an external function called
 print, you can rename it to something else in your Cython module.
 
 As well as functions, C names can be specified for variables, structs, unions,
-enums, struct and union members, and enum values. For example::
+enums, struct and union members, and enum values. For example,::
 
     cdef extern int one "ein", two "zwei"
     cdef extern float three "drei"
@@ -388,7 +388,7 @@ Multiple public and API declarations
 
 You can declare a whole group of items as :keyword:`public` and/or
 :keyword:`api` all at once by enclosing them in a :keyword:`cdef` block, for
-example::
+example,::
 
     cdef public api:
         void order_spam(int tons)

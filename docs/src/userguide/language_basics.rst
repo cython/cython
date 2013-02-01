@@ -27,8 +27,8 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
         float volume
 
     cdef union Food:
-        char* spam
-        float* eggs
+        char *spam
+        float *eggs
 
     cdef enum CheeseType:
         cheddar, edam, 
@@ -42,7 +42,7 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
 See also :ref:`struct-union-enum-styles`
 
 There is currently no special syntax for defining a constant, but you can use
-an anonymous :keyword:`enum` declaration for this purpose, for example::
+an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
     cdef enum:
         tons_of_spam = 3
@@ -52,11 +52,11 @@ an anonymous :keyword:`enum` declaration for this purpose, for example::
     defining a type, not when referring to it. For example, to declare a variable
     pointing to a ``Grail`` you would write::
 
-        cdef Grail* gp
+        cdef Grail *gp
 
     and not::
 
-        cdef struct Grail* gp # WRONG
+        cdef struct Grail *gp # WRONG
 
     There is also a ``ctypedef`` statement for giving names to types, e.g.::
 
@@ -76,9 +76,9 @@ can group them into a :keyword:`cdef` block like this::
 
         int i
         float f
-        Spam* p
+        Spam *p
 
-        void f(Spam* s):
+        void f(Spam *s):
             print s.tons, "Tons of spam"
 
 
@@ -103,9 +103,9 @@ can be called from anywhere, but uses the faster C calling conventions
 when being called from other Cython code. 
 
 Parameters of either type of function can be declared to have C data types,
-using normal C declaration syntax. For example::
+using normal C declaration syntax. For example,::
 
-    def spam(int i, char* s):
+    def spam(int i, char *s):
         ...
 
     cdef int eggs(unsigned long l, float f):
@@ -144,7 +144,7 @@ parameters and a new reference is returned).
 
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
-as the name of a type, for example::
+as the name of a type, for example,::
 
     cdef ftang(object int):
         ...
@@ -234,14 +234,14 @@ It's important to understand that the except clause does not cause an error to
 be raised when the specified value is returned. For example, you can't write
 something like::
 
-    cdef extern FILE *fopen(char* filename, char* mode) except NULL # WRONG!
+    cdef extern FILE *fopen(char *filename, char *mode) except NULL # WRONG!
 
 and expect an exception to be automatically raised if a call to :func:`fopen`
 returns ``NULL``. The except clause doesn't work that way; its only purpose is
 for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
-return value and raise it yourself, for example::
+return value and raise it yourself, for example,::
 
     cdef FILE* p
     p = fopen("spam.txt", "r")
@@ -290,7 +290,7 @@ live long enough, you will need to copy the C string.
 Cython detects and prevents some mistakes of this kind. For instance, if you
 attempt something like::
 
-    cdef char* s
+    cdef char *s
     s = pystring1 + pystring2
 
 then Cython will produce the error message ``Obtaining char* from temporary
@@ -304,7 +304,7 @@ compile it.
 The solution is to assign the result of the concatenation to a Python
 variable, and then obtain the ``char*`` from that, i.e.::
 
-    cdef char* s
+    cdef char *s
     p = pystring1 + pystring2
     s = p
 
@@ -347,7 +347,7 @@ direct equivalent in Python.
 * There is no unary ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
 * There is an ``&`` operator, with the same semantics as in C.
 * The null C pointer is called ``NULL``, not ``0`` (and ``NULL`` is a reserved word).
-* Type casts are written ``<type>value`` , for example::
+* Type casts are written ``<type>value`` , for example,::
 
         cdef char* p, float* q
         p = <char*>q
@@ -489,7 +489,7 @@ The include statement
     Use :ref:`sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
-statement, for example::
+statement, for example,::
 
     include "spamstuff.pxi"
 
