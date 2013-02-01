@@ -239,7 +239,7 @@ Parameters
  * New references are returned
 
 .. todo::
-    link or label here the one ref count caveat for numpy.
+    link or label here the one ref count caveat for NumPy.
 
 * The name ``object`` can be used to explicitly declare something as a Python Object.
 
