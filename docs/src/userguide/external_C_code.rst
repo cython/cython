@@ -336,7 +336,7 @@ header and call the :func:`import_modulename` function. The other functions
 can then be called and the extension types used as usual.
 
 Any public C type or extension type declarations in the Cython module are also
-made available when you include :file:`modulename_api.h`.::
+made available when you include :file:`modulename_api.h`::
 
     # delorean.pyx
     cdef public struct Vehicle:
@@ -460,7 +460,7 @@ Declaring a function as callable without the GIL
 --------------------------------------------------
 
 You can specify :keyword:`nogil` in a C function header or function type to
-declare that it is safe to call without the GIL.::
+declare that it is safe to call without the GIL::
 
     cdef void my_gil_free_func(int spam) nogil:
         ...

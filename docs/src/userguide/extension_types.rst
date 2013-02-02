@@ -253,7 +253,7 @@ corresponding operation is attempted.
 
 Here's a complete example. It defines a property which adds to a list each
 time it is written to, returns the list when it is read, and empties the list
-when it is deleted.::
+when it is deleted::
  
     # cheesy.pyx
     cdef class CheeseShop:
@@ -346,7 +346,7 @@ C methods
 Extension types can have C methods as well as Python methods. Like C
 functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` instead of
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
-extension types.::
+extension types::
 
     # pets.pyx
     cdef class Parrot:
@@ -450,7 +450,7 @@ objects defined in the Python core or in a non-Cython extension module.
     :ref:`sharing-declarations`.
 
 Here is an example which will let you get at the C-level members of the
-built-in complex object.::
+built-in complex object::
 
     cdef extern from "complexobject.h":
 

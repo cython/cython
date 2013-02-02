@@ -556,7 +556,7 @@ A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into
 the source at that point as a literal. For this to work, the compile-time
 expression must evaluate to a Python value of type ``int``, ``long``,
-``float`` or ``str``.::
+``float`` or ``str``::
 
     cdef int a1[ArraySize]
     cdef int a2[OtherArraySize]
@@ -567,7 +567,7 @@ Conditional Statements
 
 The ``IF`` statement can be used to conditionally include or exclude sections
 of code at compile time. It works in a similar way to the ``#if`` preprocessor
-directive in C.::
+directive in C::
 
     IF UNAME_SYSNAME == "Windows":
         include "icky_definitions.pxi"

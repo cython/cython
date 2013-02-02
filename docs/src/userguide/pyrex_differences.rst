@@ -85,7 +85,7 @@ cdef inline
 =============
 
 Module level functions can now be declared inline, with the :keyword:`inline`
-keyword passed on to the C compiler. These can be as fast as macros.::
+keyword passed on to the C compiler. These can be as fast as macros::
 
     cdef inline int something_fast(int a, int b):
         return a*a + b
