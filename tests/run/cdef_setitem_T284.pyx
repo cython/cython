@@ -20,6 +20,18 @@ def with_cdef():
     cdef dict dd = {}
     dd[ob] = -10
 
+def with_external_list(list L):
+    """
+    >>> with_external_list([1,2,3])
+    [1, -10, 3]
+    >>> with_external_list(None)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not subscriptable
+    """
+    ob = 1L
+    L[ob] = -10
+    return L
+
 def test_list(list L, object i, object a):
     """
     >>> test_list(list(range(11)), -2, None)
