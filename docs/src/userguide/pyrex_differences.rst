@@ -49,7 +49,9 @@ Keyword-only arguments
 ----------------------
 
 Python functions can have keyword-only arguments listed after the ``*``
-parameter and before the ``**`` parameter if any, e.g.::
+parameter and before the ``**`` parameter if any, e.g.,
+
+::
 
     def f(a, b, *args, c, d = 42, e, **kwds):
         ...
@@ -59,7 +61,9 @@ passed as keyword arguments. Furthermore, ``c`` and ``e`` are required keyword
 arguments, since they do not have a default value.
 
 If the parameter name after the ``*`` is omitted, the function will not accept any
-extra positional arguments, e.g.::
+extra positional arguments, e.g.,
+
+::
 
     def g(a, b, *, c, d):
         ...
@@ -108,7 +112,9 @@ Now, with cython, one can write::
 
     cdef int i = 2, j = 5, k = 7
     
-The expression on the right hand side can be arbitrarily complicated, e.g.::
+The expression on the right hand side can be arbitrarily complicated, e.g.,
+
+::
 
     cdef int n = python_call(foo(x,y), a + b + c) - 32
        
@@ -197,7 +203,9 @@ attribute lookup and can tell (by comparing pointers) whether or not the
 returned result is actually a new function. If, and only if, it is a new
 function, then the arguments packed into a tuple and the method called. This
 is all very fast. A flag is set so this lookup does not occur if one calls the
-method on the class directly, e.g.::
+method on the class directly, e.g.,
+
+::
 
     cdef class A:
         cpdef foo(self):

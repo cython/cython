@@ -60,7 +60,9 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,
 
         cdef struct Grail *gp # WRONG
 
-    There is also a ``ctypedef`` statement for giving names to types, e.g.::
+    There is also a ``ctypedef`` statement for giving names to types, e.g.,
+
+    ::
 
         ctypedef unsigned long ULong
 
@@ -156,7 +158,9 @@ as the name of a type, for example,
         ...
 
 declares a parameter called int which is a Python object. You can also use
-object as the explicit return type of a function, e.g.::
+object as the explicit return type of a function, e.g.,
+
+::
 
     cdef object ftang(object int):
         ...
@@ -310,7 +314,9 @@ leaving ``s`` dangling. Since this code could not possibly work, Cython refuses 
 compile it.
 
 The solution is to assign the result of the concatenation to a Python
-variable, and then obtain the ``char*`` from that, i.e.::
+variable, and then obtain the ``char*`` from that, i.e.,
+
+::
 
     cdef char *s
     p = pystring1 + pystring2

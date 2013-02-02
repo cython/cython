@@ -509,7 +509,9 @@ Callbacks
 Let's say you want to provide a way for users to pop values from the
 queue up to a certain user defined event occurs.  To this end, you
 want to allow them to pass a predicate function that determines when
-to stop, e.g.::
+to stop, e.g.,
+
+::
 
     def pop_until(self, predicate):
         while not predicate(self.peek()):

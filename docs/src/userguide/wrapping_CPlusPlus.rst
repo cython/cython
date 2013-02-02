@@ -414,7 +414,9 @@ how to declare C++ classes.
 Since Cython 0.17, the STL containers coerce from and to the
 corresponding Python builtin types.  The conversion is triggered
 either by an assignment to a typed variable (including typed function
-arguments) or by an explicit cast, e.g.::
+arguments) or by an explicit cast, e.g.,
+
+::
 
     from libcpp.string cimport string
     from libcpp.vector cimport vector
@@ -521,7 +523,9 @@ If the Rectangle class has a static member:
         };
     }
 
-you can declare it as a function living in the class namespace, i.e.::
+you can declare it as a function living in the class namespace, i.e.,
+
+::
 
     cdef extern from "Rectangle.h" namespace "shapes::Rectangle":
         void do_something()

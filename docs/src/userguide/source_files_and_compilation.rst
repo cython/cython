@@ -14,7 +14,7 @@ file named :file:`primes.pyx`.
 
 Once you have written your ``.pyx`` file, there are a couple of ways of turning it
 into an extension module. One way is to compile it manually with the Cython
-compiler, e.g.:
+compiler, e.g.,
 
 .. sourcecode:: text
 

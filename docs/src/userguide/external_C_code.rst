@@ -74,7 +74,9 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
    definition from the header file.
 
    In some cases, you might not need any of the struct's members, in which
-   case you can just put pass in the body of the struct declaration, e.g.::
+   case you can just put pass in the body of the struct declaration, e.g.,
+
+   ::
 
         cdef extern from "foo.h":
             struct spam:
@@ -374,7 +376,9 @@ import machinery is used to make the connection dynamically. However, only
 functions can be accessed this way, not variables.
 
 You can use both :keyword:`public` and :keyword:`api` on the same function to
-make it available by both methods, e.g.::
+make it available by both methods, e.g.,
+
+::
 
     cdef public api void belt_and_braces():
         ...

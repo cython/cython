@@ -40,7 +40,9 @@ are two alternatives:
       cd ..; cython foo/shrubbing.pyx
 
 2. arrange for the directory containing foo to be
-   passed as a -I option, e.g.::
+   passed as a -I option, e.g.,
+
+   ::
 
       cython -I .. shrubbing.pyx
 

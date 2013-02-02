@@ -390,7 +390,9 @@ Forward-declaring extension types
 
 Extension types can be forward-declared, like :keyword:`struct` and
 :keyword:`union` types. This will be necessary if you have two extension types
-that need to refer to each other, e.g.::
+that need to refer to each other, e.g.,
+
+::
 
     cdef class Shrubbery # forward declaration
 

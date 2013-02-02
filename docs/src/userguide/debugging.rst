@@ -66,7 +66,9 @@ You can also pass additional arguments to gdb::
 
     $ cygdb /path/to/build/directory/ GDBARGS
 
-i.e.::
+i.e.,
+
+::
 
     $ cygdb . --args python-dbg mainscript.py
 
