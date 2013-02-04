@@ -222,22 +222,21 @@ class ControlFlow(object):
         """Set initial state, map assignments to bits."""
         self.assmts = {}
 
-        offset = 0
+        bit = 1
         for entry in self.entries:
             assmts = AssignmentList()
-            assmts.bit = 1 << offset
-            assmts.mask = assmts.bit
+            assmts.mask = assmts.bit = bit
             self.assmts[entry] = assmts
-            offset += 1
+            bit <<= 1
 
         for block in self.blocks:
             for stat in block.stats:
                 if isinstance(stat, NameAssignment):
-                    stat.bit = 1 << offset
+                    stat.bit = bit
                     assmts = self.assmts[stat.entry]
                     assmts.stats.append(stat)
-                    assmts.mask |= stat.bit
-                    offset += 1
+                    assmts.mask |= bit
+                    bit <<= 1
 
         for block in self.blocks:
             for entry, stat in block.gen.items():

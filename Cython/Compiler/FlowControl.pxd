@@ -61,7 +61,7 @@ cdef class ControlFlow:
      cpdef mark_reference(self, node, entry)
      cpdef normalize(self)
 
-     @cython.locals(offset=object, assmts=AssignmentList,
+     @cython.locals(bit=object, assmts=AssignmentList,
                     block=ControlBlock)
      cpdef initialize(self)
 
