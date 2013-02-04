@@ -380,8 +380,9 @@ builtin_types_table = [
 
     ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
                                                   utility_code = py_set_utility_code),
-                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",
-                                                  utility_code = py_set_utility_code),
+                                    # discard() and remove() have a special treatment for unhashable values
+#                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",
+#                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add",
                                                   utility_code = py_set_utility_code),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop",
