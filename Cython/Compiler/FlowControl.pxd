@@ -44,6 +44,7 @@ cdef class AssignmentList:
 cdef class AssignmentCollector(TreeVisitor):
     cdef list assignments
 
+@cython.final
 cdef class ControlFlow:
      cdef public set blocks
      cdef public set entries
@@ -86,6 +87,7 @@ cdef class Unknown:
 @cython.locals(dirty=bint, block=ControlBlock, parent=ControlBlock)
 cdef check_definitions(ControlFlow flow, dict compiler_directives)
 
+@cython.final
 cdef class ControlFlowAnalysis(CythonTransform):
     cdef object gv_ctx
     cdef set reductions
