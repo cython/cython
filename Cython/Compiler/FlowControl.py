@@ -1,9 +1,10 @@
 import cython
-cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
-               Options=object, UtilNodes=object, ModuleNode=object,
-               LetNode=object, LetRefNode=object, TreeFragment=object,
-               TemplateTransform=object, EncodedString=object,
-               error=object, warning=object, copy=object)
+cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
+               Builtin=object, InternalError=object,
+               error=object, warning=object,
+               py_object_type=object, unspecified_type=object,
+               object_expr=object, object_expr_not_none=object,
+               fake_rhs_expr=object, TypedExprNode=object)
 
 import Builtin
 import ExprNodes
@@ -17,7 +18,7 @@ from Errors import error, warning, InternalError
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.
     def __init__(self, type, may_be_none=None, pos=None):
-        self.pos = pos
+        super(TypedExprNode, self).__init__(pos)
         self.type = type
         self._may_be_none = may_be_none
 
@@ -640,7 +641,7 @@ class AssignmentCollector(TreeVisitor):
         self.assignments = []
 
     def visit_Node(self):
-        self.visitchildren(self)
+        self._visitchildren(self, None)
 
     def visit_SingleAssignmentNode(self, node):
         self.assignments.append((node.lhs, node.rhs))
@@ -651,7 +652,6 @@ class AssignmentCollector(TreeVisitor):
 
 
 class ControlFlowAnalysis(CythonTransform):
-    in_inplace_assignment = False
 
     def visit_ModuleNode(self, node):
         self.gv_ctx = GVContext()
@@ -659,6 +659,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Set of NameNode reductions
         self.reductions = set()
 
+        self.in_inplace_assignment = False
         self.env_stack = []
         self.env = node.scope
         self.stack = []
@@ -681,7 +682,7 @@ class ControlFlowAnalysis(CythonTransform):
         for arg in node.args:
             if arg.default:
                 self.visitchildren(arg)
-        self.visitchildren(node, attrs=('decorators',))
+        self.visitchildren(node, ('decorators',))
         self.env_stack.append(self.env)
         self.env = node.local_scope
         self.stack.append(self.flow)
@@ -697,7 +698,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.nextblock()
 
         for arg in node.args:
-            self.visit(arg)
+            self._visit(arg)
         if node.star_arg:
             self.flow.mark_argument(node.star_arg,
                                     TypedExprNode(Builtin.tuple_type,
@@ -708,10 +709,10 @@ class ControlFlowAnalysis(CythonTransform):
                                     TypedExprNode(Builtin.dict_type,
                                                   may_be_none=False),
                                     node.starstar_arg.entry)
-        self.visit(node.body)
+        self._visit(node.body)
         # Workaround for generators
         if node.is_generator:
-            self.visit(node.gbody.body)
+            self._visit(node.gbody.body)
 
         # Exit point
         if self.flow.block:
@@ -760,7 +761,7 @@ class ControlFlowAnalysis(CythonTransform):
             for arg in lhs.args:
                 self.mark_assignment(arg)
         else:
-            self.visit(lhs)
+            self._visit(lhs)
 
         if self.flow.exceptions:
             exc_descr = self.flow.exceptions[-1]
@@ -783,12 +784,12 @@ class ControlFlowAnalysis(CythonTransform):
         raise InternalError, "Unhandled assignment node"
 
     def visit_SingleAssignmentNode(self, node):
-        self.visit(node.rhs)
+        self._visit(node.rhs)
         self.mark_assignment(node.lhs, node.rhs)
         return node
 
     def visit_CascadedAssignmentNode(self, node):
-        self.visit(node.rhs)
+        self._visit(node.rhs)
         for lhs in node.lhs_list:
             self.mark_assignment(lhs, node.rhs)
         return node
@@ -797,7 +798,7 @@ class ControlFlowAnalysis(CythonTransform):
         collector = AssignmentCollector()
         collector.visitchildren(node)
         for lhs, rhs in collector.assignments:
-            self.visit(rhs)
+            self._visit(rhs)
         for lhs, rhs in collector.assignments:
             self.mark_assignment(lhs, rhs)
         return node
@@ -818,7 +819,7 @@ class ControlFlowAnalysis(CythonTransform):
                           "can not delete variable '%s' "
                           "referenced in nested scope" % entry.name)
                 # Mark reference
-                self.visit(arg)
+                self._visit(arg)
                 self.flow.mark_deletion(arg, entry)
         return node
 
@@ -845,7 +846,7 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_StatListNode(self, node):
         if self.flow.block:
             for stat in node.stats:
-                self.visit(stat)
+                self._visit(stat)
                 if not self.flow.block:
                     stat.is_terminator = True
                     break
@@ -862,15 +863,15 @@ class ControlFlowAnalysis(CythonTransform):
         # If clauses
         for clause in node.if_clauses:
             parent = self.flow.nextblock(parent)
-            self.visit(clause.condition)
+            self._visit(clause.condition)
             self.flow.nextblock()
-            self.visit(clause.body)
+            self._visit(clause.body)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         # Else clause
         if node.else_clause:
             self.flow.nextblock(parent=parent)
-            self.visit(node.else_clause)
+            self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         else:
@@ -887,10 +888,10 @@ class ControlFlowAnalysis(CythonTransform):
         next_block = self.flow.newblock()
         # Condition block
         self.flow.loops.append(LoopDescr(next_block, condition_block))
-        self.visit(node.condition)
+        self._visit(node.condition)
         # Body block
         self.flow.nextblock()
-        self.visit(node.body)
+        self._visit(node.body)
         self.flow.loops.pop()
         # Loop it
         if self.flow.block:
@@ -899,7 +900,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Else clause
         if node.else_clause:
             self.flow.nextblock(parent=condition_block)
-            self.visit(node.else_clause)
+            self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         else:
@@ -967,7 +968,7 @@ class ControlFlowAnalysis(CythonTransform):
         next_block = self.flow.newblock()
         # Condition with iterator
         self.flow.loops.append(LoopDescr(next_block, condition_block))
-        self.visit(node.iterator)
+        self._visit(node.iterator)
         # Target assignment
         self.flow.nextblock()
 
@@ -982,7 +983,7 @@ class ControlFlowAnalysis(CythonTransform):
             self._delete_privates(node, exclude=node.target.entry)
 
         self.flow.nextblock()
-        self.visit(node.body)
+        self._visit(node.body)
         self.flow.loops.pop()
 
         # Loop it
@@ -991,7 +992,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Else clause
         if node.else_clause:
             self.flow.nextblock(parent=condition_block)
-            self.visit(node.else_clause)
+            self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         else:
@@ -1042,10 +1043,10 @@ class ControlFlowAnalysis(CythonTransform):
         next_block = self.flow.newblock()
         # Condition with iterator
         self.flow.loops.append(LoopDescr(next_block, condition_block))
-        self.visit(node.bound1)
-        self.visit(node.bound2)
+        self._visit(node.bound1)
+        self._visit(node.bound2)
         if node.step is not None:
-            self.visit(node.step)
+            self._visit(node.step)
         # Target assignment
         self.flow.nextblock()
         self.mark_assignment(node.target, node.bound1)
@@ -1055,7 +1056,7 @@ class ControlFlowAnalysis(CythonTransform):
                                                       node.bound1, node.step))
         # Body block
         self.flow.nextblock()
-        self.visit(node.body)
+        self._visit(node.body)
         self.flow.loops.pop()
         # Loop it
         if self.flow.block:
@@ -1063,7 +1064,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Else clause
         if node.else_clause:
             self.flow.nextblock(parent=condition_block)
-            self.visit(node.else_clause)
+            self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
         else:
@@ -1083,9 +1084,9 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_WithStatNode(self, node):
-        self.visit(node.manager)
-        self.visit(node.enter_call)
-        self.visit(node.body)
+        self._visit(node.manager)
+        self._visit(node.enter_call)
+        self._visit(node.body)
         return node
 
     def visit_TryExceptStatNode(self, node):
@@ -1100,14 +1101,14 @@ class ControlFlowAnalysis(CythonTransform):
         ## XXX: links to exception handling point should be added by
         ## XXX: children nodes
         self.flow.block.add_child(entry_point)
-        self.visit(node.body)
+        self._visit(node.body)
         self.flow.exceptions.pop()
 
         # After exception
         if self.flow.block:
             if node.else_clause:
                 self.flow.nextblock()
-                self.visit(node.else_clause)
+                self._visit(node.else_clause)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
 
@@ -1115,7 +1116,7 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block = entry_point
             if clause.pattern:
                 for pattern in clause.pattern:
-                    self.visit(pattern)
+                    self._visit(pattern)
             else:
                 # TODO: handle * pattern
                 pass
@@ -1123,7 +1124,7 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.nextblock()
             if clause.target:
                 self.mark_assignment(clause.target)
-            self.visit(clause.body)
+            self._visit(clause.body)
             if self.flow.block:
                 self.flow.block.add_child(next_block)
 
@@ -1142,7 +1143,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Exception entry point
         entry_point = self.flow.newblock()
         self.flow.block = entry_point
-        self.visit(node.finally_clause)
+        self._visit(node.finally_clause)
 
         if self.flow.block and self.flow.exceptions:
             self.flow.block.add_child(self.flow.exceptions[-1].entry_point)
@@ -1150,7 +1151,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Normal execution
         finally_enter = self.flow.newblock()
         self.flow.block = finally_enter
-        self.visit(node.finally_clause)
+        self._visit(node.finally_clause)
         finally_exit = self.flow.block
 
         descr = ExceptionDescr(entry_point, finally_enter, finally_exit)
@@ -1160,7 +1161,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.block = body_block
         ## XXX: Is it still required
         body_block.add_child(entry_point)
-        self.visit(node.body)
+        self._visit(node.body)
         self.flow.exceptions.pop()
         if self.flow.loops:
             self.flow.loops[-1].exceptions.pop()
@@ -1243,8 +1244,8 @@ class ControlFlowAnalysis(CythonTransform):
             self.env_stack.append(self.env)
             self.env = node.expr_scope
         # Skip append node here
-        self.visit(node.target)
-        self.visit(node.loop)
+        self._visit(node.target)
+        self._visit(node.loop)
         if node.expr_scope:
             self.env = self.env_stack.pop()
         return node
@@ -1259,14 +1260,14 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_PyClassDefNode(self, node):
-        self.visitchildren(node, attrs=('dict', 'metaclass',
-                                        'mkw', 'bases', 'class_result'))
+        self.visitchildren(node, ('dict', 'metaclass',
+                                  'mkw', 'bases', 'class_result'))
         self.flow.mark_assignment(node.target, object_expr_not_none,
                                   self.env.lookup(node.name))
         self.env_stack.append(self.env)
         self.env = node.scope
         self.flow.nextblock()
-        self.visitchildren(node, attrs=('body',))
+        self.visitchildren(node, ('body',))
         self.flow.nextblock()
         self.env = self.env_stack.pop()
         return node
