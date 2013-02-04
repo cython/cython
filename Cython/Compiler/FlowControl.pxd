@@ -66,6 +66,8 @@ cdef class ControlFlow:
      cpdef mark_argument(self, lhs, rhs, entry)
      cpdef mark_deletion(self, node, entry)
      cpdef mark_reference(self, node, entry)
+
+     @cython.locals(block=ControlBlock, parent=ControlBlock, unreachable=set)
      cpdef normalize(self)
 
      @cython.locals(bit=object, assmts=AssignmentList,
