@@ -1173,6 +1173,63 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         return (base.name, index_val)
 
 
+class SimplifyCalls(Visitor.EnvTransform):
+    """
+    Statically map keyword arguments in C calls to positional arguments.
+    """
+    def visit_GeneralCallNode(self, node):
+        self.visitchildren(node)
+        arg_tuple = node.positional_args
+        if not isinstance(arg_tuple, ExprNodes.TupleNode):
+            return node
+        args = arg_tuple.args
+        kwargs = node.keyword_args
+
+        function = node.function
+        entry = function.entry
+        if not entry:
+            if not function.is_name:
+                # TODO: optimise methods as well
+                return node
+            entry = self.current_env().lookup(function.name)
+            if not entry:
+                return node
+        if not entry.is_cfunction or not entry.type:
+            return node
+
+        declared_args = entry.type.args
+        if len(declared_args) < len(args):
+            # will lead to an error elsewhere
+            return node
+        matched_pos_args = set([arg.name for arg in declared_args[:len(args)]])
+        unmatched_args = declared_args[len(args):]
+        matched_kwargs = set()
+        args = list(args)
+        # TODO: match keywords out-of-order and move values
+        #       into ordered temps if necessary
+        for decl_arg, arg in zip(unmatched_args, kwargs.key_value_pairs):
+            name = arg.key.value
+            if name in matched_pos_args:
+                # keyword argument passed twice => should fail elsewhere
+                return node
+            if decl_arg.name == name:
+                matched_kwargs.add(name)
+                args.append(arg.value)
+            else:
+                break
+        if not matched_kwargs:
+            return node
+        if len(kwargs.key_value_pairs) == len(matched_kwargs):
+            return ExprNodes.SimpleCallNode(
+                node.pos,
+                function=function, args=args)
+        arg_tuple.args = args
+        kwargs.key_value_pairs = [
+            item for item in kwargs.key_value_pairs
+            if item.key.value not in matched_kwargs ]
+        return node
+
+
 class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     """Optimize some common calls to builtin types *before* the type
     analysis phase and *after* the declarations analysis phase.

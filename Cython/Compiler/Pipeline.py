@@ -141,7 +141,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from AutoDocTransforms import EmbedSignature
     from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
     from Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
-    from Optimize import InlineDefNodeCalls
+    from Optimize import InlineDefNodeCalls, SimplifyCalls
     from Optimize import ConstantFolding, FinalOptimizePhase
     from Optimize import DropRefcountingTransform
     from Optimize import ConsolidateOverflowCheck
@@ -182,6 +182,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         AnalyseDeclarationsTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),
+        SimplifyCalls(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),  ## Necessary?
         MarkParallelAssignments(context),
