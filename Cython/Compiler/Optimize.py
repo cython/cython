@@ -1186,11 +1186,11 @@ class SimplifyCalls(Visitor.EnvTransform):
         kwargs = node.keyword_args
 
         function = node.function
+        if not function.is_name:
+            # TODO: optimise methods as well
+            return node
         entry = function.entry
         if not entry:
-            if not function.is_name:
-                # TODO: optimise methods as well
-                return node
             entry = self.current_env().lookup(function.name)
             if not entry:
                 return node
