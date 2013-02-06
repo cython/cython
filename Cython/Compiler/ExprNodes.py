@@ -4380,8 +4380,8 @@ class GeneralCallNode(CallNode):
         unmatched_args = declared_args[len(args):]
         matched_kwargs = set()
         args = list(args)
-        # TODO: match keywords out-of-order and move values
-        #       into ordered temps if necessary
+
+        # match keywords that are passed in order
         for decl_arg, arg in zip(unmatched_args, kwargs.key_value_pairs):
             name = arg.key.value
             if name in matched_pos_args:
@@ -4392,6 +4392,25 @@ class GeneralCallNode(CallNode):
                 args.append(arg.value)
             else:
                 break
+
+        # match simple keyword arguments that are passed out of order
+        if len(kwargs.key_value_pairs) > len(matched_kwargs):
+            unmatched_args = declared_args[len(args):]
+            keywords = dict([ (arg.key.value, arg.value)
+                              for arg in kwargs.key_value_pairs ])
+            for decl_arg in unmatched_args:
+                name = decl_arg.name
+                arg_value = keywords.get(name)
+                if arg_value and arg_value.is_simple():
+                    matched_kwargs.add(name)
+                    args.append(arg_value)
+                else:
+                    # first missing keyword argument
+                    break
+
+        # TODO: match keywords out-of-order and move values
+        #       into ordered temps if necessary
+
         if not matched_kwargs:
             return
         self.positional_args.args = args
