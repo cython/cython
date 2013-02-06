@@ -1189,7 +1189,8 @@ class SimplifyCalls(Visitor.EnvTransform):
             args=args)
         call_node.analyse_types(self.current_env())
         if node.type != call_node.type:
-            call_node = call_node.coerce_to(node.type)
+            call_node = call_node.coerce_to(
+                node.type, self.current_env())
         return call_node
 
 
