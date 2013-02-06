@@ -182,7 +182,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         AnalyseDeclarationsTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),
-        SimplifyCalls(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),  ## Necessary?
         MarkParallelAssignments(context),
@@ -194,6 +193,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         _check_c_declarations,
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
+        SimplifyCalls(context),
         FindInvalidUseOfFusedTypes(context),
         CreateClosureClasses(context),  ## After all lookups and type inference
         ExpandInplaceOperators(context),
