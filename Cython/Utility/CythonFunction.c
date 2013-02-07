@@ -554,7 +554,7 @@ static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t 
     m->defaults = PyMem_Malloc(size);
     if (!m->defaults)
         return PyErr_NoMemory();
-    memset(m->defaults, 0, sizeof(size));
+    memset(m->defaults, 0, size);
     m->defaults_pyobjects = pyobjects;
     return m->defaults;
 }
