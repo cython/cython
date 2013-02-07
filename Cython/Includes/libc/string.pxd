@@ -9,8 +9,8 @@ cdef extern from *:
 
 cdef extern from "string.h" nogil:
 
-    void *memcpy  (void *to, const void *from, size_t size)
-    void *memmove (void *to, const void *from, size_t size)
+    void *memcpy  (void *pto, const void *pfrom, size_t size)
+    void *memmove (void *pto, const void *pfrom, size_t size)
     void *memset  (void *block, int c, size_t size)
     int  memcmp   (const void *a1, const void *a2, size_t size)
     void *memchr  (const void *block, int c, size_t size)
@@ -19,12 +19,12 @@ cdef extern from "string.h" nogil:
     void *memrchr (const void *block, int c, size_t size)
 
     size_t strlen   (const char *s)
-    char   *strcpy  (char *to, const char *from)
-    char   *strncpy (char *to, const char *from, size_t size)
+    char   *strcpy  (char *pto, const char *pfrom)
+    char   *strncpy (char *pto, const char *pfrom, size_t size)
     char   *strdup  (const char *s)
     char   *strndup (const char *s, size_t size)
-    char   *strcat  (char *to, const char *from)
-    char   *strncat (char *to, const char *from, size_t size)
+    char   *strcat  (char *pto, const char *pfrom)
+    char   *strncat (char *pto, const char *pfrom, size_t size)
 
     int strcmp (const char *s1, const char *s2)
     int strcasecmp (const char *s1, const char *s2)
@@ -32,7 +32,7 @@ cdef extern from "string.h" nogil:
     int strncasecmp (const char *s1, const char *s2, size_t n)
 
     int    strcoll (const char *s1, const char *s2)
-    size_t strxfrm (char *to, const char *from, size_t size)
+    size_t strxfrm (char *pto, const char *pfrom, size_t size)
 
     char *strerror (int errnum)
 
