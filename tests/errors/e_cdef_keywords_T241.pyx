@@ -50,15 +50,15 @@ a.some_method(x=1, y=2, x=1)
 
 # ok
 strcmp("abc", "cde")
-strcmp("abc", S2="cde")
-strcmp(S1="abc", S2="cde")
-strcmp(S2="cde", S1="abc")
+strcmp("abc", s2="cde")
+strcmp(s1="abc", s2="cde")
+strcmp(s2="cde", s1="abc")
 
 # nok
-strcmp("abc", S1="cde")
-strcmp("abc", S2="cde", S1="cde")
-strcmp(S1="abc", S2="cde", S1="cde")
-strcmp(S2="cde", S1="abc", S2="cde")
+strcmp("abc", s1="cde")
+strcmp("abc", s2="cde", s1="cde")
+strcmp(s1="abc", s2="cde", s1="cde")
+strcmp(s2="cde", s1="abc", s2="cde")
 
 # ok
 strstr("abc", "abcdef")
@@ -93,10 +93,10 @@ _ERRORS = u"""
 48:20: argument 'x' passed twice
 49:25: argument 'x' passed twice
 
-58:16: argument 'S1' passed twice
-59:26: argument 'S1' passed twice
-60:29: argument 'S1' passed twice
-61:29: argument 'S2' passed twice
+58:16: argument 's1' passed twice
+59:26: argument 's1' passed twice
+60:29: argument 's1' passed twice
+61:29: argument 's2' passed twice
 
 67:18: C function got unexpected keyword argument 'char'
 68:28: C function got unexpected keyword argument 'char'
