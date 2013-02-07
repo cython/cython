@@ -4313,7 +4313,6 @@ class GeneralCallNode(CallNode):
     #  keyword_args     ExprNode or None  Dict of keyword arguments
 
     type = py_object_type
-    is_simple_call = False
 
     subexprs = ['function', 'positional_args', 'keyword_args']
 
@@ -4344,8 +4343,10 @@ class GeneralCallNode(CallNode):
                 self.type = error_type
                 return self
             if hasattr(self.function, 'entry'):
-                self.map_keywords_to_posargs()
-                if not self.is_simple_call:
+                node = self.map_keywords_to_posargs(env)
+                if node is not None:
+                    return node.analyse_types(env)
+                else:
                     if self.function.entry.as_variable:
                         self.function = self.function.coerce_to_pyobject(env)
                     else:
@@ -4370,17 +4371,17 @@ class GeneralCallNode(CallNode):
         self.is_temp = 1
         return self
 
-    def map_keywords_to_posargs(self):
+    def map_keywords_to_posargs(self, env):
         if not isinstance(self.positional_args, TupleNode):
             # has starred argument
-            return
+            return None
         if not isinstance(self.keyword_args, DictNode):
             # nothing to do here
-            return
+            return None
         function = self.function
         entry = getattr(function, 'entry', None)
         if not entry or not entry.is_cfunction:
-            return
+            return None
 
         args = self.positional_args.args
         kwargs = self.keyword_args
@@ -4389,7 +4390,7 @@ class GeneralCallNode(CallNode):
             # will lead to an error elsewhere
             error(self.pos, "function call got too many positional arguments, "
                             "expected %d, got %s" % (len(declared_args), len(args)))
-            return
+            return None
 
         matched_pos_args = set([arg.name for arg in declared_args[:len(args)]])
         unmatched_args = declared_args[len(args):]
@@ -4401,7 +4402,7 @@ class GeneralCallNode(CallNode):
             name = arg.key.value
             if name in matched_pos_args:
                 error(arg.pos, "keyword argument '%s' passed twice" % name)
-                return
+                return None
             if decl_arg.name == name:
                 matched_kwargs.add(name)
                 args.append(arg.value)
@@ -4427,15 +4428,17 @@ class GeneralCallNode(CallNode):
         #       into ordered temps if necessary
 
         if not matched_kwargs:
-            return
+            return None
         self.positional_args.args = args
         if len(kwargs.key_value_pairs) == len(matched_kwargs):
-            self.keyword_args = None
-            self.is_simple_call = True
-        else:
-            kwargs.key_value_pairs = [
-                item for item in kwargs.key_value_pairs
-                if item.key.value not in matched_kwargs ]
+            # all keywords mapped => only positional arguments left
+            return SimpleCallNode(
+                self.pos, function=function, args=args)
+
+        kwargs.key_value_pairs = [
+            item for item in kwargs.key_value_pairs
+            if item.key.value not in matched_kwargs ]
+        return None
 
     def generate_result_code(self, code):
         if self.type.is_error: return

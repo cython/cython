@@ -1173,27 +1173,6 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         return (base.name, index_val)
 
 
-class SimplifyCalls(Visitor.EnvTransform):
-    """
-    Replace GeneralCallNode by SimpleCallNode if possible.
-    """
-    def visit_GeneralCallNode(self, node):
-        self.visitchildren(node)
-        if not node.is_simple_call:
-            return node
-        args = [ unwrap_coerced_node(arg)
-                 for arg in node.positional_args.args ]
-        call_node = ExprNodes.SimpleCallNode(
-            node.pos,
-            function=node.function,
-            args=args)
-        call_node = call_node.analyse_types(self.current_env())
-        if node.type != call_node.type:
-            call_node = call_node.coerce_to(
-                node.type, self.current_env())
-        return call_node
-
-
 class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     """Optimize some common calls to builtin types *before* the type
     analysis phase and *after* the declarations analysis phase.
