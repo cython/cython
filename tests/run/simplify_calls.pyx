@@ -1,5 +1,7 @@
 cimport cython
 
+from libc.string cimport strstr
+
 cdef cfunc(a,b,c,d):
     return (a,b,c,d)
 
@@ -76,8 +78,8 @@ def cpfunc_some_keywords():
     return cpfunc(1, 2, c=3, d=4)
 
 
-#@cython.test_fail_if_path_exists('//GeneralCallNode')
-#@cython.test_assert_path_exists('//SimpleCallNode')
+@cython.test_fail_if_path_exists('//GeneralCallNode')
+@cython.test_assert_path_exists('//SimpleCallNode')
 def cpfunc_some_keywords_unordered():
     """
     >>> cpfunc_some_keywords_unordered()
@@ -86,8 +88,8 @@ def cpfunc_some_keywords_unordered():
     return cpfunc(1, 2, d=4, c=3)
 
 
-#@cython.test_fail_if_path_exists('//GeneralCallNode')
-#@cython.test_assert_path_exists('//SimpleCallNode')
+@cython.test_fail_if_path_exists('//GeneralCallNode')
+@cython.test_assert_path_exists('//SimpleCallNode')
 def cpfunc_some_keywords_unordered_sideeffect():
     """
     >>> del sideeffect[:]
@@ -97,3 +99,19 @@ def cpfunc_some_keywords_unordered_sideeffect():
     [4, 3]
     """
     return cpfunc(1, 2, d=side_effect(4), c=side_effect(3))
+
+
+@cython.test_fail_if_path_exists('//GeneralCallNode')
+@cython.test_assert_path_exists('//SimpleCallNode')
+def libc_strstr():
+    """
+    >>> libc_strstr()
+    (True, True, True, True, True)
+    """
+    return (
+        strstr("xabcy", "abc") is not NULL,
+        strstr("abc", "xabcy") is NULL,
+        strstr(NEEDLE="abc", HAYSTACK="xabcz") is not NULL,
+        strstr(NEEDLE="xabcz", HAYSTACK="abc") is NULL,
+        strstr(HAYSTACK="abc", NEEDLE="xabcz") is NULL,
+        )
