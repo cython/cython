@@ -4343,15 +4343,18 @@ class GeneralCallNode(CallNode):
                 self.type = error_type
                 return self
             if hasattr(self.function, 'entry'):
-                node = self.map_keywords_to_posargs(env)
-                if node is not None:
+                node = self.map_to_simple_call_node()
+                if node is not None and node is not self:
                     return node.analyse_types(env)
+                elif self.function.entry.as_variable:
+                    self.function = self.function.coerce_to_pyobject(env)
+                elif node is self:
+                    error(self.pos,
+                          "Non-trivial keyword arguments and starred "
+                          "arguments not allowed in cdef functions.")
                 else:
-                    if self.function.entry.as_variable:
-                        self.function = self.function.coerce_to_pyobject(env)
-                    else:
-                        error(self.pos, "Keyword and starred arguments "
-                                        "not allowed in cdef functions.")
+                    # error was already reported
+                    pass
             else:
                 self.function = self.function.coerce_to_pyobject(env)
         if self.keyword_args:
@@ -4371,74 +4374,133 @@ class GeneralCallNode(CallNode):
         self.is_temp = 1
         return self
 
-    def map_keywords_to_posargs(self, env):
+    def map_to_simple_call_node(self):
+        """
+        Tries to map keyword arguments to declared positional arguments.
+        Returns self to try a Python call, None to report an error
+        or a SimpleCallNode if the mapping succeeds.
+        """
         if not isinstance(self.positional_args, TupleNode):
             # has starred argument
-            return None
+            return self
         if not isinstance(self.keyword_args, DictNode):
-            # nothing to do here
-            return None
+            # keywords come from arbitrary expression => nothing to do here
+            return self
         function = self.function
         entry = getattr(function, 'entry', None)
         if not entry or not entry.is_cfunction:
-            return None
+            return self
 
-        args = self.positional_args.args
+        pos_args = self.positional_args.args
         kwargs = self.keyword_args
         declared_args = entry.type.args
-        if len(declared_args) < len(args):
-            # will lead to an error elsewhere
+        if entry.is_cmethod:
+            declared_args = declared_args[1:] # skip 'self'
+
+        if len(pos_args) > len(declared_args):
             error(self.pos, "function call got too many positional arguments, "
-                            "expected %d, got %s" % (len(declared_args), len(args)))
+                            "expected %d, got %s" % (len(declared_args),
+                                                     len(pos_args)))
             return None
 
-        matched_pos_args = set([arg.name for arg in declared_args[:len(args)]])
-        unmatched_args = declared_args[len(args):]
-        matched_kwargs = set()
-        args = list(args)
+        matched_args = set([ arg.name for arg in declared_args[:len(pos_args)]
+                             if arg.name ])
+        unmatched_args = declared_args[len(pos_args):]
+        matched_kwargs_count = 0
+        args = list(pos_args)
+
+        # check for duplicate keywords
+        seen = set(matched_args)
+        has_errors = False
+        for arg in kwargs.key_value_pairs:
+            name = arg.key.value
+            if name in seen:
+                error(arg.pos, "argument '%s' passed twice" % name)
+                has_errors = True
+                # continue to report more errors if there are any
+            seen.add(name)
 
         # match keywords that are passed in order
         for decl_arg, arg in zip(unmatched_args, kwargs.key_value_pairs):
             name = arg.key.value
-            if name in matched_pos_args:
-                error(arg.pos, "keyword argument '%s' passed twice" % name)
-                return None
             if decl_arg.name == name:
-                matched_kwargs.add(name)
+                matched_args.add(name)
+                matched_kwargs_count += 1
                 args.append(arg.value)
             else:
                 break
 
-        # match simple keyword arguments that are passed out of order
-        if len(kwargs.key_value_pairs) > len(matched_kwargs):
+        # match keyword arguments that are passed out-of-order, but keep
+        # the evaluation of non-simple arguments in order by moving them
+        # into temps
+        from Cython.Compiler.UtilNodes import EvalWithTempExprNode, LetRefNode
+        temps = []
+        if len(kwargs.key_value_pairs) > matched_kwargs_count:
             unmatched_args = declared_args[len(args):]
-            keywords = dict([ (arg.key.value, arg.value)
-                              for arg in kwargs.key_value_pairs ])
+            keywords = dict([ (arg.key.value, (i, arg))
+                              for i, arg in enumerate(kwargs.key_value_pairs,
+                                                      len(pos_args)) ])
+            first_missing_keyword = None
             for decl_arg in unmatched_args:
                 name = decl_arg.name
-                arg_value = keywords.get(name)
-                if arg_value and arg_value.is_simple():
-                    matched_kwargs.add(name)
-                    args.append(arg_value)
+                if name not in keywords:
+                    # missing keyword argument => either done or error
+                    if not first_missing_keyword:
+                        first_missing_keyword = name
+                    continue
+                elif first_missing_keyword:
+                    # wasn't the last keyword => gaps are not supported
+                    error(self.pos, "C function call is missing "
+                                    "argument '%s'" % first_missing_keyword)
+                    return None
+                pos, arg = keywords[name]
+                matched_args.add(name)
+                matched_kwargs_count += 1
+                if arg.value.is_simple():
+                    args.append(arg.value)
                 else:
-                    # first missing keyword argument
-                    break
+                    temp = LetRefNode(arg.value)
+                    assert temp.is_simple()
+                    args.append(temp)
+                    temps.append((pos, temp))
 
-        # TODO: match keywords out-of-order and move values
-        #       into ordered temps if necessary
+            if temps:
+                # may have to move preceding non-simple args into temps
+                final_args = []
+                new_temps = []
+                first_temp_arg = temps[0][-1]
+                for arg_value in args:
+                    if arg_value is first_temp_arg:
+                        break  # done
+                    if arg_value.is_simple():
+                        final_args.append(arg_value)
+                    else:
+                        temp = LetRefNode(arg_value)
+                        new_temps.append(temp)
+                        final_args.append(temp)
+                if new_temps:
+                    args = final_args
+                temps = new_temps + [ arg for i,arg in sorted(temps) ]
 
-        if not matched_kwargs:
+        # check for unexpected keywords
+        for arg in kwargs.key_value_pairs:
+            name = arg.key.value
+            if name not in matched_args:
+                has_errors = True
+                error(arg.pos,
+                      "C function got unexpected keyword argument '%s'" %
+                      name)
+
+        if has_errors:
+            # error was reported already
             return None
-        self.positional_args.args = args
-        if len(kwargs.key_value_pairs) == len(matched_kwargs):
-            # all keywords mapped => only positional arguments left
-            return SimpleCallNode(
-                self.pos, function=function, args=args)
 
-        kwargs.key_value_pairs = [
-            item for item in kwargs.key_value_pairs
-            if item.key.value not in matched_kwargs ]
-        return None
+        # all keywords mapped to positional arguments
+        # if we are missing arguments, SimpleCallNode will figure it out
+        node = SimpleCallNode(self.pos, function=function, args=args)
+        for temp in temps[::-1]:
+            node = EvalWithTempExprNode(temp, node)
+        return node
 
     def generate_result_code(self, code):
         if self.type.is_error: return

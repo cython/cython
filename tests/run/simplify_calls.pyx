@@ -43,7 +43,6 @@ def cfunc_some_keywords_unordered():
     return cfunc(1, 2, d=4, c=3)
 
 
-'''
 @cython.test_fail_if_path_exists('//GeneralCallNode')
 @cython.test_assert_path_exists('//SimpleCallNode')
 def cfunc_some_keywords_unordered_sideeffect():
@@ -55,7 +54,6 @@ def cfunc_some_keywords_unordered_sideeffect():
     [4, 3]
     """
     return cfunc(1, 2, d=side_effect(4), c=side_effect(3))
-'''
 
 
 @cython.test_fail_if_path_exists('//GeneralCallNode')
