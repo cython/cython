@@ -4449,6 +4449,12 @@ class GeneralCallNode(CallNode):
                         first_missing_keyword = name
                     continue
                 elif first_missing_keyword:
+                    if entry.as_variable:
+                        # we might be able to convert the function to a Python
+                        # object, which then allows full calling semantics
+                        # with default values in gaps - currently, we only
+                        # support optional arguments at the end
+                        return self
                     # wasn't the last keyword => gaps are not supported
                     error(self.pos, "C function call is missing "
                                     "argument '%s'" % first_missing_keyword)
