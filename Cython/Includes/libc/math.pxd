@@ -44,8 +44,8 @@ cdef extern from "math.h" nogil:
     double lgamma(double x)
     double tgamma(double x)
 
-    double frexp(double x, double* exponent)
-    double ldexp(double x, double exponent)
+    double frexp(double x, int* exponent)
+    double ldexp(double x, int exponent)
 
     double modf(double x, double* iptr)
     double fmod(double x, double y)
