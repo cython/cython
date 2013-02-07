@@ -1819,20 +1819,20 @@ class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
-        node.body.analyse_expressions(node.scope)
+        node.body = node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
         node.local_scope.infer_types()
-        node.body.analyse_expressions(node.local_scope)
+        node.body = node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
 
     def visit_ScopedExprNode(self, node):
         if node.has_local_scope:
             node.expr_scope.infer_types()
-            node.analyse_scoped_expressions(node.expr_scope)
+            node = node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
 

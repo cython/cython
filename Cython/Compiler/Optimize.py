@@ -100,7 +100,7 @@ class IterationTransform(Visitor.EnvTransform):
                     iterator=ExprNodes.IteratorNode(node.operand2.pos, sequence=node.operand2),
                     body=if_node,
                     else_clause=Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=0))))
-            for_loop.analyse_expressions(self.current_env())
+            for_loop = for_loop.analyse_expressions(self.current_env())
             for_loop = self.visit(for_loop)
             new_node = UtilNodes.TempResultFromStatNode(result_ref, for_loop)
 
@@ -704,7 +704,7 @@ class IterationTransform(Visitor.EnvTransform):
             dict_temp, dict_len_temp.ref(dict_obj.pos), pos_temp,
             key_target, value_target, tuple_target,
             is_dict_temp)
-        iter_next_node.analyse_expressions(self.current_env())
+        iter_next_node = iter_next_node.analyse_expressions(self.current_env())
         body.stats[0:0] = [iter_next_node]
 
         if method:
@@ -1187,7 +1187,7 @@ class SimplifyCalls(Visitor.EnvTransform):
             node.pos,
             function=node.function,
             args=args)
-        call_node.analyse_types(self.current_env())
+        call_node = call_node.analyse_types(self.current_env())
         if node.type != call_node.type:
             call_node = call_node.coerce_to(
                 node.type, self.current_env())

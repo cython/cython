@@ -33,9 +33,11 @@ class TempRefNode(AtomicExprNode):
 
     def analyse_types(self, env):
         assert self.type == self.handle.type
+        return self
 
     def analyse_target_types(self, env):
         assert self.type == self.handle.type
+        return self
 
     def analyse_target_declaration(self, env):
         pass
@@ -104,7 +106,8 @@ class TempsBlockNode(Node):
         self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.body.analyse_expressions(env)
+        self.body = self.body.analyse_expressions(env)
+        return self
 
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
@@ -149,6 +152,7 @@ class ResultRefNode(AtomicExprNode):
     def analyse_types(self, env):
         if self.expression is not None:
             self.type = self.expression.type
+        return self
 
     def infer_type(self, env):
         if self.type is not None:
@@ -263,9 +267,10 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         return self.subexpression.result()
 
     def analyse_types(self, env):
-        self.temp_expression.analyse_types(env)
-        self.subexpression.analyse_types(env)
+        self.temp_expression = self.temp_expression.analyse_types(env)
+        self.subexpression = self.subexpression.analyse_types(env)
         self.type = self.subexpression.type
+        return self
 
     def free_subexpr_temps(self, code):
         self.subexpression.free_temps(code)
@@ -302,8 +307,9 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
         self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.temp_expression.analyse_expressions(env)
-        self.body.analyse_expressions(env)
+        self.temp_expression = self.temp_expression.analyse_expressions(env)
+        self.body = self.body.analyse_expressions(env)
+        return self
 
     def generate_execution_code(self, code):
         self.setup_temp_expr(code)
@@ -335,7 +341,8 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
         self.body.analyse_declarations(env)
 
     def analyse_types(self, env):
-        self.body.analyse_expressions(env)
+        self.body = self.body.analyse_expressions(env)
+        return self
 
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
