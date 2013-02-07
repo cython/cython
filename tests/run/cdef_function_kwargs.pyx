@@ -8,6 +8,9 @@ cdef cfunc(a,b,c,d):
 cpdef cpfunc(a,b,c,d):
     return (a,b,c,d)
 
+cdef optargs(a, b=2, c=3):
+    return (a,b,c)
+
 
 sideeffect = []
 cdef side_effect(x):
@@ -111,7 +114,45 @@ def libc_strstr():
     return (
         strstr("xabcy", "abc") is not NULL,
         strstr("abc", "xabcy") is NULL,
-        strstr(NEEDLE="abc", HAYSTACK="xabcz") is not NULL,
-        strstr(NEEDLE="xabcz", HAYSTACK="abc") is NULL,
-        strstr(HAYSTACK="abc", NEEDLE="xabcz") is NULL,
+        strstr(needle="abc", haystack="xabcz") is not NULL,
+        strstr(needle="xabcz", haystack="abc") is NULL,
+        strstr(haystack="abc", needle="xabcz") is NULL,
         )
+
+
+@cython.test_fail_if_path_exists('//GeneralCallNode')
+@cython.test_assert_path_exists('//SimpleCallNode')
+def cdef_optargs():
+    """
+    >>> cdef_optargs()
+    (11, 2, 3)
+    (11, 2, 3)
+    (11, 12, 3)
+    (11, 12, 3)
+    (11, 12, 3)
+    (11, 12, 3)
+    (11, 12, 3)
+    (11, 12, 13)
+    (11, 12, 13)
+    (11, 12, 13)
+    (11, 12, 13)
+    (11, 12, 13)
+    (11, 12, 13)
+    (11, 12, 13)
+    """
+    print(optargs(11))
+    print(optargs(a=11))
+
+    print(optargs(11,   12))
+    print(optargs(11,   b=12))
+    print(optargs(a=11, b=12))
+    print(optargs(b=12, a=11))
+    print(optargs(a=11, b=12))
+
+    print(optargs(11,   12,   13))
+    print(optargs(11,   12,   c=13))
+    print(optargs(11,   c=13, b=12))
+    print(optargs(a=11, b=12, c=13))
+    print(optargs(b=12, a=11, c=13))
+    print(optargs(b=12, c=13, a=11))
+    print(optargs(c=13, a=11, b=12))
