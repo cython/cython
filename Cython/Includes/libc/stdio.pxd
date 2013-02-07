@@ -14,53 +14,53 @@ cdef extern from "stdio.h" nogil:
 
     enum: FOPEN_MAX
     enum: FILENAME_MAX
-    FILE *fopen   (const char *FILENAME, const char  *OPENTYPE)
-    FILE *freopen (const char *FILENAME, const char *OPENTYPE, FILE *STREAM)
-    int  fclose   (FILE *STREAM)
-    int  remove   (const char *FILENAME)
-    int  rename   (const char *OLDNAME, const char *NEWNAME)
+    FILE *fopen   (const char *filename, const char  *opentype)
+    FILE *freopen (const char *filename, const char *opentype, FILE *stream)
+    int  fclose   (FILE *stream)
+    int  remove   (const char *filename)
+    int  rename   (const char *oldname, const char *newname)
     FILE *tmpfile ()
 
     enum: _IOFBF
     enum: _IOLBF
     enum: _IONBF
-    int setvbuf (FILE *STREAM, char *BUF, int MODE, size_t SIZE)
+    int setvbuf (FILE *stream, char *buf, int mode, size_t size)
     enum: BUFSIZ
-    void setbuf (FILE *STREAM, char *BUF)
+    void setbuf (FILE *stream, char *buf)
 
-    size_t fread  (void *DATA, size_t SIZE, size_t COUNT, FILE *STREAM)
-    size_t fwrite (const void *DATA, size_t SIZE, size_t COUNT, FILE *STREAM)
-    int    fflush (FILE *STREAM)
+    size_t fread  (void *data, size_t size, size_t count, FILE *stream)
+    size_t fwrite (const void *data, size_t size, size_t count, FILE *stream)
+    int    fflush (FILE *stream)
 
     enum: EOF
-    int feof   (FILE *STREAM)
-    int ferror (FILE *STREAM)
+    int feof   (FILE *stream)
+    int ferror (FILE *stream)
 
     enum: SEEK_SET
     enum: SEEK_CUR
     enum: SEEK_END
-    int      fseek  (FILE *STREAM, long int OFFSET, int WHENCE)
-    void     rewind (FILE *STREAM)
-    long int ftell  (FILE *STREAM)
+    int      fseek  (FILE *stream, long int offset, int whence)
+    void     rewind (FILE *stream)
+    long int ftell  (FILE *stream)
 
     ctypedef long long int fpos_t
     ctypedef const fpos_t const_fpos_t "const fpos_t"
-    int fgetpos (FILE *STREAM, fpos_t *POSITION)
-    int fsetpos (FILE *STREAM, const fpos_t *POSITION)
+    int fgetpos (FILE *stream, fpos_t *position)
+    int fsetpos (FILE *stream, const fpos_t *position)
 
-    int scanf    (const char *TEMPLATE, ...)
-    int sscanf   (const char *S, const char *TEMPLATE, ...)
-    int fscanf   (FILE *STREAM, const char *TEMPLATE, ...)
+    int scanf    (const char *template, ...)
+    int sscanf   (const char *s, const char *template, ...)
+    int fscanf   (FILE *stream, const char *template, ...)
 
-    int printf   (const char *TEMPLATE, ...)
-    int sprintf  (char *S, const char *TEMPLATE, ...)
-    int snprintf (char *S, size_t SIZE, const char *TEMPLATE, ...)
-    int fprintf  (FILE *STREAM, const char *TEMPLATE, ...)
+    int printf   (const char *template, ...)
+    int sprintf  (char *s, const char *template, ...)
+    int snprintf (char *s, size_t size, const char *template, ...)
+    int fprintf  (FILE *stream, const char *template, ...)
 
-    void perror  (const char *MESSAGE)
+    void perror  (const char *message)
 
-    char *gets  (char *S)
-    char *fgets (char *S, int COUNT, FILE *STREAM)
+    char *gets  (char *s)
+    char *fgets (char *s, int count, FILE *stream)
 
-    int  puts   (const char *S)
-    int  fputs  (const char *S, FILE *STREAM)
+    int  puts   (const char *s)
+    int  fputs  (const char *s, FILE *stream)

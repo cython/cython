@@ -17,8 +17,8 @@ cdef extern from "signal.h" nogil:
     sighandler_t SIG_IGN
     sighandler_t SIG_ERR
 
-    sighandler_t signal        (int SIGNUM, sighandler_t ACTION)
-    int          raise_"raise" (int SIGNUM)
+    sighandler_t signal        (int signum, sighandler_t action)
+    int          raise_"raise" (int signum)
 
 
 cdef extern from "signal.h" nogil:
