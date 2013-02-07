@@ -2,6 +2,23 @@
 Cython Changelog
 ================
 
+0.19 (??)
+=================
+
+Features added
+--------------
+
+* Keyword arguments are supported for cdef functions.
+
+Bugs fixed
+----------
+
+* The declarations of ``frexp()`` and ``ldexp()`` in ``math.pxd`` were incorrect.
+
+Other changes
+-------------
+
+
 0.18 (2013-01-28)
 =================
 
