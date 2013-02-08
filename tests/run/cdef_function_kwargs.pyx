@@ -11,6 +11,13 @@ cpdef cpfunc(a,b,c,d):
 cdef optargs(a, b=2, c=3):
     return (a,b,c)
 
+ctypedef int (*cfuncptr_type)(int a, int b)
+cdef int cfuncptr(int a, int b):
+    print a, b
+
+cdef cfuncptr_type get_cfuncptr():
+    return cfuncptr
+
 
 sideeffect = []
 cdef side_effect(x):
@@ -156,3 +163,20 @@ def cdef_optargs():
     print(optargs(b=12, a=11, c=13))
     print(optargs(b=12, c=13, a=11))
     print(optargs(c=13, a=11, b=12))
+
+
+@cython.test_fail_if_path_exists('//GeneralCallNode')
+@cython.test_assert_path_exists('//SimpleCallNode')
+def cdef_funcptr():
+    """
+    >>> cdef_funcptr()
+    1 2
+    1 2
+    1 2
+    1 2
+    """
+    cdef cfuncptr_type cfunc_ptr = get_cfuncptr()
+    cfunc_ptr(1, 2)
+    cfunc_ptr(1, b=2)
+    cfunc_ptr(a=1, b=2)
+    cfunc_ptr(b=2, a=1)

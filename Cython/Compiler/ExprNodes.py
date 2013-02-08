@@ -4388,12 +4388,17 @@ class GeneralCallNode(CallNode):
             return self
         function = self.function
         entry = getattr(function, 'entry', None)
-        if not entry or not entry.is_cfunction:
+        if not entry:
+            return self
+        function_type = entry.type
+        if function_type.is_ptr:
+            function_type = function_type.base_type
+        if not function_type.is_cfunction:
             return self
 
         pos_args = self.positional_args.args
         kwargs = self.keyword_args
-        declared_args = entry.type.args
+        declared_args = function_type.args
         if entry.is_cmethod:
             declared_args = declared_args[1:] # skip 'self'
 
