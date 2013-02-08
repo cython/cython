@@ -180,3 +180,24 @@ def cdef_funcptr():
     cfunc_ptr(1, b=2)
     cfunc_ptr(a=1, b=2)
     cfunc_ptr(b=2, a=1)
+
+
+'''
+# This works but currently brings up C compiler warnings
+# because the format string is not a literal C string.
+
+from libc.stdio cimport snprintf
+
+@cython.test_fail_if_path_exists('//GeneralCallNode')
+@cython.test_assert_path_exists('//SimpleCallNode')
+def varargs():
+    """
+    >>> print(varargs())
+    abc
+    """
+    cdef char buffer[10]
+    retval = snprintf(buffer, template="abc", size=10)
+    if retval < 0:
+        raise MemoryError()
+    return buffer[:retval].decode('ascii')
+'''
