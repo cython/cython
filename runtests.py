@@ -87,6 +87,23 @@ EXT_DEP_MODULES = {
     'tag:array' : 'array',
 }
 
+def patch_inspect_isfunction():
+    import inspect
+    orig_isfunction = inspect.isfunction
+    def isfunction(obj):
+        return orig_isfunction(obj) or type(obj).__name__ == 'cython_function_or_method'
+    isfunction._orig_isfunction = orig_isfunction
+    inspect.isfunction = isfunction
+
+def unpatch_inspect_isfunction():
+    import inspect
+    try:
+        orig_isfunction = inspect.isfunction._orig_isfunction
+    except AttributeError:
+        pass
+    else:
+        inspect.isfunction = orig_isfunction
+
 def update_numpy_extension(ext):
     import numpy
     ext.include_dirs.append(numpy.get_include())
@@ -489,6 +506,7 @@ class CythonCompileTestCase(unittest.TestCase):
         for name, value in self._saved_options:
             setattr(Options, name, value)
         Options.directive_defaults = dict(self._saved_default_directives)
+        unpatch_inspect_isfunction()
 
         try:
             sys.path.remove(self.workdir)
@@ -918,6 +936,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         Options.directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
+        patch_inspect_isfunction()
 
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
