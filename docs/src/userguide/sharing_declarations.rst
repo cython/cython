@@ -37,8 +37,6 @@ A definition file can contain:
 * Declarations of C functions defined in the module.
 * The definition part of an extension type (see below).
 
-It cannot contain any non-extern C variable declarations.
-
 It cannot contain the implementations of any C or Python functions, or any
 Python class definitions, or any executable statements. It is needed when one 
 wants to  access :keyword:`cdef` attributes and methods, or to inherit from 
