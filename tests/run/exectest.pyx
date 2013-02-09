@@ -113,3 +113,11 @@ def test_encoding_unicode(d1, d2):
 def test_compile(d):
     c = compile(u"b = a+c", u"<string>", u"exec")
     exec c in d
+
+def exec_invalid_type(x):
+    """
+    >>> exec_invalid_type(42)
+    Traceback (most recent call last):
+    TypeError: exec: arg 1 must be string, bytes or code object, got int
+    """
+    exec x in {}

@@ -140,8 +140,9 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         #else
         } else if (!PyString_Check(o)) {
         #endif
-            PyErr_SetString(PyExc_TypeError,
-                "exec: arg 1 must be string, bytes or code object");
+            PyErr_Format(PyExc_TypeError,
+                "exec: arg 1 must be string, bytes or code object, got %.200s",
+                Py_TYPE(o)->tp_name);
             goto bad;
         }
         #if PY_MAJOR_VERSION >= 3
