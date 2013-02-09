@@ -203,3 +203,43 @@ static PyObject* __Pyx_Intern(PyObject* s) {
     #endif
     return s;
 }
+
+//////////////////// abs_int.proto ////////////////////
+
+static CYTHON_INLINE unsigned int __Pyx_abs_int(int x) {
+    if (unlikely(x == -INT_MAX-1))
+        return ((unsigned int)INT_MAX) + 1U;
+    return (unsigned int) abs(x);
+}
+
+//////////////////// abs_long.proto ////////////////////
+
+static CYTHON_INLINE unsigned long __Pyx_abs_long(long x) {
+    if (unlikely(x == -LONG_MAX-1))
+        return ((unsigned long)LONG_MAX) + 1U;
+    return (unsigned long) labs(x);
+}
+
+//////////////////// abs_longlong.proto ////////////////////
+
+static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
+#ifndef PY_LLONG_MAX
+#ifdef LLONG_MAX
+    const PY_LONG_LONG PY_LLONG_MAX = LLONG_MAX;
+#else
+    // copied from pyport.h in CPython 3.3, missing in 2.4
+    const PY_LONG_LONG PY_LLONG_MAX = (1 + 2 * ((1LL << (CHAR_BIT * sizeof(PY_LONG_LONG) - 2)) - 1));
+#endif
+#endif
+    if (unlikely(x == -PY_LLONG_MAX-1))
+        return ((unsigned PY_LONG_LONG)PY_LLONG_MAX) + 1U;
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    return (unsigned PY_LONG_LONG) llabs(x);
+#else
+    return (x<0) ? (unsigned PY_LONG_LONG)-x : (unsigned PY_LONG_LONG)x;
+#endif
+}
+
+//////////////////// pow2.proto ////////////////////
+
+#define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
