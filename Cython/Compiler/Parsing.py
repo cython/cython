@@ -1157,14 +1157,28 @@ def p_exec_statement(s):
     # s.sy == 'exec'
     pos = s.position()
     s.next()
-    args = [ p_bit_expr(s) ]
+    code = p_bit_expr(s)
+    if isinstance(code, ExprNodes.TupleNode):
+        # Py3 compatibility syntax
+        tuple_variant = True
+        args = code.args
+        if len(args) not in (2, 3):
+            s.error("expected tuple of length 2 or 3, got length %d" % len(args),
+                    pos=pos, fatal=False)
+            args = [code]
+    else:
+        tuple_variant = False
+        args = [code]
     if s.sy == 'in':
+        if tuple_variant:
+            s.error("tuple variant of exec does not support additional 'in' arguments",
+                    fatal=False)
         s.next()
         args.append(p_test(s))
         if s.sy == ',':
             s.next()
             args.append(p_test(s))
-    return Nodes.ExecStatNode(pos, args = args)
+    return Nodes.ExecStatNode(pos, args=args)
 
 def p_del_statement(s):
     # s.sy == 'del'

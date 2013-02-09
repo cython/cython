@@ -86,6 +86,24 @@ def test_dict_scope3(d1, d2):
 def test_dict_scope_ref(d1, d2):
     exec u"b=a+c" in d1, d2
 
+def test_dict_scope_tuple2():
+    """
+    >>> test_dict_scope_tuple2()
+    2
+    """
+    cdef dict d = {}
+    exec(u"b=1+1", d)   # Py3 compatibility syntax
+    return d[u'b']
+
+def test_dict_scope_tuple3(d1, d2):
+    """
+    >>> d1, d2 = {}, {}
+    >>> test_dict_scope_tuple3(d1, d2)
+    >>> (d1.get('b'), d2.get('b'))
+    (None, 2)
+    """
+    exec(u"b=1+1", d1, d2)
+
 def test_def(d, varref):
     exec u"""
 def test():
