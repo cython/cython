@@ -103,17 +103,17 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         if (!globals)
             goto bad;
     } else if (!PyDict_Check(globals)) {
-        PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.100s",
-                     globals->ob_type->tp_name);
+        PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
+                     Py_TYPE(globals)->tp_name);
         goto bad;
     }
     if (!locals || locals == Py_None) {
         locals = globals;
     }
 
-
     if (PyDict_GetItemString(globals, "__builtins__") == NULL) {
-        PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins());
+        if (PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0)
+            goto bad;
     }
 
     if (PyCode_Check(o)) {
