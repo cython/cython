@@ -1398,7 +1398,7 @@ class NameNode(AtomicExprNode):
     def infer_type(self, env):
         if self.entry is None:
             self.entry = env.lookup(self.name)
-        if self.entry is None:
+        if self.entry is None or self.entry.type is unspecified_type:
             return py_object_type
         elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
                 self.name == self.entry.type.name:
