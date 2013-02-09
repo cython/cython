@@ -57,50 +57,9 @@ static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 ''')
 
 iter_next_utility_code = UtilityCode.load_cached("IterNext", "ObjectHandling.c")
-
-getattr3_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
-""",
-impl = """
-static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
-    PyObject *r = PyObject_GetAttr(o, n);
-    if (!r) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            goto bad;
-        PyErr_Clear();
-        r = d;
-        Py_INCREF(d);
-    }
-    return r;
-bad:
-    return NULL;
-}
-""")
-
-globals_utility_code = UtilityCode.load_cached("Globals", "Builtins.c")
+getattr3_utility_code = UtilityCode.load_cached("GetAttr3", "Builtins.c")
 pyexec_utility_code = UtilityCode.load_cached("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load_cached("PyExecGlobals", "Builtins.c")
-
-intern_utility_code = UtilityCode(
-proto = """
-static PyObject* __Pyx_Intern(PyObject* s); /* proto */
-""",
-impl = '''
-static PyObject* __Pyx_Intern(PyObject* s) {
-    if (!(likely(PyString_CheckExact(s)))) {
-        PyErr_Format(PyExc_TypeError, "Expected str, got %s", Py_TYPE(s)->tp_name);
-        return 0;
-    }
-    Py_INCREF(s);
-    #if PY_MAJOR_VERSION >= 3
-    PyUnicode_InternInPlace(&s);
-    #else
-    PyString_InternInPlace(&s);
-    #endif
-    return s;
-}
-''')
 
 py_set_utility_code = UtilityCode(
 proto = """
@@ -241,7 +200,7 @@ builtin_function_table = [
                         is_strict_signature = True)),
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
-                    utility_code = UtilityCode.load_cached("CallableCheck", "ObjectHandling.c")),
+                    utility_code = UtilityCode.load("CallableCheck", "ObjectHandling.c")),
     #('chr',       "",     "",      ""),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
@@ -268,7 +227,7 @@ builtin_function_table = [
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
     BuiltinFunction('intern',     "O",    "O",     "__Pyx_Intern",
-                    utility_code = intern_utility_code),
+                    utility_code = UtilityCode.load("Intern", "Builtins.c")),
     BuiltinFunction('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     BuiltinFunction('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     BuiltinFunction('iter',       "OO",   "O",     "PyCallIter_New"),
@@ -312,7 +271,7 @@ builtin_function_table = [
 if not Options.old_style_globals:
     builtin_function_table.append(
         BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
-                        utility_code = globals_utility_code))
+                        utility_code=UtilityCode.load("Globals", "Builtins.c")))
 
 # Builtin types
 #  bool
@@ -369,7 +328,7 @@ builtin_types_table = [
                                     BuiltinMethod("keys",  "T",   "O", "PyDict_Keys"),   # FIXME: Py3 mode?
                                     BuiltinMethod("values","T",   "O", "PyDict_Values"), # FIXME: Py3 mode?
                                     BuiltinMethod("clear", "T",   "r", "__Pyx_PyDict_Clear",
-                                                  utility_code = UtilityCode.load_cached("py_dict_clear", "Optimize.c")),
+                                                  utility_code = UtilityCode.load("py_dict_clear", "Optimize.c")),
                                     BuiltinMethod("copy",  "T",   "T", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    [BuiltinAttribute('start'),

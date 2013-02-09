@@ -163,3 +163,43 @@ bad:
     Py_XDECREF(s);
     return 0;
 }
+
+//////////////////// GetAttr3.proto ////////////////////
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
+
+//////////////////// GetAttr3 ////////////////////
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
+    PyObject *r = PyObject_GetAttr(o, n);
+    if (!r) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            goto bad;
+        PyErr_Clear();
+        r = d;
+        Py_INCREF(d);
+    }
+    return r;
+bad:
+    return NULL;
+}
+
+//////////////////// Intern.proto ////////////////////
+
+static PyObject* __Pyx_Intern(PyObject* s); /* proto */
+
+//////////////////// Intern ////////////////////
+
+static PyObject* __Pyx_Intern(PyObject* s) {
+    if (!(likely(PyString_CheckExact(s)))) {
+        PyErr_Format(PyExc_TypeError, "Expected str, got %s", Py_TYPE(s)->tp_name);
+        return 0;
+    }
+    Py_INCREF(s);
+    #if PY_MAJOR_VERSION >= 3
+    PyUnicode_InternInPlace(&s);
+    #else
+    PyString_InternInPlace(&s);
+    #endif
+    return s;
+}
