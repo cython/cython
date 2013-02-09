@@ -11,10 +11,11 @@ import Options
 
 # C-level implementations of builtin types, functions and methods
 
-iter_next_utility_code = UtilityCode.load_cached("IterNext", "ObjectHandling.c")
-getattr3_utility_code = UtilityCode.load_cached("GetAttr3", "Builtins.c")
-pyexec_utility_code = UtilityCode.load_cached("PyExec", "Builtins.c")
-pyexec_globals_utility_code = UtilityCode.load_cached("PyExecGlobals", "Builtins.c")
+iter_next_utility_code = UtilityCode.load("IterNext", "ObjectHandling.c")
+getattr3_utility_code = UtilityCode.load("GetAttr3", "Builtins.c")
+pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
+pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
+globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 
 py_set_utility_code = UtilityCode(
 proto = """
@@ -226,7 +227,7 @@ builtin_function_table = [
 if not Options.old_style_globals:
     builtin_function_table.append(
         BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
-                        utility_code=UtilityCode.load("Globals", "Builtins.c")))
+                        utility_code=globals_utility_code))
 
 # Builtin types
 #  bool
