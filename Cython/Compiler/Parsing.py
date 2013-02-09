@@ -349,7 +349,8 @@ def p_yield_expression(s):
         arg = p_testlist(s)
     else:
         if is_yield_from:
-            s.error("'yield from' requires a source argument", pos=pos)
+            s.error("'yield from' requires a source argument",
+                    pos=pos, fatal=False)
         arg = None
     if is_yield_from:
         return ExprNodes.YieldFromExprNode(pos, arg=arg)
@@ -412,7 +413,7 @@ def p_call_parse_args(s, allow_genexp = True):
         if s.sy == '*':
             if star_arg:
                 s.error("only one star-arg parameter allowed",
-                    pos = s.position())
+                        pos=s.position())
             s.next()
             star_arg = p_test(s)
         else:
@@ -421,18 +422,19 @@ def p_call_parse_args(s, allow_genexp = True):
                 s.next()
                 if not arg.is_name:
                     s.error("Expected an identifier before '='",
-                        pos = arg.pos)
+                            pos=arg.pos)
                 encoded_name = EncodedString(arg.name)
-                keyword = ExprNodes.IdentifierStringNode(arg.pos, value = encoded_name)
+                keyword = ExprNodes.IdentifierStringNode(
+                    arg.pos, value=encoded_name)
                 arg = p_test(s)
                 keyword_args.append((keyword, arg))
             else:
                 if keyword_args:
                     s.error("Non-keyword arg following keyword arg",
-                        pos = arg.pos)
+                            pos=arg.pos)
                 if star_arg:
                     s.error("Non-keyword arg following star-arg",
-                        pos = arg.pos)
+                            pos=arg.pos)
                 positional_args.append(arg)
         if s.sy != ',':
             break
@@ -808,7 +810,8 @@ def p_string_literal(s, kind_override=None):
                     if len(systr) == 4:
                         chars.append_charval( int(systr[2:], 16) )
                     else:
-                        s.error("Invalid hex escape '%s'" % systr)
+                        s.error("Invalid hex escape '%s'" % systr,
+                                fatal=False)
                 elif c in u'NUu' and kind in ('u', ''):   # \uxxxx, \Uxxxxxxxx, \N{...}
                     chrval = -1
                     if c == u'N':
@@ -823,7 +826,8 @@ def p_string_literal(s, kind_override=None):
                             s.error("Invalid unicode escape '%s'" % systr)
                             chrval = -1
                     else:
-                        s.error("Invalid unicode escape '%s'" % systr)
+                        s.error("Invalid unicode escape '%s'" % systr,
+                                fatal=False)
                     if chrval >= 0:
                         chars.append_uescape(chrval, systr)
                 else:
@@ -836,10 +840,9 @@ def p_string_literal(s, kind_override=None):
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
-            s.error("Unclosed string literal", pos = pos)
+            s.error("Unclosed string literal", pos=pos)
         else:
-            s.error(
-                "Unexpected token %r:%r in string literal" %
+            s.error("Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
     if kind == 'c':
         unicode_value = None
@@ -851,7 +854,8 @@ def p_string_literal(s, kind_override=None):
         if is_python3_source and has_non_ASCII_literal_characters:
             # Python 3 forbids literal non-ASCII characters in byte strings
             if kind != 'u':
-                s.error("bytes can only contain ASCII literal characters.", pos = pos)
+                s.error("bytes can only contain ASCII literal characters.",
+                        pos=pos, fatal=False)
             bytes_value = None
     s.next()
     return (kind, bytes_value, unicode_value)
@@ -1840,7 +1844,7 @@ def p_statement(s, ctx, first_statement = 0):
         return node
     else:
         if ctx.api:
-            s.error("'api' not allowed with this statement")
+            s.error("'api' not allowed with this statement", fatal=False)
         elif s.sy == 'def':
             # def statements aren't allowed in pxd files, except
             # as part of a cdef class
@@ -1908,7 +1912,7 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
         s.expect_dedent()
     else:
         if ctx.api:
-            s.error("'api' not allowed with this statement")
+            s.error("'api' not allowed with this statement", fatal=False)
         if ctx.level in ('module', 'class', 'function', 'other'):
             body = p_simple_statement_list(s, ctx)
         else:
@@ -1933,7 +1937,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
 
     while s.sy not in end_sy_set:
         if s.sy == '*' or s.sy == '**':
-            s.error('Argument expansion not allowed here.')
+            s.error('Argument expansion not allowed here.', fatal=False)
 
         parsed_type = False
         if s.sy == 'IDENT' and s.peek()[0] == '=':
@@ -1966,7 +1970,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
             pos_idx += 1
             if len(keyword_args) > 0:
                 s.error("Non-keyword arg following keyword arg",
-                        pos = arg.pos)
+                        pos=arg.pos)
 
         if s.sy != ',':
             if s.sy not in end_sy_set:
@@ -2398,8 +2402,9 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                     op += s.sy    # +=, -=, ...
                     s.next()
                 if op not in supported_overloaded_operators:
-                    s.error("Overloading operator '%s' not yet supported." % op)
-                name = name+op
+                    s.error("Overloading operator '%s' not yet supported." % op,
+                            fatal=False)
+                name += op
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention
@@ -2722,7 +2727,7 @@ def p_visibility(s, prev_visibility):
         visibility = s.systring
         if prev_visibility != 'private' and visibility != prev_visibility:
             s.error("Conflicting visibility options '%s' and '%s'"
-                % (prev_visibility, visibility))
+                % (prev_visibility, visibility), fatal=False)
         s.next()
     return visibility
 
@@ -2925,7 +2930,7 @@ def p_c_class_definition(s, pos,  ctx):
             s.next()
             base_class_path.append(p_ident(s))
         if s.sy == ',':
-            s.error("C class may only have one base class")
+            s.error("C class may only have one base class", fatal=False)
         s.expect(')')
         base_class_module = ".".join(base_class_path[:-1])
         base_class_name = base_class_path[-1]
