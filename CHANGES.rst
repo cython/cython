@@ -8,10 +8,14 @@ Cython Changelog
 Features added
 --------------
 
+* Py3 compatible ``exec(tuple)`` syntax is supported in Py2 code.
+
 * Keyword arguments are supported for cdef functions.
 
 Bugs fixed
 ----------
+
+* Exiting from an ``except-as`` clause now deletes the exception in Python 3 mode.
 
 * The declarations of ``frexp()`` and ``ldexp()`` in ``math.pxd`` were incorrect.
 
