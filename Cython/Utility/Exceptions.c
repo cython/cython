@@ -186,9 +186,13 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         goto bad;
     }
 
-    if (cause && cause != Py_None) {
+    if (cause) {
         PyObject *fixed_cause;
-        if (PyExceptionClass_Check(cause)) {
+        if (cause == Py_None) {
+            /* raise ... from None */
+            Py_DECREF(cause);
+            fixed_cause = NULL;
+        } else if (PyExceptionClass_Check(cause)) {
             fixed_cause = PyObject_CallObject(cause, NULL);
             if (fixed_cause == NULL)
                 goto bad;
