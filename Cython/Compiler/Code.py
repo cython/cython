@@ -55,11 +55,13 @@ modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
 
+
 def get_utility_dir():
     # make this a function and not global variables:
     # http://trac.cython.org/cython_trac/ticket/475
     Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(Cython_dir, "Utility")
+
 
 class UtilityCodeBase(object):
     """
@@ -144,7 +146,7 @@ class UtilityCodeBase(object):
             replace_comments = re.compile(r'^\s*//.*|^\s*/\*[^*]*\*/').sub
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)' # add more tag names here at need
+             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)'
                 ) % {'C':comment}).match
         match_type = re.compile('(.+)[.](proto|impl|init|cleanup)$').match
 
@@ -292,6 +294,7 @@ class UtilityCodeBase(object):
 
     def get_tree(self):
         pass
+
 
 class UtilityCode(UtilityCodeBase):
     """
