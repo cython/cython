@@ -372,6 +372,16 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+    def inject_string_constants(self, impl, output):
+        """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
+        """
+        pystrings = re.findall('(PYIDENT\("([^"]+)"\))', impl)
+        for ref, name in pystrings:
+            py_const = output.get_interned_identifier(
+                StringEncoding.EncodedString(name))
+            impl = impl.replace(ref, py_const.cname)
+        return impl
+
     def put_code(self, output):
         if self.requires:
             for dependency in self.requires:
@@ -379,7 +389,8 @@ class UtilityCode(UtilityCodeBase):
         if self.proto:
             output[self.proto_block].put(self.format_code(self.proto))
         if self.impl:
-            output['utility_code_def'].put(self.format_code(self.impl))
+            output['utility_code_def'].put(self.format_code(
+                self.inject_string_constants(self.impl, output)))
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
