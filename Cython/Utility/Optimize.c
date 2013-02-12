@@ -1,5 +1,9 @@
 /////////////// append.proto ///////////////
 
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*proto*/
+
+/////////////// append ///////////////
+
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
         if (unlikely(PyList_Append(L, x) < 0)) return NULL;
@@ -7,7 +11,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         return Py_None; /* this is just to have an accurate signature */
     } else {
         PyObject *r, *m;
-        m = __Pyx_GetAttrString(L, "append");
+        m = PyObject_GetAttr(L, PYIDENT("append"));
         if (!m) return NULL;
         r = PyObject_CallFunctionObjArgs(m, x, NULL);
         Py_DECREF(m);
