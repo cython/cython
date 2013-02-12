@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* ``raise Exception() from None`` suppresses the exception context in Py3.3.
+
 * Py3 compatible ``exec(tuple)`` syntax is supported in Py2 code.
 
 * Keyword arguments are supported for cdef functions.
