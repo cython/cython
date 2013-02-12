@@ -186,7 +186,11 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         goto bad;
     }
 
+#if PY_VERSION_HEX >= 0x03030000
     if (cause) {
+#else
+    if (cause && cause != Py_None) {
+#endif
         PyObject *fixed_cause;
         if (cause == Py_None) {
             /* raise ... from None */
