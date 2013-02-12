@@ -400,7 +400,7 @@ static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
 #if PY_MAJOR_VERSION < 3
     if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = PyObject_GetAttrString(base, (char *)"__class__");
+        metaclass = PyObject_GetAttr(base, PYIDENT("__class__"));
         if (!metaclass) {
             PyErr_Clear();
             metaclass = (PyObject*) Py_TYPE(base);
@@ -428,10 +428,10 @@ static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*
 //@requires: FindPy2Metaclass
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
-    PyObject *metaclass = PyDict_GetItemString(mkw, "metaclass");
+    PyObject *metaclass = PyDict_GetItem(mkw, PYIDENT("metaclass"));
     if (metaclass) {
         Py_INCREF(metaclass);
-        if (PyDict_DelItemString(mkw, "metaclass") < 0) {
+        if (PyDict_DelItem(mkw, PYIDENT("metaclass")) < 0) {
             Py_DECREF(metaclass);
             return NULL;
         }
@@ -453,13 +453,13 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     PyObject *result;
     PyObject *metaclass;
 
-    if (PyDict_SetItemString(dict, "__module__", modname) < 0)
+    if (PyDict_SetItem(dict, PYIDENT("__module__"), modname) < 0)
         return NULL;
-    if (PyDict_SetItemString(dict, "__qualname__", qualname) < 0)
+    if (PyDict_SetItem(dict, PYIDENT("__qualname__"), qualname) < 0)
         return NULL;
 
     /* Python2 __metaclass__ */
-    metaclass = PyDict_GetItemString(dict, "__metaclass__");
+    metaclass = PyDict_GetItem(dict, PYIDENT("__metaclass__"));
     if (metaclass) {
         Py_INCREF(metaclass);
     } else {
@@ -484,7 +484,7 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
     PyObject *ns;
     PyObject *str;
 
-    prep = PyObject_GetAttrString(metaclass, (char *)"__prepare__");
+    prep = PyObject_GetAttr(metaclass, PYIDENT("__prepare__"));
     if (!prep) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             return NULL;

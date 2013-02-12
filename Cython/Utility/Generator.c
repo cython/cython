@@ -123,7 +123,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     Py_DECREF(ev);
 #else
     {
-        PyObject* args = PyObject_GetAttrString(ev, "args");
+        PyObject* args = PyObject_GetAttr(ev, PYIDENT("args"));
         Py_DECREF(ev);
         if (likely(args)) {
             value = PyObject_GetItem(args, 0);
@@ -310,7 +310,7 @@ static int __Pyx_Generator_CloseIter(__pyx_GeneratorObject *gen, PyObject *yf) {
     } else {
         PyObject *meth;
         gen->is_running = 1;
-        meth = PyObject_GetAttrString(yf, "close");
+        meth = PyObject_GetAttr(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
             if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyErr_WriteUnraisable(yf);
@@ -402,7 +402,7 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
         if (__Pyx_Generator_CheckExact(yf)) {
             ret = __Pyx_Generator_Throw(yf, args);
         } else {
-            PyObject *meth = PyObject_GetAttrString(yf, "throw");
+            PyObject *meth = PyObject_GetAttr(yf, PYIDENT("throw"));
             if (unlikely(!meth)) {
                 Py_DECREF(yf);
                 if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {

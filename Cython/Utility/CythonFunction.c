@@ -701,7 +701,7 @@ static PyObject *
 _obj_to_str(PyObject *obj)
 {
     if (PyType_Check(obj))
-        return PyObject_GetAttrString(obj, "__name__");
+        return PyObject_GetAttr(obj, PYIDENT("__name__"));
     else
         return PyObject_Str(obj);
 }

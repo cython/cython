@@ -39,6 +39,10 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
 
 /////////////// pop.proto ///////////////
 
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L); /*proto*/
+
+/////////////// pop ///////////////
+
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))
@@ -53,11 +57,15 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
     }
 #endif
 #endif
-    return PyObject_CallMethod(L, (char*)"pop", NULL);
+    return PyObject_CallMethodObjArgs(L, PYIDENT("pop"), NULL);
 }
 
 
 /////////////// pop_index.proto ///////////////
+
+static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
+
+/////////////// pop_index ///////////////
 
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     PyObject *r, *m, *t, *py_ix;
@@ -79,7 +87,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     }
 #endif
     py_ix = t = NULL;
-    m = __Pyx_GetAttrString(L, "pop");
+    m = PyObject_GetAttr(L, PYIDENT("pop"));
     if (!m) goto bad;
     py_ix = PyInt_FromSsize_t(ix);
     if (!py_ix) goto bad;
@@ -258,6 +266,10 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
 
 /////////////// dict_getitem_default.proto ///////////////
 
+static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value); /*proto*/
+
+/////////////// dict_getitem_default ///////////////
+
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
     PyObject* value;
 #if PY_MAJOR_VERSION >= 3
@@ -278,7 +290,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
         Py_INCREF(value);
     } else {
         PyObject *m;
-        m = __Pyx_GetAttrString(d, "get");
+        m = PyObject_GetAttr(d, PYIDENT("get"));
         if (!m) return NULL;
         value = PyObject_CallFunctionObjArgs(m, key,
                                              (default_value == Py_None) ? NULL : default_value, NULL);
@@ -290,6 +302,10 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 
 
 /////////////// dict_setdefault.proto ///////////////
+
+static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+
+/////////////// dict_setdefault ///////////////
 
 static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
     PyObject* value;
@@ -315,7 +331,7 @@ static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *d
         Py_INCREF(value);
     } else {
         PyObject *m;
-        m = __Pyx_GetAttrString(d, "setdefault");
+        m = PyObject_GetAttr(d, PYIDENT("setdefault"));
         if (!m) return NULL;
         value = PyObject_CallFunctionObjArgs(m, key, default_value, NULL);
         Py_DECREF(m);

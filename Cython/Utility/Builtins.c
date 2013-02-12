@@ -15,7 +15,7 @@ static PyObject* __Pyx_Globals(void) {
     Py_ssize_t i;
     //PyObject *d;
     PyObject *names = NULL;
-    PyObject *globals = PyObject_GetAttrString($module_cname, "__dict__");
+    PyObject *globals = PyObject_GetAttr($module_cname, PYIDENT("__dict__"));
     if (!globals) {
         PyErr_SetString(PyExc_TypeError,
             "current module must have __dict__ attribute");
@@ -111,8 +111,8 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         locals = globals;
     }
 
-    if (PyDict_GetItemString(globals, "__builtins__") == NULL) {
-        if (PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0)
+    if (PyDict_GetItem(globals, PYIDENT("__builtins__")) == NULL) {
+        if (PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0)
             goto bad;
     }
 
