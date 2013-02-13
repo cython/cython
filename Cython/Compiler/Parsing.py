@@ -678,27 +678,43 @@ def p_int_literal(s):
                              unsigned = unsigned,
                              longness = longness)
 
+
 def p_name(s, name):
     pos = s.position()
     if not s.compile_time_expr and name in s.compile_time_env:
         value = s.compile_time_env.lookup_here(name)
-        rep = repr(value)
-        if isinstance(value, bool):
-            return ExprNodes.BoolNode(pos, value = value)
-        elif isinstance(value, int):
-            return ExprNodes.IntNode(pos, value = rep)
-        elif isinstance(value, long):
-            return ExprNodes.IntNode(pos, value = rep, longness = "L")
-        elif isinstance(value, float):
-            return ExprNodes.FloatNode(pos, value = rep)
-        elif isinstance(value, _unicode):
-            return ExprNodes.UnicodeNode(pos, value = value)
-        elif isinstance(value, _bytes):
-            return ExprNodes.BytesNode(pos, value = value)
+        node = wrap_compile_time_constant(pos, value)
+        if node is not None:
+            return node
+    return ExprNodes.NameNode(pos, name=name)
+
+
+def wrap_compile_time_constant(pos, value):
+    rep = repr(value)
+    if isinstance(value, bool):
+        return ExprNodes.BoolNode(pos, value=value)
+    elif isinstance(value, int):
+        return ExprNodes.IntNode(pos, value=rep)
+    elif isinstance(value, long):
+        return ExprNodes.IntNode(pos, value=rep, longness="L")
+    elif isinstance(value, float):
+        return ExprNodes.FloatNode(pos, value=rep)
+    elif isinstance(value, _unicode):
+        return ExprNodes.UnicodeNode(pos, value=value)
+    elif isinstance(value, _bytes):
+        return ExprNodes.BytesNode(pos, value=value)
+    elif isinstance(value, tuple):
+        args = [wrap_compile_time_constant(pos, arg)
+                for arg in value]
+        if None not in args:
+            return ExprNodes.TupleNode(pos, args=args)
         else:
-            error(pos, "Invalid type for compile-time constant: %s"
-                % value.__class__.__name__)
-    return ExprNodes.NameNode(pos, name = name)
+            # error already reported
+            return None
+    error(pos, "Invalid type for compile-time constant: %s"
+               % value.__class__.__name__)
+    return None
+
 
 def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.

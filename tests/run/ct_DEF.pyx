@@ -8,7 +8,7 @@ if sys.version_info[0] < 3:
     __doc__ = __doc__.replace(u" b'", u" '")
 
 
-DEF TUPLE = (1, 2, u"buckle my shoe")
+DEF TUPLE = (1, 2, "buckle my shoe")
 DEF TRUE_FALSE = (True, False)
 
 DEF CHAR = c'x'
@@ -89,10 +89,21 @@ def s():
     cdef char* s = STR
     return s
 
-# this does not work!
-#def t():
-#    cdef object t = TUPLE
-#    return t
+def constant_tuple():
+    """
+    >>> constant_tuple()
+    (1, 2, 'buckle my shoe')
+    """
+    cdef object t = TUPLE
+    return t
+
+def tuple_indexing():
+    """
+    >>> tuple_indexing()
+    2
+    """
+    cdef int two = INT_TUPLE1[-1]
+    return two
 
 def two():
     """
@@ -101,12 +112,6 @@ def two():
     """
     cdef int two = TWO
     return two
-
-# this doesn't currently work!
-#def two2():
-#    cdef int two
-#    two = INT_TUPLE1[-1]
-#    return two
 
 def five():
     """
