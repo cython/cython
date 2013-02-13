@@ -691,7 +691,9 @@ def p_name(s, name):
 
 def wrap_compile_time_constant(pos, value):
     rep = repr(value)
-    if isinstance(value, bool):
+    if value is None:
+        return ExprNodes.NoneNode(pos)
+    elif isinstance(value, bool):
         return ExprNodes.BoolNode(pos, value=value)
     elif isinstance(value, int):
         return ExprNodes.IntNode(pos, value=rep)

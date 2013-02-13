@@ -13,6 +13,7 @@ if sys.version_info[0] < 3:
 
 DEF TUPLE = (1, 2, u"buckle my shoe")
 DEF TRUE_FALSE = (True, False)
+DEF NONE = None
 
 DEF CHAR = c'x'
 DEF INT0 = -1
@@ -156,3 +157,9 @@ def expression():
     """
     cdef int i = EXPRESSION
     return i
+
+def none():
+    """
+    >>> none()
+    """
+    return NONE

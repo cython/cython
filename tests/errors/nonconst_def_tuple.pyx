@@ -8,6 +8,5 @@ x = t_non_const
 
 _ERRORS = u"""
 5:32: Error in compile-time expression: IndexError: tuple index out of range
-7:15: Invalid type for compile-time constant: None (type NoneType)
 7:15: Invalid type for compile-time constant: [1, 2, 3] (type list)
 """
