@@ -711,8 +711,8 @@ def wrap_compile_time_constant(pos, value):
         else:
             # error already reported
             return None
-    error(pos, "Invalid type for compile-time constant: %s"
-               % value.__class__.__name__)
+    error(pos, "Invalid type for compile-time constant: %r (type %s)"
+               % (value, value.__class__.__name__))
     return None
 
 
