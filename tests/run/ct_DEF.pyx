@@ -11,7 +11,7 @@ if sys.version_info[0] < 3:
     __doc__ = __doc__.replace(u" b'", u" '")
 
 
-DEF TUPLE = (1, 2, "buckle my shoe")
+DEF TUPLE = (1, 2, u"buckle my shoe")
 DEF TRUE_FALSE = (True, False)
 
 DEF CHAR = c'x'
@@ -96,8 +96,10 @@ def s():
 @cython.test_assert_path_exists('//TupleNode')
 def constant_tuple():
     """
-    >>> constant_tuple()
-    (1, 2, 'buckle my shoe')
+    >>> constant_tuple()[:-1]
+    (1, 2)
+    >>> print(constant_tuple()[-1])
+    buckle my shoe
     """
     cdef object t = TUPLE
     return t
