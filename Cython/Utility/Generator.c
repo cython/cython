@@ -513,7 +513,7 @@ static void __Pyx_Generator_del(PyObject *self) {
         _Py_NewReference(self);
         self->ob_refcnt = refcnt;
     }
-#if CYTHON_COMPILING_FOR_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
     assert(PyType_IS_GC(self->ob_type) &&
            _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
 
