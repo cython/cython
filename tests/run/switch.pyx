@@ -1,3 +1,9 @@
+# mode: run
+
+cimport cython
+
+
+@cython.test_fail_if_path_exists('//SwitchStatNode')
 def switch_simple_py(x):
     """
     >>> switch_simple_py(1)
@@ -23,6 +29,8 @@ def switch_simple_py(x):
         return 0
     return -1
 
+
+@cython.test_fail_if_path_exists('//SwitchStatNode')
 def switch_py(x):
     """
     >>> switch_py(1)
@@ -62,6 +70,8 @@ def switch_py(x):
         return 0
     return -1
 
+
+@cython.test_assert_path_exists('//SwitchStatNode')
 def switch_simple_c(int x):
     """
     >>> switch_simple_c(1)
@@ -87,6 +97,8 @@ def switch_simple_c(int x):
         return 0
     return -1
 
+
+@cython.test_assert_path_exists('//SwitchStatNode')
 def switch_c(int x):
     """
     >>> switch_c(1)
@@ -126,6 +138,8 @@ def switch_c(int x):
         return 0
     return -1
 
+
+@cython.test_assert_path_exists('//SwitchStatNode')
 def switch_or(int x):
     """
     >>> switch_or(0)
@@ -145,6 +159,8 @@ def switch_or(int x):
         return 0
     return -1
 
+
+@cython.test_assert_path_exists('//SwitchStatNode')
 def switch_in(int X):
     """
     >>> switch_in(0)
@@ -162,6 +178,8 @@ def switch_in(int X):
         return 1
     return 0
 
+
+@cython.test_assert_path_exists('//SwitchStatNode')
 def switch_short(int x):
     """
     >>> switch_short(0)
@@ -181,6 +199,8 @@ def switch_short(int x):
         return 0
     return -1
 
+
+@cython.test_fail_if_path_exists('//SwitchStatNode')
 def switch_off(int x):
     """
     >>> switch_off(0)
@@ -196,6 +216,8 @@ def switch_off(int x):
         return 0
     return -1
 
+
+@cython.test_assert_path_exists('//SwitchStatNode')
 def switch_pass(int x):
     """
     >>> switch_pass(1)
@@ -208,3 +230,21 @@ def switch_pass(int x):
     else:
         pass
     return x
+
+
+DEF t = (1,2,3,4,5,6)
+
+@cython.test_assert_path_exists('//SwitchStatNode')
+def compile_time_tuple_constant(int x):
+    """
+    >>> compile_time_tuple_constant(1)
+    True
+    >>> compile_time_tuple_constant(0)
+    False
+    >>> compile_time_tuple_constant(7)
+    False
+    """
+    if x in t:
+        return True
+    else:
+        return False
