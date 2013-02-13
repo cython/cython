@@ -354,6 +354,19 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     return __Pyx_SetItemInt_Generic(o, PyInt_FromSsize_t(i), v);
 }
 
+
+#define __Pyx_SetItemListInt_NoCheck(o, i, v, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \
+                                                    __Pyx_SetItemIntList_NoCheck(o, i, v) : \
+                                                    __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
+
+static CYTHON_INLINE int __Pyx_SetItemIntList_NoCheck(PyObject *o, Py_ssize_t n, PyObject *v) {
+    PyObject* old = PyList_GET_ITEM(o, n);
+    Py_INCREF(v);
+    PyList_SET_ITEM(o, n, v);
+    Py_DECREF(old);
+    return 1;
+}
+
 /////////////// DelItemInt.proto ///////////////
 
 #define __Pyx_DelItemInt(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \

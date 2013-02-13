@@ -3172,7 +3172,13 @@ class IndexNode(ExprNode):
 
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
-            function = "__Pyx_SetItemInt"
+            if (self.base.type.is_builtin_type
+                and self.base.type.name == "list"
+                and not code.globalstate.directives['wraparound']
+                and not code.globalstate.directives['boundscheck']):
+                function = "__Pyx_SetItemListInt_NoCheck"
+            else:
+                function = "__Pyx_SetItemInt"
             index_code = self.index.result()
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("SetItemInt", "ObjectHandling.c"))

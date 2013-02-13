@@ -1,5 +1,4 @@
 cimport cqueue
-cimport python_exc
 
 cdef class Queue:
 
