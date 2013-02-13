@@ -1,3 +1,6 @@
+
+cimport cython
+
 __doc__ = u"""
     >>> s()
     b'spam'
@@ -25,6 +28,7 @@ DEF TRUE  = TRUE_FALSE[0]
 DEF FALSE = TRUE_FALSE[1]
 DEF INT_TUPLE1 = TUPLE[:2]
 DEF INT_TUPLE2 = TUPLE[1:4:2]
+DEF EXPRESSION = int(float(2*2)) + int(str(2)) + int(max(1,2,3)) + sum([TWO, FIVE])
 
 def c():
     """
@@ -89,6 +93,7 @@ def s():
     cdef char* s = STR
     return s
 
+@cython.test_assert_path_exists('//TupleNode')
 def constant_tuple():
     """
     >>> constant_tuple()
@@ -97,6 +102,7 @@ def constant_tuple():
     cdef object t = TUPLE
     return t
 
+@cython.test_assert_path_exists('//IntNode')
 def tuple_indexing():
     """
     >>> tuple_indexing()
@@ -121,6 +127,7 @@ def five():
     cdef int five = FIVE
     return five
 
+@cython.test_assert_path_exists('//BoolNode')
 def true():
     """
     >>> true()
@@ -129,6 +136,7 @@ def true():
     cdef bint true = TRUE
     return true
 
+@cython.test_assert_path_exists('//BoolNode')
 def false():
     """
     >>> false()
@@ -136,3 +144,13 @@ def false():
     """
     cdef bint false = FALSE
     return false
+
+@cython.test_assert_path_exists('//IntNode')
+@cython.test_fail_if_path_exists('//AddNode')
+def expression():
+    """
+    >>> expression()
+    16
+    """
+    cdef int i = EXPRESSION
+    return i
