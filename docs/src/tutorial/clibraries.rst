@@ -77,6 +77,12 @@ use in your code or in other declarations, so that Cython gets to see
 a sufficient and consistent subset of them.  Then, consider adapting
 them somewhat to make them more comfortable to work with in Cython.
 
+Specifically, you should take care of choosing good argument names
+for the C functions, as Cython allows you to pass them as keyword
+arguments.  Changing them later on is a backwards incompatible API
+modification.  Choosing good names right away will make these
+functions more pleasant to work with from Cython code.
+
 One noteworthy difference to the header file that we use above is the
 declaration of the ``Queue`` struct in the first line.  ``Queue`` is
 in this case used as an *opaque handle*; only the library that is

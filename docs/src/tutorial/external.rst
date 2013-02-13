@@ -38,8 +38,12 @@ Cython also provides declarations for the C math library::
   cdef double f(double x):
       return sin(x*x)
 
-However, this is a library that is not linked by default on some Unix-like
-systems, such as Linux. In addition to cimporting the
+
+Dynamic linking
+---------------
+
+The libc math library is special in that it is not linked by default
+on some Unix-like systems, such as Linux. In addition to cimporting the
 declarations, you must configure your build system to link against the
 shared library ``m``.  For distutils, it is enough to add it to the
 ``libraries`` parameter of the ``Extension()`` setup::
@@ -60,12 +64,16 @@ shared library ``m``.  For distutils, it is enough to add it to the
     ext_modules = ext_modules
   )
 
+
+External declarations
+---------------------
+
 If you want to access C code for which Cython does not provide a ready
 to use declaration, you must declare them yourself.  For example, the
 above ``sin()`` function is defined as follows::
 
   cdef extern from "math.h":
-      double sin(double)
+      double sin(double x)
 
 This declares the ``sin()`` function in a way that makes it available
 to Cython code and instructs Cython to generate C code that includes
@@ -77,3 +85,35 @@ Just like the ``sin()`` function from the math library, it is possible
 to declare and call into any C library as long as the module that
 Cython generates is properly linked against the shared or static
 library.
+
+
+Naming parameters
+-----------------
+
+Both C and Cython support signature declarations without parameter
+names like this::
+
+  cdef extern from "string.h":
+      char* strstr(const char*, const char*)
+
+However, this prevents Cython code from calling it with keyword
+arguments (supported since Cython 0.19).  It is therefore preferable
+to write the declaration like this instead::
+
+  cdef extern from "string.h":
+      char* strstr(const char *haystack, const char *needle)
+
+You can now make it clear which of the two arguments does what in
+your call, thus avoiding any ambiguities and often making your code
+more readable::
+
+  cdef char* data = "hfvcakdfagbcffvschvxcdfgccbcfhvgcsnfxjh"
+
+  pos = strstr(needle='akd', haystack=data)
+  print pos != NULL
+
+Note that changing existing parameter names later is a backwards
+incompatible API modification, just as for Python code.  Thus, if
+you provide your own declarations for external C or C++ functions,
+it is usually worth the additional bit of effort to choose the
+names of their arguments well.
