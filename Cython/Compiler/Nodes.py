@@ -3011,6 +3011,7 @@ class DefNodeWrapper(FuncDefNode):
         if (entry.name in ("__getbuffer__", "__releasebuffer__")
             and entry.scope.is_c_class_scope):
             mf = "CYTHON_UNUSED "
+            with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
         header = "static %s%s(%s)" % (mf, dc, arg_code)
