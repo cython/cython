@@ -273,7 +273,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         return bufp
 
     def generate_buffer_slice_code(self, code, indices, dst, have_gil,
-                                   have_slices):
+                                   have_slices, directives):
         """
         Slice a memoryviewslice.
 
@@ -359,6 +359,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                                      "All preceding dimensions must be "
                                      "indexed and not sliced")
 
+                wraparound = int(directives['wraparound'])
+                boundscheck = int(directives['boundscheck'])
                 d = locals()
                 code.put(load_slice_util("SliceIndex", d))
 

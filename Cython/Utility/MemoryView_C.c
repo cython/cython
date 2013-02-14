@@ -759,10 +759,10 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     Py_ssize_t __pyx_tmp_idx = {{idx}};
     Py_ssize_t __pyx_tmp_shape = {{src}}.shape[{{dim}}];
     Py_ssize_t __pyx_tmp_stride = {{src}}.strides[{{dim}}];
-    if (__pyx_tmp_idx < 0)
+    if ({{wraparound}} && (__pyx_tmp_idx < 0))
         __pyx_tmp_idx += __pyx_tmp_shape;
 
-    if (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= __pyx_tmp_shape) {
+    if ({{boundscheck}} && (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= __pyx_tmp_shape)) {
         {{if not have_gil}}
             #ifdef WITH_THREAD
             PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();

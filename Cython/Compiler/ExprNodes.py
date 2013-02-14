@@ -3358,7 +3358,8 @@ class IndexNode(ExprNode):
         buffer_entry.generate_buffer_slice_code(code, self.original_indices,
                                                 self.result(),
                                                 have_gil=have_gil,
-                                                have_slices=have_slices)
+                                                have_slices=have_slices,
+                                                directives=code.globalstate.directives)
 
     def generate_memoryviewslice_setslice_code(self, rhs, code):
         "memslice1[...] = memslice2 or memslice1[:] = memslice2"
