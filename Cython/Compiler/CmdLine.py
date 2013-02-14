@@ -137,8 +137,6 @@ def parse_command_line(args):
                 Options.warning_errors = True
             elif option in ('-Wextra', '--warning-extra'):
                 options.compiler_directives.update(Options.extra_warnings)
-            elif option == "--disable-function-redefinition":
-                Options.disable_function_redefinition = True
             elif option == "--old-style-globals":
                 Options.old_style_globals = True
             elif option == "--directive" or option.startswith('-X'):
