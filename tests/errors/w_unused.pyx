@@ -38,6 +38,16 @@ def unused_and_unassigned():
 def unused_generic(*args, **kwargs):
     pass
 
+def unused_in_closure(a,b,c):
+    x = 1
+    def inner():
+        nonlocal c
+        c = 1
+        y = 2
+        return a+b
+    return inner()
+
+
 _ERRORS = """
 6:6: Unused entry 'a'
 9:9: Unused entry 'b'
@@ -49,4 +59,8 @@ _ERRORS = """
 36:13: Unused entry 'i'
 38:20: Unused argument 'args'
 38:28: Unused argument 'kwargs'
+41:26: Unused argument 'c'
+41:26: Unused entry 'c'
+42:6: Unused entry 'x'
+46:10: Unused entry 'y'
 """

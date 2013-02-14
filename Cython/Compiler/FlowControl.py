@@ -616,8 +616,7 @@ def check_definitions(flow, compiler_directives):
     # Unused entries
     for entry in flow.entries:
         if (not entry.cf_references
-                and not entry.is_pyclass_attr
-                and not entry.in_closure):
+                and not entry.is_pyclass_attr):
             if entry.name != '_':
                 # '_' is often used for unused variables, e.g. in loops
                 if entry.is_arg:
