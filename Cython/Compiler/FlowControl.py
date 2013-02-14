@@ -615,17 +615,19 @@ def check_definitions(flow, compiler_directives):
 
     # Unused entries
     for entry in flow.entries:
-        if (not entry.cf_references and not entry.is_pyclass_attr
-            and not entry.in_closure
-            and entry.name != '_'):
-            if entry.is_arg:
-                if warn_unused_arg:
-                    messages.warning(entry.pos, "Unused argument '%s'" %
-                                     entry.name)
-            else:
-                if warn_unused:
-                    messages.warning(entry.pos, "Unused entry '%s'" %
-                                     entry.name)
+        if (not entry.cf_references
+                and not entry.is_pyclass_attr
+                and not entry.in_closure):
+            if entry.name != '_':
+                # '_' is often used for unused variables, e.g. in loops
+                if entry.is_arg:
+                    if warn_unused_arg:
+                        messages.warning(entry.pos, "Unused argument '%s'" %
+                                         entry.name)
+                else:
+                    if warn_unused:
+                        messages.warning(entry.pos, "Unused entry '%s'" %
+                                         entry.name)
             entry.cf_used = False
 
     messages.report()
