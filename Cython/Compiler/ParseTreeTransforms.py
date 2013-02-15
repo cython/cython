@@ -2495,6 +2495,20 @@ class TransformBuiltinMethods(EnvTransform):
                       for var in local_names ]
             return ExprNodes.ListNode(pos, args=items)
 
+    def visit_PrimaryCmpNode(self, node):
+        # special case: for in/not-in test, we do not need to sort locals()
+        self.visitchildren(node)
+        if node.operator in 'not_in':  # in/not_in
+            if isinstance(node.operand2, ExprNodes.SortedDictKeysNode):
+                arg = node.operand2.arg
+                if isinstance(arg, ExprNodes.NoneCheckNode):
+                    arg = arg.arg
+                node.operand2 = arg
+        return node
+
+    def visit_CascadedCmpNode(self, node):
+        return self.visit_PrimaryCmpNode(node)
+
     def _inject_eval(self, node, func_name):
         lenv = self.current_env()
         entry = lenv.lookup_here(func_name)
