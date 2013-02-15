@@ -91,7 +91,7 @@ def py_enumerate_dict(dict d):
     """
     cdef int i = 55
     k = 99
-    keys = d.keys()
+    keys = list(d.keys())
     for i,k in enumerate(d):
         k = keys[i] == k
         print i, k
