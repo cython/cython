@@ -6226,25 +6226,25 @@ class DictItemNode(ExprNode):
 
 class SortedDictKeysNode(ExprNode):
     # build sorted list of dict keys, e.g. for dir()
-    subexprs = ['base_dict']
+    subexprs = ['arg']
 
     is_temp = True
 
-    def __init__(self, base_dict):
-        ExprNode.__init__(self, base_dict.pos, base_dict=base_dict)
+    def __init__(self, arg):
+        ExprNode.__init__(self, arg.pos, arg=arg)
         self.type = Builtin.list_type
 
     def analyse_types(self, env):
-        base_dict = self.base_dict.analyse_types(env)
-        if base_dict.type is Builtin.dict_type:
-            base_dict = base_dict.as_none_safe_node(
+        arg = self.arg.analyse_types(env)
+        if arg.type is Builtin.dict_type:
+            arg = arg.as_none_safe_node(
                 "'NoneType' object is not iterable")
-        self.base_dict = base_dict
+        self.arg = arg
         return self
 
     def generate_result_code(self, code):
-        dict_result = self.base_dict.py_result()
-        if self.base_dict.type is Builtin.dict_type:
+        dict_result = self.arg.py_result()
+        if self.arg.type is Builtin.dict_type:
             function = 'PyDict_Keys'
         else:
             function = 'PyMapping_Keys'
