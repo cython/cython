@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* list.append() is faster on average.
+
 * ``raise Exception() from None`` suppresses the exception context in Py3.3.
 
 * Py3 compatible ``exec(tuple)`` syntax is supported in Py2 code.
