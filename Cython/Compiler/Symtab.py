@@ -2015,6 +2015,8 @@ class CClassScope(ClassScope):
             if is_builtin:
                 entry.is_builtin_cmethod = True
                 entry.as_variable = var_entry
+            if base_entry.utility_code:
+                entry.utility_code = base_entry.utility_code
 
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
