@@ -2489,11 +2489,7 @@ class TransformBuiltinMethods(EnvTransform):
                     locals_dict = ExprNodes.CloneNode(pyclass.dict)
                 else:
                     locals_dict = ExprNodes.GlobalsExprNode(pos)
-                return ExprNodes.SimpleCallNode(
-                    pos,
-                    function=ExprNodes.AttributeNode(
-                        pos, obj=locals_dict, attribute="keys"),
-                    args=[])
+                return ExprNodes.SortedDictKeysNode(locals_dict)
             local_names = [ var.name for var in lenv.entries.values() if var.name ]
             items = [ ExprNodes.IdentifierStringNode(pos, value=var)
                       for var in local_names ]

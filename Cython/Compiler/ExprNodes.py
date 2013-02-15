@@ -6224,6 +6224,38 @@ class DictItemNode(ExprNode):
         return iter([self.key, self.value])
 
 
+class SortedDictKeysNode(ExprNode):
+    # build sorted list of dict keys, e.g. for dir()
+    subexprs = ['base_dict']
+
+    is_temp = True
+
+    def __init__(self, base_dict):
+        ExprNode.__init__(self, base_dict.pos, base_dict=base_dict)
+        self.type = Builtin.list_type
+
+    def analyse_types(self, env):
+        base_dict = self.base_dict.analyse_types(env)
+        if base_dict.type is Builtin.dict_type:
+            base_dict = base_dict.as_none_safe_node(
+                "'NoneType' object is not iterable")
+        self.base_dict = base_dict
+        return self
+
+    def generate_result_code(self, code):
+        dict_result = self.base_dict.py_result()
+        if self.base_dict.type is Builtin.dict_type:
+            function = 'PyDict_Keys'
+        else:
+            function = 'PyMapping_Keys'
+        code.putln('%s = %s(%s); %s' % (
+            self.result(), function, dict_result,
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+        code.putln(code.error_goto_if_neg(
+            'PyList_Sort(%s)' % self.py_result(), self.pos))
+
+
 class ModuleNameMixin(object):
     def set_qualified_name(self, env, self_name):
         self.module_name = env.global_scope().qualified_name
