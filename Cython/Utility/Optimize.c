@@ -10,12 +10,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         Py_INCREF(Py_None);
         return Py_None; /* this is just to have an accurate signature */
     } else {
-        PyObject *r, *m;
-        m = PyObject_GetAttr(L, PYIDENT("append"));
-        if (!m) return NULL;
-        r = PyObject_CallFunctionObjArgs(m, x, NULL);
-        Py_DECREF(m);
-        return r;
+        return PyObject_CallMethodObjArgs(L, PYIDENT("append"), x, NULL);
     }
 }
 
@@ -289,12 +284,10 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
         }
         Py_INCREF(value);
     } else {
-        PyObject *m;
-        m = PyObject_GetAttr(d, PYIDENT("get"));
-        if (!m) return NULL;
-        value = PyObject_CallFunctionObjArgs(m, key,
-                                             (default_value == Py_None) ? NULL : default_value, NULL);
-        Py_DECREF(m);
+        if (default_value == Py_None)
+            default_value = NULL;
+        value = PyObject_CallMethodObjArgs(
+            d, PYIDENT("get"), key, default_value, NULL);
     }
 #endif
     return value;
@@ -330,11 +323,7 @@ static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *d
         }
         Py_INCREF(value);
     } else {
-        PyObject *m;
-        m = PyObject_GetAttr(d, PYIDENT("setdefault"));
-        if (!m) return NULL;
-        value = PyObject_CallFunctionObjArgs(m, key, default_value, NULL);
-        Py_DECREF(m);
+        value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
     }
 #endif
     return value;
