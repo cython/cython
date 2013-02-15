@@ -495,7 +495,6 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
     PyObject *prep;
     PyObject *pargs;
     PyObject *ns;
-    PyObject *str;
 
     prep = PyObject_GetAttr(metaclass, PYIDENT("__prepare__"));
     if (!prep) {
@@ -517,59 +516,13 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
         return NULL;
 
     /* Required here to emulate assignment order */
-    /* XXX: use consts here */
-    #if PY_MAJOR_VERSION >= 3
-    str = PyUnicode_FromString("__module__");
-    #else
-    str = PyString_FromString("__module__");
-    #endif
-    if (!str) {
-        Py_DECREF(ns);
-        return NULL;
-    }
-
-    if (PyObject_SetItem(ns, str, modname) < 0) {
-        Py_DECREF(ns);
-        Py_DECREF(str);
-        return NULL;
-    }
-    Py_DECREF(str);
-
-    #if PY_MAJOR_VERSION >= 3
-    str = PyUnicode_FromString("__qualname__");
-    #else
-    str = PyString_FromString("__qualname__");
-    #endif
-    if (!str) {
-        Py_DECREF(ns);
-        return NULL;
-    }
-
-    if (PyObject_SetItem(ns, str, qualname) < 0) {
-        Py_DECREF(ns);
-        Py_DECREF(str);
-        return NULL;
-    }
-    Py_DECREF(str);
-
-    if (doc) {
-        #if PY_MAJOR_VERSION >= 3
-        str = PyUnicode_FromString("__doc__");
-        #else
-        str = PyString_FromString("__doc__");
-        #endif
-        if (!str) {
-            Py_DECREF(ns);
-            return NULL;
-        }
-        if (PyObject_SetItem(ns, str, doc) < 0) {
-            Py_DECREF(ns);
-            Py_DECREF(str);
-            return NULL;
-        }
-        Py_DECREF(str);
-    }
+    if (PyObject_SetItem(ns, PYIDENT("__module__"), modname) < 0) goto bad;
+    if (PyObject_SetItem(ns, PYIDENT("__qualname__"), qualname) < 0) goto bad;
+    if (doc && PyObject_SetItem(ns, PYIDENT("__doc__"), doc) < 0) goto bad;
     return ns;
+bad:
+    Py_DECREF(ns);
+    return NULL;
 }
 
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
