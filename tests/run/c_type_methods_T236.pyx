@@ -34,9 +34,26 @@ def float__add__(float f):
     """
     return f.__add__(2)
 
+
+def float_const__add__(float f):
+    """
+    >>> float_const__add__(5.0)
+    7.0
+    """
+    return 2. .__add__(f)
+
+
 def int__add__(int i):
     """
     >>> int__add__(5)
     7
     """
     return i.__add__(2)
+
+
+def int_const__add__(int i):
+    """
+    >>> int_const__add__(5)
+    7
+    """
+    return 2 .__add__(i)
