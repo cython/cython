@@ -277,7 +277,8 @@ builtin_types_table = [
 
     ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
-                                    BuiltinMethod("append",  "TO",   "r", "PyList_Append"),
+                                    BuiltinMethod("append",  "TO",   "r", "__Pyx_PyList_Append",
+                                                  utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     ]),
 
     ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),  # FIXME: Py3 mode?
