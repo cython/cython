@@ -6242,6 +6242,9 @@ class SortedDictKeysNode(ExprNode):
         self.arg = arg
         return self
 
+    def may_be_none(self):
+        return False
+
     def generate_result_code(self, code):
         dict_result = self.arg.py_result()
         if self.arg.type is Builtin.dict_type:
@@ -7216,6 +7219,9 @@ class GlobalsExprNode(AtomicExprNode):
 
     gil_message = "Constructing globals dict"
 
+    def may_be_none(self):
+        return False
+
     def generate_result_code(self, code):
         code.putln('%s = __Pyx_Globals(); %s' % (
             self.result(),
@@ -7262,6 +7268,9 @@ class PyClassLocalsExprNode(AtomicExprNode):
         self.type = self.pyclass_dict.type
         self.is_temp = False
         return self
+
+    def may_be_none(self):
+        return False
 
     def result(self):
         return self.pyclass_dict.result()
