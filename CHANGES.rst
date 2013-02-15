@@ -19,6 +19,9 @@ Features added
 Bugs fixed
 ----------
 
+* ``dir()`` without arguments previously returned an unsorted list, which now
+  gets sorted as expected.
+
 * ``dict.items()``, ``dict.keys()`` and ``dict.values()`` no longer return lists
   in Python 3.
 
