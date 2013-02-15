@@ -103,24 +103,23 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb,
         /* Normalize to raise <class>, <instance> */
         value = type;
         #if PY_VERSION_HEX < 0x02050000
-            if (PyInstance_Check(type)) {
-                type = (PyObject*) ((PyInstanceObject*)type)->in_class;
-                Py_INCREF(type);
-            }
-            else {
-                type = 0;
-                PyErr_SetString(PyExc_TypeError,
-                    "raise: exception must be an old-style class or instance");
-                goto raise_error;
-            }
-        #else
-            type = (PyObject*) Py_TYPE(type);
+        if (PyInstance_Check(type)) {
+            type = (PyObject*) ((PyInstanceObject*)type)->in_class;
             Py_INCREF(type);
-            if (!PyType_IsSubtype((PyTypeObject *)type, (PyTypeObject *)PyExc_BaseException)) {
-                PyErr_SetString(PyExc_TypeError,
-                    "raise: exception class must be a subclass of BaseException");
-                goto raise_error;
-            }
+        } else {
+            type = 0;
+            PyErr_SetString(PyExc_TypeError,
+                "raise: exception must be an old-style class or instance");
+            goto raise_error;
+        }
+        #else
+        type = (PyObject*) Py_TYPE(type);
+        Py_INCREF(type);
+        if (!PyType_IsSubtype((PyTypeObject *)type, (PyTypeObject *)PyExc_BaseException)) {
+            PyErr_SetString(PyExc_TypeError,
+                "raise: exception class must be a subclass of BaseException");
+            goto raise_error;
+        }
         #endif
     }
 
@@ -163,8 +162,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         else if (PyTuple_Check(value)) {
             Py_INCREF(value);
             args = value;
-        }
-        else
+        } else
             args = PyTuple_Pack(1, value);
         if (!args)
             goto bad;
@@ -199,12 +197,10 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
             fixed_cause = PyObject_CallObject(cause, NULL);
             if (fixed_cause == NULL)
                 goto bad;
-        }
-        else if (PyExceptionInstance_Check(cause)) {
+        } else if (PyExceptionInstance_Check(cause)) {
             fixed_cause = cause;
             Py_INCREF(fixed_cause);
-        }
-        else {
+        } else {
             PyErr_SetString(PyExc_TypeError,
                             "exception causes must derive from "
                             "BaseException");
