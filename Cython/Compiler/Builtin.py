@@ -281,12 +281,15 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     ]),
 
-    ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),  # FIXME: Py3 mode?
-                                    BuiltinMethod("keys",  "T",   "O", "PyDict_Keys"),   # FIXME: Py3 mode?
-                                    BuiltinMethod("values","T",   "O", "PyDict_Values"), # FIXME: Py3 mode?
-                                    BuiltinMethod("clear", "T",   "r", "__Pyx_PyDict_Clear",
-                                                  utility_code = UtilityCode.load("py_dict_clear", "Optimize.c")),
-                                    BuiltinMethod("copy",  "T",   "T", "PyDict_Copy")]),
+    ("dict",    "PyDict_Type",     [BuiltinMethod("items",  "T",   "O", "__Pyx_PyDict_Items",
+                                                  utility_code=UtilityCode.load("py_dict_items", "Optimize.c")),
+                                    BuiltinMethod("keys",   "T",   "O", "__Pyx_PyDict_Keys",
+                                                  utility_code=UtilityCode.load("py_dict_keys", "Optimize.c")),
+                                    BuiltinMethod("values", "T",   "O", "__Pyx_PyDict_Values",
+                                                  utility_code=UtilityCode.load("py_dict_values", "Optimize.c")),
+                                    BuiltinMethod("clear",  "T",   "r", "__Pyx_PyDict_Clear",
+                                                  utility_code=UtilityCode.load("py_dict_clear", "Optimize.c")),
+                                    BuiltinMethod("copy",   "T",   "T", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    [BuiltinAttribute('start'),
                                     BuiltinAttribute('stop'),

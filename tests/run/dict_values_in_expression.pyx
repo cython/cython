@@ -4,7 +4,7 @@ def values_in_expression(**kwargs):
     >>> sorted(values_in_expression(a=3, b=4))
     [1, 2, 3, 4]
     """
-    return [ arg for arg in [1,2] + kwargs.values() ]
+    return [ arg for arg in [1,2] + list(kwargs.values()) ]
 
 
 cdef dict make_dict(d):
