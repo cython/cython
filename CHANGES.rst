@@ -19,6 +19,9 @@ Features added
 Bugs fixed
 ----------
 
+* ``dict.items()``, ``dict.keys()`` and ``dict.values()`` no longer return lists
+  in Python 3.
+
 * Exiting from an ``except-as`` clause now deletes the exception in Python 3 mode.
 
 * The declarations of ``frexp()`` and ``ldexp()`` in ``math.pxd`` were incorrect.
