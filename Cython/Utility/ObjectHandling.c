@@ -585,3 +585,27 @@ static CYTHON_INLINE int __Pyx_PySequence_Contains(PyObject* item, PyObject* seq
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
 }
+
+/////////////// PyObjectCallMethod.proto ///////////////
+//@substitute: naming
+
+static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_name, PyObject* args) {
+    PyObject *method, *result = NULL;
+    if (unlikely(!args)) return NULL;
+    method = PyObject_GetAttr(obj, method_name);
+    if (unlikely(!method)) goto bad;
+    result = PyObject_Call(method, args, NULL);
+    Py_DECREF(method);
+bad:
+    Py_DECREF(args);
+    return result;
+}
+
+#define __Pyx_PyObject_CallMethod3(obj, name, arg1, arg2, arg3) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(3, arg1, arg2, arg3));
+#define __Pyx_PyObject_CallMethod2(obj, name, arg1, arg2) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(2, arg1, arg2));
+#define __Pyx_PyObject_CallMethod1(obj, name, arg1) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(1, arg1));
+#define __Pyx_PyObject_CallMethod0(obj, name) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, (Py_INCREF($empty_tuple), $empty_tuple));

@@ -4,6 +4,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x); 
 
 /////////////// append ///////////////
 //@requires: ListAppend
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
@@ -11,7 +12,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         Py_INCREF(Py_None);
         return Py_None; /* this is just to have an accurate signature */
     } else {
-        return PyObject_CallMethodObjArgs(L, PYIDENT("append"), x, NULL);
+        return __Pyx_PyObject_CallMethod1(L, PYIDENT("append"), x);
     }
 }
 
@@ -56,6 +57,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L); /*proto*/
 
 /////////////// pop ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
@@ -71,7 +73,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
     }
 #endif
 #endif
-    return PyObject_CallMethodObjArgs(L, PYIDENT("pop"), NULL);
+    return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
 
 
@@ -318,6 +320,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
 
 /////////////// dict_setdefault ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type) {
     PyObject* value;
@@ -344,7 +347,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
         Py_INCREF(value);
 #endif
     } else {
-        value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
+        value = __Pyx_PyObject_CallMethod2(d, PYIDENT("setdefault"), key, default_value);
     }
     return value;
 }
@@ -412,6 +415,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 /////////////// dict_iter ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
@@ -427,7 +431,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     *p_orig_length = 0;
     if (method_name) {
         PyObject* iter;
-        iterable = PyObject_CallMethodObjArgs(iterable, method_name, NULL);
+        iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
         if (!iterable)
             return NULL;
 #if !CYTHON_COMPILING_IN_PYPY
