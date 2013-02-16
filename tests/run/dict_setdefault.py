@@ -11,6 +11,17 @@ class Hashable(object):
     def __eq__(self, other):
         return isinstance(other, Hashable)
 
+class CountedHashable(object):
+    def __init__(self):
+        self.hash_count = 0
+        self.eq_count = 0
+    def __hash__(self):
+        self.hash_count += 1
+        return 42
+    def __eq__(self, other):
+        self.eq_count += 1
+        return id(self) == id(other)
+
 @cython.test_fail_if_path_exists('//AttributeNode')
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.locals(d=dict)
@@ -36,6 +47,17 @@ def setdefault1(d, key):
     >>> len(d)
     2
     >>> d[Hashable()]
+
+    >>> hashed1 = CountedHashable()
+    >>> y = {hashed1: 5}
+    >>> hashed2 = CountedHashable()
+    >>> setdefault1(y, hashed2)
+    >>> hashed1.hash_count
+    1
+    >>> hashed2.hash_count
+    1
+    >>> hashed1.eq_count + hashed2.eq_count
+    1
     """
     return d.setdefault(key)
 
@@ -72,5 +94,17 @@ def setdefault2(d, key, value):
     3
     >>> d[Hashable()]
     55
+
+    >>> hashed1 = CountedHashable()
+    >>> y = {hashed1: 5}
+    >>> hashed2 = CountedHashable()
+    >>> setdefault2(y, hashed2, [])
+    []
+    >>> hashed1.hash_count
+    1
+    >>> hashed2.hash_count
+    1
+    >>> hashed1.eq_count + hashed2.eq_count
+    1
     """
     return d.setdefault(key, value)

@@ -315,25 +315,26 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 
 /////////////// dict_setdefault.proto ///////////////
 
-static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
 
 /////////////// dict_setdefault ///////////////
 
-static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type) {
     PyObject* value;
+    if (is_safe_type == 1 || (is_safe_type == -1 &&
+            (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)))) {
+        /* these presumably have repeatably safe and fast hash functions */
 #if PY_MAJOR_VERSION >= 3
-    value = PyDict_GetItemWithError(d, key);
-    if (unlikely(!value)) {
-        if (unlikely(PyErr_Occurred()))
-            return NULL;
-        if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
-            return NULL;
-        value = default_value;
-    }
-    Py_INCREF(value);
+        value = PyDict_GetItemWithError(d, key);
+        if (unlikely(!value)) {
+            if (unlikely(PyErr_Occurred()))
+                return NULL;
+            if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
+                return NULL;
+            value = default_value;
+        }
+        Py_INCREF(value);
 #else
-    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
-        /* these presumably have safe hash functions */
         value = PyDict_GetItem(d, key);
         if (unlikely(!value)) {
             if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
@@ -341,10 +342,10 @@ static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *d
             value = default_value;
         }
         Py_INCREF(value);
+#endif
     } else {
         value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
     }
-#endif
     return value;
 }
 
