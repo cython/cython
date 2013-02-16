@@ -4958,8 +4958,10 @@ class AttributeNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_py_attr:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
             code.putln(
-                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                '%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s' % (
                     self.result(),
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),

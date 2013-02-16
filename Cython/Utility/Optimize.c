@@ -82,6 +82,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
 
 /////////////// pop_index ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     PyObject *r, *m, *t, *py_ix;
@@ -103,7 +104,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     }
 #endif
     py_ix = t = NULL;
-    m = PyObject_GetAttr(L, PYIDENT("pop"));
+    m = __Pyx_PyObject_GetAttrStr(L, PYIDENT("pop"));
     if (!m) goto bad;
     py_ix = PyInt_FromSsize_t(ix);
     if (!py_ix) goto bad;
