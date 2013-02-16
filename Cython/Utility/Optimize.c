@@ -314,9 +314,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type) {
     PyObject* value;
     if (is_safe_type == 1 || (is_safe_type == -1 &&
-            (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)))) {
-        /* these presumably have repeatably safe and fast hash functions */
+        /* the following builtins presumably have repeatably safe and fast hash functions */
 #if PY_MAJOR_VERSION >= 3
+            (PyUnicode_CheckExact(key) || PyString_CheckExact(key) || PyLong_CheckExact(key)))) {
         value = PyDict_GetItemWithError(d, key);
         if (unlikely(!value)) {
             if (unlikely(PyErr_Occurred()))
@@ -327,6 +327,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
         }
         Py_INCREF(value);
 #else
+            (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key) || PyLong_CheckExact(key)))) {
         value = PyDict_GetItem(d, key);
         if (unlikely(!value)) {
             if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
