@@ -602,10 +602,10 @@ bad:
 }
 
 #define __Pyx_PyObject_CallMethod3(obj, name, arg1, arg2, arg3) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(3, arg1, arg2, arg3));
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(3, arg1, arg2, arg3))
 #define __Pyx_PyObject_CallMethod2(obj, name, arg1, arg2) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(2, arg1, arg2));
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(2, arg1, arg2))
 #define __Pyx_PyObject_CallMethod1(obj, name, arg1) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(1, arg1));
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(1, arg1))
 #define __Pyx_PyObject_CallMethod0(obj, name) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, (Py_INCREF($empty_tuple), $empty_tuple));
+    __Pyx_PyObject_CallMethodTuple(obj, name, (Py_INCREF($empty_tuple), $empty_tuple))
