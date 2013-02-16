@@ -48,16 +48,22 @@ def setdefault1(d, key):
     2
     >>> d[Hashable()]
 
-    >>> hashed1 = CountedHashable()
-    >>> y = {hashed1: 5}
-    >>> hashed2 = CountedHashable()
-    >>> setdefault1(y, hashed2)
-    >>> hashed1.hash_count
-    1
-    >>> hashed2.hash_count
-    1
-    >>> hashed1.eq_count + hashed2.eq_count
-    1
+    # CPython's behaviour depends on version and py_debug setting, so just compare to it
+    >>> py_hashed1 = CountedHashable()
+    >>> y = {py_hashed1: 5}
+    >>> py_hashed2 = CountedHashable()
+    >>> y.setdefault(py_hashed2)
+
+    >>> cy_hashed1 = CountedHashable()
+    >>> y = {cy_hashed1: 5}
+    >>> cy_hashed2 = CountedHashable()
+    >>> setdefault1(y, cy_hashed2)
+    >>> py_hashed1.hash_count - cy_hashed1.hash_count
+    0
+    >>> py_hashed2.hash_count - cy_hashed2.hash_count
+    0
+    >>> (py_hashed1.eq_count + py_hashed2.eq_count) - (cy_hashed1.eq_count + cy_hashed2.eq_count)
+    0
     """
     return d.setdefault(key)
 
@@ -95,16 +101,23 @@ def setdefault2(d, key, value):
     >>> d[Hashable()]
     55
 
-    >>> hashed1 = CountedHashable()
-    >>> y = {hashed1: 5}
-    >>> hashed2 = CountedHashable()
-    >>> setdefault2(y, hashed2, [])
+    # CPython's behaviour depends on version and py_debug setting, so just compare to it
+    >>> py_hashed1 = CountedHashable()
+    >>> y = {py_hashed1: 5}
+    >>> py_hashed2 = CountedHashable()
+    >>> y.setdefault(py_hashed2, [])
     []
-    >>> hashed1.hash_count
-    1
-    >>> hashed2.hash_count
-    1
-    >>> hashed1.eq_count + hashed2.eq_count
-    1
+
+    >>> cy_hashed1 = CountedHashable()
+    >>> y = {cy_hashed1: 5}
+    >>> cy_hashed2 = CountedHashable()
+    >>> setdefault2(y, cy_hashed2, [])
+    []
+    >>> py_hashed1.hash_count - cy_hashed1.hash_count
+    0
+    >>> py_hashed2.hash_count - cy_hashed2.hash_count
+    0
+    >>> (py_hashed1.eq_count + py_hashed2.eq_count) - (cy_hashed1.eq_count + cy_hashed2.eq_count)
+    0
     """
     return d.setdefault(key, value)
