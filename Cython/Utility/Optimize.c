@@ -82,11 +82,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
 
 /////////////// pop_index ///////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
-    PyObject *r, *m, *t, *py_ix;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
+    PyObject *r, *py_ix;
+#if CYTHON_COMPILING_IN_CPYTHON
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
@@ -103,24 +103,11 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
         }
     }
 #endif
-    py_ix = t = NULL;
-    m = __Pyx_PyObject_GetAttrStr(L, PYIDENT("pop"));
-    if (!m) goto bad;
     py_ix = PyInt_FromSsize_t(ix);
-    if (!py_ix) goto bad;
-    t = PyTuple_New(1);
-    if (!t) goto bad;
-    PyTuple_SET_ITEM(t, 0, py_ix);
-    py_ix = NULL;
-    r = PyObject_CallObject(m, t);
-    Py_DECREF(m);
-    Py_DECREF(t);
+    if (!py_ix) return NULL;
+    r = __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
+    Py_DECREF(py_ix);
     return r;
-bad:
-    Py_XDECREF(m);
-    Py_XDECREF(t);
-    Py_XDECREF(py_ix);
-    return NULL;
 }
 
 
