@@ -24,7 +24,6 @@ def simple_pop(L):
     []
     >>> simple_pop(L)
     Traceback (most recent call last):
-    ...
     IndexError: pop from empty list
 
     >>> simple_pop(A())
@@ -50,7 +49,6 @@ def simple_pop_typed(list L):
     []
     >>> simple_pop_typed(L)
     Traceback (most recent call last):
-    ...
     IndexError: pop from empty list
     """
     return L.pop()
@@ -63,17 +61,18 @@ def index_pop(L, int i):
     >>> L = list(range(10))
     >>> index_pop(L, 2)
     2
+    >>> index_pop(L, -10)
+    Traceback (most recent call last):
+    IndexError: pop index out of range
     >>> index_pop(L, -2)
     8
     >>> L
     [0, 1, 3, 4, 5, 6, 7, 9]
     >>> index_pop(L, 100)
     Traceback (most recent call last):
-    ...
     IndexError: pop index out of range
     >>> index_pop(L, -100)
     Traceback (most recent call last):
-    ...
     IndexError: pop index out of range
 
     >>> while L:
@@ -84,7 +83,6 @@ def index_pop(L, int i):
 
     >>> index_pop(L, 0)
     Traceback (most recent call last):
-    ...
     IndexError: pop from empty list
 
     >>> index_pop(A(), 3)
@@ -105,11 +103,9 @@ def index_pop_typed(list L, int i):
     [0, 1, 3, 4, 5, 6, 7, 9]
     >>> index_pop_typed(L, 100)
     Traceback (most recent call last):
-    ...
     IndexError: pop index out of range
     >>> index_pop_typed(L, -100)
     Traceback (most recent call last):
-    ...
     IndexError: pop index out of range
 
     >>> while L:
@@ -120,7 +116,6 @@ def index_pop_typed(list L, int i):
 
     >>> index_pop_typed(L, 0)
     Traceback (most recent call last):
-    ...
     IndexError: pop from empty list
     """
     return L.pop(i)
@@ -143,7 +138,6 @@ def index_pop_literal(list L):
 
     >>> index_pop_literal(L)
     Traceback (most recent call last):
-    ...
     IndexError: pop from empty list
     """
     return L.pop(0)

@@ -90,14 +90,15 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
-            if (ix < 0) {
-                ix += size;
+            Py_ssize_t cix = ix;
+            if (cix < 0) {
+                cix += size;
             }
-            if (likely(0 <= ix && ix < size)) {
-                PyObject* v = PyList_GET_ITEM(L, ix);
+            if (likely(0 <= cix && cix < size)) {
+                PyObject* v = PyList_GET_ITEM(L, cix);
                 Py_SIZE(L) -= 1;
                 size -= 1;
-                memmove(&PyList_GET_ITEM(L, ix), &PyList_GET_ITEM(L, ix+1), (size-ix)*sizeof(PyObject*));
+                memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size-cix)*sizeof(PyObject*));
                 return v;
             }
         }
