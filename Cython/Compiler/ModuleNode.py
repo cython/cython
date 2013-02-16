@@ -1158,12 +1158,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_xdecref_memoryviewslice("p->%s" % entry.cname,
                                              have_gil=True)
 
-        # The base class deallocator probably expects this to be tracked, so
-        # undo the untracking above.
-        if scope.needs_gc():
-            code.putln("PyObject_GC_Track(o);")
-
         if base_type:
+            # The base class deallocator probably expects this to be tracked, so
+            # undo the untracking above.
+            if scope.needs_gc():
+                code.putln("PyObject_GC_Track(o);")
+
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
                 code.putln("%s(o);" % tp_dealloc)
