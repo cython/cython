@@ -586,6 +586,29 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
 }
 
+/////////////// GetGlobalName.proto ///////////////
+
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
+
+/////////////// GetGlobalName ///////////////
+//@requires: PyObjectGetAttrStr
+//@substitute: naming
+
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
+    PyObject *result;
+    result = __Pyx_PyObject_GetAttrStr(dict, name);
+    if (!result) {
+        if (dict != $builtins_cname) {
+            PyErr_Clear();
+            result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
+        }
+        if (!result) {
+            PyErr_SetObject(PyExc_NameError, name);
+        }
+    }
+    return result;
+}
+
 /////////////// PyObjectGetAttrStr.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
