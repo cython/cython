@@ -534,7 +534,7 @@ class MethodDispatcherTransform(EnvTransform):
             handler = getattr(self, '_handle_any_%s' % match_name, None)
         return handler
 
-    def _dispatch_to_handler(self, node, function, arg_list, kwargs=None):
+    def _dispatch_to_handler(self, node, function, arg_list, kwargs):
         if function.is_name:
             # we only consider functions that are either builtin
             # Python functions or builtins that were already replaced
