@@ -4,6 +4,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x); 
 
 /////////////// append ///////////////
 //@requires: ListAppend
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
@@ -11,7 +12,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         Py_INCREF(Py_None);
         return Py_None; /* this is just to have an accurate signature */
     } else {
-        return PyObject_CallMethodObjArgs(L, PYIDENT("append"), x, NULL);
+        return __Pyx_PyObject_CallMethod1(L, PYIDENT("append"), x);
     }
 }
 
@@ -56,6 +57,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L); /*proto*/
 
 /////////////// pop ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
@@ -71,7 +73,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
     }
 #endif
 #endif
-    return PyObject_CallMethodObjArgs(L, PYIDENT("pop"), NULL);
+    return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
 
 
@@ -80,44 +82,33 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
 
 /////////////// pop_index ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
-    PyObject *r, *m, *t, *py_ix;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
+    PyObject *r, *py_ix;
+#if CYTHON_COMPILING_IN_CPYTHON
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
-            if (ix < 0) {
-                ix += size;
+            Py_ssize_t cix = ix;
+            if (cix < 0) {
+                cix += size;
             }
-            if (likely(0 <= ix && ix < size)) {
-                PyObject* v = PyList_GET_ITEM(L, ix);
+            if (likely(0 <= cix && cix < size)) {
+                PyObject* v = PyList_GET_ITEM(L, cix);
                 Py_SIZE(L) -= 1;
                 size -= 1;
-                memmove(&PyList_GET_ITEM(L, ix), &PyList_GET_ITEM(L, ix+1), (size-ix)*sizeof(PyObject*));
+                memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size-cix)*sizeof(PyObject*));
                 return v;
             }
         }
     }
 #endif
-    py_ix = t = NULL;
-    m = PyObject_GetAttr(L, PYIDENT("pop"));
-    if (!m) goto bad;
     py_ix = PyInt_FromSsize_t(ix);
-    if (!py_ix) goto bad;
-    t = PyTuple_New(1);
-    if (!t) goto bad;
-    PyTuple_SET_ITEM(t, 0, py_ix);
-    py_ix = NULL;
-    r = PyObject_CallObject(m, t);
-    Py_DECREF(m);
-    Py_DECREF(t);
+    if (!py_ix) return NULL;
+    r = __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
+    Py_DECREF(py_ix);
     return r;
-bad:
-    Py_XDECREF(m);
-    Py_XDECREF(t);
-    Py_XDECREF(py_ix);
-    return NULL;
 }
 
 
@@ -315,25 +306,28 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 
 /////////////// dict_setdefault.proto ///////////////
 
-static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
 
 /////////////// dict_setdefault ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
-static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type) {
     PyObject* value;
+    if (is_safe_type == 1 || (is_safe_type == -1 &&
+        /* the following builtins presumably have repeatably safe and fast hash functions */
 #if PY_MAJOR_VERSION >= 3
-    value = PyDict_GetItemWithError(d, key);
-    if (unlikely(!value)) {
-        if (unlikely(PyErr_Occurred()))
-            return NULL;
-        if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
-            return NULL;
-        value = default_value;
-    }
-    Py_INCREF(value);
+            (PyUnicode_CheckExact(key) || PyString_CheckExact(key) || PyLong_CheckExact(key)))) {
+        value = PyDict_GetItemWithError(d, key);
+        if (unlikely(!value)) {
+            if (unlikely(PyErr_Occurred()))
+                return NULL;
+            if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
+                return NULL;
+            value = default_value;
+        }
+        Py_INCREF(value);
 #else
-    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
-        /* these presumably have safe hash functions */
+            (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key) || PyLong_CheckExact(key)))) {
         value = PyDict_GetItem(d, key);
         if (unlikely(!value)) {
             if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
@@ -341,10 +335,10 @@ static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *d
             value = default_value;
         }
         Py_INCREF(value);
-    } else {
-        value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
-    }
 #endif
+    } else {
+        value = __Pyx_PyObject_CallMethod2(d, PYIDENT("setdefault"), key, default_value);
+    }
     return value;
 }
 
@@ -411,6 +405,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 /////////////// dict_iter ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
@@ -426,7 +421,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     *p_orig_length = 0;
     if (method_name) {
         PyObject* iter;
-        iterable = PyObject_CallMethodObjArgs(iterable, method_name, NULL);
+        iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
         if (!iterable)
             return NULL;
 #if !CYTHON_COMPILING_IN_PYPY

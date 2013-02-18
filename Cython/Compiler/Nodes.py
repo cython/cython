@@ -3856,8 +3856,10 @@ class OverrideCheckNode(StatNode):
         func_node_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         self.func_node.set_cname(func_node_temp)
         # need to get attribute manually--scope would return cdef method
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
         err = code.error_goto_if_null(func_node_temp, self.pos)
-        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
+        code.putln("%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s" % (
             func_node_temp, self_arg, interned_attr_cname, err))
         code.put_gotref(func_node_temp)
         is_builtin_function_or_method = "PyCFunction_Check(%s)" % func_node_temp
@@ -5849,10 +5851,12 @@ class WithStatNode(StatNode):
         code.putln("/*with:*/ {")
         self.manager.generate_evaluation_code(code)
         self.exit_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
+        code.putln("%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s" % (
             self.exit_var,
             self.manager.py_result(),
-            code.get_py_string_const(EncodedString('__exit__'), identifier=True),
+            code.intern_identifier(EncodedString('__exit__')),
             code.error_goto_if_null(self.exit_var, self.pos),
             ))
         code.put_gotref(self.exit_var)
@@ -6710,10 +6714,12 @@ class FromImportStatNode(StatNode):
                     code.error_goto(self.pos)))
         item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         self.item.set_cname(item_temp)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
         for name, target, coerced_item in self.interned_items:
             cname = code.intern_identifier(name)
             code.putln(
-                '%s = PyObject_GetAttr(%s, %s);' % (
+                '%s = __Pyx_PyObject_GetAttrStr(%s, %s);' % (
                     item_temp,
                     self.module.py_result(),
                     cname))

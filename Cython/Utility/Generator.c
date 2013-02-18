@@ -56,6 +56,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
@@ -285,7 +286,7 @@ static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
             if (value == Py_None)
                 ret = PyIter_Next(yf);
             else
-                ret = PyObject_CallMethod(yf, (char*)"send", (char*)"O", value);
+                ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
         gen->is_running = 0;
         //Py_DECREF(yf);

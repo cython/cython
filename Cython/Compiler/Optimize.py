@@ -2294,6 +2294,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("is_safe_type", PyrexTypes.c_int_type, None),
             ])
 
     def _handle_simple_method_dict_setdefault(self, node, args, is_unbound_method):
@@ -2304,12 +2305,22 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         elif len(args) != 3:
             self._error_wrong_arg_count('dict.setdefault', node, args, "2 or 3")
             return node
+        key_type = args[1].type
+        if key_type.is_builtin_type:
+            is_safe_type = int(key_type.name in
+                               'str bytes unicode float int long bool')
+        elif key_type is PyrexTypes.py_object_type:
+            is_safe_type = -1  # don't know
+        else:
+            is_safe_type = 0   # definitely not
+        args.append(ExprNodes.IntNode(
+            node.pos, value=is_safe_type, constant_result=is_safe_type))
 
         return self._substitute_method_call(
             node, "__Pyx_PyDict_SetDefault", self.Pyx_PyDict_SetDefault_func_type,
             'setdefault', is_unbound_method, args,
-            may_return_none = True,
-            utility_code = load_c_utility('dict_setdefault'))
+            may_return_none=True,
+            utility_code=load_c_utility('dict_setdefault'))
 
 
     ### unicode type methods

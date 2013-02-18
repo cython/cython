@@ -17,6 +17,22 @@ def test(dict d, index):
     Traceback (most recent call last):
     KeyError: (1, 2)
 
+    >>> import sys
+    >>> try: d[(1,)]
+    ... except KeyError:
+    ...     args = sys.exc_info()[1].args
+    ...     if sys.version_info >= (2,5): print(args)
+    ...     else: print((args,))   # fake it for older CPython versions
+    ((1,),)
+
+    >>> import sys
+    >>> try: test(d, (1,))
+    ... except KeyError:
+    ...     args = sys.exc_info()[1].args
+    ...     if sys.version_info >= (2,5): print(args)
+    ...     else: print((args,))   # fake it for older CPython versions
+    ((1,),)
+
     >>> class Unhashable:
     ...    def __hash__(self):
     ...        raise ValueError

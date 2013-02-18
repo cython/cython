@@ -23,8 +23,9 @@ typedef struct {
 #define __pyx_atomic_int_type int
 /* todo: Portland pgcc, maybe OS X's OSAtomicIncrement32,
    libatomic + autotools-like distutils support? Such a pain... */
-#if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 || \
-                    (__GNUC_MINOR__ == 1 && __GNUC_PATHLEVEL >= 2))
+#if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 ||           \
+                    (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2)) && \
+                    !defined(WIN32) && !defined(MS_WINDOWS)
     /* gcc >= 4.1.2 */
     #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub(value, 1)

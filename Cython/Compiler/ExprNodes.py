@@ -4993,8 +4993,10 @@ class AttributeNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_py_attr:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
             code.putln(
-                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                '%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s' % (
                     self.result(),
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),
@@ -10262,33 +10264,13 @@ class DocstringRefNode(ExprNode):
         code.put_gotref(self.result())
 
 
-
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
 #
 #------------------------------------------------------------------------------------
 
-get_name_interned_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
-    PyObject *result;
-    result = PyObject_GetAttr(dict, name);
-    if (!result) {
-        if (dict != %(BUILTINS)s) {
-            PyErr_Clear();
-            result = PyObject_GetAttr(%(BUILTINS)s, name);
-        }
-        if (!result) {
-            PyErr_SetObject(PyExc_NameError, name);
-        }
-    }
-    return result;
-}
-""" % {'BUILTINS' : Naming.builtins_cname})
+get_name_interned_utility_code = UtilityCode.load("GetGlobalName", "ObjectHandling.c")
 
 #------------------------------------------------------------------------------------
 

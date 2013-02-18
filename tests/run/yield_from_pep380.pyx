@@ -526,11 +526,6 @@ def test_broken_getattr_handling():
         def __getattr__(self, attr):
             1/0
 
-    if sys.version_info >= (3,3):
-        expected_exception = ZeroDivisionError
-    else:
-        expected_exception = AttributeError
-
     def g():
         yield from Broken()
 
@@ -539,7 +534,7 @@ def test_broken_getattr_handling():
         gi = g()
         assert next(gi) == 1
         gi.send(1)
-    except expected_exception:
+    except ZeroDivisionError:
         pass
     else:
         not_raised.append(1)

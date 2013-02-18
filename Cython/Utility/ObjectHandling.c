@@ -221,8 +221,12 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
     value = PyDict_GetItemWithError(d, key);
     if (unlikely(!value)) {
-        if (!PyErr_Occurred())
-            PyErr_SetObject(PyExc_KeyError, key);
+        if (!PyErr_Occurred()) {
+            PyObject* args = PyTuple_Pack(1, key);
+            if (likely(args))
+                PyErr_SetObject(PyExc_KeyError, args);
+            Py_XDECREF(args);
+        }
         return NULL;
     }
     Py_INCREF(value);
@@ -581,3 +585,68 @@ static CYTHON_INLINE int __Pyx_PySequence_Contains(PyObject* item, PyObject* seq
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
 }
+
+/////////////// GetGlobalName.proto ///////////////
+
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
+
+/////////////// GetGlobalName ///////////////
+//@requires: PyObjectGetAttrStr
+//@substitute: naming
+
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
+    PyObject *result;
+    result = __Pyx_PyObject_GetAttrStr(dict, name);
+    if (!result) {
+        if (dict != $builtins_cname) {
+            PyErr_Clear();
+            result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
+        }
+        if (!result) {
+            PyErr_SetObject(PyExc_NameError, name);
+        }
+    }
+    return result;
+}
+
+/////////////// PyObjectGetAttrStr.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject* attr_name) {
+    PyTypeObject* tp = Py_TYPE(obj);
+    if (likely(tp->tp_getattro))
+        return tp->tp_getattro(obj, attr_name);
+#if PY_MAJOR_VERSION < 3
+    if (likely(tp->tp_getattr))
+        return tp->tp_getattr(obj, PyString_AS_STRING(attr_name));
+#endif
+    return PyObject_GetAttr(obj, attr_name);
+}
+#else
+#define __Pyx_PyObject_GetAttrStr(o,n) PyObject_GetAttr(o,n)
+#endif
+
+/////////////// PyObjectCallMethod.proto ///////////////
+//@requires: PyObjectGetAttrStr
+//@substitute: naming
+
+static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_name, PyObject* args) {
+    PyObject *method, *result = NULL;
+    if (unlikely(!args)) return NULL;
+    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
+    if (unlikely(!method)) goto bad;
+    result = PyObject_Call(method, args, NULL);
+    Py_DECREF(method);
+bad:
+    Py_DECREF(args);
+    return result;
+}
+
+#define __Pyx_PyObject_CallMethod3(obj, name, arg1, arg2, arg3) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(3, arg1, arg2, arg3))
+#define __Pyx_PyObject_CallMethod2(obj, name, arg1, arg2) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(2, arg1, arg2))
+#define __Pyx_PyObject_CallMethod1(obj, name, arg1) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(1, arg1))
+#define __Pyx_PyObject_CallMethod0(obj, name) \
+    __Pyx_PyObject_CallMethodTuple(obj, name, (Py_INCREF($empty_tuple), $empty_tuple))
