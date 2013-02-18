@@ -71,13 +71,13 @@ typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
     __pyx_atomic_int_type __sync_fetch_and_add_4(__pyx_atomic_int *x, __pyx_atomic_int_type v)
     
     {
-        return (__pyx_atomic_int_type) InterlockedIncrement((LONG volatile*)x);
+        return (__pyx_atomic_int_type) InterlockedAdd((LONG volatile*)x, (LONG)v) - 1;
     }
 
     __inline__ __attribute__((always_inline))
     __pyx_atomic_int_type __sync_fetch_and_sub_4(__pyx_atomic_int *x, __pyx_atomic_int_type v)    
     {
-        return (__pyx_atomic_int_type) InterlockedDecrement((LONG volatile*)x);
+        return (__pyx_atomic_int_type) InterlockedAdd((LONG volatile*)x, (LONG)-v) + 1;
     }
 
 #endif            
