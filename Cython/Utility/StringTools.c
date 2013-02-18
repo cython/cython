@@ -374,3 +374,42 @@ static CYTHON_INLINE PyObject* __Pyx_decode_bytes(
         return PyUnicode_Decode(cstring, length, encoding, errors);
     }
 }
+
+/////////////// PyUnicode_Substring.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
+            PyObject* text, Py_ssize_t start, Py_ssize_t stop);
+
+
+/////////////// PyUnicode_Substring ///////////////
+
+#if CYTHON_PEP393_ENABLED
+#define __Pyx_PyUnicode_SUBSTRING(text, start, stop) \
+PyUnicode_FromKindAndData(PyUnicode_KIND(text), PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start)
+#else
+#define __Pyx_PyUnicode_SUBSTRING(text, start, stop) \
+PyUnicode_FromUnicode(PyUnicode_AS_UNICODE(text)+start, stop-start)
+#endif
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
+            PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
+    Py_ssize_t length;
+#if CYTHON_PEP393_ENABLED
+    length = PyUnicode_GET_LENGTH(text);
+#else
+    length = PyUnicode_GET_SIZE(text);
+#endif
+    if (start < 0) {
+        start += length;
+        if (start < 0)
+            start = 0;
+    }
+    if (stop < 0)
+        stop += length;    
+    if (stop > length)
+        stop = length;
+    length = stop - start;
+    if (length <= 0)
+        return PyUnicode_FromUnicode(NULL, 0);
+    return (PyObject*)__Pyx_PyUnicode_SUBSTRING(text, start, stop);
+}
