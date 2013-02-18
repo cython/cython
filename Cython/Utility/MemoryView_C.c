@@ -27,8 +27,8 @@ typedef struct {
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2))
                                       
     /* gcc >= 4.1.2 */
-    #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add_4(value, 1)
-    #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub_4(value, 1)
+    #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add(value, 1)
+    #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub(value, 1)
 
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using GNU atomics"
