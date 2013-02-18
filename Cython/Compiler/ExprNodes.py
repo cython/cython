@@ -3457,6 +3457,8 @@ class SliceIndexNode(ExprNode):
         base_type = self.base.type
         if base_type.is_string or base_type.is_cpp_string:
             self.type = bytes_type
+        elif base_type is unicode_type:
+            self.type = unicode_type
         elif base_type.is_ptr:
             self.type = base_type
         elif base_type.is_array:
@@ -3505,6 +3507,39 @@ class SliceIndexNode(ExprNode):
                         self.start_code(),
                         self.stop_code(),
                         self.start_code(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+        elif self.base.type is unicode_type:
+            base_result = self.base.result()
+            code.globalstate.use_utility_code( 
+                          UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
+            if self.start is None:
+                if self.stop is None:
+                    code.putln(
+                        "%s = __Pyx_PyUnicode_Substring(%s, 0, PY_SSIZE_T_MAX); %s" % (
+                            self.result(),
+                            base_result,
+                            code.error_goto_if_null(self.result(), self.pos)))
+                else:
+                    code.putln(
+                        "%s = __Pyx_PyUnicode_Substring(%s, 0, %s); %s" % (
+                            self.result(),
+                            base_result,
+                            self.stop_code(),
+                            code.error_goto_if_null(self.result(), self.pos)))
+            elif self.stop is None:
+                code.putln(
+                    "%s = __Pyx_PyUnicode_Substring(%s, %s, PY_SSIZE_T_MAX); %s" % (
+                        self.result(),
+                        base_result,
+                        self.start_code(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+            else:
+                code.putln(
+                    "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
+                        self.result(),
+                        base_result,
+                        self.start_code(),
+                        self.stop_code(),
                         code.error_goto_if_null(self.result(), self.pos)))
         else:
             code.putln(
@@ -10403,3 +10438,6 @@ proto="""
 #define UNARY_NEG_WOULD_OVERFLOW(x)    \
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
+
+
+pyunicode_substring = UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")
