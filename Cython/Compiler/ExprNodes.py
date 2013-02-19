@@ -3457,8 +3457,6 @@ class SliceIndexNode(ExprNode):
         base_type = self.base.type
         if base_type.is_string or base_type.is_cpp_string:
             self.type = bytes_type
-        elif base_type is unicode_type:
-            self.type = unicode_type
         elif base_type.is_ptr:
             self.type = base_type
         elif base_type.is_array:
@@ -3488,6 +3486,15 @@ class SliceIndexNode(ExprNode):
             error(self.pos,
                   "Slicing is not currently supported for '%s'." % self.type)
             return
+
+        maybe_check = self.base.as_none_safe_node("'NoneType' object is not slicable")
+        if maybe_check.is_nonecheck:
+            maybe_check.generate_result_code(code)
+            
+        base_result = self.base.result()
+        result = self.result()
+        start_code = self.start_code()
+        stop_code = self.stop_code()
         if self.base.type.is_string:
             base_result = self.base.result()
             if self.base.type != PyrexTypes.c_char_ptr_type:
@@ -3495,60 +3502,37 @@ class SliceIndexNode(ExprNode):
             if self.stop is None:
                 code.putln(
                     "%s = PyBytes_FromString(%s + %s); %s" % (
-                        self.result(),
+                        result,
                         base_result,
-                        self.start_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
             else:
                 code.putln(
                     "%s = PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
                         self.result(),
                         base_result,
-                        self.start_code(),
-                        self.stop_code(),
-                        self.start_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
+                        start_code,
+                        stop_code,
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
         elif self.base.type is unicode_type:
-            base_result = self.base.result()
             code.globalstate.use_utility_code( 
                           UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
-            if self.start is None:
-                if self.stop is None:
-                    code.putln(
-                        "%s = __Pyx_PyUnicode_Substring(%s, 0, PY_SSIZE_T_MAX); %s" % (
-                            self.result(),
-                            base_result,
-                            code.error_goto_if_null(self.result(), self.pos)))
-                else:
-                    code.putln(
-                        "%s = __Pyx_PyUnicode_Substring(%s, 0, %s); %s" % (
-                            self.result(),
-                            base_result,
-                            self.stop_code(),
-                            code.error_goto_if_null(self.result(), self.pos)))
-            elif self.stop is None:
-                code.putln(
-                    "%s = __Pyx_PyUnicode_Substring(%s, %s, PY_SSIZE_T_MAX); %s" % (
-                        self.result(),
-                        base_result,
-                        self.start_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
-            else:
-                code.putln(
-                    "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
-                        self.result(),
-                        base_result,
-                        self.start_code(),
-                        self.stop_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
+            code.putln(
+                "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
+                    result,
+                    base_result,
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
         else:
             code.putln(
                 "%s = __Pyx_PySequence_GetSlice(%s, %s, %s); %s" % (
-                    self.result(),
+                    result,
                     self.base.py_result(),
-                    self.start_code(),
-                    self.stop_code(),
-                    code.error_goto_if_null(self.result(), self.pos)))
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
         code.put_gotref(self.py_result())
 
     def generate_assignment_code(self, rhs, code):
@@ -4993,10 +4977,8 @@ class AttributeNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_py_attr:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
             code.putln(
-                '%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s' % (
+                '%s = PyObject_GetAttr(%s, %s); %s' % (
                     self.result(),
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),
@@ -9804,7 +9786,9 @@ class NoneCheckNode(CoercionNode):
         code.putln(
             "if (unlikely(%s == Py_None)) {" % self.condition())
 
-        if self.in_nogil_context:
+        in_nogil_context = getattr(self, "in_nogil_context", False)
+            
+        if in_nogil_context:
             code.put_ensure_gil()
 
         escape = StringEncoding.escape_byte_string
@@ -9820,7 +9804,7 @@ class NoneCheckNode(CoercionNode):
                 self.exception_type_cname,
                 escape(self.exception_message.encode('UTF-8'))))
 
-        if self.in_nogil_context:
+        if in_nogil_context:
             code.put_release_ensured_gil()
 
         code.putln(code.error_goto(self.pos))
@@ -10264,13 +10248,33 @@ class DocstringRefNode(ExprNode):
         code.put_gotref(self.result())
 
 
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
 #
 #------------------------------------------------------------------------------------
 
-get_name_interned_utility_code = UtilityCode.load("GetGlobalName", "ObjectHandling.c")
+get_name_interned_utility_code = UtilityCode(
+proto = """
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
+""",
+impl = """
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
+    PyObject *result;
+    result = PyObject_GetAttr(dict, name);
+    if (!result) {
+        if (dict != %(BUILTINS)s) {
+            PyErr_Clear();
+            result = PyObject_GetAttr(%(BUILTINS)s, name);
+        }
+        if (!result) {
+            PyErr_SetObject(PyExc_NameError, name);
+        }
+    }
+    return result;
+}
+""" % {'BUILTINS' : Naming.builtins_cname})
 
 #------------------------------------------------------------------------------------
 
@@ -10438,6 +10442,3 @@ proto="""
 #define UNARY_NEG_WOULD_OVERFLOW(x)    \
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
-
-
-pyunicode_substring = UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")
