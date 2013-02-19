@@ -3470,6 +3470,8 @@ class SliceIndexNode(ExprNode):
         if base_type.is_builtin_type:
             # slicing builtin types returns something of the same type
             self.type = base_type
+            self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
+
         c_int = PyrexTypes.c_py_ssize_t_type
         if self.start:
             self.start = self.start.coerce_to(c_int, env)
@@ -3486,10 +3488,6 @@ class SliceIndexNode(ExprNode):
             error(self.pos,
                   "Slicing is not currently supported for '%s'." % self.type)
             return
-
-        maybe_check = self.base.as_none_safe_node("'NoneType' object is not slicable")
-        if maybe_check.is_nonecheck:
-            maybe_check.generate_result_code(code)
             
         base_result = self.base.result()
         result = self.result()
@@ -9786,9 +9784,7 @@ class NoneCheckNode(CoercionNode):
         code.putln(
             "if (unlikely(%s == Py_None)) {" % self.condition())
 
-        in_nogil_context = getattr(self, "in_nogil_context", False)
-            
-        if in_nogil_context:
+        if self.in_nogil_context:
             code.put_ensure_gil()
 
         escape = StringEncoding.escape_byte_string
@@ -9804,7 +9800,7 @@ class NoneCheckNode(CoercionNode):
                 self.exception_type_cname,
                 escape(self.exception_message.encode('UTF-8'))))
 
-        if in_nogil_context:
+        if self.in_nogil_context:
             code.put_release_ensured_gil()
 
         code.putln(code.error_goto(self.pos))
