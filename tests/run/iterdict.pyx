@@ -174,17 +174,6 @@ def iterkeys(dict d):
     l.sort()
     return l
 
-@cython.test_fail_if_path_exists(
-    "//WhileStatNode",
-    "//WhileStatNode//DictIterationNextNode")
-def iterkeys_argerror(dict d):
-    """
-    >>> try: iterkeys_argerror(d)
-    ... except (TypeError, AttributeError): pass
-    """
-    for k in d.iterkeys(1):
-        print k
-
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
