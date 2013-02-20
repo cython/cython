@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* The Python2-only dict methods ``.iter*()`` and ``.view*()`` (requires Python 2.7)
+  are automatically mapped to the equivalent keys/values/items methods in Python 3
+  for typed dictionaries.
+
 * Unicode slicing is substantially faster.
 
 * list.append() is faster on average.

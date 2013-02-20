@@ -292,3 +292,71 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
 }
 #endif
 
+//////////////////// py_dict_iterkeys.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d); /*proto*/
+
+//////////////////// py_dict_iterkeys ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
+    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("iterkeys"), NULL);
+}
+
+//////////////////// py_dict_itervalues.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d); /*proto*/
+
+//////////////////// py_dict_itervalues ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
+    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("itervalues"), NULL);
+}
+
+//////////////////// py_dict_iteritems.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d); /*proto*/
+
+//////////////////// py_dict_itervalues ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
+    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("iteritems"), NULL);
+}
+
+//////////////////// py_dict_viewkeys.proto ////////////////////
+
+#if PY_VERSION_HEX < 0x02070000
+#error This module uses dict views, which require Python 2.7 or later
+#endif
+static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
+
+//////////////////// py_dict_viewkeys ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
+    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("viewkeys"), NULL);
+}
+
+//////////////////// py_dict_viewvalues.proto ////////////////////
+
+#if PY_VERSION_HEX < 0x02070000
+#error This module uses dict views, which require Python 2.7 or later
+#endif
+static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
+
+//////////////////// py_dict_viewvalues ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
+    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("viewvalues"), NULL);
+}
+
+//////////////////// py_dict_viewitems.proto ////////////////////
+
+#if PY_VERSION_HEX < 0x02070000
+#error This module uses dict views, which require Python 2.7 or later
+#endif
+static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
+
+//////////////////// py_dict_viewitems ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
+    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("viewitems"), NULL);
+}
