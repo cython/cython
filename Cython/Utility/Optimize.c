@@ -347,54 +347,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 #define __Pyx_PyDict_Clear(d) (PyDict_Clear(d), 0)
 
-//////////////////// py_dict_keys.proto ////////////////////
-
-#if PY_MAJOR_VERSION >= 3
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Keys(d) PyDict_Keys(d)
-#endif
-
-//////////////////// py_dict_keys ////////////////////
-
-#if PY_MAJOR_VERSION >= 3
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, PYIDENT("keys"), NULL);
-}
-#endif
-
-//////////////////// py_dict_values.proto ////////////////////
-
-#if PY_MAJOR_VERSION >= 3
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Values(d) PyDict_Values(d)
-#endif
-
-//////////////////// py_dict_values ////////////////////
-
-#if PY_MAJOR_VERSION >= 3
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, PYIDENT("values"), NULL);
-}
-#endif
-
-//////////////////// py_dict_items.proto ////////////////////
-
-#if PY_MAJOR_VERSION >= 3
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Items(d) PyDict_Items(d)
-#endif
-
-//////////////////// py_dict_items ////////////////////
-
-#if PY_MAJOR_VERSION >= 3
-static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, PYIDENT("items"), NULL);
-}
-#endif
-
 /////////////// dict_iter.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
