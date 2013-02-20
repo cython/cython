@@ -59,19 +59,42 @@ not_a_constant = NotConstant()
 constant_value_not_set = object()
 
 # error messages when coercing from key[0] to key[1]
-find_coercion_error = {
+coercion_error_dict = {
     # string related errors
     (Builtin.unicode_type, Builtin.bytes_type) : "Cannot convert Unicode string to 'bytes' implicitly, encoding required.",
     (Builtin.unicode_type, Builtin.str_type)   : "Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.",
     (Builtin.unicode_type, PyrexTypes.c_char_ptr_type) : "Unicode objects do not support coercion to C types.",
+    (Builtin.unicode_type, PyrexTypes.c_uchar_ptr_type) : "Unicode objects do not support coercion to C types.",
     (Builtin.bytes_type, Builtin.unicode_type) : "Cannot convert 'bytes' object to unicode implicitly, decoding required",
     (Builtin.bytes_type, Builtin.str_type) : "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
     (Builtin.str_type, Builtin.unicode_type) : "str objects do not support coercion to unicode, use a unicode string literal instead (u'')",
     (Builtin.str_type, Builtin.bytes_type) : "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
     (Builtin.str_type, PyrexTypes.c_char_ptr_type) : "'str' objects do not support coercion to C types (use 'bytes'?).",
+    (Builtin.str_type, PyrexTypes.c_uchar_ptr_type) : "'str' objects do not support coercion to C types (use 'bytes'?).",
     (PyrexTypes.c_char_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_uchar_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
-    }.get
+}
+def find_coercion_error(type_tuple, default, env):
+    err = coercion_error_dict.get(type_tuple)
+    if err is None:
+        return default
+    elif ((PyrexTypes.c_char_ptr_type in type_tuple or PyrexTypes.c_uchar_ptr_type in type_tuple)
+            and env.directives['c_string_encoding']):
+        if type_tuple[1].is_pyobject:
+            return default
+        elif env.directives['c_string_encoding'] == 'ascii':
+            return default
+        else:
+            return "'%s' objects do not support coercion to C types with non-ascii default encoding" % type_tuple[0].name
+    else:
+        return err
+
+def default_str_type(env):
+    return {
+        'bytes': bytes_type,
+        'str': str_type,
+        'unicode': unicode_type
+    }.get(env.directives['c_string_type'])
 
 
 class ExprNode(Node):
@@ -616,7 +639,7 @@ class ExprNode(Node):
         src = self
         src_type = self.type
 
-        if self.check_for_coercion_error(dst_type):
+        if self.check_for_coercion_error(dst_type, env):
             return self
 
         if dst_type.is_reference and not src_type.is_reference:
@@ -681,7 +704,7 @@ class ExprNode(Node):
                 if dst_type is bytes_type and src.type.is_int:
                     src = CoerceIntToBytesNode(src, env)
                 else:
-                    src = CoerceToPyTypeNode(src, env)
+                    src = CoerceToPyTypeNode(src, env, type=dst_type)
             if not src.type.subtype_of(dst_type):
                 if not isinstance(src, NoneNode):
                     src = PyTypeTestNode(src, dst_type, env)
@@ -702,10 +725,10 @@ class ExprNode(Node):
     def fail_assignment(self, dst_type):
         error(self.pos, "Cannot assign type '%s' to '%s'" % (self.type, dst_type))
 
-    def check_for_coercion_error(self, dst_type, fail=False, default=None):
+    def check_for_coercion_error(self, dst_type, env, fail=False, default=None):
         if fail and not default:
             default = "Cannot assign type '%(FROM)s' to '%(TO)s'"
-        message = find_coercion_error((self.type, dst_type), default)
+        message = find_coercion_error((self.type, dst_type), default, env)
         if message is not None:
             error(self.pos, message % {'FROM': self.type, 'TO': dst_type})
             return True
@@ -1101,7 +1124,7 @@ class BytesNode(ConstNode):
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
             else:
-                self.check_for_coercion_error(dst_type, fail=True)
+                self.check_for_coercion_error(dst_type, env, fail=True)
                 return node
         elif dst_type == PyrexTypes.c_char_ptr_type:
             node.type = dst_type
@@ -1156,7 +1179,7 @@ class UnicodeNode(PyConstNode):
                 return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
             error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.")
         elif dst_type is not py_object_type:
-            if not self.check_for_coercion_error(dst_type):
+            if not self.check_for_coercion_error(dst_type, env):
                 self.fail_assignment(dst_type)
         return self
 
@@ -1213,7 +1236,7 @@ class StringNode(PyConstNode):
 #                return BytesNode(self.pos, value=self.value)
             if not dst_type.is_pyobject:
                 return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
-            self.check_for_coercion_error(dst_type, fail=True)
+            self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
     def can_coerce_to_char_literal(self):
@@ -3456,7 +3479,7 @@ class SliceIndexNode(ExprNode):
             self.stop = self.stop.analyse_types(env)
         base_type = self.base.type
         if base_type.is_string or base_type.is_cpp_string:
-            self.type = bytes_type
+            self.type = default_str_type(env)
         elif base_type.is_ptr:
             self.type = base_type
         elif base_type.is_array:
@@ -3483,6 +3506,16 @@ class SliceIndexNode(ExprNode):
     nogil_check = Node.gil_error
     gil_message = "Slicing Python object"
 
+    def coerce_to(self, dst_type, env):
+        if ((self.base.type.is_string or self.base.type.is_cpp_string)
+                and dst_type in (bytes_type, str_type, unicode_type)):
+            if dst_type is not bytes_type and not env.directives['c_string_encoding']:
+                error(self.pos,
+                    "default encoding required for conversion from '%s' to '%s'" % 
+                    (self.base.type, dst_type))
+            self.type = dst_type
+        return super(SliceIndexNode, self).coerce_to(dst_type, env)
+
     def generate_result_code(self, code):
         if not self.type.is_pyobject:
             error(self.pos,
@@ -3499,15 +3532,17 @@ class SliceIndexNode(ExprNode):
                 base_result = '((const char*)%s)' % base_result
             if self.stop is None:
                 code.putln(
-                    "%s = PyBytes_FromString(%s + %s); %s" % (
+                    "%s = __Pyx_Py%s_FromString(%s + %s); %s" % (
                         result,
+                        self.type.name.title(),
                         base_result,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
             else:
                 code.putln(
-                    "%s = PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
-                        self.result(),
+                    "%s = __Pyx_Py%s_FromStringAndSize(%s + %s, %s - %s); %s" % (
+                        result,
+                        self.type.name.title(),
                         base_result,
                         start_code,
                         stop_code,
@@ -7689,7 +7724,7 @@ class TypecastNode(ExprNode):
                 self.operand = CoerceIntToBytesNode(self.operand, env)
             elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
-                self.operand = self.operand.coerce_to_pyobject(env)
+                self.operand = self.operand.coerce_to(base_type, env)
             else:
                 if self.operand.type.is_ptr:
                     if not (self.operand.type.base_type.is_void or self.operand.type.base_type.is_struct):
@@ -7709,6 +7744,9 @@ class TypecastNode(ExprNode):
         elif from_py and to_py:
             if self.typecheck and self.type.is_extension_type:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
+            elif isinstance(self.operand, SliceIndexNode):
+                # This cast can influence the created type of string slices.
+                self.operand = self.operand.coerce_to(self.type, env)
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
         elif self.operand.type.is_fused:
@@ -9054,12 +9092,12 @@ class CmpNode(object):
                 new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
-                    if operand2.check_for_coercion_error(type1):
+                    if operand2.check_for_coercion_error(type1, env):
                         new_common_type = error_type
                     else:
                         new_common_type = py_object_type
                 elif type1.is_numeric or type1.is_string:
-                    if operand1.check_for_coercion_error(type2):
+                    if operand1.check_for_coercion_error(type2, env):
                         new_common_type = error_type
                     else:
                         new_common_type = py_object_type
@@ -9835,11 +9873,17 @@ class CoerceToPyTypeNode(CoercionNode):
         if type is py_object_type:
             # be specific about some known types
             if arg.type.is_string or arg.type.is_cpp_string:
-                self.type = bytes_type
+                self.type = default_str_type(env)
             elif arg.type.is_unicode_char:
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+        elif arg.type.is_string or arg.type.is_cpp_string:
+            if type is not bytes_type and not env.directives['c_string_encoding']:
+                error(arg.pos,
+                    "default encoding required for conversion from '%s' to '%s'" % 
+                    (arg.type, type))
+            self.type = type
         else:
             # FIXME: check that the target type and the resulting type are compatible
             pass
@@ -9876,11 +9920,15 @@ class CoerceToPyTypeNode(CoercionNode):
         return self
 
     def generate_result_code(self, code):
-        if self.arg.type.is_memoryviewslice:
-            funccall = self.arg.type.get_to_py_function(self.env, self.arg)
+        arg_type = self.arg.type
+        if arg_type.is_memoryviewslice:
+            funccall = arg_type.get_to_py_function(self.env, self.arg)
         else:
-            funccall = "%s(%s)" % (self.arg.type.to_py_function,
-                                   self.arg.result())
+            func = arg_type.to_py_function
+            if ((arg_type.is_string or arg_type.is_cpp_string)
+                    and self.type in (bytes_type, str_type, unicode_type)):
+                func = func.replace("Object", self.type.name.title())
+            funccall = "%s(%s)" % (func, self.arg.result())
 
         code.putln('%s = %s; %s' % (
             self.result(),

@@ -95,6 +95,8 @@ directive_defaults = {
     'language_level': 2,
     'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
     'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
+    'c_string_type': 'bytes',
+    'c_string_encoding': '',
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -160,6 +162,9 @@ directive_scopes = { # defaults to available everywhere
     'set_initial_path' : ('module',),
     'test_assert_path_exists' : ('function', 'class', 'cclass'),
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
+    # Avoid scope-specific to/from_py_functions.
+    'c_string_type': ('module',),
+    'c_string_encoding': ('module',),
 }
 
 def parse_directive_value(name, value, relaxed_bool=False):

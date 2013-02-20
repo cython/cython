@@ -7,10 +7,13 @@ cdef extern from *:
     cdef cppclass string "std::string":
         string()
         string(char* c_str, size_t size)
+    cdef char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*)
 
 @cname("{{cname}}")
 cdef string {{cname}}(object o) except *:
-    return string(<char*>o, len(o))
+    cdef Py_ssize_t length
+    cdef char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
+    return string(data, length)
 
 
 #################### string.to_py ####################
@@ -21,10 +24,11 @@ cdef extern from *:
     cdef cppclass string "const std::string":
         char* data()
         size_t size()
+    cdef object __Pyx_PyObject_FromStringAndSize(char*, size_t)
 
 @cname("{{cname}}")
 cdef object {{cname}}(string& s):
-    return s.data()[:s.size()]
+    return __Pyx_PyObject_FromStringAndSize(s.data(), s.size())
 
 
 #################### vector.from_py ####################
