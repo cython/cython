@@ -407,6 +407,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
 #else
-    PyUnicode_FromUnicode(PyUnicode_AS_UNICODE(text)+start, stop-start)
+    PyUnicode_FromUnicode(PyUnicode_AS_UNICODE(text)+start, stop-start);
 #endif
 }
