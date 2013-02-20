@@ -57,16 +57,12 @@ static int __Pyx_init_sys_getdefaultencoding_not_ascii() {
     } else {
         char* normalized_encoding_c;
         codecs = PyImport_ImportModule("codecs");
-        printf("codecs %p\n", codecs);
         if (codecs == NULL) goto bad;
         normalized_encoding = PyObject_CallMethod(codecs, (char*) (const char*) "lookup", (char*) (const char*) "O", default_encoding);
-        printf("normalized_encoding %p\n", normalized_encoding);
         if (normalized_encoding == NULL) goto bad;
         normalized_encoding_name = PyObject_GetAttrString(normalized_encoding, (char*) (const char*) "name");
-        printf("normalized_encoding_name %p\n", normalized_encoding_name);
         if (normalized_encoding_name == NULL) goto bad;
         normalized_encoding_c = PyBytes_AsString(normalized_encoding_name);
-        printf("normalized_encoding_c %s\n", normalized_encoding_c);
         if (normalized_encoding_c == NULL) goto bad;
         __Pyx_sys_getdefaultencoding_not_ascii = strcmp(normalized_encoding_c, "ascii");
         if (!__Pyx_sys_getdefaultencoding_not_ascii) {
@@ -84,7 +80,6 @@ static int __Pyx_init_sys_getdefaultencoding_not_ascii() {
             }
         }
     }
-    printf("__Pyx_sys_getdefaultencoding_not_ascii %d\n", __Pyx_sys_getdefaultencoding_not_ascii);
     Py_XDECREF(sys);
     Py_XDECREF(default_encoding);
     Py_XDECREF(codecs);

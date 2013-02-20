@@ -2266,6 +2266,9 @@ class CPtrType(CPointerBaseType):
             return self.base_type.same_as(other.base_type)
         return False
 
+    def __ne__(self, other):
+        return not (self == other)
+
     def __repr__(self):
         return "<CPtrType %s>" % repr(self.base_type)
 

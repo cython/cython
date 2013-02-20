@@ -50,6 +50,11 @@ cdef list  l_f1 = s1
 cdef list  l_f2 = b1
 cdef list  l_f3 = u1
 
+print <str>c1
+print <str>c1[1:2]
+print <unicode>c1
+print <unicode>c1[1:2]
+
 _ERRORS = u"""
 26:20: Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.
 27:22: Unicode objects do not support coercion to C types.
@@ -73,4 +78,9 @@ _ERRORS = u"""
 45:19: Cannot assign type 'str object' to 'tuple object'
 46:18: Cannot assign type 'unicode object' to 'tuple object'
 47:18: Cannot assign type 'bytes object' to 'tuple object'
+
+53:13: default encoding required for conversion from 'char *' to 'str object'
+54:13: default encoding required for conversion from 'char *' to 'str object'
+55:17: Cannot convert 'char*' to unicode implicitly, decoding required
+56:17: default encoding required for conversion from 'char *' to 'unicode object'
 """
