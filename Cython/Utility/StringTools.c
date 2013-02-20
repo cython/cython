@@ -394,6 +394,11 @@ PyUnicode_FromUnicode(PyUnicode_AS_UNICODE(text)+start, stop-start)
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
+
+#if CYTHON_PEP393_ENABLED
+if (PyUnicode_READY(self) == -1)
+        return NULL;
+#endif
 #if CYTHON_PEP393_ENABLED
     length = PyUnicode_GET_LENGTH(text);
 #else

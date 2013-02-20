@@ -2,61 +2,97 @@
 
 __doc__ = u"""
     >>> do_slice1(u'abcdef', 2, 3)
-    u'c'
+    c
     >>> do_slice2(u'abcdef', 2, 3)
-    u'cdef'
+    cdef
     >>> do_slice3(u'abcdef', 2, 3)
-    u'ab'
+    ab
     >>> do_slice4(u'abcdef', 2, 3)
-    u'abcdef'
+    abcdef
     >>> do_slice5(u'abcdef', 2, 3)
-    u'cdef'
+    cdef
     >>> do_slice6(u'abcdef', 2, 3)
-    u'ab'
+    ab
     >>> do_slice7(u'abcdef', 2, 3)
-    u'abcdef'
+    abcdef
+    >>> do_slice1(u'abcdef', 2, 10)
+    cdef
+    >>> do_slice2(u'abcdef', 2, 10)
+    cdef
+    >>> do_slice3(u'abcdef', 2, 10)
+    ab
+    >>> do_slice4(u'abcdef', 2, 10)
+    abcdef
     >>> do_slice1(u'abcdef', 0, 5)
-    u'abcde'
+    abcde
     >>> do_slice2(u'abcdef', 0, 5)
-    u'abcdef'
+    abcdef
     >>> do_slice3(u'abcdef', 0, 5)
-    u''
+    <BLANKLINE>
     >>> do_slice4(u'abcdef', 0, 5)
-    u'abcdef'
+    abcdef
     >>> do_slice5(u'abcdef', 0, 5)
-    u'abcdef'
+    abcdef
     >>> do_slice6(u'abcdef', 0, 5)
-    u''
+    <BLANKLINE>
     >>> do_slice7(u'abcdef', 0, 5)
-    u'abcdef'
+    abcdef
+    >>> do_slice1(u'abcdef', -6, -1)
+    abcde
+    >>> do_slice2(u'abcdef', -6, -1)
+    abcdef
+    >>> do_slice3(u'abcdef', -6, -1)
+    <BLANKLINE>
+    >>> do_slice4(u'abcdef', -6, -1)
+    abcdef
+    >>> do_slice5(u'abcdef', -6, -1)
+    abcdef
+    >>> do_slice6(u'abcdef', -6, -1)
+    <BLANKLINE>
+    >>> do_slice7(u'abcdef', -6, -1)
+    abcdef
     >>> do_slice1(u'aАbБcСdДeЕfФ', 2, 8)
-    u'bБcСdД'
+    bБcСdД
     >>> do_slice2(u'aАbБcСdДeЕfФ', 2, 8)
-    u'bБcСdДeЕfФ'
+    bБcСdДeЕfФ
     >>> do_slice3(u'aАbБcСdДeЕfФ', 2, 8)
-    u'aА'
+    aА
     >>> do_slice4(u'aАbБcСdДeЕfФ', 2, 8)
-    u'aАbБcСdДeЕfФ'
+    aАbБcСdДeЕfФ
     >>> do_slice5(u'aАbБcСdДeЕfФ', 2, 8)
-    u'bБcСdДeЕfФ'
+    bБcСdДeЕfФ
     >>> do_slice6(u'aАbБcСdДeЕfФ', 2, 8)
-    u'aА'
+    aА
     >>> do_slice7(u'aАbБcСdДeЕfФ', 2, 8)
-    u'aАbБcСdДeЕfФ'
+    aАbБcСdДeЕfФ
     >>> do_slice1(u'АБСДЕФ', 2, 4)
-    u'СД'
+    СД
     >>> do_slice2(u'АБСДЕФ', 2, 4)
-    u'СДЕФ'
+    СДЕФ
     >>> do_slice3(u'АБСДЕФ', 2, 4)
-    u'АБ'
+    АБ
     >>> do_slice4(u'АБСДЕФ', 2, 4)
-    u'АБСДЕФ'
+    АБСДЕФ
     >>> do_slice5(u'АБСДЕФ', 2, 4)
-    u'СДЕФ'
+    СДЕФ
     >>> do_slice6(u'АБСДЕФ', 2, 4)
-    u'АБ'
+    АБ
     >>> do_slice7(u'АБСДЕФ', 2, 4)
-    u'АБСДЕФ'
+    АБСДЕФ
+    >>> do_slice1(u'АБСДЕФ', -4, -2)
+    СД
+    >>> do_slice2(u'АБСДЕФ', -4, -2)
+    СДЕФ
+    >>> do_slice3(u'АБСДЕФ', -4, -2)
+    АБ
+    >>> do_slice4(u'АБСДЕФ', -4, -2)
+    АБСДЕФ
+    >>> do_slice5(u'АБСДЕФ', -4, -2)
+    СДЕФ
+    >>> do_slice6(u'АБСДЕФ', -4, -2)
+    АБ
+    >>> do_slice7(u'АБСДЕФ', -4, -2)
+    АБСДЕФ
     >>> do_slice1(None, 2, 4)
     Traceback (most recent call last):    
     TypeError: 'NoneType' object is not subscriptable
@@ -84,27 +120,24 @@ import sys
 
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u"(u'", u"('").replace(u" u'", u" '")
-    ss = "'"
-else:
-    ss = "u'"
 
 def do_slice1(unicode s, int i, int j):
-    print(ss+s[i:j]+"'")
+    print(s[i:j])
 
 def do_slice2(unicode s, int i, int j):
-    print(ss+s[i:]+"'")
+    print(s[i:])
 
 def do_slice3(unicode s, int i, int j):
-    print(ss+s[:i]+"'")
+    print(s[:i])
 
 def do_slice4(unicode s, int i, int j):
-    print(ss+s[:]+"'")
+    print(s[:])
 
 def do_slice5(unicode s, int i, int j):
-    print(ss+s[i:None]+"'")
+    print(s[i:None])
 
 def do_slice6(unicode s, int i, int j):
-    print(ss+s[None:i]+"'")
+    print(s[None:i])
 
 def do_slice7(unicode s, int i, int j):
-    print(ss+s[None:None]+"'")
+    print(s[None:None])

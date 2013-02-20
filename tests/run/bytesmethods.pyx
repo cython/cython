@@ -133,13 +133,13 @@ def bytes_decode(bytes s, start=None, stop=None):
     AttributeError: 'NoneType' object has no attribute 'decode'
     >>> print(bytes_decode(None, 1))
     Traceback (most recent call last):
-    AttributeError: 'NoneType' object has no attribute 'decode'
+    TypeError: 'NoneType' object is not subscriptable
     >>> print(bytes_decode(None, None, 1))
     Traceback (most recent call last):
-    AttributeError: 'NoneType' object has no attribute 'decode'
+    TypeError: 'NoneType' object is not subscriptable
     >>> print(bytes_decode(None, 0, 1))
     Traceback (most recent call last):
-    AttributeError: 'NoneType' object has no attribute 'decode'
+    TypeError: 'NoneType' object is not subscriptable
     """
     if start is None:
         if stop is None:
@@ -173,13 +173,13 @@ def bytes_decode_unbound_method(bytes s, start=None, stop=None):
     TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
     >>> print(bytes_decode_unbound_method(None, 1))
     Traceback (most recent call last):
-    TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
+    TypeError: 'NoneType' object is not subscriptable
     >>> print(bytes_decode_unbound_method(None, None, 1))
     Traceback (most recent call last):
-    TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
+    TypeError: 'NoneType' object is not subscriptable
     >>> print(bytes_decode_unbound_method(None, 0, 1))
     Traceback (most recent call last):
-    TypeError: descriptor 'decode' requires a 'bytes' object but received a 'NoneType'
+    TypeError: 'NoneType' object is not subscriptable
     """
     if start is None:
         if stop is None:
