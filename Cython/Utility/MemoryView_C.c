@@ -23,9 +23,9 @@ typedef struct {
 #define __pyx_atomic_int_type int
 /* todo: Portland pgcc, maybe OS X's OSAtomicIncrement32,
    libatomic + autotools-like distutils support? Such a pain... */
-#if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 ||           \
-                    (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2)) && \
-                    !defined(WIN32) && !defined(MS_WINDOWS)
+#if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 ||  \
+                    (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2))
+                                      
     /* gcc >= 4.1.2 */
     #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub(value, 1)
@@ -60,6 +60,30 @@ typedef struct {
 #endif
 
 typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
+
+#if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 || \
+    (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2)) && \
+    ((defined(WIN32) || defined(MS_WINDOWS)))
+        
+    #include <Windows.h>
+
+    __inline__ __attribute__((always_inline))
+    __pyx_atomic_int_type __sync_fetch_and_add_4(__pyx_atomic_int *x, __pyx_atomic_int_type v)
+    
+    {
+        return (__pyx_atomic_int_type) InterlockedAdd((LONG volatile*)x, (LONG)v) - v;
+    }
+
+    __inline__ __attribute__((always_inline))
+    __pyx_atomic_int_type __sync_fetch_and_sub_4(__pyx_atomic_int *x, __pyx_atomic_int_type v)    
+    {
+        return (__pyx_atomic_int_type) InterlockedAdd((LONG volatile*)x, (LONG)-v) + v;
+    }
+
+#endif            
+
+
+
 
 #if CYTHON_ATOMICS
     #define __pyx_add_acquisition_count(memview) \
