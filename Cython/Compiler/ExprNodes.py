@@ -3470,6 +3470,8 @@ class SliceIndexNode(ExprNode):
         if base_type.is_builtin_type:
             # slicing builtin types returns something of the same type
             self.type = base_type
+            self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
+
         c_int = PyrexTypes.c_py_ssize_t_type
         if self.start:
             self.start = self.start.coerce_to(c_int, env)
@@ -3486,6 +3488,11 @@ class SliceIndexNode(ExprNode):
             error(self.pos,
                   "Slicing is not currently supported for '%s'." % self.type)
             return
+            
+        base_result = self.base.result()
+        result = self.result()
+        start_code = self.start_code()
+        stop_code = self.stop_code()
         if self.base.type.is_string:
             base_result = self.base.result()
             if self.base.type != PyrexTypes.c_char_ptr_type:
@@ -3493,27 +3500,37 @@ class SliceIndexNode(ExprNode):
             if self.stop is None:
                 code.putln(
                     "%s = PyBytes_FromString(%s + %s); %s" % (
-                        self.result(),
+                        result,
                         base_result,
-                        self.start_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
             else:
                 code.putln(
                     "%s = PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
                         self.result(),
                         base_result,
-                        self.start_code(),
-                        self.stop_code(),
-                        self.start_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
+                        start_code,
+                        stop_code,
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
+        elif self.base.type is unicode_type:
+            code.globalstate.use_utility_code( 
+                          UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
+            code.putln(
+                "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
+                    result,
+                    base_result,
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
         else:
             code.putln(
                 "%s = __Pyx_PySequence_GetSlice(%s, %s, %s); %s" % (
-                    self.result(),
+                    result,
                     self.base.py_result(),
-                    self.start_code(),
-                    self.stop_code(),
-                    code.error_goto_if_null(self.result(), self.pos)))
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
         code.put_gotref(self.py_result())
 
     def generate_assignment_code(self, rhs, code):
@@ -4958,10 +4975,8 @@ class AttributeNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_py_attr:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
             code.putln(
-                '%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s' % (
+                '%s = PyObject_GetAttr(%s, %s); %s' % (
                     self.result(),
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),
@@ -10229,13 +10244,33 @@ class DocstringRefNode(ExprNode):
         code.put_gotref(self.result())
 
 
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
 #
 #------------------------------------------------------------------------------------
 
-get_name_interned_utility_code = UtilityCode.load("GetGlobalName", "ObjectHandling.c")
+get_name_interned_utility_code = UtilityCode(
+proto = """
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
+""",
+impl = """
+static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
+    PyObject *result;
+    result = PyObject_GetAttr(dict, name);
+    if (!result) {
+        if (dict != %(BUILTINS)s) {
+            PyErr_Clear();
+            result = PyObject_GetAttr(%(BUILTINS)s, name);
+        }
+        if (!result) {
+            PyErr_SetObject(PyExc_NameError, name);
+        }
+    }
+    return result;
+}
+""" % {'BUILTINS' : Naming.builtins_cname})
 
 #------------------------------------------------------------------------------------
 
