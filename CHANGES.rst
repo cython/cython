@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* Unicode slicing is substantially faster.
+
 * list.append() is faster on average.
 
 * ``raise Exception() from None`` suppresses the exception context in Py3.3.
