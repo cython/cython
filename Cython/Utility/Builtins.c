@@ -316,7 +316,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d); /*proto*/
 
-//////////////////// py_dict_itervalues ////////////////////
+//////////////////// py_dict_iteritems ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
     return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("iteritems"), NULL);
