@@ -492,7 +492,16 @@ class MethodDispatcherTransform(EnvTransform):
             args = node.args
         return self._dispatch_to_handler(node, function, args, None)
 
+    def visit_PrimaryCmpNode(self, node):
+        return self._visit_binop_node(node)
+
+    def visit_CascadedCmpNode(self, node):
+        return self._visit_binop_node(node)
+
     def visit_BinopNode(self, node):
+        return self._visit_binop_node(node)
+
+    def _visit_binop_node(self, node):
         self.visitchildren(node)
         # FIXME: could special case 'not_in'
         special_method_name = find_special_method_for_binary_operator(node.operator)
