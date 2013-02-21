@@ -124,7 +124,8 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
         PyObject* defenc = _PyUnicode_AsDefaultEncodedString(o, NULL);
         char* maybe_ascii = PyBytes_AS_STRING(defenc);
         char* end = maybe_ascii + PyBytes_GET_SIZE(defenc);
-        for (char* c = maybe_ascii; c < end; c++) {
+        char* c;
+        for (c = maybe_ascii; c < end; c++) {
             if ((unsigned char) (*c) >= 128) {
                 // raise the error
                 PyUnicode_AsASCIIString(o);
