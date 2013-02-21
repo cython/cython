@@ -28,8 +28,13 @@ cdef class EnvTransform(CythonTransform):
     cdef public list env_stack
 
 cdef class MethodDispatcherTransform(EnvTransform):
+    @cython.final
+    cdef _visit_binop_node(self, node)
+    @cython.final
     cdef _find_handler(self, match_name, bint has_kwargs)
+    @cython.final
     cdef _dispatch_to_handler(self, node, function, arg_list, kwargs)
+    @cython.final
     cdef _dispatch_to_method_handler(self, attr_name, self_arg,
                                      is_unbound_method, type_name,
                                      node, arg_list, kwargs)
