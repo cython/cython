@@ -2632,18 +2632,18 @@ class IndexNode(ExprNode):
             return py_object_type
 
     def analyse_types(self, env):
-        self.analyse_base_and_index_types(env, getting = 1)
-        return self
+        return self.analyse_base_and_index_types(env, getting=True)
 
     def analyse_target_types(self, env):
-        self.analyse_base_and_index_types(env, setting = 1)
-        if self.type.is_const:
+        node = self.analyse_base_and_index_types(env, setting=True)
+        if node.type.is_const:
             error(self.pos, "Assignment to const dereference")
-        if not self.is_lvalue():
-            error(self.pos, "Assignment to non-lvalue of type '%s'" % self.type)
-        return self
+        if not node.is_lvalue():
+            error(self.pos, "Assignment to non-lvalue of type '%s'" % node.type)
+        return node
 
-    def analyse_base_and_index_types(self, env, getting = 0, setting = 0, analyse_base = True):
+    def analyse_base_and_index_types(self, env, getting=False, setting=False,
+                                     analyse_base=True):
         # Note: This might be cleaned up by having IndexNode
         # parsed in a saner way and only construct the tuple if
         # needed.
@@ -2667,7 +2667,7 @@ class IndexNode(ExprNode):
             # Do not visit child tree if base is undeclared to avoid confusing
             # error messages
             self.type = PyrexTypes.error_type
-            return
+            return self
 
         is_slice = isinstance(self.index, SliceNode)
 
@@ -2716,9 +2716,10 @@ class IndexNode(ExprNode):
 
             if len(indices) - len(newaxes) > self.base.type.ndim:
                 self.type = error_type
-                return error(indices[self.base.type.ndim].pos,
-                             "Too many indices specified for type %s" %
-                                                        self.base.type)
+                error(indices[self.base.type.ndim].pos,
+                      "Too many indices specified for type %s" %
+                      self.base.type)
+                return self
 
             axis_idx = 0
             for i, index in enumerate(indices[:]):
@@ -2761,7 +2762,8 @@ class IndexNode(ExprNode):
 
                 else:
                     self.type = error_type
-                    return error(index.pos, "Invalid index for memoryview specified")
+                    error(index.pos, "Invalid index for memoryview specified")
+                    return self
 
             self.memslice_index = self.memslice_index and not self.memslice_slice
             self.original_indices = indices
@@ -2826,7 +2828,7 @@ class IndexNode(ExprNode):
 
             if not MemoryView.validate_axes(self.pos, axes):
                 self.type = error_type
-                return
+                return self
 
             self.type = PyrexTypes.MemoryViewSliceType(
                             self.base.type.dtype, axes)
@@ -2897,15 +2899,15 @@ class IndexNode(ExprNode):
                             PyrexTypes.c_py_ssize_t_type, env)
                     elif not self.index.type.is_int:
                         error(self.pos,
-                            "Invalid index type '%s'" %
-                                self.index.type)
+                              "Invalid index type '%s'" %
+                              self.index.type)
                 elif base_type.is_cpp_class:
                     function = env.lookup_operator("[]", [self.base, self.index])
                     if function is None:
                         error(self.pos, "Indexing '%s' not supported for index type '%s'" % (base_type, self.index.type))
                         self.type = PyrexTypes.error_type
                         self.result_code = "<error>"
-                        return
+                        return self
                     func_type = function.type
                     if func_type.is_ptr:
                         func_type = func_type.base_type
@@ -2917,11 +2919,12 @@ class IndexNode(ExprNode):
                     self.parse_indexed_fused_cdef(env)
                 else:
                     error(self.pos,
-                        "Attempting to index non-array type '%s'" %
-                            base_type)
+                          "Attempting to index non-array type '%s'" %
+                          base_type)
                     self.type = PyrexTypes.error_type
 
         self.wrap_in_nonecheck_node(env, getting)
+        return self
 
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
@@ -3432,23 +3435,15 @@ class SliceIndexNode(ExprNode):
         self.base = self.base.analyse_types(env)
 
         if self.base.type.is_memoryviewslice:
-            # Gross hack here! But we do not know the type until this point,
-            # and we cannot create and return a new node. So we change the
-            # type...
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
                               stop=self.stop or none_node,
                               step=none_node)
-            del self.start
-            del self.stop
-            self.index = index
-            self.__class__ = IndexNode
-            self.analyse_base_and_index_types(env,
-                                              getting=getting,
-                                              setting=not getting,
-                                              analyse_base=False)
-            return self
+            index_node = IndexNode(self.pos, index, base=self.base)
+            return index_node.analyse_base_and_index_types(
+                env, getting=getting, setting=not getting,
+                analyse_base=False)
 
         if self.start:
             self.start = self.start.analyse_types(env)
