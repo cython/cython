@@ -4,6 +4,40 @@ cimport cython
 dict_size = 4
 d = dict(zip(range(10,dict_size+10), range(dict_size)))
 
+
+def dict_iteritems(dict d):
+    """
+    >>> it = dict_iteritems(d)
+    >>> type(it) is list
+    False
+    >>> sorted(it)
+    [(10, 0), (11, 1), (12, 2), (13, 3)]
+    """
+    return d.iteritems()
+
+
+def dict_iterkeys(dict d):
+    """
+    >>> it = dict_iterkeys(d)
+    >>> type(it) is list
+    False
+    >>> sorted(it)
+    [10, 11, 12, 13]
+    """
+    return d.iterkeys()
+
+
+def dict_itervalues(dict d):
+    """
+    >>> it = dict_itervalues(d)
+    >>> type(it) is list
+    False
+    >>> sorted(it)
+    [0, 1, 2, 3]
+    """
+    return d.itervalues()
+
+
 @cython.test_fail_if_path_exists(
     "//WhileStatNode")
 def items(dict d):
@@ -173,17 +207,6 @@ def iterkeys(dict d):
         l.append(k)
     l.sort()
     return l
-
-@cython.test_fail_if_path_exists(
-    "//WhileStatNode",
-    "//WhileStatNode//DictIterationNextNode")
-def iterkeys_argerror(dict d):
-    """
-    >>> try: iterkeys_argerror(d)
-    ... except (TypeError, AttributeError): pass
-    """
-    for k in d.iterkeys(1):
-        print k
 
 @cython.test_assert_path_exists(
     "//WhileStatNode",

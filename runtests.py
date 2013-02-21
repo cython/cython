@@ -222,6 +222,7 @@ VER_DEP_MODULES = {
                                           ]),
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
                                           'run.yield_inside_lambda',
+                                          'run.test_dictviews',
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
