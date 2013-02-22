@@ -7724,6 +7724,7 @@ class TypecastNode(ExprNode):
                 self.operand = CoerceIntToBytesNode(self.operand, env)
             elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
+                base_type = self.base_type.analyse(env)
                 self.operand = self.operand.coerce_to(base_type, env)
             else:
                 if self.operand.type.is_ptr:
