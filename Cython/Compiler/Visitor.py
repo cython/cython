@@ -493,6 +493,8 @@ class MethodDispatcherTransform(EnvTransform):
         return self._dispatch_to_handler(node, function, args, None)
 
     def visit_PrimaryCmpNode(self, node):
+        if node.cascade:
+            return node  # not currently handled below
         return self._visit_binop_node(node)
 
     def visit_BinopNode(self, node):
