@@ -495,9 +495,6 @@ class MethodDispatcherTransform(EnvTransform):
     def visit_PrimaryCmpNode(self, node):
         return self._visit_binop_node(node)
 
-    def visit_CascadedCmpNode(self, node):
-        return self._visit_binop_node(node)
-
     def visit_BinopNode(self, node):
         return self._visit_binop_node(node)
 
