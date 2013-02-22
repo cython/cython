@@ -182,3 +182,5 @@ from cpython.pycapsule cimport *
 #################################################################
 # END OF DEPRECATED SECTION
 #################################################################
+
+from cpython.datetime cimport *
