@@ -1,19 +1,14 @@
-cdef extern from "datetime.h":
+from cpython.ref cimport PyObject
 
-#    ctypedef class datetime.date [object PyDateTime_Date]:
-#        pass
-#
-#    ctypedef class datetime.time [object PyDateTime_Time]:
-#        pass
-#
-#    ctypedef class datetime.datetime [object PyDateTime_DateTime]:
-#        pass
-#
-#    ctypedef class datetime.timedelta [object PyDateTime_Delta]:
-#        pass
-#
-#    ctypedef class datetime.tzinfo [object PyDateTime_TZInfo]:
-#        pass
+cdef extern from "datetime.h":
+    
+    ctypedef struct PyDateTime_Time:
+        char hastzinfo             # boolean flag
+        PyObject *tzinfo
+        
+    ctypedef struct PyDateTime_DateTime:
+        char hastzinfo             # boolean flag
+        PyObject *tzinfo
 
     bint PyDate_Check(object op)
     bint PyDate_CheckExact(object op)
@@ -70,12 +65,29 @@ cdef extern from "datetime.h":
                 int year, int month, int day, 
                 int hours, int minutes, int seconds, int microseconds)
 
-    #object PyTime_FromTimeEx(
-    #            int hours, int minutes, int seconds, int microseconds, 
-    #            object tzinfo)
-    #
-    #object PyDateTime_FromDateAndTimeEx(
-    #            int year, int month, int day, 
-    #            int hours, int minutes, int seconds, int microseconds, 
-    #            object tzinfo)
+
+cdef inline object PyTime_FromTimeEx(
+        int hours, int minutes, int seconds, int microseconds, object tzinfo):
+        
+    val = PyTime_FromTime(hours, minutes, seconds, microseconds)
+    if tzinfo is not None:
+        (<PyDateTime_Time*>val)[0].hastzinfo = 1
+        (<PyDateTime_Time*>val)[0].tzinfo = <PyObject*>tzinfo
+    return val
+
+cdef inline object PyTime_FromDateAndTimeEx(
+        int year, int month, int day, 
+        int hours, int minutes, int seconds, int microseconds, object tzinfo):
+        
+    val = PyDateTime_FromDateAndTime(
+            year, month, day, hours, minutes, seconds, microseconds)
+    if tzinfo is not None:
+        (<PyDateTime_DateTime*>val)[0].hastzinfo = 1
+        (<PyDateTime_DateTime*>val)[0].tzinfo = <PyObject*>tzinfo
+    return val
+    
+#object PyDateTime_FromDateAndTimeEx(
+#            int year, int month, int day, 
+#            int hours, int minutes, int seconds, int microseconds, 
+#            object tzinfo)
 
