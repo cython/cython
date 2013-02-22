@@ -411,7 +411,7 @@ class ExprNode(Node):
 
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
-        # extension type, return its type, else None.
+        # extension type or builtin type, return its type, else None.
         return None
 
     def analyse_types(self, env):
@@ -782,6 +782,23 @@ class ExprNode(Node):
             return NoneCheckNode(self, error, message, format_args)
         else:
             return self
+
+    @classmethod
+    def from_node(cls, node, **kwargs):
+        """Instantiate this node class from another node, properly
+        copying over all attributes that one would forget otherwise.
+        """
+        attributes = "cf_state cf_maybe_null cf_is_null".split()
+        for attr_name in attributes:
+            if attr_name in kwargs:
+                continue
+            try:
+                value = getattr(node, attr_name)
+            except AttributeError:
+                pass
+            else:
+                kwargs[attr_name] = value
+        return cls(node.pos, **kwargs)
 
 
 class AtomicExprNode(ExprNode):
@@ -1476,10 +1493,10 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if not entry:
             entry = env.lookup(self.name)
-        if entry and entry.is_type and entry.type.is_extension_type:
-            return entry.type
-        else:
-            return None
+        if entry and entry.is_type:
+            if entry.type.is_extension_type:  # or entry.type.is_builtin_type:
+                return entry.type
+        return None
 
     def analyse_target_declaration(self, env):
         if not self.entry:
@@ -1557,6 +1574,7 @@ class NameNode(AtomicExprNode):
             self.is_temp = False
             self.is_used_as_rvalue = True
             self.use_managed_ref = True
+        return self
 
     def nogil_check(self, env):
         self.nogil = True
@@ -3889,23 +3907,6 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
-
-            if self.self and func_type.args:
-                # Coerce 'self' to the type expected by the method.
-                self_arg = func_type.args[0]
-                if self_arg.not_none: # C methods must do the None test for self at *call* time
-                    self.self = self.self.as_none_safe_node(
-                        "'NoneType' object has no attribute '%s'",
-                        error = 'PyExc_AttributeError',
-                        format_args = [self.function.entry.name])
-                expected_type = self_arg.type
-                if self_arg.accept_builtin_subtypes:
-                    self.coerced_self = CMethodSelfCloneNode(self.self)
-                else:
-                    self.coerced_self = CloneNode(self.self)
-                self.coerced_self = self.coerced_self.coerce_to(expected_type, env)
-                # Insert coerced 'self' argument into argument list.
-                self.args.insert(0, self.coerced_self)
             self.analyse_c_function_call(env)
         return self
 
@@ -3924,6 +3925,11 @@ class SimpleCallNode(CallNode):
         if self.function.type is error_type:
             self.type = error_type
             return
+
+        if self.self:
+            args = [self.self] + self.args
+        else:
+            args = self.args
 
         if self.function.type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
@@ -3946,7 +3952,7 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            entry = PyrexTypes.best_match(self.args, alternatives, self.pos, env)
+            entry = PyrexTypes.best_match(args, alternatives, self.pos, env)
 
             if not entry:
                 self.type = PyrexTypes.error_type
@@ -3958,24 +3964,55 @@ class SimpleCallNode(CallNode):
             self.function.type = entry.type
             func_type = self.function_type()
         else:
+            entry = None
             func_type = self.function_type()
             if not func_type.is_cfunction:
                 error(self.pos, "Calling non-function type '%s'" % func_type)
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
+
         # Check no. of args
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
-        actual_nargs = len(self.args)
+        actual_nargs = len(args)
         if func_type.optional_arg_count and expected_nargs != actual_nargs:
             self.has_optional_args = 1
             self.is_temp = 1
+
+        # check 'self' argument
+        if entry and entry.is_cmethod and func_type.args:
+            formal_arg = func_type.args[0]
+            arg = args[0]
+            if formal_arg.not_none:
+                if self.self:
+                    self.self = self.self.as_none_safe_node(
+                        "'NoneType' object has no attribute '%s'",
+                        error='PyExc_AttributeError',
+                        format_args=[entry.name])
+                else:
+                    # unbound method
+                    arg = arg.as_none_safe_node(
+                        "descriptor '%s' requires a '%s' object but received a 'NoneType'",
+                        format_args=[entry.name, formal_arg.type.name])
+            if self.self:
+                if formal_arg.accept_builtin_subtypes:
+                    arg = CMethodSelfCloneNode(self.self)
+                else:
+                    arg = CloneNode(self.self)
+                arg = self.coerced_self = arg.coerce_to(formal_arg.type, env)
+            args[0] = arg
+
         # Coerce arguments
         some_args_in_temps = False
         for i in xrange(min(max_nargs, actual_nargs)):
-            formal_type = func_type.args[i].type
-            arg = self.args[i].coerce_to(formal_type, env)
+            formal_arg = func_type.args[i]
+            formal_type = formal_arg.type
+            arg = args[i].coerce_to(formal_type, env)
+            if formal_arg.not_none:
+                # C methods must do the None checks at *call* time
+                arg = arg.as_none_safe_node(
+                    "cannot pass None into a C function argument that is declared 'not None'")
             if arg.is_temp:
                 if i > 0:
                     # first argument in temp doesn't impact subsequent arguments
@@ -3995,19 +4032,21 @@ class SimpleCallNode(CallNode):
                     if i > 0: # first argument doesn't matter
                         some_args_in_temps = True
                     arg = arg.coerce_to_temp(env)
-            self.args[i] = arg
+            args[i] = arg
+
         # handle additional varargs parameters
         for i in xrange(max_nargs, actual_nargs):
-            arg = self.args[i]
+            arg = args[i]
             if arg.type.is_pyobject:
                 arg_ctype = arg.type.default_coerced_ctype()
                 if arg_ctype is None:
                     error(self.args[i].pos,
                           "Python object cannot be passed as a varargs parameter")
                 else:
-                    self.args[i] = arg = arg.coerce_to(arg_ctype, env)
+                    args[i] = arg = arg.coerce_to(arg_ctype, env)
             if arg.is_temp and i > 0:
                 some_args_in_temps = True
+
         if some_args_in_temps:
             # if some args are temps and others are not, they may get
             # constructed in the wrong order (temps first) => make
@@ -4017,7 +4056,7 @@ class SimpleCallNode(CallNode):
             for i in xrange(actual_nargs-1):
                 if i == 0 and self.self is not None:
                     continue # self is ok
-                arg = self.args[i]
+                arg = args[i]
                 if arg.nonlocally_immutable():
                     # locals, C functions, unassignable types are safe.
                     pass
@@ -4035,6 +4074,8 @@ class SimpleCallNode(CallNode):
                     if i > 0 or i == 1 and self.self is not None: # skip first arg
                         warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
                         break
+
+        self.args[:] = args
 
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
@@ -4657,19 +4698,21 @@ class AttributeNode(ExprNode):
         return self.obj.type_dependencies(env)
 
     def infer_type(self, env):
-        if self.analyse_as_cimported_attribute(env, 0):
-            return self.entry.type
-        elif self.analyse_as_unbound_cmethod(env):
-            return self.entry.type
-        else:
-            obj_type = self.obj.infer_type(env)
-            self.analyse_attribute(env, obj_type = obj_type)
-            if obj_type.is_builtin_type and self.type.is_cfunction:
-                # special case: C-API replacements for C methods of
-                # builtin types cannot be inferred as C functions as
-                # that would prevent their use as bound methods
-                return py_object_type
-            return self.type
+        # FIXME: this is way too redundant with analyse_types()
+        node = self.analyse_as_cimported_attribute_node(env, target=False)
+        if node is not None:
+            return node.entry.type
+        node = self.analyse_as_unbound_cmethod_node(env)
+        if node is not None:
+            return node.entry.type
+        obj_type = self.obj.infer_type(env)
+        self.analyse_attribute(env, obj_type=obj_type)
+        if obj_type.is_builtin_type and self.type.is_cfunction:
+            # special case: C-API replacements for C methods of
+            # builtin types cannot be inferred as C functions as
+            # that would prevent their use as bound methods
+            return py_object_type
+        return self.type
 
     def analyse_target_declaration(self, env):
         pass
@@ -4684,21 +4727,19 @@ class AttributeNode(ExprNode):
 
     def analyse_types(self, env, target = 0):
         self.initialized_check = env.directives['initializedcheck']
-        if self.analyse_as_cimported_attribute(env, target):
-            self.entry.used = True
-        elif not target and self.analyse_as_unbound_cmethod(env):
-            self.entry.used = True
-        else:
-            self.analyse_as_ordinary_attribute(env, target)
-            if self.entry:
-                self.entry.used = True
+        node = self.analyse_as_cimported_attribute_node(env, target)
+        if node is None and not target:
+            node = self.analyse_as_unbound_cmethod_node(env)
+        if node is None:
+            node = self.analyse_as_ordinary_attribute_node(env, target)
+            assert node is not None
+        if node.entry:
+            node.entry.used = True
+        if node.is_attribute:
+            node.wrap_obj_in_nonecheck(env)
+        return node
 
-        # may be mutated in a namenode now :)
-        if self.is_attribute:
-            self.wrap_obj_in_nonecheck(env)
-        return self
-
-    def analyse_as_cimported_attribute(self, env, target):
+    def analyse_as_cimported_attribute_node(self, env, target):
         # Try to interpret this as a reference to an imported
         # C const, type, var or function. If successful, mutates
         # this node into a NameNode and returns 1, otherwise
@@ -4707,33 +4748,33 @@ class AttributeNode(ExprNode):
         if module_scope:
             entry = module_scope.lookup_here(self.attribute)
             if entry and (
-                entry.is_cglobal or entry.is_cfunction
-                or entry.is_type or entry.is_const):
-                    self.mutate_into_name_node(env, entry, target)  # FIXME
-                    entry.used = 1
-                    return 1
-        return 0
+                    entry.is_cglobal or entry.is_cfunction
+                    or entry.is_type or entry.is_const):
+                return self.as_name_node(env, entry, target)
+        return None
 
-    def analyse_as_unbound_cmethod(self, env):
+    def analyse_as_unbound_cmethod_node(self, env):
         # Try to interpret this as a reference to an unbound
-        # C method of an extension type. If successful, mutates
-        # this node into a NameNode and returns 1, otherwise
-        # returns 0.
+        # C method of an extension type or builtin type.  If successful,
+        # creates a corresponding NameNode and returns it, otherwise
+        # returns None.
         type = self.obj.analyse_as_extension_type(env)
         if type:
             entry = type.scope.lookup_here(self.attribute)
             if entry and entry.is_cmethod:
-                # Create a temporary entry describing the C method
-                # as an ordinary function.
-                ubcm_entry = Symtab.Entry(entry.name,
-                    "%s->%s" % (type.vtabptr_cname, entry.cname),
-                    entry.type)
-                ubcm_entry.is_cfunction = 1
-                ubcm_entry.func_cname = entry.func_cname
-                ubcm_entry.is_unbound_cmethod = 1
-                self.mutate_into_name_node(env, ubcm_entry, None)  # FIXME
-                return 1
-        return 0
+                if type.is_builtin_type:
+                    ubcm_entry = entry
+                else:
+                    # Create a temporary entry describing the C method
+                    # as an ordinary function.
+                    ubcm_entry = Symtab.Entry(entry.name,
+                        "%s->%s" % (type.vtabptr_cname, entry.cname),
+                        entry.type)
+                    ubcm_entry.is_cfunction = 1
+                    ubcm_entry.func_cname = entry.func_cname
+                    ubcm_entry.is_unbound_cmethod = 1
+                return self.as_name_node(env, ubcm_entry, target=False)
+        return None
 
     def analyse_as_type(self, env):
         module_scope = self.obj.analyse_as_module(env)
@@ -4751,8 +4792,9 @@ class AttributeNode(ExprNode):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
             entry = module_scope.lookup_here(self.attribute)
-            if entry and entry.is_type and entry.type.is_extension_type:
-                return entry.type
+            if entry and entry.is_type:
+                if entry.type.is_extension_type:  # or entry.type.is_builtin_type:
+                    return entry.type
         return None
 
     def analyse_as_module(self, env):
@@ -4765,20 +4807,18 @@ class AttributeNode(ExprNode):
                 return entry.as_module
         return None
 
-    def mutate_into_name_node(self, env, entry, target):
-        # Mutate this node into a NameNode and complete the
+    def as_name_node(self, env, entry, target):
+        # Create a corresponding NameNode from this node and complete the
         # analyse_types phase.
-        self.__class__ = NameNode
-        self.name = self.attribute
-        self.entry = entry
-        del self.obj
-        del self.attribute
+        node = NameNode.from_node(self, name=self.attribute, entry=entry)
         if target:
-            NameNode.analyse_target_types(self, env)  # FIXME
+            node = node.analyse_target_types(env)
         else:
-            NameNode.analyse_rvalue_entry(self, env)
+            node = node.analyse_rvalue_entry(env)
+        node.entry.used = 1
+        return node
 
-    def analyse_as_ordinary_attribute(self, env, target):
+    def analyse_as_ordinary_attribute_node(self, env, target):
         self.obj = self.obj.analyse_types(env)
         self.analyse_attribute(env)
         if self.entry and self.entry.is_cmethod and not self.is_called:
@@ -4795,6 +4835,7 @@ class AttributeNode(ExprNode):
             error(self.pos, "Assignment to an immutable object field")
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
+        return self
 
     def analyse_attribute(self, env, obj_type = None):
         # Look up attribute and set self.type and self.member.
