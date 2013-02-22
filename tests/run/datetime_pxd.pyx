@@ -22,4 +22,3 @@ def do_datetime(
     dt = PyDateTime_FromDateAndTime(
         year, month, day, hours, minutes, seconds, microseconds)
     return dt
-    
