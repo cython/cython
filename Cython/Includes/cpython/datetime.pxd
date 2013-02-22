@@ -65,7 +65,6 @@ cdef extern from "datetime.h":
                 int year, int month, int day, 
                 int hours, int minutes, int seconds, int microseconds)
 
-
 cdef inline object PyTime_FromTimeEx(
         int hours, int minutes, int seconds, int microseconds, object tzinfo):
         
@@ -86,8 +85,3 @@ cdef inline object PyTime_FromDateAndTimeEx(
         (<PyDateTime_DateTime*>val)[0].tzinfo = <PyObject*>tzinfo
     return val
     
-#object PyDateTime_FromDateAndTimeEx(
-#            int year, int month, int day, 
-#            int hours, int minutes, int seconds, int microseconds, 
-#            object tzinfo)
-
