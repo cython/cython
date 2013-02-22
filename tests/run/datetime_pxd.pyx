@@ -16,7 +16,7 @@ def do_datetime(
         int hours, int minutes, int seconds, int microseconds):
 
     """
-    >>> print do_datetime(2012, 12, 31, 12, 23, 0, 0)
+    >>> print(do_datetime(2012, 12, 31, 12, 23, 0, 0))
     2012-12-31 12:23:00
     """
     dt = PyDateTime_FromDateAndTime(
