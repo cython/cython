@@ -1891,7 +1891,7 @@ class CClassScope(ClassScope):
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', api = 0, in_pxd = 0,
                           defining = 0, modifiers = (), utility_code = None):
-        if get_special_method_signature(name):
+        if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
         if not args:

@@ -984,8 +984,8 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, arg, notnone=False):
-        type_check = self.type_check_function(exact=True)
+    def type_test_code(self, arg, notnone=False, exact=True):
+        type_check = self.type_check_function(exact=exact)
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
             check += '||((%s) == Py_None)' % arg

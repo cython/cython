@@ -268,20 +268,26 @@ builtin_types_table = [
                                     BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
                                     ]),
 
-    ("bytes",   "PyBytes_Type",    []),
-    ("str",     "PyString_Type",   []),
-    ("unicode", "PyUnicode_Type",  [BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
+    ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    ]),
+    ("str",     "PyString_Type",   [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    ]),
+    ("unicode", "PyUnicode_Type",  [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
+                                    BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
                                     ]),
 
-    ("tuple",   "PyTuple_Type",    []),
+    ("tuple",   "PyTuple_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    ]),
 
-    ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
+    ("list",    "PyList_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
                                     BuiltinMethod("append",  "TO",   "r", "__Pyx_PyList_Append",
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     ]),
 
-    ("dict",    "PyDict_Type",     [BuiltinMethod("items",  "T",   "O", "__Pyx_PyDict_Items",
+    ("dict",    "PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
+                                    BuiltinMethod("items",  "T",   "O", "__Pyx_PyDict_Items",
                                                   utility_code=UtilityCode.load("py_dict_items", "Builtins.c")),
                                     BuiltinMethod("keys",   "T",   "O", "__Pyx_PyDict_Keys",
                                                   utility_code=UtilityCode.load("py_dict_keys", "Builtins.c")),
@@ -309,7 +315,8 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
+    ("set",       "PySet_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
                                                   utility_code = py_set_utility_code),
                                     # discard() and remove() have a special treatment for unhashable values
 #                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",

@@ -1494,7 +1494,7 @@ class NameNode(AtomicExprNode):
         if not entry:
             entry = env.lookup(self.name)
         if entry and entry.is_type:
-            if entry.type.is_extension_type:  # or entry.type.is_builtin_type:
+            if entry.type.is_extension_type or entry.type.is_builtin_type:
                 return entry.type
         return None
 
@@ -4001,6 +4001,11 @@ class SimpleCallNode(CallNode):
                 else:
                     arg = CloneNode(self.self)
                 arg = self.coerced_self = arg.coerce_to(formal_arg.type, env)
+            elif formal_arg.type.is_builtin_type:
+                # special case: unbound methods of builtins accept subtypes
+                arg = arg.coerce_to(formal_arg.type, env)
+                if arg.type.is_builtin_type and isinstance(arg, PyTypeTestNode):
+                    arg.exact_builtin_type = False
             args[0] = arg
 
         # Coerce arguments
@@ -4763,6 +4768,9 @@ class AttributeNode(ExprNode):
             entry = type.scope.lookup_here(self.attribute)
             if entry and entry.is_cmethod:
                 if type.is_builtin_type:
+                    if not self.is_called:
+                        # must handle this as Python object
+                        return None
                     ubcm_entry = entry
                 else:
                     # Create a temporary entry describing the C method
@@ -4793,7 +4801,7 @@ class AttributeNode(ExprNode):
         if module_scope:
             entry = module_scope.lookup_here(self.attribute)
             if entry and entry.is_type:
-                if entry.type.is_extension_type:  # or entry.type.is_builtin_type:
+                if entry.type.is_extension_type or entry.type.is_builtin_type:
                     return entry.type
         return None
 
@@ -9719,6 +9727,8 @@ class PyTypeTestNode(CoercionNode):
     #  object is an instance of a particular extension type.
     #  This node borrows the result of its argument node.
 
+    exact_builtin_type = True
+
     def __init__(self, arg, dst_type, env, notnone=False):
         #  The arg is know to be a Python object, and
         #  the dst_type is known to be an extension type.
@@ -9760,12 +9770,17 @@ class PyTypeTestNode(CoercionNode):
 
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
-            if not self.type.is_builtin_type:
-                code.globalstate.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
-            code.putln(
-                "if (!(%s)) %s" % (
-                    self.type.type_test_code(self.arg.py_result(), self.notnone),
-                    code.error_goto(self.pos)))
+            if self.type.is_builtin_type:
+                type_test = self.type.type_test_code(
+                    self.arg.py_result(),
+                    self.notnone, exact=self.exact_builtin_type)
+            else:
+                type_test = self.type.type_test_code(
+                    self.arg.py_result(), self.notnone)
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
+            code.putln("if (!(%s)) %s" % (
+                type_test, code.error_goto(self.pos)))
         else:
             error(self.pos, "Cannot test type of extern C class "
                 "without type object name specification")
