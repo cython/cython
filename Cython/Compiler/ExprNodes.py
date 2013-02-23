@@ -224,14 +224,7 @@ class ExprNode(Node):
     # whether this node with a memoryview type should be broadcast
     memslice_broadcast = False
 
-    try:
-        _get_child_attrs = operator.attrgetter('subexprs')
-    except AttributeError:
-        # Python 2.3
-        def __get_child_attrs(self):
-            return self.subexprs
-        _get_child_attrs = __get_child_attrs
-    child_attrs = property(fget=_get_child_attrs)
+    child_attrs = property(fget=operator.attrgetter('subexprs'))
 
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented") ###
