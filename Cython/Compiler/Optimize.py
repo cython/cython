@@ -3025,20 +3025,27 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return node
 
     def _handle_UnaryMinusNode(self, node):
+        def _negate(value):
+            if value.startswith('-'):
+                value = value[1:]
+            else:
+                value = '-' + value
+            return value
+
         if isinstance(node.operand, ExprNodes.LongNode):
-            return ExprNodes.LongNode(node.pos, value = '-' + node.operand.value,
-                                      constant_result = node.constant_result)
+            return ExprNodes.LongNode(node.pos, value=_negate(node.operand.value),
+                                      constant_result=node.constant_result)
         if isinstance(node.operand, ExprNodes.FloatNode):
             # this is a safe operation
-            return ExprNodes.FloatNode(node.pos, value = '-' + node.operand.value,
-                                       constant_result = node.constant_result)
+            return ExprNodes.FloatNode(node.pos, value=_negate(node.operand.value),
+                                       constant_result=node.constant_result)
         node_type = node.operand.type
         if node_type.is_int and node_type.signed or \
-               isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
-            return ExprNodes.IntNode(node.pos, value = '-' + node.operand.value,
-                                     type = node_type,
-                                     longness = node.operand.longness,
-                                     constant_result = node.constant_result)
+                isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
+            return ExprNodes.IntNode(node.pos, value=_negate(node.operand.value),
+                                     type=node_type,
+                                     longness=node.operand.longness,
+                                     constant_result=node.constant_result)
         return node
 
     def _handle_UnaryPlusNode(self, node):
