@@ -650,3 +650,12 @@ bad:
     __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(1, arg1))
 #define __Pyx_PyObject_CallMethod0(obj, name) \
     __Pyx_PyObject_CallMethodTuple(obj, name, (Py_INCREF($empty_tuple), $empty_tuple))
+
+
+/////////////// tp_new.proto ///////////////
+//@substitute: naming
+
+static CYTHON_INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
+    return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
+        (PyTypeObject*)(type_obj), $empty_tuple, NULL));
+}

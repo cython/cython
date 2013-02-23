@@ -2179,9 +2179,9 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
-            args = [type_arg],
-            utility_code = tpnew_utility_code,
-            is_temp = node.is_temp
+            args=[type_arg],
+            utility_code=UtilityCode.load_cached('tp_new', 'ObjectHandling.c'),
+            is_temp=node.is_temp
             )
 
     ### methods of builtin types
@@ -2903,16 +2903,6 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 unicode_tailmatch_utility_code = UtilityCode.load_cached('unicode_tailmatch', 'StringTools.c')
 bytes_tailmatch_utility_code = UtilityCode.load_cached('bytes_tailmatch', 'StringTools.c')
 str_tailmatch_utility_code = UtilityCode.load_cached('str_tailmatch', 'StringTools.c')
-
-
-tpnew_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
-    return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
-        (PyTypeObject*)(type_obj), %(TUPLE)s, NULL));
-}
-""" % {'TUPLE' : Naming.empty_tuple}
-)
 
 
 class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
