@@ -29,7 +29,9 @@ DEF TRUE  = TRUE_FALSE[0]
 DEF FALSE = TRUE_FALSE[1]
 DEF INT_TUPLE1 = TUPLE[:2]
 DEF INT_TUPLE2 = TUPLE[1:4:2]
+DEF ELLIPSIS = ...
 DEF EXPRESSION = int(float(2*2)) + int(str(2)) + int(max(1,2,3)) + sum([TWO, FIVE])
+
 
 def c():
     """
@@ -147,6 +149,13 @@ def false():
     """
     cdef bint false = FALSE
     return false
+
+def ellipsis():
+    """
+    >>> ellipsis()
+    Ellipsis
+    """
+    return ELLIPSIS
 
 @cython.test_assert_path_exists('//IntNode')
 @cython.test_fail_if_path_exists('//AddNode')
