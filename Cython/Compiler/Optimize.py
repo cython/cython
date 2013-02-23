@@ -1,3 +1,4 @@
+from Cython.Compiler import TypeSlots
 from Cython.Compiler.ExprNodes import not_a_constant
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
@@ -2182,25 +2183,27 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         if type_arg.type_entry:
             ext_type = type_arg.type_entry.type
             if ext_type.is_extension_type and not ext_type.is_external:
-                cython_scope = self.context.cython_scope
-                PyTypeObjectPtr = PyrexTypes.CPtrType(
-                    cython_scope.lookup('PyTypeObject').type)
-                pyx_tp_new_kwargs_func_type = PyrexTypes.CFuncType(
-                    PyrexTypes.py_object_type, [
-                        PyrexTypes.CFuncTypeArg("type",   PyTypeObjectPtr, None),
-                        PyrexTypes.CFuncTypeArg("args",   PyrexTypes.py_object_type, None),
-                        PyrexTypes.CFuncTypeArg("kwargs", PyrexTypes.py_object_type, None),
-                        ])
+                tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+                slot_func_cname = TypeSlots.get_slot_function(ext_type.scope, tp_slot)
+                if slot_func_cname:
+                    cython_scope = self.context.cython_scope
+                    PyTypeObjectPtr = PyrexTypes.CPtrType(
+                        cython_scope.lookup('PyTypeObject').type)
+                    pyx_tp_new_kwargs_func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.py_object_type, [
+                            PyrexTypes.CFuncTypeArg("type",   PyTypeObjectPtr, None),
+                            PyrexTypes.CFuncTypeArg("args",   PyrexTypes.py_object_type, None),
+                            PyrexTypes.CFuncTypeArg("kwargs", PyrexTypes.py_object_type, None),
+                            ])
 
-                type_arg = ExprNodes.CastNode(type_arg, PyTypeObjectPtr)
-                slot_func_cname = ext_type.scope.mangle_internal("tp_new")
-                if not kwargs:
-                    kwargs = ExprNodes.NullNode(node.pos, type=PyrexTypes.py_object_type)  # hack?
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, slot_func_cname,
-                    pyx_tp_new_kwargs_func_type,
-                    args=[type_arg, args_tuple, kwargs],
-                    is_temp=True)
+                    type_arg = ExprNodes.CastNode(type_arg, PyTypeObjectPtr)
+                    if not kwargs:
+                        kwargs = ExprNodes.NullNode(node.pos, type=PyrexTypes.py_object_type)  # hack?
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, slot_func_cname,
+                        pyx_tp_new_kwargs_func_type,
+                        args=[type_arg, args_tuple, kwargs],
+                        is_temp=True)
         else:
             # arbitrary variable, needs a None check for safety
             type_arg = type_arg.as_none_safe_node(
