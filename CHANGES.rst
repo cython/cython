@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* Fast extension type instantiation using the ``Type.__new__(Type)`` idiom has
+  gained support for passing arguments.  It is also a bit faster for types defined
+  inside of the module.
+
 * The Python2-only dict methods ``.iter*()`` and ``.view*()`` (requires Python 2.7)
   are automatically mapped to the equivalent keys/values/items methods in Python 3
   for typed dictionaries.
