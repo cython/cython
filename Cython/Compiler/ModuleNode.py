@@ -2070,7 +2070,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                               nanny=False)
         for entry in env.c_class_entries:
             cclass_type = entry.type
-            if cclass_type.base_type:
+            if cclass_type.is_external or cclass_type.base_type:
                 continue
             if cclass_type.scope.directives.get('freelist', 0):
                 scope = cclass_type.scope
