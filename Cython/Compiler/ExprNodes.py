@@ -1071,6 +1071,12 @@ class BytesNode(ConstNode):
     def calculate_constant_result(self):
         self.constant_result = self.value
 
+    def as_sliced_node(self, start, stop, step=None):
+        value = StringEncoding.BytesLiteral(self.value[start:stop:step])
+        value.encoding = self.value.encoding
+        return BytesNode(
+            self.pos, value=value, constant_result=value)
+
     def compile_time_value(self, denv):
         return self.value
 
@@ -1155,6 +1161,22 @@ class UnicodeNode(PyConstNode):
     def calculate_constant_result(self):
         self.constant_result = self.value
 
+    def as_sliced_node(self, start, stop, step=None):
+        if _string_contains_surrogates(self.value[:stop]):
+            # this is unsafe as it may give different results in different runtimes
+            return None
+        value = StringEncoding.EncodedString(self.value[start:stop:step])
+        value.encoding = self.value.encoding
+        if self.bytes_value is not None:
+            bytes_value = StringEncoding.BytesLiteral(
+                self.bytes_value[start:stop:step])
+            bytes_value.encoding = self.bytes_value.encoding
+        else:
+            bytes_value = None
+        return UnicodeNode(
+            self.pos, value=value, bytes_value=bytes_value,
+            constant_result=value)
+
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
             pass
@@ -1181,21 +1203,7 @@ class UnicodeNode(PyConstNode):
             ##     and (0xDC00 <= self.value[1] <= 0xDFFF))
 
     def contains_surrogates(self):
-        # Check if the unicode string contains surrogate code points
-        # on a CPython platform with wide (UCS-4) or narrow (UTF-16)
-        # Unicode, i.e. characters that would be spelled as two
-        # separate code units on a narrow platform.
-        for c in map(ord, self.value):
-            if c > 65535: # can only happen on wide platforms
-                return True
-            # We only look for the first code unit (D800-DBFF) of a
-            # surrogate pair - if we find one, the other one
-            # (DC00-DFFF) is likely there, too.  If we don't find it,
-            # any second code unit cannot make for a surrogate pair by
-            # itself.
-            if 0xD800 <= c <= 0xDBFF:
-                return True
-        return False
+        return _string_contains_surrogates(self.value)
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
@@ -1222,6 +1230,21 @@ class StringNode(PyConstNode):
 
     def calculate_constant_result(self):
         self.constant_result = self.value
+
+    def as_sliced_node(self, start, stop, step=None):
+        value = type(self.value)(self.value[start:stop:step])
+        value.encoding = self.value.encoding
+        if self.unicode_value is not None:
+            if _string_contains_surrogates(self.unicode_value[:stop]):
+                # this is unsafe as it may give different results in different runtimes
+                return None
+            unicode_value = StringEncoding.EncodedString(
+                self.unicode_value[start:stop:step])
+        else:
+            unicode_value = None
+        return StringNode(
+            self.pos, value=value, unicode_value=unicode_value,
+            constant_result=value, is_identifier=self.is_identifier)
 
     def coerce_to(self, dst_type, env):
         if dst_type is not py_object_type and not str_type.subtype_of(dst_type):
@@ -1255,6 +1278,26 @@ class IdentifierStringNode(StringNode):
     # A special str value that represents an identifier (bytes in Py2,
     # unicode in Py3).
     is_identifier = True
+
+
+def _string_contains_surrogates(ustring):
+    """
+    Check if the unicode string contains surrogate code points
+    on a CPython platform with wide (UCS-4) or narrow (UTF-16)
+    Unicode, i.e. characters that would be spelled as two
+    separate code units on a narrow platform.
+    """
+    for c in map(ord, ustring):
+        if c > 65535: # can only happen on wide platforms
+            return True
+            # We only look for the first code unit (D800-DBFF) of a
+        # surrogate pair - if we find one, the other one
+        # (DC00-DFFF) is likely there, too.  If we don't find it,
+        # any second code unit cannot make for a surrogate pair by
+        # itself.
+        if 0xD800 <= c <= 0xDBFF:
+            return True
+    return False
 
 
 class ImagNode(AtomicExprNode):

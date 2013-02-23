@@ -7,6 +7,7 @@ cimport cython
 
 bstring = b'abc\xE9def'
 ustring = u'abc\xE9def'
+surrogates_ustring = u'abc\U00010000def'
 
 
 @cython.test_fail_if_path_exists(
@@ -53,3 +54,29 @@ def unicode_slicing2():
     str3 = u'abc\xE9def'[2:4]
 
     return str0, str1, str2, str3
+
+
+@cython.test_assert_path_exists(
+    "//SliceIndexNode",
+    )
+def unicode_slicing_unsafe_surrogates2():
+    """
+    >>> unicode_slicing_unsafe_surrogates2() == surrogates_ustring[2:]
+    True
+    """
+    ustring = u'abc\U00010000def'[2:]
+    return ustring
+
+
+@cython.test_fail_if_path_exists(
+    "//SliceIndexNode",
+    )
+def unicode_slicing_safe_surrogates2():
+    """
+    >>> unicode_slicing_safe_surrogates2() == surrogates_ustring[:2]
+    True
+    >>> print(unicode_slicing_safe_surrogates2())
+    ab
+    """
+    ustring = u'abc\U00010000def'[:2]
+    return ustring

@@ -3206,18 +3206,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 base.args = base.args[start:stop]
                 return base
             elif base.is_string_literal:
-                value = type(base.value)(node.constant_result)
-                value.encoding = base.value.encoding
-                base.value = value
-                if isinstance(base, ExprNodes.StringNode):
-                    if base.unicode_value is not None:
-                        base.unicode_value = EncodedString(
-                            base.unicode_value[start:stop])
-                elif isinstance(base, ExprNodes.UnicodeNode):
-                    if base.bytes_value is not None:
-                        base.bytes_value = BytesLiteral(
-                            base.bytes_value[start:stop])
-                return base
+                base = base.as_sliced_node(start, stop)
+                if base is not None:
+                    return base
         return node
 
     def visit_ForInStatNode(self, node):
