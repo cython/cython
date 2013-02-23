@@ -60,3 +60,29 @@ def unop_bool():
     minus3 = --- True
     mix    = +-++-- True
     return not1, plus1, minus1, not3, plus3, minus3, mix
+
+
+@cython.test_fail_if_path_exists(
+    "//AddNode",
+    "//SubNode",
+)
+def binop_bool():
+    """
+    >>> binop_bool()
+    (2, 1, 0, True, True, 1, False, 2, 2, -2, False, True, 1, False)
+    """
+    plus1  = True + True
+    pmix1  = True + 0
+    minus1 = True - True
+    and1   = True & True
+    or1    = True | True
+    ormix1 = True | 0
+    xor1   = True ^ True
+    plus3  = False + True + False + True
+    pmix3  = False + True + 0 + True
+    minus3 = False - True - False - True
+    and3   = False & True & False & True
+    or3    = False | True | False | True
+    ormix3 = False | 0 | False | True
+    xor3   = False ^ True ^ False ^ True
+    return plus1, pmix1, minus1, and1, or1, ormix1, xor1, plus3, pmix3, minus3, and3, or3, ormix3, xor3

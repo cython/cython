@@ -2991,8 +2991,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             import traceback, sys
             traceback.print_exc(file=sys.stdout)
 
-    NODE_TYPE_ORDER = [ExprNodes.CharNode, ExprNodes.IntNode,
-                       ExprNodes.FloatNode]
+    NODE_TYPE_ORDER = [ExprNodes.BoolNode, ExprNodes.CharNode,
+                       ExprNodes.IntNode, ExprNodes.FloatNode]
 
     def _widest_node_class(self, *nodes):
         try:
@@ -3087,18 +3087,26 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
         else:
             widest_type = PyrexTypes.py_object_type
+
         target_class = self._widest_node_class(operand1, operand2)
         if target_class is None:
             return node
-        elif target_class is ExprNodes.IntNode:
+        if target_class is ExprNodes.BoolNode and node.operator in '+-//<<%**>>':
+            # C arithmetic results in at least an int type
+            target_class = ExprNodes.IntNode
+        if target_class is ExprNodes.CharNode and node.operator in '+-//<<%**>>&|^':
+            # C arithmetic results in at least an int type
+            target_class = ExprNodes.IntNode
+
+        if target_class is ExprNodes.IntNode:
             unsigned = getattr(operand1, 'unsigned', '') and \
                        getattr(operand2, 'unsigned', '')
             longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
                                  len(getattr(operand2, 'longness', '')))]
             new_node = ExprNodes.IntNode(pos=node.pos,
-                                         unsigned = unsigned, longness = longness,
-                                         value = str(node.constant_result),
-                                         constant_result = node.constant_result)
+                                         unsigned=unsigned, longness=longness,
+                                         value=str(int(node.constant_result)),
+                                         constant_result=int(node.constant_result))
             # IntNode is smart about the type it chooses, so we just
             # make sure we were not smarter this time
             if widest_type.is_pyobject or new_node.type.is_pyobject:
@@ -3106,7 +3114,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             else:
                 new_node.type = PyrexTypes.widest_numeric_type(widest_type, new_node.type)
         else:
-            if isinstance(node, ExprNodes.BoolNode):
+            if target_class is ExprNodes.BoolNode:
                 node_value = node.constant_result
             else:
                 node_value = str(node.constant_result)
