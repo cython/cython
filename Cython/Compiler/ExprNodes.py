@@ -274,8 +274,6 @@ class ExprNode(Node):
             return typecast(type, py_object_type, self.result())
         return typecast(type, self.ctype(), self.result())
 
-        return typecast(type, self.ctype(), self.result())
-
     def py_result(self):
         #  Return the result code cast to PyObject *.
         return self.result_as(py_object_type)
