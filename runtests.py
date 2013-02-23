@@ -926,7 +926,8 @@ class CythonUnitTestCase(CythonRunTestCase):
         return "compiling (%s) tests in %s" % (self.language, self.module)
 
     def run_tests(self, result):
-        unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
+        if not self.cython_only:
+            unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
 
 
 class CythonPyregrTestCase(CythonRunTestCase):
@@ -959,6 +960,8 @@ class CythonPyregrTestCase(CythonRunTestCase):
         self.run_doctests(module, result)
 
     def run_tests(self, result):
+        if self.cython_only:
+            return
         try:
             from test import support
         except ImportError: # Python2.x
