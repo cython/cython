@@ -601,7 +601,7 @@ class MethodDispatcherTransform(EnvTransform):
         if self_arg is not None:
             arg_list = [self_arg] + list(arg_list)
         if kwargs:
-            return method_handler(node, arg_list, kwargs, is_unbound_method)
+            return method_handler(node, arg_list, is_unbound_method, kwargs)
         else:
             return method_handler(node, arg_list, is_unbound_method)
 
