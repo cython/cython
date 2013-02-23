@@ -1033,34 +1033,52 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             unused_marker = 'CYTHON_UNUSED '
 
+        if base_type:
+            freelist_size = 0  # not currently supported
+        else:
+            freelist_size = scope.directives.get('freelist', 0)
+        freelist_name = scope.mangle_internal(Naming.freelist_name)
+        freecount_name = scope.mangle_internal(Naming.freecount_name)
+
         decls = code.globalstate['decls']
         decls.putln("static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/" %
                     slot_func)
         code.putln("")
+        if freelist_size:
+            code.putln("static %s[%d];" % (
+                scope.parent_type.declaration_code(freelist_name),
+                freelist_size))
+            code.putln("static int %s = 0;" % freecount_name)
+            code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {"
                 % (slot_func, unused_marker, unused_marker))
 
         need_self_cast = type.vtabslot_cname or have_entries or cpp_class_attrs
         if need_self_cast:
-            code.putln(
-                "%s;"
-                    % scope.parent_type.declaration_code("p"))
+            code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_new is None:
                 tp_new = "%s->tp_new" % base_type.typeptr_cname
-            code.putln(
-                "PyObject *o = %s(t, a, k);" % tp_new)
+            code.putln("PyObject *o = %s(t, a, k);" % tp_new)
         else:
-            code.putln(
-                "PyObject *o = (*t->tp_alloc)(t, 0);")
-        code.putln(
-                "if (!o) return 0;")
+            code.putln("PyObject *o;")
+            if freelist_size:
+                code.putln("if ((%s > 0) & (t == %s)) {" % (
+                    freecount_name, type.typeptr_cname))
+                code.putln("o = (PyObject*)%s[--%s];" % (
+                    freelist_name, freecount_name))
+                code.putln("PyObject_Init(o, t);")
+                if scope.needs_gc():
+                    code.putln("PyObject_GC_Track(o);")
+                code.putln("} else {")
+            code.putln("o = (*t->tp_alloc)(t, 0);")
+        code.putln("if (!o) return 0;")
+        if freelist_size and not base_type:
+            code.putln('}')
         if need_self_cast:
-            code.putln(
-                "p = %s;"
-                    % type.cast_code("o"))
+            code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
         if type.vtabslot_cname:
@@ -1184,8 +1202,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpDealloc", "ExtensionTypes.c"))
         else:
-            code.putln(
-                    "(*Py_TYPE(o)->tp_free)(o);")
+            freelist_size = scope.directives.get('freelist', 0)
+            if freelist_size:
+                freelist_name = scope.mangle_internal(Naming.freelist_name)
+                freecount_name = scope.mangle_internal(Naming.freecount_name)
+
+                type = scope.parent_type
+                code.putln("if ((%s < %d) & (Py_TYPE(o) == %s)) {" % (
+                    freecount_name, freelist_size, type.typeptr_cname))
+                code.putln("%s[%s++] = %s;" % (
+                    freelist_name, freecount_name, type.cast_code("o")))
+                code.putln("} else {")
+            code.putln("(*Py_TYPE(o)->tp_free)(o);")
+            if freelist_size:
+                code.putln("}")
         code.putln(
             "}")
 
@@ -2038,6 +2068,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                               PyrexTypes.py_object_type,
                               clear_before_decref=True,
                               nanny=False)
+        for entry in env.c_class_entries:
+            cclass_type = entry.type
+            if cclass_type.base_type:
+                continue
+            if cclass_type.scope.directives.get('freelist', 0):
+                scope = cclass_type.scope
+                freelist_name = scope.mangle_internal(Naming.freelist_name)
+                freecount_name = scope.mangle_internal(Naming.freecount_name)
+                code.putln("while (%s > 0) {" % freecount_name)
+                code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
+                    freelist_name, freecount_name))
+                code.putln("(*Py_TYPE(o)->tp_free)(o);")
+                code.putln("}")
 #        for entry in env.pynum_entries:
 #            code.put_decref_clear(entry.cname,
 #                                  PyrexTypes.py_object_type,

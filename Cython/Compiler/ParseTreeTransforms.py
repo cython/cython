@@ -883,6 +883,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time boolean argument' % optname)
             return (optname, args[0].value)
+        elif directivetype is int:
+            if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.IntNode):
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time integer argument' % optname)
+            return (optname, int(args[0].value))
         elif directivetype is str:
             if kwds is not None or len(args) != 1 or not isinstance(args[0], (ExprNodes.StringNode,
                                                                               ExprNodes.UnicodeNode)):
