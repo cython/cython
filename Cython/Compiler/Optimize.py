@@ -1788,13 +1788,14 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 node = ExprNodes.PythonCapiCallNode(
                     coerce_node.pos, "__Pyx_PyBytes_GetItemInt",
                     self.PyBytes_GetItemInt_func_type,
-                    args = [
+                    args=[
                         arg.base.as_none_safe_node("'NoneType' object is not subscriptable"),
                         index_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env),
                         bound_check_node,
                         ],
-                    is_temp = True,
-                    utility_code=load_c_utility('bytes_index'))
+                    is_temp=True,
+                    utility_code=UtilityCode.load_cached(
+                        'bytes_index', 'StringTools.c'))
                 if coerce_node.type is not PyrexTypes.c_char_type:
                     node = node.coerce_to(coerce_node.type, env)
                 return node
@@ -2342,7 +2343,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         method_name = node.function.attribute
         if method_name == 'istitle':
             # istitle() doesn't directly map to Py_UNICODE_ISTITLE()
-            utility_code = load_c_utility("py_unicode_istitle")
+            utility_code = UtilityCode.load_cached(
+                "py_unicode_istitle", "StringTools.c")
             function_name = '__Pyx_Py_UNICODE_ISTITLE'
         else:
             utility_code = None
@@ -2898,31 +2900,9 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
 
-unicode_tailmatch_utility_code = load_c_utility('unicode_tailmatch')
-
-bytes_tailmatch_utility_code = load_c_utility('bytes_tailmatch')
-
-str_tailmatch_utility_code = UtilityCode(
-proto = '''
-static CYTHON_INLINE int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
-                                               Py_ssize_t end, int direction);
-''',
-# We do not use a C compiler macro here to avoid "unused function"
-# warnings for the *_Tailmatch() function that is not being used in
-# the specific CPython version.  The C compiler will generate the same
-# code anyway, and will usually just remove the unused function.
-impl = '''
-static CYTHON_INLINE int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
-                                               Py_ssize_t end, int direction)
-{
-    if (PY_MAJOR_VERSION < 3)
-        return __Pyx_PyBytes_Tailmatch(self, arg, start, end, direction);
-    else
-        return __Pyx_PyUnicode_Tailmatch(self, arg, start, end, direction);
-}
-''',
-requires=[unicode_tailmatch_utility_code, bytes_tailmatch_utility_code]
-)
+unicode_tailmatch_utility_code = UtilityCode.load_cached('unicode_tailmatch', 'StringTools.c')
+bytes_tailmatch_utility_code = UtilityCode.load_cached('bytes_tailmatch', 'StringTools.c')
+str_tailmatch_utility_code = UtilityCode.load_cached('str_tailmatch', 'StringTools.c')
 
 
 tpnew_utility_code = UtilityCode(
