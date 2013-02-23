@@ -1,3 +1,4 @@
+from Cython.Compiler.ExprNodes import not_a_constant
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -3190,10 +3191,33 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
     def visit_SliceIndexNode(self, node):
         self._calculate_const(node)
         # normalise start/stop values
-        if node.start and node.start.constant_result is None:
-            node.start = None
-        if node.stop and node.stop.constant_result is None:
-            node.stop = None
+        if node.start is None or node.start.constant_result is None:
+            start = node.start = None
+        else:
+            start = node.start.constant_result
+        if node.stop is None or node.stop.constant_result is None:
+            stop = node.stop = None
+        else:
+            stop = node.stop.constant_result
+        # cut down sliced constant sequences
+        if node.constant_result is not not_a_constant:
+            base = node.base
+            if base.is_sequence_constructor:
+                base.args = base.args[start:stop]
+                return base
+            elif base.is_string_literal:
+                value = type(base.value)(node.constant_result)
+                value.encoding = base.value.encoding
+                base.value = value
+                if isinstance(base, ExprNodes.StringNode):
+                    if base.unicode_value is not None:
+                        base.unicode_value = EncodedString(
+                            base.unicode_value[start:stop])
+                elif isinstance(base, ExprNodes.UnicodeNode):
+                    if base.bytes_value is not None:
+                        base.bytes_value = BytesLiteral(
+                            base.bytes_value[start:stop])
+                return base
         return node
 
     def visit_ForInStatNode(self, node):

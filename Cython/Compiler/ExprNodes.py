@@ -1068,6 +1068,9 @@ class BytesNode(ConstNode):
     # start off as Python 'bytes' to support len() in O(1)
     type = bytes_type
 
+    def calculate_constant_result(self):
+        self.constant_result = self.value
+
     def compile_time_value(self, denv):
         return self.value
 
@@ -1149,6 +1152,9 @@ class UnicodeNode(PyConstNode):
     bytes_value = None
     type = unicode_type
 
+    def calculate_constant_result(self):
+        self.constant_result = self.value
+
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
             pass
@@ -1213,6 +1219,9 @@ class StringNode(PyConstNode):
     is_string_literal = True
     is_identifier = None
     unicode_value = None
+
+    def calculate_constant_result(self):
+        self.constant_result = self.value
 
     def coerce_to(self, dst_type, env):
         if dst_type is not py_object_type and not str_type.subtype_of(dst_type):

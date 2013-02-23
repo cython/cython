@@ -1,3 +1,4 @@
+# coding=utf8
 # mode: run
 # tag: constant_folding
 
@@ -86,3 +87,47 @@ def binop_bool():
     ormix3 = False | 0 | False | True
     xor3   = False ^ True ^ False ^ True
     return plus1, pmix1, minus1, and1, or1, ormix1, xor1, plus3, pmix3, minus3, and3, or3, ormix3, xor3
+
+
+@cython.test_fail_if_path_exists(
+    "//SliceIndexNode",
+)
+def slicing2():
+    """
+    >>> slicing2()
+    ([1, 2, 3, 4], [3, 4], [1, 2, 3, 4], [3, 4], (1, 2, 3, 4), (3, 4), (1, 2, 3, 4), (3, 4))
+    """
+    lst0 = [1, 2, 3, 4][:]
+    lst1 = [1, 2, 3, 4][2:]
+    lst2 = [1, 2, 3, 4][:4]
+    lst3 = [1, 2, 3, 4][2:4]
+
+    tpl0 = (1, 2, 3, 4)[:]
+    tpl1 = (1, 2, 3, 4)[2:]
+    tpl2 = (1, 2, 3, 4)[:4]
+    tpl3 = (1, 2, 3, 4)[2:4]
+
+    return lst0, lst1, lst2, lst3, tpl0, tpl1, tpl2, tpl3
+
+
+@cython.test_fail_if_path_exists(
+    "//SliceIndexNode",
+)
+def str_slicing2():
+    """
+    >>> a,b,c,d = str_slicing2()
+    >>> a == 'abc\\xE9def'[:]
+    True
+    >>> b == 'abc\\xE9def'[2:]
+    True
+    >>> c == 'abc\\xE9def'[:4]
+    True
+    >>> d == 'abc\\xE9def'[2:4]
+    True
+    """
+    str0 = 'abc\xE9def'[:]
+    str1 = 'abc\xE9def'[2:]
+    str2 = 'abc\xE9def'[:4]
+    str3 = 'abc\xE9def'[2:4]
+
+    return str0, str1, str2, str3
