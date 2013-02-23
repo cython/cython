@@ -2142,14 +2142,22 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
     Pyx_tp_new_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
+            PyrexTypes.CFuncTypeArg("type",   Builtin.type_type, None),
+            PyrexTypes.CFuncTypeArg("args",   Builtin.tuple_type, None),
             ])
 
-    def _handle_simple_slot__new__(self, node, args, is_unbound_method):
-        """Replace 'exttype.__new__(exttype)' by a call to exttype->tp_new()
+    Pyx_tp_new_kwargs_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("type",   Builtin.type_type, None),
+            PyrexTypes.CFuncTypeArg("args",   Builtin.tuple_type, None),
+            PyrexTypes.CFuncTypeArg("kwargs", Builtin.dict_type, None),
+        ])
+
+    def _handle_any_slot__new__(self, node, args, is_unbound_method, kwargs=None):
+        """Replace 'exttype.__new__(exttype, ...)' by a call to exttype->tp_new()
         """
         obj = node.function.obj
-        if not is_unbound_method or len(args) != 1:
+        if not is_unbound_method or len(args) < 1:
             return node
         type_arg = args[0]
         if not obj.is_name or not type_arg.is_name:
@@ -2177,11 +2185,24 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             type_arg = type_arg.as_none_safe_node(
                 "object.__new__(X): X is not a type object (NoneType)")
 
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
-            args=[type_arg],
-            utility_code=UtilityCode.load_cached('tp_new', 'ObjectHandling.c'),
-            is_temp=node.is_temp
+        args_tuple = ExprNodes.TupleNode(node.pos, args=args[1:])
+        args_tuple = args_tuple.analyse_types(
+            self.current_env(), skip_children=True)
+
+        utility_code = UtilityCode.load_cached('tp_new', 'ObjectHandling.c')
+        if kwargs:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_tp_new_kwargs", self.Pyx_tp_new_kwargs_func_type,
+                args=[type_arg, args_tuple, kwargs],
+                utility_code=utility_code,
+                is_temp=node.is_temp
+                )
+        else:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
+                args=[type_arg, args_tuple],
+                utility_code=utility_code,
+                is_temp=node.is_temp
             )
 
     ### methods of builtin types

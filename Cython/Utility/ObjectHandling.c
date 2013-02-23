@@ -653,9 +653,9 @@ bad:
 
 
 /////////////// tp_new.proto ///////////////
-//@substitute: naming
 
-static CYTHON_INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
+#define __Pyx_tp_new(type_obj, args) __Pyx_tp_new_kwargs(type_obj, args, NULL)
+static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
     return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
-        (PyTypeObject*)(type_obj), $empty_tuple, NULL));
+        (PyTypeObject*)(type_obj), args, kwargs));
 }
