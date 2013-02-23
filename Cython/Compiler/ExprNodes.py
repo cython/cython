@@ -6781,14 +6781,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     def analyse_types(self, env):
         if self.binding:
-            if self.specialized_cpdefs or self.is_specialization:
-                env.use_utility_code(
-                    UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
-            else:
-                env.use_utility_code(
-                    UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             self.analyse_default_args(env)
-
         #TODO(craig,haoyu) This should be moved to a better place
         self.set_qualified_name(env, self.def_node.name)
         return self
@@ -6888,14 +6881,18 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         code.put_gotref(self.py_result())
 
     def generate_cyfunction_code(self, code):
-        def_node = self.def_node
-
         if self.specialized_cpdefs:
-            constructor = "__pyx_FusedFunction_NewEx"
             def_node = self.specialized_cpdefs[0]
-        elif self.is_specialization:
+        else:
+            def_node = self.def_node
+
+        if self.specialized_cpdefs or self.is_specialization:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
             constructor = "__pyx_FusedFunction_NewEx"
         else:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             constructor = "__Pyx_CyFunction_NewEx"
 
         if self.code_object:
