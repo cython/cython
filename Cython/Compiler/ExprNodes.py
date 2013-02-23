@@ -1248,37 +1248,6 @@ class IdentifierStringNode(StringNode):
     is_identifier = True
 
 
-class LongNode(AtomicExprNode):
-    #  Python long integer literal
-    #
-    #  value   string
-
-    type = py_object_type
-
-    def calculate_constant_result(self):
-        self.constant_result = Utils.str_to_number(self.value)
-
-    def compile_time_value(self, denv):
-        return Utils.str_to_number(self.value)
-
-    def analyse_types(self, env):
-        self.is_temp = 1
-        return self
-
-    def may_be_none(self):
-        return False
-
-    gil_message = "Constructing Python long int"
-
-    def generate_result_code(self, code):
-        code.putln(
-            '%s = PyLong_FromString((char *)"%s", 0, 0); %s' % (
-                self.result(),
-                self.value,
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
-
-
 class ImagNode(AtomicExprNode):
     #  Imaginary number literal
     #
@@ -2597,7 +2566,7 @@ class IndexNode(ExprNode):
                 return py_object_type
 
         index_type = self.index.infer_type(env)
-        if index_type and index_type.is_int or isinstance(self.index, (IntNode, LongNode)):
+        if index_type and index_type.is_int or isinstance(self.index, IntNode):
             # indexing!
             if base_type is unicode_type:
                 # Py_UCS4 will automatically coerce to a unicode string

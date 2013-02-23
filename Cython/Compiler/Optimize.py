@@ -2992,7 +2992,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             traceback.print_exc(file=sys.stdout)
 
     NODE_TYPE_ORDER = [ExprNodes.CharNode, ExprNodes.IntNode,
-                       ExprNodes.LongNode, ExprNodes.FloatNode]
+                       ExprNodes.FloatNode]
 
     def _widest_node_class(self, *nodes):
         try:
@@ -3032,9 +3032,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 value = '-' + value
             return value
 
-        if isinstance(node.operand, ExprNodes.LongNode):
-            return ExprNodes.LongNode(node.pos, value=_negate(node.operand.value),
-                                      constant_result=node.constant_result)
         if isinstance(node.operand, ExprNodes.FloatNode):
             # this is a safe operation
             return ExprNodes.FloatNode(node.pos, value=_negate(node.operand.value),
