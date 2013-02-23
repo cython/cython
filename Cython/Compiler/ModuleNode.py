@@ -1033,11 +1033,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             unused_marker = 'CYTHON_UNUSED '
 
-        need_self_cast = type.vtabslot_cname or have_entries or cpp_class_attrs
+        decls = code.globalstate['decls']
+        decls.putln("static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/" %
+                    slot_func)
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {"
-                % (scope.mangle_internal("tp_new"), unused_marker, unused_marker))
+                % (slot_func, unused_marker, unused_marker))
+
+        need_self_cast = type.vtabslot_cname or have_entries or cpp_class_attrs
         if need_self_cast:
             code.putln(
                 "%s;"

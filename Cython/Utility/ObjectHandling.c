@@ -659,3 +659,9 @@ static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject*
     return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
         (PyTypeObject*)(type_obj), args, kwargs));
 }
+
+
+/////////////// call_tp_new.proto ///////////////
+
+#define __Pyx_call_tp_new(tp_new_func, type_obj, args) __Pyx_call_tp_new_kwargs(tp_new_func, type_obj, args, NULL)
+#define __Pyx_call_tp_new_kwargs(tp_new_func, type_obj, args, kwargs) tp_new_func((PyTypeObject*)type_obj, args, kwargs)
