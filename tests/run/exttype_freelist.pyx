@@ -54,6 +54,21 @@ cdef class ExtSubType(ExtTypeWithGC):
     """
 
 
+cdef class LargerExtSubType(ExtSubType):
+    """
+    >>> obj = LargerExtSubType()
+    >>> obj = LargerExtSubType()
+    >>> obj = LargerExtSubType()
+    >>> obj = LargerExtSubType()
+    >>> obj = LargerExtSubType()
+    >>> obj = LargerExtSubType()
+    """
+    cdef attribute2
+
+    def __cinit__(self):
+        self.attribute2 = object()
+
+
 @cython.freelist(8)
 cdef class ExtTypeWithRefCycle:
     """
