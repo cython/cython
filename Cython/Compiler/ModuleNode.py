@@ -1065,8 +1065,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln("PyObject *o;")
             if freelist_size:
-                code.putln("if ((%s > 0) & (t == %s)) {" % (
-                    freecount_name, type.typeptr_cname))
+                code.putln("if ((%s > 0) & (t->tp_basicsize == sizeof(%s))) {" % (
+                    freecount_name, type.declaration_code("", deref=True)))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
                 code.putln("PyObject_INIT(o, t);")
@@ -1208,8 +1208,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 freecount_name = scope.mangle_internal(Naming.freecount_name)
 
                 type = scope.parent_type
-                code.putln("if ((%s < %d) & (Py_TYPE(o) == %s)) {" % (
-                    freecount_name, freelist_size, type.typeptr_cname))
+                code.putln("if ((%s < %d) & (Py_TYPE(o)->tp_basicsize == sizeof(%s))) {" % (
+                    freecount_name, freelist_size, type.declaration_code("", deref=True)))
                 code.putln("%s[%s++] = %s;" % (
                     freelist_name, freecount_name, type.cast_code("o")))
                 code.putln("} else {")

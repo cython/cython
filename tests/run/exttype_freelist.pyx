@@ -43,6 +43,17 @@ def tpnew_ExtTypeWithGC():
     return ExtTypeWithGC.__new__(ExtTypeWithGC)
 
 
+cdef class ExtSubType(ExtTypeWithGC):
+    """
+    >>> obj = ExtSubType()
+    >>> obj = ExtSubType()
+    >>> obj = ExtSubType()
+    >>> obj = ExtSubType()
+    >>> obj = ExtSubType()
+    >>> obj = ExtSubType()
+    """
+
+
 @cython.freelist(8)
 cdef class ExtTypeWithRefCycle:
     """
