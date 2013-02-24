@@ -1,3 +1,5 @@
+# mode: run
+# tag: freelist
 
 cimport cython
 
