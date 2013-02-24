@@ -4190,7 +4190,7 @@ class CClassDefNode(ClassDefNode):
                     else:
                         self.base_type = base_class_entry.type
                 if env.directives.get('freelist', 0) > 0:
-                    warning(self.pos, "freelists are not currently supported for subtypes", 1)
+                    warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
 
         has_body = self.body is not None
         if self.module_name and self.visibility != 'extern':
