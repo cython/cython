@@ -57,7 +57,7 @@ cdef class ExtTypeWithRefCycle:
     >>> obj.attribute is not None
     True
     >>> first.attribute = obj
-    >>> del obj
+    >>> del obj, first
     """
     cdef public attribute
 
