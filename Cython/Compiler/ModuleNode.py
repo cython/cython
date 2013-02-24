@@ -1069,7 +1069,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     freecount_name, type.typeptr_cname))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
-                code.putln("PyObject_Init(o, t);")
+                code.putln("PyObject_INIT(o, t);")
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else {")
