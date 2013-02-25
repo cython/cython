@@ -1079,7 +1079,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                 obj_struct = type.declaration_code("", deref=True)
-                code.putln("if ((%s > 0) & (t->tp_basicsize == sizeof(%s))) {" % (
+                code.putln("if (likely((%s > 0) & (t->tp_basicsize == sizeof(%s)))) {" % (
                     freecount_name, obj_struct))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -1089,7 +1089,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else {")
             code.putln("o = (*t->tp_alloc)(t, 0);")
-        code.putln("if (!o) return 0;")
+        code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
         if need_self_cast:
@@ -1135,7 +1135,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 cinit_args = "o, a, k"
             code.putln(
-                "if (%s(%s) < 0) {" %
+                "if (unlikely(%s(%s) < 0)) {" %
                     (new_func_entry.func_cname, cinit_args))
             code.put_decref_clear("o", py_object_type, nanny=False)
             code.putln(
