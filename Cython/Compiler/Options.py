@@ -123,7 +123,8 @@ directive_defaults = {
 
 # experimental, subject to change
     'binding': None,
-    'experimental_cpp_class_def': False
+    'experimental_cpp_class_def': False,
+    'freelist': 0,
 }
 
 # Extra warning directives
@@ -144,6 +145,7 @@ directive_types = {
     'cclass' : None,
     'returns' : type,
     'set_initial_path': str,
+    'freelist': int,
     }
 
 for key, val in directive_defaults.items():
@@ -160,6 +162,7 @@ directive_scopes = { # defaults to available everywhere
     'set_initial_path' : ('module',),
     'test_assert_path_exists' : ('function', 'class', 'cclass'),
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
+    'freelist': ('cclass',),
 }
 
 def parse_directive_value(name, value, relaxed_bool=False):

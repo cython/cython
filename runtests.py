@@ -746,7 +746,8 @@ class CythonRunTestCase(CythonCompileTestCase):
                 self.success = False
                 self.runCompileTest()
                 failures, errors = len(result.failures), len(result.errors)
-                self.run_tests(result)
+                if not self.cython_only:
+                    self.run_tests(result)
                 if failures == len(result.failures) and errors == len(result.errors):
                     # No new errors...
                     self.success = True
@@ -761,8 +762,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_tests(self, result):
-        if not self.cython_only:
-            self.run_doctests(self.module, result)
+        self.run_doctests(self.module, result)
 
     def run_doctests(self, module_name, result):
         def run_test(result):

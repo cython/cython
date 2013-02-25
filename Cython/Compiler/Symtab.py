@@ -1310,6 +1310,7 @@ class ModuleScope(Scope):
             if defining or implementing:
                 scope = CClassScope(name = name, outer_scope = self,
                     visibility = visibility)
+                scope.directives = self.directives.copy()
                 if base_type and base_type.scope:
                     scope.declare_inherited_c_attributes(base_type.scope)
                 type.set_scope(scope)
@@ -1891,7 +1892,7 @@ class CClassScope(ClassScope):
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private', api = 0, in_pxd = 0,
                           defining = 0, modifiers = (), utility_code = None):
-        if get_special_method_signature(name):
+        if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
         if not args:

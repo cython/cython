@@ -339,6 +339,7 @@ subtyped at the C level by foreign code.
 
 C methods
 =========
+
 Extension types can have C methods as well as Python methods. Like C
 functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` instead of
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
@@ -379,6 +380,7 @@ method using the usual Python technique, i.e.::
 
     Parrot.describe(self)
 
+
 Forward-declaring extension types
 ===================================
 
@@ -405,6 +407,52 @@ definition, for example,::
     cdef class A(B):
         # attributes and methods
 
+
+Fast instantiation
+===================
+
+Cython provides two ways to speed up the instantiation of extension types.
+The first one is a direct call to the ``__new__()`` special static method,
+as known from Python.  For an extension type ``Penguin``, you could use
+the following code::
+
+    cdef class Penguin:
+        cdef object food
+
+        def __cinit__(self, food):
+            self.food = food
+
+        def __init__(self, food):
+            print("eating!")
+
+    normal_penguin = Penguin('fish')
+    fast_penguin = Penguin.__new__(Penguin, 'wheat')  # note: not calling __init__() !
+
+Note that the path through ``__new__()`` will *not* call the type's
+``__init__()`` method (again, as known from Python).  Thus, in the example
+above, the first instantiation will print ``eating!``, but the second will
+not.  This is only one of the reasons why the ``__cinit__()`` method is
+safer and preferable over the normal ``__init__()`` method for extension
+types.
+
+The second performance improvement applies to types that are often created
+and deleted in a row, so that they can benefit from a freelist.  Cython
+provides the decorator ``@cython.freelist(N)`` for this, which creates a
+statically sized freelist of ``N`` instances for a given type.  Example::
+
+    cimport cython
+
+    @cython.freelist(8)
+    cdef class Penguin:
+        cdef object food
+        def __cinit__(self, food):
+            self.food = food
+
+    penguin = Penguin('fish 1')
+    penguin = None
+    penguin = Penguin('fish 2')  # does not need to allocate memory!
+
+
 Making extension types weak-referenceable
 ==========================================
 
@@ -417,6 +465,7 @@ object called :attr:`__weakref__`. For example,::
         no longer strongly referenced."""
     
         cdef object __weakref__
+
 
 Public and external extension types
 ====================================

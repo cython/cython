@@ -693,6 +693,8 @@ def wrap_compile_time_constant(pos, value):
     rep = repr(value)
     if value is None:
         return ExprNodes.NoneNode(pos)
+    elif value is Ellipsis:
+        return ExprNodes.EllipsisNode(pos)
     elif isinstance(value, bool):
         return ExprNodes.BoolNode(pos, value=value)
     elif isinstance(value, int):

@@ -364,6 +364,25 @@ def endswith_start_end(unicode s, sub, start, end):
         return 'NO MATCH'
 
 
+# unicode.__contains__(s, sub)
+
+@cython.test_fail_if_path_exists(
+    "//CoerceFromPyTypeNode", "//AttributeNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode", "//PrimaryCmpNode")
+def in_test(unicode s, substring):
+    """
+    >>> in_test(text, 'sa')
+    True
+    >>> in_test(text, 'XYZ')
+    False
+    >>> in_test(None, 'sa')
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
+    return substring in s
+
+
 # unicode.find(s, sub, [start, [end]])
 
 @cython.test_fail_if_path_exists(
