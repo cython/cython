@@ -1076,10 +1076,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln("PyObject *o;")
             if freelist_size:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+                obj_struct = type.declaration_code("", deref=True)
                 code.putln("if ((%s > 0) & (t->tp_basicsize == sizeof(%s))) {" % (
-                    freecount_name, type.declaration_code("", deref=True)))
+                    freecount_name, obj_struct))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
+                code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
                 code.putln("PyObject_INIT(o, t);")
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")

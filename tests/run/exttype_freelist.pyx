@@ -70,6 +70,52 @@ cdef class LargerExtSubType(ExtSubType):
 
 
 @cython.freelist(8)
+cdef class ExtTypeWithCAttr:
+    """
+    >>> obj = ExtTypeWithCAttr()
+    >>> obj = ExtTypeWithCAttr()
+    >>> obj = ExtTypeWithCAttr()
+    >>> obj = ExtTypeWithCAttr()
+    >>> obj = ExtTypeWithCAttr()
+    >>> obj = ExtTypeWithCAttr()
+    """
+    cdef int cattr
+
+    def __cinit__(self):
+        assert self.cattr == 0
+        self.cattr = 1
+
+
+cdef class ExtSubTypeWithCAttr(ExtTypeWithCAttr):
+    """
+    >>> obj = ExtSubTypeWithCAttr()
+    >>> obj = ExtSubTypeWithCAttr()
+    >>> obj = ExtSubTypeWithCAttr()
+    >>> obj = ExtSubTypeWithCAttr()
+    >>> obj = ExtSubTypeWithCAttr()
+    >>> obj = ExtSubTypeWithCAttr()
+    """
+
+
+cdef class ExtTypeWithCAttrNoFreelist:
+    """
+    For comparison with normal CPython instantiation.
+
+    >>> obj = ExtTypeWithCAttrNoFreelist()
+    >>> obj = ExtTypeWithCAttrNoFreelist()
+    >>> obj = ExtTypeWithCAttrNoFreelist()
+    >>> obj = ExtTypeWithCAttrNoFreelist()
+    >>> obj = ExtTypeWithCAttrNoFreelist()
+    >>> obj = ExtTypeWithCAttrNoFreelist()
+    """
+    cdef int cattr
+
+    def __cinit__(self):
+        assert self.cattr == 0
+        self.cattr = 1
+
+
+@cython.freelist(8)
 cdef class ExtTypeWithRefCycle:
     """
     >>> obj = first = ExtTypeWithRefCycle()
