@@ -1,7 +1,7 @@
 from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF
 
 cdef extern from "Python.h":
-    PyObject *Py_None
+    #PyObject *Py_None
     ctypedef struct PyTypeObject:
         pass
 
