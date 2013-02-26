@@ -1,4 +1,4 @@
-from cpython.ref cimport PyObject
+from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF
 
 cdef extern from "Python.h":
     PyObject *Py_None
@@ -119,3 +119,33 @@ cdef inline object datetime_new(int year, int month, int day, int hour, int minu
 cdef inline object timedelta_new(int days, int seconds, int useconds):
     return PyDateTimeAPI.Delta_FromDelta(days, seconds, useconds, 1, PyDateTimeAPI.DeltaType)
 
+# Get tzinfo attribute of time object. 
+cdef inline object time_get_tzinfo(object o):
+    if (<PyDateTime_Time*>o).hastzinfo:
+        return <object>(<PyDateTime_Time*>o).tzinfo
+    else:
+        return None
+
+# Replace timezone info of the time object.
+cdef inline object time_replace_tzinfo(object o, object tz):
+    return time_new(PyDateTime_TIME_GET_HOUR(o),
+                    PyDateTime_TIME_GET_MINUTE(o),
+                    PyDateTime_TIME_GET_SECOND(o),
+                    PyDateTime_TIME_GET_MICROSECOND(o), tz)
+
+# Get tzinfo attribute of datetime object. 
+cdef inline object datetime_get_tzinfo(object o):
+    if (<PyDateTime_DateTime*>o).hastzinfo:
+        return <object>(<PyDateTime_DateTime*>o).tzinfo
+    else:
+        return None
+
+# Replace timezone info of the datetime object.
+cdef inline object datetime_replace_tzinfo(object o, object tz):
+    return datetime_new(PyDateTime_GET_YEAR(o),
+                        PyDateTime_GET_MONTH(o),
+                        PyDateTime_GET_DAY(o),
+                        PyDateTime_DATE_GET_HOUR(o),
+                        PyDateTime_DATE_GET_MINUTE(o),
+                        PyDateTime_DATE_GET_SECOND(o),
+                        PyDateTime_DATE_GET_MICROSECOND(o), tz)

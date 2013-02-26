@@ -6,6 +6,8 @@
 
 from cpython.datetime cimport PyDateTime_IMPORT
 from cpython.datetime cimport time_new, date_new, datetime_new, timedelta_new
+from cpython.datetime cimport time_get_tzinfo, time_replace_tzinfo
+from cpython.datetime cimport datetime_get_tzinfo, datetime_replace_tzinfo
 
 import datetime as py_datetime
 
@@ -85,17 +87,44 @@ def do_datetime_tzinfo(int year, int month, int day,
            v.hour == hour, v.minute == minute, v.second == second, \
            v.microsecond == microsecond, v.tzinfo is tz
            
-#def do_time_getset_tzinfo(int hour, int minute, int second, int microsecond, object tz):
-#    """
-#    >>> tz = FixedOffset(60*3, 'Moscow')    
-#    >>> do_time_getset_tzinfo(12, 23, 0, 0, tz)
-#    (True, True, True, True)
-#    """
-#    v = PyTime_FromTime(hour, minute, second, microsecond)
-#    PyDateTime_Time_SetTZInfo(v, tz)
-#    r1 = (v.tzinfo == tz)
-#    r2 = (tz == PyDateTime_Time_GetTZInfo(v))
-#    PyDateTime_Time_SetTZInfo(v, None)
-#    r3 = (v.tzinfo == None)
-#    r4 = (tz == PyDateTime_Time_GetTZInfo(v))
-#    return r1, r2, r3, r4
+def do_time_getset_tzinfo(int hour, int minute, int second, int microsecond, object tz):
+    """
+    >>> tz = FixedOffset(60*3, 'Moscow')    
+    >>> do_time_getset_tzinfo(12, 23, 0, 0, tz)
+    (True, True, True, True, True, True, True, True)
+    """
+    v = time_new(hour, minute, second, microsecond, None)
+    v1 = time_replace_tzinfo(v, tz)
+    r1 = (v1.tzinfo == tz)
+    r2 = (tz == time_get_tzinfo(v1))
+    v2 = time_replace_tzinfo(v1, None)
+    r3 = (v2.tzinfo == None)
+    r4 = (None == time_get_tzinfo(v2))
+    v3 = time_replace_tzinfo(v2, tz)
+    r5 = (v3.tzinfo == tz)
+    r6 = (tz == time_get_tzinfo(v3))
+    r7 = (v2 == v)
+    r8 = (v3 == v1)
+    return r1, r2, r3, r4, r5, r6, r7, r8
+
+
+def do_datetime_getset_tzinfo(int year, int month, int day,
+                              int hour, int minute, int second, int microsecond, object tz):
+    """
+    >>> tz = FixedOffset(60*3, 'Moscow')    
+    >>> do_datetime_getset_tzinfo(2012, 12, 31, 12, 23, 0, 0, tz)
+    (True, True, True, True, True, True, True, True)
+    """
+    v = datetime_new(year, month, day, hour, minute, second, microsecond, None)
+    v1 = datetime_replace_tzinfo(v, tz)
+    r1 = (v1.tzinfo == tz)
+    r2 = (tz == datetime_get_tzinfo(v1))
+    v2 = datetime_replace_tzinfo(v1, None)
+    r3 = (v2.tzinfo == None)
+    r4 = (None == datetime_get_tzinfo(v2))
+    v3 = datetime_replace_tzinfo(v2, tz)
+    r5 = (v3.tzinfo == tz)
+    r6 = (tz == datetime_get_tzinfo(v3))
+    r7 = (v2 == v)
+    r8 = (v3 == v1)
+    return r1, r2, r3, r4, r5, r6, r7, r8
