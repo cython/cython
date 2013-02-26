@@ -7,19 +7,19 @@ cdef extern from "Python.h":
 
 cdef extern from "datetime.h":
     
-    ctypedef class datetime.date[object PyDateTime_Date]:
+    ctypedef extern class datetime.date[object PyDateTime_Date]:
         pass
 
-    ctypedef class datetime.time[object PyDateTime_Time]:
+    ctypedef extern class datetime.time[object PyDateTime_Time]:
         pass
 
-    ctypedef class datetime.datetime[object PyDateTime_DateTime]:
+    ctypedef extern class datetime.datetime[object PyDateTime_DateTime]:
         pass
 
-    ctypedef class datetime.timedelta[object PyDateTime_Delta]:
+    ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
         pass
 
-    ctypedef class datetime.tzinfo[object PyDateTime_TZInfo]:
+    ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo]:
         pass
 
     ctypedef struct PyDateTime_Date:
