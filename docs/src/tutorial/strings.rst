@@ -5,10 +5,12 @@ Unicode and passing strings
 
 Similar to the string semantics in Python 3, Cython also strictly
 separates byte strings and unicode strings.  Above all, this means
-that there is no automatic conversion between byte strings and unicode
-strings (except for what Python 2 does in string operations).  All
-encoding and decoding must pass through an explicit encoding/decoding
-step.
+that by default there is no automatic conversion between byte strings
+and unicode strings (except for what Python 2 does in string operations).
+All encoding and decoding must pass through an explicit encoding/decoding
+step.  For simple cases, the  module-level ``c_string_type`` and
+``c_string_encoding`` directives can be used to implicitly insert these
+encoding/decoding steps to ease conversion between Python and C strings.
 
 General notes about C strings
 -----------------------------

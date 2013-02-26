@@ -22,6 +22,9 @@ Features added
 
 * Keyword arguments are supported for cdef functions.
 
+* Added c_string_type and c_string_encoding directives to more easily convert between
+  Python and C strings.
+
 Bugs fixed
 ----------
 

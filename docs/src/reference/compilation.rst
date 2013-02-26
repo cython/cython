@@ -208,6 +208,15 @@ Cython code.  Here is the list of currently supported directives:
     setting from the module being compiled, unless they explicitly
     set their own language level.
 
+``c_string_type`` (bytes / str / unicode)
+    Globally set the type of an implicit coercion from char* or std::string.
+
+``c_string_encoding`` (ascii, default, utf-8, etc.)
+    Globally set the encoding to use when implicitly coercing char* or std:string
+    to a unicode object.  Coercion from a unicode object to C type is only allowed
+    when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
+    nearly-always ascii in Python 2.
+
 How to set directives
 ---------------------
 
