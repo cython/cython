@@ -984,8 +984,8 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, arg, notnone=False):
-        type_check = self.type_check_function(exact=True)
+    def type_test_code(self, arg, notnone=False, exact=True):
+        type_check = self.type_check_function(exact=exact)
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
             check += '||((%s) == Py_None)' % arg
@@ -1033,9 +1033,6 @@ class PyExtensionType(PyObjectType):
     is_extension_type = 1
     has_attributes = 1
 
-    def needs_nonecheck(self):
-        return True
-
     objtypedef_cname = None
 
     def __init__(self, name, typedef_flag, base_type, is_external=0):
@@ -1059,6 +1056,9 @@ class PyExtensionType(PyObjectType):
         self.scope = scope
         if scope:
             scope.parent_type = self
+
+    def needs_nonecheck(self):
+        return True
 
     def subtype_of_resolved_type(self, other_type):
         if other_type.is_extension_type or other_type.is_builtin_type:

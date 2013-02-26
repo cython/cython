@@ -493,10 +493,12 @@ def get_special_method_signature(name):
     else:
         return None
 
+
 def get_property_accessor_signature(name):
     #  Return signature of accessor for an extension type
     #  property, else None.
     return property_accessor_signatures.get(name)
+
 
 def get_base_slot_function(scope, slot):
     #  Returns the function implementing this slot in the baseclass.
@@ -509,6 +511,18 @@ def get_base_slot_function(scope, slot):
             entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
             if entry.visibility != 'extern':
                 return parent_slot
+    return None
+
+
+def get_slot_function(scope, slot):
+    #  Returns the function implementing this slot in the baseclass.
+    #  This is useful for enabling the compiler to optimize calls
+    #  that recursively climb the class hierarchy.
+    slot_code = slot.slot_code(scope)
+    if slot_code != '0':
+        entry = scope.parent_scope.lookup_here(scope.parent_type.name)
+        if entry.visibility != 'extern':
+            return slot_code
     return None
 
 #------------------------------------------------------------------------------------------

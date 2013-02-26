@@ -1,3 +1,5 @@
+from Cython.Compiler import TypeSlots
+from Cython.Compiler.ExprNodes import not_a_constant
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -1787,13 +1789,14 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 node = ExprNodes.PythonCapiCallNode(
                     coerce_node.pos, "__Pyx_PyBytes_GetItemInt",
                     self.PyBytes_GetItemInt_func_type,
-                    args = [
+                    args=[
                         arg.base.as_none_safe_node("'NoneType' object is not subscriptable"),
                         index_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env),
                         bound_check_node,
                         ],
-                    is_temp = True,
-                    utility_code=load_c_utility('bytes_index'))
+                    is_temp=True,
+                    utility_code=UtilityCode.load_cached(
+                        'bytes_index', 'StringTools.c'))
                 if coerce_node.type is not PyrexTypes.c_char_type:
                     node = node.coerce_to(coerce_node.type, env)
                 return node
@@ -2140,14 +2143,22 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
     Pyx_tp_new_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
+            PyrexTypes.CFuncTypeArg("type",   PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("args",   Builtin.tuple_type, None),
             ])
 
-    def _handle_simple_slot__new__(self, node, args, is_unbound_method):
-        """Replace 'exttype.__new__(exttype)' by a call to exttype->tp_new()
+    Pyx_tp_new_kwargs_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("type",   PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("args",   Builtin.tuple_type, None),
+            PyrexTypes.CFuncTypeArg("kwargs", Builtin.dict_type, None),
+        ])
+
+    def _handle_any_slot__new__(self, node, args, is_unbound_method, kwargs=None):
+        """Replace 'exttype.__new__(exttype, ...)' by a call to exttype->tp_new()
         """
         obj = node.function.obj
-        if not is_unbound_method or len(args) != 1:
+        if not is_unbound_method or len(args) < 1:
             return node
         type_arg = args[0]
         if not obj.is_name or not type_arg.is_name:
@@ -2165,21 +2176,53 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             # different types - may or may not lead to an error at runtime
             return node
 
-        # FIXME: we could potentially look up the actual tp_new C
-        # method of the extension type and call that instead of the
-        # generic slot. That would also allow us to pass parameters
-        # efficiently.
+        args_tuple = ExprNodes.TupleNode(node.pos, args=args[1:])
+        args_tuple = args_tuple.analyse_types(
+            self.current_env(), skip_children=True)
 
-        if not type_arg.type_entry:
+        if type_arg.type_entry:
+            ext_type = type_arg.type_entry.type
+            if ext_type.is_extension_type and ext_type.typeobj_cname:
+                tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+                slot_func_cname = TypeSlots.get_slot_function(ext_type.scope, tp_slot)
+                if slot_func_cname:
+                    cython_scope = self.context.cython_scope
+                    PyTypeObjectPtr = PyrexTypes.CPtrType(
+                        cython_scope.lookup('PyTypeObject').type)
+                    pyx_tp_new_kwargs_func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.py_object_type, [
+                            PyrexTypes.CFuncTypeArg("type",   PyTypeObjectPtr, None),
+                            PyrexTypes.CFuncTypeArg("args",   PyrexTypes.py_object_type, None),
+                            PyrexTypes.CFuncTypeArg("kwargs", PyrexTypes.py_object_type, None),
+                            ])
+
+                    type_arg = ExprNodes.CastNode(type_arg, PyTypeObjectPtr)
+                    if not kwargs:
+                        kwargs = ExprNodes.NullNode(node.pos, type=PyrexTypes.py_object_type)  # hack?
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, slot_func_cname,
+                        pyx_tp_new_kwargs_func_type,
+                        args=[type_arg, args_tuple, kwargs],
+                        is_temp=True)
+        else:
             # arbitrary variable, needs a None check for safety
             type_arg = type_arg.as_none_safe_node(
                 "object.__new__(X): X is not a type object (NoneType)")
 
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
-            args = [type_arg],
-            utility_code = tpnew_utility_code,
-            is_temp = node.is_temp
+        utility_code = UtilityCode.load_cached('tp_new', 'ObjectHandling.c')
+        if kwargs:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_tp_new_kwargs", self.Pyx_tp_new_kwargs_func_type,
+                args=[type_arg, args_tuple, kwargs],
+                utility_code=utility_code,
+                is_temp=node.is_temp
+                )
+        else:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
+                args=[type_arg, args_tuple],
+                utility_code=utility_code,
+                is_temp=node.is_temp
             )
 
     ### methods of builtin types
@@ -2341,7 +2384,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         method_name = node.function.attribute
         if method_name == 'istitle':
             # istitle() doesn't directly map to Py_UNICODE_ISTITLE()
-            utility_code = load_c_utility("py_unicode_istitle")
+            utility_code = UtilityCode.load_cached(
+                "py_unicode_istitle", "StringTools.c")
             function_name = '__Pyx_Py_UNICODE_ISTITLE'
         else:
             utility_code = None
@@ -2897,41 +2941,9 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
 
-unicode_tailmatch_utility_code = load_c_utility('unicode_tailmatch')
-
-bytes_tailmatch_utility_code = load_c_utility('bytes_tailmatch')
-
-str_tailmatch_utility_code = UtilityCode(
-proto = '''
-static CYTHON_INLINE int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
-                                               Py_ssize_t end, int direction);
-''',
-# We do not use a C compiler macro here to avoid "unused function"
-# warnings for the *_Tailmatch() function that is not being used in
-# the specific CPython version.  The C compiler will generate the same
-# code anyway, and will usually just remove the unused function.
-impl = '''
-static CYTHON_INLINE int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
-                                               Py_ssize_t end, int direction)
-{
-    if (PY_MAJOR_VERSION < 3)
-        return __Pyx_PyBytes_Tailmatch(self, arg, start, end, direction);
-    else
-        return __Pyx_PyUnicode_Tailmatch(self, arg, start, end, direction);
-}
-''',
-requires=[unicode_tailmatch_utility_code, bytes_tailmatch_utility_code]
-)
-
-
-tpnew_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
-    return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
-        (PyTypeObject*)(type_obj), %(TUPLE)s, NULL));
-}
-""" % {'TUPLE' : Naming.empty_tuple}
-)
+unicode_tailmatch_utility_code = UtilityCode.load_cached('unicode_tailmatch', 'StringTools.c')
+bytes_tailmatch_utility_code = UtilityCode.load_cached('bytes_tailmatch', 'StringTools.c')
+str_tailmatch_utility_code = UtilityCode.load_cached('str_tailmatch', 'StringTools.c')
 
 
 class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
@@ -2991,8 +3003,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             import traceback, sys
             traceback.print_exc(file=sys.stdout)
 
-    NODE_TYPE_ORDER = [ExprNodes.CharNode, ExprNodes.IntNode,
-                       ExprNodes.LongNode, ExprNodes.FloatNode]
+    NODE_TYPE_ORDER = [ExprNodes.BoolNode, ExprNodes.CharNode,
+                       ExprNodes.IntNode, ExprNodes.FloatNode]
 
     def _widest_node_class(self, *nodes):
         try:
@@ -3011,13 +3023,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return node
         if not node.operand.is_literal:
             return node
-        if isinstance(node, ExprNodes.NotNode):
-            return ExprNodes.BoolNode(node.pos, value = bool(node.constant_result),
-                                      constant_result = bool(node.constant_result))
+        if node.operator == '!':
+            return ExprNodes.BoolNode(node.pos, value=bool(node.constant_result),
+                                      constant_result=bool(node.constant_result))
         elif isinstance(node.operand, ExprNodes.BoolNode):
-            return ExprNodes.IntNode(node.pos, value = str(int(node.constant_result)),
-                                     type = PyrexTypes.c_int_type,
-                                     constant_result = int(node.constant_result))
+            return ExprNodes.IntNode(node.pos, value=str(int(node.constant_result)),
+                                     type=PyrexTypes.c_int_type,
+                                     constant_result=int(node.constant_result))
         elif node.operator == '+':
             return self._handle_UnaryPlusNode(node)
         elif node.operator == '-':
@@ -3025,20 +3037,24 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return node
 
     def _handle_UnaryMinusNode(self, node):
-        if isinstance(node.operand, ExprNodes.LongNode):
-            return ExprNodes.LongNode(node.pos, value = '-' + node.operand.value,
-                                      constant_result = node.constant_result)
+        def _negate(value):
+            if value.startswith('-'):
+                value = value[1:]
+            else:
+                value = '-' + value
+            return value
+
         if isinstance(node.operand, ExprNodes.FloatNode):
             # this is a safe operation
-            return ExprNodes.FloatNode(node.pos, value = '-' + node.operand.value,
-                                       constant_result = node.constant_result)
+            return ExprNodes.FloatNode(node.pos, value=_negate(node.operand.value),
+                                       constant_result=node.constant_result)
         node_type = node.operand.type
         if node_type.is_int and node_type.signed or \
-               isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
-            return ExprNodes.IntNode(node.pos, value = '-' + node.operand.value,
-                                     type = node_type,
-                                     longness = node.operand.longness,
-                                     constant_result = node.constant_result)
+                isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
+            return ExprNodes.IntNode(node.pos, value=_negate(node.operand.value),
+                                     type=node_type,
+                                     longness=node.operand.longness,
+                                     constant_result=node.constant_result)
         return node
 
     def _handle_UnaryPlusNode(self, node):
@@ -3083,18 +3099,26 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
         else:
             widest_type = PyrexTypes.py_object_type
+
         target_class = self._widest_node_class(operand1, operand2)
         if target_class is None:
             return node
-        elif target_class is ExprNodes.IntNode:
+        if target_class is ExprNodes.BoolNode and node.operator in '+-//<<%**>>':
+            # C arithmetic results in at least an int type
+            target_class = ExprNodes.IntNode
+        if target_class is ExprNodes.CharNode and node.operator in '+-//<<%**>>&|^':
+            # C arithmetic results in at least an int type
+            target_class = ExprNodes.IntNode
+
+        if target_class is ExprNodes.IntNode:
             unsigned = getattr(operand1, 'unsigned', '') and \
                        getattr(operand2, 'unsigned', '')
             longness = "LL"[:max(len(getattr(operand1, 'longness', '')),
                                  len(getattr(operand2, 'longness', '')))]
             new_node = ExprNodes.IntNode(pos=node.pos,
-                                         unsigned = unsigned, longness = longness,
-                                         value = str(node.constant_result),
-                                         constant_result = node.constant_result)
+                                         unsigned=unsigned, longness=longness,
+                                         value=str(int(node.constant_result)),
+                                         constant_result=int(node.constant_result))
             # IntNode is smart about the type it chooses, so we just
             # make sure we were not smarter this time
             if widest_type.is_pyobject or new_node.type.is_pyobject:
@@ -3102,7 +3126,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             else:
                 new_node.type = PyrexTypes.widest_numeric_type(widest_type, new_node.type)
         else:
-            if isinstance(node, ExprNodes.BoolNode):
+            if target_class is ExprNodes.BoolNode:
                 node_value = node.constant_result
             else:
                 node_value = str(node.constant_result)
@@ -3178,10 +3202,24 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
     def visit_SliceIndexNode(self, node):
         self._calculate_const(node)
         # normalise start/stop values
-        if node.start and node.start.constant_result is None:
-            node.start = None
-        if node.stop and node.stop.constant_result is None:
-            node.stop = None
+        if node.start is None or node.start.constant_result is None:
+            start = node.start = None
+        else:
+            start = node.start.constant_result
+        if node.stop is None or node.stop.constant_result is None:
+            stop = node.stop = None
+        else:
+            stop = node.stop.constant_result
+        # cut down sliced constant sequences
+        if node.constant_result is not not_a_constant:
+            base = node.base
+            if base.is_sequence_constructor:
+                base.args = base.args[start:stop]
+                return base
+            elif base.is_string_literal:
+                base = base.as_sliced_node(start, stop)
+                if base is not None:
+                    return base
         return node
 
     def visit_ForInStatNode(self, node):

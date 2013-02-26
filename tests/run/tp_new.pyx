@@ -2,28 +2,32 @@
 cimport cython
 
 cdef class MyType:
-    def __cinit__(self):
+    cdef public args, kwargs
+    def __cinit__(self, *args, **kwargs):
+        self.args, self.kwargs = args, kwargs
         print "CINIT"
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         print "INIT"
 
 cdef class MySubType(MyType):
-    def __cinit__(self):
+    def __cinit__(self, *args, **kwargs):
+        self.args, self.kwargs = args, kwargs
         print "CINIT(SUB)"
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         print "INIT"
 
 class MyClass(object):
-    def __cinit__(self):
+    def __cinit__(self, *args, **kwargs):
+        self.args, self.kwargs = args, kwargs
         print "CINIT"
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         print "INIT"
 
 class MyTypeSubClass(MyType):
-    def __cinit__(self):
+    def __cinit__(self, *args, **kwargs):
         # not called: Python class!
         print "CINIT(PYSUB)"
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         print "INIT"
 
 # only these can be safely optimised:
@@ -49,6 +53,36 @@ def make_new_typed_target():
     """
     cdef MyType m
     m = MyType.__new__(MyType)
+    return m
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
+def make_new_with_args():
+    """
+    >>> isinstance(make_new_with_args(), MyType)
+    CINIT
+    (1, 2, 3)
+    {}
+    True
+    """
+    m = MyType.__new__(MyType, 1, 2 ,3)
+    print m.args
+    print m.kwargs
+    return m
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
+def make_new_with_args_kwargs():
+    """
+    >>> isinstance(make_new_with_args_kwargs(), MyType)
+    CINIT
+    (1, 2, 3)
+    {'a': 4}
+    True
+    """
+    m = MyType.__new__(MyType, 1, 2 ,3, a=4)
+    print m.args
+    print m.kwargs
     return m
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
