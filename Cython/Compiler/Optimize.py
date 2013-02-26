@@ -858,7 +858,7 @@ class SwitchTransform(Visitor.VisitorTransform):
             return self.NO_MATCH
         elif common_var is not None and not is_common_value(var, common_var):
             return self.NO_MATCH
-        elif not var.type.is_int or sum([not cond.type.is_int for cond in conditions]):
+        elif not (var.type.is_int or var.type.is_enum) or sum([not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
             return self.NO_MATCH
         return not_in, var, conditions
 
