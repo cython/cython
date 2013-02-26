@@ -248,3 +248,28 @@ def compile_time_tuple_constant(int x):
         return True
     else:
         return False
+
+cdef enum X:
+    a = 1
+    b
+    c
+    d
+    e = 10
+    f = 100
+
+@cython.test_assert_path_exists('//SwitchStatNode')
+def enum_switch(X x):
+    """
+    >>> enum_switch(1)
+    0
+    >>> enum_switch(10)
+    1
+    >>> enum_switch(100)
+    2
+    """
+    if x in [a, b, c, d]:
+        return 0
+    elif x == e:
+        return 1
+    else:
+        return 2
