@@ -135,6 +135,15 @@ extra_warnings = {
     'warn.unused': True,
 }
 
+def one_of(*args):
+    def validate(name, value):
+        if value not in args:
+            raise ValueError("%s directive must be one of %s, got '%s'" % (
+                name, args, value))
+        else:
+            return value
+    return validate
+
 # Override types possibilities above, if needed
 directive_types = {
     'final' : bool,  # final cdef classes and methods
@@ -146,6 +155,7 @@ directive_types = {
     'cclass' : None,
     'returns' : type,
     'set_initial_path': str,
+    'c_string_type': one_of('bytes', 'str', 'unicoode'),
     }
 
 for key, val in directive_defaults.items():
@@ -203,6 +213,8 @@ def parse_directive_value(name, value, relaxed_bool=False):
                 name, orig_value))
     elif type is str:
         return str(value)
+    elif callable(type):
+        return type(name, value)
     else:
         assert False
 
