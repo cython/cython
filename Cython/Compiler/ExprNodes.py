@@ -82,10 +82,10 @@ def find_coercion_error(type_tuple, default, env):
             and env.directives['c_string_encoding']):
         if type_tuple[1].is_pyobject:
             return default
-        elif env.directives['c_string_encoding'] == 'ascii':
+        elif env.directives['c_string_encoding'] in ('ascii', 'default'):
             return default
         else:
-            return "'%s' objects do not support coercion to C types with non-ascii default encoding" % type_tuple[0].name
+            return "'%s' objects do not support coercion to C types with non-ascii or non-default c_string_encoding" % type_tuple[0].name
     else:
         return err
 

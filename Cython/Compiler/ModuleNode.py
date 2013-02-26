@@ -562,6 +562,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if c_string_type != 'bytes' and not c_string_encoding:
             error(self.pos, "a default encoding must be provided if c_string_type != bytes")
         code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_ASCII %s' % int(c_string_encoding == 'ascii'))
+        code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT %s' % int(c_string_encoding == 'default'))
         code.putln('#define __PYX_DEFAULT_STRING_ENCODING "%s"' % c_string_encoding)
         code.putln('#define __Pyx_PyObject_FromString __Pyx_Py%s_FromString' % c_string_type.title())
         code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_type.title())
@@ -1898,8 +1899,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
 
-        code.putln("#ifdef __PYX_DEFAULT_STRING_ENCODING_IS_ASCII")
-        code.putln("if (__Pyx_init_sys_getdefaultencoding_not_ascii() < 0) %s" % code.error_goto(self.pos))
+        code.putln("#if PY_VERSION_HEX < 0x03000000 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
+        code.putln("if (__Pyx_init_sys_getdefaultencoding_params() < 0) %s" % code.error_goto(self.pos))
         code.putln("#endif")
 
         __main__name = code.globalstate.get_py_string_const(
