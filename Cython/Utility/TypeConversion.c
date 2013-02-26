@@ -45,9 +45,8 @@ static int __Pyx_sys_getdefaultencoding_not_ascii;
 static int __Pyx_init_sys_getdefaultencoding_not_ascii() {
     PyObject* sys = NULL;
     PyObject* default_encoding = NULL;
-    PyObject* codecs = NULL;
-    PyObject* normalized_encoding = NULL;
-    PyObject* normalized_encoding_name = NULL;
+    PyObject* ascii_chars_u = NULL;
+    PyObject* ascii_chars_b = NULL;
     sys = PyImport_ImportModule("sys");
     if (sys == NULL) goto bad;
     default_encoding = PyObject_CallMethod(sys, (char*) (const char*) "getdefaultencoding", NULL);
@@ -55,43 +54,34 @@ static int __Pyx_init_sys_getdefaultencoding_not_ascii() {
     if (strcmp(PyBytes_AsString(default_encoding), "ascii") == 0) {
         __Pyx_sys_getdefaultencoding_not_ascii = 0;
     } else {
-        char* normalized_encoding_c;
-        codecs = PyImport_ImportModule("codecs");
-        if (codecs == NULL) goto bad;
-        normalized_encoding = PyObject_CallMethod(codecs, (char*) (const char*) "lookup", (char*) (const char*) "O", default_encoding);
-        if (normalized_encoding == NULL) goto bad;
-        normalized_encoding_name = PyObject_GetAttrString(normalized_encoding, (char*) (const char*) "name");
-        if (normalized_encoding_name == NULL) goto bad;
-        normalized_encoding_c = PyBytes_AsString(normalized_encoding_name);
-        if (normalized_encoding_c == NULL) goto bad;
-        __Pyx_sys_getdefaultencoding_not_ascii = strcmp(normalized_encoding_c, "ascii");
-        if (!__Pyx_sys_getdefaultencoding_not_ascii) {
-            int ascii_compatible =
-                (strncmp(normalized_encoding_c, "iso8859-", 8) == 0 ||
-                 strcmp(normalized_encoding_c, "macroman") == 0 ||
-                 strcmp(normalized_encoding_c, "utf-8") == 0);
-            // I've never heard of a system where this happens, but it might...
-            if (!ascii_compatible) {
-                PyErr_Format(
-                    PyExc_ValueError,
-                    "This module compiled with c_string_encoding=ascii, but default encoding '%s' is not a superset of ascii.",
-                    normalized_encoding_c);
-                goto bad;
-            }
+        const char* default_encoding_c = PyBytes_AS_STRING(default_encoding);
+        char ascii_chars[128];
+        int c;
+        for (c = 0; c < 128; c++) {
+            ascii_chars[c] = c;
+        }
+        __Pyx_sys_getdefaultencoding_not_ascii = 1;
+        ascii_chars_u = PyUnicode_DecodeASCII(ascii_chars, 128, NULL);
+        if (ascii_chars_u == NULL) goto bad;
+        ascii_chars_b = PyUnicode_AsEncodedString(ascii_chars_u, default_encoding_c, NULL);
+        if (ascii_chars_b == NULL || strncmp(ascii_chars, PyBytes_AS_STRING(ascii_chars_b), 128) != 0) {
+            PyErr_Format(
+                PyExc_ValueError,
+                "This module compiled with c_string_encoding=ascii, but default encoding '%s' is not a superset of ascii.",
+                default_encoding_c);
+            goto bad;
         }
     }
     Py_XDECREF(sys);
     Py_XDECREF(default_encoding);
-    Py_XDECREF(codecs);
-    Py_XDECREF(normalized_encoding);
-    Py_XDECREF(normalized_encoding_name);
+    Py_XDECREF(ascii_chars_u);
+    Py_XDECREF(ascii_chars_b);
     return 0;
 bad:
     Py_XDECREF(sys);
     Py_XDECREF(default_encoding);
-    Py_XDECREF(codecs);
-    Py_XDECREF(normalized_encoding);
-    Py_XDECREF(normalized_encoding_name);
+    Py_XDECREF(ascii_chars_u);
+    Py_XDECREF(ascii_chars_b);
     return -1;
 }
 #else
@@ -122,6 +112,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
 #if PY_VERSION_HEX < 0x03030000
         // borrowed, cached reference
         PyObject* defenc = _PyUnicode_AsDefaultEncodedString(o, NULL);
+        if (!defenc) return NULL;
         char* maybe_ascii = PyBytes_AS_STRING(defenc);
         char* end = maybe_ascii + PyBytes_GET_SIZE(defenc);
         char* c;
@@ -135,8 +126,8 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
         *length = PyBytes_GET_SIZE(defenc);
         return maybe_ascii;
 #else /* PY_VERSION_HEX < 0x03030000 */
-        PyUnicode_READY(o);
-        if (PyUnicode_IS_ASCIII(o)) {
+        if (PyUnicode_READY(o) == -1) return NULL;
+        if (PyUnicode_IS_ASCII(o)) {
             // cached for the lifetime of the object
             *length = PyUnicode_GET_DATA_SIZE(o);
             return PyUnicode_AsUTF8(o);
