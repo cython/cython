@@ -192,3 +192,15 @@ cdef inline int datetime_second(object o):
 # Get microsecond of datetime
 cdef inline int datetime_microsecond(object o):
     return PyDateTime_DATE_GET_MICROSECOND(o)
+
+# Get days of timedelta
+cdef inline int timedelta_days(object o):
+    return PyDateTime_DELTA_GET_DAYS(o)
+
+# Get seconds of timedelta
+cdef inline int timedelta_seconds(object o):
+    return PyDateTime_DELTA_GET_SECONDS(o)
+
+# Get microseconds of timedelta
+cdef inline int timedelta_microseconds(object o):
+    return PyDateTime_DELTA_GET_MICROSECONDS(o)
