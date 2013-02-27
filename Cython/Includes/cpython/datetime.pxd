@@ -25,16 +25,20 @@ cdef extern from "datetime.h":
         pass
     
     ctypedef struct PyDateTime_Time:
-        char hastzinfo             # boolean flag
+        char hastzinfo
         PyObject *tzinfo
         
     ctypedef struct PyDateTime_DateTime:
-        char hastzinfo             # boolean flag
+        char hastzinfo
         PyObject *tzinfo
+
+    ctypedef struct PyDateTime_Delta:
+        int days
+        int seconds
+        int microseconds
         
     # Define structure for C API.
     ctypedef struct PyDateTime_CAPI:
-        long hashcode
         # type objects 
         PyTypeObject *DateType
         PyTypeObject *DateTimeType
@@ -86,9 +90,9 @@ cdef extern from "datetime.h":
     int PyDateTime_TIME_GET_MICROSECOND(object o)
 
     # Getters for timedelta (C macros).
-    int PyDateTime_DELTA_GET_DAYS(object o)
-    int PyDateTime_DELTA_GET_SECONDS(object o)
-    int PyDateTime_DELTA_GET_MICROSECONDS(object o)
+    #int PyDateTime_DELTA_GET_DAYS(object o)
+    #int PyDateTime_DELTA_GET_SECONDS(object o)
+    #int PyDateTime_DELTA_GET_MICROSECONDS(object o)
 
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
@@ -195,12 +199,12 @@ cdef inline int datetime_microsecond(object o):
 
 # Get days of timedelta
 cdef inline int timedelta_days(object o):
-    return PyDateTime_DELTA_GET_DAYS(o)
+    return (<PyDateTime_Delta*>o).days
 
 # Get seconds of timedelta
 cdef inline int timedelta_seconds(object o):
-    return PyDateTime_DELTA_GET_SECONDS(o)
+    return (<PyDateTime_Delta*>o).seconds
 
 # Get microseconds of timedelta
 cdef inline int timedelta_microseconds(object o):
-    return PyDateTime_DELTA_GET_MICROSECONDS(o)
+    return (<PyDateTime_Delta*>o).microseconds
