@@ -272,6 +272,7 @@ packages = [
     'Cython.Compiler.Tests',
     'Cython.Utility',
     'Cython.Tempita',
+    'pyximport',
 ]
 
 if include_debugger:
@@ -322,12 +323,7 @@ setup(
   scripts = scripts,
   packages=packages,
 
-  # pyximport
-  py_modules = ["pyximport/__init__",
-                "pyximport/pyximport",
-                "pyximport/pyxbuild",
-
-                "cython"],
+  py_modules = ["cython"],
 
   **setup_args
   )
