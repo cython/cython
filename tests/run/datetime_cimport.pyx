@@ -40,4 +40,3 @@ def test_timedelta(int days, int seconds, int useconds):
     '''
     val = timedelta(days, seconds, useconds)
     return val
-            
