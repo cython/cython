@@ -122,10 +122,10 @@ cdef inline object datetime_new(int year, int month, int day, int hour, int minu
 cdef inline object timedelta_new(int days, int seconds, int useconds):
     return PyDateTimeAPI.Delta_FromDelta(days, seconds, useconds, 1, PyDateTimeAPI.DeltaType)
 
-#
 # More recognizable getters for date/time/datetime/timedelta.
-# There are no setters because datetime.h didn't exposed them.
-# 
+# There are no setters because datetime.h hasn't them.
+# This is because of immutable nature of these objects by design.
+# If you would change time/date/datetime/timedelta object you need to recreate. 
 
 # Get tzinfo of time
 cdef inline object time_tzinfo(object o):
