@@ -295,9 +295,9 @@ def create_typedef_type(name, base_type, cname, is_external=0):
 class CTypedefType(BaseType):
     #
     #  Pseudo-type defined with a ctypedef statement in a
-    #  'cdef extern from' block. Delegates most attribute
-    #  lookups to the base type. ANYTHING NOT DEFINED
-    #  HERE IS DELEGATED!
+    #  'cdef extern from' block.
+    #  Delegates most attribute lookups to the base type.
+    #  (Anything not defined here or in the BaseType is delegated.)
     #
     #  qualified_name      string
     #  typedef_name        string
@@ -438,6 +438,9 @@ class CTypedefType(BaseType):
 
     def py_type_name(self):
         return self.typedef_base_type.py_type_name()
+
+    def can_coerce_to_pyobject(self, env):
+        return self.typedef_base_type.can_coerce_to_pyobject(env)
 
 
 class MemoryViewSliceType(PyrexType):
@@ -774,10 +777,9 @@ class MemoryViewSliceType(PyrexType):
 
 class BufferType(BaseType):
     #
-    #  Delegates most attribute
-    #  lookups to the base type. ANYTHING NOT DEFINED
-    #  HERE IS DELEGATED!
-
+    #  Delegates most attribute lookups to the base type.
+    #  (Anything not defined here or in the BaseType is delegated.)
+    #
     # dtype            PyrexType
     # ndim             int
     # mode             str
