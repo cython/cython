@@ -115,6 +115,47 @@ cdef class ExtTypeWithCAttrNoFreelist:
         self.cattr = 1
 
 
+@cython.freelist(4)
+cdef class ExtTypeWithCMethods:
+    """
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    """
+    cdef int cattr
+
+    def __cinit__(self):
+        assert self.cattr == 0
+        self.cattr = 1
+
+    cdef int get_cattr(self):
+        return self.cattr
+
+    cdef set_cattr(self, int value):
+        self.cattr = value
+
+
+def test_cmethods(ExtTypeWithCMethods obj not None):
+    x = obj.get_cattr()
+    obj.set_cattr(2)
+    return x, obj.get_cattr()
+
+
 @cython.freelist(8)
 cdef class ExtTypeWithRefCycle:
     """
