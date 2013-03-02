@@ -8,6 +8,12 @@ Cython Changelog
 Features added
 --------------
 
+* ``isinstance(obj, basestring)`` is optimised.  In Python 3 it only tests
+  for instances of ``str`` (i.e. Py2 ``unicode``).
+
+* The ``basestring`` builtin is mapped to ``str`` (i.e. Py2 ``unicode``) when
+  compiling the generated C code under Python 3.
+
 * A new class decorator ``@cython.freelist(N)`` creates a static freelist of N
   instances for an extension type, thus avoiding the costly allocation step if
   possible. This can speed up object instantiation by 20-30% in suitable

@@ -168,6 +168,15 @@
   #define PyBytes_ConcatAndDel         PyString_ConcatAndDel
 #endif
 
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
+  #define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
+#else
+  #define __Pyx_PyBaseString_Check(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj) || \
+                                         PyString_Check(obj) || PyUnicode_Check(obj))
+  #define __Pyx_PyBaseString_CheckExact(obj) (Py_TYPE(obj) == &PyBaseString_Type)
+#endif
+
 #if PY_VERSION_HEX < 0x02060000
   #define PySet_Check(obj)             PyObject_TypeCheck(obj, &PySet_Type)
   #define PyFrozenSet_Check(obj)       PyObject_TypeCheck(obj, &PyFrozenSet_Type)

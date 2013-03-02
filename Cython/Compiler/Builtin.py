@@ -268,6 +268,7 @@ builtin_types_table = [
                                     BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
                                     ]),
 
+    ("basestring",   "PyBaseString_Type",      []),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
                                     ]),
     ("str",     "PyString_Type",   [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),

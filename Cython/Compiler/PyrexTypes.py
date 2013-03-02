@@ -973,6 +973,8 @@ class BuiltinObjectType(PyObjectType):
         type_name = self.name
         if type_name == 'str':
             type_check = 'PyString_Check'
+        elif type_name == 'basestring':
+            type_check = '__Pyx_PyBaseString_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:
