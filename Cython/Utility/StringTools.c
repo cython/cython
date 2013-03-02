@@ -229,28 +229,34 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 
 //////////////////// GetItemIntUnicode.proto ////////////////////
 
-#define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \
-                                               __Pyx_GetItemInt_Unicode_Fast(o, i) : \
-                                               __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
+#define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
+    (((size) <= sizeof(Py_ssize_t)) ? \
+    __Pyx_GetItemInt_Unicode_Fast(o, i, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i);
+static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i,
+                                                           int wraparound, int boundscheck);
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j);
 
 //////////////////// GetItemIntUnicode ////////////////////
 
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
+static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i,
+                                                           int wraparound, int boundscheck) {
     Py_ssize_t length;
 #if CYTHON_PEP393_ENABLED
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return (Py_UCS4)-1;
 #endif
-    length = __Pyx_PyUnicode_GET_LENGTH(ustring);
-    if (likely((0 <= i) & (i < length))) {
-        return __Pyx_PyUnicode_READ_CHAR(ustring, i);
-    } else if ((-length <= i) & (i < 0)) {
-        return __Pyx_PyUnicode_READ_CHAR(ustring, i + length);
+    if (wraparound | boundscheck) {
+        length = __Pyx_PyUnicode_GET_LENGTH(ustring);
+        if (wraparound & unlikely(i < 0)) i += length;
+        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+            return __Pyx_PyUnicode_READ_CHAR(ustring, i);
+        } else {
+            PyErr_SetString(PyExc_IndexError, "string index out of range");
+            return (Py_UCS4)-1;
+        }
     } else {
-        PyErr_SetString(PyExc_IndexError, "string index out of range");
-        return (Py_UCS4)-1;
+        return __Pyx_PyUnicode_READ_CHAR(ustring, i);
     }
 }
 

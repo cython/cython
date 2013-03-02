@@ -3132,13 +3132,24 @@ class IndexNode(ExprNode):
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
 
-    def extra_index_params(self):
+    def extra_index_params(self, code):
         if self.index.type.is_int:
             if self.original_index_type.signed:
                 size_adjustment = ""
             else:
                 size_adjustment = "+1"
-            return ", sizeof(%s)%s, %s" % (self.original_index_type.declaration_code(""), size_adjustment, self.original_index_type.to_py_function)
+            is_list = self.base.type is list_type
+            wraparound = (
+                bool(code.globalstate.directives['wraparound']) and
+                self.original_index_type.signed and
+                not (isinstance(self.index.constant_result, (int, long))
+                     and self.index.constant_result >= 0))
+            boundscheck = bool(code.globalstate.directives['boundscheck'])
+            return ", sizeof(%s)%s, %s, %d, %d, %d" % (
+                self.original_index_type.declaration_code(""),
+                size_adjustment,
+                self.original_index_type.to_py_function,
+                is_list, wraparound, boundscheck)
         else:
             return ""
 
@@ -3206,7 +3217,7 @@ class IndexNode(ExprNode):
                         function,
                         self.base.py_result(),
                         index_code,
-                        self.extra_index_params(),
+                        self.extra_index_params(code),
                         self.result(),
                         code.error_goto(self.pos)))
                 code.put_gotref(self.py_result())
@@ -3222,19 +3233,13 @@ class IndexNode(ExprNode):
                         function,
                         self.base.py_result(),
                         index_code,
-                        self.extra_index_params(),
+                        self.extra_index_params(code),
                         self.result(),
                         code.error_goto(self.pos)))
 
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
-            if (self.base.type.is_builtin_type
-                and self.base.type.name == "list"
-                and not code.globalstate.directives['wraparound']
-                and not code.globalstate.directives['boundscheck']):
-                function = "__Pyx_SetItemListInt_NoCheck"
-            else:
-                function = "__Pyx_SetItemInt"
+            function = "__Pyx_SetItemInt"
             index_code = self.index.result()
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("SetItemInt", "ObjectHandling.c"))
@@ -3257,7 +3262,7 @@ class IndexNode(ExprNode):
                 self.base.py_result(),
                 index_code,
                 value_code,
-                self.extra_index_params(),
+                self.extra_index_params(code),
                 code.error_goto(self.pos)))
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
@@ -3330,7 +3335,7 @@ class IndexNode(ExprNode):
                 function,
                 self.base.py_result(),
                 index_code,
-                self.extra_index_params(),
+                self.extra_index_params(code),
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)

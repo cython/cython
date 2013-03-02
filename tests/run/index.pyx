@@ -119,11 +119,35 @@ def test_long_long():
     assert len(D) == 0
 
 @cython.boundscheck(False)
-def test_boundscheck(list L, tuple t, object o, unsigned long ix):
+def test_boundscheck_unsigned(list L, tuple t, object o, unsigned long ix):
     """
-    >>> test_boundscheck([1, 2, 4], (1, 2, 4), [1, 2, 4], 2)
+    >>> test_boundscheck_unsigned([1, 2, 4], (1, 2, 4), [1, 2, 4], 2)
     (4, 4, 4)
-    >>> test_boundscheck([1, 2, 4], (1, 2, 4), "", 2)
+    >>> test_boundscheck_unsigned([1, 2, 4], (1, 2, 4), "", 2)
+    Traceback (most recent call last):
+    ...
+    IndexError: string index out of range
+    """
+    return L[ix], t[ix], o[ix]
+
+@cython.boundscheck(False)
+def test_boundscheck_signed(list L, tuple t, object o, long ix):
+    """
+    >>> test_boundscheck_signed([1, 2, 4], (1, 2, 4), [1, 2, 4], 2)
+    (4, 4, 4)
+    >>> test_boundscheck_signed([1, 2, 4], (1, 2, 4), "", 2)
+    Traceback (most recent call last):
+    ...
+    IndexError: string index out of range
+    """
+    return L[ix], t[ix], o[ix]
+
+@cython.wraparound(False)
+def test_wraparound_signed(list L, tuple t, object o, long ix):
+    """
+    >>> test_wraparound_signed([1, 2, 4], (1, 2, 4), [1, 2, 4], 2)
+    (4, 4, 4)
+    >>> test_wraparound_signed([1, 2, 4], (1, 2, 4), "", 2)
     Traceback (most recent call last):
     ...
     IndexError: string index out of range
