@@ -2077,7 +2077,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         env = self.current_env()
         for test_type_node in types:
             builtin_type = None
-            if isinstance(test_type_node, ExprNodes.NameNode):
+            if test_type_node.is_name:
                 if test_type_node.entry:
                     entry = env.lookup(test_type_node.entry.name)
                     if entry and entry.type and entry.type.is_builtin_type:
