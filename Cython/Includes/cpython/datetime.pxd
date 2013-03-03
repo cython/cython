@@ -97,10 +97,12 @@ cdef extern from "datetime.h":
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
     
-    # Datetime C API object initialization C macros.
-    # You have to call this before any usage of DateTime CAPI functions:
-    #   PyDateTime_IMPORT
     void PyDateTime_IMPORT()
+
+# Datetime C API initialization function.
+# You have to call it before any usage of DateTime CAPI functions.
+cdef inline import_datetime():
+    PyDateTime_IMPORT
 
 # Create date object using DateTime CAPI factory function.
 # Note, there are no range checks for any of the arguments.
