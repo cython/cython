@@ -1,9 +1,9 @@
 # coding: utf-8
 
-#import datetime
+from cpython.datetime cimport import_datetime
 from cpython.datetime cimport date, time, datetime, timedelta, PyDateTime_IMPORT
 
-PyDateTime_IMPORT
+import_datetime()
         
 def test_date(int year, int month, int day):
     '''
