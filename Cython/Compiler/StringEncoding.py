@@ -267,10 +267,18 @@ def split_string_literal(s, limit=2000):
 def encode_py_unicode_string(s):
     """Create Py_UNICODE[] representation of a given unicode string.
     """
-    # Non-BMP characters will appear as surrogates, which is not compatible with
-    # wide (UTF-32) Python builds. UnicodeNode will warn the user about this.
+    utf32_array = array.array('i', s.encode('UTF-32'))
+    assert utf32_array.itemsize == 4
+    utf32_array.pop(0)     # Remove BOM
+    utf32_array.append(0)  # Add NULL terminator
 
-    a = array.array('H', s.encode('UTF-16'))
-    a.pop(0)     # Remove BOM
-    a.append(0)  # Add NULL terminator
-    return u",".join(map(unicode, a))
+    for c in utf32_array:
+        if c > 65535:
+            utf16_array = array.array('H', s.encode('UTF-16'))
+            utf16_array.pop(0)     # Remove BOM
+            utf16_array.append(0)  # Add NULL terminator
+            break
+    else:
+        utf16_array = []
+
+    return ",".join(map(unicode, utf16_array)), ",".join(map(unicode, utf32_array))

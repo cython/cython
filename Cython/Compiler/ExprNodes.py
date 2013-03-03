@@ -1242,8 +1242,6 @@ class UnicodeNode(ConstNode):
         if self.type.is_pyobject:
             self.result_code = code.get_py_string_const(self.value)
         else:
-            if self.contains_surrogates():
-                warning(self.pos, "Py_UNICODE* literals with characters outside BMP are not portable.", level=1);
             self.result_code = code.get_unicode_const(self.value)
 
     def calculate_result_code(self):

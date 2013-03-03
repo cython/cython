@@ -19,6 +19,8 @@ cdef Py_UNICODE c_pu_arr[42]
 cdef LPWSTR c_wstr = u"unicode\u1234"
 cdef Py_UNICODE* c_pu_empty = u""
 cdef char* c_empty = ""
+cdef unicode uwide_literal = u'\U00020000\U00020001'
+cdef Py_UNICODE* c_pu_wide_literal = u'\U00020000\U00020001'
 
 memcpy(c_pu_arr, c_pu_str, sizeof(Py_UNICODE) * (len(uobj) + 1))
 
@@ -55,6 +57,12 @@ def test_c_to_python():
     assert sizeof(c_pu_arr) == sizeof(Py_UNICODE) * 42
     assert sizeof(c_pu_str) == sizeof(void*)
 
+    assert c_pu_wide_literal == uwide_literal
+    if sizeof(Py_UNICODE) >= 4:
+        assert len(c_pu_wide_literal) == 2
+    else:
+        assert len(c_pu_wide_literal) == 4
+
     assert u'unicode'
     assert not u''
     assert c_pu_str
@@ -79,6 +87,8 @@ def test_python_to_c():
     assert Py_UNICODE_equal(<Py_UNICODE*>u"nicode", u)
     u = uobj[1]
     assert Py_UNICODE_equal(<Py_UNICODE*>u"n", u)
+
+    assert Py_UNICODE_equal(uwide_literal, <Py_UNICODE*>c_pu_wide_literal)
 
     assert len(u"abc\0") == 4
     assert len(<Py_UNICODE*>u"abc\0") == 3
