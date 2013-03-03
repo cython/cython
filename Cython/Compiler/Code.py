@@ -1156,7 +1156,7 @@ class GlobalState(object):
             utf16_array, utf32_array = StringEncoding.encode_py_unicode_string(c)
             if utf16_array:
                 # Narrow and wide representations differ
-                decls_writer.putln("#if Py_UNICODE_WIDE")
+                decls_writer.putln("#ifdef Py_UNICODE_WIDE")
             decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf32_array))
             if utf16_array:
                 decls_writer.putln("#else")
