@@ -136,18 +136,21 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
 #endif
             PyUnicode_Check(o)) {
 #if PY_VERSION_HEX < 0x03030000
+        char* defenc_c;
         // borrowed, cached reference
         PyObject* defenc = _PyUnicode_AsDefaultEncodedString(o, NULL);
         if (!defenc) return NULL;
-        char* defenc_c = PyBytes_AS_STRING(defenc);
+        defenc_c = PyBytes_AS_STRING(defenc);
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
-        char* end = defenc_c + PyBytes_GET_SIZE(defenc);
-        char* c;
-        for (c = defenc_c; c < end; c++) {
-            if ((unsigned char) (*c) >= 128) {
-                // raise the error
-                PyUnicode_AsASCIIString(o);
-                return NULL;
+        {
+            char* end = defenc_c + PyBytes_GET_SIZE(defenc);
+            char* c;
+            for (c = defenc_c; c < end; c++) {
+                if ((unsigned char) (*c) >= 128) {
+                    // raise the error
+                    PyUnicode_AsASCIIString(o);
+                    return NULL;
+                }
             }
         }
 #endif /*__PYX_DEFAULT_STRING_ENCODING_IS_ASCII*/
