@@ -8219,9 +8219,6 @@ class TypeofNode(ExprNode):
 #
 #-------------------------------------------------------------------
 
-def _not_in(x, seq):
-    return x not in seq
-
 compile_time_binary_operators = {
     '<': operator.lt,
     '<=': operator.le,
@@ -8243,8 +8240,8 @@ compile_time_binary_operators = {
     '>>': operator.rshift,
     '-': operator.sub,
     '^': operator.xor,
-    'in': operator.contains,
-    'not_in': _not_in,
+    'in': lambda x, seq: x in seq,
+    'not_in': lambda x, seq: x not in seq,
 }
 
 def get_compile_time_binop(node):
