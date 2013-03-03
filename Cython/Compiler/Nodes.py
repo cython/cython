@@ -2078,6 +2078,10 @@ class CFuncDefNode(FuncDefNode):
                   "Function with optional arguments may not be declared "
                   "public or api")
 
+        if (type.exception_check == '+' and self.visibility != 'extern'):
+            warning(self.cfunc_declarator.pos,
+                    "Only extern functions can throw C++ exceptions.")
+
         for formal_arg, type_arg in zip(self.args, type.args):
             self.align_argument_type(env, type_arg)
             formal_arg.type = type_arg.type
