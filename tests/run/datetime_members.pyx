@@ -1,4 +1,4 @@
-from cpython.datetime cimport PyDateTime_IMPORT
+from cpython.datetime cimport import_datetime
 from cpython.datetime cimport time_new, date_new, datetime_new, timedelta_new
 from cpython.datetime cimport time_tzinfo, datetime_tzinfo
 from cpython.datetime cimport time_hour, time_minute, time_second, time_microsecond
@@ -8,7 +8,7 @@ from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
                               datetime_microsecond
 from cpython.datetime cimport timedelta_days, timedelta_seconds, timedelta_microseconds
 
-PyDateTime_IMPORT
+import_datetime()
 
 def test_date(int year, int month, int day):
     '''
