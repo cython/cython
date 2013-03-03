@@ -4,7 +4,7 @@
 #from datetime import time, date, datetime, timedelta, tzinfo
 
 
-from cpython.datetime cimport PyDateTime_IMPORT
+from cpython.datetime cimport import_datetime
 from cpython.datetime cimport time_new, date_new, datetime_new, timedelta_new
 from cpython.datetime cimport time_tzinfo, datetime_tzinfo
 from cpython.datetime cimport time_hour, time_minute, time_second, time_microsecond
@@ -15,7 +15,7 @@ from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
 
 import datetime as py_datetime
 
-PyDateTime_IMPORT
+import_datetime()
 
 ZERO = py_datetime.timedelta(0)
 
