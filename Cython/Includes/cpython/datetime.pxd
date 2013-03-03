@@ -101,7 +101,7 @@ cdef extern from "datetime.h":
 
 # Datetime C API initialization function.
 # You have to call it before any usage of DateTime CAPI functions.
-cdef inline import_datetime():
+cdef inline void import_datetime():
     PyDateTime_IMPORT
 
 # Create date object using DateTime CAPI factory function.
