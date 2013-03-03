@@ -1,4 +1,5 @@
 /////////////// TypeConversions.proto ///////////////
+// @requires: py_unicode_strlen
 
 /* Type Conversion Predeclarations */
 
@@ -23,6 +24,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
 #define __Pyx_PyBytes_FromUString(s)   __Pyx_PyBytes_FromString((char*)s)
 #define __Pyx_PyStr_FromUString(s)     __Pyx_PyStr_FromString((char*)s)
 #define __Pyx_PyUnicode_FromUString(s) __Pyx_PyUnicode_FromString((char*)s)
+
+#define __Pyx_PyUnicode_FromUnicode(u) PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
+#define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
+#if CYTHON_PEP393_ENABLED
+#define __Pyx_PyUnicode_AsUnicode PyUnicode_AsUnicode
+#else
+#define __Pyx_PyUnicode_AsUnicode PyUnicode_AS_UNICODE
+#endif
 
 #define __Pyx_Owned_Py_None(b) (Py_INCREF(Py_None), Py_None)
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))

@@ -4,6 +4,7 @@
 
 import re
 import sys
+import array
 
 if sys.version_info[0] >= 3:
     _unicode, _str, _bytes = str, str, bytes
@@ -262,3 +263,14 @@ def split_string_literal(s, limit=2000):
             chunks.append(s[start:end])
             start = end
         return '""'.join(chunks)
+
+def encode_py_unicode_string(s):
+    """Create Py_UNICODE[] representation of a given unicode string.
+    """
+    # Non-BMP characters will appear as surrogates, which is not compatible with
+    # wide (UTF-32) Python builds. UnicodeNode will warn the user about this.
+
+    a = array.array('H', s.encode('UTF-16'))
+    a.pop(0)     # Remove BOM
+    a.append(0)  # Add NULL terminator
+    return u",".join(map(unicode, a))

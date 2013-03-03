@@ -145,6 +145,7 @@ class PyrexType(BaseType):
     #  is_enum               boolean     Is a C enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
+    #  is_unicode            boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string type
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
@@ -202,6 +203,7 @@ class PyrexType(BaseType):
     is_enum = 0
     is_typedef = 0
     is_string = 0
+    is_unicode = 0
     is_unicode_char = 0
     is_returncode = 0
     is_error = 0
@@ -871,7 +873,7 @@ class PyObjectType(PyrexType):
 
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
-        return not src_type.is_ptr or src_type.is_string
+        return not src_type.is_ptr or src_type.is_string or src_type.is_unicode
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1161,7 +1163,7 @@ class CType(PyrexType):
 
     def error_condition(self, result_code):
         conds = []
-        if self.is_string:
+        if self.is_string or self.is_unicode:
             conds.append("(!%s)" % result_code)
         elif self.exception_value is not None:
             conds.append("(%s == (%s)%s)" % (result_code, self.sign_and_name(), self.exception_value))
@@ -2178,6 +2180,9 @@ class CPointerBaseType(CType):
             if base_type.same_as(char_type):
                 self.is_string = 1
                 break
+        else:
+            if base_type.same_as(c_py_unicode_type):
+                self.is_unicode = 1
 
         if self.is_string and not base_type.is_error:
             if base_type.signed:
@@ -2189,10 +2194,17 @@ class CPointerBaseType(CType):
                 if self.is_ptr:
                     self.from_py_function = "__Pyx_PyObject_AsUString"
             self.exception_value = "NULL"
+        elif self.is_unicode and not base_type.is_error:
+            self.to_py_function = "__Pyx_PyUnicode_FromUnicode"
+            if self.is_ptr:
+                self.from_py_function = "__Pyx_PyUnicode_AsUnicode"
+            self.exception_value = "NULL"
 
     def py_type_name(self):
         if self.is_string:
             return "bytes"
+        elif self.is_unicode:
+            return "unicode"
         else:
             return super(CPointerBaseType, self).py_type_name()
 

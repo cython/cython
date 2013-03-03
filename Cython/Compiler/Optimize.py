@@ -1977,6 +1977,11 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
             ])
 
+    Pyx_Py_UNICODE_strlen_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_size_t_type, [
+            PyrexTypes.CFuncTypeArg("unicode", PyrexTypes.c_py_unicode_ptr_type, None)
+            ])
+
     PyObject_Size_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
@@ -1996,7 +2001,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
     _ext_types_with_pysize = set(["cpython.array.array"])
 
     def _handle_simple_function_len(self, node, pos_args):
-        """Replace len(char*) by the equivalent call to strlen() and
+        """Replace len(char*) by the equivalent call to strlen(),
+        len(Py_UNICODE) by the equivalent Py_UNICODE_strlen() and
         len(known_builtin_type) by an equivalent C-API call.
         """
         if len(pos_args) != 1:
@@ -2011,6 +2017,12 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 args = [arg],
                 is_temp = node.is_temp,
                 utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+        elif arg.type.is_unicode:
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_Py_UNICODE_strlen", self.Pyx_Py_UNICODE_strlen_func_type,
+                args = [arg],
+                is_temp = node.is_temp,
+                utility_code = UtilityCode.load_cached("py_unicode_strlen", "StringTools.c"))
         elif arg.type.is_pyobject:
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:
