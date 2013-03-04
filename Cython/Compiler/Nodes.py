@@ -7981,8 +7981,7 @@ class CnameDecoratorNode(StatNode):
 #------------------------------------------------------------------------------------
 
 if Options.gcc_branch_hints:
-    branch_prediction_macros = \
-    """
+    branch_prediction_macros = """
 #ifdef __GNUC__
   /* Test for GCC > 2.95 */
   #if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95))
@@ -7996,25 +7995,17 @@ if Options.gcc_branch_hints:
   #define likely(x)   (x)
   #define unlikely(x) (x)
 #endif /* __GNUC__ */
-    """
+"""
 else:
-    branch_prediction_macros = \
-    """
+    branch_prediction_macros = """
 #define likely(x)   (x)
 #define unlikely(x) (x)
-    """
-
-#get_name_predeclaration = \
-#"static PyObject *__Pyx_GetName(PyObject *dict, char *name); /*proto*/"
-
-#get_name_interned_predeclaration = \
-#"static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/"
+"""
 
 #------------------------------------------------------------------------------------
 
 printing_utility_code = UtilityCode.load_cached("Print", "Printing.c")
 printing_one_utility_code = UtilityCode.load_cached("PrintOne", "Printing.c")
-
 
 #------------------------------------------------------------------------------------
 
