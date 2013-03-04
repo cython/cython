@@ -11,7 +11,8 @@ using the ``cimport`` keyword.
 
  1. They can be used for sharing external C declarations.
  2. They can contain functions which are well suited for inlining by
-    the C compiler. Such functions should be marked ``inline``, example:
+    the C compiler. Such functions should be marked ``inline``, for example,
+
     ::
 
        cdef inline int int_min(int a, int b):

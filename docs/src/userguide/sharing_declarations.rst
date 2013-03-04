@@ -158,7 +158,7 @@ Sharing C Functions
 
 C functions defined at the top level of a module can be made available via
 :keyword:`cimport` by putting headers for them in the ``.pxd`` file, for
-example,::
+example,
 
 :file:`volume.pxd`::
 

@@ -56,7 +56,9 @@ first method, but Cython code can use either method.
 By default, extension type attributes are only accessible by direct access,
 not Python access, which means that they are not accessible from Python code.
 To make them accessible from Python code, you need to declare them as
-:keyword:`public` or :keyword:`readonly`. For example::
+:keyword:`public` or :keyword:`readonly`. For example,
+
+::
 
     cdef class Shrubbery:
         cdef public int width, height
@@ -104,7 +106,9 @@ follows::
 
 Now the Cython compiler knows that ``sh`` has a C attribute called
 :attr:`width` and will generate code to access it directly and efficiently.
-The same consideration applies to local variables, for example,::
+The same consideration applies to local variables, for example,
+
+::
 
     cdef Shrubbery another_shrubbery(Shrubbery sh1):
         cdef Shrubbery sh2
@@ -249,7 +253,7 @@ corresponding operation is attempted.
 
 Here's a complete example. It defines a property which adds to a list each
 time it is written to, returns the list when it is read, and empties the list
-when it is deleted.::
+when it is deleted::
  
     # cheesy.pyx
     cdef class CheeseShop:
@@ -343,7 +347,7 @@ C methods
 Extension types can have C methods as well as Python methods. Like C
 functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` instead of
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
-extension types.::
+extension types::
 
     # pets.pyx
     cdef class Parrot:
@@ -376,7 +380,9 @@ extension types.::
     Lovely plumage!
 
 The above example also illustrates that a C method can call an inherited C
-method using the usual Python technique, i.e.::
+method using the usual Python technique, i.e.
+
+::
 
     Parrot.describe(self)
 
@@ -386,7 +392,9 @@ Forward-declaring extension types
 
 Extension types can be forward-declared, like :keyword:`struct` and
 :keyword:`union` types. This will be necessary if you have two extension types
-that need to refer to each other, e.g.::
+that need to refer to each other, e.g.,
+
+::
 
     cdef class Shrubbery # forward declaration
 
@@ -398,7 +406,9 @@ that need to refer to each other, e.g.::
 
 If you are forward-declaring an extension type that has a base class, you must
 specify the base class in both the forward declaration and its subsequent
-definition, for example,::
+definition, for example,
+
+::
 
     cdef class A(B)
 
@@ -458,7 +468,9 @@ Making extension types weak-referenceable
 
 By default, extension types do not support having weak references made to
 them. You can enable weak referencing by declaring a C attribute of type
-object called :attr:`__weakref__`. For example,::
+object called :attr:`__weakref__`. For example,
+
+::
 
     cdef class ExplodingAnimal:
         """This animal will self-destruct when it is
@@ -489,7 +501,7 @@ objects defined in the Python core or in a non-Cython extension module.
     :ref:`sharing-declarations`.
 
 Here is an example which will let you get at the C-level members of the
-built-in complex object.::
+built-in complex object::
 
     cdef extern from "complexobject.h":
 
@@ -556,7 +568,9 @@ Implicit importing
 ------------------
 
 Cython requires you to include a module name in an extern extension class
-declaration, for example,::
+declaration, for example,
+
+::
 
     cdef extern class MyModule.Spam:
         ...
@@ -570,13 +584,17 @@ example an implicit::
 statement will be executed at module load time.
 
 The module name can be a dotted name to refer to a module inside a package
-hierarchy, for example,::
+hierarchy, for example,
+
+::
 
     cdef extern class My.Nested.Package.Spam:
         ...
 
 You can also specify an alternative name under which to import the type using
-an as clause, for example,::
+an as clause, for example,
+
+::
 
       cdef extern class My.Nested.Package.Spam as Yummy:
          ... 

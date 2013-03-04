@@ -152,7 +152,9 @@ However, in most other situations, such as for return values and
 variables that use specifically typedef-ed API types, it does matter
 and the C compiler will emit at least a warning if used incorrectly.
 To help with this, you can use the type definitions in the
-``libc.string`` module, e.g.::
+``libc.string`` module, e.g.,
+
+::
 
     from libc.string cimport const_char, const_uchar
 
@@ -396,7 +398,9 @@ explicitly, and the following will print ``A`` (or ``b'A'`` in Python
 The explicit coercion works for any C integer type.  Values outside of
 the range of a :c:type:`char` or :c:type:`unsigned char` will raise an
 ``OverflowError`` at runtime.  Coercion will also happen automatically
-when assigning to a typed variable, e.g.::
+when assigning to a typed variable, e.g.,
+
+::
 
     cdef bytes py_byte_string
     py_byte_string = char_val

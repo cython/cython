@@ -121,7 +121,9 @@ by calling.
 Indexing
 --------
 
-You can index functions with types to get certain specializations, i.e.::
+You can index functions with types to get certain specializations, i.e.,
+
+::
 
     cfunc[cython.p_double](p1, p2)
 

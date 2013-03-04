@@ -42,7 +42,9 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
 See also :ref:`struct-union-enum-styles`
 
 There is currently no special syntax for defining a constant, but you can use
-an anonymous :keyword:`enum` declaration for this purpose, for example,::
+an anonymous :keyword:`enum` declaration for this purpose, for example,
+
+::
 
     cdef enum:
         tons_of_spam = 3
@@ -58,7 +60,9 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
         cdef struct Grail *gp # WRONG
 
-    There is also a ``ctypedef`` statement for giving names to types, e.g.::
+    There is also a ``ctypedef`` statement for giving names to types, e.g.,
+
+    ::
 
         ctypedef unsigned long ULong
 
@@ -103,7 +107,9 @@ can be called from anywhere, but uses the faster C calling conventions
 when being called from other Cython code. 
 
 Parameters of either type of function can be declared to have C data types,
-using normal C declaration syntax. For example,::
+using normal C declaration syntax. For example,
+
+::
 
     def spam(int i, char *s):
         ...
@@ -144,13 +150,17 @@ parameters and a new reference is returned).
 
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
-as the name of a type, for example,::
+as the name of a type, for example,
+
+::
 
     cdef ftang(object int):
         ...
 
 declares a parameter called int which is a Python object. You can also use
-object as the explicit return type of a function, e.g.::
+object as the explicit return type of a function, e.g.,
+
+::
 
     cdef object ftang(object int):
         ...
@@ -241,7 +251,9 @@ returns ``NULL``. The except clause doesn't work that way; its only purpose is
 for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
-return value and raise it yourself, for example,::
+return value and raise it yourself, for example,
+
+::
 
     cdef FILE* p
     p = fopen("spam.txt", "r")
@@ -302,7 +314,9 @@ leaving ``s`` dangling. Since this code could not possibly work, Cython refuses 
 compile it.
 
 The solution is to assign the result of the concatenation to a Python
-variable, and then obtain the ``char*`` from that, i.e.::
+variable, and then obtain the ``char*`` from that, i.e.,
+
+::
 
     cdef char *s
     p = pystring1 + pystring2
@@ -347,7 +361,9 @@ direct equivalent in Python.
 * There is no unary ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
 * There is an ``&`` operator, with the same semantics as in C.
 * The null C pointer is called ``NULL``, not ``0`` (and ``NULL`` is a reserved word).
-* Type casts are written ``<type>value`` , for example,::
+* Type casts are written ``<type>value`` , for example,
+
+::
 
         cdef char* p, float* q
         p = <char*>q
@@ -489,7 +505,9 @@ The include statement
     Use :ref:`sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
-statement, for example,::
+statement, for example,
+
+::
 
     include "spamstuff.pxi"
 
@@ -544,7 +562,7 @@ A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into
 the source at that point as a literal. For this to work, the compile-time
 expression must evaluate to a Python value of type ``int``, ``long``,
-``float`` or ``str``.::
+``float`` or ``str``::
 
     cdef int a1[ArraySize]
     cdef int a2[OtherArraySize]
@@ -555,7 +573,7 @@ Conditional Statements
 
 The ``IF`` statement can be used to conditionally include or exclude sections
 of code at compile time. It works in a similar way to the ``#if`` preprocessor
-directive in C.::
+directive in C::
 
     IF UNAME_SYSNAME == "Windows":
         include "icky_definitions.pxi"

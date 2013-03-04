@@ -24,7 +24,9 @@ External declarations
 
 By default, C functions and variables declared at the module level are local
 to the module (i.e. they have the C static storage class). They can also be
-declared extern to specify that they are defined elsewhere, for example,::
+declared extern to specify that they are defined elsewhere, for example,
+
+::
 
     cdef extern int spam_counter
 
@@ -72,7 +74,9 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
    definition from the header file.
 
    In some cases, you might not need any of the struct's members, in which
-   case you can just put pass in the body of the struct declaration, e.g.::
+   case you can just put pass in the body of the struct declaration, e.g.,
+
+   ::
 
         cdef extern from "foo.h":
             struct spam:
@@ -87,7 +91,9 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
    to platform-dependent flavours of numeric types, you will need a
    corresponding :keyword:`ctypedef` statement, but you don't need to match
    the type exactly, just use something of the right general kind (int, float,
-   etc). For example,::
+   etc). For example,
+
+   ::
 
        ctypedef int word
 
@@ -185,7 +191,9 @@ Accessing Python/C API routines
 ---------------------------------
 
 One particular use of the ``cdef extern from`` statement is for gaining access to
-routines in the Python/C API. For example,::
+routines in the Python/C API. For example,
+
+::
 
     cdef extern from "Python.h":
 
@@ -204,7 +212,9 @@ Windows Calling Conventions
 ----------------------------
 
 The ``__stdcall`` and ``__cdecl`` calling convention specifiers can be used in
-Cython, with the same syntax as used by C compilers on Windows, for example,::
+Cython, with the same syntax as used by C compilers on Windows, for example,
+
+::
 
     cdef extern int __stdcall FrobnicateWindow(long handle)
 
@@ -245,7 +255,9 @@ Cython keywords. For example, if you want to call an external function called
 print, you can rename it to something else in your Cython module.
 
 As well as functions, C names can be specified for variables, structs, unions,
-enums, struct and union members, and enum values. For example,::
+enums, struct and union members, and enum values. For example,
+
+::
 
     cdef extern int one "ein", two "zwei"
     cdef extern float three "drei"
@@ -326,7 +338,7 @@ header and call the :func:`import_modulename` function. The other functions
 can then be called and the extension types used as usual.
 
 Any public C type or extension type declarations in the Cython module are also
-made available when you include :file:`modulename_api.h`.::
+made available when you include :file:`modulename_api.h`::
 
     # delorean.pyx
     cdef public struct Vehicle:
@@ -364,7 +376,9 @@ import machinery is used to make the connection dynamically. However, only
 functions can be accessed this way, not variables.
 
 You can use both :keyword:`public` and :keyword:`api` on the same function to
-make it available by both methods, e.g.::
+make it available by both methods, e.g.,
+
+::
 
     cdef public api void belt_and_braces():
         ...
@@ -388,7 +402,9 @@ Multiple public and API declarations
 
 You can declare a whole group of items as :keyword:`public` and/or
 :keyword:`api` all at once by enclosing them in a :keyword:`cdef` block, for
-example,::
+example,
+
+::
 
     cdef public api:
         void order_spam(int tons)
@@ -448,7 +464,7 @@ Declaring a function as callable without the GIL
 --------------------------------------------------
 
 You can specify :keyword:`nogil` in a C function header or function type to
-declare that it is safe to call without the GIL.::
+declare that it is safe to call without the GIL::
 
     cdef void my_gil_free_func(int spam) nogil:
         ...

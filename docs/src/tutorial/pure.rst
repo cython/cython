@@ -39,12 +39,12 @@ The currently supported attributes of the ``cython`` module are:
     x_ptr = cython.address(x)
 
 * ``sizeof`` emulates the `sizeof` operator. It can take both types and
-  expressions.::
+  expressions::
 
     cython.declare(n=cython.longlong)
     print cython.sizeof(cython.longlong), cython.sizeof(n)
 
-* ``struct`` can be used to create struct types.::
+* ``struct`` can be used to create struct types::
 
     MyStruct = cython.struct(x=cython.int, y=cython.int, data=cython.double)
     a = cython.declare(MyStruct)
