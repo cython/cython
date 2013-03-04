@@ -124,6 +124,17 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
                                           basename + '.reload%s'%count)
                     try:
                         import shutil # late import / reload_support is: debugging
+                        try:
+                            # Try to unlink first --- if the .so file
+                            # is mmapped by another process,
+                            # overwriting its contents corrupts the
+                            # loaded image (on Linux) and crashes the
+                            # other process. On Windows, unlinking an
+                            # open file just fails.
+                            if os.path.isfile(r_path):
+                                os.unlink(r_path)
+                        except OSError:
+                            continue
                         shutil.copy2(org_path, r_path)
                         so_path = r_path
                     except IOError:
