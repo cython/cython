@@ -63,14 +63,16 @@ coercion_error_dict = {
     # string related errors
     (Builtin.unicode_type, Builtin.bytes_type) : "Cannot convert Unicode string to 'bytes' implicitly, encoding required.",
     (Builtin.unicode_type, Builtin.str_type)   : "Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.",
-    (Builtin.unicode_type, PyrexTypes.c_char_ptr_type) : "Unicode objects do not support coercion to C types.",
-    (Builtin.unicode_type, PyrexTypes.c_uchar_ptr_type) : "Unicode objects do not support coercion to C types.",
+    (Builtin.unicode_type, PyrexTypes.c_char_ptr_type) : "Unicode objects only support coercion to Py_UNICODE*.",
+    (Builtin.unicode_type, PyrexTypes.c_uchar_ptr_type) : "Unicode objects only support coercion to Py_UNICODE*.",
     (Builtin.bytes_type, Builtin.unicode_type) : "Cannot convert 'bytes' object to unicode implicitly, decoding required",
     (Builtin.bytes_type, Builtin.str_type) : "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
+    (Builtin.bytes_type, PyrexTypes.c_py_unicode_ptr_type) : "Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'.",
     (Builtin.str_type, Builtin.unicode_type) : "str objects do not support coercion to unicode, use a unicode string literal instead (u'')",
     (Builtin.str_type, Builtin.bytes_type) : "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
     (Builtin.str_type, PyrexTypes.c_char_ptr_type) : "'str' objects do not support coercion to C types (use 'bytes'?).",
     (Builtin.str_type, PyrexTypes.c_uchar_ptr_type) : "'str' objects do not support coercion to C types (use 'bytes'?).",
+    (Builtin.str_type, PyrexTypes.c_py_unicode_ptr_type) : "'str' objects do not support coercion to C types (use 'unicode'?).",
     (PyrexTypes.c_char_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_uchar_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
 }
@@ -1171,8 +1173,8 @@ class BytesNode(ConstNode):
         return self.result_code
 
 
-class UnicodeNode(PyConstNode):
-    # A Python unicode object
+class UnicodeNode(ConstNode):
+    # A Py_UNICODE* or unicode literal
     #
     # value        EncodedString
     # bytes_value  BytesLiteral    the literal parsed as bytes string ('-3' unicode literals only)
@@ -1213,7 +1215,11 @@ class UnicodeNode(PyConstNode):
             if dst_type.is_string and self.bytes_value is not None:
                 # special case: '-3' enforced unicode literal used in a C char* context
                 return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.")
+            if dst_type.is_pyunicode_ptr:
+                node = UnicodeNode(self.pos, value=self.value)
+                node.type = dst_type
+                return node
+            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* (for strings).")
         elif dst_type is not py_object_type:
             if not self.check_for_coercion_error(dst_type, env):
                 self.fail_assignment(dst_type)
@@ -1225,11 +1231,18 @@ class UnicodeNode(PyConstNode):
             ##     and (0xD800 <= self.value[0] <= 0xDBFF)
             ##     and (0xDC00 <= self.value[1] <= 0xDFFF))
 
+    def coerce_to_boolean(self, env):
+        bool_value = bool(self.value)
+        return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
+
     def contains_surrogates(self):
         return _string_contains_surrogates(self.value)
 
     def generate_evaluation_code(self, code):
-        self.result_code = code.get_py_string_const(self.value)
+        if self.type.is_pyobject:
+            self.result_code = code.get_py_string_const(self.value)
+        else:
+            self.result_code = code.get_pyunicode_ptr_const(self.value)
 
     def calculate_result_code(self):
         return self.result_code
@@ -2633,6 +2646,9 @@ class IndexNode(ExprNode):
             if base_type.is_string:
                 # sliced C strings must coerce to Python
                 return bytes_type
+            elif base_type.is_pyunicode_ptr:
+                # sliced Py_UNICODE* strings must coerce to Python
+                return unicode_type
             elif base_type in (unicode_type, bytes_type, str_type, list_type, tuple_type):
                 # slicing these returns the same type
                 return base_type
@@ -3446,6 +3462,8 @@ class SliceIndexNode(ExprNode):
         base_type = self.base.infer_type(env)
         if base_type.is_string or base_type.is_cpp_class:
             return bytes_type
+        elif base_type.is_pyunicode_ptr:
+            return unicode_type
         elif base_type in (bytes_type, str_type, unicode_type,
                            list_type, tuple_type):
             return base_type
@@ -3510,6 +3528,8 @@ class SliceIndexNode(ExprNode):
         base_type = self.base.type
         if base_type.is_string or base_type.is_cpp_string:
             self.type = default_str_type(env)
+        elif base_type.is_pyunicode_ptr:
+            self.type = unicode_type
         elif base_type.is_ptr:
             self.type = base_type
         elif base_type.is_array:
@@ -3578,6 +3598,27 @@ class SliceIndexNode(ExprNode):
                         stop_code,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
+        elif self.base.type.is_pyunicode_ptr:
+            base_result = self.base.result()
+            if self.base.type != PyrexTypes.c_py_unicode_ptr_type:
+                base_result = '((const Py_UNICODE*)%s)' % base_result
+            if self.stop is None:
+                code.putln(
+                    "%s = __Pyx_PyUnicode_FromUnicode(%s + %s); %s" % (
+                        result,
+                        base_result,
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
+            else:
+                code.putln(
+                    "%s = __Pyx_PyUnicode_FromUnicodeAndLength(%s + %s, %s - %s); %s" % (
+                        result,
+                        base_result,
+                        start_code,
+                        stop_code,
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
+
         elif self.base.type is unicode_type:
             code.globalstate.use_utility_code( 
                           UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
@@ -4903,11 +4944,11 @@ class AttributeNode(ExprNode):
         self.is_py_attr = 0
         self.member = self.attribute
         if obj_type is None:
-            if self.obj.type.is_string:
+            if self.obj.type.is_string or self.obj.type.is_pyunicode_ptr:
                 self.obj = self.obj.coerce_to_pyobject(env)
             obj_type = self.obj.type
         else:
-            if obj_type.is_string:
+            if obj_type.is_string or obj_type.is_pyunicode_ptr:
                 obj_type = py_object_type
         if obj_type.is_ptr or obj_type.is_array:
             obj_type = obj_type.base_type
@@ -8334,8 +8375,12 @@ class BinopNode(ExprNode):
         if self.is_py_operation_types(type1, type2):
             if type2.is_string:
                 type2 = Builtin.bytes_type
+            elif type2.is_pyunicode_ptr:
+                type2 = Builtin.unicode_type
             if type1.is_string:
                 type1 = Builtin.bytes_type
+            elif type1.is_pyunicode_ptr:
+                type1 = Builtin.unicode_type
             elif self.operator == '%' \
                      and type1 in (Builtin.str_type, Builtin.unicode_type):
                 # note that  b'%s' % b'abc'  doesn't work in Py3
@@ -8584,7 +8629,7 @@ class AddNode(NumBinopNode):
     #  '+' operator.
 
     def is_py_operation_types(self, type1, type2):
-        if type1.is_string and type2.is_string:
+        if type1.is_string and type2.is_string or type1.is_pyunicode_ptr and type2.is_pyunicode_ptr:
             return 1
         else:
             return NumBinopNode.is_py_operation_types(self, type1, type2)
@@ -9947,7 +9992,7 @@ class CoerceToPyTypeNode(CoercionNode):
             # be specific about some known types
             if arg.type.is_string or arg.type.is_cpp_string:
                 self.type = default_str_type(env)
-            elif arg.type.is_unicode_char:
+            elif arg.type.is_pyunicode_ptr or arg.type.is_unicode_char:
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
@@ -10062,13 +10107,13 @@ class CoerceFromPyTypeNode(CoercionNode):
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
-        if self.type.is_string:
+        if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_ephemeral():
                 error(arg.pos,
-                      "Obtaining char* from temporary Python value")
+                      "Obtaining '%s' from temporary Python value" % result_type)
             elif self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,
-                        "Obtaining char* from externally modifiable global Python value",
+                        "Obtaining '%s' from externally modifiable global Python value" % result_type,
                         level=1)
 
     def analyse_types(self, env):

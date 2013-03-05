@@ -546,3 +546,56 @@ code will run in plain C code, (actually using a switch statement)::
 
 Combined with the looping optimisation above, this can result in very
 efficient character switching code, e.g. in unicode parsers.
+
+Windows and wide character APIs
+-------------------------------
+
+Windows system APIs natively support Unicode in the form of
+zero-terminated UTF-16 encoded :c:type:`wchar_t*` strings, so called
+"wide strings".
+
+By default, Windows builds of CPython define :c:type:`Py_UNICODE` as
+a synonym for :c:type:`wchar_t`. This makes internal ``unicode``
+representation compatible with UTF-16 and allows for efficient zero-copy
+conversions. This also means that Windows builds are always
+`Narrow Unicode builds`_ with all the caveats.
+
+To aid interoperation with Windows APIs, Cython 0.19 supports wide
+strings (in the form of :c:type:`Py_UNICODE*`) and implicitly converts
+them to and from ``unicode`` string objects.  These conversions behave the
+same way as they do for :c:type:`char*` and ``bytes`` as described in
+`Passing byte strings`_.
+
+In addition to automatic conversion, unicode literals that appear
+in C context become C-level wide string literals and :py:func:`len`
+built-in function is specialized to compute the length of zero-terminated
+:c:type:`Py_UNICODE*` string or array.
+
+Here is an example of how one would call a Unicode API on Windows::
+
+    cdef extern from "Windows.h":
+
+        ctypedef Py_UNICODE WCHAR
+        ctypedef const WCHAR* LPCWSTR
+        ctypedef void* HWND
+
+        int MessageBoxW(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, int uType) 
+
+    title = u"Windows Interop Demo - Python %d.%d.%d" % sys.version_info[:3]
+    MessageBoxW(NULL, u"Hello Cython \u263a", title, 0)
+
+.. Warning::
+
+    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
+    strongly discouraged. :c:type:`Py_UNICODE` is inherently not
+    portable between different platforms and Python versions.
+
+    CPython 3.3 has moved to a flexible internal representation of
+    unicode strings (:pep:`393`), making all :c:type:`Py_UNICODE` related
+    APIs deprecated and inefficient.
+
+One consequence of CPython 3.3 changes is that :py:func:`len` of
+``unicode`` strings is always measured in *code points* ("characters"),
+while Windows API expect the number of UTF-16 *code units*
+(where each surrogate is counted individually). To always get the number
+of code units, call :c:func:`PyUnicode_GetSize` directly.
