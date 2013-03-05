@@ -1,5 +1,7 @@
 # tag: py_unicode_strings
 
+import sys
+
 cimport cython
 from libc.string cimport memcpy, strcpy
 
@@ -62,6 +64,10 @@ def test_c_to_python():
         assert len(c_pu_wide_literal) == 2
     else:
         assert len(c_pu_wide_literal) == 4
+
+    if sys.version_info >= (3, 3):
+        # Make sure len(unicode) is not reverted to pre-3.3 behavior
+        assert len(uwide_literal) == 2
 
     assert u'unicode'
     assert not u''

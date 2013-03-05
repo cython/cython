@@ -2017,12 +2017,11 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 args = [arg],
                 is_temp = node.is_temp,
                 utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-        elif arg.type.is_unicode:
+        elif arg.type.is_pyunicode_ptr:
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_Py_UNICODE_strlen", self.Pyx_Py_UNICODE_strlen_func_type,
                 args = [arg],
-                is_temp = node.is_temp,
-                utility_code = UtilityCode.load_cached("py_unicode_strlen", "StringTools.c"))
+                is_temp = node.is_temp)
         elif arg.type.is_pyobject:
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:

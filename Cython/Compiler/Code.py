@@ -778,7 +778,6 @@ class StringConst(object):
         self.py_strings[key] = py_string
         return py_string
 
-
 class PyStringConst(object):
     """Global info about a Python string constant held by GlobalState.
     """
@@ -1018,7 +1017,7 @@ class GlobalState(object):
         c.add_py_version(py_version)
         return c
 
-    def get_unicode_const(self, text):
+    def get_pyunicode_ptr_const(self, text):
         # return a Py_UNICODE[] constant, creating a new one if necessary
         assert text.is_unicode
         try:
@@ -1153,7 +1152,7 @@ class GlobalState(object):
                     py_strings.append((c.cname, len(py_string.cname), py_string))
 
         for c, cname in self.unicode_const_index.items():
-            utf16_array, utf32_array = StringEncoding.encode_py_unicode_string(c)
+            utf16_array, utf32_array = StringEncoding.encode_pyunicode_string(c)
             if utf16_array:
                 # Narrow and wide representations differ
                 decls_writer.putln("#ifdef Py_UNICODE_WIDE")
@@ -1457,8 +1456,8 @@ class CCodeWriter(object):
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
 
-    def get_unicode_const(self, text):
-        return self.globalstate.get_unicode_const(text)
+    def get_pyunicode_ptr_const(self, text):
+        return self.globalstate.get_pyunicode_ptr_const(text)
 
     def get_py_string_const(self, text, identifier=None,
                             is_str=False, unicode_value=None):

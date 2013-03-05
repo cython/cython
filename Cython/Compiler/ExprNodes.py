@@ -1215,7 +1215,7 @@ class UnicodeNode(ConstNode):
             if dst_type.is_string and self.bytes_value is not None:
                 # special case: '-3' enforced unicode literal used in a C char* context
                 return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-            if dst_type.is_unicode:
+            if dst_type.is_pyunicode_ptr:
                 node = UnicodeNode(self.pos, value=self.value)
                 node.type = dst_type
                 return node
@@ -1242,7 +1242,7 @@ class UnicodeNode(ConstNode):
         if self.type.is_pyobject:
             self.result_code = code.get_py_string_const(self.value)
         else:
-            self.result_code = code.get_unicode_const(self.value)
+            self.result_code = code.get_pyunicode_ptr_const(self.value)
 
     def calculate_result_code(self):
         return self.result_code
@@ -2646,7 +2646,7 @@ class IndexNode(ExprNode):
             if base_type.is_string:
                 # sliced C strings must coerce to Python
                 return bytes_type
-            elif base_type.is_unicode:
+            elif base_type.is_pyunicode_ptr:
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
             elif base_type in (unicode_type, bytes_type, str_type, list_type, tuple_type):
@@ -3462,7 +3462,7 @@ class SliceIndexNode(ExprNode):
         base_type = self.base.infer_type(env)
         if base_type.is_string or base_type.is_cpp_class:
             return bytes_type
-        elif base_type.is_unicode:
+        elif base_type.is_pyunicode_ptr:
             return unicode_type
         elif base_type in (bytes_type, str_type, unicode_type,
                            list_type, tuple_type):
@@ -3528,7 +3528,7 @@ class SliceIndexNode(ExprNode):
         base_type = self.base.type
         if base_type.is_string or base_type.is_cpp_string:
             self.type = default_str_type(env)
-        elif base_type.is_unicode:
+        elif base_type.is_pyunicode_ptr:
             self.type = unicode_type
         elif base_type.is_ptr:
             self.type = base_type
@@ -3598,7 +3598,7 @@ class SliceIndexNode(ExprNode):
                         stop_code,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
-        elif self.base.type.is_unicode:
+        elif self.base.type.is_pyunicode_ptr:
             base_result = self.base.result()
             if self.base.type != PyrexTypes.c_py_unicode_ptr_type:
                 base_result = '((const Py_UNICODE*)%s)' % base_result
@@ -4944,11 +4944,11 @@ class AttributeNode(ExprNode):
         self.is_py_attr = 0
         self.member = self.attribute
         if obj_type is None:
-            if self.obj.type.is_string or self.obj.type.is_unicode:
+            if self.obj.type.is_string or self.obj.type.is_pyunicode_ptr:
                 self.obj = self.obj.coerce_to_pyobject(env)
             obj_type = self.obj.type
         else:
-            if obj_type.is_string or obj_type.is_unicode:
+            if obj_type.is_string or obj_type.is_pyunicode_ptr:
                 obj_type = py_object_type
         if obj_type.is_ptr or obj_type.is_array:
             obj_type = obj_type.base_type
@@ -8378,11 +8378,11 @@ class BinopNode(ExprNode):
         if self.is_py_operation_types(type1, type2):
             if type2.is_string:
                 type2 = Builtin.bytes_type
-            elif type2.is_unicode:
+            elif type2.is_pyunicode_ptr:
                 type2 = Builtin.unicode_type
             if type1.is_string:
                 type1 = Builtin.bytes_type
-            elif type1.is_unicode:
+            elif type1.is_pyunicode_ptr:
                 type1 = Builtin.unicode_type
             elif self.operator == '%' \
                      and type1 in (Builtin.str_type, Builtin.unicode_type):
@@ -8632,7 +8632,7 @@ class AddNode(NumBinopNode):
     #  '+' operator.
 
     def is_py_operation_types(self, type1, type2):
-        if type1.is_string and type2.is_string or type1.is_unicode and type2.is_unicode:
+        if type1.is_string and type2.is_string or type1.is_pyunicode_ptr and type2.is_pyunicode_ptr:
             return 1
         else:
             return NumBinopNode.is_py_operation_types(self, type1, type2)
@@ -9995,7 +9995,7 @@ class CoerceToPyTypeNode(CoercionNode):
             # be specific about some known types
             if arg.type.is_string or arg.type.is_cpp_string:
                 self.type = default_str_type(env)
-            elif arg.type.is_unicode or arg.type.is_unicode_char:
+            elif arg.type.is_pyunicode_ptr or arg.type.is_unicode_char:
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
@@ -10110,7 +10110,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
-        if self.type.is_string or self.type.is_unicode:
+        if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_ephemeral():
                 error(arg.pos,
                       "Obtaining '%s' from temporary Python value" % result_type)

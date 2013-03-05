@@ -264,7 +264,7 @@ def split_string_literal(s, limit=2000):
             start = end
         return '""'.join(chunks)
 
-def encode_py_unicode_string(s):
+def encode_pyunicode_string(s):
     """Create Py_UNICODE[] representation of a given unicode string.
     """
     utf32_array = array.array('i', s.encode('UTF-32'))

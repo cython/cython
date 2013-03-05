@@ -604,17 +604,3 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
         index += PyBytes_GET_SIZE(bytes);
     return PyBytes_AS_STRING(bytes)[index];
 }
-
-
-/////////////// py_unicode_strlen.proto ///////////////
-
-#if PY_VERSION_HEX < 0x03000000
-static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
-{
-    const Py_UNICODE *u_end = u;
-    while (*u_end++) ;
-    return u_end - u - 1;
-}
-#else
-#define __Pyx_Py_UNICODE_strlen Py_UNICODE_strlen
-#endif
