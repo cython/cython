@@ -873,7 +873,7 @@ class GlobalState(object):
 
         self.const_cname_counter = 1
         self.string_const_index = {}
-        self.unicode_const_index = {}
+        self.pyunicode_ptr_const_index = {}
         self.int_const_index = {}
         self.py_constants = []
 
@@ -1021,9 +1021,9 @@ class GlobalState(object):
         # return a Py_UNICODE[] constant, creating a new one if necessary
         assert text.is_unicode
         try:
-            c = self.unicode_const_index[text]
+            c = self.pyunicode_ptr_const_index[text]
         except KeyError:
-            c = self.unicode_const_index[text] = self.new_const_cname()
+            c = self.pyunicode_ptr_const_index[text] = self.new_const_cname()
         return c
 
     def get_py_string_const(self, text, identifier=None,
@@ -1151,7 +1151,7 @@ class GlobalState(object):
                 for py_string in c.py_strings.values():
                     py_strings.append((c.cname, len(py_string.cname), py_string))
 
-        for c, cname in self.unicode_const_index.items():
+        for c, cname in self.pyunicode_ptr_const_index.items():
             utf16_array, utf32_array = StringEncoding.encode_pyunicode_string(c)
             if utf16_array:
                 # Narrow and wide representations differ
