@@ -4,6 +4,7 @@
 
 import re
 import sys
+import array
 
 if sys.version_info[0] >= 3:
     _unicode, _str, _bytes = str, str, bytes
@@ -262,3 +263,22 @@ def split_string_literal(s, limit=2000):
             chunks.append(s[start:end])
             start = end
         return '""'.join(chunks)
+
+def encode_pyunicode_string(s):
+    """Create Py_UNICODE[] representation of a given unicode string.
+    """
+    utf32_array = array.array('i', s.encode('UTF-32'))
+    assert utf32_array.itemsize == 4
+    utf32_array.pop(0)     # Remove BOM
+    utf32_array.append(0)  # Add NULL terminator
+
+    for c in utf32_array:
+        if c > 65535:
+            utf16_array = array.array('H', s.encode('UTF-16'))
+            utf16_array.pop(0)     # Remove BOM
+            utf16_array.append(0)  # Add NULL terminator
+            break
+    else:
+        utf16_array = []
+
+    return ",".join(map(unicode, utf16_array)), ",".join(map(unicode, utf32_array))

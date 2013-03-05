@@ -873,6 +873,7 @@ class GlobalState(object):
 
         self.const_cname_counter = 1
         self.string_const_index = {}
+        self.pyunicode_ptr_const_index = {}
         self.int_const_index = {}
         self.py_constants = []
 
@@ -1016,6 +1017,15 @@ class GlobalState(object):
         c.add_py_version(py_version)
         return c
 
+    def get_pyunicode_ptr_const(self, text):
+        # return a Py_UNICODE[] constant, creating a new one if necessary
+        assert text.is_unicode
+        try:
+            c = self.pyunicode_ptr_const_index[text]
+        except KeyError:
+            c = self.pyunicode_ptr_const_index[text] = self.new_const_cname()
+        return c
+
     def get_py_string_const(self, text, identifier=None,
                             is_str=False, unicode_value=None):
         # return a Python string constant, creating a new one if necessary
@@ -1140,6 +1150,17 @@ class GlobalState(object):
             if c.py_strings is not None:
                 for py_string in c.py_strings.values():
                     py_strings.append((c.cname, len(py_string.cname), py_string))
+
+        for c, cname in self.pyunicode_ptr_const_index.items():
+            utf16_array, utf32_array = StringEncoding.encode_pyunicode_string(c)
+            if utf16_array:
+                # Narrow and wide representations differ
+                decls_writer.putln("#ifdef Py_UNICODE_WIDE")
+            decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf32_array))
+            if utf16_array:
+                decls_writer.putln("#else")
+                decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
+                decls_writer.putln("#endif")
 
         if py_strings:
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
@@ -1434,6 +1455,9 @@ class CCodeWriter(object):
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
+
+    def get_pyunicode_ptr_const(self, text):
+        return self.globalstate.get_pyunicode_ptr_const(text)
 
     def get_py_string_const(self, text, identifier=None,
                             is_str=False, unicode_value=None):

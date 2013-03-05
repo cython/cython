@@ -24,6 +24,21 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
 #define __Pyx_PyStr_FromUString(s)     __Pyx_PyStr_FromString((char*)s)
 #define __Pyx_PyUnicode_FromUString(s) __Pyx_PyUnicode_FromString((char*)s)
 
+#if PY_MAJOR_VERSION < 3
+static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
+{
+    const Py_UNICODE *u_end = u;
+    while (*u_end++) ;
+    return u_end - u - 1;
+}
+#else
+#define __Pyx_Py_UNICODE_strlen Py_UNICODE_strlen
+#endif
+
+#define __Pyx_PyUnicode_FromUnicode(u)       PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
+#define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
+#define __Pyx_PyUnicode_AsUnicode            PyUnicode_AsUnicode
+
 #define __Pyx_Owned_Py_None(b) (Py_INCREF(Py_None), Py_None)
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
