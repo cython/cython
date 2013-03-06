@@ -571,6 +571,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(Nodes.branch_prediction_macros)
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
+        code.putln('static PyObject *%s;' % env.module_dict_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
         code.putln('static PyObject *%s;' % Naming.empty_tuple)
         code.putln('static PyObject *%s;' % Naming.empty_bytes)
@@ -2182,6 +2183,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.pymoduledef_cname))
         code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln(
+            "%s = PyModule_GetDict(%s); %s" % (
+                env.module_dict_cname, env.module_cname,
+                code.error_goto_if_null(env.module_dict_cname, self.pos)))
+        code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
 
         # CPython may not have put us into sys.modules yet, but relative imports and reimports require it
         fq_module_name = env.qualified_name

@@ -1615,7 +1615,6 @@ class NameNode(AtomicExprNode):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
-                env.use_utility_code(get_name_interned_utility_code)
 
             self.is_used_as_rvalue = 1
         elif entry.type.is_memoryviewslice:
@@ -1754,30 +1753,39 @@ class NameNode(AtomicExprNode):
                         interned_cname))
                 code.putln('if (unlikely(!%s)) {' % self.result())
                 code.putln('PyErr_Clear();')
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
             code.putln(
-                '%s = __Pyx_GetName(%s, %s);' % (
+                '%s = __Pyx_GetModuleGlobalName(%s);' % (
                     self.result(),
-                    Naming.module_cname,
                     interned_cname))
             if not self.cf_is_null:
                 code.putln("}")
             code.putln(code.error_goto_if_null(self.result(), self.pos))
             code.put_gotref(self.py_result())
 
-        elif entry.is_pyglobal or entry.is_builtin:
+        elif entry.is_builtin:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            if entry.is_builtin:
-                namespace = Naming.builtins_cname
-            else: # entry.is_pyglobal
-                namespace = entry.scope.namespace_cname
             code.globalstate.use_utility_code(get_name_interned_utility_code)
             code.putln(
                 '%s = __Pyx_GetName(%s, %s); %s' % (
                 self.result(),
-                namespace,
+                Naming.builtins_cname,
                 interned_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+
+        elif entry.is_pyglobal:
+            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            interned_cname = code.intern_identifier(self.entry.name)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
+            code.putln(
+                '%s = __Pyx_GetModuleGlobalName(%s); %s' % (
+                    self.result(),
+                    interned_cname,
+                    code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
         elif entry.is_local or entry.in_closure or entry.from_closure or entry.type.is_memoryviewslice:

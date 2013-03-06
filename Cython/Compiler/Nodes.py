@@ -5734,12 +5734,12 @@ class ForFromStatNode(LoopNode, StatNode):
                 target_node = ExprNodes.PyTempNode(self.target.pos, None)
                 target_node.allocate(code)
                 interned_cname = code.intern_identifier(self.target.entry.name)
-                code.globalstate.use_utility_code(ExprNodes.get_name_interned_utility_code)
-                code.putln("%s = __Pyx_GetName(%s, %s); %s" % (
-                                target_node.result(),
-                                Naming.module_cname,
-                                interned_cname,
-                                code.error_goto_if_null(target_node.result(), self.target.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
+                code.putln("%s = __Pyx_GetModuleGlobalName(%s); %s" % (
+                    target_node.result(),
+                    interned_cname,
+                    code.error_goto_if_null(target_node.result(), self.target.pos)))
                 code.put_gotref(target_node.result())
             else:
                 target_node = self.target

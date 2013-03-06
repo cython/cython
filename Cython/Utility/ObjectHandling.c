@@ -606,6 +606,39 @@ static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
     return result;
 }
 
+/////////////// GetModuleGlobalName.proto ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*proto*/
+
+/////////////// GetModuleGlobalName ///////////////
+//@requires: PyObjectGetAttrStr
+//@substitute: naming
+
+static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
+    PyObject *result;
+#if CYTHON_COMPILING_IN_CPYTHON
+    result = PyDict_GetItem($moddict_cname, name);
+    if (result) {
+        Py_INCREF(result);
+    } else {
+#else
+    result = PyObject_GetItem($moddict_cname, name);
+    if (!result) {
+        PyErr_Clear();
+#endif
+        result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
+        if (unlikely(!result)) {
+            PyErr_Format(PyExc_NameError,
+#if PY_MAJOR_VERSION >= 3
+                "name '%U' is not defined", name);
+#else
+                "name '%s' is not defined", PyString_AS_STRING(name));
+#endif
+        }
+    }
+    return result;
+}
+
 /////////////// PyObjectGetAttrStr.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
