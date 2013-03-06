@@ -11,7 +11,7 @@ def f(a):
     """
     >>> f(1)
     Traceback (most recent call last):
-    NameError: global name 'definitely_unknown_name' is not defined
+    NameError: name 'definitely_unknown_name' is not defined
     """
     a = f
     a = definitely_unknown_name
