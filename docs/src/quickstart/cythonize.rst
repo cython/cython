@@ -109,7 +109,9 @@ Determining where to add types
 
 Because static typing is often the key to large speed gains, beginners
 often have a tendency to type everything in sight. This cuts down on both
-readability and flexibility. On the other hand, it is easy to kill 
+readability and flexibility, and can even slow things down (e.g. by adding
+unnecessary type checks, conversions, or slow buffer unpacking).
+On the other hand, it is easy to kill 
 performance by forgetting to type a critical loop variable. Two essential 
 tools to help with this task are profiling and annotation. 
 Profiling should be the first step of any optimization effort, and can 
