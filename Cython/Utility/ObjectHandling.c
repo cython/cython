@@ -595,7 +595,12 @@ static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
             result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
         }
         if (!result) {
-            PyErr_SetObject(PyExc_NameError, name);
+            PyErr_Format(PyExc_NameError,
+#if PY_MAJOR_VERSION >= 3
+                "global name '%U' is not defined", name);
+#else
+                "global name '%s' is not defined", PyString_AS_STRING(name));
+#endif
         }
     }
     return result;

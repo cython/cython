@@ -131,3 +131,15 @@ def str_slicing2():
     str3 = 'abc\xE9def'[2:4]
 
     return str0, str1, str2, str3
+
+
+@cython.test_fail_if_path_exists(
+    "//IfStatNode",
+)
+def str_in_and_not_in():
+    """
+    >>> str_in_and_not_in()
+    True
+    """
+    if 'a' in 'abc' and 'b' in 'abc' and 'c' in 'abc' and 'd' not in 'abc': return True
+    else: return False

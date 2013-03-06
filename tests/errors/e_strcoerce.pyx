@@ -15,5 +15,5 @@ _ERRORS = """
 4:14: Only single-character string literals can be coerced into ints.
 5:14: Only single-character string literals can be coerced into ints.
 8:15: Only single-character string literals can be coerced into ints.
-11:14: Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.
+11:14: Unicode literals do not support coercion to C types other than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* (for strings).
 """
