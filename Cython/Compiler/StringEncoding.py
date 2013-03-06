@@ -4,7 +4,6 @@
 
 import re
 import sys
-import array
 
 if sys.version_info[0] >= 3:
     _unicode, _str, _bytes = str, str, bytes
@@ -267,18 +266,26 @@ def split_string_literal(s, limit=2000):
 def encode_pyunicode_string(s):
     """Create Py_UNICODE[] representation of a given unicode string.
     """
-    utf32_array = array.array('i', s.encode('UTF-32'))
-    assert utf32_array.itemsize == 4
-    utf32_array.pop(0)     # Remove BOM
-    utf32_array.append(0)  # Add NULL terminator
+    s = map(ord, s) + [0]
 
-    for c in utf32_array:
-        if c > 65535:
-            utf16_array = array.array('H', s.encode('UTF-16'))
-            utf16_array.pop(0)     # Remove BOM
-            utf16_array.append(0)  # Add NULL terminator
-            break
+    if sys.maxunicode >= 0x10000:  # Wide build or Py3.3
+        utf16, utf32 = [], s
+        for code_point in s:
+            if code_point >= 0x10000:  # outside of BMP
+                high, low = divmod(code_point - 0x10000, 1024)
+                utf16.append(high + 0xD800)
+                utf16.append(low + 0xDC00)
+            else:
+                utf16.append(code_point)
     else:
-        utf16_array = []
+        utf16, utf32 = s, []
+        for code_unit in s:
+            if 0xDC00 <= code_unit <= 0xDFFF:  # low surrogate
+                high, low = utf32.pop(), code_unit
+                utf32.append(((high & 0x3FF) << 10) + (low & 0x3FF) + 0x10000)
+            else:
+                utf32.append(code_unit)
 
-    return ",".join(map(unicode, utf16_array)), ",".join(map(unicode, utf32_array))
+    if utf16 == utf32:
+        utf16 = []
+    return ",".join(map(unicode, utf16)), ",".join(map(unicode, utf32))
