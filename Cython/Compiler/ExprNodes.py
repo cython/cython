@@ -1767,11 +1767,11 @@ class NameNode(AtomicExprNode):
         elif entry.is_builtin:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            code.globalstate.use_utility_code(get_name_interned_utility_code)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
             code.putln(
-                '%s = __Pyx_GetName(%s, %s); %s' % (
+                '%s = __Pyx_GetBuiltinName(%s); %s' % (
                 self.result(),
-                Naming.builtins_cname,
                 interned_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
@@ -10423,10 +10423,6 @@ class DocstringRefNode(ExprNode):
 #
 #  Runtime support code
 #
-#------------------------------------------------------------------------------------
-
-get_name_interned_utility_code = UtilityCode.load_cached("GetGlobalName", "ObjectHandling.c")
-
 #------------------------------------------------------------------------------------
 
 pyerr_occurred_withgil_utility_code= UtilityCode(

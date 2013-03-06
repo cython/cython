@@ -578,30 +578,23 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
 }
 
-/////////////// GetGlobalName.proto ///////////////
+/////////////// GetBuiltinName.proto ///////////////
 
-static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
+static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
 
-/////////////// GetGlobalName ///////////////
+/////////////// GetBuiltinName ///////////////
 //@requires: PyObjectGetAttrStr
 //@substitute: naming
 
-static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
-    PyObject *result;
-    result = __Pyx_PyObject_GetAttrStr(dict, name);
-    if (!result) {
-        if (dict != $builtins_cname) {
-            PyErr_Clear();
-            result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
-        }
-        if (!result) {
-            PyErr_Format(PyExc_NameError,
+static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
+    PyObject* result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
+    if (unlikely(!result)) {
+        PyErr_Format(PyExc_NameError,
 #if PY_MAJOR_VERSION >= 3
-                "name '%U' is not defined", name);
+            "name '%U' is not defined", name);
 #else
-                "name '%s' is not defined", PyString_AS_STRING(name));
+            "name '%s' is not defined", PyString_AS_STRING(name));
 #endif
-        }
     }
     return result;
 }
@@ -611,7 +604,7 @@ static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
 static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*proto*/
 
 /////////////// GetModuleGlobalName ///////////////
-//@requires: PyObjectGetAttrStr
+//@requires: GetBuiltinName
 //@substitute: naming
 
 static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
@@ -626,15 +619,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
     if (!result) {
         PyErr_Clear();
 #endif
-        result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
-        if (unlikely(!result)) {
-            PyErr_Format(PyExc_NameError,
-#if PY_MAJOR_VERSION >= 3
-                "name '%U' is not defined", name);
-#else
-                "name '%s' is not defined", PyString_AS_STRING(name));
-#endif
-        }
+        result = __Pyx_GetBuiltinName(name);
     }
     return result;
 }
