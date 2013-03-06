@@ -597,9 +597,9 @@ static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
         if (!result) {
             PyErr_Format(PyExc_NameError,
 #if PY_MAJOR_VERSION >= 3
-                "global name '%U' is not defined", name);
+                "name '%U' is not defined", name);
 #else
-                "global name '%s' is not defined", PyString_AS_STRING(name));
+                "name '%s' is not defined", PyString_AS_STRING(name));
 #endif
         }
     }
