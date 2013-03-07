@@ -1779,13 +1779,24 @@ class NameNode(AtomicExprNode):
         elif entry.is_pyglobal:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
-            code.putln(
-                '%s = __Pyx_GetModuleGlobalName(%s); %s' % (
-                    self.result(),
-                    interned_cname,
-                    code.error_goto_if_null(self.result(), self.pos)))
+            if entry.scope.is_module_scope:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
+                code.putln(
+                    '%s = __Pyx_GetModuleGlobalName(%s); %s' % (
+                        self.result(),
+                        interned_cname,
+                        code.error_goto_if_null(self.result(), self.pos)))
+            else:
+                # FIXME: is_pyglobal is also used for class namespace
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
+                code.putln(
+                    '%s = __Pyx_GetNameInClass(%s, %s); %s' % (
+                        self.result(),
+                        entry.scope.namespace_cname,
+                        interned_cname,
+                        code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
         elif entry.is_local or entry.in_closure or entry.from_closure or entry.type.is_memoryviewslice:

@@ -599,6 +599,23 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     return result;
 }
 
+/////////////// GetNameInClass.proto ///////////////
+
+static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name); /*proto*/
+
+/////////////// GetNameInClass ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: GetModuleGlobalName
+//@substitute: naming
+
+static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
+    PyObject *result;
+    result = __Pyx_PyObject_GetAttrStr(nmspace, name);
+    if (!result)
+        result = __Pyx_GetModuleGlobalName(name);
+    return result;
+}
+
 /////////////// GetModuleGlobalName.proto ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*proto*/
