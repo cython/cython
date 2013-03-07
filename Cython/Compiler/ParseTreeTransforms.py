@@ -2248,6 +2248,8 @@ class CreateClosureClasses(CythonTransform):
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
+        if Options.closure_freelist_size:
+            class_scope.directives['freelist'] = Options.closure_freelist_size
 
         if from_closure:
             assert cscope.is_closure_scope

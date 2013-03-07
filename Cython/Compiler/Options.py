@@ -67,6 +67,9 @@ cimport_from_pyx = False
 # slices are passed by value and involve a lot of copying
 buffer_max_dims = 8
 
+# Number of function closure instances to keep in a freelist (0: no freelists)
+closure_freelist_size = 8
+
 # Declare compiler directives
 directive_defaults = {
     'boundscheck' : True,
