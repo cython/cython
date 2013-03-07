@@ -3668,8 +3668,13 @@ class SliceIndexNode(ExprNode):
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
+            if self.base.type is list_type:
+                cfunc = 'PyList_SetSlice'
+            else:
+                cfunc = '__Pyx_PySequence_SetSlice'
             code.put_error_if_neg(self.pos,
-                "__Pyx_PySequence_SetSlice(%s, %s, %s, %s)" % (
+                "%s(%s, %s, %s, %s)" % (
+                    cfunc,
                     self.base.py_result(),
                     self.start_code(),
                     self.stop_code(),
