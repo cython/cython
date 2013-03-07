@@ -280,9 +280,9 @@ def encode_pyunicode_string(s):
     else:
         utf16, utf32 = s, []
         for code_unit in s:
-            if 0xDC00 <= code_unit <= 0xDFFF:  # low surrogate
-                high, low = utf32.pop(), code_unit
-                utf32.append(((high & 0x3FF) << 10) + (low & 0x3FF) + 0x10000)
+            if 0xDC00 <= code_unit <= 0xDFFF and utf32 and 0xD800 <= utf32[-1] <= 0xDBFF:
+                high, low = utf32[-1], code_unit
+                utf32[-1] = ((high & 0x3FF) << 10) + (low & 0x3FF) + 0x10000
             else:
                 utf32.append(code_unit)
 
