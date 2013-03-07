@@ -1634,10 +1634,14 @@ class FuncDefNode(StatNode, BlockNode):
             self.getbuffer_init(code)
         # ----- Create closure scope object
         if self.needs_closure:
-            code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
+            tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+            slot_func_cname = TypeSlots.get_slot_function(lenv.scope_class.type.scope, tp_slot)
+            if not slot_func_cname:
+                slot_func_cname = '%s->tp_new' % lenv.scope_class.type.typeptr_cname
+            code.putln("%s = (%s)%s(%s, %s, NULL);" % (
                 Naming.cur_scope_cname,
                 lenv.scope_class.type.declaration_code(''),
-                lenv.scope_class.type.typeptr_cname,
+                slot_func_cname,
                 lenv.scope_class.type.typeptr_cname,
                 Naming.empty_tuple))
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
