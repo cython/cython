@@ -3649,16 +3649,9 @@ class SliceIndexNode(ExprNode):
                     stop_code,
                     code.error_goto_if_null(result, self.pos)))
         else:
-            if self.base.type is list_type:
-                cfunc = 'PyList_GetSlice'
-            elif self.base.type is tuple_type:
-                cfunc = 'PyTuple_GetSlice'
-            else:
-                cfunc = '__Pyx_PySequence_GetSlice'
             code.putln(
-                "%s = %s(%s, %s, %s); %s" % (
+                "%s = __Pyx_PySequence_GetSlice(%s, %s, %s); %s" % (
                     result,
-                    cfunc,
                     self.base.py_result(),
                     start_code,
                     stop_code,
@@ -3668,13 +3661,8 @@ class SliceIndexNode(ExprNode):
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
-            if self.base.type is list_type:
-                cfunc = 'PyList_SetSlice'
-            else:
-                cfunc = '__Pyx_PySequence_SetSlice'
             code.put_error_if_neg(self.pos,
-                "%s(%s, %s, %s, %s)" % (
-                    cfunc,
+                "__Pyx_PySequence_SetSlice(%s, %s, %s, %s)" % (
                     self.base.py_result(),
                     self.start_code(),
                     self.stop_code(),
