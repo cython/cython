@@ -3649,9 +3649,16 @@ class SliceIndexNode(ExprNode):
                     stop_code,
                     code.error_goto_if_null(result, self.pos)))
         else:
+            if self.base.type is list_type:
+                cfunc = 'PyList_GetSlice'
+            elif self.base.type is tuple_type:
+                cfunc = 'PyTuple_GetSlice'
+            else:
+                cfunc = '__Pyx_PySequence_GetSlice'
             code.putln(
-                "%s = __Pyx_PySequence_GetSlice(%s, %s, %s); %s" % (
+                "%s = %s(%s, %s, %s); %s" % (
                     result,
+                    cfunc,
                     self.base.py_result(),
                     start_code,
                     stop_code,
