@@ -1829,35 +1829,31 @@ class NameNode(AtomicExprNode):
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
-                code.put_error_if_neg(self.pos,
-                    'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
-                        namespace,
-                        interned_cname,
-                        rhs.py_result()))
-                rhs.generate_disposal_code(code)
-                rhs.free_temps(code)
+                setter = 'PyDict_SetItem'
+                namespace = '%s->tp_dict' % namespace
+            elif entry.scope.is_module_scope:
+                setter = 'PyDict_SetItem'
+                namespace = Naming.moddict_cname
+            elif entry.is_pyclass_attr:
+                setter = 'PyObject_SetItem'
+            else:
+                setter = 'PyObject_SetAttr'
+            code.put_error_if_neg(
+                self.pos,
+                '%s(%s, %s, %s)' % (
+                    setter,
+                    namespace,
+                    interned_cname,
+                    rhs.py_result()))
+            if debug_disposal_code:
+                print("NameNode.generate_assignment_code:")
+                print("...generating disposal code for %s" % rhs)
+            rhs.generate_disposal_code(code)
+            rhs.free_temps(code)
+            if entry.is_member:
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
-                            entry.scope.parent_type.typeptr_cname)
-            elif entry.is_pyclass_attr:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_SetItem(%s, %s, %s)' % (
-                        namespace,
-                        interned_cname,
-                        rhs.py_result()))
-                rhs.generate_disposal_code(code)
-                rhs.free_temps(code)
-            else:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_SetAttr(%s, %s, %s)' % (
-                        namespace,
-                        interned_cname,
-                        rhs.py_result()))
-                if debug_disposal_code:
-                    print("NameNode.generate_assignment_code:")
-                    print("...generating disposal code for %s" % rhs)
-                rhs.generate_disposal_code(code)
-                rhs.free_temps(code)
+                           entry.scope.parent_type.typeptr_cname)
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
