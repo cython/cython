@@ -606,7 +606,6 @@ static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name); /*prot
 /////////////// GetNameInClass ///////////////
 //@requires: PyObjectGetAttrStr
 //@requires: GetModuleGlobalName
-//@substitute: naming
 
 static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
