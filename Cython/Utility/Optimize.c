@@ -154,8 +154,16 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 /////////////// dict_setdefault ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type) {
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
+                                                       CYTHON_UNUSED int is_safe_type) {
     PyObject* value;
+#if PY_VERSION_HEX >= 0x030400A0
+    // we keep the method call at the end to avoid "unused" C compiler warnings
+    if (1) {
+        value = PyDict_SetDefault(d, key, default_value);
+        if (unlikely(!value)) return NULL;
+        Py_INCREF(value);
+#else
     if (is_safe_type == 1 || (is_safe_type == -1 &&
         /* the following builtins presumably have repeatably safe and fast hash functions */
 #if PY_MAJOR_VERSION >= 3
@@ -178,6 +186,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
             value = default_value;
         }
         Py_INCREF(value);
+#endif
 #endif
     } else {
         value = __Pyx_PyObject_CallMethod2(d, PYIDENT("setdefault"), key, default_value);
