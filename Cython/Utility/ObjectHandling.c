@@ -655,3 +655,93 @@ bad:
 static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
     return (PyObject*) (((PyTypeObject*)type_obj)->tp_new((PyTypeObject*)type_obj, args, kwargs));
 }
+
+/////////////// PyList_GetSlice.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
+                PyObject* lst, Py_ssize_t start, Py_ssize_t stop);
+
+/////////////// PyList_GetSlice ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
+                PyObject* lst, Py_ssize_t start, Py_ssize_t stop) {
+    Py_ssize_t i, length;
+    PyListObject* np; 
+    PyObject **src, **dest;
+    PyObject *v;
+
+    length = PyList_GET_SIZE(lst);
+
+    if (start < 0) {
+        start += length;
+        if (start < 0)
+            start = 0;
+    }
+
+    if (stop < 0)
+        stop += length;    
+    else if (stop > length)
+        stop = length;
+
+    length = stop - start;
+    if (length <= 0)
+        return PyList_New(0);
+
+    np = (PyListObject*) PyList_New(length);
+    if (np == NULL)
+        return NULL;
+
+    src = ((PyListObject*)lst)->ob_item + start;
+    dest = np->ob_item;
+    for (i = 0; i < length; i++) {
+        v = src[i];
+        Py_INCREF(v);
+        dest[i] = v;
+    }
+    return (PyObject*)np;
+} 
+
+/////////////// PyTuple_GetSlice.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(
+                PyObject* ob, Py_ssize_t start, Py_ssize_t stop);
+
+/////////////// PyTuple_GetSlice ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(
+                PyObject* ob, Py_ssize_t start, Py_ssize_t stop) {
+    Py_ssize_t i, length;
+    PyTupleObject* np; 
+    PyObject **src, **dest;
+    PyObject *v;
+
+    length = PyTuple_GET_SIZE(ob);
+
+    if (start < 0) {
+        start += length;
+        if (start < 0)
+            start = 0;
+    }
+
+    if (stop < 0)
+        stop += length;    
+    else if (stop > length)
+        stop = length;
+
+    length = stop - start;
+    if (length <= 0)
+        return PyTuple_New(0);
+
+    np = (PyTupleObject*) PyTuple_New(length);
+    if (np == NULL)
+        return NULL;
+
+    src = ((PyTupleObject*)ob)->ob_item + start;
+    dest = np->ob_item;
+    for (i = 0; i < length; i++) {
+        v = src[i];
+        Py_INCREF(v);
+        dest[i] = v;
+    }
+    return (PyObject*)np;
+} 

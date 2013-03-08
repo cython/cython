@@ -1,21 +1,142 @@
-def slice_list(list l):
+def slice_list(list l, int start, int stop):
     """
-    >>> slice_list([1,2,3,4])
+    >>> slice_list([1,2,3,4], 1, 3)
     [2, 3]
+    >>> slice_list([1,2,3,4], 1, 7)
+    [2, 3, 4]
+    >>> slice_list([], 1, 3)
+    []
+    >>> slice_list([1], 1, 3)
+    []
+    >>> slice_list([1,2,3,4], -3, -1)
+    [2, 3]
+    >>> slice_list([1,2,3,4], -10, -1)
+    [1, 2, 3]
+    >>> slice_list([], -3, -1)
+    []
+    >>> slice_list([1], -3, -1)
+    []
     """
-    return l[1:3]
+    return l[start:stop]
+
+def slice_list2(list l, int start):
+    """
+    >>> slice_list2([1,2,3,4], 1)
+    [2, 3, 4]
+    >>> slice_list2([], 1)
+    []
+    >>> slice_list2([1], 1)
+    []
+    >>> slice_list2([1], 2)
+    []
+    >>> slice_list2([1,2,3,4], -3)
+    [2, 3, 4]
+    >>> slice_list2([1,2,3,4], -10)
+    [1, 2, 3, 4]
+    >>> slice_list2([], -3)
+    []
+    >>> slice_list2([1], -3)
+    [1]
+    """
+    return l[start:]
+
+def slice_list3(list l, int stop):
+    """
+    >>> slice_list3([1,2,3,4], 3)
+    [1, 2, 3]
+    >>> slice_list3([1,2,3,4], 7)
+    [1, 2, 3, 4]
+    >>> slice_list3([], 3)
+    []
+    >>> slice_list3([1], 3)
+    [1]
+    >>> slice_list3([1,2,3,4], -3)
+    [1]
+    >>> slice_list3([1,2,3,4], -10)
+    []
+    >>> slice_list3([], -1)
+    []
+    >>> slice_list3([1], -1)
+    []
+    >>> slice_list3([1, 2], -3)
+    []
+    """
+    return l[:stop]
 
 def slice_list_copy(list l):
-    cdef list retlist = l[1:3]
-    return retlist
+    """
+    >>> slice_list_copy([])
+    []
+    >>> slice_list_copy([1,2,3])
+    [1, 2, 3]
+    """
+    return l[:]
 
-def slice_tuple(tuple t):
+def slice_tuple_copy(tuple l):
     """
-    >>> l = [1,2,3,4]
-    >>> slice_tuple(tuple(l))
+    >>> slice_tuple_copy(())
+    ()
+    >>> slice_tuple_copy((1,2,3))
+    (1, 2, 3)
+    """
+    return l[:]
+
+def slice_tuple(tuple t, int start, int stop):
+    """
+    >>> slice_tuple((1,2,3,4), 1, 3)
     (2, 3)
+    >>> slice_tuple((1,2,3,4), 1, 7)
+    (2, 3, 4)
+    >>> slice_tuple((), 1, 3)
+    ()
+    >>> slice_tuple((1,), 1, 3)
+    ()
+    >>> slice_tuple((1,2,3,4), -3, -1)
+    (2, 3)
+    >>> slice_tuple((1,2,3,4), -10, -1)
+    (1, 2, 3)
+    >>> slice_tuple((), -3, -1)
+    ()
+    >>> slice_tuple((1,), -3, -1)
+    ()
     """
-    return t[1:3]
+    return t[start:stop]
+
+def slice_tuple2(tuple t, int start):
+    """
+    >>> slice_tuple2((1,2,3,4), 1)
+    (2, 3, 4)
+    >>> slice_tuple2((), 1)
+    ()
+    >>> slice_tuple2((1,), 1)
+    ()
+    >>> slice_tuple2((1,2,3,4), -3)
+    (2, 3, 4)
+    >>> slice_tuple2((1,2,3,4), -10)
+    (1, 2, 3, 4)
+    >>> slice_tuple2((), -3)
+    ()
+    >>> slice_tuple2((1,), -3)
+    (1,)
+    """
+    return t[start:]
+
+def slice_tuple3(tuple t, int stop):
+    """
+    >>> slice_tuple3((1,2,3,4), 3)
+    (1, 2, 3)
+    >>> slice_tuple3((1,2,3,4), 7)
+    (1, 2, 3, 4)
+    >>> slice_tuple3((), 3)
+    ()
+    >>> slice_tuple3((1,), 3)
+    (1,)
+    >>> slice_tuple3((1,2,3,4), -1)
+    (1, 2, 3)
+    >>> slice_tuple3((), -1)
+    ()
+    """
+    return t[:stop]
 
 def slice_list_assign_list(list l):
     """
