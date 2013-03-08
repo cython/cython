@@ -37,3 +37,23 @@ class TestCdefAttr(object):
     cdefval1 = cdefvar
     del cdefvar
     # cdefval2 = cdefvar       # FIXME: doesn't currently work ...
+
+
+class ForLoopInPyClass(object):
+    """
+    >>> ForLoopInPyClass.i    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    AttributeError: ...ForLoopInPyClass... has no attribute ...i...
+    >>> ForLoopInPyClass.k
+    0
+    >>> ForLoopInPyClass.m
+    1
+    """
+    for i in range(0):
+        pass
+
+    for k in range(1):
+        pass
+
+    for m in range(2):
+        pass

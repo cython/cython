@@ -5738,16 +5738,24 @@ class ForFromStatNode(LoopNode, StatNode):
                 target_node = ExprNodes.PyTempNode(self.target.pos, None)
                 target_node.allocate(code)
                 interned_cname = code.intern_identifier(self.target.entry.name)
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
-                code.putln("%s = __Pyx_GetModuleGlobalName(%s); %s" % (
+                if self.target.entry.scope.is_module_scope:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
+                    lookup_func = '__Pyx_GetModuleGlobalName(%s)'
+                else:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
+                    lookup_func = '__Pyx_GetNameInClass(%s, %%s)' % (
+                        self.target.entry.scope.namespace_cname)
+                code.putln("%s = %s; %s" % (
                     target_node.result(),
-                    interned_cname,
+                    lookup_func % interned_cname,
                     code.error_goto_if_null(target_node.result(), self.target.pos)))
                 code.put_gotref(target_node.result())
             else:
                 target_node = self.target
-            from_py_node = ExprNodes.CoerceFromPyTypeNode(self.loopvar_node.type, target_node, None)
+            from_py_node = ExprNodes.CoerceFromPyTypeNode(
+                self.loopvar_node.type, target_node, self.target.entry.scope)
             from_py_node.temp_code = loopvar_name
             from_py_node.generate_result_code(code)
             if self.target.entry.is_pyglobal:
