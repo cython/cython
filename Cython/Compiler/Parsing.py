@@ -5,10 +5,12 @@
 
 # This should be done automatically
 import cython
-cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
+cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
+               StringEncoding=object, lookup_unicodechar=object, re=object,
+               Future=object, Options=object, error=object, warning=object)
 
 import re
-import unicodedata
+from unicodedata import lookup as lookup_unicodechar
 
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
@@ -836,7 +838,7 @@ def p_string_literal(s, kind_override=None):
                     chrval = -1
                     if c == u'N':
                         try:
-                            chrval = ord(unicodedata.lookup(systr[3:-1]))
+                            chrval = ord(lookup_unicodechar(systr[3:-1]))
                         except KeyError:
                             s.error("Unknown Unicode character name %s" %
                                     repr(systr[3:-1]).lstrip('u'))
