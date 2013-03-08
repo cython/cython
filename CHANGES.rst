@@ -8,6 +8,13 @@ Cython Changelog
 Features added
 --------------
 
+* Access to non-cdef module globals and Python object attributes is faster.
+
+* ``Py_UNICODE*`` coerces from and to Python unicode strings.  This is
+  helpful when talking to Windows APIs, which use compatible wchar_t
+  arrays for strings.  Note that the ``Py_UNICODE`` type is otherwise
+  deprecated as of CPython 3.3.
+
 * ``isinstance(obj, basestring)`` is optimised.  In Python 3 it only tests
   for instances of ``str`` (i.e. Py2 ``unicode``).
 
