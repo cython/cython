@@ -1837,7 +1837,7 @@ class NameNode(AtomicExprNode):
             elif entry.is_pyclass_attr:
                 setter = 'PyObject_SetItem'
             else:
-                setter = 'PyObject_SetAttr'
+                assert False, repr(entry)
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -5171,8 +5171,10 @@ class AttributeNode(ExprNode):
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
             code.put_error_if_neg(self.pos,
-                'PyObject_SetAttr(%s, %s, %s)' % (
+                '__Pyx_PyObject_SetAttrStr(%s, %s, %s)' % (
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),
                     rhs.py_result()))
