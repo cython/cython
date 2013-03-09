@@ -10,7 +10,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject*, Py_ssize_t*
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
 #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
 
-#if PY_VERSION_HEX < 0x03000000
+#if PY_MAJOR_VERSION < 3
     #define __Pyx_PyStr_FromString        __Pyx_PyBytes_FromString
     #define __Pyx_PyStr_FromStringAndSize __Pyx_PyBytes_FromStringAndSize
 #else
@@ -55,7 +55,7 @@ static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
 #endif
 #define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
 
-#if PY_VERSION_HEX < 0x03000000 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+#if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
 static int __Pyx_init_sys_getdefaultencoding_params() {
     PyObject* sys = NULL;
@@ -103,7 +103,7 @@ bad:
 
 #if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
 #undef __PYX_DEFAULT_STRING_ENCODING
-#if PY_VERSION_HEX < 0x03000000
+#if PY_MAJOR_VERSION < 3
 static char* __PYX_DEFAULT_STRING_ENCODING;
 static int __Pyx_init_sys_getdefaultencoding_params() {
     PyObject* sys = NULL;
@@ -146,7 +146,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject* o) {
 static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
     if (
-#if PY_VERSION_HEX < 0x03000000 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+#if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
             __Pyx_sys_getdefaultencoding_not_ascii && 
 #endif
             PyUnicode_Check(o)) {
@@ -211,14 +211,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   PyNumberMethods *m;
   const char *name = NULL;
   PyObject *res = NULL;
-#if PY_VERSION_HEX < 0x03000000
+#if PY_MAJOR_VERSION < 3
   if (PyInt_Check(x) || PyLong_Check(x))
 #else
   if (PyLong_Check(x))
 #endif
     return Py_INCREF(x), x;
   m = Py_TYPE(x)->tp_as_number;
-#if PY_VERSION_HEX < 0x03000000
+#if PY_MAJOR_VERSION < 3
   if (m && m->nb_int) {
     name = "int";
     res = PyNumber_Int(x);
@@ -234,7 +234,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   }
 #endif
   if (res) {
-#if PY_VERSION_HEX < 0x03000000
+#if PY_MAJOR_VERSION < 3
     if (!PyInt_Check(res) && !PyLong_Check(res)) {
 #else
     if (!PyLong_Check(res)) {
