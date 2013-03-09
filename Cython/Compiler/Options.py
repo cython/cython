@@ -99,7 +99,7 @@ directive_defaults = {
     'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
     'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
     'c_string_type': 'bytes',
-    'c_string_encoding': '',
+    'c_string_encoding': 'default',
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
