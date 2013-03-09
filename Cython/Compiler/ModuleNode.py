@@ -562,8 +562,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if c_string_type != 'bytes' and not c_string_encoding:
             error(self.pos, "a default encoding must be provided if c_string_type != bytes")
         code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_ASCII %s' % int(c_string_encoding == 'ascii'))
-        code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT %s' % int(c_string_encoding == 'default'))
-        code.putln('#define __PYX_DEFAULT_STRING_ENCODING "%s"' % c_string_encoding)
+        if c_string_encoding == 'default':
+            code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT 1')
+        else:
+            code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT 0')
+            code.putln('#define __PYX_DEFAULT_STRING_ENCODING "%s"' % c_string_encoding)
         code.putln('#define __Pyx_PyObject_FromString __Pyx_Py%s_FromString' % c_string_type.title())
         code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_type.title())
         code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])

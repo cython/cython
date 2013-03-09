@@ -8,7 +8,6 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject*, Py_ssize_t*
 #define __Pyx_PyBytes_FromString        PyBytes_FromString
 #define __Pyx_PyBytes_FromStringAndSize PyBytes_FromStringAndSize
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
-#define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
 
 #if PY_MAJOR_VERSION < 3
     #define __Pyx_PyStr_FromString        __Pyx_PyBytes_FromString
@@ -101,10 +100,16 @@ bad:
 }
 #endif 
 
+#if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT && PY_MAJOR_VERSION >= 3
+#define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeUTF8(c_str, size, NULL)
+#else
+#define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
+
+// __PYX_DEFAULT_STRING_ENCODING is either a user provided string constant
+// or we need to look it up here
 #if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
-#undef __PYX_DEFAULT_STRING_ENCODING
-#if PY_MAJOR_VERSION < 3
 static char* __PYX_DEFAULT_STRING_ENCODING;
+
 static int __Pyx_init_sys_getdefaultencoding_params() {
     PyObject* sys = NULL;
     PyObject* default_encoding = NULL;
@@ -116,19 +121,16 @@ static int __Pyx_init_sys_getdefaultencoding_params() {
     default_encoding_c = PyBytes_AS_STRING(default_encoding);
     __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c));
     strcpy(__PYX_DEFAULT_STRING_ENCODING, default_encoding_c);
-    Py_XDECREF(sys);
-    Py_XDECREF(default_encoding);
+    Py_DECREF(sys);
+    Py_DECREF(default_encoding);
     return 0;
 bad:
     Py_XDECREF(sys);
     Py_XDECREF(default_encoding);
     return -1;
 }
-#else
-#define __PYX_DEFAULT_STRING_ENCODING "utf-8"
 #endif
 #endif
-
 
 /////////////// TypeConversions ///////////////
 
