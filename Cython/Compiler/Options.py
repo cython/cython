@@ -148,6 +148,41 @@ def one_of(*args):
             return value
     return validate
 
+
+def normalise_encoding_name(option_name, encoding):
+    """
+    >>> normalise_encoding_name('c_string_encoding', 'ascii')
+    'ascii'
+    >>> normalise_encoding_name('c_string_encoding', 'AsCIi')
+    'ascii'
+    >>> normalise_encoding_name('c_string_encoding', 'us-ascii')
+    'ascii'
+    >>> normalise_encoding_name('c_string_encoding', 'utF8')
+    'utf8'
+    >>> normalise_encoding_name('c_string_encoding', 'utF-8')
+    'utf8'
+    >>> normalise_encoding_name('c_string_encoding', 'deFAuLT')
+    'default'
+    >>> normalise_encoding_name('c_string_encoding', 'default')
+    'default'
+    >>> normalise_encoding_name('c_string_encoding', 'SeriousLyNoSuch--Encoding')
+    'SeriousLyNoSuch--Encoding'
+    """
+    if not encoding:
+        return ''
+    if encoding.lower() in ('default', 'ascii', 'utf8'):
+        return encoding.lower()
+    import codecs
+    try:
+        decoder = codecs.getdecoder(encoding)
+    except LookupError:
+        return encoding  # may exists at runtime ...
+    for name in ('ascii', 'utf8'):
+        if codecs.getdecoder(name) == decoder:
+            return name
+    return encoding
+
+
 # Override types possibilities above, if needed
 directive_types = {
     'final' : bool,  # final cdef classes and methods
@@ -160,8 +195,9 @@ directive_types = {
     'returns' : type,
     'set_initial_path': str,
     'freelist': int,
-    'c_string_type': one_of('bytes', 'str', 'unicoode'),
-    }
+    'c_string_type': one_of('bytes', 'str', 'unicode'),
+    'c_string_encoding': normalise_encoding_name,
+}
 
 for key, val in directive_defaults.items():
     if key not in directive_types:
@@ -197,6 +233,17 @@ def parse_directive_value(name, value, relaxed_bool=False):
        ...
     ValueError: boundscheck directive must be set to True or False, got 'true'
 
+    >>> parse_directive_value('c_string_encoding', 'us-ascii')
+    'ascii'
+    >>> parse_directive_value('c_string_type', 'str')
+    'str'
+    >>> parse_directive_value('c_string_type', 'bytes')
+    'bytes'
+    >>> parse_directive_value('c_string_type', 'unicode')
+    'unicode'
+    >>> parse_directive_value('c_string_type', 'unnicode')
+    Traceback (most recent call last):
+    ValueError: c_string_type directive must be one of ('bytes', 'str', 'unicode'), got 'unnicode'
     """
     type = directive_types.get(name)
     if not type: return None
