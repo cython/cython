@@ -1404,11 +1404,6 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
 #endif
     if (likely(PyLong_Check(x))) {
         if (is_unsigned) {
-            if (unlikely(Py_SIZE(x) < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to %(type)s");
-                return (%(type)s)-1;
-            }
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
             if (sizeof(digit) <= sizeof(%(type)s)) {
                 switch (Py_SIZE(x)) {
@@ -1417,6 +1412,11 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
                 }
             }
 #endif
+            if (unlikely(Py_SIZE(x) < 0)) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "can't convert negative value to %(type)s");
+                return (%(type)s)-1;
+            }
             return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
         } else {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
