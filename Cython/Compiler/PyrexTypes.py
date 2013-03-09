@@ -1412,11 +1412,7 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
             switch (Py_SIZE(x)) {
                 case  0: return 0;
-                case  1: {
-                    digit d = ((PyLongObject*)x)->ob_digit[0];
-                    if (sizeof(digit) < sizeof(%(type)s) || likely(d == (digit)(%(type)s)d))
-                        return (%(type)s)d;
-                }
+                case  1: return (%(type)s) ((PyLongObject*)x)->ob_digit[0];
             }
 #endif
             return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
@@ -1424,16 +1420,8 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
             switch (Py_SIZE(x)) {
                 case  0: return 0;
-                case  1: {
-                    digit d = ((PyLongObject*)x)->ob_digit[0];
-                    if (sizeof(digit) < sizeof(%(type)s) || likely((((%(type)s)d) > 0) && (d == (digit)(%(type)s)d)))
-                        return (%(type)s)d;
-                }
-                case -1: {
-                    digit d = ((PyLongObject*)x)->ob_digit[0];
-                    if (sizeof(digit) < sizeof(%(type)s) || likely((((%(type)s)d) > 0) && (d == (digit)(%(type)s)d)))
-                        return -(%(type)s)d;
-                }
+                case  1: return +(%(type)s) ((PyLongObject*)x)->ob_digit[0];
+                case -1: return -(%(type)s) ((PyLongObject*)x)->ob_digit[0];
             }
 #endif
             return (%(type)s)PyLong_As%(TypeName)s(x);
