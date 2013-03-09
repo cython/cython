@@ -280,11 +280,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 
 static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
    unsigned PY_LONG_LONG val = __Pyx_PyInt_AsUnsignedLongLong(x);
-   if (unlikely(val == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())) {
-       return (size_t)-1;
-   } else if (unlikely(val != (unsigned PY_LONG_LONG)(size_t)val)) {
-       PyErr_SetString(PyExc_OverflowError,
-                       "value too large to convert to size_t");
+   if (unlikely(val != (unsigned PY_LONG_LONG)(size_t)val)) {
+       if ((val != (unsigned PY_LONG_LONG)-1) || !PyErr_Occurred())
+           PyErr_SetString(PyExc_OverflowError,
+                           "value too large to convert to size_t");
        return (size_t)-1;
    }
    return (size_t)val;
