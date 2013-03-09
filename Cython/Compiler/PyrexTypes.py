@@ -1388,7 +1388,7 @@ impl="""
 static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
-#if PY_VERSION_HEX < 0x03000000
+#if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
         long val = PyInt_AS_LONG(x);
         if (is_unsigned && unlikely(val < 0)) {
@@ -1461,7 +1461,7 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
         #else
         %(type)s val;
         PyObject *v = __Pyx_PyNumber_Int(x);
-        #if PY_VERSION_HEX < 0x03000000
+        #if PY_MAJOR_VERSION < 3
         if (likely(v) && !PyLong_Check(v)) {
             PyObject *tmp = v;
             v = PyNumber_Long(tmp);
