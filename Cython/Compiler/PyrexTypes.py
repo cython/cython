@@ -1386,7 +1386,9 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *)
 """,
 impl="""
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
 #include "longintrepr.h"
+#endif
 #endif
 static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
@@ -1405,12 +1407,14 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
     if (likely(PyLong_Check(x))) {
         if (is_unsigned) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
             if (sizeof(digit) <= sizeof(%(type)s)) {
                 switch (Py_SIZE(x)) {
                     case  0: return 0;
                     case  1: return (%(type)s) ((PyLongObject*)x)->ob_digit[0];
                 }
             }
+#endif
 #endif
             if (unlikely(Py_SIZE(x) < 0)) {
                 PyErr_SetString(PyExc_OverflowError,
@@ -1420,6 +1424,7 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
             return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
         } else {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
             if (sizeof(digit) <= sizeof(%(type)s)) {
                 switch (Py_SIZE(x)) {
                     case  0: return 0;
@@ -1427,6 +1432,7 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
                     case -1: return -(%(type)s) ((PyLongObject*)x)->ob_digit[0];
                 }
             }
+#endif
 #endif
             return (%(type)s)PyLong_As%(TypeName)s(x);
         }
