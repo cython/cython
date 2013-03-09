@@ -1945,13 +1945,20 @@ class NameNode(AtomicExprNode):
         elif self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
-            del_code = 'PyObject_DelItem(%s, %s)' % (namespace, interned_cname)
             if ignore_nonexisting:
-                code.putln('if (unlikely(%s < 0)) { if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) PyErr_Clear(); else %s }' % (
-                    del_code,
-                    code.error_goto(self.pos)))
+                key_error_code = 'PyErr_Clear(); else'
             else:
-                code.put_error_if_neg(self.pos, del_code)
+                # minor hack: fake a NameError on KeyError
+                key_error_code = (
+                    '{ PyErr_Clear(); PyErr_Format(PyExc_NameError, "name \'%%s\' is not defined", "%s"); }' %
+                    self.entry.name)
+            code.putln(
+                'if (unlikely(PyObject_DelItem(%s, %s) < 0)) {'
+                ' if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) %s'
+                ' %s '
+                '}' % (namespace, interned_cname,
+                       key_error_code,
+                       code.error_goto(self.pos)))
         elif self.entry.is_pyglobal:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))

@@ -57,3 +57,21 @@ class ForLoopInPyClass(object):
 
     for m in range(2):
         pass
+
+
+def del_in_class(x):
+    """
+    >>> del_in_class(True)
+    no error
+    >>> del_in_class(False)
+    NameError
+    """
+    try:
+        class Test(object):
+            if x:
+                attr = 1
+            del attr
+    except NameError:
+        print("NameError")
+    else:
+        print("no error")
