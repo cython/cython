@@ -1953,8 +1953,10 @@ class NameNode(AtomicExprNode):
             else:
                 code.put_error_if_neg(self.pos, del_code)
         elif self.entry.is_pyglobal:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
             interned_cname = code.intern_identifier(self.entry.name)
-            del_code = 'PyObject_DelAttr(%s, %s)' % (
+            del_code = '__Pyx_PyObject_DelAttrStr(%s, %s)' % (
                 Naming.module_cname, interned_cname)
             if ignore_nonexisting:
                 code.putln('if (unlikely(%s < 0)) { if (likely(PyErr_ExceptionMatches(PyExc_AttributeError))) PyErr_Clear(); else %s }' % (
@@ -5210,10 +5212,12 @@ class AttributeNode(ExprNode):
 
     def generate_deletion_code(self, code, ignore_nonexisting=False):
         self.obj.generate_evaluation_code(code)
-        if self.is_py_attr or (isinstance(self.entry.scope, Symtab.PropertyScope)
+        if self.is_py_attr or (self.entry.scope.is_property_scope
                                and u'__del__' in self.entry.scope.entries):
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
             code.put_error_if_neg(self.pos,
-                'PyObject_DelAttr(%s, %s)' % (
+                '__Pyx_PyObject_DelAttrStr(%s, %s)' % (
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute)))
         else:
