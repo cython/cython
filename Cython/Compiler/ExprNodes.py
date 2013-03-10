@@ -3645,9 +3645,29 @@ class SliceIndexNode(ExprNode):
 
         elif self.base.type is unicode_type:
             code.globalstate.use_utility_code( 
-                          UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
+                    UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
             code.putln(
                 "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
+                    result,
+                    base_result,
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
+        elif self.base.type is list_type:
+            code.globalstate.use_utility_code( 
+                    UtilityCode.load_cached("PyList_GetSlice", "ObjectHandling.c")) 
+            code.putln(
+                "%s = __Pyx_PyList_GetSlice(%s, %s, %s); %s" % (
+                    result,
+                    base_result,
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
+        elif self.base.type is tuple_type:
+            code.globalstate.use_utility_code( 
+                    UtilityCode.load_cached("PyTuple_GetSlice", "ObjectHandling.c")) 
+            code.putln(
+                "%s = __Pyx_PyTuple_GetSlice(%s, %s, %s); %s" % (
                     result,
                     base_result,
                     start_code,
