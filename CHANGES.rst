@@ -34,7 +34,7 @@ Features added
   are automatically mapped to the equivalent keys/values/items methods in Python 3
   for typed dictionaries.
 
-* Unicode slicing is substantially faster.
+* Slicing unicode strings, lists and tuples is faster.
 
 * list.append() is faster on average.
 
