@@ -429,7 +429,7 @@ static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop
     *_stop = stop;
 }
 
-#if __STDC_VERSION__ >= 199901L
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 static CYTHON_INLINE void Pyx_copy_object_array(PyObject** restrict src, PyObject** restrict dest, Py_ssize_t length) {
 #else
 static CYTHON_INLINE void Pyx_copy_object_array(PyObject** src, PyObject** dest, Py_ssize_t length) {
