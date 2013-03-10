@@ -430,9 +430,9 @@ static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop
 }
 
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-static CYTHON_INLINE void Pyx_copy_object_array(PyObject** restrict src, PyObject** restrict dest, Py_ssize_t length) {
+static CYTHON_INLINE void __Pyx_copy_object_array(PyObject** restrict src, PyObject** restrict dest, Py_ssize_t length) {
 #else
-static CYTHON_INLINE void Pyx_copy_object_array(PyObject** src, PyObject** dest, Py_ssize_t length) {
+static CYTHON_INLINE void __Pyx_copy_object_array(PyObject** src, PyObject** dest, Py_ssize_t length) {
 #endif
     PyObject *v;
     Py_ssize_t i;
@@ -453,7 +453,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
     dest = PyList_New(length);
     if (unlikely(!dest))
         return NULL;
-    Pyx_copy_object_array(
+    __Pyx_copy_object_array(
         ((PyListObject*)src)->ob_item + start,
         ((PyListObject*)dest)->ob_item,
         length);
@@ -471,7 +471,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(
     dest = PyTuple_New(length);
     if (unlikely(!dest))
         return NULL;
-    Pyx_copy_object_array(
+    __Pyx_copy_object_array(
         ((PyTupleObject*)src)->ob_item + start,
         ((PyTupleObject*)dest)->ob_item,
         length);
