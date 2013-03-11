@@ -3241,6 +3241,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             node.iterator.sequence = sequence.as_tuple()
         return node
 
+    def visit_WhileStatNode(self, node):
+        self.visitchildren(node)
+        if node.condition.has_constant_result():
+            if node.condition.constant_result:
+                node.else_clause = None
+            else:
+                return node.else_clause
+        return node
+
     def _find_genexpr_yield_stat(self, node):
         body_node_types = (Nodes.ForInStatNode, Nodes.IfStatNode)
         while isinstance(node, body_node_types):

@@ -143,3 +143,45 @@ def str_in_and_not_in():
     """
     if 'a' in 'abc' and 'b' in 'abc' and 'c' in 'abc' and 'd' not in 'abc': return True
     else: return False
+
+
+@cython.test_fail_if_path_exists(
+    "//WhileStatNode",
+)
+def while_false():
+    """
+    >>> while_false()
+    """
+    while 1 == 0:
+        return False
+
+
+@cython.test_fail_if_path_exists(
+    "//WhileStatNode",
+    )
+def while_false_else():
+    """
+    >>> while_false_else()
+    True
+    """
+    while 1 == 0:
+        return False
+    else:
+        return True
+
+
+@cython.test_fail_if_path_exists(
+    "//WhileStatNode//PrintStatNode",
+)
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+)
+def while_true():
+    """
+    >>> while_true()
+    True
+    """
+    while 1 == 1:
+        return True
+    else:
+        print("FAIL")
