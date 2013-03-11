@@ -37,7 +37,7 @@ class TestMethodDispatcherTransform(TransformTest):
     def test_builtin_method(self):
         calls = [0]
         class Test(MethodDispatcherTransform):
-            def _handle_simple_method_dict_get(self, node, args, unbound):
+            def _handle_simple_method_dict_get(self, node, func, args, unbound):
                 calls[0] += 1
                 return node
 
@@ -48,10 +48,10 @@ class TestMethodDispatcherTransform(TransformTest):
     def test_binop_method(self):
         calls = {'bytes': 0, 'object': 0}
         class Test(MethodDispatcherTransform):
-            def _handle_simple_method_bytes___mul__(self, node, args, unbound):
+            def _handle_simple_method_bytes___mul__(self, node, func, args, unbound):
                 calls['bytes'] += 1
                 return node
-            def _handle_simple_method_object___mul__(self, node, args, unbound):
+            def _handle_simple_method_object___mul__(self, node, func, args, unbound):
                 calls['object'] += 1
                 return node
 

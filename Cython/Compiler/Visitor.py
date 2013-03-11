@@ -517,7 +517,7 @@ class MethodDispatcherTransform(EnvTransform):
                 type_name = "object"  # safety measure
             node = self._dispatch_to_method_handler(
                 special_method_name, None, False, type_name,
-                node, [operand1, operand2], None)
+                node, None, [operand1, operand2], None)
         return node
 
     def visit_UnopNode(self, node):
@@ -532,7 +532,7 @@ class MethodDispatcherTransform(EnvTransform):
                 type_name = "object"  # safety measure
             node = self._dispatch_to_method_handler(
                 special_method_name, None, False, type_name,
-                node, [operand], None)
+                node, None, [operand], None)
         return node
 
     ### dispatch to specific handlers
@@ -544,6 +544,22 @@ class MethodDispatcherTransform(EnvTransform):
             handler = getattr(self, '_handle_any_%s' % match_name, None)
         return handler
 
+    def _delegate_to_assigned_value(self, node, function, arg_list, kwargs):
+        assignment = function.cf_state[0]
+        value = assignment.rhs
+        if value.is_name:
+            if not value.entry or len(value.entry.cf_assignments) > 1:
+                # the variable might have been reassigned => play safe
+                return node
+        elif value.is_attribute:
+            if not value.obj.entry or len(value.obj.entry.cf_assignments) > 1:
+                # the underlying variable might have been reassigned => play safe
+                return node
+        else:
+            return node
+        return self._dispatch_to_handler(
+            node, value, arg_list, kwargs)
+
     def _dispatch_to_handler(self, node, function, arg_list, kwargs):
         if function.is_name:
             # we only consider functions that are either builtin
@@ -551,18 +567,24 @@ class MethodDispatcherTransform(EnvTransform):
             # into a C function call (defined in the builtin scope)
             if not function.entry:
                 return node
-            is_builtin = function.entry.is_builtin or\
-                         function.entry is self.current_env().builtin_scope().lookup_here(function.name)
+            is_builtin = (
+                function.entry.is_builtin or
+                function.entry is self.current_env().builtin_scope().lookup_here(function.name))
             if not is_builtin:
+                if function.cf_state and function.cf_state.is_single:
+                    # we know the value of the variable
+                    # => see if it's usable instead
+                    return self._delegate_to_assigned_value(
+                        node, function, arg_list, kwargs)
                 return node
             function_handler = self._find_handler(
                 "function_%s" % function.name, kwargs)
             if function_handler is None:
                 return node
             if kwargs:
-                return function_handler(node, arg_list, kwargs)
+                return function_handler(node, function, arg_list, kwargs)
             else:
-                return function_handler(node, arg_list)
+                return function_handler(node, function, arg_list)
         elif function.is_attribute and function.type.is_pyobject:
             attr_name = function.attribute
             self_arg = function.obj
@@ -582,13 +604,13 @@ class MethodDispatcherTransform(EnvTransform):
                 type_name = "object"  # safety measure
             return self._dispatch_to_method_handler(
                 attr_name, self_arg, is_unbound_method, type_name,
-                node, arg_list, kwargs)
+                node, function, arg_list, kwargs)
         else:
             return node
 
     def _dispatch_to_method_handler(self, attr_name, self_arg,
                                     is_unbound_method, type_name,
-                                    node, arg_list, kwargs):
+                                    node, function, arg_list, kwargs):
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:
@@ -601,9 +623,11 @@ class MethodDispatcherTransform(EnvTransform):
         if self_arg is not None:
             arg_list = [self_arg] + list(arg_list)
         if kwargs:
-            return method_handler(node, arg_list, is_unbound_method, kwargs)
+            return method_handler(
+                node, function, arg_list, is_unbound_method, kwargs)
         else:
-            return method_handler(node, arg_list, is_unbound_method)
+            return method_handler(
+                node, function, arg_list, is_unbound_method)
 
 
 class RecursiveNodeReplacer(VisitorTransform):

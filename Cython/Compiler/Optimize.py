@@ -1856,7 +1856,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
             ])
 
-    def _handle_simple_function_dict(self, node, pos_args):
+    def _handle_simple_function_dict(self, node, function, pos_args):
         """Replace dict(some_dict) by PyDict_Copy(some_dict).
         """
         if len(pos_args) != 1:
@@ -1876,7 +1876,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("list", Builtin.list_type, None)
             ])
 
-    def _handle_simple_function_tuple(self, node, pos_args):
+    def _handle_simple_function_tuple(self, node, function, pos_args):
         """Replace tuple([...]) by a call to PyList_AsTuple.
         """
         if len(pos_args) != 1:
@@ -1902,7 +1902,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         exception_value = "((double)-1)",
         exception_check = True)
 
-    def _handle_simple_function_set(self, node, pos_args):
+    def _handle_simple_function_set(self, node, function, pos_args):
         if len(pos_args) == 1 and isinstance(pos_args[0], (ExprNodes.ListNode,
                                                            ExprNodes.TupleNode)):
             # We can optimise set([x,y,z]) safely into a set literal,
@@ -1923,7 +1923,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             return result
         return node
 
-    def _handle_simple_function_float(self, node, pos_args):
+    def _handle_simple_function_float(self, node, function, pos_args):
         """Transform float() into either a C type cast or a faster C
         function call.
         """
@@ -1952,7 +1952,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             utility_code = load_c_utility('pyobject_as_double'),
             py_name = "float")
 
-    def _handle_simple_function_bool(self, node, pos_args):
+    def _handle_simple_function_bool(self, node, function, pos_args):
         """Transform bool(x) into a type coercion to a boolean.
         """
         if len(pos_args) == 0:
@@ -2000,7 +2000,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
     _ext_types_with_pysize = set(["cpython.array.array"])
 
-    def _handle_simple_function_len(self, node, pos_args):
+    def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),
         len(Py_UNICODE) by the equivalent Py_UNICODE_strlen() and
         len(known_builtin_type) by an equivalent C-API call.
@@ -2051,7 +2051,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None)
             ])
 
-    def _handle_simple_function_type(self, node, pos_args):
+    def _handle_simple_function_type(self, node, function, pos_args):
         """Replace type(o) by a macro call to Py_TYPE(o).
         """
         if len(pos_args) != 1:
@@ -2067,7 +2067,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.py_object_type, None)
             ])
 
-    def _handle_simple_function_isinstance(self, node, pos_args):
+    def _handle_simple_function_isinstance(self, node, function, pos_args):
         """Replace isinstance() checks against builtin types by the
         corresponding C-API call.
         """
@@ -2122,7 +2122,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             test_node = UtilNodes.EvalWithTempExprNode(temp, test_node)
         return test_node
 
-    def _handle_simple_function_ord(self, node, pos_args):
+    def _handle_simple_function_ord(self, node, function, pos_args):
         """Unpack ord(Py_UNICODE) and ord('X').
         """
         if len(pos_args) != 1:
@@ -2165,10 +2165,11 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("kwargs", Builtin.dict_type, None),
         ])
 
-    def _handle_any_slot__new__(self, node, args, is_unbound_method, kwargs=None):
+    def _handle_any_slot__new__(self, node, function, args,
+                                is_unbound_method, kwargs=None):
         """Replace 'exttype.__new__(exttype, ...)' by a call to exttype->tp_new()
         """
-        obj = node.function.obj
+        obj = function.obj
         if not is_unbound_method or len(args) < 1:
             return node
         type_arg = args[0]
@@ -2244,7 +2245,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
             ])
 
-    def _handle_simple_method_object_append(self, node, args, is_unbound_method):
+    def _handle_simple_method_object_append(self, node, function, args, is_unbound_method):
         """Optimistic optimisation as X.append() is almost always
         referring to a list.
         """
@@ -2270,7 +2271,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_long_type, None),
             ])
 
-    def _handle_simple_method_object_pop(self, node, args, is_unbound_method):
+    def _handle_simple_method_object_pop(self, node, function, args, is_unbound_method):
         """Optimistic optimisation as X.pop([n]) is almost always
         referring to a list.
         """
@@ -2312,13 +2313,13 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             ],
         exception_value = "-1")
 
-    def _handle_simple_method_list_sort(self, node, args, is_unbound_method):
+    def _handle_simple_method_list_sort(self, node, function, args, is_unbound_method):
         """Call PyList_Sort() instead of the 0-argument l.sort().
         """
         if len(args) != 1:
             return node
         return self._substitute_method_call(
-            node, "PyList_Sort", self.single_param_func_type,
+            node, function, "PyList_Sort", self.single_param_func_type,
             'sort', is_unbound_method, args).coerce_to(node.type, self.current_env)
 
     Pyx_PyDict_GetItem_func_type = PyrexTypes.CFuncType(
@@ -2328,7 +2329,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
             ])
 
-    def _handle_simple_method_dict_get(self, node, args, is_unbound_method):
+    def _handle_simple_method_dict_get(self, node, function, args, is_unbound_method):
         """Replace dict.get() by a call to PyDict_GetItem().
         """
         if len(args) == 2:
@@ -2338,7 +2339,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             return node
 
         return self._substitute_method_call(
-            node, "__Pyx_PyDict_GetItemDefault", self.Pyx_PyDict_GetItem_func_type,
+            node, function,
+            "__Pyx_PyDict_GetItemDefault", self.Pyx_PyDict_GetItem_func_type,
             'get', is_unbound_method, args,
             may_return_none = True,
             utility_code = load_c_utility("dict_getitem_default"))
@@ -2351,7 +2353,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("is_safe_type", PyrexTypes.c_int_type, None),
             ])
 
-    def _handle_simple_method_dict_setdefault(self, node, args, is_unbound_method):
+    def _handle_simple_method_dict_setdefault(self, node, function, args, is_unbound_method):
         """Replace dict.setdefault() by calls to PyDict_GetItem() and PyDict_SetItem().
         """
         if len(args) == 2:
@@ -2371,7 +2373,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             node.pos, value=is_safe_type, constant_result=is_safe_type))
 
         return self._substitute_method_call(
-            node, "__Pyx_PyDict_SetDefault", self.Pyx_PyDict_SetDefault_func_type,
+            node, function,
+            "__Pyx_PyDict_SetDefault", self.Pyx_PyDict_SetDefault_func_type,
             'setdefault', is_unbound_method, args,
             may_return_none=True,
             utility_code=load_c_utility('dict_setdefault'))
@@ -2384,7 +2387,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
             ])
 
-    def _inject_unicode_predicate(self, node, args, is_unbound_method):
+    def _inject_unicode_predicate(self, node, function, args, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
         ustring = args[0]
@@ -2392,7 +2395,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                not ustring.arg.type.is_unicode_char:
             return node
         uchar = ustring.arg
-        method_name = node.function.attribute
+        method_name = function.attribute
         if method_name == 'istitle':
             # istitle() doesn't directly map to Py_UNICODE_ISTITLE()
             utility_code = UtilityCode.load_cached(
@@ -2402,7 +2405,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             utility_code = None
             function_name = 'Py_UNICODE_%s' % method_name.upper()
         func_call = self._substitute_method_call(
-            node, function_name, self.PyUnicode_uchar_predicate_func_type,
+            node, function,
+            function_name, self.PyUnicode_uchar_predicate_func_type,
             method_name, is_unbound_method, [uchar],
             utility_code = utility_code)
         if node.type.is_pyobject:
@@ -2424,7 +2428,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
             ])
 
-    def _inject_unicode_character_conversion(self, node, args, is_unbound_method):
+    def _inject_unicode_character_conversion(self, function, node, args, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
         ustring = args[0]
@@ -2432,10 +2436,11 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                not ustring.arg.type.is_unicode_char:
             return node
         uchar = ustring.arg
-        method_name = node.function.attribute
+        method_name = function.attribute
         function_name = 'Py_UNICODE_TO%s' % method_name.upper()
         func_call = self._substitute_method_call(
-            node, function_name, self.PyUnicode_uchar_conversion_func_type,
+            node, function,
+            function_name, self.PyUnicode_uchar_conversion_func_type,
             method_name, is_unbound_method, [uchar])
         if node.type.is_pyobject:
             func_call = func_call.coerce_to_pyobject(self.current_env)
@@ -2451,7 +2456,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("keepends", PyrexTypes.c_bint_type, None),
             ])
 
-    def _handle_simple_method_unicode_splitlines(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_splitlines(self, function, node, args, is_unbound_method):
         """Replace unicode.splitlines(...) by a direct call to the
         corresponding C-API function.
         """
@@ -2461,7 +2466,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         self._inject_bint_default_argument(node, args, 1, False)
 
         return self._substitute_method_call(
-            node, "PyUnicode_Splitlines", self.PyUnicode_Splitlines_func_type,
+            node, function,
+            "PyUnicode_Splitlines", self.PyUnicode_Splitlines_func_type,
             'splitlines', is_unbound_method, args)
 
     PyUnicode_Split_func_type = PyrexTypes.CFuncType(
@@ -2472,7 +2478,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             ]
         )
 
-    def _handle_simple_method_unicode_split(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_split(self, node, function, args, is_unbound_method):
         """Replace unicode.split(...) by a direct call to the
         corresponding C-API function.
         """
@@ -2485,7 +2491,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             node, args, 2, PyrexTypes.c_py_ssize_t_type, "-1")
 
         return self._substitute_method_call(
-            node, "PyUnicode_Split", self.PyUnicode_Split_func_type,
+            node, function,
+            "PyUnicode_Split", self.PyUnicode_Split_func_type,
             'split', is_unbound_method, args)
 
     PyString_Tailmatch_func_type = PyrexTypes.CFuncType(
@@ -2498,17 +2505,17 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             ],
         exception_value = '-1')
 
-    def _handle_simple_method_unicode_endswith(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_endswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'unicode', 'endswith',
+            node, function, args, is_unbound_method, 'unicode', 'endswith',
             unicode_tailmatch_utility_code, +1)
 
-    def _handle_simple_method_unicode_startswith(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_startswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'unicode', 'startswith',
+            node, function, args, is_unbound_method, 'unicode', 'startswith',
             unicode_tailmatch_utility_code, -1)
 
-    def _inject_tailmatch(self, node, args, is_unbound_method, type_name,
+    def _inject_tailmatch(self, node, function, args, is_unbound_method, type_name,
                           method_name, utility_code, direction):
         """Replace unicode.startswith(...) and unicode.endswith(...)
         by a direct call to the corresponding C-API function.
@@ -2524,7 +2531,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             node.pos, value=str(direction), type=PyrexTypes.c_int_type))
 
         method_call = self._substitute_method_call(
-            node, "__Pyx_Py%s_Tailmatch" % type_name.capitalize(),
+            node, function,
+            "__Pyx_Py%s_Tailmatch" % type_name.capitalize(),
             self.PyString_Tailmatch_func_type,
             method_name, is_unbound_method, args,
             utility_code = utility_code)
@@ -2540,15 +2548,15 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             ],
         exception_value = '-2')
 
-    def _handle_simple_method_unicode_find(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_find(self, node, function, args, is_unbound_method):
         return self._inject_unicode_find(
-            node, args, is_unbound_method, 'find', +1)
+            node, function, args, is_unbound_method, 'find', +1)
 
-    def _handle_simple_method_unicode_rfind(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_rfind(self, node, function, args, is_unbound_method):
         return self._inject_unicode_find(
-            node, args, is_unbound_method, 'rfind', -1)
+            node, function, args, is_unbound_method, 'rfind', -1)
 
-    def _inject_unicode_find(self, node, args, is_unbound_method,
+    def _inject_unicode_find(self, node, function, args, is_unbound_method,
                              method_name, direction):
         """Replace unicode.find(...) and unicode.rfind(...) by a
         direct call to the corresponding C-API function.
@@ -2564,7 +2572,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             node.pos, value=str(direction), type=PyrexTypes.c_int_type))
 
         method_call = self._substitute_method_call(
-            node, "PyUnicode_Find", self.PyUnicode_Find_func_type,
+            node, function, "PyUnicode_Find", self.PyUnicode_Find_func_type,
             method_name, is_unbound_method, args)
         return method_call.coerce_to_pyobject(self.current_env())
 
@@ -2577,7 +2585,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             ],
         exception_value = '-1')
 
-    def _handle_simple_method_unicode_count(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_count(self, node, function, args, is_unbound_method):
         """Replace unicode.count(...) by a direct call to the
         corresponding C-API function.
         """
@@ -2590,7 +2598,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             node, args, 3, PyrexTypes.c_py_ssize_t_type, "PY_SSIZE_T_MAX")
 
         method_call = self._substitute_method_call(
-            node, "PyUnicode_Count", self.PyUnicode_Count_func_type,
+            node, function, "PyUnicode_Count", self.PyUnicode_Count_func_type,
             'count', is_unbound_method, args)
         return method_call.coerce_to_pyobject(self.current_env())
 
@@ -2602,7 +2610,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("maxcount", PyrexTypes.c_py_ssize_t_type, None),
             ])
 
-    def _handle_simple_method_unicode_replace(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_replace(self, node, function, args, is_unbound_method):
         """Replace unicode.replace(...) by a direct call to the
         corresponding C-API function.
         """
@@ -2613,7 +2621,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             node, args, 3, PyrexTypes.c_py_ssize_t_type, "-1")
 
         return self._substitute_method_call(
-            node, "PyUnicode_Replace", self.PyUnicode_Replace_func_type,
+            node, function, "PyUnicode_Replace", self.PyUnicode_Replace_func_type,
             'replace', is_unbound_method, args)
 
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
@@ -2634,7 +2642,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
     _special_codecs = [ (name, codecs.getencoder(name))
                         for name in _special_encodings ]
 
-    def _handle_simple_method_unicode_encode(self, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_encode(self, node, function, args, is_unbound_method):
         """Replace unicode.encode(...) by a direct C-API call to the
         corresponding codec.
         """
@@ -2647,7 +2655,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         if len(args) == 1:
             null_node = ExprNodes.NullNode(node.pos)
             return self._substitute_method_call(
-                node, "PyUnicode_AsEncodedString",
+                node, function, "PyUnicode_AsEncodedString",
                 self.PyUnicode_AsEncodedString_func_type,
                 'encode', is_unbound_method, [string_node, null_node, null_node])
 
@@ -2675,12 +2683,12 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             if codec_name is not None:
                 encode_function = "PyUnicode_As%sString" % codec_name
                 return self._substitute_method_call(
-                    node, encode_function,
+                    node, function, encode_function,
                     self.PyUnicode_AsXyzString_func_type,
                     'encode', is_unbound_method, [string_node])
 
         return self._substitute_method_call(
-            node, "PyUnicode_AsEncodedString",
+            node, function, "PyUnicode_AsEncodedString",
             self.PyUnicode_AsEncodedString_func_type,
             'encode', is_unbound_method,
             [string_node, encoding_node, error_handling_node])
@@ -2714,7 +2722,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
     _decode_cpp_string_func_type = None # lazy init
 
-    def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
+    def _handle_simple_method_bytes_decode(self, node, function, args, is_unbound_method):
         """Replace char*.decode() by a direct C-API call to the
         corresponding codec, possibly resolving a slice on the char*.
         """
@@ -2884,29 +2892,29 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             encoding = node = None
         return encoding, node
 
-    def _handle_simple_method_str_endswith(self, node, args, is_unbound_method):
+    def _handle_simple_method_str_endswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'str', 'endswith',
+            node, function, args, is_unbound_method, 'str', 'endswith',
             str_tailmatch_utility_code, +1)
 
-    def _handle_simple_method_str_startswith(self, node, args, is_unbound_method):
+    def _handle_simple_method_str_startswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'str', 'startswith',
+            node, function, args, is_unbound_method, 'str', 'startswith',
             str_tailmatch_utility_code, -1)
 
-    def _handle_simple_method_bytes_endswith(self, node, args, is_unbound_method):
+    def _handle_simple_method_bytes_endswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'bytes', 'endswith',
+            node, function, args, is_unbound_method, 'bytes', 'endswith',
             bytes_tailmatch_utility_code, +1)
 
-    def _handle_simple_method_bytes_startswith(self, node, args, is_unbound_method):
+    def _handle_simple_method_bytes_startswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
-            node, args, is_unbound_method, 'bytes', 'startswith',
+            node, function, args, is_unbound_method, 'bytes', 'startswith',
             bytes_tailmatch_utility_code, -1)
 
     ### helpers
 
-    def _substitute_method_call(self, node, name, func_type,
+    def _substitute_method_call(self, node, function, name, func_type,
                                 attr_name, is_unbound_method, args=(),
                                 utility_code=None, is_temp=None,
                                 may_return_none=ExprNodes.PythonCapiCallNode.may_return_none):
@@ -2916,7 +2924,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             if is_unbound_method:
                 self_arg = self_arg.as_none_safe_node(
                     "descriptor '%s' requires a '%s' object but received a 'NoneType'",
-                    format_args = [attr_name, node.function.obj.name])
+                    format_args=[attr_name, function.obj.name])
             else:
                 self_arg = self_arg.as_none_safe_node(
                     "'NoneType' object has no attribute '%s'",
