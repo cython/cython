@@ -83,10 +83,11 @@ def unicode_slicing_safe_surrogates2():
 
 
 @cython.test_fail_if_path_exists(
+    "//ComprehensionNode",
     "//ForInStatNode",
 )
 @cython.test_assert_path_exists(
-    "//ComprehensionNode",
+    "//SetNode",
 )
 def for_in_empty_setcomp():
     """

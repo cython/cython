@@ -3233,6 +3233,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     return base
         return node
 
+    def visit_ComprehensionNode(self, node):
+        self.visitchildren(node)
+        if isinstance(node.loop, Nodes.StatListNode) and not node.loop.stats:
+            # loop was pruned already => transform into literal
+            return node.target
+        return node
+
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
         sequence = node.iterator.sequence

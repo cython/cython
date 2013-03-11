@@ -213,10 +213,11 @@ def for_in_empty_else():
 
 
 @cython.test_fail_if_path_exists(
+    "//ComprehensionNode",
     "//ForInStatNode",
 )
 @cython.test_assert_path_exists(
-    "//ComprehensionNode",
+    "//ListNode",
 )
 def for_in_empty_listcomp():
     """
@@ -227,10 +228,11 @@ def for_in_empty_listcomp():
 
 
 @cython.test_fail_if_path_exists(
+    "//ComprehensionNode",
     "//ForInStatNode",
 )
 @cython.test_assert_path_exists(
-    "//ComprehensionNode",
+    "//ListNode",
 )
 def for_in_empty_nested_listcomp():
     """
@@ -242,7 +244,7 @@ def for_in_empty_nested_listcomp():
 
 @cython.test_fail_if_path_exists(
     "//ForInStatNode//ForInStatNode",
-    )
+)
 @cython.test_assert_path_exists(
     "//ForInStatNode",
     "//ComprehensionNode",
