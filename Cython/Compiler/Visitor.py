@@ -551,7 +551,7 @@ class MethodDispatcherTransform(EnvTransform):
             if not value.entry or len(value.entry.cf_assignments) > 1:
                 # the variable might have been reassigned => play safe
                 return node
-        elif value.is_attribute:
+        elif value.is_attribute and value.obj.is_name:
             if not value.obj.entry or len(value.obj.entry.cf_assignments) > 1:
                 # the underlying variable might have been reassigned => play safe
                 return node
