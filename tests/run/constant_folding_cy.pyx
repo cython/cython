@@ -80,3 +80,20 @@ def unicode_slicing_safe_surrogates2():
     """
     ustring = u'abc\U00010000def'[:2]
     return ustring
+
+
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode",
+)
+@cython.test_assert_path_exists(
+    "//ComprehensionNode",
+)
+def for_in_empty_setcomp():
+    """
+    >>> s = for_in_empty_setcomp()
+    >>> isinstance(s, set)
+    True
+    >>> len(s)
+    0
+    """
+    return {i for i in []}

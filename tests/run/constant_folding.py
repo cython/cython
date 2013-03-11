@@ -185,3 +185,71 @@ def while_true():
         return True
     else:
         print("FAIL")
+
+
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode",
+)
+def for_in_empty():
+    """
+    >>> for_in_empty()
+    """
+    for i in []:
+        print("LOOP")
+
+
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode",
+)
+def for_in_empty_else():
+    """
+    >>> for_in_empty_else()
+    True
+    """
+    for i in []:
+        print("LOOP")
+    else:
+        return True
+
+
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode",
+)
+@cython.test_assert_path_exists(
+    "//ComprehensionNode",
+)
+def for_in_empty_listcomp():
+    """
+    >>> for_in_empty_listcomp()
+    []
+    """
+    return [i for i in []]
+
+
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode",
+)
+@cython.test_assert_path_exists(
+    "//ComprehensionNode",
+)
+def for_in_empty_nested_listcomp():
+    """
+    >>> for_in_empty_nested_listcomp()
+    []
+    """
+    return [x for _ in [] for x in [1, 2, 3]]
+
+
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode//ForInStatNode",
+    )
+@cython.test_assert_path_exists(
+    "//ForInStatNode",
+    "//ComprehensionNode",
+)
+def for_in_nested_listcomp():
+    """
+    >>> for_in_nested_listcomp()
+    []
+    """
+    return [x for x in [1, 2, 3] for _ in []]

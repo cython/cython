@@ -3235,8 +3235,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
-        # iterating over a list literal? => tuples are more efficient
         sequence = node.iterator.sequence
+        if isinstance(sequence, ExprNodes.SequenceNode):
+            if not sequence.args:
+                if node.else_clause:
+                    return node.else_clause
+                else:
+                    # don't break list comprehensions
+                    return Nodes.StatListNode(node.pos, stats=[])
+        # iterating over a list literal? => tuples are more efficient
         if isinstance(sequence, ExprNodes.ListNode):
             node.iterator.sequence = sequence.as_tuple()
         return node
