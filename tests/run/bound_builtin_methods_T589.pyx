@@ -4,6 +4,7 @@ cimport cython
 
 _set = set # CPython may not define it (in Py2.3), but Cython does :)
 
+
 def test_set_clear_bound():
     """
     >>> type(test_set_clear_bound()) is _set
@@ -18,6 +19,7 @@ def test_set_clear_bound():
 
 text = u'ab jd  sdflk as sa  sadas asdas fsdf '
 pipe_sep = u'|'
+
 
 @cython.test_assert_path_exists(
     "//SimpleCallNode",
@@ -34,3 +36,17 @@ def test_unicode_join_bound(unicode sep, l):
     """
     join = sep.join
     return join(l)
+
+
+def test_unicode_join_bound_no_assignment(unicode sep):
+    """
+    >>> test_unicode_join_bound_no_assignment(text)
+    """
+    sep.join
+
+
+def test_dict_items_bound_no_assignment(dict d):
+    """
+    >>> test_dict_items_bound_no_assignment({1:2})
+    """
+    d.items

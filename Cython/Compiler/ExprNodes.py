@@ -5135,8 +5135,13 @@ class AttributeNode(ExprNode):
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
                     obj.type.vtabslot_cname, self.member)
-            else:
+            elif self.result_is_used:
                 return self.member
+            # Generating no code at all for unused access to optimised builtin
+            # methods fixes the problem that some optimisations only exist as
+            # macros, i.e. there is no function pointer to them, so we would
+            # generate invalid C code here.
+            return
         elif obj.type.is_complex:
             return "__Pyx_C%s(%s)" % (self.member.upper(), obj_code)
         else:
