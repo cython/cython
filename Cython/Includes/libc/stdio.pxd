@@ -16,6 +16,7 @@ cdef extern from "stdio.h" nogil:
     enum: FILENAME_MAX
     FILE *fopen   (const char *filename, const char  *opentype)
     FILE *freopen (const char *filename, const char *opentype, FILE *stream)
+    FILE *fdopen  (int fdescriptor, const char *opentype)
     int  fclose   (FILE *stream)
     int  remove   (const char *filename)
     int  rename   (const char *oldname, const char *newname)
