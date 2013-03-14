@@ -671,11 +671,11 @@ __pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx,
 
 /////////////// MemviewDtypeToObject.proto ///////////////
 {{if to_py_function}}
-PyObject *{{get_function}}(const char *itemp); /* proto */
+static PyObject *{{get_function}}(const char *itemp); /* proto */
 {{endif}}
 
 {{if from_py_function}}
-int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 {{endif}}
 
 /////////////// MemviewDtypeToObject ///////////////
@@ -684,13 +684,13 @@ int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 /* Convert a dtype to or from a Python object */
 
 {{if to_py_function}}
-PyObject *{{get_function}}(const char *itemp) {
+static PyObject *{{get_function}}(const char *itemp) {
     return (PyObject *) {{to_py_function}}(*({{dtype}} *) itemp);
 }
 {{endif}}
 
 {{if from_py_function}}
-int {{set_function}}(const char *itemp, PyObject *obj) {
+static int {{set_function}}(const char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
     if ({{error_condition}})
         return 0;
@@ -701,17 +701,17 @@ int {{set_function}}(const char *itemp, PyObject *obj) {
 
 /////////////// MemviewObjectToObject.proto ///////////////
 /* Function callbacks (for memoryview object) for dtype object */
-PyObject *{{get_function}}(const char *itemp); /* proto */
-int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+static PyObject *{{get_function}}(const char *itemp); /* proto */
+static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 
 /////////////// MemviewObjectToObject ///////////////
-PyObject *{{get_function}}(const char *itemp) {
+static PyObject *{{get_function}}(const char *itemp) {
     PyObject *result = *(PyObject **) itemp;
     Py_INCREF(result);
     return result;
 }
 
-int {{set_function}}(const char *itemp, PyObject *obj) {
+static int {{set_function}}(const char *itemp, PyObject *obj) {
     Py_INCREF(obj);
     Py_DECREF(*(PyObject **) itemp);
     *(PyObject **) itemp = obj;
