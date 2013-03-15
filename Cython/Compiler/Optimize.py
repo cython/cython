@@ -2428,7 +2428,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
             ])
 
-    def _inject_unicode_character_conversion(self, function, node, args, is_unbound_method):
+    def _inject_unicode_character_conversion(self, node, function, args, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
         ustring = args[0]
@@ -2456,7 +2456,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("keepends", PyrexTypes.c_bint_type, None),
             ])
 
-    def _handle_simple_method_unicode_splitlines(self, function, node, args, is_unbound_method):
+    def _handle_simple_method_unicode_splitlines(self, node, function, args, is_unbound_method):
         """Replace unicode.splitlines(...) by a direct call to the
         corresponding C-API function.
         """
