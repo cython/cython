@@ -1187,7 +1187,7 @@ class UnicodeNode(ConstNode):
         self.constant_result = self.value
 
     def as_sliced_node(self, start, stop, step=None):
-        if _string_contains_surrogates(self.value[:stop]):
+        if StringEncoding.string_contains_surrogates(self.value[:stop]):
             # this is unsafe as it may give different results in different runtimes
             return None
         value = StringEncoding.EncodedString(self.value[start:stop:step])
@@ -1236,11 +1236,30 @@ class UnicodeNode(ConstNode):
         return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
 
     def contains_surrogates(self):
-        return _string_contains_surrogates(self.value)
+        return StringEncoding.string_contains_surrogates(self.value)
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            self.result_code = code.get_py_string_const(self.value)
+            if self.contains_surrogates():
+                # surrogates are not really portable and cannot be
+                # decoded by the UTF-8 codec in Py3.3
+                self.result_code = code.get_py_const(py_object_type, 'ustring_')
+                data_cname = code.get_pyunicode_ptr_const(self.value)
+                code = code.get_cached_constants_writer()
+                code.mark_pos(self.pos)
+                code.putln(
+                    "%s = PyUnicode_FromUnicode(%s, (sizeof(%s) / sizeof(Py_UNICODE))-1); %s" % (
+                        self.result_code,
+                        data_cname,
+                        data_cname,
+                        code.error_goto_if_null(self.result_code, self.pos)))
+                code.putln("#if CYTHON_PEP393_ENABLED")
+                code.putln(
+                    code.error_goto_if_neg(
+                        "PyUnicode_READY(%s)" % self.result_code, self.pos))
+                code.putln("#endif")
+            else:
+                self.result_code = code.get_py_string_const(self.value)
         else:
             self.result_code = code.get_pyunicode_ptr_const(self.value)
 
@@ -1271,7 +1290,7 @@ class StringNode(PyConstNode):
         value = type(self.value)(self.value[start:stop:step])
         value.encoding = self.value.encoding
         if self.unicode_value is not None:
-            if _string_contains_surrogates(self.unicode_value[:stop]):
+            if StringEncoding.string_contains_surrogates(self.unicode_value[:stop]):
                 # this is unsafe as it may give different results in different runtimes
                 return None
             unicode_value = StringEncoding.EncodedString(
@@ -1314,26 +1333,6 @@ class IdentifierStringNode(StringNode):
     # A special str value that represents an identifier (bytes in Py2,
     # unicode in Py3).
     is_identifier = True
-
-
-def _string_contains_surrogates(ustring):
-    """
-    Check if the unicode string contains surrogate code points
-    on a CPython platform with wide (UCS-4) or narrow (UTF-16)
-    Unicode, i.e. characters that would be spelled as two
-    separate code units on a narrow platform.
-    """
-    for c in map(ord, ustring):
-        if c > 65535: # can only happen on wide platforms
-            return True
-            # We only look for the first code unit (D800-DBFF) of a
-        # surrogate pair - if we find one, the other one
-        # (DC00-DFFF) is likely there, too.  If we don't find it,
-        # any second code unit cannot make for a surrogate pair by
-        # itself.
-        if 0xD800 <= c <= 0xDBFF:
-            return True
-    return False
 
 
 class ImagNode(AtomicExprNode):

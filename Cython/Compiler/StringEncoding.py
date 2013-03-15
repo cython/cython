@@ -126,9 +126,28 @@ class EncodedString(_unicode):
         assert self.encoding is None
         return self.encode("UTF-8")
 
+    @property
     def is_unicode(self):
         return self.encoding is None
-    is_unicode = property(is_unicode)
+
+    def contains_surrogates(self):
+        return string_contains_surrogates(self)
+
+
+def string_contains_surrogates(ustring):
+    """
+    Check if the unicode string contains surrogate code points
+    on a CPython platform with wide (UCS-4) or narrow (UTF-16)
+    Unicode, i.e. characters that would be spelled as two
+    separate code units on a narrow platform.
+    """
+    for c in map(ord, ustring):
+        if c > 65535:  # can only happen on wide platforms
+            return True
+        if 0xD800 <= c <= 0xDFFF:
+            return True
+    return False
+
 
 class BytesLiteral(_bytes):
     # bytes subclass that is compatible with EncodedString
@@ -154,6 +173,7 @@ class BytesLiteral(_bytes):
         return self.decode('ISO-8859-1')
 
     is_unicode = False
+
 
 char_from_escape_sequence = {
     r'\a' : u'\a',

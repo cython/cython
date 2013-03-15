@@ -17,6 +17,10 @@ __doc__ = br"""
     u'\x03g\xf8\uf8d2S\xf8k ik'
     >>> f
     u'\xf8'
+    >>> g
+    u'\udc00'
+    >>> h
+    u'\ud800'
     >>> add
     u'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
@@ -35,6 +39,10 @@ __doc__ = br"""
     >>> len(e)
     10
     >>> len(f)
+    1
+    >>> len(g)
+    1
+    >>> len(h)
     1
     >>> len(add)
     12
@@ -62,6 +70,10 @@ __doc__ = br"""
     >>> f == u'\xf8'  # unescaped by Cython
     True
     >>> f == u'\\xf8' # unescaped by Python
+    True
+    >>> g == u'\\udc00' # unescaped by Python (required by doctest)
+    True
+    >>> h == u'\\ud800' # unescaped by Python (required by doctest)
     True
     >>> k == u'\\N{SNOWMAN}' == u'\\u2603'
     True
@@ -95,6 +107,8 @@ c = u'Søk ik'
 d = u'üÖä'
 e = u'\x03\x67\xf8\uf8d2Søk ik'
 f = u'\xf8'
+g = u'\udc00'   # lone trail surrogate
+h = u'\ud800'   # lone lead surrogate
 k = u'\N{SNOWMAN}'
 
 add = u'Søk ik' + u'üÖä' + u'abc'
