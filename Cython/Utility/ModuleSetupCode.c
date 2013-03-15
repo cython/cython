@@ -288,7 +288,8 @@
 # endif
 #endif
 
-typedef struct {PyObject **p; char *s; const long n; const char* encoding; const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; const Py_ssize_t n; const char* encoding;
+                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 /////////////// ForceInitThreads.proto ///////////////
 
