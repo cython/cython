@@ -1,3 +1,6 @@
+# mode: run
+# tag: slicing
+
 def test_full(seq):
     """
     >>> l = [1,2,3,4]

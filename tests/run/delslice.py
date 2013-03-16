@@ -1,5 +1,5 @@
 # mode: run
-# tag: del, slice
+# tag: del, slicing
 
 def del_constant_start_stop(x):
     """
