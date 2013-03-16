@@ -581,7 +581,8 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 {{if access == 'Get'}}
         "'%.200s' object is unsliceable", Py_TYPE(obj)->tp_name);
 {{else}}
-        "'%.200s' object does not support slice assignment", Py_TYPE(obj)->tp_name);
+        "'%.200s' object does not support slice %s",
+        Py_TYPE(obj)->tp_name, value ? "assignment" : "deletion");
 {{endif}}
 
 bad:
