@@ -474,6 +474,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 {{endif}}
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
         int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
+#if CYTHON_COMPILING_IN_CPYTHON
     PyMappingMethods* mp;
 #if PY_MAJOR_VERSION < 3
     PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
@@ -521,12 +522,13 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 
     mp = Py_TYPE(obj)->tp_as_mapping;
 {{if access == 'Get'}}
-    if (likely(mp && mp->mp_subscript)) {
-        PyObject *result;
+    if (likely(mp && mp->mp_subscript))
 {{else}}
-    if (likely(mp && mp->mp_ass_subscript)) {
-        int result;
+    if (likely(mp && mp->mp_ass_subscript))
 {{endif}}
+#endif
+    {
+        {{if access == 'Get'}}PyObject*{{else}}int{{endif}} result;
         PyObject *py_slice, *py_start, *py_stop;
         if (_py_slice) {
             py_slice = *_py_slice;
@@ -559,11 +561,17 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
             Py_XDECREF(owned_stop);
             if (unlikely(!py_slice)) goto bad;
         }
+#if CYTHON_COMPILING_IN_CPYTHON
 {{if access == 'Get'}}
         result = mp->mp_subscript(obj, py_slice);
+#else
+        result = PyObject_GetItem(obj, py_slice);
 {{else}}
         result = mp->mp_ass_subscript(obj, py_slice, value);
+#else
+        result = value ? PyObject_SetItem(obj, py_slice, value) : PyObject_DelItem(obj, py_slice);
 {{endif}}
+#endif
         if (!_py_slice) {
             Py_DECREF(py_slice);
         }
