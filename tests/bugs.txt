@@ -11,7 +11,6 @@ genexpr_iterable_lookup_T600
 generator_expressions_in_class
 for_from_pyvar_loop_T601
 temp_sideeffects_T654    # not really a bug, Cython warns about it
-slice2_T636
 inherited_final_method
 tryfinallychaining        # also see FIXME in "yield_from_pep380" test
 

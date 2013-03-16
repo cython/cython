@@ -463,14 +463,14 @@ static CYTHON_INLINE PyObject* __Pyx_PySequence_GetObjectSlice(
     PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
     if (likely(ms && ms->sq_slice)) {
         if (!has_cstart) {
-            if (_py_start) {
+            if (_py_start && (*_py_start != Py_None)) {
                 cstart = __Pyx_PyIndex_AsSsize_t(*_py_start);
                 if ((cstart == (Py_ssize_t)-1) && PyErr_Occurred()) return NULL;
             } else
                 cstart = 0;
         }
         if (!has_cstop) {
-            if (_py_stop) {
+            if (_py_stop && (*_py_stop != Py_None)) {
                 cstop = __Pyx_PyIndex_AsSsize_t(*_py_stop);
                 if ((cstop == (Py_ssize_t)-1) && PyErr_Occurred()) return NULL;
             } else
@@ -565,14 +565,14 @@ static CYTHON_INLINE int __Pyx_PySequence_SetObjectSlice(
     PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
     if (likely(ms && ms->sq_ass_slice)) {
         if (!has_cstart) {
-            if (_py_start) {
+            if (_py_start && (*_py_start != Py_None)) {
                 cstart = __Pyx_PyIndex_AsSsize_t(*_py_start);
                 if ((cstart == (Py_ssize_t)-1) && PyErr_Occurred()) return -1;
             } else
                 cstart = 0;
         }
         if (!has_cstop) {
-            if (_py_stop) {
+            if (_py_stop && (*_py_stop != Py_None)) {
                 cstop = __Pyx_PyIndex_AsSsize_t(*_py_stop);
                 if ((cstop == (Py_ssize_t)-1) && PyErr_Occurred()) return -1;
             } else
