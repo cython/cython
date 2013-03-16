@@ -451,16 +451,16 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(
         PyObject* obj, Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** py_start, PyObject** py_stop, PyObject** py_slice,
-        int has_cstart, int has_cstop);
+        int has_cstart, int has_cstop, int wraparound);
 {{else}}
-#define __Pyx_PyObject_DelSlice(obj, cstart, cstop, py_start, py_stop, py_slice, has_cstart, has_cstop) \
-    __Pyx_PyObject_SetSlice(obj, (PyObject*)NULL, cstart, cstop, py_start, py_stop, py_slice, has_cstart, has_cstop)
+#define __Pyx_PyObject_DelSlice(obj, cstart, cstop, py_start, py_stop, py_slice, has_cstart, has_cstop, wraparound) \
+    __Pyx_PyObject_SetSlice(obj, (PyObject*)NULL, cstart, cstop, py_start, py_stop, py_slice, has_cstart, has_cstop, wraparound)
 
 // we pass pointer addresses to show the C compiler what is NULL and what isn't
 static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
         PyObject* obj, PyObject* value, Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** py_start, PyObject** py_stop, PyObject** py_slice,
-        int has_cstart, int has_cstop);
+        int has_cstart, int has_cstop, int wraparound);
 {{endif}}
 
 /////////////// SliceObject ///////////////
@@ -473,7 +473,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
         PyObject* obj, PyObject* value, Py_ssize_t cstart, Py_ssize_t cstop,
 {{endif}}
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop) {
+        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
     PyMappingMethods* mp;
 #if PY_MAJOR_VERSION < 3
     PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
@@ -492,7 +492,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
             } else
                 cstop = PY_SSIZE_T_MAX;
         }
-        if (unlikely((cstart < 0) | (cstop < 0)) && likely(ms->sq_length)) {
+        if (wraparound && unlikely((cstart < 0) | (cstop < 0)) && likely(ms->sq_length)) {
             Py_ssize_t l = ms->sq_length(obj);
             if (likely(l >= 0)) {
                 if (cstop < 0) {

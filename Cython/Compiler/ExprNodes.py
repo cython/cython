@@ -3678,12 +3678,13 @@ class SliceIndexNode(ExprNode):
             (has_c_start, has_c_stop, c_start, c_stop,
              py_start, py_stop, py_slice) = self.get_slice_config()
             code.putln(
-                "%s = __Pyx_PyObject_GetSlice(%s, %s, %s, %s, %s, %s, %d, %d); %s" % (
+                "%s = __Pyx_PyObject_GetSlice(%s, %s, %s, %s, %s, %s, %d, %d, %d); %s" % (
                     result,
                     self.base.py_result(),
                     c_start, c_stop,
                     py_start, py_stop, py_slice,
                     has_c_start, has_c_stop,
+                    bool(code.globalstate.directives['wraparound']),
                     code.error_goto_if_null(result, self.pos)))
         else:
             if self.base.type is list_type:
@@ -3713,12 +3714,13 @@ class SliceIndexNode(ExprNode):
             (has_c_start, has_c_stop, c_start, c_stop,
              py_start, py_stop, py_slice) = self.get_slice_config()
             code.put_error_if_neg(self.pos,
-                "__Pyx_PyObject_SetSlice(%s, %s, %s, %s, %s, %s, %s, %d, %d)" % (
+                "__Pyx_PyObject_SetSlice(%s, %s, %s, %s, %s, %s, %s, %d, %d, %d)" % (
                     self.base.py_result(),
                     rhs.py_result(),
                     c_start, c_stop,
                     py_start, py_stop, py_slice,
-                    has_c_start, has_c_stop))
+                    has_c_start, has_c_stop,
+                    bool(code.globalstate.directives['wraparound'])))
         else:
             start_offset = ''
             if self.start:
@@ -3754,11 +3756,12 @@ class SliceIndexNode(ExprNode):
         (has_c_start, has_c_stop, c_start, c_stop,
          py_start, py_stop, py_slice) = self.get_slice_config()
         code.put_error_if_neg(self.pos,
-            "__Pyx_PyObject_DelSlice(%s, %s, %s, %s, %s, %s, %d, %d)" % (
+            "__Pyx_PyObject_DelSlice(%s, %s, %s, %s, %s, %s, %d, %d, %d)" % (
                 self.base.py_result(),
                 c_start, c_stop,
                 py_start, py_stop, py_slice,
-                has_c_start, has_c_stop))
+                has_c_start, has_c_stop,
+                bool(code.globalstate.directives['wraparound'])))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
 
