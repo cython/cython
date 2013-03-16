@@ -14,6 +14,7 @@
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /*proto*/
 
 /////////////// Import ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
@@ -23,8 +24,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *empty_dict = 0;
     PyObject *list;
     #if PY_VERSION_HEX < 0x03030000
-    PyObject *py_import = 0;
-    py_import = __Pyx_GetAttrString($builtins_cname, "__import__");
+    PyObject *py_import;
+    py_import = __Pyx_PyObject_GetAttrStr($builtins_cname, PYIDENT("__import__"));
     if (!py_import)
         goto bad;
     #endif

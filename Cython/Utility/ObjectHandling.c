@@ -659,6 +659,7 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
 static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases); /*proto*/
 
 /////////////// FindPy2Metaclass ///////////////
+//@requires: PyObjectGetAttrStr
 
 static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
     PyObject *metaclass;
@@ -666,7 +667,7 @@ static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
 #if PY_MAJOR_VERSION < 3
     if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = PyObject_GetAttr(base, PYIDENT("__class__"));
+        metaclass = __Pyx_PyObject_GetAttrStr(base, PYIDENT("__class__"));
         if (!metaclass) {
             PyErr_Clear();
             metaclass = (PyObject*) Py_TYPE(base);
@@ -742,6 +743,7 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
+//@requires: PyObjectGetAttrStr
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
@@ -749,7 +751,7 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
     PyObject *pargs;
     PyObject *ns;
 
-    prep = PyObject_GetAttr(metaclass, PYIDENT("__prepare__"));
+    prep = __Pyx_PyObject_GetAttrStr(metaclass, PYIDENT("__prepare__"));
     if (!prep) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             return NULL;
