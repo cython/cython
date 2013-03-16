@@ -3688,11 +3688,11 @@ class SliceIndexNode(ExprNode):
         else:
             if self.base.type is list_type:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
+                    TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyList_GetSlice'
             elif self.base.type is tuple_type:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
+                    TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyTuple_GetSlice'
             else:
                 cfunc = '__Pyx_PySequence_GetSlice'

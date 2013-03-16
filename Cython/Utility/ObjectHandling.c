@@ -625,41 +625,25 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject** src, PyObject** des
     }
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
+{{for type in ['List', 'Tuple']}}
+static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
             PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
     PyObject* dest;
-    Py_ssize_t length = PyList_GET_SIZE(src);
+    Py_ssize_t length = Py{{type}}_GET_SIZE(src);
     __Pyx_crop_slice(&start, &stop, &length);
     if (unlikely(length <= 0))
-        return PyList_New(0);
+        return Py{{type}}_New(0);
 
-    dest = PyList_New(length);
+    dest = Py{{type}}_New(length);
     if (unlikely(!dest))
         return NULL;
     __Pyx_copy_object_array(
-        ((PyListObject*)src)->ob_item + start,
-        ((PyListObject*)dest)->ob_item,
+        ((Py{{type}}Object*)src)->ob_item + start,
+        ((Py{{type}}Object*)dest)->ob_item,
         length);
     return dest;
 }
-
-static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(
-                PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
-    PyObject* dest;
-    Py_ssize_t length = PyTuple_GET_SIZE(src);
-    __Pyx_crop_slice(&start, &stop, &length);
-    if (unlikely(length <= 0))
-        return PyTuple_New(0);
-
-    dest = PyTuple_New(length);
-    if (unlikely(!dest))
-        return NULL;
-    __Pyx_copy_object_array(
-        ((PyTupleObject*)src)->ob_item + start,
-        ((PyTupleObject*)dest)->ob_item,
-        length);
-    return dest;
-}
+{{endfor}}
 #endif
 
 /////////////// FindPy2Metaclass.proto ///////////////
