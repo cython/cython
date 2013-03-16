@@ -3594,6 +3594,12 @@ class SliceIndexNode(ExprNode):
     nogil_check = Node.gil_error
     gil_message = "Slicing Python object"
 
+    get_slice_utility_code = TempitaUtilityCode.load(
+        "SliceObject", "ObjectHandling.c", context={'access': 'Get'})
+
+    set_slice_utility_code = TempitaUtilityCode.load(
+        "SliceObject", "ObjectHandling.c", context={'access': 'Set'})
+
     def coerce_to(self, dst_type, env):
         if ((self.base.type.is_string or self.base.type.is_cpp_string)
                 and dst_type in (bytes_type, str_type, unicode_type)):
@@ -3668,12 +3674,11 @@ class SliceIndexNode(ExprNode):
                     stop_code,
                     code.error_goto_if_null(result, self.pos)))
         elif self.type is py_object_type:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("GetObjectSlice", "ObjectHandling.c"))
+            code.globalstate.use_utility_code(self.get_slice_utility_code)
             (has_c_start, has_c_stop, c_start, c_stop,
              py_start, py_stop, py_slice) = self.get_slice_config()
             code.putln(
-                "%s = __Pyx_PySequence_GetObjectSlice(%s, %s, %s, %s, %s, %s, %d, %d); %s" % (
+                "%s = __Pyx_PyObject_GetSlice(%s, %s, %s, %s, %s, %s, %d, %d); %s" % (
                     result,
                     self.base.py_result(),
                     c_start, c_stop,
@@ -3704,12 +3709,11 @@ class SliceIndexNode(ExprNode):
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("SetObjectSlice", "ObjectHandling.c"))
+            code.globalstate.use_utility_code(self.set_slice_utility_code)
             (has_c_start, has_c_stop, c_start, c_stop,
              py_start, py_stop, py_slice) = self.get_slice_config()
             code.put_error_if_neg(self.pos,
-                "__Pyx_PySequence_SetObjectSlice(%s, %s, %s, %s, %s, %s, %s, %d, %d)" % (
+                "__Pyx_PyObject_SetSlice(%s, %s, %s, %s, %s, %s, %s, %d, %d)" % (
                     self.base.py_result(),
                     rhs.py_result(),
                     c_start, c_stop,
@@ -3746,12 +3750,11 @@ class SliceIndexNode(ExprNode):
                   "Deleting slices is only supported for Python types, not '%s'." % self.type)
             return
         self.generate_subexpr_evaluation_code(code)
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("SetObjectSlice", "ObjectHandling.c"))
+        code.globalstate.use_utility_code(self.set_slice_utility_code)
         (has_c_start, has_c_stop, c_start, c_stop,
          py_start, py_stop, py_slice) = self.get_slice_config()
         code.put_error_if_neg(self.pos,
-            "__Pyx_PySequence_DelObjectSlice(%s, %s, %s, %s, %s, %s, %d, %d)" % (
+            "__Pyx_PyObject_DelSlice(%s, %s, %s, %s, %s, %s, %d, %d)" % (
                 self.base.py_result(),
                 c_start, c_stop,
                 py_start, py_stop, py_slice,
