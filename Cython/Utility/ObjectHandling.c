@@ -427,15 +427,15 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
     if (likely(m && m->sq_ass_item)) {
         if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
             Py_ssize_t l = m->sq_length(o);
-                if (likely(l >= 0)) {
-                    i += l;
-                } else {
-                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                    if (PyErr_ExceptionMatches(PyExc_OverflowError))
-                        PyErr_Clear();
-                    else
-                        return -1;
-                }
+            if (likely(l >= 0)) {
+                i += l;
+            } else {
+                // if length > max(Py_ssize_t), maybe the object can wrap around itself?
+                if (PyErr_ExceptionMatches(PyExc_OverflowError))
+                    PyErr_Clear();
+                else
+                    return -1;
+            }
         }
         return m->sq_ass_item(o, i, (PyObject *)NULL);
     }
@@ -475,6 +475,25 @@ static CYTHON_INLINE PyObject* __Pyx_PySequence_GetObjectSlice(
                 if ((cstop == (Py_ssize_t)-1) && PyErr_Occurred()) return NULL;
             } else
                 cstop = PY_SSIZE_T_MAX;
+        }
+        if (unlikely((cstart < 0) | (cstop < 0)) && likely(ms->sq_length)) {
+            Py_ssize_t l = ms->sq_length(obj);
+            if (likely(l >= 0)) {
+                if (cstop < 0) {
+                    cstop += l;
+                    if (cstop < 0) cstop = 0;
+                }
+                if (cstart < 0) {
+                    cstart += l;
+                    if (cstart < 0) cstart = 0;
+                }
+            } else {
+                // if length > max(Py_ssize_t), maybe the object can wrap around itself?
+                if (PyErr_ExceptionMatches(PyExc_OverflowError))
+                    PyErr_Clear();
+                else
+                    return NULL;
+            }
         }
         return ms->sq_slice(obj, cstart, cstop);
     }
