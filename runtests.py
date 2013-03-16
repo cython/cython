@@ -201,6 +201,7 @@ VER_DEP_MODULES = {
                                           'run.yield_from_pep380',  # GeneratorExit
                                           'run.generator_frame_cycle', # yield in try-finally
                                           'run.generator_expressions_in_class',
+                                          'run.absolute_import',
                                           'run.relativeimport_T542',
                                           'run.relativeimport_star_T542',
                                           'run.initial_file_path',  # relative import
