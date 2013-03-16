@@ -1254,9 +1254,8 @@ class UnicodeNode(ConstNode):
                         data_cname,
                         code.error_goto_if_null(self.result_code, self.pos)))
                 code.putln("#if CYTHON_PEP393_ENABLED")
-                code.putln(
-                    code.error_goto_if_neg(
-                        "PyUnicode_READY(%s)" % self.result_code, self.pos))
+                code.put_error_if_neg(
+                    self.pos, "PyUnicode_READY(%s)" % self.result_code)
                 code.putln("#endif")
             else:
                 self.result_code = code.get_py_string_const(self.value)
@@ -2408,7 +2407,7 @@ class WithExitCallNode(ExprNode):
         code.put_gotref(result_var)
         code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
         code.put_decref_clear(result_var, type=py_object_type)
-        code.putln(code.error_goto_if_neg(self.result(), self.pos))
+        code.put_error_if_neg(self.pos, self.result())
         code.funcstate.release_temp(result_var)
         if isinstance(self.args, TupleNode):
             code.putln("}")
@@ -6317,10 +6316,9 @@ class SetNode(ExprNode):
         code.put_gotref(self.py_result())
         for arg in self.args:
             arg.generate_evaluation_code(code)
-            code.putln(
-                code.error_goto_if_neg(
-                    "PySet_Add(%s, %s)" % (self.result(), arg.py_result()),
-                    self.pos))
+            code.put_error_if_neg(
+                self.pos,
+                "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
             arg.generate_disposal_code(code)
             arg.free_temps(code)
 
@@ -6517,8 +6515,8 @@ class SortedDictKeysNode(ExprNode):
             self.result(), function, dict_result,
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
-        code.putln(code.error_goto_if_neg(
-            'PyList_Sort(%s)' % self.py_result(), self.pos))
+        code.put_error_if_neg(
+            self.pos, 'PyList_Sort(%s)' % self.py_result())
 
 
 class ModuleNameMixin(object):
