@@ -3670,21 +3670,8 @@ class SliceIndexNode(ExprNode):
         elif self.type is py_object_type:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("GetObjectSlice", "ObjectHandling.c"))
-            has_c_start, c_start, py_start = False, '0', 'NULL'
-            if self.start:
-                has_c_start = not self.start.type.is_pyobject
-                if has_c_start:
-                    c_start = self.start.result()
-                else:
-                    py_start = '&%s' % self.start.py_result()
-            has_c_stop, c_stop, py_stop = False, '0', 'NULL'
-            if self.stop:
-                has_c_stop = not self.stop.type.is_pyobject
-                if has_c_stop:
-                    c_stop = self.stop.result()
-                else:
-                    py_stop = '&%s' % self.stop.py_result()
-            py_slice = self.slice and '&%s' % self.slice.py_result() or 'NULL'
+            (has_c_start, has_c_stop, c_start, c_stop,
+             py_start, py_stop, py_slice) = self.get_slice_config()
             code.putln(
                 "%s = __Pyx_PySequence_GetObjectSlice(%s, %s, %s, %s, %s, %s, %d, %d); %s" % (
                     result,
@@ -3717,12 +3704,17 @@ class SliceIndexNode(ExprNode):
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("SetObjectSlice", "ObjectHandling.c"))
+            (has_c_start, has_c_stop, c_start, c_stop,
+             py_start, py_stop, py_slice) = self.get_slice_config()
             code.put_error_if_neg(self.pos,
-                "__Pyx_PySequence_SetSlice(%s, %s, %s, %s)" % (
+                "__Pyx_PySequence_SetObjectSlice(%s, %s, %s, %s, %s, %s, %s, %d, %d)" % (
                     self.base.py_result(),
-                    self.start_code(),
-                    self.stop_code(),
-                    rhs.py_result()))
+                    rhs.py_result(),
+                    c_start, c_stop,
+                    py_start, py_stop, py_slice,
+                    has_c_start, has_c_stop))
         else:
             start_offset = ''
             if self.start:
@@ -3754,13 +3746,37 @@ class SliceIndexNode(ExprNode):
                   "Deleting slices is only supported for Python types, not '%s'." % self.type)
             return
         self.generate_subexpr_evaluation_code(code)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("SetObjectSlice", "ObjectHandling.c"))
+        (has_c_start, has_c_stop, c_start, c_stop,
+         py_start, py_stop, py_slice) = self.get_slice_config()
         code.put_error_if_neg(self.pos,
-            "__Pyx_PySequence_DelSlice(%s, %s, %s)" % (
+            "__Pyx_PySequence_DelObjectSlice(%s, %s, %s, %s, %s, %s, %d, %d)" % (
                 self.base.py_result(),
-                self.start_code(),
-                self.stop_code()))
+                c_start, c_stop,
+                py_start, py_stop, py_slice,
+                has_c_start, has_c_stop))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
+
+    def get_slice_config(self):
+        has_c_start, c_start, py_start = False, '0', 'NULL'
+        if self.start:
+            has_c_start = not self.start.type.is_pyobject
+            if has_c_start:
+                c_start = self.start.result()
+            else:
+                py_start = '&%s' % self.start.py_result()
+        has_c_stop, c_stop, py_stop = False, '0', 'NULL'
+        if self.stop:
+            has_c_stop = not self.stop.type.is_pyobject
+            if has_c_stop:
+                c_stop = self.stop.result()
+            else:
+                py_stop = '&%s' % self.stop.py_result()
+        py_slice = self.slice and '&%s' % self.slice.py_result() or 'NULL'
+        return (has_c_start, has_c_stop, c_start, c_stop,
+                py_start, py_stop, py_slice)
 
     def generate_slice_guard_code(self, code, target_size):
         if not self.base.type.is_array:
