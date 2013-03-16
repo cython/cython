@@ -2420,7 +2420,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
             if type.name in Code.non_portable_builtins_map:
                 condition, replacement = Code.non_portable_builtins_map[type.name]
-                code.putln("#if %s" % condition)
             if objstruct in Code.basicsize_builtins_map:
                 # Some builtin types have a tp_basicsize which differs from sizeof(...):
                 sizeof_objstruct = Code.basicsize_builtins_map[objstruct]
