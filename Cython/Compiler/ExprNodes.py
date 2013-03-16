@@ -3478,8 +3478,11 @@ class SliceIndexNode(ExprNode):
     #  base      ExprNode
     #  start     ExprNode or None
     #  stop      ExprNode or None
+    #  slice     ExprNode or None   constant slice object
 
-    subexprs = ['base', 'start', 'stop']
+    subexprs = ['base', 'start', 'stop', 'slice']
+
+    slice = None
 
     def infer_type(self, env):
         base_type = self.base.infer_type(env)
@@ -3568,11 +3571,23 @@ class SliceIndexNode(ExprNode):
             self.type = base_type
             self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
 
-        c_int = PyrexTypes.c_py_ssize_t_type
-        if self.start:
-            self.start = self.start.coerce_to(c_int, env)
-        if self.stop:
-            self.stop = self.stop.coerce_to(c_int, env)
+        if self.type is py_object_type:
+            if (not self.start or self.start.is_literal) and \
+                    (not self.stop or self.stop.is_literal):
+                # cache the constant slice object, in case we need it
+                none_node = NoneNode(self.pos)
+                self.slice = SliceNode(
+                    self.pos,
+                    start=copy.deepcopy(self.start or none_node),
+                    stop=copy.deepcopy(self.stop or none_node),
+                    step=none_node
+                ).analyse_types(env)
+        else:
+            c_int = PyrexTypes.c_py_ssize_t_type
+            if self.start:
+                self.start = self.start.coerce_to(c_int, env)
+            if self.stop:
+                self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
         return self
 
@@ -3651,6 +3666,32 @@ class SliceIndexNode(ExprNode):
                     base_result,
                     start_code,
                     stop_code,
+                    code.error_goto_if_null(result, self.pos)))
+        elif self.type is py_object_type:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetObjectSlice", "ObjectHandling.c"))
+            has_c_start, c_start, py_start = False, '0', 'NULL'
+            if self.start:
+                has_c_start = not self.start.type.is_pyobject
+                if has_c_start:
+                    c_start = self.start.result()
+                else:
+                    py_start = '&%s' % self.start.py_result()
+            has_c_stop, c_stop, py_stop = False, '0', 'NULL'
+            if self.stop:
+                has_c_stop = not self.stop.type.is_pyobject
+                if has_c_stop:
+                    c_stop = self.stop.result()
+                else:
+                    py_stop = '&%s' % self.stop.py_result()
+            py_slice = self.slice and '&%s' % self.slice.py_result() or 'NULL'
+            code.putln(
+                "%s = __Pyx_PySequence_GetObjectSlice(%s, %s, %s, %s, %s, %s, %d, %d); %s" % (
+                    result,
+                    self.base.py_result(),
+                    c_start, c_stop,
+                    py_start, py_stop, py_slice,
+                    has_c_start, has_c_stop,
                     code.error_goto_if_null(result, self.pos)))
         else:
             if self.base.type is list_type:
