@@ -238,6 +238,27 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 
 /////////////// GetItemInt.proto ///////////////
 
+#define __Pyx_GetItemInt(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
+    (((size) <= sizeof(Py_ssize_t)) ? \
+    __Pyx_GetItemInt_Fast(o, i, is_list, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
+
+{{for type in ['List', 'Tuple']}}
+#define __Pyx_GetItemInt_{{type}}(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
+    (((size) <= sizeof(Py_ssize_t)) ? \
+    __Pyx_GetItemInt_{{type}}_Fast(o, i, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
+
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
+                                                              int wraparound, int boundscheck);
+{{endfor}}
+
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
+                                                     int is_list, int wraparound, int boundscheck);
+
+/////////////// GetItemInt ///////////////
+
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
     if (!j) return NULL;
@@ -247,11 +268,6 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
 }
 
 {{for type in ['List', 'Tuple']}}
-#define __Pyx_GetItemInt_{{type}}(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_{{type}}_Fast(o, i, wraparound, boundscheck) : \
-    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
-
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
                                                               int wraparound, int boundscheck) {
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -267,11 +283,6 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 #endif
 }
 {{endfor}}
-
-#define __Pyx_GetItemInt(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_Fast(o, i, is_list, wraparound, boundscheck) : \
-    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                      int is_list, int wraparound, int boundscheck) {
@@ -291,13 +302,20 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
             Py_INCREF(r);
             return r;
         }
-    } else {  /* inlined PySequence_GetItem() */
+    } else {  /* inlined PySequence_GetItem() + special cased length overflow */
         PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
         if (likely(m && m->sq_item)) {
             if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
                 Py_ssize_t l = m->sq_length(o);
-                if (unlikely(l < 0)) return NULL;
-                i += l;
+                if (likely(l >= 0)) {
+                    i += l;
+                } else {
+                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
+                    if (PyErr_ExceptionMatches(PyExc_OverflowError))
+                        PyErr_Clear();
+                    else
+                        return NULL;
+                }
             }
             return m->sq_item(o, i);
         }

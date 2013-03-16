@@ -9,6 +9,9 @@ import sys
 if sys.version_info < (2,5):
     __doc__ = __doc__.replace(u"'int' object ...", u'unsubscriptable object')
 
+cdef Py_ssize_t maxsize = getattr(sys, 'maxsize', getattr(sys, 'maxint', None))
+py_maxsize = maxsize
+
 import cython
 
 def index_tuple(tuple t, int i):
@@ -160,3 +163,39 @@ def large_literal_index(object o):
     True
     """
     return o[1000000000000000000000000000000]
+
+
+class LargeIndexable(object):
+    def __len__(self):
+        raise OverflowError
+
+    def __getitem__(self, index):
+        return index
+
+
+def test_large_indexing(obj):
+    """
+    >>> obj = LargeIndexable()
+    >>> zero, pone, none, pmaxsize, nmaxsize = test_large_indexing(obj)
+    >>> # , p2maxsize, n2maxsize
+    >>> zero
+    0
+    >>> pone
+    1
+    >>> none
+    -1
+    >>> pmaxsize == py_maxsize
+    True
+    >>> nmaxsize == -py_maxsize
+    True
+
+    #>>> p2maxsize == py_maxsize*2
+    #True
+    #>>> n2maxsize == -py_maxsize*2
+    #True
+    """
+    return (
+        obj[0], obj[1], obj[-1],
+        obj[maxsize], obj[-maxsize],
+        #obj[maxsize*2], obj[-maxsize*2]     # FIXME!
+    )
