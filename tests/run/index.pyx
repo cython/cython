@@ -5,11 +5,15 @@ __doc__ = u"""
     TypeError: 'int' object ...
 """
 
+cdef Py_ssize_t maxsize
+
 import sys
 if sys.version_info < (2,5):
     __doc__ = __doc__.replace(u"'int' object ...", u'unsubscriptable object')
+    maxsize = min(sys.maxint, 2**31-1)
+else:
+    maxsize = getattr(sys, 'maxsize', getattr(sys, 'maxint', None))
 
-cdef Py_ssize_t maxsize = getattr(sys, 'maxsize', getattr(sys, 'maxint', None))
 py_maxsize = maxsize
 
 import cython
@@ -166,11 +170,21 @@ def large_literal_index(object o):
 
 
 class LargeIndexable(object):
+    expected = None
+
     def __len__(self):
         raise OverflowError
 
     def __getitem__(self, index):
         return index
+
+    def __setitem__(self, index, value):
+        assert index == value == self.expected
+        self.expected = None
+
+    def __delitem__(self, index):
+        assert self.expected == index
+        self.expected = None
 
 
 def test_large_indexing(obj):
@@ -199,3 +213,31 @@ def test_large_indexing(obj):
         obj[maxsize], obj[-maxsize],
         #obj[maxsize*2], obj[-maxsize*2]     # FIXME!
     )
+
+
+def del_large_index(obj, Py_ssize_t index):
+    """
+    >>> obj = LargeIndexable()
+    >>> del_large_index(obj, 0)
+    >>> del_large_index(obj, 1)
+    >>> del_large_index(obj, -1)
+    >>> del_large_index(obj, py_maxsize)
+    >>> del_large_index(obj, -py_maxsize)
+    """
+    obj.expected = index
+    del obj[index]
+    assert obj.expected is None
+
+
+def set_large_index(obj, Py_ssize_t index):
+    """
+    >>> obj = LargeIndexable()
+    >>> set_large_index(obj, 0)
+    >>> set_large_index(obj, 1)
+    >>> set_large_index(obj, -1)
+    >>> set_large_index(obj, py_maxsize)
+    >>> set_large_index(obj, -py_maxsize)
+    """
+    obj.expected = index
+    obj[index] = index
+    assert obj.expected is None

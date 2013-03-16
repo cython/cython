@@ -302,7 +302,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
             Py_INCREF(r);
             return r;
         }
-    } else {  /* inlined PySequence_GetItem() + special cased length overflow */
+    } else {
+        // inlined PySequence_GetItem() + special cased length overflow
         PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
         if (likely(m && m->sq_item)) {
             if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
@@ -335,6 +336,12 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
     __Pyx_SetItemInt_Fast(o, i, v, is_list, wraparound, boundscheck) : \
     __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
 
+static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
+                                               int is_list, int wraparound, int boundscheck);
+
+/////////////// SetItemInt ///////////////
+
 static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
     if (!j) return -1;
@@ -355,13 +362,21 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             Py_DECREF(old);
             return 1;
         }
-    } else {  /* inlined PySequence_SetItem() */
+    } else {
+        // inlined PySequence_SetItem() + special cased length overflow
         PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
         if (likely(m && m->sq_ass_item)) {
             if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
                 Py_ssize_t l = m->sq_length(o);
-                if (unlikely(l < 0)) return -1;
-                i += l;
+                if (likely(l >= 0)) {
+                    i += l;
+                } else {
+                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
+                    if (PyErr_ExceptionMatches(PyExc_OverflowError))
+                        PyErr_Clear();
+                    else
+                        return -1;
+                }
             }
             return m->sq_ass_item(o, i, v);
         }
@@ -386,6 +401,12 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     __Pyx_DelItemInt_Fast(o, i, is_list, wraparound) : \
     __Pyx_DelItem_Generic(o, to_py_func(i)))
 
+static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
+                                               CYTHON_UNUSED int is_list, int wraparound);
+
+/////////////// DelItemInt ///////////////
+
 static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
     if (!j) return -1;
@@ -401,13 +422,20 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
         return PySequence_DelItem(o, i);
     }
 #else
-    /* inlined PySequence_DelItem() */
+    // inlined PySequence_DelItem() + special cased length overflow
     PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
     if (likely(m && m->sq_ass_item)) {
         if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
             Py_ssize_t l = m->sq_length(o);
-            if (unlikely(l < 0)) return -1;
-            i += l;
+                if (likely(l >= 0)) {
+                    i += l;
+                } else {
+                    // if length > max(Py_ssize_t), maybe the object can wrap around itself?
+                    if (PyErr_ExceptionMatches(PyExc_OverflowError))
+                        PyErr_Clear();
+                    else
+                        return -1;
+                }
         }
         return m->sq_ass_item(o, i, (PyObject *)NULL);
     }
