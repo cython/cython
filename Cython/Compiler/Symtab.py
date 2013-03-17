@@ -556,6 +556,8 @@ class Scope(object):
 
         def declare_inherited_attributes(entry, base_classes):
             for base_class in base_classes:
+                if base_class is PyrexTypes.error_type:
+                    continue
                 if base_class.scope is None:
                     error(pos, "Cannot inherit from incomplete type")
                 else:
