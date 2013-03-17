@@ -222,6 +222,18 @@ def test_normal_class():
     """
     NormalClass().method[pure_cython.short](10)
 
+def test_normal_class_refcount():
+    """
+    >>> test_normal_class_refcount()
+    short 10
+    0
+    """
+    import sys
+    x = NormalClass()
+    c = sys.getrefcount(x)
+    x.method[pure_cython.short](10)
+    print sys.getrefcount(x) - c
+
 def test_fused_declarations(cython.integral i, cython.floating f):
     """
     >>> test_fused_declarations[pure_cython.short, pure_cython.float](5, 6.6)
