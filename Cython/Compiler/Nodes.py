@@ -6481,9 +6481,16 @@ class GILStatNode(NogilTryFinallyStatNode):
 
     def __init__(self, pos, state, body):
         self.state = state
+        if state == 'gil':
+            temp_type = PyrexTypes.c_gilstate_type
+        else:
+            temp_type = PyrexTypes.c_threadstate_ptr_type
+        import ExprNodes
+        self.state_temp = ExprNodes.TempNode(pos, temp_type)
         TryFinallyStatNode.__init__(self, pos,
-            body = body,
-            finally_clause = GILExitNode(pos, state = state))
+            body=body,
+            finally_clause=GILExitNode(
+                pos, state=state, state_temp=self.state_temp))
 
     def analyse_declarations(self, env):
         env._in_with_gil_block = (self.state == 'gil')
@@ -6504,13 +6511,16 @@ class GILStatNode(NogilTryFinallyStatNode):
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         code.begin_block()
+        self.state_temp.allocate(code)
 
         if self.state == 'gil':
-            code.put_ensure_gil()
+            code.put_ensure_gil(variable=self.state_temp.result())
         else:
-            code.put_release_gil()
+            code.put_release_gil(variable=self.state_temp.result())
 
         TryFinallyStatNode.generate_execution_code(self, code)
+
+        self.state_temp.release(code)
         code.end_block()
 
 
@@ -6522,15 +6532,21 @@ class GILExitNode(StatNode):
     """
 
     child_attrs = []
+    state_temp = None
 
     def analyse_expressions(self, env):
         return self
 
     def generate_execution_code(self, code):
-        if self.state == 'gil':
-            code.put_release_ensured_gil()
+        if self.state_temp:
+            variable = self.state_temp.result()
         else:
-            code.put_acquire_gil()
+            variable = None
+
+        if self.state == 'gil':
+            code.put_release_ensured_gil(variable)
+        else:
+            code.put_acquire_gil(variable)
 
 
 class EnsureGILNode(GILExitNode):

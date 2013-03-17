@@ -1817,7 +1817,7 @@ class CCodeWriter(object):
 
     # GIL methods
 
-    def put_ensure_gil(self, declare_gilstate=True):
+    def put_ensure_gil(self, declare_gilstate=True, variable=None):
         """
         Acquire the GIL. The generated code is safe even when no PyThreadState
         has been allocated for this thread (for threads not initialized by
@@ -1827,32 +1827,42 @@ class CCodeWriter(object):
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.putln("#ifdef WITH_THREAD")
-        if declare_gilstate:
-            self.put("PyGILState_STATE ")
-        self.putln("__pyx_gilstate_save = PyGILState_Ensure();")
+        if not variable:
+            variable = '__pyx_gilstate_save'
+            if declare_gilstate:
+                self.put("PyGILState_STATE ")
+        self.putln("%s = PyGILState_Ensure();" % variable)
         self.putln("#endif")
 
-    def put_release_ensured_gil(self):
+    def put_release_ensured_gil(self, variable=None):
         """
         Releases the GIL, corresponds to `put_ensure_gil`.
         """
+        if not variable:
+            variable = '__pyx_gilstate_save'
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_Release(__pyx_gilstate_save);")
+        self.putln("PyGILState_Release(%s);" % variable)
         self.putln("#endif")
 
-    def put_acquire_gil(self):
+    def put_acquire_gil(self, variable=None):
         """
         Acquire the GIL. The thread's thread state must have been initialized
         by a previous `put_release_gil`
         """
+        self.putln("#ifdef WITH_THREAD")
+        if variable:
+            self.putln('_save = %s;' % variable)
         self.putln("Py_BLOCK_THREADS")
+        self.putln("#endif")
 
-    def put_release_gil(self):
+    def put_release_gil(self, variable=None):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.putln("#ifdef WITH_THREAD")
         self.putln("PyThreadState *_save = NULL;")
-        self.putln("#endif")
         self.putln("Py_UNBLOCK_THREADS")
+        if variable:
+            self.putln('%s = _save;' % variable)
+        self.putln("#endif")
 
     def declare_gilstate(self):
         self.putln("#ifdef WITH_THREAD")

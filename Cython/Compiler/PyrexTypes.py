@@ -3453,6 +3453,10 @@ c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
+# GIL state
+c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
+c_threadstate_type = CStructOrUnionType("PyThreadState", "struct", None, 1, "PyThreadState")
+c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")

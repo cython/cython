@@ -318,3 +318,30 @@ def test_lambda(n):
     """
     for i in range(n):
         yield lambda : i
+
+
+def test_with_gil_section():
+    """
+    >>> list(test_with_gil_section())
+    [0, 1, 2]
+    """
+    cdef int i
+    with nogil:
+        for i in range(3):
+            with gil:
+                yield i
+
+
+def test_double_with_gil_section():
+    """
+    >>> list(test_double_with_gil_section())
+    [0, 1, 2, 3]
+    """
+    cdef int i,j
+    with nogil:
+        for i in range(2):
+            with gil:
+                with nogil:
+                    for j in range(2):
+                        with gil:
+                            yield i*2+j
