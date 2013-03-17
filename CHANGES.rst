@@ -55,6 +55,12 @@ Features added
 Bugs fixed
 ----------
 
+* ``yield`` works inside of ``with gil`` sections.  It previously lead to a crash.
+  This fixes trac ticket 803.
+
+* Static methods without explicitly named positional arguments (e.g. having only
+  ``*args``) crashed when being called.  This fixes trac ticket 804.
+
 * ``dir()`` without arguments previously returned an unsorted list, which now
   gets sorted as expected.
 
