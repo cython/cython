@@ -1858,7 +1858,7 @@ class CCodeWriter(object):
     def put_release_gil(self, variable=None):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyThreadState *_save = NULL;")
+        self.putln("PyThreadState *_save;")
         self.putln("Py_UNBLOCK_THREADS")
         if variable:
             self.putln('%s = _save;' % variable)
