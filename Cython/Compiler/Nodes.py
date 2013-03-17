@@ -2630,7 +2630,7 @@ class DefNode(FuncDefNode):
 
         if self.is_staticmethod and env.is_c_class_scope:
             nfixed = 0
-            self.self_in_stararg = True
+            self.self_in_stararg = True  # FIXME: why for staticmethods?
 
             self.entry.signature = sig = copy.copy(sig)
             sig.fixed_arg_format = "*"
@@ -3162,7 +3162,7 @@ class DefNodeWrapper(FuncDefNode):
             self.starstar_arg.entry.xdecref_cleanup = 0
             code.put_gotref(self.starstar_arg.entry.cname)
 
-        if self.self_in_stararg:
+        if self.self_in_stararg and not self.target.is_staticmethod:
             # need to create a new tuple with 'self' inserted as first item
             code.put("%s = PyTuple_New(PyTuple_GET_SIZE(%s)+1); if (unlikely(!%s)) " % (
                     self.star_arg.entry.cname,
