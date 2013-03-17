@@ -625,7 +625,6 @@ __pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
 }
 
 static void __pyx_FusedFunction_dealloc(__pyx_FusedFunctionObject *self) {
-    Py_XDECREF(self->__signatures__);
     __pyx_FusedFunction_clear(self);
     __pyx_FusedFunctionType->tp_free((PyObject *) self);
 }
