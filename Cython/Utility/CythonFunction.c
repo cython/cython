@@ -598,7 +598,7 @@ static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
                                          PyObject *qualname, PyObject *self, PyObject *module,
                                          PyObject *code);
 
-static __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self);
+static int __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self);
 static PyTypeObject *__pyx_FusedFunctionType = NULL;
 static int __pyx_FusedFunction_init(void);
 
