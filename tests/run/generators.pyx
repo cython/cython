@@ -345,3 +345,7 @@ def test_double_with_gil_section():
                     for j in range(2):
                         with gil:
                             yield i*2+j
+                with nogil:
+                    pass
+            with gil:
+                pass

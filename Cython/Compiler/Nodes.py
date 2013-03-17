@@ -6479,18 +6479,29 @@ class GILStatNode(NogilTryFinallyStatNode):
     #
     #   state   string   'gil' or 'nogil'
 
+    state_temp = None
+
     def __init__(self, pos, state, body):
         self.state = state
+        self.create_state_temp_if_needed(pos, state, body)
+        TryFinallyStatNode.__init__(self, pos,
+            body=body,
+            finally_clause=GILExitNode(
+                pos, state=state, state_temp=self.state_temp))
+
+    def create_state_temp_if_needed(self, pos, state, body):
+        from ParseTreeTransforms import YieldNodeCollector
+        collector = YieldNodeCollector()
+        collector.visitchildren(body)
+        if not collector.yields:
+            return
+
         if state == 'gil':
             temp_type = PyrexTypes.c_gilstate_type
         else:
             temp_type = PyrexTypes.c_threadstate_ptr_type
         import ExprNodes
         self.state_temp = ExprNodes.TempNode(pos, temp_type)
-        TryFinallyStatNode.__init__(self, pos,
-            body=body,
-            finally_clause=GILExitNode(
-                pos, state=state, state_temp=self.state_temp))
 
     def analyse_declarations(self, env):
         env._in_with_gil_block = (self.state == 'gil')
@@ -6511,16 +6522,21 @@ class GILStatNode(NogilTryFinallyStatNode):
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         code.begin_block()
-        self.state_temp.allocate(code)
+        if self.state_temp:
+            self.state_temp.allocate(code)
+            variable = self.state_temp.result()
+        else:
+            variable = None
 
         if self.state == 'gil':
-            code.put_ensure_gil(variable=self.state_temp.result())
+            code.put_ensure_gil(variable=variable)
         else:
-            code.put_release_gil(variable=self.state_temp.result())
+            code.put_release_gil(variable=variable)
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
-        self.state_temp.release(code)
+        if self.state_temp:
+            self.state_temp.release(code)
         code.end_block()
 
 
