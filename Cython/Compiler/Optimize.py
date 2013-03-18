@@ -1404,7 +1404,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if len(pos_args) != 1:
             return node
         if isinstance(pos_args[0], ExprNodes.ComprehensionNode) \
-               and pos_args[0].target.type is Builtin.list_type:
+               and pos_args[0].type is Builtin.list_type:
             listcomp_node = pos_args[0]
             loop_node = listcomp_node.loop
         elif isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
@@ -1414,18 +1414,17 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             if yield_expression is None:
                 return node
 
-            target = ExprNodes.ListNode(node.pos, args = [])
             append_node = ExprNodes.ComprehensionAppendNode(
-                yield_expression.pos, expr = yield_expression,
-                target = ExprNodes.CloneNode(target))
+                yield_expression.pos, expr = yield_expression)
 
             Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
 
             listcomp_node = ExprNodes.ComprehensionNode(
-                gen_expr_node.pos, loop = loop_node, target = target,
+                gen_expr_node.pos, loop = loop_node,
                 append = append_node, type = Builtin.list_type,
                 expr_scope = gen_expr_node.expr_scope,
                 has_local_scope = True)
+            append_node.target = listcomp_node
         else:
             return node
 
@@ -1550,7 +1549,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         # the items into a list and then copy them into a tuple of the
         # final size.  This takes up to twice as much memory, but will
         # have to do until we have real support for genexps.
-        result = self._transform_list_set_genexpr(node, pos_args, ExprNodes.ListNode)
+        result = self._transform_list_set_genexpr(node, pos_args, Builtin.list_type)
         if result is not node:
             return ExprNodes.AsTupleNode(node.pos, arg=result)
         return node
@@ -1558,14 +1557,14 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _handle_simple_function_list(self, node, pos_args):
         if not pos_args:
             return ExprNodes.ListNode(node.pos, args=[], constant_result=[])
-        return self._transform_list_set_genexpr(node, pos_args, ExprNodes.ListNode)
+        return self._transform_list_set_genexpr(node, pos_args, Builtin.list_type)
 
     def _handle_simple_function_set(self, node, pos_args):
         if not pos_args:
             return ExprNodes.SetNode(node.pos, args=[], constant_result=set())
-        return self._transform_list_set_genexpr(node, pos_args, ExprNodes.SetNode)
+        return self._transform_list_set_genexpr(node, pos_args, Builtin.set_type)
 
-    def _transform_list_set_genexpr(self, node, pos_args, container_node_class):
+    def _transform_list_set_genexpr(self, node, pos_args, target_type):
         """Replace set(genexpr) and list(genexpr) by a literal comprehension.
         """
         if len(pos_args) > 1:
@@ -1579,23 +1578,21 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if yield_expression is None:
             return node
 
-        target_node = container_node_class(node.pos, args=[])
         append_node = ExprNodes.ComprehensionAppendNode(
             yield_expression.pos,
-            expr = yield_expression,
-            target = ExprNodes.CloneNode(target_node))
+            expr = yield_expression)
 
         Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
 
-        setcomp = ExprNodes.ComprehensionNode(
+        comp = ExprNodes.ComprehensionNode(
             node.pos,
             has_local_scope = True,
             expr_scope = gen_expr_node.expr_scope,
             loop = loop_node,
             append = append_node,
-            target = target_node)
-        append_node.target = setcomp
-        return setcomp
+            type = target_type)
+        append_node.target = comp
+        return comp
 
     def _handle_simple_function_dict(self, node, pos_args):
         """Replace dict( (a,b) for ... ) by a literal { a:b for ... }.
@@ -1618,12 +1615,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if len(yield_expression.args) != 2:
             return node
 
-        target_node = ExprNodes.DictNode(node.pos, key_value_pairs=[])
         append_node = ExprNodes.DictComprehensionAppendNode(
             yield_expression.pos,
             key_expr = yield_expression.args[0],
-            value_expr = yield_expression.args[1],
-            target = ExprNodes.CloneNode(target_node))
+            value_expr = yield_expression.args[1])
 
         Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
 
@@ -1633,7 +1628,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             expr_scope = gen_expr_node.expr_scope,
             loop = loop_node,
             append = append_node,
-            target = target_node)
+            type = Builtin.dict_type)
         append_node.target = dictcomp
         return dictcomp
 
@@ -3245,7 +3240,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         if isinstance(node.loop, Nodes.StatListNode) and not node.loop.stats:
             # loop was pruned already => transform into literal
-            return node.target
+            if node.type is Builtin.list_type:
+                return ExprNodes.ListNode(node.pos, args=[])
+            elif node.type is Builtin.set_type:
+                return ExprNodes.SetNode(node.pos, args=[])
+            elif node.type is Builtin.dict_type:
+                return ExprNodes.DictNode(node.pos, key_value_pairs=[])
         return node
 
     def visit_ForInStatNode(self, node):

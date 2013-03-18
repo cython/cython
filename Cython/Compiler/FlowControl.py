@@ -1246,7 +1246,6 @@ class ControlFlowAnalysis(CythonTransform):
             self.env_stack.append(self.env)
             self.env = node.expr_scope
         # Skip append node here
-        self._visit(node.target)
         self._visit(node.loop)
         if node.expr_scope:
             self.env = self.env_stack.pop()

@@ -7,7 +7,8 @@
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                StringEncoding=object, lookup_unicodechar=object, re=object,
-               Future=object, Options=object, error=object, warning=object)
+               Future=object, Options=object, error=object, warning=object,
+               Builtin=object)
 
 import re
 from unicodedata import lookup as lookup_unicodechar
@@ -15,6 +16,7 @@ from unicodedata import lookup as lookup_unicodechar
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
+import Builtin
 import StringEncoding
 from StringEncoding import EncodedString, BytesLiteral, _unicode, _bytes
 from ModuleNode import ModuleNode
@@ -897,13 +899,11 @@ def p_list_maker(s):
         return ExprNodes.ListNode(pos, args = [])
     expr = p_test(s)
     if s.sy == 'for':
-        target = ExprNodes.ListNode(pos, args = [])
-        append = ExprNodes.ComprehensionAppendNode(
-            pos, expr=expr, target=ExprNodes.CloneNode(target))
+        append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
         loop = p_comp_for(s, append)
         s.expect(']')
         return ExprNodes.ComprehensionNode(
-            pos, loop=loop, append=append, target=target,
+            pos, loop=loop, append=append, type = Builtin.list_type,
             # list comprehensions leak their loop variable in Py2
             has_local_scope = s.context.language_level >= 3)
     else:
@@ -964,13 +964,12 @@ def p_dict_or_set_maker(s):
         return ExprNodes.SetNode(pos, args=values)
     elif s.sy == 'for':
         # set comprehension
-        target = ExprNodes.SetNode(pos, args=[])
         append = ExprNodes.ComprehensionAppendNode(
-            item.pos, expr=item, target=ExprNodes.CloneNode(target))
+            item.pos, expr=item)
         loop = p_comp_for(s, append)
         s.expect('}')
         return ExprNodes.ComprehensionNode(
-            pos, loop=loop, append=append, target=target)
+            pos, loop=loop, append=append, type=Builtin.set_type)
     elif s.sy == ':':
         # dict literal or comprehension
         key = item
@@ -978,14 +977,12 @@ def p_dict_or_set_maker(s):
         value = p_test(s)
         if s.sy == 'for':
             # dict comprehension
-            target = ExprNodes.DictNode(pos, key_value_pairs = [])
             append = ExprNodes.DictComprehensionAppendNode(
-                item.pos, key_expr=key, value_expr=value,
-                target=ExprNodes.CloneNode(target))
+                item.pos, key_expr=key, value_expr=value)
             loop = p_comp_for(s, append)
             s.expect('}')
             return ExprNodes.ComprehensionNode(
-                pos, loop=loop, append=append, target=target)
+                pos, loop=loop, append=append, type=Builtin.dict_type)
         else:
             # dict literal
             items = [ExprNodes.DictItemNode(key.pos, key=key, value=value)]

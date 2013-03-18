@@ -6103,11 +6103,14 @@ class ScopedExprNode(ExprNode):
 
 
 class ComprehensionNode(ScopedExprNode):
-    subexprs = ["target"]
+    # A list/set/dict comprehension
+
     child_attrs = ["loop"]
 
+    is_temp = True
+
     def infer_type(self, env):
-        return self.target.infer_type(env)
+        return self.type
 
     def analyse_declarations(self, env):
         self.append.target = self # this is used in the PyList_Append of the inner loop
@@ -6117,8 +6120,6 @@ class ComprehensionNode(ScopedExprNode):
         self.loop.analyse_declarations(env)
 
     def analyse_types(self, env):
-        self.target = self.target.analyse_expressions(env)
-        self.type = self.target.type
         if not self.has_local_scope:
             self.loop = self.loop.analyse_expressions(env)
         return self
@@ -6131,13 +6132,23 @@ class ComprehensionNode(ScopedExprNode):
     def may_be_none(self):
         return False
 
-    def calculate_result_code(self):
-        return self.target.result()
-
     def generate_result_code(self, code):
         self.generate_operation_code(code)
 
     def generate_operation_code(self, code):
+        if self.type is Builtin.list_type:
+            create_code = 'PyList_New(0)'
+        elif self.type is Builtin.set_type:
+            create_code = 'PySet_New(NULL)'
+        elif self.type is Builtin.dict_type:
+            create_code = 'PyDict_New()'
+        else:
+            raise InternalError("illegal type for comprehension: %s" % self.type)
+        code.putln('%s = %s; %s' % (
+            self.result(), create_code,
+            code.error_goto_if_null(self.result(), self.pos)))
+
+        code.put_gotref(self.result())
         self.loop.generate_execution_code(code)
 
     def annotate(self, code):
@@ -6149,6 +6160,7 @@ class ComprehensionAppendNode(Node):
     # target must not be in child_attrs/subexprs
 
     child_attrs = ['expr']
+    target = None
 
     type = PyrexTypes.c_int_type
 
