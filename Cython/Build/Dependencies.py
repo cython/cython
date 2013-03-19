@@ -693,6 +693,9 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             module_list.remove(module)
     if hasattr(options, 'cache'):
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
+    # cythonize() is often followed by the (non-Python-buffered)
+    # compiler output, flush now to avoid interleaving output.
+    sys.stdout.flush()
     return module_list
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
