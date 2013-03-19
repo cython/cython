@@ -708,9 +708,9 @@ def wrap_compile_time_constant(pos, value):
     elif isinstance(value, float):
         return ExprNodes.FloatNode(pos, value=rep)
     elif isinstance(value, _unicode):
-        return ExprNodes.UnicodeNode(pos, value=value)
+        return ExprNodes.UnicodeNode(pos, value=EncodedString(value))
     elif isinstance(value, _bytes):
-        return ExprNodes.BytesNode(pos, value=value)
+        return ExprNodes.BytesNode(pos, value=BytesLiteral(value))
     elif isinstance(value, tuple):
         args = [wrap_compile_time_constant(pos, arg)
                 for arg in value]
