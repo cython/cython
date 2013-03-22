@@ -25,7 +25,7 @@ typedef struct {
    libatomic + autotools-like distutils support? Such a pain... */
 #if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 ||           \
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2)) && \
-                    !defined(WIN32) && !defined(MS_WINDOWS)
+                    !defined(__i386__)                   
     /* gcc >= 4.1.2 */
     #define __pyx_atomic_incr_aligned(value, lock) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_aligned(value, lock) __sync_fetch_and_sub(value, 1)
