@@ -580,6 +580,8 @@ class FunctionState(object):
 
         A C string referring to the variable is returned.
         """
+        if type.is_const:
+            type = type.const_base_type
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
