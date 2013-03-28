@@ -1815,7 +1815,7 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
 
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
-            and not self.lhs_of_first_assignment):
+            and not self.lhs_of_first_assignment and not rhs.in_module_scope):
             error(self.pos, "Literal list must be assigned to pointer at time of declaration")
 
         # is_pyglobal seems to be True for module level-globals only.
@@ -5914,6 +5914,7 @@ class ListNode(SequenceNode):
 
     obj_conversion_errors = []
     type = list_type
+    in_module_scope = False
 
     gil_message = "Constructing Python list"
 
@@ -5934,6 +5935,8 @@ class ListNode(SequenceNode):
         node = SequenceNode.analyse_types(self, env)
         node.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
+        if env.is_module_scope:
+            self.in_module_scope = True
         return node
 
     def coerce_to(self, dst_type, env):
@@ -5974,6 +5977,13 @@ class ListNode(SequenceNode):
         if isinstance(self.constant_result, list):
             t.constant_result = tuple(self.constant_result)
         return t
+
+    def allocate_temp_result(self, code):
+        if self.type.is_array and self.in_module_scope:
+            self.temp_code = code.funcstate.allocate_temp(
+                self.type, manage_ref=False, static=True)
+        else:
+            SequenceNode.allocate_temp_result(self, code)
 
     def release_temp_result(self, env):
         if self.type.is_array:

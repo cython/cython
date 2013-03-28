@@ -484,7 +484,7 @@ class FunctionState(object):
         self.in_try_finally = 0
         self.exc_vars = None
 
-        self.temps_allocated = [] # of (name, type, manage_ref)
+        self.temps_allocated = [] # of (name, type, manage_ref, static)
         self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {} # name -> (type, manage_ref)
         self.temp_counter = 0
@@ -563,7 +563,7 @@ class FunctionState(object):
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref):
+    def allocate_temp(self, type, manage_ref, static=False):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -577,6 +577,10 @@ class FunctionState(object):
         If not type.is_pyobject, then manage_ref will be ignored, but it
         still has to be passed. It is recommended to pass False by convention
         if it is known that type will never be a Python object.
+
+        static=True marks the temporary declaration with "static".
+        This is only used when allocating backing store for a module-level
+        C array literals.
 
         A C string referring to the variable is returned.
         """
@@ -595,7 +599,7 @@ class FunctionState(object):
                 self.temp_counter += 1
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if not result in self.names_taken: break
-            self.temps_allocated.append((result, type, manage_ref))
+            self.temps_allocated.append((result, type, manage_ref, static))
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s allocated */" % result)
@@ -626,7 +630,7 @@ class FunctionState(object):
         that are currently in use.
         """
         used = []
-        for name, type, manage_ref in self.temps_allocated:
+        for name, type, manage_ref, static in self.temps_allocated:
             freelist = self.temps_free.get((type, manage_ref))
             if freelist is None or name not in freelist:
                 used.append((name, type, manage_ref and type.is_pyobject))
@@ -645,7 +649,7 @@ class FunctionState(object):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
         """
         return [(cname, type)
-                    for cname, type, manage_ref in self.temps_allocated
+                    for cname, type, manage_ref, static in self.temps_allocated
                         if manage_ref]
 
     def all_free_managed_temps(self):
@@ -1604,7 +1608,7 @@ class CCodeWriter(object):
         self.putln(";")
 
     def put_temp_declarations(self, func_context):
-        for name, type, manage_ref in func_context.temps_allocated:
+        for name, type, manage_ref, static in func_context.temps_allocated:
             decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
@@ -1612,7 +1616,7 @@ class CCodeWriter(object):
                 import MemoryView
                 self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
             else:
-                self.putln("%s;" % decl)
+                self.putln("%s%s;" % (static and "static " or "", decl))
 
     def put_h_guard(self, guard):
         self.putln("#ifndef %s" % guard)
