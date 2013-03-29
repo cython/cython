@@ -5,8 +5,6 @@
 cimport cython
 import sys
 
-IS_PY3 = sys.version_info[0] >= 3
-
 def get_defaults(func):
     if sys.version_info >= (2, 6, 0):
         return func.__defaults__
