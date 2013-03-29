@@ -6962,7 +6962,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  module_name       EncodedString      Name of defining module
     #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = ['code_object', 'defaults_tuple']
+    subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict']
 
     self_object = None
     code_object = None
@@ -6972,6 +6972,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     defaults_struct = None
     defaults_pyobjects = 0
     defaults_tuple = None
+    defaults_kwdict = None
 
     type = py_object_type
     is_temp = 1
@@ -7002,6 +7003,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         nonliteral_objects = []
         nonliteral_other = []
         default_args = []
+        default_kwargs = []
         for arg in self.def_node.args:
             if arg.default:
                 if not arg.default.is_literal:
@@ -7012,7 +7014,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                         nonliteral_other.append(arg)
                 else:
                     arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
-                default_args.append(arg)
+                if arg.kw_only:
+                    default_kwargs.append(arg)
+                else:
+                    default_args.append(arg)
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
             cname = module_scope.next_id(Naming.defaults_struct_prefix)
@@ -7037,20 +7042,40 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     Naming.dynamic_args_cname, entry.cname)
             self.def_node.defaults_struct = self.defaults_struct.name
 
-        if default_args:
+        if default_args or default_kwargs:
             if self.defaults_struct is None:
-                defaults_tuple = TupleNode(self.pos, args=[
-                    arg.default for arg in default_args])
-                self.defaults_tuple = defaults_tuple.analyse_types(env)
+                if default_args:
+                    defaults_tuple = TupleNode(self.pos, args=[
+                        arg.default for arg in default_args])
+                    self.defaults_tuple = defaults_tuple.analyse_types(env)
+                if default_kwargs:
+                    defaults_kwdict = DictNode(self.pos, key_value_pairs=[
+                        DictItemNode(
+                            arg.pos,
+                            key=IdentifierStringNode(arg.pos, value=arg.name),
+                            value=arg.default)
+                        for arg in default_kwargs])
+                    self.defaults_kwdict = defaults_kwdict.analyse_types(env)
             else:
+                if default_args:
+                    defaults_tuple = DefaultsTupleNode(
+                        self.pos, default_args, self.defaults_struct)
+                else:
+                    defaults_tuple = NoneNode(self.pos)
+                if default_kwargs:
+                    defaults_kwdict = DefaultsKwDictNode(
+                        self.pos, default_kwargs, self.defaults_struct)
+                else:
+                    defaults_kwdict = NoneNode(self.pos)
+
                 defaults_getter = Nodes.DefNode(
                     self.pos, args=[], star_arg=None, starstar_arg=None,
                     body=Nodes.ReturnStatNode(
                         self.pos, return_type=py_object_type,
-                        value=DefaultsTupleNode(
-                            self.pos, default_args,
-                            self.defaults_struct)),
-                    decorators=None, name=StringEncoding.EncodedString("__defaults__"))
+                        value=TupleNode(
+                            self.pos, args=[defaults_tuple, defaults_kwdict])),
+                    decorators=None,
+                    name=StringEncoding.EncodedString("__defaults__"))
                 defaults_getter.analyse_declarations(env)
                 defaults_getter = defaults_getter.analyse_expressions(env)
                 defaults_getter.body = defaults_getter.body.analyse_expressions(
@@ -7161,6 +7186,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.defaults_tuple:
             code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
                 self.result(), self.defaults_tuple.py_result()))
+        if self.defaults_kwdict:
+            code.putln('__Pyx_CyFunction_SetDefaultsKwDict(%s, %s);' % (
+                self.result(), self.defaults_kwdict.py_result()))
         if def_node.defaults_getter:
             code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
                 self.result(), def_node.defaults_getter.entry.pyfunc_cname))
@@ -7304,6 +7332,21 @@ class DefaultsTupleNode(TupleNode):
                 arg = arg.default
             args.append(arg)
         super(DefaultsTupleNode, self).__init__(pos, args=args)
+
+
+class DefaultsKwDictNode(DictNode):
+    # CyFunction's __kwdefaults__ dict
+
+    def __init__(self, pos, defaults, defaults_struct):
+        items = []
+        for arg in defaults:
+            name = IdentifierStringNode(arg.pos, value=arg.name)
+            if not arg.default.is_literal:
+                arg = DefaultNonLiteralArgNode(pos, arg, defaults_struct)
+            else:
+                arg = arg.default
+            items.append(DictItemNode(arg.pos, key=name, value=arg))
+        super(DefaultsKwDictNode, self).__init__(pos, key_value_pairs=items)
 
 
 class LambdaNode(InnerFunctionNode):

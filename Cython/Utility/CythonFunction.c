@@ -37,6 +37,7 @@ typedef struct {
 
     /* Defaults info */
     PyObject *defaults_tuple; /* Const defaults tuple */
+    PyObject *defaults_kwdict; /* Const kwonly defaults dict */
     PyObject *(*defaults_getter)(PyObject *);
 } __pyx_CyFunctionObject;
 
@@ -55,6 +56,8 @@ static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *m,
                                                          int pyobjects);
 static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *m,
                                                             PyObject *tuple);
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *m,
+                                                             PyObject *dict);
 
 
 static int __Pyx_CyFunction_init(void);
@@ -235,27 +238,85 @@ __Pyx_CyFunction_get_code(__pyx_CyFunctionObject *op)
     return result;
 }
 
+static int
+__Pyx_CyFunction_init_defaults(__pyx_CyFunctionObject *op) {
+    PyObject *res = op->defaults_getter((PyObject *) op);
+    if (unlikely(!res))
+        return -1;
+
+    /* Cache result */
+    op->defaults_tuple = PyTuple_GET_ITEM(res, 0);
+    Py_INCREF(op->defaults_tuple);
+    op->defaults_kwdict = PyTuple_GET_ITEM(res, 1);
+    Py_INCREF(op->defaults_kwdict);
+    Py_DECREF(res);
+    return 0;
+}
+
+static int
+__Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value) {
+    PyObject* tmp;
+    if (!value) {
+        // del => explicit None to prevent rebuilding
+        value = Py_None;
+    } else if (value != Py_None && !PyTuple_Check(value)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__defaults__ must be set to a tuple object");
+        return -1;
+    }
+    Py_INCREF(value);
+    tmp = op->defaults_tuple;
+    op->defaults_tuple = value;
+    Py_XDECREF(tmp);
+    return 0;
+}
+
 static PyObject *
-__Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op)
-{
-    if (op->defaults_tuple) {
-        Py_INCREF(op->defaults_tuple);
-        return op->defaults_tuple;
-    }
-
-    if (op->defaults_getter) {
-        PyObject *res = op->defaults_getter((PyObject *) op);
-
-        /* Cache result */
-        if (likely(res)) {
-            Py_INCREF(res);
-            op->defaults_tuple = res;
+__Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op) {
+    PyObject* result = op->defaults_tuple;
+    if (unlikely(!result)) {
+        if (op->defaults_getter) {
+            if (__Pyx_CyFunction_init_defaults(op) < 0) return NULL;
+            result = op->defaults_tuple;
+        } else {
+            result = Py_None;
         }
-        return res;
     }
+    Py_INCREF(result);
+    return result;
+}
 
-    Py_INCREF(Py_None);
-    return Py_None;
+static int
+__Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value) {
+    PyObject* tmp;
+    if (!value) {
+        // del => explicit None to prevent rebuilding
+        value = Py_None;
+    } else if (value != Py_None && !PyDict_Check(value)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__kwdefaults__ must be set to a dict object");
+        return -1;
+    }
+    Py_INCREF(value);
+    tmp = op->defaults_kwdict;
+    op->defaults_kwdict = value;
+    Py_XDECREF(tmp);
+    return 0;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op) {
+    PyObject* result = op->defaults_kwdict;
+    if (unlikely(!result)) {
+        if (op->defaults_getter) {
+            if (__Pyx_CyFunction_init_defaults(op) < 0) return NULL;
+            result = op->defaults_kwdict;
+        } else {
+            result = Py_None;
+        }
+    }
+    Py_INCREF(result);
+    return result;
 }
 
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
@@ -273,8 +334,9 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__closure__", (getter)__Pyx_CyFunction_get_closure, 0, 0, 0},
     {(char *) "func_code", (getter)__Pyx_CyFunction_get_code, 0, 0, 0},
     {(char *) "__code__", (getter)__Pyx_CyFunction_get_code, 0, 0, 0},
-    {(char *) "func_defaults", (getter)__Pyx_CyFunction_get_defaults, 0, 0, 0},
-    {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, 0, 0, 0},
+    {(char *) "func_defaults", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
+    {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
+    {(char *) "__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {0, 0, 0, 0, 0}
 };
 
@@ -328,6 +390,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->defaults_pyobjects = 0;
     op->defaults = NULL;
     op->defaults_tuple = NULL;
+    op->defaults_kwdict = NULL;
     op->defaults_getter = NULL;
     PyObject_GC_Track(op);
     return (PyObject *) op;
@@ -345,6 +408,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_code);
     Py_CLEAR(m->func_classobj);
     Py_CLEAR(m->defaults_tuple);
+    Py_CLEAR(m->defaults_kwdict);
 
     if (m->defaults) {
         PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
@@ -380,6 +444,7 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_code);
     Py_VISIT(m->func_classobj);
     Py_VISIT(m->defaults_tuple);
+    Py_VISIT(m->defaults_kwdict);
 
     if (m->defaults) {
         PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
@@ -563,6 +628,12 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *func, PyOb
     __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
     m->defaults_tuple = tuple;
     Py_INCREF(tuple);
+}
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *func, PyObject *dict) {
+    __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
+    m->defaults_kwdict = dict;
+    Py_INCREF(dict);
 }
 
 //////////////////// CyFunctionClassCell.proto ////////////////////

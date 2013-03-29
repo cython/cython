@@ -5,6 +5,8 @@
 cimport cython
 import sys
 
+IS_PY3 = sys.version_info[0] >= 3
+
 def get_defaults(func):
     if sys.version_info >= (2, 6, 0):
         return func.__defaults__
@@ -85,6 +87,49 @@ def test_defaults_nonliteral_func_call(f):
     def func(a=f()):
         return a
     return func
+
+
+def cy_kwonly_default_args(a, x=1, *, b=2):
+    l = m = 1
+
+def test_kwdefaults(value):
+    """
+    >>> cy_kwonly_default_args.__defaults__
+    (1,)
+    >>> cy_kwonly_default_args.func_defaults
+    (1,)
+
+    >>> cy_kwonly_default_args.__kwdefaults__
+    {'b': 2}
+
+    >>> if IS_PY3: test_kwdefaults.__defaults__ is None
+    ... else: print(True)
+    True
+    >>> test_kwdefaults.__kwdefaults__ is None
+    ... else: print(True)
+    True
+
+    >>> f = test_kwdefaults(5)
+    >>> f.__defaults__
+    (1,)
+    >>> f.__kwdefaults__
+    {'b': 5}
+    >>> f.__kwdefaults__ = ()
+    Traceback (most recent call last):
+    TypeError: __kwdefaults__ must be set to a dict object
+    >>> f.__kwdefaults__ = None
+    >>> f.__kwdefaults__
+    >>> f.__kwdefaults__ = {}
+    >>> f.__kwdefaults__
+    {}
+    >>> f.__kwdefaults__ = {'a': 2}
+    >>> f.__kwdefaults__
+    {'a': 2}
+    """
+    def kwonly_default_args(a, x=1, *, b=value):
+        return a, x, b
+    return kwonly_default_args
+
 
 _counter2 = 1.0
 def counter2():

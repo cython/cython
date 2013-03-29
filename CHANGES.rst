@@ -55,6 +55,13 @@ Features added
 Bugs fixed
 ----------
 
+* The ``__defaults__`` attribute was not writable for Cython implemented
+  functions.
+
+* Default values of keyword-only arguments showed up in ``__defaults__`` instead
+  of ``__kwdefaults__`` (which was not implemented).  Both are available for
+  Cython implemented functions now, as specified in Python 3.x.
+
 * ``yield`` works inside of ``with gil`` sections.  It previously lead to a crash.
   This fixes trac ticket 803.
 
