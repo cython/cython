@@ -55,6 +55,26 @@ def test_struct(int x, y):
     print_struct(aa[0])
     print_struct([1, 2, <double**>1])
 
+cdef int m_int = -1
+cdef int* m_iarray = [4, m_int]
+cdef int** m_piarray = [m_iarray, &m_int]
+cdef char** m_carray = [b"a", b"bc"]
+cdef MyStruct* m_structarray = [[m_int,0,NULL], [1,m_int+1,NULL]]
+
+def test_module_level():
+    """
+    >>> test_module_level()
+    4 -1
+    4 -1
+    True True
+    1 0 True
+    """
+    print m_iarray[0], m_iarray[1]
+    print m_piarray[0][0], m_piarray[1][0]
+    print m_carray[0] == b"a", m_carray[1] == b"bc"
+    print_struct(m_structarray[1])
+
+
 # Make sure it's still naturally an object.
 
 [0,1,2,3].append(4)
