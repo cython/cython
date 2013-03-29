@@ -6952,7 +6952,7 @@ class UnboundMethodNode(ExprNode):
 
 class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  Helper class used in the implementation of Python
-    #  class definitions. Constructs a PyCFunction object
+    #  functions.  Constructs a PyCFunction object
     #  from a PyMethodDef struct.
     #
     #  pymethdef_cname   string             PyMethodDef structure
@@ -6962,7 +6962,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  module_name       EncodedString      Name of defining module
     #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict']
+    subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict',
+                'annotations_dict']
 
     self_object = None
     code_object = None
@@ -6973,6 +6974,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     defaults_pyobjects = 0
     defaults_tuple = None
     defaults_kwdict = None
+    annotations_dict = None
 
     type = py_object_type
     is_temp = 1
@@ -7004,6 +7006,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         nonliteral_other = []
         default_args = []
         default_kwargs = []
+        annotations = []
         for arg in self.def_node.args:
             if arg.default:
                 if not arg.default.is_literal:
@@ -7018,6 +7021,16 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     default_kwargs.append(arg)
                 else:
                     default_args.append(arg)
+            if arg.annotation:
+                arg.annotation = arg.annotation.analyse_types(env)
+                if not arg.annotation.type.is_pyobject:
+                    arg.annotation = arg.annotation.coerce_to_pyobject(env)
+                annotations.append((arg.pos, arg.name, arg.annotation))
+        if self.def_node.return_type_annotation:
+            annotations.append((self.def_node.return_type_annotation.pos,
+                                StringEncoding.EncodedString("return"),
+                                self.def_node.return_type_annotation))
+
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
             cname = module_scope.next_id(Naming.defaults_struct_prefix)
@@ -7083,6 +7096,13 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 defaults_getter.py_wrapper_required = False
                 defaults_getter.pymethdef_required = False
                 self.def_node.defaults_getter = defaults_getter
+        if annotations:
+            annotations_dict = DictNode(self.pos, key_value_pairs=[
+                DictItemNode(
+                    pos, key=IdentifierStringNode(pos, value=name),
+                    value=value)
+                for pos, name, value in annotations])
+            self.annotations_dict = annotations_dict.analyse_types(env)
 
     def may_be_none(self):
         return False
@@ -7192,6 +7212,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if def_node.defaults_getter:
             code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
                 self.result(), def_node.defaults_getter.entry.pyfunc_cname))
+        if self.annotations_dict:
+            code.putln('__Pyx_CyFunction_SetAnnotationsDict(%s, %s);' % (
+                self.result(), self.annotations_dict.py_result()))
 
 
 class InnerFunctionNode(PyCFunctionNode):

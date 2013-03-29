@@ -31,14 +31,15 @@ typedef struct {
     PyObject *func_closure;
     PyObject *func_classobj; /* No-args super() class cell */
 
-    /* Dynamic default args*/
+    /* Dynamic default args and annotations */
     void *defaults;
     int defaults_pyobjects;
 
     /* Defaults info */
-    PyObject *defaults_tuple; /* Const defaults tuple */
-    PyObject *defaults_kwdict; /* Const kwonly defaults dict */
+    PyObject *defaults_tuple;   /* Const defaults tuple */
+    PyObject *defaults_kwdict;  /* Const kwonly defaults dict */
     PyObject *(*defaults_getter)(PyObject *);
+    PyObject *func_annotations; /* function annotations dict */
 } __pyx_CyFunctionObject;
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
@@ -58,6 +59,8 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *m,
                                                             PyObject *tuple);
 static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *m,
                                                              PyObject *dict);
+static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *m,
+                                                              PyObject *dict);
 
 
 static int __Pyx_CyFunction_init(void);
@@ -319,6 +322,35 @@ __Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op) {
     return result;
 }
 
+static int
+__Pyx_CyFunction_set_annotations(__pyx_CyFunctionObject *op, PyObject* value) {
+    PyObject* tmp;
+    if (!value || value == Py_None) {
+        value = NULL;
+    } else if (!PyDict_Check(value)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__annotations__ must be set to a dict object");
+        return -1;
+    }
+    Py_XINCREF(value);
+    tmp = op->func_annotations;
+    op->func_annotations = value;
+    Py_XDECREF(tmp);
+    return 0;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op) {
+    PyObject* result = op->func_annotations;
+    if (unlikely(!result)) {
+        result = PyDict_New();
+        if (unlikely(!result)) return NULL;
+        op->func_annotations = result;
+    }
+    Py_INCREF(result);
+    return result;
+}
+
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "func_doc", (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
     {(char *) "__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
@@ -337,6 +369,7 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "func_defaults", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {(char *) "__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
+    {(char *) "__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
     {0, 0, 0, 0, 0}
 };
 
@@ -392,6 +425,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->defaults_tuple = NULL;
     op->defaults_kwdict = NULL;
     op->defaults_getter = NULL;
+    op->func_annotations = NULL;
     PyObject_GC_Track(op);
     return (PyObject *) op;
 }
@@ -409,6 +443,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_classobj);
     Py_CLEAR(m->defaults_tuple);
     Py_CLEAR(m->defaults_kwdict);
+    Py_CLEAR(m->func_annotations);
 
     if (m->defaults) {
         PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
@@ -633,6 +668,12 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *func, PyOb
 static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *func, PyObject *dict) {
     __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
     m->defaults_kwdict = dict;
+    Py_INCREF(dict);
+}
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, PyObject *dict) {
+    __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
+    m->func_annotations = dict;
     Py_INCREF(dict);
 }
 

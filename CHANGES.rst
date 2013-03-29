@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* Cython implemented functions make their argument and return type annotations
+  available through the ``__annotations__`` attribute (PEP 3107).
+
 * Access to non-cdef module globals and Python object attributes is faster.
 
 * ``Py_UNICODE*`` coerces from and to Python unicode strings.  This is

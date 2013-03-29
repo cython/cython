@@ -729,7 +729,7 @@ class CArgDeclNode(Node):
     # is_kw_only     boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
 
-    child_attrs = ["base_type", "declarator", "default"]
+    child_attrs = ["base_type", "declarator", "default", "annotation"]
 
     is_self_arg = 0
     is_type_arg = 0
