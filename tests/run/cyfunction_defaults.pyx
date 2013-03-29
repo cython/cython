@@ -102,12 +102,8 @@ def test_kwdefaults(value):
     >>> cy_kwonly_default_args.__kwdefaults__
     {'b': 2}
 
-    >>> if IS_PY3: test_kwdefaults.__defaults__ is None
-    ... else: print(True)
-    True
-    >>> test_kwdefaults.__kwdefaults__ is None
-    ... else: print(True)
-    True
+    >>> test_kwdefaults.__defaults__
+    >>> test_kwdefaults.__kwdefaults__
 
     >>> f = test_kwdefaults(5)
     >>> f.__defaults__
