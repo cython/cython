@@ -42,7 +42,7 @@ def test_sub():
 
 ######## a.pxd ########
 
-cdef class ExtTypeA:
+cdef api class ExtTypeA[type ExtTypeA_Type, object ExtTypeAObject]:
     cdef readonly attrA
 
 ######## a.pyx ########
