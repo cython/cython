@@ -3170,6 +3170,15 @@ class IndexNode(ExprNode):
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
 
+    def allocate_temp_result(self, code):
+        if not self.temp_code and self.memslice_index:
+            # override ExprNode .is_pyobject -> convert to PyrexTypes.py_object_type behaviour,
+            # see http://mail.python.org/pipermail/cython-devel/2013-March/003482.html
+            self.temp_code = code.funcstate.allocate_temp(
+                self.type, manage_ref=self.use_managed_ref)
+        else:
+            ExprNode.allocate_temp_result(self, code)
+
     def extra_index_params(self, code):
         if self.index.type.is_int:
             if self.original_index_type.signed:
@@ -3222,7 +3231,7 @@ class IndexNode(ExprNode):
                 # is_temp is True, so must pull out value and incref it.
                 # NOTE: object temporary results for nodes are declared
                 #       as PyObject *, so we need a cast
-                code.putln("%s = (PyObject *) *%s;" % (self.temp_code,
+                code.putln("%s = *%s;" % (self.temp_code,
                                                        self.buffer_ptr_code))
                 code.putln("__Pyx_INCREF((PyObject*)%s);" % self.temp_code)
 
