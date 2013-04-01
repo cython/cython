@@ -1649,15 +1649,16 @@ class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def get_constant_value_node(self, name_node):
-        if not name_node.cf_state or not name_node.cf_state.is_single:
-            # no single assignment in the current scope
+        if name_node.cf_state is None:
+            return None
+        if name_node.cf_state.cf_is_null:
             return None
         entry = self.current_env().lookup(name_node.name)
         if not entry or (not entry.cf_assignments
                          or len(entry.cf_assignments) != 1):
             # not just a single assignment in all closures
             return None
-        return name_node.cf_state.one().rhs
+        return entry.cf_assignments[0].rhs
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
