@@ -24,7 +24,7 @@ from distutils.extension import Extension
 from Cython import Utils
 from Cython.Utils import cached_function, cached_method, path_exists
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
-    
+
 join_path = cached_function(os.path.join)
 
 if sys.version_info[0] < 3:
@@ -208,7 +208,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     in_quote = False
     hash_mark = single_q = double_q = -1
     code_len = len(code)
-    
+
     while True:
         if hash_mark < q:
             hash_mark = code.find('#', q)
@@ -353,7 +353,7 @@ class DependencyTree(object):
             elif not self.quiet:
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
-    
+
     @cached_method
     def cimports_and_externs(self, filename):
         # This is really ugly. Nested cimports are resolved with respect to the
@@ -627,6 +627,14 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
+            if hasattr(options, 'build_dir'):
+                base = os.path.join(options.build_dir, base)
+                input_dir = os.path.dirname(source)
+                output_dir = os.path.dirname(base)
+                if not os.path.isdir(output_dir):
+                    os.makedirs(output_dir)
+                for header in extended_iglob(os.path.join(input_dir, '*.h')):
+                    shutil.copy(header, output_dir)
             if ext in ('.pyx', '.py'):
                 if m.language == 'c++':
                     c_file = base + '.cpp'
@@ -638,7 +646,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     c_timestamp = os.path.getmtime(c_file)
                 else:
                     c_timestamp = -1
-                    
+
                 # Priority goes first to modified files, second to direct
                 # dependents, and finally to indirect dependents.
                 if c_timestamp < deps.timestamp(source):
