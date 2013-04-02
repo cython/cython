@@ -713,6 +713,19 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         func_type.op_arg_struct = PyrexTypes.c_ptr_type(op_args_struct.type)
 
 
+class CConstDeclaratorNode(CDeclaratorNode):
+    # base     CDeclaratorNode
+
+    child_attrs = ["base"]
+
+    def analyse(self, base_type, env, nonempty = 0):
+        if base_type.is_pyobject:
+            error(self.pos,
+                  "Const base type cannot be a Python object")
+        const = PyrexTypes.c_const_type(base_type)
+        return self.base.analyse(const, env, nonempty = nonempty)
+
+
 class CArgDeclNode(Node):
     # Item in a function declaration argument list.
     #
