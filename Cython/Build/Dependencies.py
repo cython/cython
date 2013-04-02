@@ -627,14 +627,6 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
-            if hasattr(options, 'build_dir'):
-                base = os.path.join(options.build_dir, base)
-                input_dir = os.path.dirname(source)
-                output_dir = os.path.dirname(base)
-                if not os.path.isdir(output_dir):
-                    os.makedirs(output_dir)
-                for header in extended_iglob(os.path.join(input_dir, '*.h')):
-                    shutil.copy(header, output_dir)
             if ext in ('.pyx', '.py'):
                 if m.language == 'c++':
                     c_file = base + '.cpp'
@@ -642,6 +634,25 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                 else:
                     c_file = base + '.c'
                     options = c_options
+
+                # setup for out of place build directory if enabled
+                if hasattr(options, 'build_dir'):
+                    c_file = os.path.join(options.build_dir, c_file)
+                    input_dir = os.path.dirname(source)
+                    output_dir = os.path.dirname(c_file)
+                    if not os.path.isdir(output_dir):
+                        os.makedirs(output_dir)
+                    def headers():
+                        for ext in ('h', 'hpp', 'hh'):
+                            for header in extended_iglob(os.path.join(input_dir, '**', '*.%s'%ext)):
+                                yield header
+                    for header in headers():
+                        header_dir = os.path.join(output_dir,
+                                os.path.dirname(os.path.relpath(header, input_dir)))
+                        if not os.path.isdir(header_dir):
+                            os.makedirs(header_dir)
+                        shutil.copy(header, header_dir)
+
                 if os.path.exists(c_file):
                     c_timestamp = os.path.getmtime(c_file)
                 else:
