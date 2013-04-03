@@ -10,17 +10,22 @@ cdef const int x = 10
 cdef struct S:
     int member
 
-cdef func(const int a, const int* b, const (int*) c, const S s):
+cdef func(const int a, const int* b, const (int*) c, const S s, int *const d,
+          const S *const t):
     a = 10
     c = NULL
     b[0] = 100
     s.member = 1000
+    d = NULL
+    t = &s
 
 _ERRORS = """
 3:5: Const base type cannot be a Python object
 8:5: Assignment to const 'x'
-14:6: Assignment to const 'a'
-15:6: Assignment to const 'c'
-16:5: Assignment to const dereference
-17:5: Assignment to const attribute 'member'
+15:6: Assignment to const 'a'
+16:6: Assignment to const 'c'
+17:5: Assignment to const dereference
+18:5: Assignment to const attribute 'member'
+19:6: Assignment to const 'd'
+20:6: Assignment to const 't'
 """
