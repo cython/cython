@@ -156,6 +156,91 @@ def test_cmethods(ExtTypeWithCMethods obj not None):
     return x, obj.get_cattr()
 
 
+cdef class ExtSubTypeWithCMethods(ExtTypeWithCMethods):
+    """
+    >>> obj = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    """
+
+
+cdef class ExtSubTypeWithMoreCMethods(ExtSubTypeWithCMethods):
+    """
+    >>> obj = ExtSubTypeWithMoreCMethods()
+    >>> test_more_cmethods(obj)
+    (2, 3, 3)
+    >>> obj = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = ExtSubTypeWithMoreCMethods()
+    >>> test_more_cmethods(obj)
+    (2, 3, 3)
+    >>> obj2 = ExtSubTypeWithMoreCMethods()
+    >>> test_more_cmethods(obj2)
+    (2, 3, 3)
+    >>> obj2 = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj2)
+    (1, 2)
+    >>> obj = ExtSubTypeWithMoreCMethods()
+    >>> test_more_cmethods(obj)
+    (2, 3, 3)
+    >>> obj2 = ExtTypeWithCMethods()
+    >>> test_cmethods(obj2)
+    (1, 2)
+    >>> obj = ExtSubTypeWithMoreCMethods()
+    >>> test_more_cmethods(obj)
+    (2, 3, 3)
+    >>> obj2 = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj2)
+    (1, 2)
+    >>> obj = ExtSubTypeWithMoreCMethods()
+    >>> test_more_cmethods(obj)
+    (2, 3, 3)
+    >>> obj2 = ExtSubTypeWithCMethods()
+    >>> test_cmethods(obj2)
+    (1, 2)
+    >>> obj = ExtTypeWithCMethods()
+    >>> test_cmethods(obj)
+    (1, 2)
+    """
+    def __cinit__(self):
+        assert self.cattr == 1
+        self.cattr = 2
+
+    cdef int get_cattr2(self):
+        return self.cattr
+
+    cdef set_cattr2(self, int value):
+        self.cattr = value
+
+
+def test_more_cmethods(ExtSubTypeWithMoreCMethods obj not None):
+    x = obj.get_cattr()
+    assert obj.get_cattr2() == x
+    obj.set_cattr2(2)
+    assert obj.get_cattr2() == 2
+    obj.set_cattr(3)
+    return x, obj.get_cattr(), obj.get_cattr2()
+
+
 @cython.freelist(4)
 cdef class ExtTypeWithRefCycle:
     """
