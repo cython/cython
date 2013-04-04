@@ -3329,6 +3329,15 @@ class CEnumType(CType):
         return "<CEnumType %s %s%s>" % (self.name, self.cname,
             ("", " typedef")[self.typedef_flag])
 
+    def __eq__(self, other):
+        if isinstance(other, CEnumType):
+            return self.name == other.name
+        else:
+            return False
+
+    def __hash__(self):
+        return hash(self.name)
+
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:

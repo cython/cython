@@ -1,0 +1,30 @@
+PYTHON cythonizepxd.py
+
+######## cythonizepxd.py ########
+
+import sys
+
+from Cython.Compiler.Main import (CompilationOptions, compile_single,
+                                  default_options)
+
+class AssertWarning:
+    warning = ('warning: a.pxd:6:12: Function signature does not match '
+               'previous declaration')
+    def write(self, stderr):
+        assert stderr.strip() != warning
+
+# redirect stderr
+old_stderr = sys.stderr
+sys.stderr = mystderr = AssertWarning()
+
+result = compile_single('a.pxd', CompilationOptions(default_options))
+
+sys.stderr = old_stderr
+
+######## a.pxd ########
+
+cdef extern from *:
+    ctypedef enum MyEnum:
+        Value1
+
+    MyEnum f()
