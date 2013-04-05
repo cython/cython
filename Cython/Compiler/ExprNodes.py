@@ -9234,6 +9234,8 @@ class CondExprNode(ExprNode):
         self.true_val = self.true_val.analyse_types(env)
         self.false_val = self.false_val.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(self.true_val.type, self.false_val.type)
+        if self.type.is_pyobject:
+            self.result_ctype = py_object_type
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
