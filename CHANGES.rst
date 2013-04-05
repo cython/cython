@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* EXPERIMENTAL support for simple Cython code level line tracing.  Enabled by
+  the "linetrace" compiler directive.
+
 * Cython implemented functions make their argument and return type annotations
   available through the ``__annotations__`` attribute (PEP 3107).
 

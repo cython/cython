@@ -1537,10 +1537,11 @@ class FuncDefNode(StatNode, BlockNode):
         preprocessor_guard = self.get_preprocessor_guard()
 
         profile = code.globalstate.directives['profile']
-        if profile and lenv.nogil:
+        linetrace = code.globalstate.directives['linetrace']
+        if (linetrace or profile) and lenv.nogil:
             warning(self.pos, "Cannot profile nogil function.", 1)
-            profile = False
-        if profile:
+            profile = linetrace = False
+        if profile or linetrace:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("Profile", "Profile.c"))
 
@@ -1601,7 +1602,7 @@ class FuncDefNode(StatNode, BlockNode):
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
 
-        if profile:
+        if profile or linetrace:
             code.put_trace_declarations()
 
         # ----- Extern library function declarations
@@ -1616,7 +1617,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Profiling or closures are not currently possible for cdef nogil
         # functions, but check them anyway
         have_object_args = (self.needs_closure or self.needs_outer_scope or
-                            profile)
+                            profile or linetrace)
         for arg in lenv.arg_entries:
             if arg.type.is_pyobject:
                 have_object_args = True
@@ -1690,10 +1691,11 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_incref(outer_scope_cname, cenv.scope_class.type)
                 code.put_giveref(outer_scope_cname)
         # ----- Trace function call
-        if profile:
+        if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
             code.put_trace_call(self.entry.name, self.pos)
+            code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must
@@ -1891,7 +1893,8 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (
                     Naming.retval_cname, Naming.retval_cname))
 
-        if profile:
+        if profile or linetrace:
+            code.funcstate.can_trace = False
             if self.return_type.is_pyobject:
                 code.put_trace_return(Naming.retval_cname)
             else:
@@ -6542,15 +6545,21 @@ class GILStatNode(NogilTryFinallyStatNode):
         else:
             variable = None
 
+        old_trace_config = code.funcstate.can_trace
         if self.state == 'gil':
             code.put_ensure_gil(variable=variable)
+            # FIXME: not that easy, tracing may not be possible at all here
+            #code.funcstate.can_trace = True
         else:
             code.put_release_gil(variable=variable)
+            code.funcstate.can_trace = False
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
         if self.state_temp:
             self.state_temp.release(code)
+
+        code.funcstate.can_trace = old_trace_config
         code.end_block()
 
 
