@@ -1503,7 +1503,8 @@ class CCodeWriter(object):
         self.write("\n")
         self.indent()
         self.write("/* %s */\n" % self.marker[1])
-        if self.funcstate.can_trace and self.globalstate.directives['linetrace']:
+        if (self.funcstate and self.funcstate.can_trace
+                and self.globalstate.directives['linetrace']):
             self.indent()
             self.write('__Pyx_TraceLine(%d)\n' % self.marker[0])
         self.last_marker_line = self.marker[0]
