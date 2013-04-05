@@ -6764,8 +6764,6 @@ class FromImportStatNode(StatNode):
                 else:
                     coerced_item = self.item.coerce_to(target.type, env)
                 self.interned_items.append((name, target, coerced_item))
-        if self.interned_items:
-            env.use_utility_code(raise_import_error_utility_code)
         return self
 
     def generate_execution_code(self, code):
@@ -6778,21 +6776,16 @@ class FromImportStatNode(StatNode):
                     code.error_goto(self.pos)))
         item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         self.item.set_cname(item_temp)
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
+        if self.interned_items:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
         for name, target, coerced_item in self.interned_items:
-            cname = code.intern_identifier(name)
             code.putln(
-                '%s = __Pyx_PyObject_GetAttrStr(%s, %s);' % (
+                '%s = __Pyx_ImportFrom(%s, %s); %s' % (
                     item_temp,
                     self.module.py_result(),
-                    cname))
-            code.putln('if (%s == NULL) {' % item_temp)
-            code.putln(
-                'if (PyErr_ExceptionMatches(PyExc_AttributeError)) '
-                '__Pyx_RaiseImportError(%s);' % cname)
-            code.putln(code.error_goto_if_null(item_temp, self.pos))
-            code.putln('}')
+                    code.intern_identifier(name),
+                    code.error_goto_if_null(item_temp, self.pos)))
             code.put_gotref(item_temp)
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
@@ -8325,20 +8318,3 @@ init="""
    a quiet NaN. */
     memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
 """ % vars(Naming))
-
-#------------------------------------------------------------------------------------
-
-raise_import_error_utility_code = UtilityCode(
-proto = '''
-static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name);
-''',
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name) {
-#if PY_MAJOR_VERSION < 3
-    PyErr_Format(PyExc_ImportError, "cannot import name %.230s",
-                 PyString_AsString(name));
-#else
-    PyErr_Format(PyExc_ImportError, "cannot import name %S", name);
-#endif
-}
-''')

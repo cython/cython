@@ -100,6 +100,32 @@ bad:
     return module;
 }
 
+
+/////////////// ImportFrom.proto ///////////////
+
+static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
+
+/////////////// ImportFrom ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
+    PyObject* value = __Pyx_PyObject_GetAttrStr(module, name);
+    if (unlikely(!value) && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        PyErr_Format(PyExc_ImportError,
+        #if PY_MAJOR_VERSION < 3
+            "cannot import name %.230s", PyString_AS_STRING(name));
+        #else
+            "cannot import name %S", name);
+        #endif
+    }
+    return value;
+}
+
+
+static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name) {
+}
+
+
 /////////////// ModuleImport.proto ///////////////
 
 static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
