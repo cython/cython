@@ -81,10 +81,10 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             if (*code == NULL) return 0;
         }
         *frame = PyFrame_New(
-            PyThreadState_GET(),                 /*PyThreadState *tstate*/
-            *code,                               /*PyCodeObject *code*/
-            PyModule_GetDict($module_cname),     /*PyObject *globals*/
-            0                                    /*PyObject *locals*/
+            PyThreadState_GET(),             /*PyThreadState *tstate*/
+            *code,                           /*PyCodeObject *code*/
+            $moddict_cname,                  /*PyObject *globals*/
+            0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;
     }
