@@ -116,16 +116,16 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
         0,                /*int nlocals,*/
         0,                /*int stacksize,*/
         0,                /*int flags,*/
-        $empty_bytes,  /*PyObject *code,*/
-        $empty_tuple,  /*PyObject *consts,*/
-        $empty_tuple,  /*PyObject *names,*/
-        $empty_tuple,  /*PyObject *varnames,*/
-        $empty_tuple,  /*PyObject *freevars,*/
-        $empty_tuple,  /*PyObject *cellvars,*/
+        $empty_bytes,     /*PyObject *code,*/
+        $empty_tuple,     /*PyObject *consts,*/
+        $empty_tuple,     /*PyObject *names,*/
+        $empty_tuple,     /*PyObject *varnames,*/
+        $empty_tuple,     /*PyObject *freevars,*/
+        $empty_tuple,     /*PyObject *cellvars,*/
         py_srcfile,       /*PyObject *filename,*/
         py_funcname,      /*PyObject *name,*/
         firstlineno,      /*int firstlineno,*/
-        $empty_bytes   /*PyObject *lnotab*/
+        $empty_bytes      /*PyObject *lnotab*/
     );
 
 bad:
