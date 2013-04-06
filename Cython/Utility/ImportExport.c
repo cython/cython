@@ -122,10 +122,6 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
 }
 
 
-static CYTHON_INLINE void __Pyx_RaiseImportError(PyObject *name) {
-}
-
-
 /////////////// ModuleImport.proto ///////////////
 
 static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
