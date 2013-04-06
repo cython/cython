@@ -2074,7 +2074,8 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             # Make sure this is not a declaration of a variable or function.
             if s.sy == '(':
                 s.next()
-                if s.sy == '*' or s.sy == '**' or s.sy == '&':
+                if (s.sy == '*' or s.sy == '**' or s.sy == '&'
+                        or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
                     s.put_back('(', '(')
                 else:
                     s.put_back('(', '(')
