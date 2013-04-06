@@ -194,6 +194,13 @@ Cython code.  Here is the list of currently supported directives:
     Add hooks for Python profilers into the compiled C code.  Default
     is False.
 
+``linetrace`` (True / False)
+    Add line tracing hooks for Python profilers into the compiled C code.
+    This also enables profiling.  Default is False.  Note that the
+    generated module will not actually use line tracing, unless you
+    additionally pass the C macro definition ``CYTHON_TRACE=1`` to the
+    C compiler (e.g. using the distutils option ``define_macros``).
+
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is
     None, indicating that on safe (semantically-unchanging) inferences

@@ -104,6 +104,10 @@ def unpatch_inspect_isfunction():
     else:
         inspect.isfunction = orig_isfunction
 
+def update_linetrace_extension(ext):
+    ext.define_macros.append(('CYTHON_TRACE', 1))
+    return ext
+
 def update_numpy_extension(ext):
     import numpy
     ext.include_dirs.append(numpy.get_include())
@@ -186,6 +190,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:trace':  update_linetrace_extension,
 }
 
 # TODO: use tags

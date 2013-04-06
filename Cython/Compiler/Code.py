@@ -467,6 +467,7 @@ class FunctionState(object):
     # label_counter    integer         counter for naming labels
     # in_try_finally   boolean         inside try of try...finally
     # exc_vars         (string * 3)    exception variables for reraise, or None
+    # can_trace        boolean         line tracing is supported in the current context
 
     # Not used for now, perhaps later
     def __init__(self, owner, names_taken=set()):
@@ -483,6 +484,7 @@ class FunctionState(object):
 
         self.in_try_finally = 0
         self.exc_vars = None
+        self.can_trace = False
 
         self.temps_allocated = [] # of (name, type, manage_ref, static)
         self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
@@ -1494,13 +1496,17 @@ class CCodeWriter(object):
                 self.put_safe(code)
             else:
                 self.put(code)
-        self.write("\n");
+        self.write("\n")
         self.bol = 1
 
     def emit_marker(self):
-        self.write("\n");
+        self.write("\n")
         self.indent()
         self.write("/* %s */\n" % self.marker[1])
+        if (self.funcstate and self.funcstate.can_trace
+                and self.globalstate.directives['linetrace']):
+            self.indent()
+            self.write('__Pyx_TraceLine(%d)\n' % self.marker[0])
         self.last_marker_line = self.marker[0]
         self.marker = None
 
@@ -1972,10 +1978,10 @@ class CCodeWriter(object):
         self.putln('__Pyx_AddTraceback("%s", %s, %s, %s);' % format_tuple)
 
     def put_trace_declarations(self):
-        self.putln('__Pyx_TraceDeclarations');
+        self.putln('__Pyx_TraceDeclarations')
 
     def put_trace_call(self, name, pos):
-        self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]));
+        self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]))
 
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")

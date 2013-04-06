@@ -90,6 +90,7 @@ directive_defaults = {
     'final' : False,
     'internal' : False,
     'profile': False,
+    'linetrace': False,
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
