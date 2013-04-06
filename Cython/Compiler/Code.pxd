@@ -30,6 +30,7 @@ cdef class FunctionState:
 
     cdef public bint in_try_finally
     cdef public object exc_vars
+    cdef public bint can_trace
 
     cdef public list temps_allocated
     cdef public dict temps_free
