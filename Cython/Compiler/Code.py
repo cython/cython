@@ -1618,6 +1618,12 @@ class CCodeWriter(object):
             else:
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
+        if func_context.should_declare_error_indicator:
+            # Initialize these variables to silence compiler warnings
+            self.putln("int %s = 0;" % Naming.lineno_cname)
+            self.putln("const char *%s = NULL;" % Naming.filename_cname)
+            self.putln("int %s = 0;" % Naming.clineno_cname)
+
     def put_h_guard(self, guard):
         self.putln("#ifndef %s" % guard)
         self.putln("#define %s" % guard)
