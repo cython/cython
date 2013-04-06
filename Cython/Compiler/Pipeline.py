@@ -275,7 +275,8 @@ def create_pyx_as_pxd_pipeline(context, result):
             break
     def fake_pxd(root):
         for entry in root.scope.entries.values():
-            entry.defined_in_pxd = 1
+            if not entry.in_cinclude:
+                entry.defined_in_pxd = 1
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline
