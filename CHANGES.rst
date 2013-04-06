@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* The extension type flag ``Py_TPFLAGS_HAVE_VERSION_TAG`` is enabled by default
+  on extension types and can be disabled using the ``type_version_tag`` compiler
+  directive.
+
 * EXPERIMENTAL support for simple Cython code level line tracing.  Enabled by
   the "linetrace" compiler directive.
 

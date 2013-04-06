@@ -101,6 +101,7 @@ directive_defaults = {
     'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
     'c_string_type': 'bytes',
     'c_string_encoding': '',
+    'type_version_tag': True,   # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -218,6 +219,7 @@ directive_scopes = { # defaults to available everywhere
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
     'c_string_encoding': ('module',),
+    'type_version_tag': ('module', 'cclass'),
 }
 
 def parse_directive_value(name, value, relaxed_bool=False):

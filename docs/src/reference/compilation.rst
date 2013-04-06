@@ -224,6 +224,15 @@ Cython code.  Here is the list of currently supported directives:
     when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
     nearly-always ascii in Python 2.
 
+``type_version_tag`` (True / False)
+    Enables the attribute cache for extension types in CPython by setting the
+    type flag ``Py_TPFLAGS_HAVE_VERSION_TAG``.  Default is True, meaning that
+    the cache is enabled for Cython implemented types.  To disable it
+    explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
+    internally without paying attention to cache consistency, this option can
+    be set to False.
+
+
 How to set directives
 ---------------------
 
