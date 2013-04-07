@@ -601,9 +601,13 @@ class GetAndReleaseBufferUtilityCode(object):
 
         find_buffer_types(env)
 
-        proto, impl = TempitaUtilityCode.load_as_string(
+        util_code = TempitaUtilityCode.load(
             "GetAndReleaseBuffer", from_file="Buffer.c",
             context=dict(types=types))
+
+        proto = util_code.format_code(util_code.proto)
+        impl = util_code.format_code(
+            util_code.inject_string_constants(util_code.impl, output))
 
         proto_code.putln(proto)
         code.putln(impl)

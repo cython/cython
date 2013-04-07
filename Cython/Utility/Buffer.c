@@ -121,8 +121,8 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
 
   #if PY_VERSION_HEX < 0x02060000
     if (obj->ob_type->tp_dict &&
-        (getbuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
-                                             "__pyx_getbuffer"))) {
+        (getbuffer_cobj = PyObject_GetItem(obj->ob_type->tp_dict,
+                                           PYIDENT("__pyx_getbuffer")))) {
         getbufferproc func;
 
       #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
@@ -170,8 +170,8 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
 
   #if PY_VERSION_HEX < 0x02060000
     if (obj->ob_type->tp_dict &&
-        (releasebuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
-                                                      "__pyx_releasebuffer"))) {
+        (releasebuffer_cobj = PyObject_GetItem(obj->ob_type->tp_dict,
+                                               PYIDENT("__pyx_releasebuffer")))) {
         releasebufferproc func;
 
       #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
