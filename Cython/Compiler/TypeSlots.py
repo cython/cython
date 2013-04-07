@@ -383,7 +383,7 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
         else:
             # it's enabled in 'Py_TPFLAGS_DEFAULT' in Py3
-            value = "(%s^Py_TPFLAGS_HAVE_VERSION_TAG)" % value
+            value = "(%s&~Py_TPFLAGS_HAVE_VERSION_TAG)" % value
         value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
