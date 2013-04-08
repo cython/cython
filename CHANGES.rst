@@ -34,7 +34,8 @@ Features added
 * A new class decorator ``@cython.freelist(N)`` creates a static freelist of N
   instances for an extension type, thus avoiding the costly allocation step if
   possible. This can speed up object instantiation by 20-30% in suitable
-  scenarios.
+  scenarios. Note that freelists are currently only supported for base types,
+  not for types that inherit from others.
 
 * Fast extension type instantiation using the ``Type.__new__(Type)`` idiom has
   gained support for passing arguments.  It is also a bit faster for types defined
