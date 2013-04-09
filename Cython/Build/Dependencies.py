@@ -613,6 +613,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
+    options = c_options
     module_list = create_extension_list(
         module_list,
         exclude=exclude,
@@ -624,6 +625,18 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     modules_by_cfile = {}
     to_compile = []
     for m in module_list:
+        if hasattr(options, 'build_dir'):
+            root = os.path.realpath(os.path.abspath(m.name.split('.')[0]))
+            def copy_to_build_dir(file):
+                if os.path.realpath(os.path.abspath(file)).startswith(root):
+                    dir = os.path.join(options.build_dir,
+                            os.path.dirname(os.path.relpath(file)))
+                    if not os.path.isdir(dir):
+                        os.makedirs(dir)
+                    shutil.copy(file, dir)
+            for dep in m.depends:
+                copy_to_build_dir(dep)
+
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
@@ -638,20 +651,9 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                 # setup for out of place build directory if enabled
                 if hasattr(options, 'build_dir'):
                     c_file = os.path.join(options.build_dir, c_file)
-                    input_dir = os.path.dirname(source)
-                    output_dir = os.path.dirname(c_file)
-                    if not os.path.isdir(output_dir):
-                        os.makedirs(output_dir)
-                    def headers():
-                        for ext in ('h', 'hpp', 'hh'):
-                            for header in extended_iglob(os.path.join(input_dir, '**', '*.%s'%ext)):
-                                yield header
-                    for header in headers():
-                        header_dir = os.path.join(output_dir,
-                                os.path.dirname(os.path.relpath(header, input_dir)))
-                        if not os.path.isdir(header_dir):
-                            os.makedirs(header_dir)
-                        shutil.copy(header, header_dir)
+                    dir = os.path.dirname(c_file)
+                    if not os.path.isdir(dir):
+                        os.makedirs(dir)
 
                 if os.path.exists(c_file):
                     c_timestamp = os.path.getmtime(c_file)
@@ -686,6 +688,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     modules_by_cfile[c_file].append(m)
             else:
                 new_sources.append(source)
+                if hasattr(options, 'build_dir'):
+                    copy_to_build_dir(source)
         m.sources = new_sources
     if hasattr(options, 'cache'):
         if not os.path.exists(options.cache):
