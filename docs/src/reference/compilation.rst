@@ -201,6 +201,10 @@ Cython code.  Here is the list of currently supported directives:
     additionally pass the C macro definition ``CYTHON_TRACE=1`` to the
     C compiler (e.g. using the distutils option ``define_macros``).
 
+    Note that this feature is currently EXPERIMENTAL.  It will slow down
+    your code, may not work at all for what you want to do with it, and
+    may even crash arbitrarily.
+
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is
     None, indicating that on safe (semantically-unchanging) inferences
