@@ -262,6 +262,19 @@
   #define __Pyx_DOCSTR(n)  (n)
 #endif
 
+#ifdef NAN
+#define __PYX_NAN() ((float) NAN)
+#else
+static inline float __PYX_NAN() {
+  /* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
+   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
+   a quiet NaN. */
+  float value;
+  memset(&value, 0xFF, sizeof(value));
+  return value;
+}
+#endif
+
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
 
 /* inline attribute */

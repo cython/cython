@@ -7082,8 +7082,6 @@ class ParallelStatNode(StatNode, ParallelNode):
                     if first:
                         code.putln("/* Initialize private variables to "
                                    "invalid values */")
-                        code.globalstate.use_utility_code(
-                                invalid_values_utility_code)
                         first = False
                     code.putln("%s = %s;" % (entry.cname,
                                              entry.type.cast_code(invalid_value)))
@@ -8156,21 +8154,3 @@ bad:
     return NULL;
 }
 """)
-
-################ Utility code for cython.parallel stuff ################
-
-invalid_values_utility_code = UtilityCode(
-proto="""\
-#include <string.h>
-
-void __pyx_init_nan(void);
-
-static float %(PYX_NAN)s;
-"""  % vars(Naming),
-
-init="""
-/* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
-   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
-   a quiet NaN. */
-    memset(&%(PYX_NAN)s, 0xFF, sizeof(%(PYX_NAN)s));
-""" % vars(Naming))
