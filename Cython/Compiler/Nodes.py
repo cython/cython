@@ -1125,11 +1125,9 @@ class FusedTypeNode(CBaseTypeNode):
 
 
 class CConstTypeNode(CBaseTypeNode):
-    # name          string
     # base_type     CBaseTypeNode
 
     child_attrs = ["base_type"]
-    name = 'const'
 
     def analyse(self, env, could_be_name = False):
         base = self.base_type.analyse(env, could_be_name)
