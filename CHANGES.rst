@@ -31,6 +31,9 @@ Features added
 * The ``basestring`` builtin is mapped to ``str`` (i.e. Py2 ``unicode``) when
   compiling the generated C code under Python 3.
 
+* Closures use freelists, which can speed up their creation quite substantially.
+  This is also visible for short running generator expressions, for example.
+
 * A new class decorator ``@cython.freelist(N)`` creates a static freelist of N
   instances for an extension type, thus avoiding the costly allocation step if
   possible. This can speed up object instantiation by 20-30% in suitable
