@@ -387,35 +387,48 @@ Python variable residing in the scope where it is assigned.
 Built-in Functions
 ------------------
 
-Cython compiles calls to the following built-in functions into direct calls to
+Cython compiles calls to most built-in functions into direct calls to
 the corresponding Python/C API routines, making them particularly fast.
+
+Only direct function calls using these names are optimised. If you do
+something else with one of these names that assumes it's a Python object,
+such as assign it to a Python variable, and later call it, the call will
+be made as a Python function call.
 
 +------------------------------+-------------+----------------------------+
 | Function and arguments       | Return type | Python/C API Equivalent    |
 +==============================+=============+============================+
-| abs(obj)                     | object      | PyNumber_Absolute          |
+| abs(obj)                     | object,     | PyNumber_Absolute, fabs,   |
+|                              | double, ... | fabsf, ...                 |
 +------------------------------+-------------+----------------------------+
-| delattr(obj, name)           | int         | PyObject_DelAttr           |
+| callable(obj)                | bint        | PyObject_Callable          |
 +------------------------------+-------------+----------------------------+
-| dir(obj)                     | object      | PyObject_Dir               |
-| getattr(obj, name) (Note 1)  |             |                            |
-| getattr3(obj, name, default) |             |                            |
+| delattr(obj, name)           | None        | PyObject_DelAttr           |
 +------------------------------+-------------+----------------------------+
-| hasattr(obj, name)           | int         | PyObject_HasAttr           |
+| exec(code, [glob, [loc]])    | object      | -                          |
 +------------------------------+-------------+----------------------------+
-| hash(obj)                    | int         | PyObject_Hash              |
+| dir(obj)                     | list        | PyObject_Dir               |
 +------------------------------+-------------+----------------------------+
-| intern(obj)                  | object      | PyObject_InternFromString  |
+| divmod(a, b)                 | tuple       | PyNumber_Divmod            |
 +------------------------------+-------------+----------------------------+
-| isinstance(obj, type)        | int         | PyObject_IsInstance        |
+| getattr(obj, name, [default])| object      | PyObject_GetAttr           |
+| (Note 1)                     |             |                            |
 +------------------------------+-------------+----------------------------+
-| issubclass(obj, type)        | int         | PyObject_IsSubclass        |
+| hasattr(obj, name)           | bint        | PyObject_HasAttr           |
 +------------------------------+-------------+----------------------------+
-| iter(obj)                    | object      | PyObject_GetIter           |
+| hash(obj)                    | int / long  | PyObject_Hash              |
++------------------------------+-------------+----------------------------+
+| intern(obj)                  | object      | Py*_InternFromString       |
++------------------------------+-------------+----------------------------+
+| isinstance(obj, type)        | bint        | PyObject_IsInstance        |
++------------------------------+-------------+----------------------------+
+| issubclass(obj, type)        | bint        | PyObject_IsSubclass        |
++------------------------------+-------------+----------------------------+
+| iter(obj, [sentinel])        | object      | PyObject_GetIter           |
 +------------------------------+-------------+----------------------------+
 | len(obj)                     | Py_ssize_t  | PyObject_Length            |
 +------------------------------+-------------+----------------------------+
-| pow(x, y, z) (Note 2)        | object      | PyNumber_Power             |
+| pow(x, y, [z])               | object      | PyNumber_Power             |
 +------------------------------+-------------+----------------------------+
 | reload(obj)                  | object      | PyImport_ReloadModule      |
 +------------------------------+-------------+----------------------------+
@@ -424,17 +437,10 @@ the corresponding Python/C API routines, making them particularly fast.
 | setattr(obj, name)           | void        | PyObject_SetAttr           |
 +------------------------------+-------------+----------------------------+
 
-Note 1: There are two different functions corresponding to the Python
-:func:`getattr` depending on whether a third argument is used. In a Python
-context, they both evaluate to the Python :func:`getattr` function.
-
-Note 2: Only the three-argument form of :func:`pow` is supported. Use the
-``**`` operator otherwise.
-
-Only direct function calls using these names are optimised. If you do
-something else with one of these names that assumes it's a Python object, such
-as assign it to a Python variable, and later call it, the call will be made as
-a Python function call.
+Note 1: Pyrex originally provided a function :func:`getattr3(obj, name, default)`
+corresponding to the three-argument form of the Python builtin :func:`getattr()`.
+Cython still supports this function, but the usage is deprecated in favour of
+the normal builtin, which Cython can optimise in both forms.
 
 
 Operator Precedence
