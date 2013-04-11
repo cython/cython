@@ -164,14 +164,34 @@ bad:
     return 0;
 }
 
+//////////////////// GetAttr.proto ////////////////////
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *, PyObject *); /*proto*/
+
+//////////////////// GetAttr ////////////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
+#if CYTHON_COMPILING_IN_CPYTHON
+#if PY_MAJOR_VERSION >= 3
+    if (likely(PyUnicode_Check(n)))
+#else
+    if (likely(PyString_Check(n)))
+#endif
+        return __Pyx_PyObject_GetAttrStr(o, n);
+#endif
+    return PyObject_GetAttr(o, n);
+}
+
 //////////////////// GetAttr3.proto ////////////////////
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 
 //////////////////// GetAttr3 ////////////////////
+//@requires: GetAttr
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
-    PyObject *r = PyObject_GetAttr(o, n);
+    PyObject *r = __Pyx_GetAttr(o, n);
     if (!r) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             goto bad;

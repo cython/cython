@@ -13,6 +13,7 @@ import Options
 
 iter_next_utility_code = UtilityCode.load("IterNext", "ObjectHandling.c")
 getattr3_utility_code = UtilityCode.load("GetAttr3", "Builtins.c")
+getattr_utility_code = UtilityCode.load("GetAttr", "Builtins.c")
 pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
@@ -173,10 +174,11 @@ builtin_function_table = [
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
-                    utility_code = getattr3_utility_code), # Pyrex compatibility
+                    utility_code=getattr3_utility_code),  # Pyrex legacy
     BuiltinFunction('getattr',    "OOO",  "O",     "__Pyx_GetAttr3",
-                    utility_code = getattr3_utility_code),
-    BuiltinFunction('getattr',    "OO",   "O",     "PyObject_GetAttr"),
+                    utility_code=getattr3_utility_code),
+    BuiltinFunction('getattr',    "OO",   "O",     "__Pyx_GetAttr",
+                    utility_code=getattr_utility_code),
     BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
