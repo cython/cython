@@ -426,7 +426,10 @@ methods from ``cdef`` to ``cpdef``.  This will let Cython generate two
 entry points, one that is callable from normal Python code using the
 Python call semantics and Python objects as arguments, and one that is
 callable from C code with fast C semantics and without requiring
-intermediate argument conversion from or to Python types.
+intermediate argument conversion from or to Python types. Note that ``cpdef``
+methods ensure that they can be appropriately overridden by Python
+methods even when they are called from Cython. This adds a tiny overhead
+compared to ``cdef`` methods.
 
 The following listing shows the complete implementation that uses
 ``cpdef`` methods where possible::
