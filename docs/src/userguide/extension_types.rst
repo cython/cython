@@ -343,7 +343,9 @@ C methods
 Extension types can have C methods as well as Python methods. Like C
 functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` instead of
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
-extension types.::
+extension types. In addition, :keyword:`cpdef` methods can even be overridden by python
+methods when called as C method. This adds a little to their calling overhead
+compared to a :keyword:`cdef` methd::
 
     # pets.pyx
     cdef class Parrot:
