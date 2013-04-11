@@ -32,19 +32,24 @@ Cython code and pure Python code.
 
 So far our integration example has not been very useful as it only
 integrates a single hard-coded function. In order to remedy this,
-without sacrificing speed, we will use a cdef class to represent a
+with hardly sacrificing speed, we will use a cdef class to represent a
 function on floating point numbers::
 
   cdef class Function:
       cpdef double evaluate(self, double x) except *:
           return 0
 
-Like before, cpdef makes two versions of the method available; one
+The directive cpdef makes two versions of the method available; one
 fast for use from Cython and one slower for use from Python. Then::
 
   cdef class SinOfSquareFunction(Function):
       cpdef double evaluate(self, double x) except *:
           return sin(x**2)
+
+This does slightly more than providing a python wrapper for a cdef
+method: unlike a cdef method, a cpdef method is fully overrideable by
+subclasses and instance attributes. This adds a little calling overhead
+compared to a cdef method.
 
 Using this, we can now change our integration example::
 
@@ -62,8 +67,8 @@ Using this, we can now change our integration example::
   print(integrate(SinOfSquareFunction(), 0, 1, 10000))
 
 This is almost as fast as the previous code, however it is much more flexible
-as the function to integrate can be changed. It is even possible to pass
-in a new function defined in Python-space::
+as the function to integrate can be changed. We can even pass in a new
+function defined in Python-space::
 
   >>> import integrate
   >>> class MyPolynomial(integrate.Function):

@@ -94,13 +94,16 @@ object or if it is guaranteed that an exception will not be raised
 within the function call.
 
 A side-effect of cdef is that the function is no longer available from
-Python-space, as Python wouldn't know how to call it. Using the
-``cpdef`` keyword instead of cdef, a Python wrapper is also created,
-so that the function is available both from Cython (fast, passing
-typed values directly) and from Python (wrapping values in Python
-objects).
+Python-space, as Python wouldn't know how to call it. It is also no
+longer possible to change ``f` at runtime.
 
-Note also that it is no longer possible to change ``f`` at runtime.
+Using the ``cpdef`` keyword instead of ``cdef``, a Python wrapper is also
+created, so that the function is available both from Cython (fast, passing
+typed values directly) and from Python (wrapping values in Python
+objects). In fact, ``cpdef`` does not just provide a Python wrapper, it also
+installs logic to allow the method to be overridden by python methods, even
+when called from within cython. This does add a tiny overhead compared to ``cdef``
+methods.
 
 Speedup: 150 times over pure Python.
 

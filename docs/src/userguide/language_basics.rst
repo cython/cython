@@ -100,7 +100,11 @@ interpreted Python code. So, any functions that you want to "export" from your
 Cython module must be declared as Python functions using def. 
 There is also a hybrid function, called :keyword:`cpdef`. A :keyword:`cpdef` 
 can be called from anywhere, but uses the faster C calling conventions 
-when being called from other Cython code. 
+when being called from other Cython code. A :keyword:`cpdef` can also be overridden
+by a Python method on a subclass or an instance attribute, even when called from Cython.
+If this happens, most performance gains are of course lost and even if it does not,
+there is a tiny overhead in calling a :keyword:`cpdef` method from Cython compared to
+calling a :keyword:`cdef` method.
 
 Parameters of either type of function can be declared to have C data types,
 using normal C declaration syntax. For example,::
