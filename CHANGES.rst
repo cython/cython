@@ -69,6 +69,9 @@ Features added
 Bugs fixed
 ----------
 
+* Cascaded assignments of None values to extension type variables failed with
+  a ``TypeError`` at runtime.
+
 * The ``__defaults__`` attribute was not writable for Cython implemented
   functions.
 
