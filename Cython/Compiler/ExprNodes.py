@@ -699,7 +699,7 @@ class ExprNode(Node):
                 else:
                     src = CoerceToPyTypeNode(src, env, type=dst_type)
             if not src.type.subtype_of(dst_type):
-                if not isinstance(src, NoneNode):
+                if src.constant_result is not None:
                     src = PyTypeTestNode(src, dst_type, env)
         elif src.type.is_pyobject:
             src = CoerceFromPyTypeNode(dst_type, src, env)
@@ -10458,6 +10458,7 @@ class ProxyNode(CoercionNode):
 
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
+        self.constant_result = arg.constant_result
         self._proxy_type()
 
     def analyse_expressions(self, env):
@@ -10509,6 +10510,7 @@ class CloneNode(CoercionNode):
 
     def __init__(self, arg):
         CoercionNode.__init__(self, arg)
+        self.constant_result = arg.constant_result
         if hasattr(arg, 'type'):
             self.type = arg.type
             self.result_ctype = arg.result_ctype
