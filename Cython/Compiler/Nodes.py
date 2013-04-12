@@ -4573,11 +4573,12 @@ class CascadedAssignmentNode(AssignmentNode):
         from ExprNodes import CloneNode, ProxyNode
 
         self.rhs = self.rhs.analyse_types(env)
-        if use_temp or self.rhs.is_attribute:
-            # (cdef) attribute access is not safe as it traverses pointers
-            self.rhs = self.rhs.coerce_to_temp(env)
-        else:
-            self.rhs = self.rhs.coerce_to_simple(env)
+        # (cdef) attribute access is not safe as it traverses pointers
+        if self.rhs.is_attribute or not self.rhs.is_simple():
+            if use_temp:
+                self.rhs = self.rhs.coerce_to_temp(env)
+            else:
+                self.rhs = self.rhs.coerce_to_simple(env)
 
         self.rhs = ProxyNode(self.rhs)
         self.coerced_rhs_list = []

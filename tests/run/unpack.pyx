@@ -363,3 +363,27 @@ def unpack_many_int(it):
     cdef Py_ssize_t h
     a,b,c,d,e,f,g,h,i,j,k,l = it
     return a,b,c,d,e,f,g,h,i,j,k,l
+
+
+def unpack_literal_none_to_builtin_type():
+    """
+    >>> unpack_literal_none_to_builtin_type()
+    (None, None, None, None)
+    """
+    cdef list a,b,c,d
+    a, b = c, d = None, None
+    return a,b,c,d
+
+
+cdef class ExtType:
+    pass
+
+
+def unpack_literal_none_to_exttype():
+    """
+    >>> unpack_literal_none_to_exttype()
+    (None, None, None, None)
+    """
+    cdef ExtType a,b,c,d
+    a, b = c, d = None, None
+    return a,b,c,d
