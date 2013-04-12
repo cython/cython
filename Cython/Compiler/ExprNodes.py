@@ -5254,6 +5254,16 @@ class AttributeNode(ExprNode):
                 # C method implemented as function call with utility code
                 code.globalstate.use_utility_code(self.entry.utility_code)
 
+    def generate_disposal_code(self, code):
+        if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
+            # mirror condition for putting the memview incref here:
+            if self.obj.is_name or (self.obj.is_attribute and
+                                    self.obj.is_memslice_transpose):
+                code.put_xdecref_memoryviewslice(
+                        self.result(), have_gil=True)
+        else:
+            ExprNode.generate_disposal_code(self, code)
+
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
