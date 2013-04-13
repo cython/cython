@@ -127,7 +127,6 @@ class EmbedSignature(CythonTransform):
         else:
             return signature
 
-
     def __call__(self, node):
         if not Options.docstrings:
             return node
@@ -206,8 +205,25 @@ class EmbedSignature(CythonTransform):
                 old_doc = node.py_func.entry.doc
             else:
                 old_doc = None
-            new_doc  = self._embed_signature(signature, old_doc)
+            new_doc = self._embed_signature(signature, old_doc)
             node.entry.doc = EncodedString(new_doc)
             if hasattr(node, 'py_func') and node.py_func is not None:
                 node.py_func.entry.doc = EncodedString(new_doc)
+        return node
+
+    def visit_PropertyNode(self, node):
+        if not self.current_directives['embedsignature']:
+            return node
+
+        entry = node.entry
+        if entry.visibility == 'public':
+            # property synthesised from a cdef public attribute
+            type_name = entry.type.declaration_code("", for_display=1)
+            if not entry.type.is_pyobject:
+                type_name = "'%s'" % type_name
+            elif entry.type.is_extension_type:
+                type_name = entry.type.module_name + '.' + type_name
+            signature = '%s: %s' % (entry.name, type_name)
+            new_doc = self._embed_signature(signature, entry.doc)
+            entry.doc = EncodedString(new_doc)
         return node

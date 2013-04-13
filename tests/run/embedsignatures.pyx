@@ -7,12 +7,23 @@ __doc__ = ur"""
 
     >>> print (Ext.attr0.__doc__)
     attr0: 'int'
+    attr0 docstring
     >>> print (Ext.attr1.__doc__)
     attr1: object
+    attr1 docstring
     >>> print (Ext.attr2.__doc__)
     attr2: list
     >>> print (Ext.attr3.__doc__)
     attr3: embedsignatures.Ext
+
+    >>> print (Ext.prop0.__doc__)
+    prop0 docstring
+    >>> print (Ext.prop1.__doc__)
+    None
+    >>> print (Ext.attr4.__doc__)
+    attr4 docstring
+    >>> print (Ext.attr5.__doc__)
+    attr5 docstring
 
     >>> print (Ext.a.__doc__)
     Ext.a(self)
@@ -166,11 +177,35 @@ __doc__ = ur"""
 cdef class Ext:
 
     cdef public int  attr0
+    """attr0 docstring"""
     cdef public      attr1
+    """attr1 docstring"""
     cdef public list attr2
     cdef public Ext  attr3
+    cdef        int  attr4
+    cdef             attr5
+    """private attr5 docstring"""
 
     CONST1, CONST2 = 1, 2
+
+    property prop0:
+        """prop0 docstring"""
+        def __get__(self):
+            return self.attr0
+
+    property prop1:
+        def __get__(self):
+            return self.attr1
+
+    property attr4:
+        """attr4 docstring"""
+        def __get__(self):
+            return self.attr4
+
+    property attr5:
+        """attr5 docstring"""
+        def __get__(self):
+            return self.attr4
 
     def __init__(self, a, b, c=None):
         pass

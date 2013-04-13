@@ -2808,11 +2808,19 @@ def p_c_func_or_var_declaration(s, pos, ctx):
                                         assignable = 1, nonempty = 1)
             declarators.append(declarator)
         s.expect_newline("Syntax error in C variable declaration")
+        if ctx.level == 'c_class':
+            doc_pos = s.position()
+            doc = p_doc_string(s)
+            if doc and ctx.visibility not in ('public', 'readonly'):
+                warning(doc_pos, "Private attributes don't support docstrings.", 1)
+        else:
+            doc = None
         result = Nodes.CVarDefNode(pos,
             visibility = ctx.visibility,
             base_type = base_type,
             declarators = declarators,
             in_pxd = ctx.level in ('module_pxd', 'c_class_pxd'),
+            doc = doc,
             api = ctx.api,
             modifiers = modifiers,
             overridable = ctx.overridable)
