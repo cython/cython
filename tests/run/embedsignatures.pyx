@@ -150,6 +150,17 @@ __doc__ = ur"""
     >>> print (f_my_f.__doc__)
     f_my_f(MyFloat f) -> MyFloat
 
+    >>> print (f_defexpr1.__doc__)
+    f_defexpr1(int x=FLAG1, int y=FLAG2)
+
+    >>> print (f_defexpr2.__doc__)
+    f_defexpr2(int x=FLAG1 | FLAG2, y=FLAG1 & FLAG2)
+
+    >>> print (f_defexpr3.__doc__)
+    f_defexpr3(int x=Ext.CONST1, f=__builtins__.abs)
+
+    >>> print (f_defexpr4.__doc__)
+    f_defexpr4(int x=(Ext.CONST1 + FLAG1) * Ext.CONST2)
 """
 
 cdef class Ext:
@@ -158,6 +169,8 @@ cdef class Ext:
     cdef public      attr1
     cdef public list attr2
     cdef public Ext  attr3
+
+    CONST1, CONST2 = 1, 2
 
     def __init__(self, a, b, c=None):
         pass
@@ -307,3 +320,19 @@ cpdef MyInt f_my_i(MyInt i):
 ctypedef float MyFloat
 cpdef MyFloat f_my_f(MyFloat f):
     return f
+
+cdef enum:
+    FLAG1
+    FLAG2
+
+cpdef f_defexpr1(int x = FLAG1, int y = FLAG2):
+    pass
+
+cpdef f_defexpr2(int x = FLAG1 | FLAG2, y = FLAG1 & FLAG2):
+    pass
+
+cpdef f_defexpr3(int x = Ext.CONST1, f = __builtins__.abs):
+    pass
+
+cpdef f_defexpr4(int x = (Ext.CONST1 + FLAG1) * Ext.CONST2):
+    pass
