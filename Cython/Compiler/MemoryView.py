@@ -916,8 +916,7 @@ memviewslice_init_code = load_memview_c_utility(
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code,
               Buffer.acquire_utility_code,
-              atomic_utility,
-              Buffer.typeinfo_compare_code],
+              atomic_utility],
 )
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")

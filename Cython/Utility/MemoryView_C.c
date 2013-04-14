@@ -93,16 +93,6 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
 
-static int __Pyx_ValidateAndInit_memviewslice(
-                int *axes_specs,
-                int c_or_f_flag,
-                int buf_flags,
-                int ndim,
-                __Pyx_TypeInfo *dtype,
-                __Pyx_BufFmt_StackElem stack[],
-                __Pyx_memviewslice *memviewslice,
-                PyObject *original_obj);
-
 static int __Pyx_init_memviewslice(
                 struct __pyx_memoryview_obj *memview,
                 int ndim,
@@ -129,6 +119,7 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(
 
 
 /////////////// ObjectToMemviewSlice ///////////////
+//@requires: MemviewSliceValidateAndInit
 
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     {{memviewslice_name}} result = {{memslice_init}};
@@ -158,7 +149,20 @@ __pyx_fail:
 }
 
 
-////////// MemviewSliceInit //////////
+/////////////// MemviewSliceValidateAndInit.proto ///////////////
+
+static int __Pyx_ValidateAndInit_memviewslice(
+                int *axes_specs,
+                int c_or_f_flag,
+                int buf_flags,
+                int ndim,
+                __Pyx_TypeInfo *dtype,
+                __Pyx_BufFmt_StackElem stack[],
+                __Pyx_memviewslice *memviewslice,
+                PyObject *original_obj);
+
+/////////////// MemviewSliceValidateAndInit ///////////////
+//@requires: Buffer.c::TypeInfoCompare
 
 static int
 __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
@@ -367,6 +371,9 @@ no_fail:
     __Pyx_RefNannyFinishContext();
     return retval;
 }
+
+
+////////// MemviewSliceInit //////////
 
 static int
 __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
