@@ -221,6 +221,7 @@ VER_DEP_MODULES = {
                                           'run.purecdef',
                                           'run.struct_conversion',
                                           # memory views require buffer protocol
+                                          'memoryview.relaxed_strides',
                                           'memoryview.cythonarray',
                                           'memoryview.memslice',
                                           'memoryview.numpy_memoryview',
