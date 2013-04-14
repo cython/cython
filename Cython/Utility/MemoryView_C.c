@@ -106,10 +106,11 @@ static int __Pyx_init_memviewslice(
                 __Pyx_memviewslice *memviewslice,
                 int memview_is_new_reference);
 
-static CYTHON_INLINE int __pyx_add_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
-                                                            PyThread_type_lock lock);
-static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
-                                                            PyThread_type_lock lock);
+static CYTHON_INLINE int __pyx_add_acquisition_count_locked(
+    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
+static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
+    __pyx_atomic_int *acquisition_count, PyThread_type_lock lock);
+
 #define __pyx_get_slice_count_pointer(memview) (memview->acquisition_count_aligned_p)
 #define __pyx_get_slice_count(memview) (*__pyx_get_slice_count_pointer(memview))
 #define __PYX_INC_MEMVIEW(slice, have_gil) __Pyx_INC_MEMVIEW(slice, have_gil, __LINE__)
@@ -117,7 +118,8 @@ static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(__pyx_atomic_int *ac
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
 /////////////// MemviewSliceIndex.proto ///////////////
-static CYTHON_INLINE char *__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
+static CYTHON_INLINE char *__pyx_memviewslice_index_full(
+const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
 
 /////////////// ObjectToMemviewSlice ///////////////
 
@@ -149,6 +151,127 @@ __pyx_fail:
 }
 
 ////////// MemviewSliceInit //////////
+
+static int
+__pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
+{
+    if (buf->shape[dim] <= 1)
+        return 1;
+
+    if (buf->strides) {
+        if (spec & __Pyx_MEMVIEW_CONTIG) {
+            if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL)) {
+                if (buf->strides[dim] != sizeof(void *)) {
+                    PyErr_Format(PyExc_ValueError,
+                                 "Buffer is not indirectly contiguous "
+                                 "in dimension %d.", dim);
+                    goto fail;
+                }
+            } else if (buf->strides[dim] != buf->itemsize) {
+                PyErr_SetString(PyExc_ValueError,
+                                "Buffer and memoryview are not contiguous "
+                                "in the same dimension.");
+                goto fail;
+            }
+        }
+
+        if (spec & __Pyx_MEMVIEW_FOLLOW) {
+            Py_ssize_t stride = buf->strides[dim];
+            if (stride < 0)
+                stride = -stride;
+            if (stride < buf->itemsize) {
+                PyErr_SetString(PyExc_ValueError,
+                                "Buffer and memoryview are not contiguous "
+                                "in the same dimension.");
+                goto fail;
+            }
+        }
+    } else {
+        if (spec & __Pyx_MEMVIEW_CONTIG && dim != ndim - 1) {
+            PyErr_Format(PyExc_ValueError,
+                         "C-contiguous buffer is not contiguous in "
+                         "dimension %d", dim);
+            goto fail;
+        } else if (spec & (__Pyx_MEMVIEW_PTR)) {
+            PyErr_Format(PyExc_ValueError,
+                         "C-contiguous buffer is not indirect in "
+                         "dimension %d", dim);
+            goto fail;
+        } else if (buf->suboffsets) {
+            PyErr_SetString(PyExc_ValueError,
+                            "Buffer exposes suboffsets but no strides");
+            goto fail;
+        }
+    }
+
+    return 1;
+fail:
+    return 0;
+}
+
+static int
+__pyx_check_suboffsets(Py_buffer *buf, int dim, int ndim, int spec)
+{
+
+    /* Todo: without PyBUF_INDIRECT we may not have suboffset information, i.e., the
+       ptr may not be set to NULL but may be uninitialized? */
+    if (spec & __Pyx_MEMVIEW_DIRECT) {
+        if (buf->suboffsets && buf->suboffsets[dim] >= 0) {
+            PyErr_Format(PyExc_ValueError,
+                         "Buffer not compatible with direct access "
+                         "in dimension %d.", dim);
+            goto fail;
+        }
+    }
+
+    if (spec & __Pyx_MEMVIEW_PTR) {
+        if (!buf->suboffsets || (buf->suboffsets && buf->suboffsets[dim] < 0)) {
+            PyErr_Format(PyExc_ValueError,
+                         "Buffer is not indirectly accessisble "
+                         "in dimension %d.", dim);
+            goto fail;
+        }
+    }
+
+    return 1;
+fail:
+    return 0;
+}
+
+static int
+__pyx_verify_contig(Py_buffer *buf, int ndim, int c_or_f_flag)
+{
+    int i;
+
+    if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
+        Py_ssize_t stride = 1;
+        for (i = 0; i < ndim; i++) {
+            if (stride * buf->itemsize != buf->strides[i] &&
+                    buf->shape[i] > 1)
+            {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer not fortran contiguous.");
+                goto fail;
+            }
+            stride = stride * buf->shape[i];
+        }
+    } else if (c_or_f_flag & __Pyx_IS_C_CONTIG) {
+        Py_ssize_t stride = 1;
+        for (i = ndim - 1; i >- 1; i--) {
+            if (stride * buf->itemsize != buf->strides[i] &&
+                    buf->shape[i] > 1) {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer not C contiguous.");
+                goto fail;
+            }
+            stride = stride * buf->shape[i];
+        }
+    }
+
+    return 1;
+fail:
+    return 0;
+}
 
 static int __Pyx_ValidateAndInit_memviewslice(
                 int *axes_specs,
@@ -195,7 +318,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
         if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
     }
 
-    if ((unsigned)buf->itemsize != dtype->size) {
+    if ((unsigned) buf->itemsize != dtype->size) {
         PyErr_Format(PyExc_ValueError,
                      "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "u byte%s) "
                      "does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "u byte%s)",
@@ -207,95 +330,20 @@ static int __Pyx_ValidateAndInit_memviewslice(
         goto fail;
     }
 
+    /* Check axes */
     for (i = 0; i < ndim; i++) {
         spec = axes_specs[i];
-
-        if (buf->strides) {
-            if (spec & __Pyx_MEMVIEW_CONTIG) {
-                if (spec & (__Pyx_MEMVIEW_PTR|__Pyx_MEMVIEW_FULL)) {
-                    if (buf->strides[i] != sizeof(void *)) {
-                        PyErr_Format(PyExc_ValueError,
-                            "Buffer is not indirectly contiguous in dimension %d.", i);
-                        goto fail;
-                    }
-                } else if (buf->strides[i] != buf->itemsize) {
-                    PyErr_SetString(PyExc_ValueError,
-                        "Buffer and memoryview are not contiguous in the same dimension.");
-                    goto fail;
-                }
-            }
-
-            if (spec & __Pyx_MEMVIEW_FOLLOW) {
-                Py_ssize_t stride = buf->strides[i];
-                if (stride < 0)
-                    stride = -stride;
-                if (stride < buf->itemsize) {
-                    PyErr_SetString(PyExc_ValueError,
-                        "Buffer and memoryview are not contiguous in the same dimension.");
-                    goto fail;
-                }
-            }
-        } else {
-            if (spec & __Pyx_MEMVIEW_CONTIG && i != ndim - 1) {
-                PyErr_Format(PyExc_ValueError,
-                             "C-contiguous buffer is not contiguous in "
-                             "dimension %d", i);
-                goto fail;
-            } else if (spec & (__Pyx_MEMVIEW_PTR)) {
-                PyErr_Format(PyExc_ValueError,
-                             "C-contiguous buffer is not indirect in "
-                             "dimension %d", i);
-                goto fail;
-            } else if (buf->suboffsets) {
-                PyErr_SetString(PyExc_ValueError,
-                                "Buffer exposes suboffsets but no strides");
-                goto fail;
-            }
-        }
-
-        /* Todo: without PyBUF_INDIRECT we may not have suboffset information, i.e., the
-           ptr may not be set to NULL but may be uninitialized? */
-        if (spec & __Pyx_MEMVIEW_DIRECT) {
-            if (buf->suboffsets && buf->suboffsets[i] >= 0) {
-                PyErr_Format(PyExc_ValueError,
-                    "Buffer not compatible with direct access in dimension %d.", i);
-                goto fail;
-            }
-        }
-
-        if (spec & __Pyx_MEMVIEW_PTR) {
-            if (!buf->suboffsets || (buf->suboffsets && buf->suboffsets[i] < 0)) {
-                PyErr_Format(PyExc_ValueError,
-                    "Buffer is not indirectly accessisble in dimension %d.", i);
-                goto fail;
-            }
-        }
+        if (!__pyx_check_strides(buf, i, ndim, spec))
+            goto fail;
+        if (!__pyx_check_suboffsets(buf, i, ndim, spec))
+            goto fail;
     }
 
-    if (buf->strides) {
-        if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
-            Py_ssize_t stride = 1;
-            for (i=0; i<ndim; i++) {
-                if (stride * buf->itemsize != buf->strides[i]) {
-                    PyErr_SetString(PyExc_ValueError,
-                        "Buffer not fortran contiguous.");
-                    goto fail;
-                }
-                stride = stride * buf->shape[i];
-            }
-        } else if (c_or_f_flag & __Pyx_IS_C_CONTIG) {
-            Py_ssize_t stride = 1;
-            for (i = ndim-1; i>-1; i--) {
-                if(stride * buf->itemsize != buf->strides[i]) {
-                    PyErr_SetString(PyExc_ValueError,
-                        "Buffer not C contiguous.");
-                    goto fail;
-                }
-                stride = stride * buf->shape[i];
-            }
-        }
-    }
+    /* Check contiguity */
+    if (buf->strides && !__pyx_verify_contig(buf, ndim, c_or_f_flag))
+        goto fail;
 
+    /* Initialize */
     if (unlikely(__Pyx_init_memviewslice(memview, ndim, memviewslice,
                                          new_memview != NULL) == -1)) {
         goto fail;
