@@ -713,7 +713,23 @@ class CythonCompileTestCase(unittest.TestCase):
         finally:
             os.chdir(cwd)
 
-        return build_extension.get_ext_fullpath(module)
+        try:
+            get_ext_fullpath = build_extension.get_ext_fullpath
+        except AttributeError:
+            def get_ext_fullpath(ext_name, self=build_extension):
+                # copied from distutils.command.build_ext (missing in Py2.[45])
+                fullname = self.get_ext_fullname(ext_name)
+                modpath = fullname.split('.')
+                filename = self.get_ext_filename(modpath[-1])
+                if not self.inplace:
+                    filename = os.path.join(*modpath[:-1]+[filename])
+                    return os.path.join(self.build_lib, filename)
+                package = '.'.join(modpath[0:-1])
+                build_py = self.get_finalized_command('build_py')
+                package_dir = os.path.abspath(build_py.get_package_dir(package))
+                return os.path.join(package_dir, filename)
+
+        return get_ext_fullpath(module)
 
     def compile(self, test_directory, module, workdir, incdir,
                 expect_errors, annotate):
