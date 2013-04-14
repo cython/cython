@@ -1,8 +1,6 @@
 ////////// MemviewSliceStruct.proto //////////
 
-
 /* memoryview slice struct */
-
 struct {{memview_struct_name}};
 
 typedef struct {
@@ -13,7 +11,9 @@ typedef struct {
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
 
+
 /////////// Atomics.proto /////////////
+
 #include <pythread.h>
 
 #ifndef CYTHON_ATOMICS
@@ -21,8 +21,8 @@ typedef struct {
 #endif
 
 #define __pyx_atomic_int_type int
-/* todo: Portland pgcc, maybe OS X's OSAtomicIncrement32,
-   libatomic + autotools-like distutils support? Such a pain... */
+// todo: Portland pgcc, maybe OS X's OSAtomicIncrement32,
+//       libatomic + autotools-like distutils support? Such a pain...
 #if CYTHON_ATOMICS && __GNUC__ >= 4 && (__GNUC_MINOR__ > 1 ||           \
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL >= 2)) && \
                     !defined(__i386__)                   
@@ -73,8 +73,11 @@ typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
             __pyx_sub_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
 #endif
 
+
 /////////////// ObjectToMemviewSlice.proto ///////////////
+
 static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
+
 
 ////////// MemviewSliceInit.proto //////////
 
@@ -117,9 +120,13 @@ static CYTHON_INLINE int __pyx_sub_acquisition_count_locked(
 #define __PYX_XDEC_MEMVIEW(slice, have_gil) __Pyx_XDEC_MEMVIEW(slice, have_gil, __LINE__)
 static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *, int, int);
+
+
 /////////////// MemviewSliceIndex.proto ///////////////
+
 static CYTHON_INLINE char *__pyx_memviewslice_index_full(
-const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
+    const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
+
 
 /////////////// ObjectToMemviewSlice ///////////////
 
@@ -149,6 +156,7 @@ __pyx_fail:
     result.data = NULL;
     return result;
 }
+
 
 ////////// MemviewSliceInit //////////
 
@@ -520,14 +528,18 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
     }
 }
 
+
 ////////// MemviewSliceCopyTemplate.proto //////////
+
 static {{memviewslice_name}}
 __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
                                  const char *mode, int ndim,
                                  size_t sizeof_dtype, int contig_flag,
                                  int dtype_is_object);
 
+
 ////////// MemviewSliceCopyTemplate //////////
+
 static {{memviewslice_name}}
 __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
                                  const char *mode, int ndim,
@@ -606,18 +618,24 @@ no_fail:
     return new_mvs;
 }
 
+
 ////////// CopyContentsUtility.proto /////////
+
 #define {{func_cname}}(slice) \
         __pyx_memoryview_copy_new_contig(&slice, "{{mode}}", {{ndim}},            \
                                          sizeof({{dtype_decl}}), {{contig_flag}}, \
                                          {{dtype_is_object}})
 
+
 ////////// OverlappingSlices.proto //////////
+
 static int __pyx_slices_overlap({{memviewslice_name}} *slice1,
                                 {{memviewslice_name}} *slice2,
                                 int ndim, size_t itemsize);
 
+
 ////////// OverlappingSlices //////////
+
 /* Based on numpy's core/src/multiarray/array_assign.c */
 
 /* Gets a half-open range [start, end) which contains the array data */
@@ -665,19 +683,27 @@ __pyx_slices_overlap({{memviewslice_name}} *slice1,
     return (start1 < end2) && (start2 < end1);
 }
 
+
 ////////// MemviewSliceIsCContig.proto //////////
+
 #define __pyx_memviewslice_is_c_contig{{ndim}}(slice) \
         __pyx_memviewslice_is_contig(&slice, 'C', {{ndim}})
 
+
 ////////// MemviewSliceIsFContig.proto //////////
+
 #define __pyx_memviewslice_is_f_contig{{ndim}}(slice) \
         __pyx_memviewslice_is_contig(&slice, 'F', {{ndim}})
 
+
 ////////// MemviewSliceIsContig.proto //////////
+
 static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
                                         char order, int ndim);
 
+
 ////////// MemviewSliceIsContig //////////
+
 static int
 __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
                              char order, int ndim)
@@ -704,6 +730,7 @@ __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
     return 1;
 }
 
+
 /////////////// MemviewSliceIndex ///////////////
 
 static CYTHON_INLINE char *
@@ -717,7 +744,9 @@ __pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx,
     return (char *) bufp;
 }
 
+
 /////////////// MemviewDtypeToObject.proto ///////////////
+
 {{if to_py_function}}
 static PyObject *{{get_function}}(const char *itemp); /* proto */
 {{endif}}
@@ -727,6 +756,7 @@ static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 {{endif}}
 
 /////////////// MemviewDtypeToObject ///////////////
+
 {{#__pyx_memview_<dtype_name>_to_object}}
 
 /* Convert a dtype to or from a Python object */
@@ -747,12 +777,16 @@ static int {{set_function}}(const char *itemp, PyObject *obj) {
 }
 {{endif}}
 
+
 /////////////// MemviewObjectToObject.proto ///////////////
+
 /* Function callbacks (for memoryview object) for dtype object */
 static PyObject *{{get_function}}(const char *itemp); /* proto */
 static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 
+
 /////////////// MemviewObjectToObject ///////////////
+
 static PyObject *{{get_function}}(const char *itemp) {
     PyObject *result = *(PyObject **) itemp;
     Py_INCREF(result);
@@ -767,6 +801,7 @@ static int {{set_function}}(const char *itemp, PyObject *obj) {
 }
 
 /////////// ToughSlice //////////
+
 /* Dimension is indexed with 'start:stop:step' */
 
 if (unlikely(__pyx_memoryview_slice_memviewslice(
@@ -786,7 +821,9 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{error_goto}}
 }
 
+
 ////////// SimpleSlice //////////
+
 /* Dimension is indexed with ':' only */
 
 {{dst}}.shape[{{new_ndim}}] = {{src}}.shape[{{dim}}];
@@ -800,9 +837,11 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
         {{suboffset_dim}} = {{new_ndim}};
 {{endif}}
 
+
 ////////// SliceIndex //////////
-/* Dimension is indexed with an integer, we could use the ToughSlice */
-/* approach, but this is faster */
+
+// Dimension is indexed with an integer, we could use the ToughSlice
+// approach, but this is faster
 
 {
     Py_ssize_t __pyx_tmp_idx = {{idx}};
@@ -863,12 +902,15 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{endif}}
 }
 
+
 ////////// FillStrided1DScalar.proto //////////
+
 static void
 __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t stride,
                                 size_t itemsize, void *itemp);
 
 ////////// FillStrided1DScalar //////////
+
 /* Fill a slice with a scalar value. The dimension is direct and strided or contiguous */
 /* This can be used as a callback for the memoryview object to efficienty assign a scalar */
 /* Currently unused */
