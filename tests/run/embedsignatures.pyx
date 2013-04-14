@@ -125,6 +125,9 @@ __doc__ = ur"""
     >>> print (f_si.__doc__)
     f_si(signed int i) -> signed int
 
+    >>> print (f_bint.__doc__)
+    f_bint(bool i) -> bool
+
 
     >>> print (f_l.__doc__)
     f_l(long l) -> long
@@ -316,6 +319,9 @@ cpdef unsigned int f_ui(unsigned int i):
     return i
 
 cpdef signed int f_si(signed int i):
+    return i
+
+cpdef bint f_bint(bint i):
     return i
 
 
