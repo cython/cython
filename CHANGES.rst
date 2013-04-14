@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* New directives ``c_string_type`` and ``c_string_encoding`` to more easily
+  and automatically convert between C strings and the different Python string
+  types.
+
 * The extension type flag ``Py_TPFLAGS_HAVE_VERSION_TAG`` is enabled by default
   on extension types and can be disabled using the ``type_version_tag`` compiler
   directive.
@@ -63,8 +67,8 @@ Features added
 
 * Keyword arguments are supported for cdef functions.
 
-* Added c_string_type and c_string_encoding directives to more easily convert between
-  Python and C strings.
+* External C++ classes can be declared nogil.  Patch by John Stumpo.  This fixes
+  trac ticket 805.
 
 Bugs fixed
 ----------
