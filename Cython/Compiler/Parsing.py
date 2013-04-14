@@ -3128,12 +3128,13 @@ def p_cpp_class_definition(s, pos,  ctx):
         base_classes = []
     if s.sy == '[':
         error(s.position(), "Name options not allowed for C++ class")
+    nogil = p_nogil(s)
     if s.sy == ':':
         s.next()
         s.expect('NEWLINE')
         s.expect_indent()
         attributes = []
-        body_ctx = Ctx(visibility = ctx.visibility, level='cpp_class')
+        body_ctx = Ctx(visibility = ctx.visibility, level='cpp_class', nogil=nogil or ctx.nogil)
         body_ctx.templates = templates
         while s.sy != 'DEDENT':
             if s.systring == 'cppclass':
