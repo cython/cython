@@ -1,14 +1,17 @@
-#cython: c_string_type = str
+#cython: c_string_type = unicode
 #cython: c_string_encoding = ascii
+
+auto_string_type = unicode
 
 from libc.string cimport strcmp
 
+
 def as_objects(char* ascii_data):
     """
-    >>> as_objects('abc')
-    'abc'
+    >>> print(as_objects('abc'))
+    abc
     """
-    assert isinstance(<object>ascii_data, str)
+    assert isinstance(<object>ascii_data, auto_string_type)
     assert isinstance(<bytes>ascii_data, bytes)
     assert isinstance(<str>ascii_data, str)
     assert isinstance(<unicode>ascii_data, unicode)
@@ -27,17 +30,17 @@ def from_object():
 
 def slice_as_objects(char* ascii_data, int start, int end):
     """
-    >>> slice_as_objects('grok', 1, 3)
-    'ro'
+    >>> print(slice_as_objects('grok', 1, 3))
+    ro
     """
-    assert isinstance(<object>ascii_data[start:end], str)
+    assert isinstance(<object>ascii_data[start:end], auto_string_type)
     assert isinstance(<bytes>ascii_data[start:end], bytes)
     assert isinstance(<str>ascii_data[start:end], str)
     assert isinstance(<unicode>ascii_data[start:end], unicode)
-    
-    assert isinstance(<object>ascii_data[start:], str)
+
+    assert isinstance(<object>ascii_data[start:], auto_string_type)
     assert isinstance(<bytes>ascii_data[start:], bytes)
     assert isinstance(<str>ascii_data[start:], str)
     assert isinstance(<unicode>ascii_data[start:], unicode)
-    
+
     return ascii_data[start:end]

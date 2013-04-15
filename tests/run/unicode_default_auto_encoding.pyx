@@ -1,4 +1,4 @@
-# cython: c_string_type = str
+# cython: c_string_type = unicode
 # cython: c_string_encoding = default
 
 import sys
@@ -10,4 +10,4 @@ if sys.version_info[0] >= 3:
         True
         """
 
-include "unicode_ascii_encoding.pyx"
+include "unicode_ascii_auto_encoding.pyx"
