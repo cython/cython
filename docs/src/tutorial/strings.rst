@@ -305,6 +305,77 @@ For C++ strings, decoding slices will always take the proper length
 of the string into account and apply Python slicing semantics (e.g.
 return empty strings for out-of-bounds indices).
 
+
+Auto encoding and decoding
+--------------------------
+
+Cython 0.19 comes with two new directives: ``c_string_type`` and
+``c_string_encoding``.  They can be used to change the Python string
+types that C/C++ strings coerce from and to.  By default, they only
+coerce from and to the bytes type, and encoding or decoding must
+be done explicitly, as described above.
+
+There are two use cases where this is inconvenient.  First, if all
+C strings that are being processed (or the large majority) contain
+text, automatic encoding and decoding from and to Python unicode
+objects can reduce the code overhead a little.  In this case, you
+can set the ``c_string_type`` directive in your module to ``unicode``
+and the ``c_string_encoding`` to the encoding that your C code uses,
+for example::
+
+    # cython: c_string_type=unicode, c_string_encoding=utf8
+
+    cdef char* c_string = 'abcdefg'
+
+    # implicit decoding:
+    cdef object py_unicode_object = c_string
+
+    # explicit conversion to Python bytes:
+    py_bytes_object = <bytes>c_string
+
+The second use case is when all C strings that are being processed
+only contain ASCII encodable characters (e.g. numbers) and you want
+your code to use the native legacy string type in Python 2 for them,
+instead of always using Unicode. In this case, you can set the
+string type to ``str``::
+
+    # cython: c_string_type=str, c_string_encoding=ascii
+
+    cdef char* c_string = 'abcdefg'
+
+    # implicit decoding in Py3, bytes conversion in Py2:
+    cdef object py_str_object = c_string
+
+    # explicit conversion to Python bytes:
+    py_bytes_object = <bytes>c_string
+
+    # explicit conversion to Python unicode:
+    py_bytes_object = <unicode>c_string
+
+The other direction, i.e. automatic encoding to C strings, is only
+supported for the ASCII codec (and the "default encoding", which is
+runtime specific and may or may not be ASCII).  This is because
+CPython handles the memory management in this case by keeping an
+encoded copy of the string alive together with the original unicode
+string.  Otherwise, there would be no way to limit the lifetime of
+the encoded string in any sensible way, thus rendering any attempt to
+extract a C string pointer from it a dangerous endeavour.  As long
+as you stick to the ASCII encoding for the ``c_string_encoding``
+directive, though, the following will work::
+
+    # cython: c_string_type=unicode, c_string_encoding=ascii
+
+    def func():
+        ustring = u'abc'
+        cdef char* s = ustring
+        return s[0]    # returns u'a'
+
+(This example uses a function context in order to safely control the
+lifetime of the Unicode string.  Global Python variables can be
+modified from the outside, which makes it dangerous to rely on the
+lifetime of their values.)
+
+
 Source code encoding
 --------------------
 
