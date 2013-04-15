@@ -2891,6 +2891,9 @@ class DebugTransform(CythonTransform):
 
     def serialize_local_variables(self, entries):
         for entry in entries.values():
+            if not entry.cname:
+                # not a local variable
+                continue
             if entry.type.is_pyobject:
                 vartype = 'PythonObject'
             else:
