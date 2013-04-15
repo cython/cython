@@ -22,8 +22,6 @@ __doc__ = ur"""
     None
     >>> print (Ext.attr4.__doc__)
     attr4 docstring
-    >>> print (Ext.attr5.__doc__)
-    attr5 docstring
 
     >>> print (Ext.a.__doc__)
     Ext.a(self)
@@ -175,6 +173,9 @@ __doc__ = ur"""
 
     >>> print (f_defexpr4.__doc__)
     f_defexpr4(int x=(Ext.CONST1 + FLAG1) * Ext.CONST2)
+
+    >>> print (f_defexpr5.__doc__)
+    f_defexpr5(int x=4)
 """
 
 cdef class Ext:
@@ -186,8 +187,6 @@ cdef class Ext:
     cdef public list attr2
     cdef public Ext  attr3
     cdef        int  attr4
-    cdef             attr5
-    """private attr5 docstring"""
 
     CONST1, CONST2 = 1, 2
 
@@ -202,11 +201,6 @@ cdef class Ext:
 
     property attr4:
         """attr4 docstring"""
-        def __get__(self):
-            return self.attr4
-
-    property attr5:
-        """attr5 docstring"""
         def __get__(self):
             return self.attr4
 
@@ -376,4 +370,7 @@ cpdef f_defexpr3(int x = Ext.CONST1, f = __builtins__.abs):
     pass
 
 cpdef f_defexpr4(int x = (Ext.CONST1 + FLAG1) * Ext.CONST2):
+    pass
+
+cpdef f_defexpr5(int x = 2+2):
     pass
