@@ -59,6 +59,11 @@ except ImportError:
         def __repr__(self):
             return repr(self._dict)
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 WITH_CYTHON = True
 CY3_DIR = None
 
@@ -807,11 +812,14 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_tests(self, result, ext_so_path):
-        self.run_doctests(result, ext_so_path)
+        self.run_doctests(self.module, result, ext_so_path)
 
-    def run_doctests(self, result, ext_so_path):
+    def run_doctests(self, module_or_name, result, ext_so_path):
         def run_test(result):
-            module = import_ext(self.module, ext_so_path)
+            if isinstance(module_or_name, basestring):
+                module = import_ext(module_or_name, ext_so_path)
+            else:
+                module = module_or_name
             tests = doctest.DocTestSuite(module)
             tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
@@ -1003,7 +1011,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         suite.run(result)
 
     def _run_doctest(self, result, module):
-        self.run_doctests(module, result)
+        self.run_doctests(module, result, None)
 
     def run_tests(self, result, ext_so_path):
         try:
