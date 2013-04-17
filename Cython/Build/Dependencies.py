@@ -309,11 +309,12 @@ def resolve_depends(depends, include_dirs):
 @cached_function
 def resolve_depend(depend, include_dirs):
     if depend[0] == '<' and depend[-1] == '>':
-        return
+        return None
     for dir in include_dirs:
         path = join_path(dir, depend)
         if path_exists(path):
             return os.path.normpath(path)
+    return None
 
 @cached_function
 def parse_dependencies(source_filename):
@@ -481,7 +482,7 @@ class DependencyTree(object):
         externs = self.cimports_and_externs(filename)[1]
         if externs:
             if 'depends' in info.values:
-                info.values['depends'] = list(set(info.values['depends']).union(set(externs)))
+                info.values['depends'] = list(set(info.values['depends']).union(externs))
             else:
                 info.values['depends'] = list(externs)
         return info
