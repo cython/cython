@@ -288,12 +288,32 @@ def normalize_existing(base_path, rel_paths):
 
 @cached_function
 def normalize_existing0(base_dir, rel_paths):
-    filtered = []
+    normalized = []
     for rel in rel_paths:
         path = join_path(base_dir, rel)
-        if os.path.exists(path):
-            filtered.append(os.path.normpath(path))
-    return filtered
+        if path_exists(path):
+            normalized.append(os.path.normpath(path))
+        else:
+            normalized.append(path)
+    return normalized
+
+def resolve_depends(depends, include_dirs):
+    include_dirs = tuple(include_dirs)
+    resolved = []
+    for depend in depends:
+        path = resolve_depend(depend, include_dirs)
+        if path is not None:
+            resolved.append(path)
+    return resolved
+
+@cached_function
+def resolve_depend(depend, include_dirs):
+    if depend[0] == '<' and depend[-1] == '>':
+        return
+    for dir in include_dirs:
+        path = join_path(dir, depend)
+        if path_exists(path):
+            return os.path.normpath(path)
 
 @cached_function
 def parse_dependencies(source_filename):
@@ -515,6 +535,8 @@ def create_dependency_tree(ctx=None, quiet=False):
 
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, exclude_failures=False):
+    if not isinstance(patterns, list):
+        patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
     deps = create_dependency_tree(ctx, quiet=quiet)
@@ -523,8 +545,6 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         exclude = [exclude]
     for pattern in exclude:
         to_exclude.update(extended_iglob(pattern))
-    if not isinstance(patterns, list):
-        patterns = [patterns]
     module_list = []
     for pattern in patterns:
         if isinstance(pattern, str):
@@ -576,6 +596,12 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                         if source not in sources:
                             sources.append(source)
                     del kwds['sources']
+                if 'depends' in kwds:
+                    depends = resolve_depends(kwds['depends'], kwds.get('include_dirs') or [])
+                    if template is not None:
+                        # Always include everything from the template.
+                        depends = list(set(template.depends).union(set(depends)))
+                    kwds['depends'] = depends
                 module_list.append(exn_type(
                         name=module_name,
                         sources=sources,
