@@ -339,7 +339,8 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
-        if scope.parent_type.base_type \
+        if self.slot_name != 'tp_new' \
+            and scope.parent_type.base_type \
             and not scope.has_pyobject_attrs \
             and not scope.lookup_here(self.method):
             # if the type does not have object attributes, it can
