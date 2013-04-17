@@ -1,3 +1,4 @@
+# ticket: 808
 
 cimport cython
 
@@ -29,6 +30,24 @@ class MyTypeSubClass(MyType):
         print "CINIT(PYSUB)"
     def __init__(self, *args, **kwargs):
         print "INIT"
+
+# See ticket T808, vtab must be set even if there is no __cinit__.
+
+cdef class Base(object):
+    pass
+
+cdef class Derived(Base):
+    cpdef int f(self):
+        return 42
+
+def test_derived_vtab():
+    """
+    >>> test_derived_vtab()
+    42
+    """
+    cdef Derived d = Derived.__new__(Derived)
+    return d.f()
+
 
 # only these can be safely optimised:
 
