@@ -52,11 +52,6 @@ Features added
   are automatically mapped to the equivalent keys/values/items methods in Python 3
   for typed dictionaries.
 
-* 2-value slicing of unknown objects passes the correct slice when the ``getitem``
-  protocol is used instead of the ``getslice`` protocol (especially in Python 3),
-  i.e. ``None`` values for missing bounds instead of ``[0,maxsize]``.  It is also
-  a bit faster in some cases, e.g. for constant bounds.  This fixes trac ticket 636.
-
 * Slicing unicode strings, lists and tuples is faster.
 
 * list.append() is faster on average.
@@ -72,6 +67,11 @@ Features added
 
 Bugs fixed
 ----------
+
+* 2-value slicing of unknown objects passes the correct slice when the ``getitem``
+  protocol is used instead of the ``getslice`` protocol (especially in Python 3),
+  i.e. ``None`` values for missing bounds instead of ``[0,maxsize]``.  It is also
+  a bit faster in some cases, e.g. for constant bounds.  This fixes trac ticket 636.
 
 * Cascaded assignments of None values to extension type variables failed with
   a ``TypeError`` at runtime.
