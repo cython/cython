@@ -322,7 +322,7 @@ class Context(object):
                   "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg))
 
         if Errors.num_errors > 0:
-            raise CompileError
+            raise CompileError()
         return tree
 
     def extract_module_name(self, path, options):
