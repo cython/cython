@@ -744,13 +744,12 @@ class ExprNode(Node):
                             constant_result=bool_value)
 
         type = self.type
-        if type.is_pyobject or type.is_ptr or type.is_float:
+        if type.is_enum or type.is_error:
+            return self
+        elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
         else:
-            if not (type.is_int or type.is_enum or type.is_error):
-                error(self.pos,
-                    "Type '%s' not acceptable as a boolean" % type)
-            return self
+            error(self.pos, "Type '%s' not acceptable as a boolean" % type)
 
     def coerce_to_integer(self, env):
         # If not already some C integer type, coerce to longint.
