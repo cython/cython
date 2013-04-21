@@ -3081,18 +3081,18 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_BoolBinopNode(self, node):
         self._calculate_const(node)
-        if node.constant_result is ExprNodes.not_a_constant:
+        if node.operand1.constant_result is ExprNodes.not_a_constant:
             return node
-        if not node.operand1.is_literal or not node.operand2.is_literal:
-            return node
-
-        if node.constant_result == node.operand1.constant_result and node.operand1.is_literal:
-            return node.operand1
-        elif node.constant_result == node.operand2.constant_result and node.operand2.is_literal:
-            return node.operand2
+        elif node.operand1.constant_result:
+            if node.operator == 'and':
+                return node.operand2
+            else:
+                return node.operand1
         else:
-            # FIXME: we could do more ...
-            return node
+            if node.operator == 'and':
+                return node.operand1
+            else:
+                return node.operand2
 
     def visit_BinopNode(self, node):
         self._calculate_const(node)
