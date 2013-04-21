@@ -750,6 +750,7 @@ class ExprNode(Node):
             return CoerceToBooleanNode(self, env)
         else:
             error(self.pos, "Type '%s' not acceptable as a boolean" % type)
+            return self
 
     def coerce_to_integer(self, env):
         # If not already some C integer type, coerce to longint.
