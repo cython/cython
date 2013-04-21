@@ -115,16 +115,16 @@ def x_and_1_or_False(x):
 def test_large_int(unsigned long x):
     """
     >>> try: test_large_int(1 << 127)
-    ... except OverflowError: print True
+    ... except OverflowError: print(True)
     True
     >>> try: test_large_int(1 << 63)
-    ... except OverflowError: print True
+    ... except OverflowError: print(True)
     True
     >>> try: test_large_int(1 << 48)
-    ... except OverflowError: print True
+    ... except OverflowError: print(True)
     True
     >>> try: test_large_int(1 << 31)
-    ... except OverflowError: print True
+    ... except OverflowError: print(True)
     True
     >>> test_large_int(0)
     False
