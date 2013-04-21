@@ -22,6 +22,9 @@ __doc__ = ur"""
     None
     >>> print (Ext.attr4.__doc__)
     attr4 docstring
+    >>> print (Ext.attr5.__doc__)
+    attr5: 'int'
+    attr5 docstring
 
     >>> print (Ext.a.__doc__)
     Ext.a(self)
@@ -185,8 +188,13 @@ cdef class Ext:
     cdef public      attr1
     """attr1 docstring"""
     cdef public list attr2
-    cdef public Ext  attr3
+    cdef public Ext attr3
+
+    """NOT attr3 docstring"""
     cdef        int  attr4
+    cdef public int \
+        attr5
+    """attr5 docstring"""
 
     CONST1, CONST2 = 1, 2
 

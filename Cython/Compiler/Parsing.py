@@ -2807,12 +2807,10 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
                                         assignable = 1, nonempty = 1)
             declarators.append(declarator)
+        doc_line = s.start_line + 1
         s.expect_newline("Syntax error in C variable declaration")
-        if ctx.level == 'c_class':
-            doc_pos = s.position()
+        if ctx.level == 'c_class' and s.start_line == doc_line:
             doc = p_doc_string(s)
-            if doc and ctx.visibility not in ('public', 'readonly'):
-                warning(doc_pos, "Private attributes don't support docstrings.", 1)
         else:
             doc = None
         result = Nodes.CVarDefNode(pos,
