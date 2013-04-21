@@ -778,7 +778,8 @@ class SwitchTransform(Visitor.VisitorTransform):
 
     def extract_conditions(self, cond, allow_not_in):
         while True:
-            if isinstance(cond, ExprNodes.CoerceToTempNode):
+            if isinstance(cond, (ExprNodes.CoerceToTempNode,
+                                 ExprNodes.CoerceToBooleanNode)):
                 cond = cond.arg
             elif isinstance(cond, UtilNodes.EvalWithTempExprNode):
                 # this is what we get from the FlattenInListTransform
