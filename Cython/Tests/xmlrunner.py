@@ -182,9 +182,11 @@ class _XMLTestResult(_TextTestResult):
     def printErrorList(self, flavour, errors):
         "Write some information about the FAIL or ERROR to the stream."
         for test_info in errors:
+            if isinstance(test_info, tuple):
+                test_info, exc_info = test_info
             self.stream.writeln(self.separator1)
-            self.stream.writeln('%s [%.3fs]: %s' % \
-                (flavour, test_info.get_elapsed_time(), \
+            self.stream.writeln('%s [%.3fs]: %s' % (
+                flavour, test_info.get_elapsed_time(),
                 test_info.get_description()))
             self.stream.writeln(self.separator2)
             self.stream.writeln('%s' % test_info.get_error_info())
