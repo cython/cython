@@ -9029,16 +9029,24 @@ class ModNode(DivNode):
         else:
             return "float divmod()"
 
-    def generate_evaluation_code(self, code):
+    def analyse_operation(self, env):
+        DivNode.analyse_operation(self, env)
         if not self.type.is_pyobject:
             if self.cdivision is None:
-                self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
-            if not self.cdivision:
-                if self.type.is_int:
-                    code.globalstate.use_utility_code(mod_int_utility_code.specialize(self.type))
-                else:
-                    code.globalstate.use_utility_code(
-                        mod_float_utility_code.specialize(self.type, math_h_modifier=self.type.math_h_modifier))
+                self.cdivision = env.directives['cdivision'] or not self.type.signed
+            if not self.cdivision and not self.type.is_int and not self.type.is_float:
+                error(self.pos, "mod operator not supported for type '%s'" % self.type)
+
+    def generate_evaluation_code(self, code):
+        if not self.type.is_pyobject and not self.cdivision:
+            if self.type.is_int:
+                code.globalstate.use_utility_code(
+                    mod_int_utility_code.specialize(self.type))
+            else:  # float
+                code.globalstate.use_utility_code(
+                    mod_float_utility_code.specialize(
+                        self.type, math_h_modifier=self.type.math_h_modifier))
+        # note: skipping over DivNode here
         NumBinopNode.generate_evaluation_code(self, code)
         self.generate_div_warning_code(code)
 
