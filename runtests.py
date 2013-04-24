@@ -1188,8 +1188,8 @@ class EndToEndTest(unittest.TestCase):
         old_path = os.environ.get('PYTHONPATH')
         os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
         try:
-            for command in commands.split('\n'):
-                p = subprocess.Popen(commands,
+            for command in filter(None, commands.splitlines()):
+                p = subprocess.Popen(command,
                                      stderr=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
                                      shell=True)
