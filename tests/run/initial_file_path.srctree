@@ -1,5 +1,5 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import my_test_package as p; assert not p.__file__.rstrip('co').endswith('.py'), p.__file__; m.test()"
+PYTHON -c "import my_test_package as p; assert not p.__file__.rstrip('co').endswith('.py'), p.__file__; p.test()"
 PYTHON -c "import my_test_package.a as a; a.test()"
 PYTHON -c "import my_test_package.another as p; assert not p.__file__.rstrip('co').endswith('.py'), p.__file__; p.test()"
 PYTHON -c "import my_test_package.another.a as a; a.test()"
