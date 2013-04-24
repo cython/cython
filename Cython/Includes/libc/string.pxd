@@ -43,6 +43,7 @@ cdef extern from "string.h" nogil:
     char *strcasestr (const char *haystack, const char *needle)
 
     size_t strcspn (const char *string, const char *stopset)
+    size_t strspn  (const char *string, const char *set)
     char * strpbrk (const char *string, const char *stopset)
 
     char *strtok (char *newstring, const char *delimiters)
