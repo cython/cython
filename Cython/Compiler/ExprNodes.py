@@ -91,12 +91,29 @@ def find_coercion_error(type_tuple, default, env):
     else:
         return err
 
+
 def default_str_type(env):
     return {
         'bytes': bytes_type,
         'str': str_type,
         'unicode': unicode_type
     }.get(env.directives['c_string_type'])
+
+
+def check_negative_indices(*nodes):
+    """
+    Raise a warning on nodes that are known to have negative numeric values.
+    Used to find (potential) bugs inside of "wraparound=False" sections.
+    """
+    for node in nodes:
+        if not isinstance(node.constant_result, (int, float, long)):
+            continue
+        if node.constant_result >= 0:
+            continue
+        warning(node.pos,
+                "the result of using negative indices inside of "
+                "code sections marked as 'wraparound=False' is "
+                "undefined", level=1)
 
 
 class ExprNode(Node):
@@ -2762,6 +2779,12 @@ class IndexNode(ExprNode):
 
         is_slice = isinstance(self.index, SliceNode)
 
+        if not env.directives['wraparound']:
+            if is_slice:
+                check_negative_indices(self.index.start, self.index.stop)
+            else:
+                check_negative_indices(self.index)
+
         # Potentially overflowing index value.
         if not is_slice and isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
             self.index = self.index.coerce_to_pyobject(env)
@@ -3550,6 +3573,10 @@ class SliceIndexNode(ExprNode):
             self.start = self.start.analyse_types(env)
         if self.stop:
             self.stop = self.stop.analyse_types(env)
+
+        if not env.directives['wraparound']:
+            check_negative_indices(self.start, self.stop)
+
         base_type = self.base.type
         if base_type.is_string or base_type.is_cpp_string:
             self.type = default_str_type(env)
