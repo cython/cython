@@ -201,3 +201,158 @@ def varargs():
         raise MemoryError()
     return buffer[:retval].decode('ascii')
 '''
+
+
+cdef class ExtType:
+    cdef cmeth(self, a, b, c, d):
+        return (a,b,c,d)
+
+    @cython.test_fail_if_path_exists('//GeneralCallNode')
+    @cython.test_assert_path_exists('//SimpleCallNode')
+    def call_cmeth(self, ExtType ext):
+        """
+        >>> x = ExtType()
+        >>> x.call_cmeth(x)
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        EXT
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        """
+        print self.cmeth(1,2,3,4)
+        print self.cmeth(1,2,c=3,d=4)
+        print self.cmeth(a=1,b=2,c=3,d=4)
+        print "EXT"
+        print ext.cmeth(1,2,3,4)
+        print ext.cmeth(1,2,c=3,d=4)
+        print ext.cmeth(a=1,b=2,c=3,d=4)
+
+    cpdef cpmeth(self, a, b, c, d):
+        return (a,b,c,d)
+
+    @cython.test_fail_if_path_exists('//GeneralCallNode')
+    @cython.test_assert_path_exists('//SimpleCallNode')
+    def call_cpmeth(self, ExtType ext):
+        """
+        >>> x = ExtType()
+        >>> x.call_cpmeth(x)
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        EXT
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        (1, 2, 3, 4)
+        """
+        print self.cpmeth(1,2,3,4)
+        print self.cpmeth(1,2,c=3,d=4)
+        print self.cpmeth(a=1,b=2,c=3,d=4)
+        print "EXT"
+        print ext.cpmeth(1,2,3,4)
+        print ext.cpmeth(1,2,c=3,d=4)
+        print ext.cpmeth(a=1,b=2,c=3,d=4)
+
+    cdef optargs(self, a=1, b=2):
+        return (a,b)
+
+    @cython.test_fail_if_path_exists('//GeneralCallNode')
+    @cython.test_assert_path_exists('//SimpleCallNode')
+    def call_optargs(self, ExtType ext):
+        """
+        >>> x = ExtType()
+        >>> x.call_optargs(x)
+        (3, 4)
+        (3, 4)
+        (3, 4)
+        (1, 2)
+        (3, 2)
+        (3, 2)
+        EXT
+        (3, 4)
+        (3, 4)
+        (3, 4)
+        (1, 2)
+        (3, 2)
+        (3, 2)
+        """
+        print self.optargs(3,4)
+        print self.optargs(3,b=4)
+        print self.optargs(a=3,b=4)
+        print self.optargs()
+        print self.optargs(3)
+        print self.optargs(a=3)
+        #print self.optargs(b=4)
+        print "EXT"
+        print ext.optargs(3,4)
+        print ext.optargs(3,b=4)
+        print ext.optargs(a=3,b=4)
+        print ext.optargs()
+        print ext.optargs(3)
+        print ext.optargs(a=3)
+        #print ext.optargs(b=4)
+
+    cpdef cpmeth_optargs(self, a=1, b=2):
+        return (a,b)
+
+    @cython.test_fail_if_path_exists('//GeneralCallNode')
+    @cython.test_assert_path_exists('//SimpleCallNode')
+    def call_cpmeth_optargs(self, ExtType ext):
+        """
+        >>> x = ExtType()
+        >>> x.call_cpmeth_optargs(x)
+        (3, 4)
+        (3, 4)
+        (3, 4)
+        (1, 2)
+        (3, 2)
+        (3, 2)
+        EXT
+        (3, 4)
+        (3, 4)
+        (3, 4)
+        (1, 2)
+        (3, 2)
+        (3, 2)
+        """
+        print self.cpmeth_optargs(3,4)
+        print self.cpmeth_optargs(3,b=4)
+        print self.cpmeth_optargs(a=3,b=4)
+        print self.cpmeth_optargs()
+        print self.cpmeth_optargs(3)
+        print self.cpmeth_optargs(a=3)
+        #print self.cpmeth_optargs(b=4)
+        print "EXT"
+        print ext.cpmeth_optargs(3,4)
+        print ext.cpmeth_optargs(3,b=4)
+        print ext.cpmeth_optargs(a=3,b=4)
+        print ext.cpmeth_optargs()
+        print ext.cpmeth_optargs(3)
+        print ext.cpmeth_optargs(a=3)
+        #print ext.cpmeth_optargs(b=4)
+
+    cpdef cpmeth_optargs1(self, a=1):
+        return a
+
+    @cython.test_fail_if_path_exists('//GeneralCallNode')
+    @cython.test_assert_path_exists('//SimpleCallNode')
+    def call_cpmeth_optargs1(self, ExtType ext):
+        """
+        >>> x = ExtType()
+        >>> x.call_cpmeth_optargs1(x)
+        1
+        3
+        3
+        EXT
+        1
+        3
+        3
+        """
+        print self.cpmeth_optargs1()
+        print self.cpmeth_optargs1(3)
+        print self.cpmeth_optargs1(a=3)
+        print "EXT"
+        print ext.cpmeth_optargs1()
+        print ext.cpmeth_optargs1(3)
+        print ext.cpmeth_optargs1(a=3)
