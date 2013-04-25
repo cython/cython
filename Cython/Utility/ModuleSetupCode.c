@@ -275,6 +275,17 @@
   #endif
 #endif
 
+/* restrict */
+#ifndef CYTHON_RESTRICT
+  #if defined(__GNUC__)
+    #define CYTHON_RESTRICT __restrict__
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_RESTRICT restrict
+  #else
+    #define CYTHON_RESTRICT
+  #endif
+#endif
+
 #ifdef NAN
 #define __PYX_NAN() ((float) NAN)
 #else
