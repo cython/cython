@@ -2,6 +2,33 @@
 Cython Changelog
 ================
 
+0.19.1 (2013-??)
+===================
+
+Features added
+--------------
+
+* A warning is emitted when negative literal indices are found inside of
+  a code section that disables ``wraparound`` handling.  This helps with
+  fixing invalid code that might fail in the face of future compiler
+  optimisations.
+
+* Constant folding for boolean expressions (and/or) was improved.
+
+Bugs fixed
+----------
+
+* In C++ mode, the C99-only keyword ``restrict`` could accidentally be
+  seen by the GNU C++ compiler. It is now specially handled for both
+  GCC and MSVC.
+
+* Testing large (> int) C integer values for their truth value could fail
+  due to integer wrap-around.
+
+Other changes
+-------------
+
+
 0.19 (2013-04-19)
 =================
 
