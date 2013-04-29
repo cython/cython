@@ -106,14 +106,14 @@ def check_negative_indices(*nodes):
     Used to find (potential) bugs inside of "wraparound=False" sections.
     """
     for node in nodes:
-        if not isinstance(node.constant_result, (int, float, long)):
+        if (node is None
+                or not isinstance(node.constant_result, (int, float, long))):
             continue
-        if node.constant_result >= 0:
-            continue
-        warning(node.pos,
-                "the result of using negative indices inside of "
-                "code sections marked as 'wraparound=False' is "
-                "undefined", level=1)
+        if node.constant_result < 0:
+            warning(node.pos,
+                    "the result of using negative indices inside of "
+                    "code sections marked as 'wraparound=False' is "
+                    "undefined", level=1)
 
 
 class ExprNode(Node):
