@@ -387,23 +387,23 @@ bad:
 
 /////////////// VoidPtrExport.proto ///////////////
 
-static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig); /*proto*/
+static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig); /*proto*/
 
 /////////////// VoidPtrExport ///////////////
 //@substitute: naming
+//@requires: ObjectHandling.c::PyObjectSetAttrStr
 
-static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig) {
-    PyObject *d = 0;
+static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
+    PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyObject_GetAttrString($module_cname, (char *)"$api_name");
+    d = PyDict_GetItem($moddict_cname, PYIDENT("$api_name"));
+    Py_XINCREF(d);
     if (!d) {
-        PyErr_Clear();
         d = PyDict_New();
         if (!d)
             goto bad;
-        Py_INCREF(d);
-        if (PyModule_AddObject($module_cname, (char *)"$api_name", d) < 0)
+        if (__Pyx_PyObject_SetAttrStr($module_cname, PYIDENT("$api_name"), d) < 0)
             goto bad;
     }
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
@@ -413,7 +413,7 @@ static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig) {
 #endif
     if (!cobj)
         goto bad;
-    if (PyDict_SetItemString(d, name, cobj) < 0)
+    if (PyDict_SetItem(d, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
     Py_DECREF(d);

@@ -2267,8 +2267,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.use_utility_code(UtilityCode.load_cached("VoidPtrExport", "ImportExport.c"))
             for entry in entries:
                 signature = entry.type.declaration_code("")
-                code.putln('if (__Pyx_ExportVoidPtr("%s", (void *)&%s, "%s") < 0) %s' % (
-                    entry.name, entry.cname, signature,
+                name = code.intern_identifier(entry.name)
+                code.putln('if (__Pyx_ExportVoidPtr(%s, (void *)&%s, "%s") < 0) %s' % (
+                    name, entry.cname, signature,
                     code.error_goto(self.pos)))
 
     def generate_c_function_export_code(self, env, code):
