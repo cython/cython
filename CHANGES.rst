@@ -18,6 +18,9 @@ Features added
 Bugs fixed
 ----------
 
+* Regression in 0.19 that rejected valid C expressions from being used
+  in C array size declarations.
+
 * In C++ mode, the C99-only keyword ``restrict`` could accidentally be
   seen by the GNU C++ compiler. It is now specially handled for both
   GCC and MSVC.
