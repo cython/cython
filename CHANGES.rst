@@ -10,7 +10,7 @@ Features added
 
 * Docstrings that directly follow a public/readonly attribute declaration
   in a cdef class will be used as docstring of the auto-generated property.
-  This fixes ticket #206.  Patch by Nikita Nemkin.
+  This fixes ticket 206.  Patch by Nikita Nemkin.
 
 * The automatic signature documentation tries to preserve more semantics
   of default arguments and argument types.  Specifically, ``bint`` arguments
