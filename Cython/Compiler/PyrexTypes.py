@@ -1665,6 +1665,14 @@ class CBIntType(CIntType):
     from_py_function = "__Pyx_PyObject_IsTrue"
     exception_check = 1 # for C++ bool
 
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            base_code = 'bool'
+        else:
+            base_code = public_decl('int', dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
+
     def __repr__(self):
         return "<CNumericType bint>"
 
