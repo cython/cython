@@ -2397,7 +2397,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                        code.error_goto_if_null(type.typeptr_cname, pos))
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached('GetVTable', 'ExtensionTypes.c'))
+                UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
             code.putln("%s = (struct %s*)__Pyx_GetVtable(%s->tp_dict); %s" % (
                 type.vtabptr_cname,
                 type.vtabstruct_cname,
@@ -2503,7 +2503,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             type.vtabptr_cname,
                             code.error_goto(entry.pos)))
                     code.globalstate.use_utility_code(
-                        UtilityCode.load_cached('SetVTable', 'ExtensionTypes.c'))
+                        UtilityCode.load_cached('SetVTable', 'ImportExport.c'))
                 if not type.scope.is_internal and not type.scope.directives['internal']:
                     # scope.is_internal is set for types defined by
                     # Cython (such as closures), the 'internal'
