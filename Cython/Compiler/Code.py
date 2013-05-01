@@ -501,6 +501,7 @@ class FunctionState(object):
         # However, exceptions may need to be propagated through 'nogil'
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
+        self.uses_error_indicator = False
 
     # labels
 
@@ -1625,10 +1626,14 @@ class CCodeWriter(object):
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
         if func_context.should_declare_error_indicator:
+            if self.funcstate.uses_error_indicator:
+                unused = ''
+            else:
+                unused = 'CYTHON_UNUSED '
             # Initialize these variables to silence compiler warnings
-            self.putln("int %s = 0;" % Naming.lineno_cname)
-            self.putln("const char *%s = NULL;" % Naming.filename_cname)
-            self.putln("int %s = 0;" % Naming.clineno_cname)
+            self.putln("%sint %s = 0;" % (unused, Naming.lineno_cname))
+            self.putln("%sconst char *%s = NULL;" % (unused, Naming.filename_cname))
+            self.putln("%sint %s = 0;" % (unused, Naming.clineno_cname))
 
     def put_h_guard(self, guard):
         self.putln("#ifndef %s" % guard)
@@ -1975,6 +1980,7 @@ class CCodeWriter(object):
             Naming.lineno_cname,
             Naming.filename_cname,
         )
+        self.funcstate.uses_error_indicator = True
         self.putln('__Pyx_AddTraceback("%s", %s, %s, %s);' % format_tuple)
 
     def put_trace_declarations(self):
