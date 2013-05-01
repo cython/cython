@@ -1486,7 +1486,7 @@ class CCodeWriter(object):
 
     # code generation
 
-    def putln(self, code = "", safe=False):
+    def putln(self, code="", safe=False):
         if self.marker and self.bol:
             self.emit_marker()
         if self.emit_linenums and self.last_marker_line != 0:
@@ -1548,10 +1548,10 @@ class CCodeWriter(object):
         self.put(sub(code, **context))
 
     def increase_indent(self):
-        self.level = self.level + 1
+        self.level += 1
 
     def decrease_indent(self):
-        self.level = self.level - 1
+        self.level -= 1
 
     def begin_block(self):
         self.putln("{")
@@ -1575,7 +1575,7 @@ class CCodeWriter(object):
             return
         assert isinstance(source_desc, SourceDescriptor)
         contents = self.globalstate.commented_file_contents(source_desc)
-        lines = contents[max(0,line-3):line] # line numbers start at 1
+        lines = contents[max(0, line-3):line]  # line numbers start at 1
         lines[-1] += u'             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
 
@@ -1594,7 +1594,7 @@ class CCodeWriter(object):
         self.putln("goto %s;" % lbl)
 
     def put_var_declaration(self, entry, storage_class="",
-                            dll_linkage = None, definition = True):
+                            dll_linkage=None, definition=True):
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
         if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
             #print "...private and not definition, skipping", entry.cname ###
@@ -1607,11 +1607,11 @@ class CCodeWriter(object):
         if not entry.cf_used:
             self.put('CYTHON_UNUSED ')
         self.put(entry.type.declaration_code(
-                entry.cname, dll_linkage = dll_linkage))
+            entry.cname, dll_linkage=dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
-            self.put(" = NULL");
+            self.put(" = NULL")
         self.putln(";")
 
     def put_temp_declarations(self, func_context):
