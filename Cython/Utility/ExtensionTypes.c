@@ -67,7 +67,7 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
 #endif
     if (!ob)
         goto bad;
-    if (PyDict_SetItemString(dict, "__pyx_vtable__", ob) < 0)
+    if (PyDict_SetItem(dict, PYIDENT("__pyx_vtable__"), ob) < 0)
         goto bad;
     Py_DECREF(ob);
     return 0;
@@ -84,7 +84,7 @@ static void* __Pyx_GetVtable(PyObject *dict); /*proto*/
 
 static void* __Pyx_GetVtable(PyObject *dict) {
     void* ptr;
-    PyObject *ob = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
+    PyObject *ob = PyObject_GetItem(dict, PYIDENT("__pyx_vtable__"));
     if (!ob)
         goto bad;
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
