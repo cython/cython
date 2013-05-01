@@ -537,7 +537,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             base_type = base_type.specialize_here(self.pos, values)
             return self.base.analyse(base_type, env, nonempty = nonempty)
         if self.dimension:
-            self.dimension.analyse_const_expression(env)
+            self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
             size = self.dimension.get_constant_c_result_code()
@@ -621,33 +621,35 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
             env.add_include_file('typeinfo')    # for std::bad_cast
-        if return_type.is_pyobject \
-            and (self.exception_value or self.exception_check) \
-            and self.exception_check != '+':
-                error(self.pos,
-                    "Exception clause not allowed for function returning Python object")
+        if (return_type.is_pyobject
+                and (self.exception_value or self.exception_check)
+                and self.exception_check != '+'):
+            error(self.pos,
+                "Exception clause not allowed for function returning Python object")
         else:
             if self.exception_value:
-                self.exception_value.analyse_const_expression(env)
+                self.exception_value = self.exception_value.analyse_const_expression(env)
                 if self.exception_check == '+':
-                    self.exception_value = self.exception_value.analyse_types(env)
                     exc_val_type = self.exception_value.type
-                    if not exc_val_type.is_error and \
-                          not exc_val_type.is_pyobject and \
-                          not (exc_val_type.is_cfunction and not exc_val_type.return_type.is_pyobject and len(exc_val_type.args)==0):
+                    if (not exc_val_type.is_error
+                            and not exc_val_type.is_pyobject
+                            and not (exc_val_type.is_cfunction
+                                     and not exc_val_type.return_type.is_pyobject
+                                     and not exc_val_type.args)):
                         error(self.exception_value.pos,
-                            "Exception value must be a Python exception or cdef function with no arguments.")
+                              "Exception value must be a Python exception or cdef function with no arguments.")
                     exc_val = self.exception_value
                 else:
-                    self.exception_value = self.exception_value.coerce_to(return_type, env)
-                    if self.exception_value.analyse_const_expression(env):
-                        exc_val = self.exception_value.get_constant_c_result_code()
-                        if exc_val is None:
-                            raise InternalError("get_constant_c_result_code not implemented for %s" %
-                                self.exception_value.__class__.__name__)
-                        if not return_type.assignable_from(self.exception_value.type):
-                            error(self.exception_value.pos,
-                                  "Exception value incompatible with function return type")
+                    self.exception_value = self.exception_value.coerce_to(
+                        return_type, env).analyse_const_expression(env)
+                    exc_val = self.exception_value.get_constant_c_result_code()
+                    if exc_val is None:
+                        raise InternalError(
+                            "get_constant_c_result_code not implemented for %s" %
+                            self.exception_value.__class__.__name__)
+                    if not return_type.assignable_from(self.exception_value.type):
+                        error(self.exception_value.pos,
+                              "Exception value incompatible with function return type")
             exc_check = self.exception_check
         if return_type.is_cfunction:
             error(self.pos,
@@ -1376,10 +1378,10 @@ class CEnumDefItemNode(StatNode):
 
     def analyse_declarations(self, env, enum_entry):
         if self.value:
-            self.value.analyse_const_expression(env)
+            self.value = self.value.analyse_const_expression(env)
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
-                self.value.analyse_const_expression(env)
+                self.value = self.value.analyse_const_expression(env)
         entry = env.declare_const(self.name, enum_entry.type,
             self.value, self.pos, cname = self.cname,
             visibility = enum_entry.visibility, api = enum_entry.api)

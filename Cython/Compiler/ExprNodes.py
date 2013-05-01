@@ -372,8 +372,9 @@ class ExprNode(Node):
         #  constant expression. Analyses the expression's type,
         #  checks whether it is a legal const expression,
         #  and determines its value.
-        self.analyse_types(env)
-        return self.check_const()
+        node = self.analyse_types(env)
+        node.check_const()
+        return node
 
     def analyse_expressions(self, env):
         #  Convenience routine performing both the Type
