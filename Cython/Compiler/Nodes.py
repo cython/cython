@@ -1798,18 +1798,10 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_release_ensured_gil()
                     code.putln("}")
             else:
-                warning(self.entry.pos, "Unraisable exception in function '%s'." \
-                            % self.entry.qualified_name, 0)
-                format_tuple = (
-                    self.entry.qualified_name,
-                    Naming.clineno_cname,
-                    Naming.lineno_cname,
-                    Naming.filename_cname,
-                    )
-                code.putln(
-                    '__Pyx_WriteUnraisable("%s", %s, %s, %s);' % format_tuple)
-                env.use_utility_code(unraisable_exception_utility_code)
-                env.use_utility_code(restore_exception_utility_code)
+                warning(self.entry.pos,
+                        "Unraisable exception in function '%s'." %
+                        self.entry.qualified_name, 0)
+                code.put_unraisable(self.entry.qualified_name)
             default_retval = self.return_type.default_value
             if err_val is None and default_retval:
                 err_val = default_retval
@@ -7402,6 +7394,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
         code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % self.parallel_exc)
         pos_info = chain(*zip(self.parallel_pos_info, self.pos_info))
+        code.funcstate.uses_error_indicator = True
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
         code.putln('__Pyx_GOTREF(%s);' % Naming.parallel_exc_type)
 
@@ -8076,7 +8069,6 @@ restore_exception_utility_code = UtilityCode.load_cached("PyErrFetchRestore", "E
 raise_utility_code = UtilityCode.load_cached("RaiseException", "Exceptions.c")
 get_exception_utility_code = UtilityCode.load_cached("GetException", "Exceptions.c")
 swap_exception_utility_code = UtilityCode.load_cached("SwapException", "Exceptions.c")
-unraisable_exception_utility_code = UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c")
 reset_exception_utility_code = UtilityCode.load_cached("SaveResetException", "Exceptions.c")
 traceback_utility_code = UtilityCode.load_cached("AddTraceback", "Exceptions.c")
 

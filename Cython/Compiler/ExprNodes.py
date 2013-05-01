@@ -9008,7 +9008,7 @@ class DivNode(NumBinopNode):
                                 self.operand1.result(),
                                 self.operand2.result()))
                 code.put_ensure_gil()
-                code.putln(code.set_error_info(self.pos))
+                code.putln(code.set_error_info(self.pos, used=True))
                 code.putln("if (__Pyx_cdivision_warning(%(FILENAME)s, "
                                                        "%(LINENO)s)) {" % {
                     'FILENAME': Naming.filename_cname,

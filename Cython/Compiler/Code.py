@@ -1919,8 +1919,10 @@ class CCodeWriter(object):
                                 entry.name,
                                 self.error_goto(pos)))
 
-    def set_error_info(self, pos):
+    def set_error_info(self, pos, used=False):
         self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
         if self.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
@@ -1972,7 +1974,7 @@ class CCodeWriter(object):
         """
         Build a Python traceback for propagating exceptions.
 
-        qualified_name should be the qualified name of the function
+        qualified_name should be the qualified name of the function.
         """
         format_tuple = (
             qualified_name,
@@ -1982,6 +1984,23 @@ class CCodeWriter(object):
         )
         self.funcstate.uses_error_indicator = True
         self.putln('__Pyx_AddTraceback("%s", %s, %s, %s);' % format_tuple)
+
+    def put_unraisable(self, qualified_name):
+        """
+        Generate code to print a Python warning for an unraisable exception.
+
+        qualified_name should be the qualified name of the function.
+        """
+        format_tuple = (
+            qualified_name,
+            Naming.clineno_cname,
+            Naming.lineno_cname,
+            Naming.filename_cname,
+        )
+        self.funcstate.uses_error_indicator = True
+        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s);' % format_tuple)
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
     def put_trace_declarations(self):
         self.putln('__Pyx_TraceDeclarations')
