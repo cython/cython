@@ -8,6 +8,14 @@ Cython Changelog
 Features added
 --------------
 
+* Docstrings that directly follow a public/readonly attribute declaration
+  in a cdef class will be used as docstring of the auto-generated property.
+  This fixes ticket #206.  Patch by Nikita Nemkin.
+
+* The automatic signature documentation tries to preserve more semantics
+  of default arguments and argument types.  Specifically, ``bint`` arguments
+  now appear as type ``bool``.  Patch by Nikita Nemkin.
+
 * A warning is emitted when negative literal indices are found inside of
   a code section that disables ``wraparound`` handling.  This helps with
   fixing invalid code that might fail in the face of future compiler
