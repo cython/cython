@@ -2807,12 +2807,18 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
                                         assignable = 1, nonempty = 1)
             declarators.append(declarator)
+        doc_line = s.start_line + 1
         s.expect_newline("Syntax error in C variable declaration")
+        if ctx.level == 'c_class' and s.start_line == doc_line:
+            doc = p_doc_string(s)
+        else:
+            doc = None
         result = Nodes.CVarDefNode(pos,
             visibility = ctx.visibility,
             base_type = base_type,
             declarators = declarators,
             in_pxd = ctx.level in ('module_pxd', 'c_class_pxd'),
+            doc = doc,
             api = ctx.api,
             modifiers = modifiers,
             overridable = ctx.overridable)

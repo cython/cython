@@ -1204,6 +1204,8 @@ class CVarDefNode(StatNode):
                 self.entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname=cname, visibility=visibility, in_pxd=self.in_pxd,
                             api=self.api, is_cdef=1)
+                if Options.docstrings:
+                    self.entry.doc = embed_position(self.pos, self.doc)
 
 
 class CStructOrUnionDefNode(StatNode):
@@ -4288,15 +4290,15 @@ class PropertyNode(StatNode):
     #
     #  name   string
     #  doc    EncodedString or None    Doc string
+    #  entry  Symtab.Entry
     #  body   StatListNode
 
     child_attrs = ["body"]
 
     def analyse_declarations(self, env):
-        entry = env.declare_property(self.name, self.doc, self.pos)
-        if entry:
-            entry.scope.directives = env.directives
-            self.body.analyse_declarations(entry.scope)
+        self.entry = env.declare_property(self.name, self.doc, self.pos)
+        self.entry.scope.directives = env.directives
+        self.body.analyse_declarations(self.entry.scope)
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)

@@ -1800,23 +1800,7 @@ if VALUE is not None:
                                                  attribute=entry.name),
             }, pos=entry.pos).stats[0]
         property.name = entry.name
-        # ---------------------------------------
-        # XXX This should go to AutoDocTransforms
-        # ---------------------------------------
-        if (Options.docstrings and
-            self.current_directives['embedsignature']):
-            attr_name = entry.name
-            type_name = entry.type.declaration_code("", for_display=1)
-            default_value = ''
-            if not entry.type.is_pyobject:
-                type_name = "'%s'" % type_name
-            elif entry.type.is_extension_type:
-                type_name = entry.type.module_name + '.' + type_name
-            if entry.init is not None:
-                default_value = ' = ' + entry.init
-            docstring = attr_name + ': ' + type_name + default_value
-            property.doc = EncodedString(docstring)
-        # ---------------------------------------
+        property.doc = entry.doc
         return property
 
 

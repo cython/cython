@@ -7,12 +7,24 @@ __doc__ = ur"""
 
     >>> print (Ext.attr0.__doc__)
     attr0: 'int'
+    attr0 docstring
     >>> print (Ext.attr1.__doc__)
     attr1: object
+    attr1 docstring
     >>> print (Ext.attr2.__doc__)
     attr2: list
     >>> print (Ext.attr3.__doc__)
     attr3: embedsignatures.Ext
+
+    >>> print (Ext.prop0.__doc__)
+    prop0 docstring
+    >>> print (Ext.prop1.__doc__)
+    None
+    >>> print (Ext.attr4.__doc__)
+    attr4 docstring
+    >>> print (Ext.attr5.__doc__)
+    attr5: 'int'
+    attr5 docstring
 
     >>> print (Ext.a.__doc__)
     Ext.a(self)
@@ -114,6 +126,9 @@ __doc__ = ur"""
     >>> print (f_si.__doc__)
     f_si(signed int i) -> signed int
 
+    >>> print (f_bint.__doc__)
+    f_bint(bool i) -> bool
+
 
     >>> print (f_l.__doc__)
     f_l(long l) -> long
@@ -150,14 +165,52 @@ __doc__ = ur"""
     >>> print (f_my_f.__doc__)
     f_my_f(MyFloat f) -> MyFloat
 
+    >>> print (f_defexpr1.__doc__)
+    f_defexpr1(int x=FLAG1, int y=FLAG2)
+
+    >>> print (f_defexpr2.__doc__)
+    f_defexpr2(int x=FLAG1 | FLAG2, y=FLAG1 & FLAG2)
+
+    >>> print (f_defexpr3.__doc__)
+    f_defexpr3(int x=Ext.CONST1, f=__builtins__.abs)
+
+    >>> print (f_defexpr4.__doc__)
+    f_defexpr4(int x=(Ext.CONST1 + FLAG1) * Ext.CONST2)
+
+    >>> print (f_defexpr5.__doc__)
+    f_defexpr5(int x=4)
 """
 
 cdef class Ext:
 
     cdef public int  attr0
+    """attr0 docstring"""
     cdef public      attr1
+    """attr1 docstring"""
     cdef public list attr2
-    cdef public Ext  attr3
+    cdef public Ext attr3
+
+    """NOT attr3 docstring"""
+    cdef        int  attr4
+    cdef public int \
+        attr5
+    """attr5 docstring"""
+
+    CONST1, CONST2 = 1, 2
+
+    property prop0:
+        """prop0 docstring"""
+        def __get__(self):
+            return self.attr0
+
+    property prop1:
+        def __get__(self):
+            return self.attr1
+
+    property attr4:
+        """attr4 docstring"""
+        def __get__(self):
+            return self.attr4
 
     def __init__(self, a, b, c=None):
         pass
@@ -270,6 +323,9 @@ cpdef unsigned int f_ui(unsigned int i):
 cpdef signed int f_si(signed int i):
     return i
 
+cpdef bint f_bint(bint i):
+    return i
+
 
 cpdef long f_l(long l):
     return l
@@ -307,3 +363,22 @@ cpdef MyInt f_my_i(MyInt i):
 ctypedef float MyFloat
 cpdef MyFloat f_my_f(MyFloat f):
     return f
+
+cdef enum:
+    FLAG1
+    FLAG2
+
+cpdef f_defexpr1(int x = FLAG1, int y = FLAG2):
+    pass
+
+cpdef f_defexpr2(int x = FLAG1 | FLAG2, y = FLAG1 & FLAG2):
+    pass
+
+cpdef f_defexpr3(int x = Ext.CONST1, f = __builtins__.abs):
+    pass
+
+cpdef f_defexpr4(int x = (Ext.CONST1 + FLAG1) * Ext.CONST2):
+    pass
+
+cpdef f_defexpr5(int x = 2+2):
+    pass
