@@ -40,6 +40,7 @@ cdef class FunctionState:
 
     cdef public object closure_temps
     cdef public bint should_declare_error_indicator
+    cdef public bint uses_error_indicator
 
     @cython.locals(n=size_t)
     cpdef new_label(self, name=*)
