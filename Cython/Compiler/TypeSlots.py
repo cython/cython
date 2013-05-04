@@ -418,21 +418,30 @@ class SuiteSlot(SlotDescriptor):
         self.slot_type = slot_type
         substructures.append(self)
 
+    def is_empty(self, scope):
+        for slot in self.sub_slots:
+            if slot.slot_code(scope) != "0":
+                return False
+        return True
+
     def substructure_cname(self, scope):
         return "%s%s_%s" % (Naming.pyrex_prefix, self.slot_name, scope.class_name)
 
     def slot_code(self, scope):
-        return "&%s" % self.substructure_cname(scope)
+        if not self.is_empty(scope):
+            return "&%s" % self.substructure_cname(scope)
+        return "0"
 
     def generate_substructure(self, scope, code):
-        code.putln("")
-        code.putln(
-            "static %s %s = {" % (
-                self.slot_type,
-                self.substructure_cname(scope)))
-        for slot in self.sub_slots:
-            slot.generate(scope, code)
-        code.putln("};")
+        if not self.is_empty(scope):
+            code.putln("")
+            code.putln(
+                "static %s %s = {" % (
+                    self.slot_type,
+                    self.substructure_cname(scope)))
+            for slot in self.sub_slots:
+                slot.generate(scope, code)
+            code.putln("};")
 
 substructures = []   # List of all SuiteSlot instances
 
