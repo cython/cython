@@ -203,7 +203,7 @@ wide_unicode_character_surrogate2 = 0xDEDC
 
 @cython.test_fail_if_path_exists("//SwitchStatNode")
 @cython.test_assert_path_exists("//PrimaryCmpNode")
-def m_wide_unicode_literal(Py_UNICODE a):
+def m_wide_unicode_literal(Py_UCS4 a):
     """
     >>> m_unicode_literal(ord('f'))
     1
