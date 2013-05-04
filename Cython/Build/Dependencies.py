@@ -53,7 +53,7 @@ def extended_iglob(pattern):
                 if path not in seen:
                     seen.add(path)
                     yield path
-            for path in extended_iglob(join_path(root, '*', '**', rest)):
+            for path in extended_iglob(join_path(root, '*', '**/' + rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path
