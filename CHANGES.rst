@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* Completely empty C-API structs for extension type slots (protocols like
+  number/mapping/sequence) are no longer generated into the C code.  Patch
+  by Nikita Nemkin.
+
 * Docstrings that directly follow a public/readonly attribute declaration
   in a cdef class will be used as docstring of the auto-generated property.
   This fixes ticket 206.  Patch by Nikita Nemkin.
