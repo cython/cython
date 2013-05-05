@@ -106,6 +106,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.find_referenced_modules(env, self.referenced_modules, {})
         if options.recursive:
             self.generate_dep_file(env, result)
+        self.sort_cdef_classes(env)
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
         self.generate_api_code(env, result)
@@ -454,6 +455,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             vtabslot_dict, objstruct_cname)
 
         return (vtab_list, vtabslot_list)
+
+    def sort_cdef_classes(self, env):
+        entry_dict = {}
+        for entry in env.c_class_entries:
+            entry_dict[entry.name] = entry
+        def entry_name(entry):
+            return entry.name
+        env.c_class_entries[:] = self.sort_types_by_inheritance(entry_dict, entry_name)
 
     def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
         # TODO: Why are these separated out?
