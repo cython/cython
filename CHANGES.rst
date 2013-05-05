@@ -9,16 +9,15 @@ Features added
 --------------
 
 * Completely empty C-API structs for extension type slots (protocols like
-  number/mapping/sequence) are no longer generated into the C code.  Patch
-  by Nikita Nemkin.
+  number/mapping/sequence) are no longer generated into the C code.
 
 * Docstrings that directly follow a public/readonly attribute declaration
   in a cdef class will be used as docstring of the auto-generated property.
-  This fixes ticket 206.  Patch by Nikita Nemkin.
+  This fixes ticket 206.
 
 * The automatic signature documentation tries to preserve more semantics
   of default arguments and argument types.  Specifically, ``bint`` arguments
-  now appear as type ``bool``.  Patch by Nikita Nemkin.
+  now appear as type ``bool``.
 
 * A warning is emitted when negative literal indices are found inside of
   a code section that disables ``wraparound`` handling.  This helps with
