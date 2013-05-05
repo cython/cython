@@ -29,6 +29,9 @@ Features added
 Bugs fixed
 ----------
 
+* The ``memoryview`` type name no longer shows up in the module dict of
+  modules that use memory views.  This fixes trac ticket 775.
+
 * Regression in 0.19 that rejected valid C expressions from being used
   in C array size declarations.
 
