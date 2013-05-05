@@ -7952,10 +7952,14 @@ class CnameDecoratorNode(StatNode):
     def analyse_declarations(self, env):
         self.node.analyse_declarations(env)
 
-        self.is_function = isinstance(self.node, FuncDefNode)
-        is_struct_or_enum = isinstance(self.node, (CStructOrUnionDefNode,
+        node = self.node
+        if isinstance(node, CompilerDirectivesNode):
+            node = node.body.stats[0]
+
+        self.is_function = isinstance(node, FuncDefNode)
+        is_struct_or_enum = isinstance(node, (CStructOrUnionDefNode,
                                                    CEnumDefNode))
-        e = self.node.entry
+        e = node.entry
 
         if self.is_function:
             e.cname = self.cname
@@ -7966,7 +7970,7 @@ class CnameDecoratorNode(StatNode):
         elif is_struct_or_enum:
             e.cname = e.type.cname = self.cname
         else:
-            scope = self.node.scope
+            scope = node.scope
 
             e.cname = self.cname
             e.type.objstruct_cname = self.cname + '_obj'
