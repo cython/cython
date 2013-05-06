@@ -461,7 +461,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         key_func = operator.attrgetter('objstruct_cname')
         entry_dict = {}
         for entry in env.c_class_entries:
-            entry_dict[key_func(entry.type)] = entry
+            key = key_func(entry.type)
+            assert key not in entry_dict
+            entry_dict[key] = entry
         env.c_class_entries[:] = self.sort_types_by_inheritance(
             entry_dict, key_func)
 
