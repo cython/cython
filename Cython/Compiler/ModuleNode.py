@@ -7,7 +7,8 @@ cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=objec
                error=object, warning=object, py_object_type=object, UtilityCode=object,
                EncodedString=object)
 
-import os, time
+import os
+import operator
 from PyrexTypes import CPtrType
 import Future
 
@@ -457,12 +458,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return (vtab_list, vtabslot_list)
 
     def sort_cdef_classes(self, env):
+        key_func = operator.attrgetter('objstruct_cname')
         entry_dict = {}
         for entry in env.c_class_entries:
-            entry_dict[entry.name] = entry
-        def entry_name(entry):
-            return entry.name
-        env.c_class_entries[:] = self.sort_types_by_inheritance(entry_dict, entry_name)
+            entry_dict[key_func(entry.type)] = entry
+        env.c_class_entries[:] = self.sort_types_by_inheritance(
+            entry_dict, key_func)
 
     def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
         # TODO: Why are these separated out?
