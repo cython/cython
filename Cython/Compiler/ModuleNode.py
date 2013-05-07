@@ -458,8 +458,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return (vtab_list, vtabslot_list)
 
     def sort_cdef_classes(self, env):
-        # TODO(robertwb): This causes an infinite loop in Sage.
-        return
         key_func = operator.attrgetter('objstruct_cname')
         entry_dict = {}
         for entry in env.c_class_entries:
