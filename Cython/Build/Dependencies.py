@@ -294,7 +294,7 @@ def normalize_existing0(base_dir, rel_paths):
         if path_exists(path):
             normalized.append(os.path.normpath(path))
         else:
-            normalized.append(path)
+            normalized.append(rel)
     return normalized
 
 def resolve_depends(depends, include_dirs):
