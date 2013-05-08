@@ -29,6 +29,10 @@ Features added
 Bugs fixed
 ----------
 
+* The C code for extension types is now generated in topological order
+  instead of source code order to avoid C compiler errors about missing
+  declarations for subtypes that are defined before their parent.
+
 * The ``memoryview`` type name no longer shows up in the module dict of
   modules that use memory views.  This fixes trac ticket 775.
 
