@@ -1,0 +1,36 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+ls -R
+
+if [ -f "a.c" ]; then
+    echo "C output in local directory."
+    exit 1
+fi
+
+if [ ! -f "scratch/a.c" ]; then
+    echo "Missing C output in scratch."
+    exit 1
+fi
+
+######## setup.py ########
+
+
+# TODO: Better interface...
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx", build_dir="scratch"),
+)
+
+######## a.pyx ########
+
+cdef extern from "a_helper.h":
+    int value
+    
+assert value == 100
+
+######## a_helper.h ########
+
+int value = 100;
