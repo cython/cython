@@ -377,7 +377,7 @@ cdef extern from *:
     # consumed is not NULL, PyUnicode_DecodeMBCSStateful() will not
     # decode trailing lead byte and the number of bytes that have been
     # decoded will be stored in consumed. New in version 2.5.
-    object PyUnicode_DecodeMBCSStateful(char *s, Py_ssize_t size, char *errors, Py_ssize_t *consumed)
+    object PyUnicode_DecodeMBCSStateful(char *s, int size, char *errors, int *consumed)
 
     # Encode the Py_UNICODE buffer of the given size using MBCS and
     # return a Python string object. Return NULL if an exception was
