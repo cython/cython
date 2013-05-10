@@ -26,6 +26,9 @@ Features added
 
 * Constant folding for boolean expressions (and/or) was improved.
 
+* Added a build_dir option to cythonize() which allows one to place
+  the generated .c files outside the source tree.
+
 Bugs fixed
 ----------
 
