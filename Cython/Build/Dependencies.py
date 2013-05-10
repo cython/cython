@@ -18,6 +18,21 @@ try:
 except ImportError:
     import md5 as hashlib
 
+try:
+    from os.path import relpath as _relpath
+except ImportError:
+    # Py<2.6
+    def _relpath(path, start=os.path.curdir):
+        if not path:
+            raise ValueError("no path specified")
+        start_list = os.path.abspath(start).split(os.path.sep)
+        path_list = os.path.abspath(path).split(os.path.sep)
+        i = len(os.path.commonprefix([start_list, path_list]))
+        rel_list = [os.path.pardir] * (len(start_list)-i) + path_list[i:]
+        if not rel_list:
+            return os.path.curdir
+        return os.path.join(*rel_list)
+
 
 from distutils.extension import Extension
 
@@ -660,8 +675,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             root = os.path.realpath(os.path.abspath(m.name.split('.')[0]))
             def copy_to_build_dir(file):
                 if os.path.realpath(os.path.abspath(file)).startswith(root):
-                    dir = os.path.join(build_dir,
-                            os.path.dirname(os.path.relpath(file)))
+                    dir = os.path.join(
+                        build_dir, os.path.dirname(_relpath(file)))
                     if not os.path.isdir(dir):
                         os.makedirs(dir)
                     shutil.copy(file, dir)
