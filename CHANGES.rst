@@ -29,6 +29,9 @@ Features added
 Bugs fixed
 ----------
 
+* ``isinstance(X, type)`` failed to get optimised into a call to
+  ``PyType_Check()``, as done for other builtin types.
+
 * A spurious "from datetime cimport *" was removed from the "cpython"
   declaration package. This means that the "datetime" declarations
   (added in 0.19) are no longer available directly from the "cpython"
