@@ -2090,7 +2090,12 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                     entry = env.lookup(test_type_node.entry.name)
                     if entry and entry.type and entry.type.is_builtin_type:
                         builtin_type = entry.type
-            if builtin_type and builtin_type is not Builtin.type_type:
+            if builtin_type is Builtin.type_type:
+                # all types have type "type", but there's only one 'type'
+                if entry.name != 'type' or not (
+                        entry.scope and entry.scope.is_builtin_scope):
+                    builtin_type = None
+            if builtin_type is not None:
                 type_check_function = entry.type.type_check_function(exact=False)
                 if type_check_function in tests:
                     continue
