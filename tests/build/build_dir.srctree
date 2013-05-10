@@ -1,16 +1,6 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a"
-ls -R
-
-if [ -f "a.c" ]; then
-    echo "C output in local directory."
-    exit 1
-fi
-
-if [ ! -f "scratch/a.c" ]; then
-    echo "Missing C output in scratch."
-    exit 1
-fi
+PYTHON check_paths.py
 
 ######## setup.py ########
 
@@ -34,3 +24,10 @@ assert value == 100
 ######## a_helper.h ########
 
 int value = 100;
+
+######## check_paths.py ########
+
+import os
+assert os.path.exists("scratch/a.c")
+assert os.path.exists("scratch/a_helper.h")
+assert not os.path.exists("a.c")
