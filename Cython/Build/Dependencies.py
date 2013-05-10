@@ -652,14 +652,15 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         exclude_failures=exclude_failures,
         aliases=aliases)
     deps = create_dependency_tree(ctx, quiet=quiet)
+    build_dir = getattr(options, 'build_dir', None)
     modules_by_cfile = {}
     to_compile = []
     for m in module_list:
-        if hasattr(options, 'build_dir'):
+        if build_dir:
             root = os.path.realpath(os.path.abspath(m.name.split('.')[0]))
             def copy_to_build_dir(file):
                 if os.path.realpath(os.path.abspath(file)).startswith(root):
-                    dir = os.path.join(options.build_dir,
+                    dir = os.path.join(build_dir,
                             os.path.dirname(os.path.relpath(file)))
                     if not os.path.isdir(dir):
                         os.makedirs(dir)
@@ -679,8 +680,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     options = c_options
 
                 # setup for out of place build directory if enabled
-                if hasattr(options, 'build_dir'):
-                    c_file = os.path.join(options.build_dir, c_file)
+                if build_dir:
+                    c_file = os.path.join(build_dir, c_file)
                     dir = os.path.dirname(c_file)
                     if not os.path.isdir(dir):
                         os.makedirs(dir)
@@ -718,7 +719,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     modules_by_cfile[c_file].append(m)
             else:
                 new_sources.append(source)
-                if hasattr(options, 'build_dir'):
+                if build_dir:
                     copy_to_build_dir(source)
         m.sources = new_sources
     if hasattr(options, 'cache'):
