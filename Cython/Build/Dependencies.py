@@ -297,10 +297,13 @@ def normalize_existing0(base_dir, rel_paths):
             normalized.append(rel)
     return normalized
 
-def resolve_depends(depends, include_dirs):
+def resolve_depends(depends, include_dirs, base):
     include_dirs = tuple(include_dirs)
     resolved = []
     for depend in depends:
+        if path_exists(join_path(base, depend)):
+            resolved.append(join_path(base, depend))
+            continue
         path = resolve_depend(depend, include_dirs)
         if path is not None:
             resolved.append(path)
@@ -598,7 +601,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                             sources.append(source)
                     del kwds['sources']
                 if 'depends' in kwds:
-                    depends = resolve_depends(kwds['depends'], kwds.get('include_dirs') or [])
+                    depends = resolve_depends(kwds['depends'], kwds.get('include_dirs') or [], base = os.path.dirname(file))
                     if template is not None:
                         # Always include everything from the template.
                         depends = list(set(template.depends).union(set(depends)))
