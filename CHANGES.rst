@@ -29,6 +29,13 @@ Features added
 Bugs fixed
 ----------
 
+* A spurious "from datetime cimport *" was removed from the "cpython"
+  declaration package. This means that the "datetime" declarations
+  (added in 0.19) are no longer available directly from the "cpython"
+  namespace, but only from "cpython.datetime". This is the correct
+  way of doing it because the declarations refer to a standard library
+  module, not the core CPython C-API itself.
+
 * The C code for extension types is now generated in topological order
   instead of source code order to avoid C compiler errors about missing
   declarations for subtypes that are defined before their parent.
