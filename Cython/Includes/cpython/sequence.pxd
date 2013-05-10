@@ -84,7 +84,7 @@ cdef extern from "Python.h":
     # value, return 1, otherwise return 0. On error, return -1. This
     # is equivalent to the Python expression "value in o".
 
-    int PySequence_Index(object o, object value) except -1
+    Py_ssize_t PySequence_Index(object o, object value) except -1
     # Return the first index i for which o[i] == value. On error,
     # return -1. This is equivalent to the Python expression
     # "o.index(value)".
@@ -126,7 +126,7 @@ cdef extern from "Python.h":
     # PySequence_Check(o) is true and without adjustment for negative
     # indices.
 
-    int PySequence_Fast_GET_SIZE(object o)
+    Py_ssize_t PySequence_Fast_GET_SIZE(object o)
     # Returns the length of o, assuming that o was returned by
     # PySequence_Fast() and that o is not NULL. The size can also be
     # gotten by calling PySequence_Size() on o, but
