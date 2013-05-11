@@ -37,7 +37,7 @@ except ImportError:
 from distutils.extension import Extension
 
 from Cython import Utils
-from Cython.Utils import cached_function, cached_method, path_exists
+from Cython.Utils import cached_function, cached_method, path_exists, find_root_package_dir
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
@@ -312,13 +312,10 @@ def normalize_existing0(base_dir, rel_paths):
             normalized.append(rel)
     return normalized
 
-def resolve_depends(depends, include_dirs, base):
+def resolve_depends(depends, include_dirs):
     include_dirs = tuple(include_dirs)
     resolved = []
     for depend in depends:
-        if path_exists(join_path(base, depend)):
-            resolved.append(join_path(base, depend))
-            continue
         path = resolve_depend(depend, include_dirs)
         if path is not None:
             resolved.append(path)
@@ -616,7 +613,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                             sources.append(source)
                     del kwds['sources']
                 if 'depends' in kwds:
-                    depends = resolve_depends(kwds['depends'], kwds.get('include_dirs') or [], base = os.path.dirname(file))
+                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + [find_root_package_dir(file)])
                     if template is not None:
                         # Always include everything from the template.
                         depends = list(set(template.depends).union(set(depends)))
@@ -672,7 +669,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     to_compile = []
     for m in module_list:
         if build_dir:
-            root = os.path.realpath(os.path.abspath(m.name.split('.')[0]))
+            root = os.path.realpath(os.path.abspath(find_root_package_dir(m.sources[0])))
             def copy_to_build_dir(filepath, root=root):
                 filepath = os.path.abspath(filepath)
                 if os.path.realpath(filepath).startswith(root):
