@@ -1,0 +1,76 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+PYTHON -c "import pkg.b"
+PYTHON check_paths.py
+
+######## setup.py ########
+
+
+# TODO: Better interface...
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = (cythonize("*.pyx", build_dir="scratchA") +
+                 cythonize("pkg/*.pyx", build_dir="scratchB")),
+)
+
+######## a.pyx ########
+
+cdef extern from "helper.h":
+    int value1
+    
+cdef extern from "subdir/helper.h":
+    int value2
+
+cdef extern from "pkg/pkg_helper.h":
+    int value3
+
+assert value1 == 100
+assert value2 == 200
+assert value3 == 300
+
+######## helper.h ########
+
+int value1 = 100;
+
+######## subdir/helper.h ########
+
+int value2 = 200;
+
+######## pkg/__init__.py ########
+
+######## pkg/b.pyx ########
+
+cdef extern from "pkg_helper.h":
+    int value3
+
+cdef extern from "subdir/pkg_helper.h":
+    int value4
+
+assert value3 == 300
+assert value4 == 400
+
+######## pkg/pkg_helper.h ########
+
+int value3 = 300;
+
+######## pkg/subdir/pkg_helper.h ########
+
+int value4 = 400;
+
+######## check_paths.py ########
+
+import os
+assert os.path.exists("scratchA/a.c")
+assert os.path.exists("scratchA/helper.h")
+assert os.path.exists("scratchA/subdir/helper.h")
+assert os.path.exists("scratchA/pkg/pkg_helper.h")
+assert not os.path.exists("a.c")
+
+assert os.path.exists("scratchB/pkg/b.c")
+assert os.path.exists("scratchB/pkg/pkg_helper.h")
+assert os.path.exists("scratchB/pkg/subdir/pkg_helper.h")
+assert not os.path.exists("b.c")
+assert not os.path.exists("pkg/b.c")

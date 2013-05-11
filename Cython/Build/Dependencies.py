@@ -18,13 +18,28 @@ try:
 except ImportError:
     import md5 as hashlib
 
+try:
+    from os.path import relpath as _relpath
+except ImportError:
+    # Py<2.6
+    def _relpath(path, start=os.path.curdir):
+        if not path:
+            raise ValueError("no path specified")
+        start_list = os.path.abspath(start).split(os.path.sep)
+        path_list = os.path.abspath(path).split(os.path.sep)
+        i = len(os.path.commonprefix([start_list, path_list]))
+        rel_list = [os.path.pardir] * (len(start_list)-i) + path_list[i:]
+        if not rel_list:
+            return os.path.curdir
+        return os.path.join(*rel_list)
+
 
 from distutils.extension import Extension
 
 from Cython import Utils
-from Cython.Utils import cached_function, cached_method, path_exists
+from Cython.Utils import cached_function, cached_method, path_exists, find_root_package_dir
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
-    
+
 join_path = cached_function(os.path.join)
 
 if sys.version_info[0] < 3:
@@ -208,7 +223,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     in_quote = False
     hash_mark = single_q = double_q = -1
     code_len = len(code)
-    
+
     while True:
         if hash_mark < q:
             hash_mark = code.find('#', q)
@@ -374,7 +389,7 @@ class DependencyTree(object):
             elif not self.quiet:
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
-    
+
     @cached_method
     def cimports_and_externs(self, filename):
         # This is really ugly. Nested cimports are resolved with respect to the
@@ -598,7 +613,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                             sources.append(source)
                     del kwds['sources']
                 if 'depends' in kwds:
-                    depends = resolve_depends(kwds['depends'], kwds.get('include_dirs') or [])
+                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + [find_root_package_dir(file)])
                     if template is not None:
                         # Always include everything from the template.
                         depends = list(set(template.depends).union(set(depends)))
@@ -640,6 +655,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
+    options = c_options
     module_list = create_extension_list(
         module_list,
         exclude=exclude,
@@ -648,9 +664,23 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         exclude_failures=exclude_failures,
         aliases=aliases)
     deps = create_dependency_tree(ctx, quiet=quiet)
+    build_dir = getattr(options, 'build_dir', None)
     modules_by_cfile = {}
     to_compile = []
     for m in module_list:
+        if build_dir:
+            root = os.path.realpath(os.path.abspath(find_root_package_dir(m.sources[0])))
+            def copy_to_build_dir(filepath, root=root):
+                filepath = os.path.abspath(filepath)
+                if os.path.realpath(filepath).startswith(root):
+                    mod_dir = os.path.join(
+                        build_dir, os.path.dirname(_relpath(filepath)))
+                    if not os.path.isdir(mod_dir):
+                        os.makedirs(mod_dir)
+                    shutil.copy(filepath, mod_dir)
+            for dep in m.depends:
+                copy_to_build_dir(dep)
+
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
@@ -661,11 +691,19 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                 else:
                     c_file = base + '.c'
                     options = c_options
+
+                # setup for out of place build directory if enabled
+                if build_dir:
+                    c_file = os.path.join(build_dir, c_file)
+                    dir = os.path.dirname(c_file)
+                    if not os.path.isdir(dir):
+                        os.makedirs(dir)
+
                 if os.path.exists(c_file):
                     c_timestamp = os.path.getmtime(c_file)
                 else:
                     c_timestamp = -1
-                    
+
                 # Priority goes first to modified files, second to direct
                 # dependents, and finally to indirect dependents.
                 if c_timestamp < deps.timestamp(source):
@@ -694,6 +732,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     modules_by_cfile[c_file].append(m)
             else:
                 new_sources.append(source)
+                if build_dir:
+                    copy_to_build_dir(source)
         m.sources = new_sources
     if hasattr(options, 'cache'):
         if not os.path.exists(options.cache):
