@@ -1154,7 +1154,8 @@ class BytesNode(ConstNode):
             if dst_type.is_unicode_char:
                 error(self.pos, "Bytes literals cannot coerce to Py_UNICODE/Py_UCS4, use a unicode literal instead.")
                 return self
-            return CharNode(self.pos, value=self.value)
+            return CharNode(self.pos, value=self.value,
+                            constant_result=ord(self.value))
 
         node = BytesNode(self.pos, value=self.value)
         if dst_type.is_pyobject:
