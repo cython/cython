@@ -1466,6 +1466,7 @@ class NameNode(AtomicExprNode):
     cf_is_null = False
     allow_null = False
     nogil = False
+    inferred_type = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -1474,7 +1475,7 @@ class NameNode(AtomicExprNode):
         if self.entry is None:
             self.entry = env.lookup(self.name)
         if self.entry is not None and self.entry.type.is_unspecified:
-            return (self.entry,)
+            return (self,)
         else:
             return ()
 
@@ -1482,6 +1483,8 @@ class NameNode(AtomicExprNode):
         if self.entry is None:
             self.entry = env.lookup(self.name)
         if self.entry is None or self.entry.type is unspecified_type:
+            if self.inferred_type is not None:
+                return self.inferred_type
             return py_object_type
         elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
                 self.name == self.entry.type.name:
@@ -1496,6 +1499,12 @@ class NameNode(AtomicExprNode):
                 # special case: referring to a C function must return its pointer
                 return PyrexTypes.CPtrType(self.entry.type)
         else:
+            # If entry is inferred as pyobject it's safe to use local
+            # NameNode's inferred_type.
+            if self.entry.type.is_pyobject and self.inferred_type:
+                # Overflow may happen if integer
+                if not (self.inferred_type.is_int and self.entry.might_overflow):
+                    return self.inferred_type
             return self.entry.type
 
     def compile_time_value(self, denv):

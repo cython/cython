@@ -318,15 +318,23 @@ class NameAssignment(object):
         self.refs = set()
         self.is_arg = False
         self.is_deletion = False
+        self.inferred_type = None
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
 
-    def infer_type(self, scope):
-        return self.rhs.infer_type(scope)
+    def infer_type(self):
+        self.inferred_type = self.rhs.infer_type(self.entry.scope)
+        return self.inferred_type
 
-    def type_dependencies(self, scope):
-        return self.rhs.type_dependencies(scope)
+    def type_dependencies(self):
+        return self.rhs.type_dependencies(self.entry.scope)
+
+    @property
+    def type(self):
+        if not self.entry.type.is_unspecified:
+            return self.entry.type
+        return self.inferred_type
 
 
 class StaticAssignment(NameAssignment):
@@ -340,11 +348,11 @@ class StaticAssignment(NameAssignment):
             entry.type, may_be_none=may_be_none, pos=entry.pos)
         super(StaticAssignment, self).__init__(lhs, lhs, entry)
 
-    def infer_type(self, scope):
+    def infer_type(self):
         return self.entry.type
 
-    def type_dependencies(self, scope):
-        return []
+    def type_dependencies(self):
+        return ()
 
 
 class Argument(NameAssignment):
@@ -358,11 +366,12 @@ class NameDeletion(NameAssignment):
         NameAssignment.__init__(self, lhs, lhs, entry)
         self.is_deletion = True
 
-    def infer_type(self, scope):
-        inferred_type = self.rhs.infer_type(scope)
+    def infer_type(self):
+        inferred_type = self.rhs.infer_type(self.entry.scope)
         if (not inferred_type.is_pyobject and
-            inferred_type.can_coerce_to_pyobject(scope)):
+            inferred_type.can_coerce_to_pyobject(self.entry.scope)):
             return py_object_type
+        self.inferred_type = inferred_type
         return inferred_type
 
 
@@ -409,7 +418,9 @@ class ControlFlowState(list):
         else:
             if len(state) == 1:
                 self.is_single = True
-        super(ControlFlowState, self).__init__(state)
+        # XXX: Remove fake_rhs_expr
+        super(ControlFlowState, self).__init__(
+            [i for i in state if i.rhs is not fake_rhs_expr])
 
     def one(self):
         return self[0]
