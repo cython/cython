@@ -336,3 +336,26 @@ def int_enum_switch_mix(int x):
         return 3
     else:
         return 4
+
+
+@cython.test_fail_if_path_exists('//SwitchStatNode')
+@cython.test_assert_path_exists('//IfStatNode')
+def int_enum_duplicates_mix(int x):
+    """
+    >>> int_enum_duplicates_mix(88)
+    0
+    >>> int_enum_duplicates_mix(ord('X'))
+    0
+    >>> int_enum_duplicates_mix(99)
+    2
+    >>> int_enum_duplicates_mix(100)
+    3
+    """
+    if x == 88:
+        return 0
+    elif x == 'X':  # ASCII(88) => redundant
+        return 1
+    elif x == 99:
+        return 2
+    else:
+        return 3
