@@ -5347,6 +5347,11 @@ class SwitchStatNode(StatNode):
             code.putln("default:")
             self.else_clause.generate_execution_code(code)
             code.putln("break;")
+        else:
+            # Always generate a default clause to prevent C compiler warnings
+            # about unmatched enum values (it was not the user who decided to
+            # generate the switch statement, so shouldn't be bothered).
+            code.putln("default: break;")
         code.putln("}")
 
     def generate_function_definitions(self, env, code):
