@@ -867,7 +867,7 @@ class SwitchTransform(Visitor.VisitorTransform):
         # duplicated values don't work in a switch statement
         seen = set()
         for value in condition_values:
-            if value.constant_result is not ExprNodes.not_a_constant:
+            if value.has_constant_result():
                 if value.constant_result in seen:
                     return True
                 seen.add(value.constant_result)
@@ -890,10 +890,12 @@ class SwitchTransform(Visitor.VisitorTransform):
                                               conditions = conditions,
                                               body = if_clause.body))
 
-        if sum([ len(case.conditions) for case in cases ]) < 2:
+        condition_values = [
+            cond for case in cases for cond in case.conditions]
+        if len(condition_values) < 2:
             self.visitchildren(node)
             return node
-        if self.has_duplicate_values(sum([case.conditions for case in cases], [])):
+        if self.has_duplicate_values(condition_values):
             self.visitchildren(node)
             return node
 
