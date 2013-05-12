@@ -2,6 +2,25 @@
 Cython Changelog
 ================
 
+0.20 (??)
+===================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* The automatic C switch statement generation behaves more safely for
+  heterogeneous value types (e.g. mixing enum and char), allowing for
+  a slightly wider application and reducing corner cases.  It now always
+  generates a 'default' clause to avoid C compiler warnings about
+  unmatched enum values.
+
+Other changes
+-------------
+
+
 0.19.1 (2013-05-11)
 ===================
 
