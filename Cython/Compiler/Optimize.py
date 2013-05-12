@@ -874,7 +874,12 @@ class SwitchTransform(Visitor.VisitorTransform):
             else:
                 # this isn't completely safe as we don't know the
                 # final C value, but this is about the best we can do
-                seen.add(getattr(getattr(value, 'entry', None), 'cname'))
+                try:
+                    if value.entry.cname in seen:
+                        return True
+                except AttributeError:
+                    return True  # play safe
+                seen.add(value.entry.cname)
         return False
 
     def visit_IfStatNode(self, node):
