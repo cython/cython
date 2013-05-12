@@ -1157,7 +1157,8 @@ class BytesNode(ConstNode):
             return CharNode(self.pos, value=self.value,
                             constant_result=ord(self.value))
 
-        node = BytesNode(self.pos, value=self.value)
+        node = BytesNode(self.pos, value=self.value,
+                         constant_result=self.constant_result)
         if dst_type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
