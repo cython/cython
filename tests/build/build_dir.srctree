@@ -1,3 +1,4 @@
+PYTHON -c "import os; os.symlink('subdir', 'fake')"
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a"
 PYTHON -c "import pkg.b"
@@ -43,12 +44,16 @@ int value2 = 200;
 
 ######## pkg/b.pyx ########
 
+cdef extern from "../fake/helper.h":
+    int value2
+
 cdef extern from "pkg_helper.h":
     int value3
 
 cdef extern from "subdir/pkg_helper.h":
     int value4
 
+assert value2 == 200
 assert value3 == 300
 assert value4 == 400
 
@@ -72,5 +77,6 @@ assert not os.path.exists("a.c")
 assert os.path.exists("scratchB/pkg/b.c")
 assert os.path.exists("scratchB/pkg/pkg_helper.h")
 assert os.path.exists("scratchB/pkg/subdir/pkg_helper.h")
+assert os.path.exists("scratchB/fake/helper.h")
 assert not os.path.exists("b.c")
 assert not os.path.exists("pkg/b.c")
