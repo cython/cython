@@ -1197,7 +1197,8 @@ class UnicodeNode(ConstNode):
     # A Py_UNICODE* or unicode literal
     #
     # value        EncodedString
-    # bytes_value  BytesLiteral    the literal parsed as bytes string ('-3' unicode literals only)
+    # bytes_value  BytesLiteral    the literal parsed as bytes string
+    #                              ('-3' unicode literals only)
 
     is_string_literal = True
     bytes_value = None
@@ -1208,7 +1209,8 @@ class UnicodeNode(ConstNode):
 
     def as_sliced_node(self, start, stop, step=None):
         if StringEncoding.string_contains_surrogates(self.value[:stop]):
-            # this is unsafe as it may give different results in different runtimes
+            # this is unsafe as it may give different results
+            # in different runtimes
             return None
         value = StringEncoding.EncodedString(self.value[start:stop:step])
         value.encoding = self.value.encoding
@@ -1227,19 +1229,27 @@ class UnicodeNode(ConstNode):
             pass
         elif dst_type.is_unicode_char:
             if not self.can_coerce_to_char_literal():
-                error(self.pos, "Only single-character Unicode string literals or surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
+                error(self.pos,
+                      "Only single-character Unicode string literals or "
+                      "surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
                 return self
             int_value = ord(self.value)
-            return IntNode(self.pos, type=dst_type, value=str(int_value), constant_result=int_value)
+            return IntNode(self.pos, type=dst_type, value=str(int_value),
+                           constant_result=int_value)
         elif not dst_type.is_pyobject:
             if dst_type.is_string and self.bytes_value is not None:
-                # special case: '-3' enforced unicode literal used in a C char* context
-                return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
+                # special case: '-3' enforced unicode literal used in a
+                # C char* context
+                return BytesNode(self.pos, value=self.bytes_value
+                    ).coerce_to(dst_type, env)
             if dst_type.is_pyunicode_ptr:
                 node = UnicodeNode(self.pos, value=self.value)
                 node.type = dst_type
                 return node
-            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* (for strings).")
+            error(self.pos,
+                  "Unicode literals do not support coercion to C types other "
+                  "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
+                  "(for strings).")
         elif dst_type is not py_object_type:
             if not self.check_for_coercion_error(dst_type, env):
                 self.fail_assignment(dst_type)
