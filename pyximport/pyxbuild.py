@@ -79,11 +79,6 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     build = dist.get_command_obj('build')
     build.build_base = pyxbuild_dir
 
-    config_files = dist.find_config_files()
-    try: config_files.remove('setup.cfg')
-    except ValueError: pass
-    dist.parse_config_files(config_files)
-
     cfgfiles = dist.find_config_files()
     try: cfgfiles.remove('setup.cfg')
     except ValueError: pass
