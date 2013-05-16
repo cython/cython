@@ -80,9 +80,8 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     build.build_base = pyxbuild_dir
 
     cfgfiles = dist.find_config_files()
-    try: cfgfiles.remove('setup.cfg')
-    except ValueError: pass
     dist.parse_config_files(cfgfiles)
+
     try:
         ok = dist.parse_command_line()
     except DistutilsArgError:
