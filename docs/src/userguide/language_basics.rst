@@ -465,8 +465,8 @@ the loop is not being converted correctly, use the annotate feature of
 the cython commandline (``-a``) to easily see the generated C code.
 See :ref:`automatic-range-conversion`
 
-For backwards compatibility to Pyrex, Cython also supports another
-form of for-loop::
+For backwards compatibility to Pyrex, Cython also supports a more verbose
+form of for-loop which you might find in legacy code::
 
     for i from 0 <= i < n:
         ...
@@ -478,9 +478,12 @@ or::
 
 where ``s`` is some integer step size.
 
+.. note:: This syntax is deprecated and should not be used in new code.
+          Use the normal Python for-loop instead.
+
 Some things to note about the for-from loop:
 
-* The target expression must be a variable name.
+* The target expression must be a plain variable name.
 * The name between the lower and upper bounds must be the same as the target
   name.
 * The direction of iteration is determined by the relations. If they are both
