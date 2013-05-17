@@ -480,24 +480,31 @@ Operator Precedence
 For-loops
 ==========
 
-* ``range()`` is C optimized when the index value has been declared by ``cdef``::
+The "for ... in iterable" loop works as in Python, but is even more versatile
+in Cython as it can additionally be used on C types.
 
-    cdef i
+* ``range()`` is C optimized when the index value has been declared by ``cdef``,
+  for example::
+
+    cdef size_t i
     for i in range(n):
         ...
 
-* Iteration over C arrays is also permitted, e.g.::
+* Iteration over C arrays and sliced pointers is supported and automatically
+  infers the type of the loop variable, e.g.::
 
-    cdef double x
-    cdef double* data
+    cdef double* data = ...
     for x in data[:10]:
         ...
 
 * Iterating over many builtin types such as lists and tuples is optimized.
 
-* There is also a more C-style for-from syntax
+* There is also a more verbose C-style for-from syntax which, however, is
+  deprecated in favour of the normal Python "for ... in range()" loop.  You
+  might still find it in legacy code that was written for Pyrex, though.
 
- * The target expression must be a variable name.
+ * The target expression must be a plain variable name.
+
  * The name between the lower and upper bounds must be the same as the target name.
 
     for i from 0 <= i < n:
@@ -513,8 +520,10 @@ For-loops
     for i from n > i >= 0:
         ...
 
-* The ``break`` and ``continue`` are permissible.
+* The ``break`` and ``continue`` statements are permissible.
+
 * Can contain an else clause.
+
 
 =====================
 Functions and Methods
