@@ -671,10 +671,12 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         if build_dir:
             root = os.path.realpath(os.path.abspath(find_root_package_dir(m.sources[0])))
             def copy_to_build_dir(filepath, root=root):
-                filepath = os.path.abspath(filepath)
-                if os.path.realpath(filepath).startswith(root):
-                    mod_dir = os.path.join(
-                        build_dir, os.path.dirname(_relpath(filepath)))
+                filepath_abs = os.path.realpath(os.path.abspath(filepath))
+                if os.path.isabs(filepath):
+                    filepath = filepath_abs
+                if filepath_abs.startswith(root):
+                    mod_dir = os.path.join(build_dir,
+                            os.path.dirname(_relpath(filepath, root)))
                     if not os.path.isdir(mod_dir):
                         os.makedirs(mod_dir)
                     shutil.copy(filepath, mod_dir)
