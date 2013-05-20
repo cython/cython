@@ -290,6 +290,7 @@ class Context(object):
         source_filename = source_desc.filename
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
+        num_errors = Errors.num_errors
         try:
             f = Utils.open_source_file(source_filename, "rU")
             try:
@@ -321,7 +322,7 @@ class Context(object):
                   "Decoding error, missing or incorrect coding=<encoding-name> "
                   "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg))
 
-        if Errors.num_errors > 0:
+        if Errors.num_errors > num_errors:
             raise CompileError()
         return tree
 
