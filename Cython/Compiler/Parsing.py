@@ -2591,8 +2591,8 @@ def p_cdef_statement(s, ctx):
     elif s.sy == 'IDENT' and s.systring in struct_enum_union:
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
-        if ctx.overridable:
-            error(pos, "C struct/union/enum cannot be declared cpdef")
+        if ctx.overridable and s.systring != "enum":
+            error(pos, "C struct/union cannot be declared cpdef")
         return p_struct_enum(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring == 'fused':
         return p_fused_definition(s, pos, ctx)
@@ -2649,7 +2649,8 @@ def p_c_enum_definition(s, pos, ctx):
     return Nodes.CEnumDefNode(
         pos, name = name, cname = cname, items = items,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
-        api = ctx.api, in_pxd = ctx.level == 'module_pxd')
+        api = ctx.api, in_pxd = ctx.level == 'module_pxd',
+        is_overridable = ctx.overridable)
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':

@@ -1,0 +1,85 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -m doctest test.py
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(ext_modules=cythonize("*.pyx"))
+
+######## enum.h ########
+
+enum {
+    ANONYMOUS = 1
+};
+
+enum Enum {
+    NAMED = 1
+};
+
+typedef enum {
+    TYPEDEF = 1
+} TypedefEnum;
+
+#define DEFINED 1
+
+######## enum.pxd ########
+
+cpdef enum:
+    PY_ANONYMOUS = 1
+
+cpdef enum PyEnum:
+    PY_NAMED = 1
+
+cdef extern from "enum.h":
+    cpdef enum:
+        ANONYMOUS
+
+    cpdef enum Enum:
+        NAMED
+
+    cpdef enum:
+        DEFINED
+
+    cpdef enum _TypedefEnum:
+        TYPEDEF
+    ctypedef _TypedefEnum TypedefEnum
+
+cdef inline void func(PyEnum a, Enum b, TypedefEnum c):
+    pass
+
+######## enum.pyx ########
+
+# enums are defined in .pxd
+
+######## enum_pyx.pyx ########
+
+# enums are defined in .pyx
+include "enum.pxd"
+
+######## test.py ########
+"""
+>>> enum.ANONYMOUS, enum.NAMED, enum.TYPEDEF, enum.PY_ANONYMOUS, enum.PY_NAMED
+(1, 1, 1, 1, 1)
+>>> enum.Enum
+Traceback (most recent call last):
+  ...
+AttributeError: 'module' object has no attribute 'Enum'
+>>> enum.PyEnum
+Traceback (most recent call last):
+  ...
+AttributeError: 'module' object has no attribute 'PyEnum'
+
+>>> enum_pyx.ANONYMOUS, enum_pyx.NAMED, enum_pyx.TYPEDEF, enum_pyx.PY_ANONYMOUS, enum_pyx.PY_NAMED
+(1, 1, 1, 1, 1)
+>>> enum_pyx.Enum
+Traceback (most recent call last):
+  ...
+AttributeError: 'module' object has no attribute 'Enum'
+>>> enum_pyx.PyEnum
+Traceback (most recent call last):
+  ...
+AttributeError: 'module' object has no attribute 'PyEnum'
+"""
+import enum, enum_pyx
