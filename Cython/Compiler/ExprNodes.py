@@ -8895,7 +8895,7 @@ class SubNode(NumBinopNode):
         if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
             return type1
         elif (type1.is_ptr or type1.is_array) and (type2.is_ptr or type2.is_array):
-            return PyrexTypes.c_int_type
+            return PyrexTypes.c_ptrdiff_t_type
         else:
             return NumBinopNode.compute_c_result_type(
                 self, type1, type2)

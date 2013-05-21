@@ -47,6 +47,9 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
 
+static CYTHON_INLINE PyObject * __Pyx_PyInt_FromPtrdiff_t(ptrdiff_t);
+static CYTHON_INLINE ptrdiff_t __Pyx_PyInt_AsPtrdiff_t(PyObject*);
+
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 #else
@@ -287,6 +290,27 @@ static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
        return (size_t)-1;
    }
    return (size_t)val;
+}
+    
+static CYTHON_INLINE PyObject * __Pyx_PyInt_FromPtrdiff_t(ptrdiff_t ival) {
+    if (LONG_MIN < ival && ival <= LONG_MAX)
+        return PyInt_FromLong((long)ival);
+    else {
+        unsigned char *bytes = (unsigned char *) &ival;
+        int one = 1; int little = (int)*(unsigned char*)&one;
+        return _PyLong_FromByteArray(bytes, sizeof(ptrdiff_t), little, 0);
+    }
+}
+
+static CYTHON_INLINE ptrdiff_t __Pyx_PyInt_AsPtrdiff_t(PyObject* x) {
+    unsigned PY_LONG_LONG val = __Pyx_PyInt_AsLongLong(x);
+    if (unlikely(val != (unsigned PY_LONG_LONG)(ptrdiff_t)val)) {
+        if ((val != (unsigned PY_LONG_LONG)-1) || !PyErr_Occurred())
+            PyErr_SetString(PyExc_OverflowError,
+                            "value too large to convert to size_t");
+        return (ptrdiff_t)-1;
+    }
+    return (ptrdiff_t)val;
 }
 
 /////////////// FromPyStructUtility.proto ///////////////

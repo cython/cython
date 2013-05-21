@@ -1758,6 +1758,14 @@ class CSizeTType(CIntType):
     def sign_and_name(self):
         return "size_t"
 
+class CPtrdiffTType(CIntType):
+
+    to_py_function = "__Pyx_PyInt_FromPtrdiff_t"
+    from_py_function = "__Pyx_PyInt_AsPtrdiff_t"
+
+    def sign_and_name(self):
+        return "ptrdiff_t"
+
 
 class CFloatType(CNumericType):
 
@@ -3448,6 +3456,7 @@ c_py_hash_t_type =   CPyHashTType(RANK_LONG+0.5, SIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
+c_ptrdiff_t_type =   CPtrdiffTType(RANK_LONG+0.25, SIGNED)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_void_ptr_type =     CPtrType(c_void_type)
@@ -3541,6 +3550,7 @@ modifiers_and_name_to_type = {
     (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
     (2,  0, "ssize_t") :   c_ssize_t_type,
     (0,  0, "size_t") :    c_size_t_type,
+    (2,  0, "ptrdiff_t") : c_ptrdiff_t_type,
 
     (1,  0, "object"): py_object_type,
 }

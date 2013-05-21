@@ -2264,6 +2264,7 @@ special_basic_c_types = {
     "Py_ssize_t" : (2, 0),
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
+    "ptrdiff_t"  : (2, 0),
 }
 
 sign_and_longness_words = ("short", "long", "signed", "unsigned")
