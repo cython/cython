@@ -795,7 +795,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
         fields = descr.fields[childname]
         child, new_offset = fields
 
-        if (end - f) - (new_offset - offset[0]) < 15:
+        if (end - f) - <int>(new_offset - offset[0]) < 15:
             raise RuntimeError(u"Format string allocated too short, see comment in numpy.pxd")
 
         if ((child.byteorder == c'>' and little_endian) or
