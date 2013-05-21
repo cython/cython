@@ -3456,7 +3456,7 @@ c_py_hash_t_type =   CPyHashTType(RANK_LONG+0.5, SIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
-c_ptrdiff_t_type =   CPtrdiffTType(RANK_LONG+0.25, SIGNED)
+c_ptrdiff_t_type =   CPtrdiffTType(RANK_LONG+0.75, SIGNED)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_void_ptr_type =     CPtrType(c_void_type)
