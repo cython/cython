@@ -117,7 +117,7 @@ cdef class array:
         cdef Py_ssize_t i
         cdef PyObject **p
 
-        self.ndim = len(shape)
+        self.ndim = <int> len(shape)
         self.itemsize = itemsize
 
         if not self.ndim:
@@ -870,7 +870,7 @@ cdef int slice_memviewslice(
 #
 @cname('__pyx_pybuffer_index')
 cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
-                          int dim) except NULL:
+                          Py_ssize_t dim) except NULL:
     cdef Py_ssize_t shape, stride, suboffset = -1
     cdef Py_ssize_t itemsize = view.itemsize
     cdef char *resultp
