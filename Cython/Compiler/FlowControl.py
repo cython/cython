@@ -9,6 +9,7 @@ cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
 import Builtin
 import ExprNodes
 import Nodes
+import Options
 from PyrexTypes import py_object_type, unspecified_type
 import PyrexTypes
 
@@ -574,7 +575,8 @@ def check_definitions(flow, compiler_directives):
             if node.allow_null or entry.from_closure or entry.is_pyclass_attr:
                 pass # Can be uninitialized here
             elif node.cf_is_null:
-                if (entry.type.is_pyobject or entry.type.is_unspecified or
+                if Options.error_on_uninitialized and (
+                        entry.type.is_pyobject or entry.type.is_unspecified or
                         entry.error_on_uninitialized):
                     messages.error(
                         node.pos,
