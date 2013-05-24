@@ -67,6 +67,25 @@ The ``cythonize`` command also allows for multi-threaded compilation and
 dependency resolution.  Recompilation will be skipped if the target file
 is up to date with its main source file and dependencies.
 
+Under the hood ``cythonize`` creates a list of distutils ``Extension``
+instances. Any extra arguments you pass to ``cythonize`` will be 
+passed to ``Extension``. This is useful if you need to add extra include or
+library paths.
+
+::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize('src/*.pyx',
+            include_dirs = [...],
+            library_dirs = [...],
+            ),
+        ),
+    )
+
 Compiling with ``pyximport``
 =============================
 
