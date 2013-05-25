@@ -67,6 +67,47 @@ The ``cythonize`` command also allows for multi-threaded compilation and
 dependency resolution.  Recompilation will be skipped if the target file
 is up to date with its main source file and dependencies.
 
+If you have include files in non-standard places you can pass an
+``include_path`` parameter to ``cythonize``::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize("src/*.pyx", include_path = [...]),
+    )
+
+If you need to specify compiler options, libraries to link with or other linker
+options you will need to create ``Extension`` instances manually::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension("primes", ["primes.pyx"],
+            include_dirs = [...],
+            libraries = [...],
+            library_dirs = [...]),
+        Extension("spam", ["spam.pyx"],
+            include_dirs = [...],
+            libraries = [...],
+            library_dirs = [...]),
+    ]
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize(extensions),
+    )
+
+If your options are static (for example you do not need to call a tool like
+``pkg-config`` to determine them) you can also provide them directly in your
+.pyx source file using a special comment block at the start of the file::
+
+    # distutils: libraries = spam eggs
+    # distutils: include_dirs = /opt/food/include
+
+
 Compiling with ``pyximport``
 =============================
 
