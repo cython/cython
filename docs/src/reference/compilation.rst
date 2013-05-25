@@ -79,7 +79,8 @@ If you have include files in non-standard places you can pass an
     )
 
 If you need to specify compiler options, libraries to link with or other linker
-options you will need to create ``Extension`` instances manually::
+options you will need to create ``Extension`` instances manually (note
+that glob syntax can still be used to specify multiple extensions in one line)::
 
     from distutils.core import setup
     from distutils.extension import Extension
@@ -90,7 +91,8 @@ options you will need to create ``Extension`` instances manually::
             include_dirs = [...],
             libraries = [...],
             library_dirs = [...]),
-        Extension("spam", ["spam.pyx"],
+        # Everything but primes.pyx is included here.
+        Extension("*", ["*.pyx"],
             include_dirs = [...],
             libraries = [...],
             library_dirs = [...]),
