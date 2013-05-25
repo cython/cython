@@ -20,7 +20,10 @@ cdef extern from "stdio.h" nogil:
     int  fclose   (FILE *stream)
     int  remove   (const char *filename)
     int  rename   (const char *oldname, const char *newname)
-    FILE *tmpfile ()
+    FILE *tmpfile (void)
+
+    int remove (const char *pathname)
+    int rename (const char *oldpath, const char *newpath)
 
     enum: _IOFBF
     enum: _IOLBF
@@ -34,8 +37,9 @@ cdef extern from "stdio.h" nogil:
     int    fflush (FILE *stream)
 
     enum: EOF
-    int feof   (FILE *stream)
-    int ferror (FILE *stream)
+    void clearerr (FILE *stream)
+    int feof      (FILE *stream)
+    int ferror    (FILE *stream)
 
     enum: SEEK_SET
     enum: SEEK_CUR
@@ -62,6 +66,15 @@ cdef extern from "stdio.h" nogil:
 
     char *gets  (char *s)
     char *fgets (char *s, int count, FILE *stream)
+    int getchar (void)
+    int fgetc   (FILE *stream)
+    int getc    (FILE *stream)
+    int ungetc  (int c, FILE *stream)
 
-    int  puts   (const char *s)
-    int  fputs  (const char *s, FILE *stream)
+    int puts    (const char *s)
+    int fputs   (const char *s, FILE *stream)
+    int putchar (int c)
+    int fputc   (int c, FILE *stream)
+    int putc    (int c, FILE *stream)
+
+
