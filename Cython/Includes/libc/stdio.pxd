@@ -20,7 +20,7 @@ cdef extern from "stdio.h" nogil:
     int  fclose   (FILE *stream)
     int  remove   (const char *filename)
     int  rename   (const char *oldname, const char *newname)
-    FILE *tmpfile (void)
+    FILE *tmpfile ()
 
     int remove (const char *pathname)
     int rename (const char *oldpath, const char *newpath)
@@ -66,7 +66,7 @@ cdef extern from "stdio.h" nogil:
 
     char *gets  (char *s)
     char *fgets (char *s, int count, FILE *stream)
-    int getchar (void)
+    int getchar ()
     int fgetc   (FILE *stream)
     int getc    (FILE *stream)
     int ungetc  (int c, FILE *stream)
