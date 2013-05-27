@@ -283,22 +283,12 @@ class UtilityCodeBase(object):
         proto, impl = util.proto, util.impl
         return util.format_code(proto), util.format_code(impl)
 
-    common_include_dir = "/tmp/cython_includes"
-
-    def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub, type='unknown'):
+    def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
         """
         Format a code section for output.
         """
         if code_string:
             code_string = replace_empty_lines('\n', code_string.strip()) + '\n\n'
-            if self.common_include_dir and len(code_string) > 1024:
-                filename = "%s_%s_%s.h" % (self.name, type, md5(code_string).hexdigest())
-                path = os.path.join(self.common_include_dir, filename)
-                if not os.path.exists(path):
-                    tmp_path = '%s.tmp%s' % (path, os.getpid())
-                    open(tmp_path, 'w').write(code_string)
-                    os.path.rename(tmp_path, path)
-                code_string = '#include "%s"\n' % path
         return code_string
 
     def __str__(self):
@@ -402,15 +392,19 @@ class UtilityCode(UtilityCodeBase):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            output[self.proto_block].put(self.format_code(self.proto, type='proto'))
+            output[self.proto_block].put_or_include(
+                self.format_code(self.proto),
+                '%s_proto' % self.name)
         if self.impl:
-            output['utility_code_def'].put(self.format_code(
-                self.inject_string_constants(self.impl, output), type='impl'))
+            output['utility_code_def'].put_or_include(
+                self.format_code(
+                    self.inject_string_constants(self.impl, output)),
+                '%s_impl' % self.name)
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
             if isinstance(self.init, basestring):
-                writer.put(self.format_code(self.init, type='init'))
+                writer.put(self.format_code(self.init))
             else:
                 self.init(writer, output.module_pos)
             writer.putln(writer.error_goto_if_PyErr(output.module_pos))
@@ -418,7 +412,9 @@ class UtilityCode(UtilityCodeBase):
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             if isinstance(self.cleanup, basestring):
-                writer.put(self.format_code(self.cleanup, type='cleanup'))
+                writer.put_or_include(
+                    self.format_code(self.cleanup),
+                    '%s_cleanup' % self.name)
             else:
                 self.cleanup(writer, output.module_pos)
 
@@ -1527,6 +1523,18 @@ class CCodeWriter(object):
         # put code, but ignore {}
         self.write(code)
         self.bol = 0
+
+    def put_or_include(self, code, name):
+        if code:
+            if self.globalstate.common_utility_include_dir and len(code) > 1042:
+                include_file = "%s_%s.h" % (name, md5(code).hexdigest())
+                path = os.path.join(self.globalstate.common_utility_include_dir, include_file)
+                if not os.path.exists(path):
+                    tmp_path = '%s.tmp%s' % (path, os.getpid())
+                    open(tmp_path, 'w').write(code)
+                    os.rename(tmp_path, path)
+                code = '#include "%s"\n' % path
+            self.put(code)
 
     def put(self, code):
         fix_indent = False
