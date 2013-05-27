@@ -105,8 +105,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
-        if options.recursive:
-            self.generate_dep_file(env, result)
         self.sort_cdef_classes(env)
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
@@ -118,20 +116,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.defined_in_pxd:
                     return 1
         return 0
-
-    def generate_dep_file(self, env, result):
-        modules = self.referenced_modules
-        if len(modules) > 1 or env.included_files:
-            dep_file = replace_suffix(result.c_file, ".dep")
-            f = open(dep_file, "w")
-            try:
-                for module in modules:
-                    if module is not env:
-                        f.write("cimport %s\n" % module.qualified_name)
-                    for path in module.included_files:
-                        f.write("include %s\n" % path)
-            finally:
-                f.close()
 
     def generate_h_code(self, env, options, result):
         def h_entries(entries, api=0, pxd=0):

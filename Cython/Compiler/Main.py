@@ -456,11 +456,8 @@ class CompilationOptions(object):
     capi_reexport_cincludes  
                       boolean   Add cincluded headers to any auto-generated 
                                 header files.
-    recursive         boolean   Recursively find and compile dependencies
-    timestamps        boolean   Only compile changed source files. If None,
-                                defaults to true when recursive is true.
+    timestamps        boolean   Only compile changed source files.
     verbose           boolean   Always print source names being compiled
-    quiet             boolean   Don't print source names in recursive mode
     compiler_directives  dict      Overrides for pragma options (see Options.py)
     evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     language_level    integer   The Python language level: 2 or 3
@@ -562,11 +559,8 @@ def compile_multiple(sources, options):
     sources = [os.path.abspath(source) for source in sources]
     processed = set()
     results = CompilationResultSet()
-    recursive = options.recursive
     timestamps = options.timestamps
-    if timestamps is None:
-        timestamps = recursive
-    verbose = options.verbose or ((recursive or timestamps) and not options.quiet)
+    verbose = options.verbose
     context = None
     for source in sources:
         if source not in processed:
@@ -582,14 +576,6 @@ def compile_multiple(sources, options):
                 # work properly yet.
                 context = None
             processed.add(source)
-            if recursive:
-                for module_name in context.find_cimported_module_names(source):
-                    path = context.find_pyx_file(module_name, [source])
-                    if path:
-                        sources.append(path)
-                    else:
-                        sys.stderr.write(
-                            "Cannot find .pyx file for cimported module '%s'\n" % module_name)
     return results
 
 def compile(source, options = None, full_module_name = None, **kwds):
@@ -603,8 +589,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, basestring) and not options.timestamps \
-            and not options.recursive:
+    if isinstance(source, basestring) and not options.timestamps:
         return compile_single(source, options, full_module_name)
     else:
         return compile_multiple(source, options)
@@ -659,7 +644,6 @@ default_options = dict(
     generate_pxi = 0,
     capi_reexport_cincludes = 0,
     working_path = "",
-    recursive = 0,
     timestamps = None,
     verbose = 0,
     quiet = 0,
