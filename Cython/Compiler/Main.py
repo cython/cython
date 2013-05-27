@@ -655,4 +655,5 @@ default_options = dict(
     language_level = 2,
     gdb_debug = False,
     compile_time_env = None,
+    common_utility_include_dir = None,
 )

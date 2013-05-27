@@ -9,6 +9,7 @@ cython.declare(os=object, re=object, operator=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, basestring=object)
 
+from md5 import md5
 import os
 import re
 import sys
@@ -282,12 +283,22 @@ class UtilityCodeBase(object):
         proto, impl = util.proto, util.impl
         return util.format_code(proto), util.format_code(impl)
 
-    def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
+    common_include_dir = "/tmp/cython_includes"
+
+    def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub, type='unknown'):
         """
         Format a code section for output.
         """
         if code_string:
             code_string = replace_empty_lines('\n', code_string.strip()) + '\n\n'
+            if self.common_include_dir and len(code_string) > 1024:
+                filename = "%s_%s_%s.h" % (self.name, type, md5(code_string).hexdigest())
+                path = os.path.join(self.common_include_dir, filename)
+                if not os.path.exists(path):
+                    tmp_path = '%s.tmp%s' % (path, os.getpid())
+                    open(tmp_path, 'w').write(code_string)
+                    os.path.rename(tmp_path, path)
+                code_string = '#include "%s"\n' % path
         return code_string
 
     def __str__(self):
@@ -391,15 +402,15 @@ class UtilityCode(UtilityCodeBase):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            output[self.proto_block].put(self.format_code(self.proto))
+            output[self.proto_block].put(self.format_code(self.proto, type='proto'))
         if self.impl:
             output['utility_code_def'].put(self.format_code(
-                self.inject_string_constants(self.impl, output)))
+                self.inject_string_constants(self.impl, output), type='impl'))
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
             if isinstance(self.init, basestring):
-                writer.put(self.format_code(self.init))
+                writer.put(self.format_code(self.init, type='init'))
             else:
                 self.init(writer, output.module_pos)
             writer.putln(writer.error_goto_if_PyErr(output.module_pos))
@@ -407,7 +418,7 @@ class UtilityCode(UtilityCodeBase):
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             if isinstance(self.cleanup, basestring):
-                writer.put(self.format_code(self.cleanup))
+                writer.put(self.format_code(self.cleanup, type='cleanup'))
             else:
                 self.cleanup(writer, output.module_pos)
 
@@ -868,7 +879,7 @@ class GlobalState(object):
     ]
 
 
-    def __init__(self, writer, module_node, emit_linenums=False):
+    def __init__(self, writer, module_node, emit_linenums=False, common_utility_include_dir=None):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
@@ -876,6 +887,7 @@ class GlobalState(object):
         self.declared_cnames = {}
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
+        self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer

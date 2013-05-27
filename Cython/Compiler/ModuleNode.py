@@ -300,7 +300,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             emit_linenums = options.emit_linenums
             rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums, c_line_in_traceback=options.c_line_in_traceback)
-        globalstate = Code.GlobalState(rootwriter, self, emit_linenums)
+        globalstate = Code.GlobalState(rootwriter, self, emit_linenums, options.common_utility_include_dir)
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
 
