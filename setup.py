@@ -82,10 +82,9 @@ else:
 
 if include_debugger:
     if 'setuptools' in sys.modules:
-            setuptools_extra_args['entry_points']['console_scripts'].append(
-                'cygdb = Cython.Debugger.Cygdb:main'
-            )
-    else
+        setuptools_extra_args['entry_points']['console_scripts'].append(
+            'cygdb = Cython.Debugger.Cygdb:main')
+    else:
         if os.name == "posix":
             scripts.append('bin/cygdb')
         else:
