@@ -67,7 +67,9 @@ using C strings where possible and use Python string objects instead.
 The obvious exception to this is when passing them back and forth
 from and to external C code.  Also, C++ strings remember their length
 as well, so they can provide a suitable alternative to Python bytes
-objects in some cases.
+objects in some cases, e.g. when reference counting is not needed
+within a well defined context.
+
 
 Passing byte strings
 --------------------
