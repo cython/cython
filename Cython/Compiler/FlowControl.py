@@ -575,9 +575,9 @@ def check_definitions(flow, compiler_directives):
             if node.allow_null or entry.from_closure or entry.is_pyclass_attr:
                 pass # Can be uninitialized here
             elif node.cf_is_null:
-                if Options.error_on_uninitialized and (
-                        entry.type.is_pyobject or entry.type.is_unspecified or
-                        entry.error_on_uninitialized):
+                if entry.error_on_uninitialized or (
+                        Options.error_on_uninitialized and (
+                        entry.type.is_pyobject or entry.type.is_unspecified)):
                     messages.error(
                         node.pos,
                         "local variable '%s' referenced before assignment"
