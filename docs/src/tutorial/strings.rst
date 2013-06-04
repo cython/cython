@@ -16,29 +16,29 @@ implicitly insert these encoding/decoding steps.
 Python string types in Cython code
 ----------------------------------
 
-Cython supports three Python string types: :type:`bytes`, :type:`str`
-and :type:`unicode`.  The :type:`str` type is special in that it is the
+Cython supports three Python string types: ``bytes``, ``str``
+and ``unicode``.  The ``str`` type is special in that it is the
 byte string in Python 2 and the Unicode string in Python 3 (for Cython
 code compiled with language level 2, i.e. the default).  Thus, in Python
-2, both :type:`bytes` and :type:`str` represent the byte string type,
-whereas in Python 3, :type:`str` and :type:`unicode` represent the Python
+2, both ``bytes`` and ``str`` represent the byte string type,
+whereas in Python 3, ``str`` and ``unicode`` represent the Python
 Unicode string type.  The switch is made at C compile time, the Python
 version that is used to run Cython is not relevant.
 
-When compiling Cython code with language level 3, the :type:`str` type
+When compiling Cython code with language level 3, the ``str`` type
 is identified with exactly the Unicode string type at Cython compile time,
-i.e. it no does not identify with :type:`bytes` when running in Python 2.
+i.e. it no does not identify with ``bytes`` when running in Python 2.
 
-Note that the :type:`str` type is not compatible with the :type:`unicode`
+Note that the ``str`` type is not compatible with the ``unicode``
 type in Python 2, i.e. you cannot assign a Unicode string to a variable
-or argument that is typed :type:`str`.  The attempt will result in either
+or argument that is typed ``str``.  The attempt will result in either
 a compile time error (if detectable) or a ``TypeError`` exception at
 runtime.  You should therefore be careful when you statically type a
 string variable in code that must be compatible with Python 2, as this
 Python version allows a mix of byte strings and unicode strings for data
 and users normally expect code to be able to work with both.  Code that
 only targets Python 3 can safely type variables and arguments as either
-:type:`bytes` or :type:`unicode`.
+``bytes`` or ``unicode``.
 
 
 General notes about C strings
