@@ -34,6 +34,12 @@ warning_errors = False
 # you should disable this option and also 'cache_builtins'.
 error_on_unknown_names = True
 
+# Make uninitialized local variable reference a compile time error.
+# Python raises UnboundLocalError at runtime, whereas this option makes
+# them a compile time error. Note that this option affects only variables
+# of "python object" type.
+error_on_uninitialized = True
+
 # This will convert statements of the form "for i in range(...)"
 # to "for i from ..." when i is a cdef'd integer type, and the direction
 # (i.e. sign of step) can be determined.

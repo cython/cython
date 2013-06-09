@@ -520,7 +520,9 @@ class CythonCompileTestCase(unittest.TestCase):
     def setUp(self):
         from Cython.Compiler import Options
         self._saved_options = [ (name, getattr(Options, name))
-                                for name in ('warning_errors', 'error_on_unknown_names') ]
+                                for name in ('warning_errors',
+                                             'error_on_unknown_names',
+                                             'error_on_uninitialized') ]
         self._saved_default_directives = Options.directive_defaults.items()
         Options.warning_errors = self.warning_errors
 
@@ -989,6 +991,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         CythonRunTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
+        Options.error_on_uninitialized = False
         Options.directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
