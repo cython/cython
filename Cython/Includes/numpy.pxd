@@ -488,8 +488,8 @@ cdef extern from "numpy/arrayobject.h":
 
     object PyArray_FROM_O(object)
     object PyArray_FROM_OF(object m, int flags)
-    bint PyArray_FROM_OT(object m, int type)
-    bint PyArray_FROM_OTF(object m, int type, int flags)
+    object PyArray_FROM_OT(object m, int type)
+    object PyArray_FROM_OTF(object m, int type, int flags)
     object PyArray_FROMANY(object m, int type, int min, int max, int flags)
     object PyArray_ZEROS(int nd, npy_intp* dims, int type, int fortran)
     object PyArray_EMPTY(int nd, npy_intp* dims, int type, int fortran)
