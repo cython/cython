@@ -101,3 +101,14 @@ def test_getFooCast():
     cdef int old_count = count
     cdef Foo x = <Foo?>getFoo()
     return count - old_count
+
+def test_builtin_typecheck_cast(maybe_list):
+    """
+    >>> test_builtin_typecheck_cast([])
+    []
+    >>> test_builtin_typecheck_cast({})
+    Traceback (most recent call last):
+       ...
+    TypeError: Expected list, got dict
+    """
+    return <list?>maybe_list

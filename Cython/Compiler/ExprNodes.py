@@ -8022,6 +8022,7 @@ class TypecastNode(ExprNode):
     #  operand      ExprNode
     #  base_type    CBaseTypeNode
     #  declarator   CDeclaratorNode
+    #  typecheck    boolean
     #
     #  If used from a transform, one can if wanted specify the attribute
     #  "type" directly and leave base_type and declarator to None
@@ -8082,7 +8083,7 @@ class TypecastNode(ExprNode):
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
-            if self.typecheck and self.type.is_extension_type:
+            if self.typecheck and self.type.is_pyobject:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
             elif isinstance(self.operand, SliceIndexNode):
                 # This cast can influence the created type of string slices.
