@@ -9,13 +9,17 @@ cython.declare(os=object, re=object, operator=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, basestring=object)
 
-from md5 import md5
 import os
 import re
 import sys
 from string import Template
 import operator
 import textwrap
+
+try:
+    import hashlib
+except ImportError:
+    import md5 as hashlib
 
 import Naming
 import Options
@@ -1527,7 +1531,7 @@ class CCodeWriter(object):
     def put_or_include(self, code, name):
         if code:
             if self.globalstate.common_utility_include_dir and len(code) > 1042:
-                include_file = "%s_%s.h" % (name, md5(code).hexdigest())
+                include_file = "%s_%s.h" % (name, hashlib.md5(code).hexdigest())
                 path = os.path.join(self.globalstate.common_utility_include_dir, include_file)
                 if not os.path.exists(path):
                     tmp_path = '%s.tmp%s' % (path, os.getpid())
