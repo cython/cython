@@ -4848,7 +4848,8 @@ class DelStatNode(StatNode):
             arg = self.args[i] = arg.analyse_target_expression(env, None)
             if arg.type.is_pyobject or (arg.is_name and
                                         arg.type.is_memoryviewslice):
-                pass
+                if arg.is_name and arg.entry.is_cglobal:
+                    error(arg.pos, "Deletion of global C variable")
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
                 self.cpp_check(env)
             elif arg.type.is_cpp_class:

@@ -1895,7 +1895,7 @@ class NameNode(AtomicExprNode):
                 # variables that the acquired buffer info is stored to is allocated
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
-
+            assigned = False
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
@@ -1910,18 +1910,26 @@ class NameNode(AtomicExprNode):
                                 code.put_xgotref(self.py_result())
                             else:
                                 code.put_gotref(self.py_result())
+                    assigned = True
                     if entry.is_cglobal:
-                        code.put_decref(self.result(), self.ctype())
+                        code.put_decref_set(
+                            self.result(), rhs.result_as(self.ctype()))
                     else:
                         if not self.cf_is_null:
                             if self.cf_maybe_null:
-                                code.put_xdecref(self.result(), self.ctype())
+                                code.put_xdecref_set(
+                                    self.result(), rhs.result_as(self.ctype()))
                             else:
-                                code.put_decref(self.result(), self.ctype())
+                                code.put_decref_set(
+                                    self.result(), rhs.result_as(self.ctype()))
+                        else:
+                            assigned = False
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
             if not self.type.is_memoryviewslice:
-                code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+                if not assigned:
+                    code.putln('%s = %s;' % (
+                        self.result(), rhs.result_as(self.ctype())))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)

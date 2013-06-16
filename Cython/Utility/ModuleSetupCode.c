@@ -531,6 +531,15 @@ static int __Pyx_check_binary_version(void) {
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
 
+#define __Pyx_XDECREF_SET(r, v) do {                            \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; __Pyx_XDECREF(tmp);                              \
+    } while (0)
+#define __Pyx_DECREF_SET(r, v) do {                             \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; __Pyx_DECREF(tmp);                               \
+    } while (0)
+
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
 

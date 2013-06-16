@@ -17,8 +17,7 @@ import glob
 import tempfile
 import textwrap
 import subprocess
-
-usage = "Usage: cygdb [PATH [GDB_ARGUMENTS]]"
+import optparse
 
 def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     if not no_import:
@@ -63,6 +62,8 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
 
     return tempfilename
 
+usage = "Usage: cygdb [options] [PATH [GDB_ARGUMENTS]]"
+
 def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     """
     Start the Cython debugger. This tells gdb to import the Cython and Python
@@ -73,20 +74,26 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     gdb_argv is the list of options to gdb
     no_import tells cygdb whether it should import debug information
     """
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option("--gdb-executable",
+        dest="gdb", default='gdb',
+        help="gdb executable to use [default: gdb]")
+
+    (options, args) = parser.parse_args()
     if path_to_debug_info is None:
-        if len(sys.argv) > 1:
-            path_to_debug_info = sys.argv[1]
+        if len(args) > 1:
+            path_to_debug_info = args[1]
         else:
             path_to_debug_info = os.curdir
 
     if gdb_argv is None:
-        gdb_argv = sys.argv[2:]
+        gdb_argv = args[2:]
 
     if path_to_debug_info == '--':
         no_import = True
 
     tempfilename = make_command_file(path_to_debug_info, no_import=no_import)
-    p = subprocess.Popen(['gdb', '-command', tempfilename] + gdb_argv)
+    p = subprocess.Popen([options.gdb, '-command', tempfilename] + gdb_argv)
     while True:
         try:
             p.wait()

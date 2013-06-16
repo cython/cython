@@ -3,14 +3,43 @@
 Unicode and passing strings
 ===========================
 
-Similar to the string semantics in Python 3, Cython also strictly
-separates byte strings and unicode strings.  Above all, this means
-that by default there is no automatic conversion between byte strings
-and unicode strings (except for what Python 2 does in string operations).
-All encoding and decoding must pass through an explicit encoding/decoding
-step.  For simple cases, the  module-level ``c_string_type`` and
-``c_string_encoding`` directives can be used to implicitly insert these
-encoding/decoding steps to ease conversion between Python and C strings.
+Similar to the string semantics in Python 3, Cython strictly separates
+byte strings and unicode strings.  Above all, this means that by default
+there is no automatic conversion between byte strings and unicode strings
+(except for what Python 2 does in string operations).  All encoding and
+decoding must pass through an explicit encoding/decoding step.  To ease
+conversion between Python and C strings in simple cases, the module-level
+``c_string_type`` and ``c_string_encoding`` directives can be used to
+implicitly insert these encoding/decoding steps.
+
+
+Python string types in Cython code
+----------------------------------
+
+Cython supports three Python string types: ``bytes``, ``str``
+and ``unicode``.  The ``str`` type is special in that it is the
+byte string in Python 2 and the Unicode string in Python 3 (for Cython
+code compiled with language level 2, i.e. the default).  Thus, in Python
+2, both ``bytes`` and ``str`` represent the byte string type,
+whereas in Python 3, ``str`` and ``unicode`` represent the Python
+Unicode string type.  The switch is made at C compile time, the Python
+version that is used to run Cython is not relevant.
+
+When compiling Cython code with language level 3, the ``str`` type
+is identified with exactly the Unicode string type at Cython compile time,
+i.e. it no does not identify with ``bytes`` when running in Python 2.
+
+Note that the ``str`` type is not compatible with the ``unicode``
+type in Python 2, i.e. you cannot assign a Unicode string to a variable
+or argument that is typed ``str``.  The attempt will result in either
+a compile time error (if detectable) or a ``TypeError`` exception at
+runtime.  You should therefore be careful when you statically type a
+string variable in code that must be compatible with Python 2, as this
+Python version allows a mix of byte strings and unicode strings for data
+and users normally expect code to be able to work with both.  Code that
+only targets Python 3 can safely type variables and arguments as either
+``bytes`` or ``unicode``.
+
 
 General notes about C strings
 -----------------------------
@@ -38,7 +67,9 @@ using C strings where possible and use Python string objects instead.
 The obvious exception to this is when passing them back and forth
 from and to external C code.  Also, C++ strings remember their length
 as well, so they can provide a suitable alternative to Python bytes
-objects in some cases.
+objects in some cases, e.g. when reference counting is not needed
+within a well defined context.
+
 
 Passing byte strings
 --------------------
