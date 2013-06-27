@@ -180,6 +180,9 @@ def valid_memslice_dtype(dtype, i=0):
     if dtype.is_complex and dtype.real_type.is_int:
         return False
 
+    if dtype is PyrexTypes.c_bint_type:
+        return False
+
     if dtype.is_struct and dtype.kind == 'struct':
         for member in dtype.scope.var_entries:
             if not valid_memslice_dtype(member.type):
