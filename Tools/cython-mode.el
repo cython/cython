@@ -30,8 +30,7 @@
         (compile compile-command)
       (set (make-local-variable 'cython-buffer) cy-buffer)
       (add-to-list (make-local-variable 'compilation-finish-functions)
-                   'cython-compilation-finish)))
-  )
+                   'cython-compilation-finish))))
 
 (defun cython-compilation-finish (buffer how)
   "Called when Cython compilation finishes."
@@ -64,6 +63,19 @@
   "Additional font lock keywords for Cython mode.")
 
 ;;;###autoload
+(defgroup cython nil "Major mode for editing and compiling Cython files"
+  :group 'languages
+  :prefix "cython-"
+  :link '(url-link :tag "Homepage" "http://cython.org"))
+
+;;;###autoload
+(defcustom cython-default-compile-format "cython -a %s"
+  "Format for the default command to compile a Cython file.
+It will be passed to `format' with `buffer-file-name' as the only other argument."
+  :group 'cython
+  :type 'string)
+
+;;;###autoload
 (define-derived-mode cython-mode python-mode "Cython"
   "Major mode for Cython development, derived from Python mode.
 
@@ -71,7 +83,7 @@
   (setcar font-lock-defaults
           (append python-font-lock-keywords cython-font-lock-keywords))
   (set (make-local-variable 'compile-command)
-       (concat "cython -a " buffer-file-name))
+       (format cython-default-compile-format (shell-quote-argument buffer-file-name)))
   (add-to-list (make-local-variable 'compilation-finish-functions)
                'cython-compilation-finish)
 )
