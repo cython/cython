@@ -8,11 +8,14 @@
 ;;; Code:
 
 ;; Load python-mode if available, otherwise use builtin emacs python package
-(when (not(require 'python-mode nil t))
+(when (not (require 'python-mode nil t))
   (require 'python))
 
+;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.pyx\\'" . cython-mode))
+;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.pxd\\'" . cython-mode))
+;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.pxi\\'" . cython-mode))
 
 
@@ -60,6 +63,7 @@
      1 font-lock-function-name-face))
   "Additional font lock keywords for Cython mode.")
 
+;;;###autoload
 (define-derived-mode cython-mode python-mode "Cython"
   "Major mode for Cython development, derived from Python mode.
 
