@@ -9,6 +9,9 @@
 (add-to-list 'auto-mode-alist '("\\.pxi\\'" . cython-mode))
 
 
+(defvar cython-buffer nil
+  "Variable pointing to the cython buffer which was compiled.")
+
 (defun cython-compile ()
   "Compile the file via Cython."
   (interactive)
