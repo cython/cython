@@ -10,6 +10,7 @@
 ;; Load python-mode if available, otherwise use builtin emacs python package
 (when (not (require 'python-mode nil t))
   (require 'python))
+(eval-when-compile (require 'rx))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.pyx\\'" . cython-mode))
@@ -82,11 +83,14 @@ It will be passed to `format' with `buffer-file-name' as the only other argument
 \\{cython-mode-map}"
   (setcar font-lock-defaults
           (append python-font-lock-keywords cython-font-lock-keywords))
+  (set (make-local-variable 'outline-regexp)
+       (rx (* space) (or "class" "def" "cdef" "cpdef" "elif" "else" "except" "finally"
+                         "for" "if" "try" "while" "with")
+           symbol-end))
   (set (make-local-variable 'compile-command)
        (format cython-default-compile-format (shell-quote-argument buffer-file-name)))
   (add-to-list (make-local-variable 'compilation-finish-functions)
-               'cython-compilation-finish)
-)
+               'cython-compilation-finish))
 
 (provide 'cython-mode)
 
