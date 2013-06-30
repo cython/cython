@@ -1,4 +1,11 @@
-;; Cython mode
+;;; cython-mode.el -- Major mode for editing Cython files
+
+;;; Commentary:
+
+;; This should work with python-mode.el as well as either the new
+;; python.el or the old.
+
+;;; Code:
 
 ;; Load python-mode if available, otherwise use builtin emacs python package
 (when (not(require 'python-mode nil t))
@@ -66,3 +73,5 @@
 )
 
 (provide 'cython-mode)
+
+;;; cython-mode.el ends here
