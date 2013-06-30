@@ -223,6 +223,23 @@ Finds end of innermost nested class or method definition."
     (if (< (point) orig)
         (goto-char (point-max)))))
 
+(defun cython-current-defun ()
+  "`add-log-current-defun-function' for Cython."
+  (save-excursion
+    ;; Move up the tree of nested `class' and `def' blocks until we
+    ;; get to zero indentation, accumulating the defined names.
+    (let ((start t)
+          accum)
+      (while (or start (> (current-indentation) 0))
+        (setq start nil)
+        (cython-beginning-of-block)
+        (end-of-line)
+        (beginning-of-defun)
+        (if (looking-at (rx (0+ space) (or "def" "cdef" "cpdef" "class") (1+ space)
+                            (group (1+ (or word (syntax symbol))))))
+            (push (match-string 1) accum)))
+      (if accum (mapconcat 'identity accum ".")))))
+
 ;;;###autoload
 (define-derived-mode cython-mode python-mode "Cython"
   "Major mode for Cython development, derived from Python mode.
@@ -240,6 +257,9 @@ Finds end of innermost nested class or method definition."
        #'cython-end-of-defun)
   (set (make-local-variable 'compile-command)
        (format cython-default-compile-format (shell-quote-argument buffer-file-name)))
+  (set (make-local-variable 'add-log-current-defun-function)
+       #'cython-current-defun)
+  (add-hook 'which-func-functions #'cython-current-defun nil t)
   (add-to-list (make-local-variable 'compilation-finish-functions)
                'cython-compilation-finish))
 
