@@ -35,3 +35,14 @@ def test3():
     cdef int a[MY_SIZE_A]
     cdef int b[MY_SIZE_B]
     return sizeof(a)/sizeof(int), sizeof(b)/sizeof(int)
+
+
+from libc cimport limits
+
+def test_cimported_attribute():
+    """
+    >>> test_cimported_attribute()
+    True
+    """
+    cdef char a[limits.CHAR_MAX]
+    return sizeof(a) >= 127

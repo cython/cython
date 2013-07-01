@@ -1,47 +1,77 @@
-def f(obj1, obj2, obj3, obj4):
+# mode: run
+# tag: slicing
+
+def test_full(seq):
     """
     >>> l = [1,2,3,4]
-    >>> f(1, l, 2, 3)
+    >>> test_full(l)
     [1, 2, 3, 4]
-    >>> l == f(1, l, 2, 3)
+    >>> l == test_full(l)
     True
-    >>> l is f(1, l, 2, 3)
+    >>> l is test_full(l)
     False
-    >>> try: f(1, 42, 2, 3)
+    >>> try: test_full(42)
     ... except TypeError: pass
     """
-    obj1 = obj2[:]
-    return obj1
+    obj = seq[:]
+    return obj
 
-def g(obj1, obj2, obj3, obj4):
+def test_start(seq, start):
     """
-    >>> g(1, [1,2,3,4], 2, 3)
+    >>> test_start([1,2,3,4], 2)
     [3, 4]
-    >>> try: g(1, 42, 2, 3)
+    >>> test_start([1,2,3,4], 3)
+    [4]
+    >>> test_start([1,2,3,4], 4)
+    []
+    >>> test_start([1,2,3,4], 8)
+    []
+    >>> test_start([1,2,3,4], -3)
+    [2, 3, 4]
+    >>> test_start([1,2,3,4], -4)
+    [1, 2, 3, 4]
+    >>> test_start([1,2,3,4], -8)
+    [1, 2, 3, 4]
+    >>> test_start([1,2,3,4], 0)
+    [1, 2, 3, 4]
+    >>> try: test_start(42, 2, 3)
     ... except TypeError: pass
     """
-    obj1 = obj2[obj3:]
-    return obj1
+    obj = seq[start:]
+    return obj
 
-def h(obj1, obj2, obj3, obj4):
+def test_stop(seq, stop):
     """
-    >>> h(1, [1,2,3,4], 2, 3)
+    >>> test_stop([1,2,3,4], 3)
     [1, 2, 3]
-    >>> try: h(1, 42, 2, 3)
+    >>> test_stop([1,2,3,4], -1)
+    [1, 2, 3]
+    >>> test_stop([1,2,3,4], -3)
+    [1]
+    >>> test_stop([1,2,3,4], -4)
+    []
+    >>> test_stop([1,2,3,4], -8)
+    []
+    >>> test_stop([1,2,3,4], 0)
+    []
+    >>> try: test_stop(42, 3)
     ... except TypeError: pass
     """
-    obj1 = obj2[:obj4]
-    return obj1
+    obj = seq[:stop]
+    return obj
 
-def j(obj1, obj2, obj3, obj4):
+def test_start_and_stop(seq, start, stop):
     """
-    >>> j(1, [1,2,3,4], 2, 3)
+    >>> l = [1,2,3,4]
+    >>> test_start_and_stop(l, 2, 3)
     [3]
-    >>> try: j(1, 42, 2, 3)
+    >>> test_start_and_stop(l, -3, -1)
+    [2, 3]
+    >>> try: test_start_and_stop(42, 2, 3)
     ... except TypeError: pass
     """
-    obj1 = obj2[obj3:obj4]
-    return obj1
+    obj = seq[start:stop]
+    return obj
 
 class A(object):
     pass

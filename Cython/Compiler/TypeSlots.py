@@ -339,7 +339,8 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
-        if scope.parent_type.base_type \
+        if self.slot_name != 'tp_new' \
+            and scope.parent_type.base_type \
             and not scope.has_pyobject_attrs \
             and not scope.lookup_here(self.method):
             # if the type does not have object attributes, it can
@@ -377,7 +378,14 @@ class TypeFlagsSlot(SlotDescriptor):
     #  Descriptor for the type flags slot.
 
     def slot_code(self, scope):
-        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
+        value = "Py_TPFLAGS_DEFAULT"
+        if scope.directives['type_version_tag']:
+            # it's not in 'Py_TPFLAGS_DEFAULT' in Py2
+            value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
+        else:
+            # it's enabled in 'Py_TPFLAGS_DEFAULT' in Py3
+            value = "(%s&~Py_TPFLAGS_HAVE_VERSION_TAG)" % value
+        value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
@@ -410,21 +418,30 @@ class SuiteSlot(SlotDescriptor):
         self.slot_type = slot_type
         substructures.append(self)
 
+    def is_empty(self, scope):
+        for slot in self.sub_slots:
+            if slot.slot_code(scope) != "0":
+                return False
+        return True
+
     def substructure_cname(self, scope):
         return "%s%s_%s" % (Naming.pyrex_prefix, self.slot_name, scope.class_name)
 
     def slot_code(self, scope):
-        return "&%s" % self.substructure_cname(scope)
+        if not self.is_empty(scope):
+            return "&%s" % self.substructure_cname(scope)
+        return "0"
 
     def generate_substructure(self, scope, code):
-        code.putln("")
-        code.putln(
-            "static %s %s = {" % (
-                self.slot_type,
-                self.substructure_cname(scope)))
-        for slot in self.sub_slots:
-            slot.generate(scope, code)
-        code.putln("};")
+        if not self.is_empty(scope):
+            code.putln("")
+            code.putln(
+                "static %s %s = {" % (
+                    self.slot_type,
+                    self.substructure_cname(scope)))
+            for slot in self.sub_slots:
+                slot.generate(scope, code)
+            code.putln("};")
 
 substructures = []   # List of all SuiteSlot instances
 
@@ -493,10 +510,12 @@ def get_special_method_signature(name):
     else:
         return None
 
+
 def get_property_accessor_signature(name):
     #  Return signature of accessor for an extension type
     #  property, else None.
     return property_accessor_signatures.get(name)
+
 
 def get_base_slot_function(scope, slot):
     #  Returns the function implementing this slot in the baseclass.
@@ -509,6 +528,18 @@ def get_base_slot_function(scope, slot):
             entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
             if entry.visibility != 'extern':
                 return parent_slot
+    return None
+
+
+def get_slot_function(scope, slot):
+    #  Returns the function implementing this slot in the baseclass.
+    #  This is useful for enabling the compiler to optimize calls
+    #  that recursively climb the class hierarchy.
+    slot_code = slot.slot_code(scope)
+    if slot_code != '0':
+        entry = scope.parent_scope.lookup_here(scope.parent_type.name)
+        if entry.visibility != 'extern':
+            return slot_code
     return None
 
 #------------------------------------------------------------------------------------------

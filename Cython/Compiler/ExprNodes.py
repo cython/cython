@@ -31,7 +31,6 @@ from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
 import Builtin
 import Symtab
-import Options
 from Cython import Utils
 from Annotate import AnnotationItem
 from Cython.Compiler import Future
@@ -60,19 +59,61 @@ not_a_constant = NotConstant()
 constant_value_not_set = object()
 
 # error messages when coercing from key[0] to key[1]
-find_coercion_error = {
+coercion_error_dict = {
     # string related errors
     (Builtin.unicode_type, Builtin.bytes_type) : "Cannot convert Unicode string to 'bytes' implicitly, encoding required.",
     (Builtin.unicode_type, Builtin.str_type)   : "Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.",
-    (Builtin.unicode_type, PyrexTypes.c_char_ptr_type) : "Unicode objects do not support coercion to C types.",
+    (Builtin.unicode_type, PyrexTypes.c_char_ptr_type) : "Unicode objects only support coercion to Py_UNICODE*.",
+    (Builtin.unicode_type, PyrexTypes.c_uchar_ptr_type) : "Unicode objects only support coercion to Py_UNICODE*.",
     (Builtin.bytes_type, Builtin.unicode_type) : "Cannot convert 'bytes' object to unicode implicitly, decoding required",
     (Builtin.bytes_type, Builtin.str_type) : "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
+    (Builtin.bytes_type, PyrexTypes.c_py_unicode_ptr_type) : "Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'.",
     (Builtin.str_type, Builtin.unicode_type) : "str objects do not support coercion to unicode, use a unicode string literal instead (u'')",
     (Builtin.str_type, Builtin.bytes_type) : "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
     (Builtin.str_type, PyrexTypes.c_char_ptr_type) : "'str' objects do not support coercion to C types (use 'bytes'?).",
+    (Builtin.str_type, PyrexTypes.c_uchar_ptr_type) : "'str' objects do not support coercion to C types (use 'bytes'?).",
+    (Builtin.str_type, PyrexTypes.c_py_unicode_ptr_type) : "'str' objects do not support coercion to C types (use 'unicode'?).",
     (PyrexTypes.c_char_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_uchar_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
-    }.get
+}
+def find_coercion_error(type_tuple, default, env):
+    err = coercion_error_dict.get(type_tuple)
+    if err is None:
+        return default
+    elif ((PyrexTypes.c_char_ptr_type in type_tuple or PyrexTypes.c_uchar_ptr_type in type_tuple)
+            and env.directives['c_string_encoding']):
+        if type_tuple[1].is_pyobject:
+            return default
+        elif env.directives['c_string_encoding'] in ('ascii', 'default'):
+            return default
+        else:
+            return "'%s' objects do not support coercion to C types with non-ascii or non-default c_string_encoding" % type_tuple[0].name
+    else:
+        return err
+
+
+def default_str_type(env):
+    return {
+        'bytes': bytes_type,
+        'str': str_type,
+        'unicode': unicode_type
+    }.get(env.directives['c_string_type'])
+
+
+def check_negative_indices(*nodes):
+    """
+    Raise a warning on nodes that are known to have negative numeric values.
+    Used to find (potential) bugs inside of "wraparound=False" sections.
+    """
+    for node in nodes:
+        if (node is None
+                or not isinstance(node.constant_result, (int, float, long))):
+            continue
+        if node.constant_result < 0:
+            warning(node.pos,
+                    "the result of using negative indices inside of "
+                    "code sections marked as 'wraparound=False' is "
+                    "undefined", level=1)
 
 
 class ExprNode(Node):
@@ -225,14 +266,7 @@ class ExprNode(Node):
     # whether this node with a memoryview type should be broadcast
     memslice_broadcast = False
 
-    try:
-        _get_child_attrs = operator.attrgetter('subexprs')
-    except AttributeError:
-        # Python 2.3
-        def __get_child_attrs(self):
-            return self.subexprs
-        _get_child_attrs = __get_child_attrs
-    child_attrs = property(fget=_get_child_attrs)
+    child_attrs = property(fget=operator.attrgetter('subexprs'))
 
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented") ###
@@ -275,6 +309,11 @@ class ExprNode(Node):
 
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
+        if (self.is_temp and self.type.is_pyobject and
+                type != py_object_type):
+            # Allocated temporaries are always PyObject *, which may not
+            # reflect the actual type (e.g. an extension type)
+            return typecast(type, py_object_type, self.result())
         return typecast(type, self.ctype(), self.result())
 
     def py_result(self):
@@ -333,25 +372,26 @@ class ExprNode(Node):
         #  constant expression. Analyses the expression's type,
         #  checks whether it is a legal const expression,
         #  and determines its value.
-        self.analyse_types(env)
-        return self.check_const()
+        node = self.analyse_types(env)
+        node.check_const()
+        return node
 
     def analyse_expressions(self, env):
         #  Convenience routine performing both the Type
         #  Analysis and Temp Allocation phases for a whole
         #  expression.
-        self.analyse_types(env)
+        return self.analyse_types(env)
 
     def analyse_target_expression(self, env, rhs):
         #  Convenience routine performing both the Type
         #  Analysis and Temp Allocation phases for the LHS of
         #  an assignment.
-        self.analyse_target_types(env)
+        return self.analyse_target_types(env)
 
     def analyse_boolean_expression(self, env):
         #  Analyse expression and coerce to a boolean.
-        self.analyse_types(env)
-        bool = self.coerce_to_boolean(env)
+        node = self.analyse_types(env)
+        bool = node.coerce_to_boolean(env)
         return bool
 
     def analyse_temp_boolean_expression(self, env):
@@ -362,14 +402,14 @@ class ExprNode(Node):
         #  afterwards. By forcing the result into a temporary,
         #  we ensure that all disposal has been done by the
         #  time we get the result.
-        self.analyse_types(env)
-        return self.coerce_to_boolean(env).coerce_to_simple(env)
+        node = self.analyse_types(env)
+        return node.coerce_to_boolean(env).coerce_to_simple(env)
 
     # --------------- Type Inference -----------------
 
     def type_dependencies(self, env):
         # Returns the list of entries whose types must be determined
-        # before the type of self can be infered.
+        # before the type of self can be inferred.
         if hasattr(self, 'type') and self.type is not None:
             return ()
         return sum([node.type_dependencies(env) for node in self.subexpr_nodes()], ())
@@ -405,14 +445,14 @@ class ExprNode(Node):
 
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
-        # extension type, return its type, else None.
+        # extension type or builtin type, return its type, else None.
         return None
 
     def analyse_types(self, env):
         self.not_implemented("analyse_types")
 
     def analyse_target_types(self, env):
-        self.analyse_types(env)
+        return self.analyse_types(env)
 
     def nogil_check(self, env):
         # By default, any expression based on Python objects is
@@ -563,7 +603,7 @@ class ExprNode(Node):
         #  been reported earlier.
         pass
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         #  Stub method for nodes that are not legal as
         #  the argument of a del statement. An error
         #  will have been reported earlier.
@@ -609,10 +649,8 @@ class ExprNode(Node):
         #
         src = self
         src_type = self.type
-        src_is_py_type = src_type.is_pyobject
-        dst_is_py_type = dst_type.is_pyobject
 
-        if self.check_for_coercion_error(dst_type):
+        if self.check_for_coercion_error(dst_type, env):
             return self
 
         if dst_type.is_reference and not src_type.is_reference:
@@ -677,9 +715,9 @@ class ExprNode(Node):
                 if dst_type is bytes_type and src.type.is_int:
                     src = CoerceIntToBytesNode(src, env)
                 else:
-                    src = CoerceToPyTypeNode(src, env)
+                    src = CoerceToPyTypeNode(src, env, type=dst_type)
             if not src.type.subtype_of(dst_type):
-                if not isinstance(src, NoneNode):
+                if src.constant_result is not None:
                     src = PyTypeTestNode(src, dst_type, env)
         elif src.type.is_pyobject:
             src = CoerceFromPyTypeNode(dst_type, src, env)
@@ -698,10 +736,10 @@ class ExprNode(Node):
     def fail_assignment(self, dst_type):
         error(self.pos, "Cannot assign type '%s' to '%s'" % (self.type, dst_type))
 
-    def check_for_coercion_error(self, dst_type, fail=False, default=None):
+    def check_for_coercion_error(self, dst_type, env, fail=False, default=None):
         if fail and not default:
             default = "Cannot assign type '%(FROM)s' to '%(TO)s'"
-        message = find_coercion_error((self.type, dst_type), default)
+        message = find_coercion_error((self.type, dst_type), default, env)
         if message is not None:
             error(self.pos, message % {'FROM': self.type, 'TO': dst_type})
             return True
@@ -724,12 +762,12 @@ class ExprNode(Node):
                             constant_result=bool_value)
 
         type = self.type
-        if type.is_pyobject or type.is_ptr or type.is_float:
+        if type.is_enum or type.is_error:
+            return self
+        elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
         else:
-            if not (type.is_int or type.is_enum or type.is_error):
-                error(self.pos,
-                    "Type '%s' not acceptable as a boolean" % type)
+            error(self.pos, "Type '%s' not acceptable as a boolean" % type)
             return self
 
     def coerce_to_integer(self, env):
@@ -779,6 +817,23 @@ class ExprNode(Node):
         else:
             return self
 
+    @classmethod
+    def from_node(cls, node, **kwargs):
+        """Instantiate this node class from another node, properly
+        copying over all attributes that one would forget otherwise.
+        """
+        attributes = "cf_state cf_maybe_null cf_is_null".split()
+        for attr_name in attributes:
+            if attr_name in kwargs:
+                continue
+            try:
+                value = getattr(node, attr_name)
+            except AttributeError:
+                pass
+            else:
+                kwargs[attr_name] = value
+        return cls(node.pos, **kwargs)
+
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -805,7 +860,7 @@ class PyConstNode(AtomicExprNode):
         return False
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def calculate_result_code(self):
         return self.value
@@ -860,7 +915,7 @@ class ConstNode(AtomicExprNode):
         return False
 
     def analyse_types(self, env):
-        pass # Types are held in class variables
+        return self  # Types are held in class variables
 
     def check_const(self):
         return True
@@ -944,7 +999,7 @@ class IntNode(ConstNode):
                 suitable_type = PyrexTypes.widest_numeric_type(suitable_type, self.type)
         else:
             # C literal or Python literal - split at 32bit boundary
-            if self.constant_result >= -2**31 and self.constant_result < 2**31:
+            if -2**31 <= self.constant_result < 2**31:
                 if self.type and self.type.is_int:
                     suitable_type = self.type
                 else:
@@ -1056,6 +1111,15 @@ class BytesNode(ConstNode):
     # start off as Python 'bytes' to support len() in O(1)
     type = bytes_type
 
+    def calculate_constant_result(self):
+        self.constant_result = self.value
+
+    def as_sliced_node(self, start, stop, step=None):
+        value = StringEncoding.BytesLiteral(self.value[start:stop:step])
+        value.encoding = self.value.encoding
+        return BytesNode(
+            self.pos, value=value, constant_result=value)
+
     def compile_time_value(self, denv):
         return self.value
 
@@ -1067,7 +1131,7 @@ class BytesNode(ConstNode):
         pos = (self.pos[0], self.pos[1], self.pos[2]-7)
         declaration = TreeFragment(u"sizeof(%s)" % self.value, name=pos[0].filename, initial_pos=pos)
         sizeof_node = declaration.root.stats[0].expr
-        sizeof_node.analyse_types(env)
+        sizeof_node = sizeof_node.analyse_types(env)
         if isinstance(sizeof_node, SizeofTypeNode):
             return sizeof_node.arg_type
 
@@ -1090,14 +1154,16 @@ class BytesNode(ConstNode):
             if dst_type.is_unicode_char:
                 error(self.pos, "Bytes literals cannot coerce to Py_UNICODE/Py_UCS4, use a unicode literal instead.")
                 return self
-            return CharNode(self.pos, value=self.value)
+            return CharNode(self.pos, value=self.value,
+                            constant_result=ord(self.value))
 
-        node = BytesNode(self.pos, value=self.value)
+        node = BytesNode(self.pos, value=self.value,
+                         constant_result=self.constant_result)
         if dst_type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
             else:
-                self.check_for_coercion_error(dst_type, fail=True)
+                self.check_for_coercion_error(dst_type, env, fail=True)
                 return node
         elif dst_type == PyrexTypes.c_char_ptr_type:
             node.type = dst_type
@@ -1127,32 +1193,65 @@ class BytesNode(ConstNode):
         return self.result_code
 
 
-class UnicodeNode(PyConstNode):
-    # A Python unicode object
+class UnicodeNode(ConstNode):
+    # A Py_UNICODE* or unicode literal
     #
     # value        EncodedString
-    # bytes_value  BytesLiteral    the literal parsed as bytes string ('-3' unicode literals only)
+    # bytes_value  BytesLiteral    the literal parsed as bytes string
+    #                              ('-3' unicode literals only)
 
     is_string_literal = True
     bytes_value = None
     type = unicode_type
+
+    def calculate_constant_result(self):
+        self.constant_result = self.value
+
+    def as_sliced_node(self, start, stop, step=None):
+        if StringEncoding.string_contains_surrogates(self.value[:stop]):
+            # this is unsafe as it may give different results
+            # in different runtimes
+            return None
+        value = StringEncoding.EncodedString(self.value[start:stop:step])
+        value.encoding = self.value.encoding
+        if self.bytes_value is not None:
+            bytes_value = StringEncoding.BytesLiteral(
+                self.bytes_value[start:stop:step])
+            bytes_value.encoding = self.bytes_value.encoding
+        else:
+            bytes_value = None
+        return UnicodeNode(
+            self.pos, value=value, bytes_value=bytes_value,
+            constant_result=value)
 
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
             pass
         elif dst_type.is_unicode_char:
             if not self.can_coerce_to_char_literal():
-                error(self.pos, "Only single-character Unicode string literals or surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
+                error(self.pos,
+                      "Only single-character Unicode string literals or "
+                      "surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
                 return self
             int_value = ord(self.value)
-            return IntNode(self.pos, type=dst_type, value=str(int_value), constant_result=int_value)
+            return IntNode(self.pos, type=dst_type, value=str(int_value),
+                           constant_result=int_value)
         elif not dst_type.is_pyobject:
             if dst_type.is_string and self.bytes_value is not None:
-                # special case: '-3' enforced unicode literal used in a C char* context
-                return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
-            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE or Py_UCS4.")
+                # special case: '-3' enforced unicode literal used in a
+                # C char* context
+                return BytesNode(self.pos, value=self.bytes_value
+                    ).coerce_to(dst_type, env)
+            if dst_type.is_pyunicode_ptr:
+                node = UnicodeNode(self.pos, value=self.value)
+                node.type = dst_type
+                return node
+            error(self.pos,
+                  "Unicode literals do not support coercion to C types other "
+                  "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
+                  "(for strings).")
         elif dst_type is not py_object_type:
-            if not self.check_for_coercion_error(dst_type):
+            if not self.check_for_coercion_error(dst_type, env):
                 self.fail_assignment(dst_type)
         return self
 
@@ -1162,25 +1261,36 @@ class UnicodeNode(PyConstNode):
             ##     and (0xD800 <= self.value[0] <= 0xDBFF)
             ##     and (0xDC00 <= self.value[1] <= 0xDFFF))
 
+    def coerce_to_boolean(self, env):
+        bool_value = bool(self.value)
+        return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
+
     def contains_surrogates(self):
-        # Check if the unicode string contains surrogate code points
-        # on a CPython platform with wide (UCS-4) or narrow (UTF-16)
-        # Unicode, i.e. characters that would be spelled as two
-        # separate code units on a narrow platform.
-        for c in map(ord, self.value):
-            if c > 65535: # can only happen on wide platforms
-                return True
-            # We only look for the first code unit (D800-DBFF) of a
-            # surrogate pair - if we find one, the other one
-            # (DC00-DFFF) is likely there, too.  If we don't find it,
-            # any second code unit cannot make for a surrogate pair by
-            # itself.
-            if c >= 0xD800 and c <= 0xDBFF:
-                return True
-        return False
+        return StringEncoding.string_contains_surrogates(self.value)
 
     def generate_evaluation_code(self, code):
-        self.result_code = code.get_py_string_const(self.value)
+        if self.type.is_pyobject:
+            if self.contains_surrogates():
+                # surrogates are not really portable and cannot be
+                # decoded by the UTF-8 codec in Py3.3
+                self.result_code = code.get_py_const(py_object_type, 'ustring_')
+                data_cname = code.get_pyunicode_ptr_const(self.value)
+                code = code.get_cached_constants_writer()
+                code.mark_pos(self.pos)
+                code.putln(
+                    "%s = PyUnicode_FromUnicode(%s, (sizeof(%s) / sizeof(Py_UNICODE))-1); %s" % (
+                        self.result_code,
+                        data_cname,
+                        data_cname,
+                        code.error_goto_if_null(self.result_code, self.pos)))
+                code.putln("#if CYTHON_PEP393_ENABLED")
+                code.put_error_if_neg(
+                    self.pos, "PyUnicode_READY(%s)" % self.result_code)
+                code.putln("#endif")
+            else:
+                self.result_code = code.get_py_string_const(self.value)
+        else:
+            self.result_code = code.get_pyunicode_ptr_const(self.value)
 
     def calculate_result_code(self):
         return self.result_code
@@ -1202,6 +1312,24 @@ class StringNode(PyConstNode):
     is_identifier = None
     unicode_value = None
 
+    def calculate_constant_result(self):
+        self.constant_result = self.value
+
+    def as_sliced_node(self, start, stop, step=None):
+        value = type(self.value)(self.value[start:stop:step])
+        value.encoding = self.value.encoding
+        if self.unicode_value is not None:
+            if StringEncoding.string_contains_surrogates(self.unicode_value[:stop]):
+                # this is unsafe as it may give different results in different runtimes
+                return None
+            unicode_value = StringEncoding.EncodedString(
+                self.unicode_value[start:stop:step])
+        else:
+            unicode_value = None
+        return StringNode(
+            self.pos, value=value, unicode_value=unicode_value,
+            constant_result=value, is_identifier=self.is_identifier)
+
     def coerce_to(self, dst_type, env):
         if dst_type is not py_object_type and not str_type.subtype_of(dst_type):
 #            if dst_type is Builtin.bytes_type:
@@ -1209,7 +1337,7 @@ class StringNode(PyConstNode):
 #                return BytesNode(self.pos, value=self.value)
             if not dst_type.is_pyobject:
                 return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
-            self.check_for_coercion_error(dst_type, fail=True)
+            self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
     def can_coerce_to_char_literal(self):
@@ -1236,36 +1364,6 @@ class IdentifierStringNode(StringNode):
     is_identifier = True
 
 
-class LongNode(AtomicExprNode):
-    #  Python long integer literal
-    #
-    #  value   string
-
-    type = py_object_type
-
-    def calculate_constant_result(self):
-        self.constant_result = Utils.str_to_number(self.value)
-
-    def compile_time_value(self, denv):
-        return Utils.str_to_number(self.value)
-
-    def analyse_types(self, env):
-        self.is_temp = 1
-
-    def may_be_none(self):
-        return False
-
-    gil_message = "Constructing Python long int"
-
-    def generate_result_code(self, code):
-        code.putln(
-            '%s = PyLong_FromString((char *)"%s", 0, 0); %s' % (
-                self.result(),
-                self.value,
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
-
-
 class ImagNode(AtomicExprNode):
     #  Imaginary number literal
     #
@@ -1281,6 +1379,7 @@ class ImagNode(AtomicExprNode):
 
     def analyse_types(self, env):
         self.type.create_declaration_utility_code(env)
+        return self
 
     def may_be_none(self):
         return False
@@ -1343,6 +1442,7 @@ class NewExprNode(AtomicExprNode):
     def analyse_types(self, env):
         if self.type is None:
             self.infer_type(env)
+        return self
 
     def may_be_none(self):
         return False
@@ -1391,7 +1491,7 @@ class NameNode(AtomicExprNode):
     def infer_type(self, env):
         if self.entry is None:
             self.entry = env.lookup(self.name)
-        if self.entry is None:
+        if self.entry is None or self.entry.type is unspecified_type:
             return py_object_type
         elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
                 self.name == self.entry.type.name:
@@ -1469,10 +1569,10 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if not entry:
             entry = env.lookup(self.name)
-        if entry and entry.is_type and entry.type.is_extension_type:
-            return entry.type
-        else:
-            return None
+        if entry and entry.is_type:
+            if entry.type.is_extension_type or entry.type.is_builtin_type:
+                return entry.type
+        return None
 
     def analyse_target_declaration(self, env):
         if not self.entry:
@@ -1496,7 +1596,7 @@ class NameNode(AtomicExprNode):
             self.entry = env.declare_builtin(self.name, self.pos)
         if not self.entry:
             self.type = PyrexTypes.error_type
-            return
+            return self
         entry = self.entry
         if entry:
             entry.used = 1
@@ -1504,6 +1604,7 @@ class NameNode(AtomicExprNode):
                 import Buffer
                 Buffer.used_buffer_aux_vars(entry)
         self.analyse_rvalue_entry(env)
+        return self
 
     def analyse_target_types(self, env):
         self.analyse_entry(env)
@@ -1526,6 +1627,7 @@ class NameNode(AtomicExprNode):
         if self.entry.type.is_buffer:
             import Buffer
             Buffer.used_buffer_aux_vars(self.entry)
+        return self
 
     def analyse_rvalue_entry(self, env):
         #print "NameNode.analyse_rvalue_entry:", self.name ###
@@ -1541,13 +1643,13 @@ class NameNode(AtomicExprNode):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
-                env.use_utility_code(get_name_interned_utility_code)
 
             self.is_used_as_rvalue = 1
         elif entry.type.is_memoryviewslice:
             self.is_temp = False
             self.is_used_as_rvalue = True
             self.use_managed_ref = True
+        return self
 
     def nogil_check(self, env):
         self.nogil = True
@@ -1679,30 +1781,50 @@ class NameNode(AtomicExprNode):
                         interned_cname))
                 code.putln('if (unlikely(!%s)) {' % self.result())
                 code.putln('PyErr_Clear();')
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
             code.putln(
-                '%s = __Pyx_GetName(%s, %s);' % (
+                '%s = __Pyx_GetModuleGlobalName(%s);' % (
                     self.result(),
-                    Naming.module_cname,
                     interned_cname))
             if not self.cf_is_null:
-                code.putln("}");
+                code.putln("}")
             code.putln(code.error_goto_if_null(self.result(), self.pos))
             code.put_gotref(self.py_result())
 
-        elif entry.is_pyglobal or entry.is_builtin:
+        elif entry.is_builtin:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            if entry.is_builtin:
-                namespace = Naming.builtins_cname
-            else: # entry.is_pyglobal
-                namespace = entry.scope.namespace_cname
-            code.globalstate.use_utility_code(get_name_interned_utility_code)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
             code.putln(
-                '%s = __Pyx_GetName(%s, %s); %s' % (
+                '%s = __Pyx_GetBuiltinName(%s); %s' % (
                 self.result(),
-                namespace,
                 interned_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+
+        elif entry.is_pyglobal:
+            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            interned_cname = code.intern_identifier(self.entry.name)
+            if entry.scope.is_module_scope:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
+                code.putln(
+                    '%s = __Pyx_GetModuleGlobalName(%s); %s' % (
+                        self.result(),
+                        interned_cname,
+                        code.error_goto_if_null(self.result(), self.pos)))
+            else:
+                # FIXME: is_pyglobal is also used for class namespace
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
+                code.putln(
+                    '%s = __Pyx_GetNameInClass(%s, %s); %s' % (
+                        self.result(),
+                        entry.scope.namespace_cname,
+                        interned_cname,
+                        code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
         elif entry.is_local or entry.in_closure or entry.from_closure or entry.type.is_memoryviewslice:
@@ -1723,7 +1845,7 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
 
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
-            and not self.lhs_of_first_assignment):
+            and not self.lhs_of_first_assignment and not rhs.in_module_scope):
             error(self.pos, "Literal list must be assigned to pointer at time of declaration")
 
         # is_pyglobal seems to be True for module level-globals only.
@@ -1735,35 +1857,31 @@ class NameNode(AtomicExprNode):
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
-                code.put_error_if_neg(self.pos,
-                    'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
-                        namespace,
-                        interned_cname,
-                        rhs.py_result()))
-                rhs.generate_disposal_code(code)
-                rhs.free_temps(code)
+                setter = 'PyDict_SetItem'
+                namespace = '%s->tp_dict' % namespace
+            elif entry.scope.is_module_scope:
+                setter = 'PyDict_SetItem'
+                namespace = Naming.moddict_cname
+            elif entry.is_pyclass_attr:
+                setter = 'PyObject_SetItem'
+            else:
+                assert False, repr(entry)
+            code.put_error_if_neg(
+                self.pos,
+                '%s(%s, %s, %s)' % (
+                    setter,
+                    namespace,
+                    interned_cname,
+                    rhs.py_result()))
+            if debug_disposal_code:
+                print("NameNode.generate_assignment_code:")
+                print("...generating disposal code for %s" % rhs)
+            rhs.generate_disposal_code(code)
+            rhs.free_temps(code)
+            if entry.is_member:
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
-                            entry.scope.parent_type.typeptr_cname)
-            elif entry.is_pyclass_attr:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_SetItem(%s, %s, %s)' % (
-                        namespace,
-                        interned_cname,
-                        rhs.py_result()))
-                rhs.generate_disposal_code(code)
-                rhs.free_temps(code)
-            else:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_SetAttr(%s, %s, %s)' % (
-                        namespace,
-                        interned_cname,
-                        rhs.py_result()))
-                if debug_disposal_code:
-                    print("NameNode.generate_assignment_code:")
-                    print("...generating disposal code for %s" % rhs)
-                rhs.generate_disposal_code(code)
-                rhs.free_temps(code)
+                           entry.scope.parent_type.typeptr_cname)
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
@@ -1777,7 +1895,7 @@ class NameNode(AtomicExprNode):
                 # variables that the acquired buffer info is stored to is allocated
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
-
+            assigned = False
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
@@ -1792,18 +1910,26 @@ class NameNode(AtomicExprNode):
                                 code.put_xgotref(self.py_result())
                             else:
                                 code.put_gotref(self.py_result())
+                    assigned = True
                     if entry.is_cglobal:
-                        code.put_decref(self.result(), self.ctype())
+                        code.put_decref_set(
+                            self.result(), rhs.result_as(self.ctype()))
                     else:
                         if not self.cf_is_null:
                             if self.cf_maybe_null:
-                                code.put_xdecref(self.result(), self.ctype())
+                                code.put_xdecref_set(
+                                    self.result(), rhs.result_as(self.ctype()))
                             else:
-                                code.put_decref(self.result(), self.ctype())
+                                code.put_decref_set(
+                                    self.result(), rhs.result_as(self.ctype()))
+                        else:
+                            assigned = False
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
             if not self.type.is_memoryviewslice:
-                code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+                if not assigned:
+                    code.putln('%s = %s;' % (
+                        self.result(), rhs.result_as(self.ctype())))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
@@ -1849,28 +1975,54 @@ class NameNode(AtomicExprNode):
             code.putln("%s = 0;" % rhstmp)
             code.funcstate.release_temp(rhstmp)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         if self.entry is None:
             return # There was an error earlier
         elif self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
-            code.put_error_if_neg(self.pos,
-                'PyObject_DelItem(%s, %s)' % (
-                    namespace,
-                    interned_cname))
+            if ignore_nonexisting:
+                key_error_code = 'PyErr_Clear(); else'
+            else:
+                # minor hack: fake a NameError on KeyError
+                key_error_code = (
+                    '{ PyErr_Clear(); PyErr_Format(PyExc_NameError, "name \'%%s\' is not defined", "%s"); }' %
+                    self.entry.name)
+            code.putln(
+                'if (unlikely(PyObject_DelItem(%s, %s) < 0)) {'
+                ' if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) %s'
+                ' %s '
+                '}' % (namespace, interned_cname,
+                       key_error_code,
+                       code.error_goto(self.pos)))
         elif self.entry.is_pyglobal:
-            code.put_error_if_neg(self.pos,
-                '__Pyx_DelAttrString(%s, "%s")' % (
-                    Naming.module_cname,
-                    self.entry.name))
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
+            interned_cname = code.intern_identifier(self.entry.name)
+            del_code = '__Pyx_PyObject_DelAttrStr(%s, %s)' % (
+                Naming.module_cname, interned_cname)
+            if ignore_nonexisting:
+                code.putln('if (unlikely(%s < 0)) { if (likely(PyErr_ExceptionMatches(PyExc_AttributeError))) PyErr_Clear(); else %s }' % (
+                    del_code,
+                    code.error_goto(self.pos)))
+            else:
+                code.put_error_if_neg(self.pos, del_code)
         elif self.entry.type.is_pyobject or self.entry.type.is_memoryviewslice:
             if not self.cf_is_null:
-                if self.cf_maybe_null:
+                if self.cf_maybe_null and not ignore_nonexisting:
                     code.put_error_if_unbound(self.pos, self.entry)
 
                 if self.entry.type.is_pyobject:
-                    code.put_decref(self.result(), self.ctype())
+                    if self.entry.in_closure:
+                        # generator
+                        if ignore_nonexisting and self.cf_maybe_null:
+                            code.put_xgotref(self.result())
+                        else:
+                            code.put_gotref(self.result())
+                    if ignore_nonexisting and self.cf_maybe_null:
+                        code.put_xdecref(self.result(), self.ctype())
+                    else:
+                        code.put_decref(self.result(), self.ctype())
                     code.putln('%s = NULL;' % self.result())
                 else:
                     code.put_xdecref_memoryviewslice(self.entry.cname,
@@ -1896,9 +2048,10 @@ class BackquoteNode(ExprNode):
     subexprs = ['arg']
 
     def analyse_types(self, env):
-        self.arg.analyse_types(env)
+        self.arg = self.arg.analyse_types(env)
         self.arg = self.arg.coerce_to_pyobject(env)
         self.is_temp = 1
+        return self
 
     gil_message = "Backquote expression"
 
@@ -1920,7 +2073,7 @@ class ImportNode(ExprNode):
     #    __import__(module_name, globals(), None, name_list, level)
     #
     #  module_name   StringNode            dotted name of module. Empty module
-    #                       name means importing the parent package accourding
+    #                       name means importing the parent package according
     #                       to level
     #  name_list     ListNode or None      list of names to be imported
     #  level         int                   relative import level:
@@ -1942,13 +2095,14 @@ class ImportNode(ExprNode):
                 self.level = -1
             else:
                 self.level = 0
-        self.module_name.analyse_types(env)
-        self.module_name = self.module_name.coerce_to_pyobject(env)
+        module_name = self.module_name.analyse_types(env)
+        self.module_name = module_name.coerce_to_pyobject(env)
         if self.name_list:
-            self.name_list.analyse_types(env)
-            self.name_list.coerce_to_pyobject(env)
+            name_list = self.name_list.analyse_types(env)
+            self.name_list = name_list.coerce_to_pyobject(env)
         self.is_temp = 1
         env.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
+        return self
 
     gil_message = "Python import"
 
@@ -1983,7 +2137,7 @@ class IteratorNode(ExprNode):
     subexprs = ['sequence']
 
     def analyse_types(self, env):
-        self.sequence.analyse_types(env)
+        self.sequence = self.sequence.analyse_types(env)
         if (self.sequence.type.is_array or self.sequence.type.is_ptr) and \
                 not self.sequence.type.is_string:
             # C array iteration will be transformed later on
@@ -1996,6 +2150,7 @@ class IteratorNode(ExprNode):
                    self.sequence.type is tuple_type:
                 self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
         self.is_temp = 1
+        return self
 
     gil_message = "Iterating over Python object"
 
@@ -2227,7 +2382,7 @@ class NextNode(AtomicExprNode):
     #  iterator   IteratorNode
 
     def __init__(self, iterator):
-        self.pos = iterator.pos
+        AtomicExprNode.__init__(self, iterator.pos)
         self.iterator = iterator
 
     def type_dependencies(self, env):
@@ -2250,14 +2405,12 @@ class NextNode(AtomicExprNode):
             fake_index_node = IndexNode(self.pos,
                                         base=self.iterator.sequence,
                                         index=IntNode(self.pos, value='0'))
-            # TODO(vile hack): infer_type should be side-effect free
-            if isinstance(self.iterator.sequence, SimpleCallNode):
-                return py_object_type
             return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
         self.type = self.infer_type(env, self.iterator.type)
         self.is_temp = 1
+        return self
 
     def generate_result_code(self, code):
         self.iterator.generate_iter_next_result_code(self.result(), code)
@@ -2273,9 +2426,10 @@ class WithExitCallNode(ExprNode):
     subexprs = ['args']
 
     def analyse_types(self, env):
-        self.args.analyse_types(env)
+        self.args = self.args.analyse_types(env)
         self.type = PyrexTypes.c_bint_type
         self.is_temp = True
+        return self
 
     def generate_result_code(self, code):
         if isinstance(self.args, TupleNode):
@@ -2291,7 +2445,7 @@ class WithExitCallNode(ExprNode):
         code.put_gotref(result_var)
         code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
         code.put_decref_clear(result_var, type=py_object_type)
-        code.putln(code.error_goto_if_neg(self.result(), self.pos))
+        code.put_error_if_neg(self.pos, self.result())
         code.funcstate.release_temp(result_var)
         if isinstance(self.args, TupleNode):
             code.putln("}")
@@ -2317,7 +2471,7 @@ class ExcValueNode(AtomicExprNode):
         pass
 
     def analyse_types(self, env):
-        pass
+        return self
 
 
 class TempNode(ExprNode):
@@ -2339,7 +2493,7 @@ class TempNode(ExprNode):
         self.is_temp = 1
 
     def analyse_types(self, env):
-        return self.type
+        return self
 
     def analyse_target_declaration(self, env):
         pass
@@ -2378,13 +2532,12 @@ class RawCNameExprNode(ExprNode):
     subexprs = []
 
     def __init__(self, pos, type=None, cname=None):
-        self.pos = pos
-        self.type = type
+        ExprNode.__init__(self, pos, type=type)
         if cname is not None:
             self.cname = cname
 
     def analyse_types(self, env):
-        return self.type
+        return self
 
     def set_cname(self, cname):
         self.cname = cname
@@ -2416,7 +2569,7 @@ class ParallelThreadsAvailableNode(AtomicExprNode):
     def analyse_types(self, env):
         self.is_temp = True
         # env.add_include_file("omp.h")
-        return self.type
+        return self
 
     def generate_result_code(self, code):
         code.putln("#ifdef _OPENMP")
@@ -2441,7 +2594,7 @@ class ParallelThreadIdNode(AtomicExprNode): #, Nodes.ParallelNode):
     def analyse_types(self, env):
         self.is_temp = True
         # env.add_include_file("omp.h")
-        return self.type
+        return self
 
     def generate_result_code(self, code):
         code.putln("#ifdef _OPENMP")
@@ -2493,8 +2646,8 @@ class IndexNode(ExprNode):
     # set by SingleAssignmentNode after analyse_types()
     is_memslice_scalar_assignment = False
 
-    def __init__(self, pos, index, *args, **kw):
-        ExprNode.__init__(self, pos, index=index, *args, **kw)
+    def __init__(self, pos, index, **kw):
+        ExprNode.__init__(self, pos, index=index, **kw)
         self._index = index
 
     def calculate_constant_result(self):
@@ -2553,6 +2706,9 @@ class IndexNode(ExprNode):
             if base_type.is_string:
                 # sliced C strings must coerce to Python
                 return bytes_type
+            elif base_type.is_pyunicode_ptr:
+                # sliced Py_UNICODE* strings must coerce to Python
+                return unicode_type
             elif base_type in (unicode_type, bytes_type, str_type, list_type, tuple_type):
                 # slicing these returns the same type
                 return base_type
@@ -2561,7 +2717,7 @@ class IndexNode(ExprNode):
                 return py_object_type
 
         index_type = self.index.infer_type(env)
-        if index_type and index_type.is_int or isinstance(self.index, (IntNode, LongNode)):
+        if index_type and index_type.is_int or isinstance(self.index, IntNode):
             # indexing!
             if base_type is unicode_type:
                 # Py_UCS4 will automatically coerce to a unicode string
@@ -2577,7 +2733,7 @@ class IndexNode(ExprNode):
                 return base_type
             elif isinstance(self.base, BytesNode):
                 #if env.global_scope().context.language_level >= 3:
-                #    # infering 'char' can be made to work in Python 3 mode
+                #    # inferring 'char' can be made to work in Python 3 mode
                 #    return PyrexTypes.c_char_type
                 # Py2/3 return different types on indexing bytes objects
                 return py_object_type
@@ -2605,16 +2761,18 @@ class IndexNode(ExprNode):
             return py_object_type
 
     def analyse_types(self, env):
-        self.analyse_base_and_index_types(env, getting = 1)
+        return self.analyse_base_and_index_types(env, getting=True)
 
     def analyse_target_types(self, env):
-        self.analyse_base_and_index_types(env, setting = 1)
-        if self.type.is_const:
+        node = self.analyse_base_and_index_types(env, setting=True)
+        if node.type.is_const:
             error(self.pos, "Assignment to const dereference")
-        if not self.is_lvalue():
-            error(self.pos, "Assignment to non-lvalue of type '%s'" % self.type)
+        if not node.is_lvalue():
+            error(self.pos, "Assignment to non-lvalue of type '%s'" % node.type)
+        return node
 
-    def analyse_base_and_index_types(self, env, getting = 0, setting = 0, analyse_base = True):
+    def analyse_base_and_index_types(self, env, getting=False, setting=False,
+                                     analyse_base=True):
         # Note: This might be cleaned up by having IndexNode
         # parsed in a saner way and only construct the tuple if
         # needed.
@@ -2632,15 +2790,21 @@ class IndexNode(ExprNode):
         self.memslice_index = False
 
         if analyse_base:
-            self.base.analyse_types(env)
+            self.base = self.base.analyse_types(env)
 
         if self.base.type.is_error:
             # Do not visit child tree if base is undeclared to avoid confusing
             # error messages
             self.type = PyrexTypes.error_type
-            return
+            return self
 
         is_slice = isinstance(self.index, SliceNode)
+
+        if not env.directives['wraparound']:
+            if is_slice:
+                check_negative_indices(self.index.start, self.index.stop)
+            else:
+                check_negative_indices(self.index)
 
         # Potentially overflowing index value.
         if not is_slice and isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
@@ -2687,13 +2851,14 @@ class IndexNode(ExprNode):
 
             if len(indices) - len(newaxes) > self.base.type.ndim:
                 self.type = error_type
-                return error(indices[self.base.type.ndim].pos,
-                             "Too many indices specified for type %s" %
-                                                        self.base.type)
+                error(indices[self.base.type.ndim].pos,
+                      "Too many indices specified for type %s" %
+                      self.base.type)
+                return self
 
             axis_idx = 0
             for i, index in enumerate(indices[:]):
-                index.analyse_types(env)
+                index = index.analyse_types(env)
                 if not index.is_none:
                     access, packing = self.base.type.axes[axis_idx]
                     axis_idx += 1
@@ -2732,7 +2897,8 @@ class IndexNode(ExprNode):
 
                 else:
                     self.type = error_type
-                    return error(index.pos, "Invalid index for memoryview specified")
+                    error(index.pos, "Invalid index for memoryview specified")
+                    return self
 
             self.memslice_index = self.memslice_index and not self.memslice_slice
             self.original_indices = indices
@@ -2747,7 +2913,7 @@ class IndexNode(ExprNode):
                 buffer_access = True
                 skip_child_analysis = True
                 for x in indices:
-                    x.analyse_types(env)
+                    x = x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
 
@@ -2797,7 +2963,7 @@ class IndexNode(ExprNode):
 
             if not MemoryView.validate_axes(self.pos, axes):
                 self.type = error_type
-                return
+                return self
 
             self.type = PyrexTypes.MemoryViewSliceType(
                             self.base.type.dtype, axes)
@@ -2816,9 +2982,10 @@ class IndexNode(ExprNode):
             fused_index_operation = base_type.is_cfunction and base_type.is_fused
             if not fused_index_operation:
                 if isinstance(self.index, TupleNode):
-                    self.index.analyse_types(env, skip_children=skip_child_analysis)
+                    self.index = self.index.analyse_types(
+                        env, skip_children=skip_child_analysis)
                 elif not skip_child_analysis:
-                    self.index.analyse_types(env)
+                    self.index = self.index.analyse_types(env)
                 self.original_index_type = self.index.type
 
             if base_type.is_unicode_char:
@@ -2867,15 +3034,15 @@ class IndexNode(ExprNode):
                             PyrexTypes.c_py_ssize_t_type, env)
                     elif not self.index.type.is_int:
                         error(self.pos,
-                            "Invalid index type '%s'" %
-                                self.index.type)
+                              "Invalid index type '%s'" %
+                              self.index.type)
                 elif base_type.is_cpp_class:
                     function = env.lookup_operator("[]", [self.base, self.index])
                     if function is None:
                         error(self.pos, "Indexing '%s' not supported for index type '%s'" % (base_type, self.index.type))
                         self.type = PyrexTypes.error_type
                         self.result_code = "<error>"
-                        return
+                        return self
                     func_type = function.type
                     if func_type.is_ptr:
                         func_type = func_type.base_type
@@ -2887,11 +3054,12 @@ class IndexNode(ExprNode):
                     self.parse_indexed_fused_cdef(env)
                 else:
                     error(self.pos,
-                        "Attempting to index non-array type '%s'" %
-                            base_type)
+                          "Attempting to index non-array type '%s'" %
+                          base_type)
                     self.type = PyrexTypes.error_type
 
         self.wrap_in_nonecheck_node(env, getting)
+        return self
 
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
@@ -2938,7 +3106,7 @@ class IndexNode(ExprNode):
             specific_types = [False]
 
         if not Utils.all(specific_types):
-            self.index.analyse_types(env)
+            self.index = self.index.analyse_types(env)
 
             if not self.base.entry.as_variable:
                 error(self.pos, "Can only index fused functions with types")
@@ -3046,13 +3214,24 @@ class IndexNode(ExprNode):
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
 
-    def extra_index_params(self):
+    def extra_index_params(self, code):
         if self.index.type.is_int:
             if self.original_index_type.signed:
                 size_adjustment = ""
             else:
                 size_adjustment = "+1"
-            return ", sizeof(%s)%s, %s" % (self.original_index_type.declaration_code(""), size_adjustment, self.original_index_type.to_py_function)
+            is_list = self.base.type is list_type
+            wraparound = (
+                bool(code.globalstate.directives['wraparound']) and
+                self.original_index_type.signed and
+                not (isinstance(self.index.constant_result, (int, long))
+                     and self.index.constant_result >= 0))
+            boundscheck = bool(code.globalstate.directives['boundscheck'])
+            return ", sizeof(%s)%s, %s, %d, %d, %d" % (
+                self.original_index_type.declaration_code(""),
+                size_adjustment,
+                self.original_index_type.to_py_function,
+                is_list, wraparound, boundscheck)
         else:
             return ""
 
@@ -3085,8 +3264,11 @@ class IndexNode(ExprNode):
             buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
             if self.type.is_pyobject:
                 # is_temp is True, so must pull out value and incref it.
-                code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
-                code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+                # NOTE: object temporary results for nodes are declared
+                #       as PyObject *, so we need a cast
+                code.putln("%s = (PyObject *) *%s;" % (self.temp_code,
+                                                       self.buffer_ptr_code))
+                code.putln("__Pyx_INCREF((PyObject*)%s);" % self.temp_code)
 
         elif self.memslice_slice:
             self.put_memoryviewslice_slice_code(code)
@@ -3117,7 +3299,7 @@ class IndexNode(ExprNode):
                         function,
                         self.base.py_result(),
                         index_code,
-                        self.extra_index_params(),
+                        self.extra_index_params(code),
                         self.result(),
                         code.error_goto(self.pos)))
                 code.put_gotref(self.py_result())
@@ -3133,7 +3315,7 @@ class IndexNode(ExprNode):
                         function,
                         self.base.py_result(),
                         index_code,
-                        self.extra_index_params(),
+                        self.extra_index_params(code),
                         self.result(),
                         code.error_goto(self.pos)))
 
@@ -3162,7 +3344,7 @@ class IndexNode(ExprNode):
                 self.base.py_result(),
                 index_code,
                 value_code,
-                self.extra_index_params(),
+                self.extra_index_params(code),
                 code.error_goto(self.pos)))
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
@@ -3216,7 +3398,7 @@ class IndexNode(ExprNode):
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         self.generate_subexpr_evaluation_code(code)
         #if self.type.is_pyobject:
         if self.index.type.is_int:
@@ -3235,7 +3417,7 @@ class IndexNode(ExprNode):
                 function,
                 self.base.py_result(),
                 index_code,
-                self.extra_index_params(),
+                self.extra_index_params(code),
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
@@ -3272,10 +3454,8 @@ class IndexNode(ExprNode):
             code.putln("%s = %s;" % (temp, index.result()))
 
         # Generate buffer access code using these temps
-        import Buffer, MemoryView
-
+        import Buffer
         buffer_entry = self.buffer_entry()
-
         if buffer_entry.type.is_buffer:
             negative_indices = buffer_entry.type.negative_indices
         else:
@@ -3321,7 +3501,8 @@ class IndexNode(ExprNode):
         buffer_entry.generate_buffer_slice_code(code, self.original_indices,
                                                 self.result(),
                                                 have_gil=have_gil,
-                                                have_slices=have_slices)
+                                                have_slices=have_slices,
+                                                directives=code.globalstate.directives)
 
     def generate_memoryviewslice_setslice_code(self, rhs, code):
         "memslice1[...] = memslice2 or memslice1[:] = memslice2"
@@ -3340,13 +3521,18 @@ class SliceIndexNode(ExprNode):
     #  base      ExprNode
     #  start     ExprNode or None
     #  stop      ExprNode or None
+    #  slice     ExprNode or None   constant slice object
 
-    subexprs = ['base', 'start', 'stop']
+    subexprs = ['base', 'start', 'stop', 'slice']
+
+    slice = None
 
     def infer_type(self, env):
         base_type = self.base.infer_type(env)
         if base_type.is_string or base_type.is_cpp_class:
             return bytes_type
+        elif base_type.is_pyunicode_ptr:
+            return unicode_type
         elif base_type in (bytes_type, str_type, unicode_type,
                            list_type, tuple_type):
             return base_type
@@ -3355,8 +3541,15 @@ class SliceIndexNode(ExprNode):
         return py_object_type
 
     def calculate_constant_result(self):
-        self.constant_result = self.base.constant_result[
-            self.start.constant_result : self.stop.constant_result]
+        if self.start is None:
+            start = None
+        else:
+            start = self.start.constant_result
+        if self.stop is None:
+            stop = None
+        else:
+            stop = self.stop.constant_result
+        self.constant_result = self.base.constant_result[start:stop]
 
     def compile_time_value(self, denv):
         base = self.base.compile_time_value(denv)
@@ -3377,40 +3570,39 @@ class SliceIndexNode(ExprNode):
         pass
 
     def analyse_target_types(self, env):
-        self.analyse_types(env, getting=False)
+        node = self.analyse_types(env, getting=False)
         # when assigning, we must accept any Python type
-        if self.type.is_pyobject:
-            self.type = py_object_type
+        if node.type.is_pyobject:
+            node.type = py_object_type
+        return node
 
     def analyse_types(self, env, getting=True):
-        self.base.analyse_types(env)
+        self.base = self.base.analyse_types(env)
 
         if self.base.type.is_memoryviewslice:
-            # Gross hack here! But we do not know the type until this point,
-            # and we cannot create and return a new node. So we change the
-            # type...
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
                               stop=self.stop or none_node,
                               step=none_node)
-            del self.start
-            del self.stop
-            self.index = index
-            self.__class__ = IndexNode
-            self.analyse_base_and_index_types(env,
-                                              getting=getting,
-                                              setting=not getting,
-                                              analyse_base=False)
-            return
+            index_node = IndexNode(self.pos, index, base=self.base)
+            return index_node.analyse_base_and_index_types(
+                env, getting=getting, setting=not getting,
+                analyse_base=False)
 
         if self.start:
-            self.start.analyse_types(env)
+            self.start = self.start.analyse_types(env)
         if self.stop:
-            self.stop.analyse_types(env)
+            self.stop = self.stop.analyse_types(env)
+
+        if not env.directives['wraparound']:
+            check_negative_indices(self.start, self.stop)
+
         base_type = self.base.type
         if base_type.is_string or base_type.is_cpp_string:
-            self.type = bytes_type
+            self.type = default_str_type(env)
+        elif base_type.is_pyunicode_ptr:
+            self.type = unicode_type
         elif base_type.is_ptr:
             self.type = base_type
         elif base_type.is_array:
@@ -3424,60 +3616,158 @@ class SliceIndexNode(ExprNode):
         if base_type.is_builtin_type:
             # slicing builtin types returns something of the same type
             self.type = base_type
-        c_int = PyrexTypes.c_py_ssize_t_type
-        if self.start:
-            self.start = self.start.coerce_to(c_int, env)
-        if self.stop:
-            self.stop = self.stop.coerce_to(c_int, env)
+            self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
+
+        if self.type is py_object_type:
+            if (not self.start or self.start.is_literal) and \
+                    (not self.stop or self.stop.is_literal):
+                # cache the constant slice object, in case we need it
+                none_node = NoneNode(self.pos)
+                self.slice = SliceNode(
+                    self.pos,
+                    start=copy.deepcopy(self.start or none_node),
+                    stop=copy.deepcopy(self.stop or none_node),
+                    step=none_node
+                ).analyse_types(env)
+        else:
+            c_int = PyrexTypes.c_py_ssize_t_type
+            if self.start:
+                self.start = self.start.coerce_to(c_int, env)
+            if self.stop:
+                self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
+        return self
 
     nogil_check = Node.gil_error
     gil_message = "Slicing Python object"
+
+    get_slice_utility_code = TempitaUtilityCode.load(
+        "SliceObject", "ObjectHandling.c", context={'access': 'Get'})
+
+    set_slice_utility_code = TempitaUtilityCode.load(
+        "SliceObject", "ObjectHandling.c", context={'access': 'Set'})
+
+    def coerce_to(self, dst_type, env):
+        if ((self.base.type.is_string or self.base.type.is_cpp_string)
+                and dst_type in (bytes_type, str_type, unicode_type)):
+            if dst_type is not bytes_type and not env.directives['c_string_encoding']:
+                error(self.pos,
+                    "default encoding required for conversion from '%s' to '%s'" % 
+                    (self.base.type, dst_type))
+            self.type = dst_type
+        return super(SliceIndexNode, self).coerce_to(dst_type, env)
 
     def generate_result_code(self, code):
         if not self.type.is_pyobject:
             error(self.pos,
                   "Slicing is not currently supported for '%s'." % self.type)
             return
+            
+        base_result = self.base.result()
+        result = self.result()
+        start_code = self.start_code()
+        stop_code = self.stop_code()
         if self.base.type.is_string:
             base_result = self.base.result()
             if self.base.type != PyrexTypes.c_char_ptr_type:
                 base_result = '((const char*)%s)' % base_result
             if self.stop is None:
                 code.putln(
-                    "%s = PyBytes_FromString(%s + %s); %s" % (
-                        self.result(),
+                    "%s = __Pyx_Py%s_FromString(%s + %s); %s" % (
+                        result,
+                        self.type.name.title(),
                         base_result,
-                        self.start_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
             else:
                 code.putln(
-                    "%s = PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
-                        self.result(),
+                    "%s = __Pyx_Py%s_FromStringAndSize(%s + %s, %s - %s); %s" % (
+                        result,
+                        self.type.name.title(),
                         base_result,
-                        self.start_code(),
-                        self.stop_code(),
-                        self.start_code(),
-                        code.error_goto_if_null(self.result(), self.pos)))
-        else:
+                        start_code,
+                        stop_code,
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
+        elif self.base.type.is_pyunicode_ptr:
+            base_result = self.base.result()
+            if self.base.type != PyrexTypes.c_py_unicode_ptr_type:
+                base_result = '((const Py_UNICODE*)%s)' % base_result
+            if self.stop is None:
+                code.putln(
+                    "%s = __Pyx_PyUnicode_FromUnicode(%s + %s); %s" % (
+                        result,
+                        base_result,
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
+            else:
+                code.putln(
+                    "%s = __Pyx_PyUnicode_FromUnicodeAndLength(%s + %s, %s - %s); %s" % (
+                        result,
+                        base_result,
+                        start_code,
+                        stop_code,
+                        start_code,
+                        code.error_goto_if_null(result, self.pos)))
+
+        elif self.base.type is unicode_type:
+            code.globalstate.use_utility_code( 
+                          UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
             code.putln(
-                "%s = __Pyx_PySequence_GetSlice(%s, %s, %s); %s" % (
-                    self.result(),
+                "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
+                    result,
+                    base_result,
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
+        elif self.type is py_object_type:
+            code.globalstate.use_utility_code(self.get_slice_utility_code)
+            (has_c_start, has_c_stop, c_start, c_stop,
+             py_start, py_stop, py_slice) = self.get_slice_config()
+            code.putln(
+                "%s = __Pyx_PyObject_GetSlice(%s, %s, %s, %s, %s, %s, %d, %d, %d); %s" % (
+                    result,
                     self.base.py_result(),
-                    self.start_code(),
-                    self.stop_code(),
-                    code.error_goto_if_null(self.result(), self.pos)))
+                    c_start, c_stop,
+                    py_start, py_stop, py_slice,
+                    has_c_start, has_c_stop,
+                    bool(code.globalstate.directives['wraparound']),
+                    code.error_goto_if_null(result, self.pos)))
+        else:
+            if self.base.type is list_type:
+                code.globalstate.use_utility_code(
+                    TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
+                cfunc = '__Pyx_PyList_GetSlice'
+            elif self.base.type is tuple_type:
+                code.globalstate.use_utility_code(
+                    TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
+                cfunc = '__Pyx_PyTuple_GetSlice'
+            else:
+                cfunc = '__Pyx_PySequence_GetSlice'
+            code.putln(
+                "%s = %s(%s, %s, %s); %s" % (
+                    result,
+                    cfunc,
+                    self.base.py_result(),
+                    start_code,
+                    stop_code,
+                    code.error_goto_if_null(result, self.pos)))
         code.put_gotref(self.py_result())
 
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
+            code.globalstate.use_utility_code(self.set_slice_utility_code)
+            (has_c_start, has_c_stop, c_start, c_stop,
+             py_start, py_stop, py_slice) = self.get_slice_config()
             code.put_error_if_neg(self.pos,
-                "__Pyx_PySequence_SetSlice(%s, %s, %s, %s)" % (
+                "__Pyx_PyObject_SetSlice(%s, %s, %s, %s, %s, %s, %s, %d, %d, %d)" % (
                     self.base.py_result(),
-                    self.start_code(),
-                    self.stop_code(),
-                    rhs.py_result()))
+                    rhs.py_result(),
+                    c_start, c_stop,
+                    py_start, py_stop, py_slice,
+                    has_c_start, has_c_stop,
+                    bool(code.globalstate.directives['wraparound'])))
         else:
             start_offset = ''
             if self.start:
@@ -3503,19 +3793,43 @@ class SliceIndexNode(ExprNode):
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         if not self.base.type.is_pyobject:
             error(self.pos,
                   "Deleting slices is only supported for Python types, not '%s'." % self.type)
             return
         self.generate_subexpr_evaluation_code(code)
+        code.globalstate.use_utility_code(self.set_slice_utility_code)
+        (has_c_start, has_c_stop, c_start, c_stop,
+         py_start, py_stop, py_slice) = self.get_slice_config()
         code.put_error_if_neg(self.pos,
-            "__Pyx_PySequence_DelSlice(%s, %s, %s)" % (
+            "__Pyx_PyObject_DelSlice(%s, %s, %s, %s, %s, %s, %d, %d, %d)" % (
                 self.base.py_result(),
-                self.start_code(),
-                self.stop_code()))
+                c_start, c_stop,
+                py_start, py_stop, py_slice,
+                has_c_start, has_c_stop,
+                bool(code.globalstate.directives['wraparound'])))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
+
+    def get_slice_config(self):
+        has_c_start, c_start, py_start = False, '0', 'NULL'
+        if self.start:
+            has_c_start = not self.start.type.is_pyobject
+            if has_c_start:
+                c_start = self.start.result()
+            else:
+                py_start = '&%s' % self.start.py_result()
+        has_c_stop, c_stop, py_stop = False, '0', 'NULL'
+        if self.stop:
+            has_c_stop = not self.stop.type.is_pyobject
+            if has_c_stop:
+                c_stop = self.stop.result()
+            else:
+                py_stop = '&%s' % self.stop.py_result()
+        py_slice = self.slice and '&%s' % self.slice.py_result() or 'NULL'
+        return (has_c_start, has_c_stop, c_start, c_stop,
+                py_start, py_stop, py_slice)
 
     def generate_slice_guard_code(self, code, target_size):
         if not self.base.type.is_array:
@@ -3612,15 +3926,16 @@ class SliceNode(ExprNode):
             self.compile_time_value_error(e)
 
     def analyse_types(self, env):
-        self.start.analyse_types(env)
-        self.stop.analyse_types(env)
-        self.step.analyse_types(env)
-        self.start = self.start.coerce_to_pyobject(env)
-        self.stop = self.stop.coerce_to_pyobject(env)
-        self.step = self.step.coerce_to_pyobject(env)
+        start = self.start.analyse_types(env)
+        stop = self.stop.analyse_types(env)
+        step = self.step.analyse_types(env)
+        self.start = start.coerce_to_pyobject(env)
+        self.stop = stop.coerce_to_pyobject(env)
+        self.step = step.coerce_to_pyobject(env)
         if self.start.is_literal and self.stop.is_literal and self.step.is_literal:
             self.is_literal = True
             self.is_temp = False
+        return self
 
     gil_message = "Constructing Python slice object"
 
@@ -3689,6 +4004,13 @@ class CallNode(ExprNode):
         # the case of function overloading.
         return self.function.type_dependencies(env)
 
+    def is_simple(self):
+        # C function calls could be considered simple, but they may
+        # have side-effects that may hit when multiple operations must
+        # be effected in order, e.g. when constructing the argument
+        # sequence for a function call or comparing values.
+        return False
+
     def may_be_none(self):
         if self.may_return_none is not None:
             return self.may_return_none
@@ -3705,12 +4027,11 @@ class CallNode(ExprNode):
                 items += kwds.key_value_pairs
             self.key_value_pairs = items
             self.__class__ = DictNode
-            self.analyse_types(env)
+            self.analyse_types(env)    # FIXME
             self.coerce_to(type, env)
             return True
         elif type and type.is_cpp_class:
-            for arg in self.args:
-                arg.analyse_types(env)
+            self.args = [ arg.analyse_types(env) for arg in self.args ]
             constructor = type.scope.lookup("<init>")
             self.function = RawCNameExprNode(self.function.pos, constructor.type)
             self.function.entry = constructor
@@ -3779,13 +4100,13 @@ class SimpleCallNode(CallNode):
 
     def analyse_types(self, env):
         if self.analyse_as_type_constructor(env):
-            return
+            return self
         if self.analysed:
-            return
+            return self
         self.analysed = True
+        self.function.is_called = 1
+        self.function = self.function.analyse_types(env)
         function = self.function
-        function.is_called = 1
-        self.function.analyse_types(env)
 
         if function.is_attribute and function.entry and function.entry.is_cmethod:
             # Take ownership of the object from which the attribute
@@ -3796,7 +4117,7 @@ class SimpleCallNode(CallNode):
         func_type = self.function_type()
         if func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
-            self.arg_tuple.analyse_types(env)
+            self.arg_tuple = self.arg_tuple.analyse_types(env)
             self.args = None
             if func_type is Builtin.type_type and function.is_name and \
                    function.entry and \
@@ -3822,26 +4143,9 @@ class SimpleCallNode(CallNode):
                 self.type = py_object_type
             self.is_temp = 1
         else:
-            for arg in self.args:
-                arg.analyse_types(env)
-
-            if self.self and func_type.args:
-                # Coerce 'self' to the type expected by the method.
-                self_arg = func_type.args[0]
-                if self_arg.not_none: # C methods must do the None test for self at *call* time
-                    self.self = self.self.as_none_safe_node(
-                        "'NoneType' object has no attribute '%s'",
-                        error = 'PyExc_AttributeError',
-                        format_args = [self.function.entry.name])
-                expected_type = self_arg.type
-                if self_arg.accept_builtin_subtypes:
-                    self.coerced_self = CMethodSelfCloneNode(self.self)
-                else:
-                    self.coerced_self = CloneNode(self.self)
-                self.coerced_self = self.coerced_self.coerce_to(expected_type, env)
-                # Insert coerced 'self' argument into argument list.
-                self.args.insert(0, self.coerced_self)
+            self.args = [ arg.analyse_types(env) for arg in self.args ]
             self.analyse_c_function_call(env)
+        return self
 
     def function_type(self):
         # Return the type of the function being called, coercing a function
@@ -3854,17 +4158,15 @@ class SimpleCallNode(CallNode):
 
         return func_type
 
-    def is_simple(self):
-        # C function calls could be considered simple, but they may
-        # have side-effects that may hit when multiple operations must
-        # be effected in order, e.g. when constructing the argument
-        # sequence for a function call or comparing values.
-        return False
-
     def analyse_c_function_call(self, env):
         if self.function.type is error_type:
             self.type = error_type
             return
+
+        if self.self:
+            args = [self.self] + self.args
+        else:
+            args = self.args
 
         if self.function.type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
@@ -3887,7 +4189,7 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            entry = PyrexTypes.best_match(self.args, alternatives, self.pos, env)
+            entry = PyrexTypes.best_match(args, alternatives, self.pos, env)
 
             if not entry:
                 self.type = PyrexTypes.error_type
@@ -3899,24 +4201,60 @@ class SimpleCallNode(CallNode):
             self.function.type = entry.type
             func_type = self.function_type()
         else:
+            entry = None
             func_type = self.function_type()
             if not func_type.is_cfunction:
                 error(self.pos, "Calling non-function type '%s'" % func_type)
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
+
         # Check no. of args
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
-        actual_nargs = len(self.args)
+        actual_nargs = len(args)
         if func_type.optional_arg_count and expected_nargs != actual_nargs:
             self.has_optional_args = 1
             self.is_temp = 1
+
+        # check 'self' argument
+        if entry and entry.is_cmethod and func_type.args:
+            formal_arg = func_type.args[0]
+            arg = args[0]
+            if formal_arg.not_none:
+                if self.self:
+                    self.self = self.self.as_none_safe_node(
+                        "'NoneType' object has no attribute '%s'",
+                        error='PyExc_AttributeError',
+                        format_args=[entry.name])
+                else:
+                    # unbound method
+                    arg = arg.as_none_safe_node(
+                        "descriptor '%s' requires a '%s' object but received a 'NoneType'",
+                        format_args=[entry.name, formal_arg.type.name])
+            if self.self:
+                if formal_arg.accept_builtin_subtypes:
+                    arg = CMethodSelfCloneNode(self.self)
+                else:
+                    arg = CloneNode(self.self)
+                arg = self.coerced_self = arg.coerce_to(formal_arg.type, env)
+            elif formal_arg.type.is_builtin_type:
+                # special case: unbound methods of builtins accept subtypes
+                arg = arg.coerce_to(formal_arg.type, env)
+                if arg.type.is_builtin_type and isinstance(arg, PyTypeTestNode):
+                    arg.exact_builtin_type = False
+            args[0] = arg
+
         # Coerce arguments
         some_args_in_temps = False
         for i in xrange(min(max_nargs, actual_nargs)):
-            formal_type = func_type.args[i].type
-            arg = self.args[i].coerce_to(formal_type, env)
+            formal_arg = func_type.args[i]
+            formal_type = formal_arg.type
+            arg = args[i].coerce_to(formal_type, env)
+            if formal_arg.not_none:
+                # C methods must do the None checks at *call* time
+                arg = arg.as_none_safe_node(
+                    "cannot pass None into a C function argument that is declared 'not None'")
             if arg.is_temp:
                 if i > 0:
                     # first argument in temp doesn't impact subsequent arguments
@@ -3936,19 +4274,21 @@ class SimpleCallNode(CallNode):
                     if i > 0: # first argument doesn't matter
                         some_args_in_temps = True
                     arg = arg.coerce_to_temp(env)
-            self.args[i] = arg
+            args[i] = arg
+
         # handle additional varargs parameters
         for i in xrange(max_nargs, actual_nargs):
-            arg = self.args[i]
+            arg = args[i]
             if arg.type.is_pyobject:
                 arg_ctype = arg.type.default_coerced_ctype()
                 if arg_ctype is None:
                     error(self.args[i].pos,
                           "Python object cannot be passed as a varargs parameter")
                 else:
-                    self.args[i] = arg = arg.coerce_to(arg_ctype, env)
+                    args[i] = arg = arg.coerce_to(arg_ctype, env)
             if arg.is_temp and i > 0:
                 some_args_in_temps = True
+
         if some_args_in_temps:
             # if some args are temps and others are not, they may get
             # constructed in the wrong order (temps first) => make
@@ -3958,7 +4298,7 @@ class SimpleCallNode(CallNode):
             for i in xrange(actual_nargs-1):
                 if i == 0 and self.self is not None:
                     continue # self is ok
-                arg = self.args[i]
+                arg = args[i]
                 if arg.nonlocally_immutable():
                     # locals, C functions, unassignable types are safe.
                     pass
@@ -3976,6 +4316,8 @@ class SimpleCallNode(CallNode):
                     if i > 0 or i == 1 and self.self is not None: # skip first arg
                         warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
                         break
+
+        self.args[:] = args
 
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
@@ -4100,21 +4442,23 @@ class SimpleCallNode(CallNode):
                     lhs = ""
                 if func_type.exception_check == '+':
                     if func_type.exception_value is None:
-                        raise_py_exception = "__Pyx_CppExn2PyErr()"
+                        raise_py_exception = "__Pyx_CppExn2PyErr();"
                     elif func_type.exception_value.type.is_pyobject:
-                        raise_py_exception = ' try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
+                        raise_py_exception = 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
                             func_type.exception_value.entry.cname,
                             func_type.exception_value.entry.cname)
                     else:
-                        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.")' % func_type.exception_value.entry.cname
+                        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % func_type.exception_value.entry.cname
+                    code.putln("try {")
+                    code.putln("%s%s;" % (lhs, rhs))
+                    code.putln("} catch(...) {")
                     if self.nogil:
-                        raise_py_exception = 'Py_BLOCK_THREADS; %s; Py_UNBLOCK_THREADS' % raise_py_exception
-                    code.putln(
-                    "try {%s%s;} catch(...) {%s; %s}" % (
-                        lhs,
-                        rhs,
-                        raise_py_exception,
-                        code.error_goto(self.pos)))
+                        code.put_ensure_gil(declare_gilstate=True)
+                    code.putln(raise_py_exception)
+                    if self.nogil:
+                        code.put_release_ensured_gil()
+                    code.putln(code.error_goto(self.pos))
+                    code.putln("}")
                 else:
                     if exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
@@ -4149,11 +4493,9 @@ class InlinedDefNodeCallNode(CallNode):
         return True
 
     def analyse_types(self, env):
-        self.function_name.analyse_types(env)
+        self.function_name = self.function_name.analyse_types(env)
 
-        for arg in self.args:
-            arg.analyse_types(env)
-
+        self.args = [ arg.analyse_types(env) for arg in self.args ]
         func_type = self.function.def_node
         actual_nargs = len(self.args)
 
@@ -4205,6 +4547,7 @@ class InlinedDefNodeCallNode(CallNode):
                     if i > 0:
                         warning(arg.pos, "Argument evaluation order in C function call is undefined and may not be as expected", 0)
                         break
+        return self
 
     def generate_result_code(self, code):
         arg_code = [self.function_name.py_result()]
@@ -4226,15 +4569,13 @@ class InlinedDefNodeCallNode(CallNode):
 
 class PythonCapiFunctionNode(ExprNode):
     subexprs = []
+
     def __init__(self, pos, py_name, cname, func_type, utility_code = None):
-        self.pos = pos
-        self.name = py_name
-        self.cname = cname
-        self.type = func_type
-        self.utility_code = utility_code
+        ExprNode.__init__(self, pos, name=py_name, cname=cname,
+                          type=func_type, utility_code=utility_code)
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def generate_result_code(self, code):
         if self.utility_code:
@@ -4242,6 +4583,7 @@ class PythonCapiFunctionNode(ExprNode):
 
     def calculate_result_code(self):
         return self.cname
+
 
 class PythonCapiCallNode(SimpleCallNode):
     # Python C-API Function call (only created in transforms)
@@ -4296,19 +4638,30 @@ class GeneralCallNode(CallNode):
 
     def analyse_types(self, env):
         if self.analyse_as_type_constructor(env):
-            return
-        self.function.analyse_types(env)
-        self.positional_args.analyse_types(env)
-        if self.keyword_args:
-            self.keyword_args.analyse_types(env)
+            return self
+        self.function = self.function.analyse_types(env)
         if not self.function.type.is_pyobject:
             if self.function.type.is_error:
                 self.type = error_type
-                return
-            if hasattr(self.function, 'entry') and not self.function.entry.as_variable:
-                error(self.pos, "Keyword and starred arguments not allowed in cdef functions.")
+                return self
+            if hasattr(self.function, 'entry'):
+                node = self.map_to_simple_call_node()
+                if node is not None and node is not self:
+                    return node.analyse_types(env)
+                elif self.function.entry.as_variable:
+                    self.function = self.function.coerce_to_pyobject(env)
+                elif node is self:
+                    error(self.pos,
+                          "Non-trivial keyword arguments and starred "
+                          "arguments not allowed in cdef functions.")
+                else:
+                    # error was already reported
+                    pass
             else:
                 self.function = self.function.coerce_to_pyobject(env)
+        if self.keyword_args:
+            self.keyword_args = self.keyword_args.analyse_types(env)
+        self.positional_args = self.positional_args.analyse_types(env)
         self.positional_args = \
             self.positional_args.coerce_to_pyobject(env)
         function = self.function
@@ -4321,6 +4674,145 @@ class GeneralCallNode(CallNode):
         else:
             self.type = py_object_type
         self.is_temp = 1
+        return self
+
+    def map_to_simple_call_node(self):
+        """
+        Tries to map keyword arguments to declared positional arguments.
+        Returns self to try a Python call, None to report an error
+        or a SimpleCallNode if the mapping succeeds.
+        """
+        if not isinstance(self.positional_args, TupleNode):
+            # has starred argument
+            return self
+        if not isinstance(self.keyword_args, DictNode):
+            # keywords come from arbitrary expression => nothing to do here
+            return self
+        function = self.function
+        entry = getattr(function, 'entry', None)
+        if not entry:
+            return self
+        function_type = entry.type
+        if function_type.is_ptr:
+            function_type = function_type.base_type
+        if not function_type.is_cfunction:
+            return self
+
+        pos_args = self.positional_args.args
+        kwargs = self.keyword_args
+        declared_args = function_type.args
+        if entry.is_cmethod:
+            declared_args = declared_args[1:] # skip 'self'
+
+        if len(pos_args) > len(declared_args):
+            error(self.pos, "function call got too many positional arguments, "
+                            "expected %d, got %s" % (len(declared_args),
+                                                     len(pos_args)))
+            return None
+
+        matched_args = set([ arg.name for arg in declared_args[:len(pos_args)]
+                             if arg.name ])
+        unmatched_args = declared_args[len(pos_args):]
+        matched_kwargs_count = 0
+        args = list(pos_args)
+
+        # check for duplicate keywords
+        seen = set(matched_args)
+        has_errors = False
+        for arg in kwargs.key_value_pairs:
+            name = arg.key.value
+            if name in seen:
+                error(arg.pos, "argument '%s' passed twice" % name)
+                has_errors = True
+                # continue to report more errors if there are any
+            seen.add(name)
+
+        # match keywords that are passed in order
+        for decl_arg, arg in zip(unmatched_args, kwargs.key_value_pairs):
+            name = arg.key.value
+            if decl_arg.name == name:
+                matched_args.add(name)
+                matched_kwargs_count += 1
+                args.append(arg.value)
+            else:
+                break
+
+        # match keyword arguments that are passed out-of-order, but keep
+        # the evaluation of non-simple arguments in order by moving them
+        # into temps
+        from Cython.Compiler.UtilNodes import EvalWithTempExprNode, LetRefNode
+        temps = []
+        if len(kwargs.key_value_pairs) > matched_kwargs_count:
+            unmatched_args = declared_args[len(args):]
+            keywords = dict([ (arg.key.value, (i+len(pos_args), arg))
+                              for i, arg in enumerate(kwargs.key_value_pairs) ])
+            first_missing_keyword = None
+            for decl_arg in unmatched_args:
+                name = decl_arg.name
+                if name not in keywords:
+                    # missing keyword argument => either done or error
+                    if not first_missing_keyword:
+                        first_missing_keyword = name
+                    continue
+                elif first_missing_keyword:
+                    if entry.as_variable:
+                        # we might be able to convert the function to a Python
+                        # object, which then allows full calling semantics
+                        # with default values in gaps - currently, we only
+                        # support optional arguments at the end
+                        return self
+                    # wasn't the last keyword => gaps are not supported
+                    error(self.pos, "C function call is missing "
+                                    "argument '%s'" % first_missing_keyword)
+                    return None
+                pos, arg = keywords[name]
+                matched_args.add(name)
+                matched_kwargs_count += 1
+                if arg.value.is_simple():
+                    args.append(arg.value)
+                else:
+                    temp = LetRefNode(arg.value)
+                    assert temp.is_simple()
+                    args.append(temp)
+                    temps.append((pos, temp))
+
+            if temps:
+                # may have to move preceding non-simple args into temps
+                final_args = []
+                new_temps = []
+                first_temp_arg = temps[0][-1]
+                for arg_value in args:
+                    if arg_value is first_temp_arg:
+                        break  # done
+                    if arg_value.is_simple():
+                        final_args.append(arg_value)
+                    else:
+                        temp = LetRefNode(arg_value)
+                        new_temps.append(temp)
+                        final_args.append(temp)
+                if new_temps:
+                    args = final_args
+                temps = new_temps + [ arg for i,arg in sorted(temps) ]
+
+        # check for unexpected keywords
+        for arg in kwargs.key_value_pairs:
+            name = arg.key.value
+            if name not in matched_args:
+                has_errors = True
+                error(arg.pos,
+                      "C function got unexpected keyword argument '%s'" %
+                      name)
+
+        if has_errors:
+            # error was reported already
+            return None
+
+        # all keywords mapped to positional arguments
+        # if we are missing arguments, SimpleCallNode will figure it out
+        node = SimpleCallNode(self.pos, function=function, args=args)
+        for temp in temps[::-1]:
+            node = EvalWithTempExprNode(temp, node)
+        return node
 
     def generate_result_code(self, code):
         if self.type.is_error: return
@@ -4347,7 +4839,7 @@ class AsTupleNode(ExprNode):
     subexprs = ['arg']
 
     def calculate_constant_result(self):
-        self.constant_result = tuple(self.base.constant_result)
+        self.constant_result = tuple(self.arg.constant_result)
 
     def compile_time_value(self, denv):
         arg = self.arg.compile_time_value(denv)
@@ -4357,10 +4849,11 @@ class AsTupleNode(ExprNode):
             self.compile_time_value_error(e)
 
     def analyse_types(self, env):
-        self.arg.analyse_types(env)
+        self.arg = self.arg.analyse_types(env)
         self.arg = self.arg.coerce_to_pyobject(env)
         self.type = tuple_type
         self.is_temp = 1
+        return self
 
     def may_be_none(self):
         return False
@@ -4447,46 +4940,48 @@ class AttributeNode(ExprNode):
         return self.obj.type_dependencies(env)
 
     def infer_type(self, env):
-        if self.analyse_as_cimported_attribute(env, 0):
-            return self.entry.type
-        elif self.analyse_as_unbound_cmethod(env):
-            return self.entry.type
-        else:
-            obj_type = self.obj.infer_type(env)
-            self.analyse_attribute(env, obj_type = obj_type)
-            if obj_type.is_builtin_type and self.type.is_cfunction:
-                # special case: C-API replacements for C methods of
-                # builtin types cannot be inferred as C functions as
-                # that would prevent their use as bound methods
-                self.type = py_object_type
-            return self.type
+        # FIXME: this is way too redundant with analyse_types()
+        node = self.analyse_as_cimported_attribute_node(env, target=False)
+        if node is not None:
+            return node.entry.type
+        node = self.analyse_as_unbound_cmethod_node(env)
+        if node is not None:
+            return node.entry.type
+        obj_type = self.obj.infer_type(env)
+        self.analyse_attribute(env, obj_type=obj_type)
+        if obj_type.is_builtin_type and self.type.is_cfunction:
+            # special case: C-API replacements for C methods of
+            # builtin types cannot be inferred as C functions as
+            # that would prevent their use as bound methods
+            return py_object_type
+        return self.type
 
     def analyse_target_declaration(self, env):
         pass
 
     def analyse_target_types(self, env):
-        self.analyse_types(env, target = 1)
-        if self.type.is_const:
+        node = self.analyse_types(env, target = 1)
+        if node.type.is_const:
             error(self.pos, "Assignment to const attribute '%s'" % self.attribute)
-        if not self.is_lvalue():
+        if not node.is_lvalue():
             error(self.pos, "Assignment to non-lvalue of type '%s'" % self.type)
+        return node
 
     def analyse_types(self, env, target = 0):
         self.initialized_check = env.directives['initializedcheck']
-        if self.analyse_as_cimported_attribute(env, target):
-            self.entry.used = True
-        elif not target and self.analyse_as_unbound_cmethod(env):
-            self.entry.used = True
-        else:
-            self.analyse_as_ordinary_attribute(env, target)
-            if self.entry:
-                self.entry.used = True
+        node = self.analyse_as_cimported_attribute_node(env, target)
+        if node is None and not target:
+            node = self.analyse_as_unbound_cmethod_node(env)
+        if node is None:
+            node = self.analyse_as_ordinary_attribute_node(env, target)
+            assert node is not None
+        if node.entry:
+            node.entry.used = True
+        if node.is_attribute:
+            node.wrap_obj_in_nonecheck(env)
+        return node
 
-        # may be mutated in a namenode now :)
-        if self.is_attribute:
-            self.wrap_obj_in_nonecheck(env)
-
-    def analyse_as_cimported_attribute(self, env, target):
+    def analyse_as_cimported_attribute_node(self, env, target):
         # Try to interpret this as a reference to an imported
         # C const, type, var or function. If successful, mutates
         # this node into a NameNode and returns 1, otherwise
@@ -4495,33 +4990,36 @@ class AttributeNode(ExprNode):
         if module_scope:
             entry = module_scope.lookup_here(self.attribute)
             if entry and (
-                entry.is_cglobal or entry.is_cfunction
-                or entry.is_type or entry.is_const):
-                    self.mutate_into_name_node(env, entry, target)
-                    entry.used = 1
-                    return 1
-        return 0
+                    entry.is_cglobal or entry.is_cfunction
+                    or entry.is_type or entry.is_const):
+                return self.as_name_node(env, entry, target)
+        return None
 
-    def analyse_as_unbound_cmethod(self, env):
+    def analyse_as_unbound_cmethod_node(self, env):
         # Try to interpret this as a reference to an unbound
-        # C method of an extension type. If successful, mutates
-        # this node into a NameNode and returns 1, otherwise
-        # returns 0.
+        # C method of an extension type or builtin type.  If successful,
+        # creates a corresponding NameNode and returns it, otherwise
+        # returns None.
         type = self.obj.analyse_as_extension_type(env)
         if type:
             entry = type.scope.lookup_here(self.attribute)
             if entry and entry.is_cmethod:
-                # Create a temporary entry describing the C method
-                # as an ordinary function.
-                ubcm_entry = Symtab.Entry(entry.name,
-                    "%s->%s" % (type.vtabptr_cname, entry.cname),
-                    entry.type)
-                ubcm_entry.is_cfunction = 1
-                ubcm_entry.func_cname = entry.func_cname
-                ubcm_entry.is_unbound_cmethod = 1
-                self.mutate_into_name_node(env, ubcm_entry, None)
-                return 1
-        return 0
+                if type.is_builtin_type:
+                    if not self.is_called:
+                        # must handle this as Python object
+                        return None
+                    ubcm_entry = entry
+                else:
+                    # Create a temporary entry describing the C method
+                    # as an ordinary function.
+                    ubcm_entry = Symtab.Entry(entry.name,
+                        "%s->%s" % (type.vtabptr_cname, entry.cname),
+                        entry.type)
+                    ubcm_entry.is_cfunction = 1
+                    ubcm_entry.func_cname = entry.func_cname
+                    ubcm_entry.is_unbound_cmethod = 1
+                return self.as_name_node(env, ubcm_entry, target=False)
+        return None
 
     def analyse_as_type(self, env):
         module_scope = self.obj.analyse_as_module(env)
@@ -4539,8 +5037,9 @@ class AttributeNode(ExprNode):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
             entry = module_scope.lookup_here(self.attribute)
-            if entry and entry.is_type and entry.type.is_extension_type:
-                return entry.type
+            if entry and entry.is_type:
+                if entry.type.is_extension_type or entry.type.is_builtin_type:
+                    return entry.type
         return None
 
     def analyse_as_module(self, env):
@@ -4553,21 +5052,19 @@ class AttributeNode(ExprNode):
                 return entry.as_module
         return None
 
-    def mutate_into_name_node(self, env, entry, target):
-        # Mutate this node into a NameNode and complete the
+    def as_name_node(self, env, entry, target):
+        # Create a corresponding NameNode from this node and complete the
         # analyse_types phase.
-        self.__class__ = NameNode
-        self.name = self.attribute
-        self.entry = entry
-        del self.obj
-        del self.attribute
+        node = NameNode.from_node(self, name=self.attribute, entry=entry)
         if target:
-            NameNode.analyse_target_types(self, env)
+            node = node.analyse_target_types(env)
         else:
-            NameNode.analyse_rvalue_entry(self, env)
+            node = node.analyse_rvalue_entry(env)
+        node.entry.used = 1
+        return node
 
-    def analyse_as_ordinary_attribute(self, env, target):
-        self.obj.analyse_types(env)
+    def analyse_as_ordinary_attribute_node(self, env, target):
+        self.obj = self.obj.analyse_types(env)
         self.analyse_attribute(env)
         if self.entry and self.entry.is_cmethod and not self.is_called:
 #            error(self.pos, "C method can only be called")
@@ -4583,6 +5080,7 @@ class AttributeNode(ExprNode):
             error(self.pos, "Assignment to an immutable object field")
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
+        return self
 
     def analyse_attribute(self, env, obj_type = None):
         # Look up attribute and set self.type and self.member.
@@ -4590,11 +5088,11 @@ class AttributeNode(ExprNode):
         self.is_py_attr = 0
         self.member = self.attribute
         if obj_type is None:
-            if self.obj.type.is_string:
+            if self.obj.type.is_string or self.obj.type.is_pyunicode_ptr:
                 self.obj = self.obj.coerce_to_pyobject(env)
             obj_type = self.obj.type
         else:
-            if obj_type.is_string:
+            if obj_type.is_string or obj_type.is_pyunicode_ptr:
                 obj_type = py_object_type
         if obj_type.is_ptr or obj_type.is_array:
             obj_type = obj_type.base_type
@@ -4604,7 +5102,6 @@ class AttributeNode(ExprNode):
         else:
             self.op = "."
         if obj_type.has_attributes:
-            entry = None
             if obj_type.attributes_known():
                 if (obj_type.is_memoryviewslice and not
                         obj_type.scope.lookup_here(self.attribute)):
@@ -4747,8 +5244,13 @@ class AttributeNode(ExprNode):
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
                     obj.type.vtabslot_cname, self.member)
-            else:
+            elif self.result_is_used:
                 return self.member
+            # Generating no code at all for unused access to optimised builtin
+            # methods fixes the problem that some optimisations only exist as
+            # macros, i.e. there is no function pointer to them, so we would
+            # generate invalid C code here.
+            return
         elif obj.type.is_complex:
             return "__Pyx_C%s(%s)" % (self.member.upper(), obj_code)
         else:
@@ -4759,8 +5261,10 @@ class AttributeNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_py_attr:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
             code.putln(
-                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                '%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s' % (
                     self.result(),
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),
@@ -4798,11 +5302,23 @@ class AttributeNode(ExprNode):
                 # C method implemented as function call with utility code
                 code.globalstate.use_utility_code(self.entry.utility_code)
 
+    def generate_disposal_code(self, code):
+        if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
+            # mirror condition for putting the memview incref here:
+            if self.obj.is_name or (self.obj.is_attribute and
+                                    self.obj.is_memslice_transpose):
+                code.put_xdecref_memoryviewslice(
+                        self.result(), have_gil=True)
+        else:
+            ExprNode.generate_disposal_code(self, code)
+
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
             code.put_error_if_neg(self.pos,
-                'PyObject_SetAttr(%s, %s, %s)' % (
+                '__Pyx_PyObject_SetAttrStr(%s, %s, %s)' % (
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),
                     rhs.py_result()))
@@ -4836,12 +5352,14 @@ class AttributeNode(ExprNode):
         self.obj.generate_disposal_code(code)
         self.obj.free_temps(code)
 
-    def generate_deletion_code(self, code):
+    def generate_deletion_code(self, code, ignore_nonexisting=False):
         self.obj.generate_evaluation_code(code)
-        if self.is_py_attr or (isinstance(self.entry.scope, Symtab.PropertyScope)
+        if self.is_py_attr or (self.entry.scope.is_property_scope
                                and u'__del__' in self.entry.scope.entries):
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
             code.put_error_if_neg(self.pos,
-                'PyObject_DelAttr(%s, %s)' % (
+                '__Pyx_PyObject_DelAttrStr(%s, %s)' % (
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute)))
         else:
@@ -4880,7 +5398,7 @@ class StarredTargetNode(ExprNode):
     is_temp = 1
 
     def __init__(self, pos, target):
-        self.pos = pos
+        ExprNode.__init__(self, pos)
         self.target = target
 
     def analyse_declarations(self, env):
@@ -4889,15 +5407,17 @@ class StarredTargetNode(ExprNode):
 
     def analyse_types(self, env):
         error(self.pos, "can use starred expression only as assignment target")
-        self.target.analyse_types(env)
+        self.target = self.target.analyse_types(env)
         self.type = self.target.type
+        return self
 
     def analyse_target_declaration(self, env):
         self.target.analyse_target_declaration(env)
 
     def analyse_target_types(self, env):
-        self.target.analyse_target_types(env)
+        self.target = self.target.analyse_target_types(env)
         self.type = self.target.type
+        return self
 
     def calculate_result_code(self):
         return ""
@@ -4946,14 +5466,15 @@ class SequenceNode(ExprNode):
     def analyse_types(self, env, skip_children=False):
         for i in range(len(self.args)):
             arg = self.args[i]
-            if not skip_children: arg.analyse_types(env)
+            if not skip_children: arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         if self.mult_factor:
-            self.mult_factor.analyse_types(env)
+            self.mult_factor = self.mult_factor.analyse_types(env)
             if not self.mult_factor.type.is_int:
                 self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
         self.is_temp = 1
         # not setting self.type here, subtypes do this
+        return self
 
     def may_be_none(self):
         return False
@@ -4964,8 +5485,8 @@ class SequenceNode(ExprNode):
         self.unpacked_items = []
         self.coerced_unpacked_items = []
         self.any_coerced_items = False
-        for arg in self.args:
-            arg.analyse_target_types(env)
+        for i, arg in enumerate(self.args):
+            arg = self.args[i] = arg.analyse_target_types(env)
             if arg.is_starred:
                 if not arg.type.assignable_from(Builtin.list_type):
                     error(arg.pos,
@@ -4979,6 +5500,7 @@ class SequenceNode(ExprNode):
             self.unpacked_items.append(unpacked_item)
             self.coerced_unpacked_items.append(coerced_unpacked_item)
         self.type = py_object_type
+        return self
 
     def generate_result_code(self, code):
         self.generate_operation_code(code)
@@ -5369,23 +5891,25 @@ class TupleNode(SequenceNode):
 
     def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
-            self.is_temp = False
-            self.is_literal = True
+            node = self
+            node.is_temp = False
+            node.is_literal = True
         else:
-            SequenceNode.analyse_types(self, env, skip_children)
-            for child in self.args:
+            node = SequenceNode.analyse_types(self, env, skip_children)
+            for child in node.args:
                 if not child.is_literal:
                     break
             else:
-                if not self.mult_factor or self.mult_factor.is_literal and \
-                       isinstance(self.mult_factor.constant_result, (int, long)):
-                    self.is_temp = False
-                    self.is_literal = True
+                if not node.mult_factor or node.mult_factor.is_literal and \
+                       isinstance(node.mult_factor.constant_result, (int, long)):
+                    node.is_temp = False
+                    node.is_literal = True
                 else:
-                    if not self.mult_factor.type.is_pyobject:
-                        self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
-                    self.is_temp = True
-                    self.is_partly_literal = True
+                    if not node.mult_factor.type.is_pyobject:
+                        node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
+                    node.is_temp = True
+                    node.is_partly_literal = True
+        return node
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -5448,6 +5972,7 @@ class ListNode(SequenceNode):
 
     obj_conversion_errors = []
     type = list_type
+    in_module_scope = False
 
     gil_message = "Constructing Python list"
 
@@ -5459,15 +5984,18 @@ class ListNode(SequenceNode):
         return list_type
 
     def analyse_expressions(self, env):
-        SequenceNode.analyse_expressions(self, env)
-        self.coerce_to_pyobject(env)
+        node = SequenceNode.analyse_expressions(self, env)
+        return node.coerce_to_pyobject(env)
 
     def analyse_types(self, env):
         hold_errors()
         self.original_args = list(self.args)
-        SequenceNode.analyse_types(self, env)
-        self.obj_conversion_errors = held_errors()
+        node = SequenceNode.analyse_types(self, env)
+        node.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
+        if env.is_module_scope:
+            self.in_module_scope = True
+        return node
 
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject:
@@ -5501,6 +6029,19 @@ class ListNode(SequenceNode):
             self.type = error_type
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         return self
+
+    def as_tuple(self):
+        t = TupleNode(self.pos, args=self.args, mult_factor=self.mult_factor)
+        if isinstance(self.constant_result, list):
+            t.constant_result = tuple(self.constant_result)
+        return t
+
+    def allocate_temp_result(self, code):
+        if self.type.is_array and self.in_module_scope:
+            self.temp_code = code.funcstate.allocate_temp(
+                self.type, manage_ref=False, static=True)
+        else:
+            SequenceNode.allocate_temp_result(self, code)
 
     def release_temp_result(self, env):
         if self.type.is_array:
@@ -5575,11 +6116,11 @@ class ScopedExprNode(ExprNode):
 
     def analyse_types(self, env):
         # no recursion here, the children will be analysed separately below
-        pass
+        return self
 
     def analyse_scoped_expressions(self, env):
         # this is called with the expr_scope as env
-        pass
+        return self
 
     def generate_evaluation_code(self, code):
         # set up local variables and free their references on exit
@@ -5630,11 +6171,14 @@ class ScopedExprNode(ExprNode):
 
 
 class ComprehensionNode(ScopedExprNode):
-    subexprs = ["target"]
+    # A list/set/dict comprehension
+
     child_attrs = ["loop"]
 
+    is_temp = True
+
     def infer_type(self, env):
-        return self.target.infer_type(env)
+        return self.type
 
     def analyse_declarations(self, env):
         self.append.target = self # this is used in the PyList_Append of the inner loop
@@ -5644,25 +6188,35 @@ class ComprehensionNode(ScopedExprNode):
         self.loop.analyse_declarations(env)
 
     def analyse_types(self, env):
-        self.target.analyse_expressions(env)
-        self.type = self.target.type
         if not self.has_local_scope:
-            self.loop.analyse_expressions(env)
+            self.loop = self.loop.analyse_expressions(env)
+        return self
 
     def analyse_scoped_expressions(self, env):
         if self.has_local_scope:
-            self.loop.analyse_expressions(env)
+            self.loop = self.loop.analyse_expressions(env)
+        return self
 
     def may_be_none(self):
         return False
-
-    def calculate_result_code(self):
-        return self.target.result()
 
     def generate_result_code(self, code):
         self.generate_operation_code(code)
 
     def generate_operation_code(self, code):
+        if self.type is Builtin.list_type:
+            create_code = 'PyList_New(0)'
+        elif self.type is Builtin.set_type:
+            create_code = 'PySet_New(NULL)'
+        elif self.type is Builtin.dict_type:
+            create_code = 'PyDict_New()'
+        else:
+            raise InternalError("illegal type for comprehension: %s" % self.type)
+        code.putln('%s = %s; %s' % (
+            self.result(), create_code,
+            code.error_goto_if_null(self.result(), self.pos)))
+
+        code.put_gotref(self.result())
         self.loop.generate_execution_code(code)
 
     def annotate(self, code):
@@ -5674,18 +6228,21 @@ class ComprehensionAppendNode(Node):
     # target must not be in child_attrs/subexprs
 
     child_attrs = ['expr']
+    target = None
 
     type = PyrexTypes.c_int_type
 
     def analyse_expressions(self, env):
-        self.expr.analyse_expressions(env)
+        self.expr = self.expr.analyse_expressions(env)
         if not self.expr.type.is_pyobject:
             self.expr = self.expr.coerce_to_pyobject(env)
+        return self
 
     def generate_execution_code(self, code):
         if self.target.type is list_type:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("InternalListAppend", "Optimize.c"))
-            function = "__Pyx_PyList_Append"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ListCompAppend", "Optimize.c"))
+            function = "__Pyx_ListComp_Append"
         elif self.target.type is set_type:
             function = "PySet_Add"
         else:
@@ -5711,12 +6268,13 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
     child_attrs = ['key_expr', 'value_expr']
 
     def analyse_expressions(self, env):
-        self.key_expr.analyse_expressions(env)
+        self.key_expr = self.key_expr.analyse_expressions(env)
         if not self.key_expr.type.is_pyobject:
             self.key_expr = self.key_expr.coerce_to_pyobject(env)
-        self.value_expr.analyse_expressions(env)
+        self.value_expr = self.value_expr.analyse_expressions(env)
         if not self.value_expr.type.is_pyobject:
             self.value_expr = self.value_expr.coerce_to_pyobject(env)
+        return self
 
     def generate_execution_code(self, code):
         self.key_expr.generate_evaluation_code(code)
@@ -5769,14 +6327,16 @@ class InlinedGeneratorExpressionNode(ScopedExprNode):
     def analyse_types(self, env):
         if not self.has_local_scope:
             self.loop_analysed = True
-            self.loop.analyse_expressions(env)
+            self.loop = self.loop.analyse_expressions(env)
         self.type = self.result_node.type
         self.is_temp = True
+        return self
 
     def analyse_scoped_expressions(self, env):
         self.loop_analysed = True
         if self.has_local_scope:
-            self.loop.analyse_expressions(env)
+            self.loop = self.loop.analyse_expressions(env)
+        return self
 
     def coerce_to(self, dst_type, env):
         if self.orig_func == 'sum' and dst_type.is_numeric and not self.loop_analysed:
@@ -5806,10 +6366,11 @@ class SetNode(ExprNode):
     def analyse_types(self, env):
         for i in range(len(self.args)):
             arg = self.args[i]
-            arg.analyse_types(env)
+            arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         self.type = set_type
         self.is_temp = 1
+        return self
 
     def may_be_none(self):
         return False
@@ -5835,10 +6396,9 @@ class SetNode(ExprNode):
         code.put_gotref(self.py_result())
         for arg in self.args:
             arg.generate_evaluation_code(code)
-            code.putln(
-                code.error_goto_if_neg(
-                    "PySet_Add(%s, %s)" % (self.result(), arg.py_result()),
-                    self.pos))
+            code.put_error_if_neg(
+                self.pos,
+                "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
             arg.generate_disposal_code(code)
             arg.free_temps(code)
 
@@ -5884,10 +6444,11 @@ class DictNode(ExprNode):
 
     def analyse_types(self, env):
         hold_errors()
-        for item in self.key_value_pairs:
-            item.analyse_types(env)
+        self.key_value_pairs = [ item.analyse_types(env)
+                                 for item in self.key_value_pairs ]
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
+        return self
 
     def may_be_none(self):
         return False
@@ -5981,10 +6542,11 @@ class DictItemNode(ExprNode):
             self.key.constant_result, self.value.constant_result)
 
     def analyse_types(self, env):
-        self.key.analyse_types(env)
-        self.value.analyse_types(env)
+        self.key = self.key.analyse_types(env)
+        self.value = self.value.analyse_types(env)
         self.key = self.key.coerce_to_pyobject(env)
         self.value = self.value.coerce_to_pyobject(env)
+        return self
 
     def generate_evaluation_code(self, code):
         self.key.generate_evaluation_code(code)
@@ -6002,13 +6564,60 @@ class DictItemNode(ExprNode):
         return iter([self.key, self.value])
 
 
+class SortedDictKeysNode(ExprNode):
+    # build sorted list of dict keys, e.g. for dir()
+    subexprs = ['arg']
+
+    is_temp = True
+
+    def __init__(self, arg):
+        ExprNode.__init__(self, arg.pos, arg=arg)
+        self.type = Builtin.list_type
+
+    def analyse_types(self, env):
+        arg = self.arg.analyse_types(env)
+        if arg.type is Builtin.dict_type:
+            arg = arg.as_none_safe_node(
+                "'NoneType' object is not iterable")
+        self.arg = arg
+        return self
+
+    def may_be_none(self):
+        return False
+
+    def generate_result_code(self, code):
+        dict_result = self.arg.py_result()
+        if self.arg.type is Builtin.dict_type:
+            function = 'PyDict_Keys'
+        else:
+            function = 'PyMapping_Keys'
+        code.putln('%s = %s(%s); %s' % (
+            self.result(), function, dict_result,
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+        code.put_error_if_neg(
+            self.pos, 'PyList_Sort(%s)' % self.py_result())
+
+
 class ModuleNameMixin(object):
-    def set_mod_name(self, env):
+    def set_qualified_name(self, env, self_name):
         self.module_name = env.global_scope().qualified_name
+        qualified_name = [self_name]
+        while env and not env.is_module_scope:
+            if env.is_closure_scope:
+                qualified_name.append('<locals>')
+            qualified_name.append(env.name)
+            env = env.parent_scope
+        self.qualname = StringEncoding.EncodedString('.'.join(qualified_name[::-1]))
 
     def get_py_mod_name(self, code):
         return code.get_py_string_const(
                  self.module_name, identifier=True)
+
+    def get_py_qualified_name(self, code):
+        return code.get_py_string_const(
+            self.qualname, identifier=True)
+
 
 class ClassNode(ExprNode, ModuleNameMixin):
     #  Helper class used in the implementation of Python
@@ -6024,15 +6633,16 @@ class ClassNode(ExprNode, ModuleNameMixin):
     subexprs = ['bases', 'doc']
 
     def analyse_types(self, env):
-        self.bases.analyse_types(env)
+        self.bases = self.bases.analyse_types(env)
         if self.doc:
-            self.doc.analyse_types(env)
+            self.doc = self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
         #TODO(craig,haoyu) This should be moved to a better place
-        self.set_mod_name(env)
+        self.set_qualified_name(env, self.name)
+        return self
 
     def may_be_none(self):
         return True
@@ -6048,12 +6658,14 @@ class ClassNode(ExprNode, ModuleNameMixin):
                     self.dict.py_result(),
                     self.doc.py_result()))
         py_mod_name = self.get_py_mod_name(code)
+        qualname = self.get_py_qualified_name(code)
         code.putln(
-            '%s = __Pyx_CreateClass(%s, %s, %s, %s); %s' % (
+            '%s = __Pyx_CreateClass(%s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 self.bases.py_result(),
                 self.dict.py_result(),
                 cname,
+                qualname,
                 py_mod_name,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
@@ -6073,6 +6685,7 @@ class Py3ClassNode(ExprNode):
     def analyse_types(self, env):
         self.type = py_object_type
         self.is_temp = 1
+        return self
 
     def may_be_none(self):
         return True
@@ -6133,12 +6746,14 @@ class KeywordArgsNode(ExprNode):
         return dict_type
 
     def analyse_types(self, env):
-        self.starstar_arg.analyse_types(env)
-        self.starstar_arg = self.starstar_arg.coerce_to_pyobject(env).as_none_safe_node(
+        arg = self.starstar_arg.analyse_types(env)
+        arg = arg.coerce_to_pyobject(env)
+        self.starstar_arg = arg.as_none_safe_node(
             # FIXME: CPython's error message starts with the runtime function name
             'argument after ** must be a mapping, not NoneType')
-        for item in self.keyword_args:
-            item.analyse_types(env)
+        self.keyword_args = [ item.analyse_types(env)
+                              for item in self.keyword_args ]
+        return self
 
     def may_be_none(self):
         return False
@@ -6217,6 +6832,7 @@ class PyClassMetaclassNode(ExprNode):
     def analyse_types(self, env):
         self.type = py_object_type
         self.is_temp = True
+        return self
 
     def may_be_none(self):
         return True
@@ -6243,14 +6859,15 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
     subexprs = ['doc']
 
     def analyse_types(self, env):
-        self.bases.analyse_types(env)
+        self.bases = self.bases.analyse_types(env)
         if self.doc:
-            self.doc.analyse_types(env)
+            self.doc = self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
         #TODO(craig,haoyu) This should be moved to a better place
-        self.set_mod_name(env)
+        self.set_qualified_name(env, self.name)
+        return self
 
     def may_be_none(self):
         return True
@@ -6258,16 +6875,18 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
     def generate_result_code(self, code):
         cname = code.intern_identifier(self.name)
         py_mod_name = self.get_py_mod_name(code)
+        qualname = self.get_py_qualified_name(code)
         if self.doc:
             doc_code = self.doc.result()
         else:
             doc_code = '(PyObject *) NULL'
         code.putln(
-            "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s); %s" % (
+            "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s, %s); %s" % (
                 self.result(),
                 self.metaclass.result(),
                 self.bases.result(),
                 cname,
+                qualname,
                 self.mkw.result(),
                 py_mod_name,
                 doc_code,
@@ -6286,6 +6905,7 @@ class ClassCellInjectorNode(ExprNode):
         if self.is_active:
             env.use_utility_code(
                 UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
+        return self
 
     def generate_evaluation_code(self, code):
         if self.is_active:
@@ -6310,7 +6930,7 @@ class ClassCellNode(ExprNode):
     type = py_object_type
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def generate_result_code(self, code):
         if not self.is_generator:
@@ -6324,7 +6944,7 @@ class ClassCellNode(ExprNode):
             'if (!%s) { PyErr_SetString(PyExc_SystemError, '
             '"super(): empty __class__ cell"); %s }' % (
                 self.result(),
-                code.error_goto(self.pos)));
+                code.error_goto(self.pos)))
         code.put_incref(self.result(), py_object_type)
 
 
@@ -6339,9 +6959,10 @@ class BoundMethodNode(ExprNode):
     subexprs = ['function']
 
     def analyse_types(self, env):
-        self.function.analyse_types(env)
+        self.function = self.function.analyse_types(env)
         self.type = py_object_type
         self.is_temp = 1
+        return self
 
     gil_message = "Constructing an bound method"
 
@@ -6368,7 +6989,8 @@ class UnboundMethodNode(ExprNode):
     subexprs = ['function']
 
     def analyse_types(self, env):
-        self.function.analyse_types(env)
+        self.function = self.function.analyse_types(env)
+        return self
 
     def may_be_none(self):
         return False
@@ -6388,7 +7010,7 @@ class UnboundMethodNode(ExprNode):
 
 class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  Helper class used in the implementation of Python
-    #  class definitions. Constructs a PyCFunction object
+    #  functions.  Constructs a PyCFunction object
     #  from a PyMethodDef struct.
     #
     #  pymethdef_cname   string             PyMethodDef structure
@@ -6398,7 +7020,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  module_name       EncodedString      Name of defining module
     #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = ['code_object', 'defaults_tuple']
+    subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict',
+                'annotations_dict']
 
     self_object = None
     code_object = None
@@ -6408,6 +7031,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     defaults_struct = None
     defaults_pyobjects = 0
     defaults_tuple = None
+    defaults_kwdict = None
+    annotations_dict = None
 
     type = py_object_type
     is_temp = 1
@@ -6426,16 +7051,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     def analyse_types(self, env):
         if self.binding:
-            if self.specialized_cpdefs or self.is_specialization:
-                env.use_utility_code(
-                    UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
-            else:
-                env.use_utility_code(
-                    UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             self.analyse_default_args(env)
-
         #TODO(craig,haoyu) This should be moved to a better place
-        self.set_mod_name(env)
+        self.set_qualified_name(env, self.def_node.name)
+        return self
 
     def analyse_default_args(self, env):
         """
@@ -6444,6 +7063,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         nonliteral_objects = []
         nonliteral_other = []
         default_args = []
+        default_kwargs = []
+        annotations = []
         for arg in self.def_node.args:
             if arg.default:
                 if not arg.default.is_literal:
@@ -6454,7 +7075,20 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                         nonliteral_other.append(arg)
                 else:
                     arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
-                default_args.append(arg)
+                if arg.kw_only:
+                    default_kwargs.append(arg)
+                else:
+                    default_args.append(arg)
+            if arg.annotation:
+                arg.annotation = arg.annotation.analyse_types(env)
+                if not arg.annotation.type.is_pyobject:
+                    arg.annotation = arg.annotation.coerce_to_pyobject(env)
+                annotations.append((arg.pos, arg.name, arg.annotation))
+        if self.def_node.return_type_annotation:
+            annotations.append((self.def_node.return_type_annotation.pos,
+                                StringEncoding.EncodedString("return"),
+                                self.def_node.return_type_annotation))
+
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
             cname = module_scope.next_id(Naming.defaults_struct_prefix)
@@ -6479,27 +7113,54 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     Naming.dynamic_args_cname, entry.cname)
             self.def_node.defaults_struct = self.defaults_struct.name
 
-        if default_args:
+        if default_args or default_kwargs:
             if self.defaults_struct is None:
-                self.defaults_tuple = TupleNode(self.pos, args=[
-                    arg.default for arg in default_args])
-                self.defaults_tuple.analyse_types(env)
+                if default_args:
+                    defaults_tuple = TupleNode(self.pos, args=[
+                        arg.default for arg in default_args])
+                    self.defaults_tuple = defaults_tuple.analyse_types(env)
+                if default_kwargs:
+                    defaults_kwdict = DictNode(self.pos, key_value_pairs=[
+                        DictItemNode(
+                            arg.pos,
+                            key=IdentifierStringNode(arg.pos, value=arg.name),
+                            value=arg.default)
+                        for arg in default_kwargs])
+                    self.defaults_kwdict = defaults_kwdict.analyse_types(env)
             else:
+                if default_args:
+                    defaults_tuple = DefaultsTupleNode(
+                        self.pos, default_args, self.defaults_struct)
+                else:
+                    defaults_tuple = NoneNode(self.pos)
+                if default_kwargs:
+                    defaults_kwdict = DefaultsKwDictNode(
+                        self.pos, default_kwargs, self.defaults_struct)
+                else:
+                    defaults_kwdict = NoneNode(self.pos)
+
                 defaults_getter = Nodes.DefNode(
                     self.pos, args=[], star_arg=None, starstar_arg=None,
                     body=Nodes.ReturnStatNode(
                         self.pos, return_type=py_object_type,
-                        value=DefaultsTupleNode(
-                            self.pos, default_args,
-                            self.defaults_struct)),
-                    decorators=None, name=StringEncoding.EncodedString("__defaults__"))
+                        value=TupleNode(
+                            self.pos, args=[defaults_tuple, defaults_kwdict])),
+                    decorators=None,
+                    name=StringEncoding.EncodedString("__defaults__"))
                 defaults_getter.analyse_declarations(env)
-                defaults_getter.analyse_expressions(env)
-                defaults_getter.body.analyse_expressions(
+                defaults_getter = defaults_getter.analyse_expressions(env)
+                defaults_getter.body = defaults_getter.body.analyse_expressions(
                     defaults_getter.local_scope)
                 defaults_getter.py_wrapper_required = False
                 defaults_getter.pymethdef_required = False
                 self.def_node.defaults_getter = defaults_getter
+        if annotations:
+            annotations_dict = DictNode(self.pos, key_value_pairs=[
+                DictItemNode(
+                    pos, key=IdentifierStringNode(pos, value=name),
+                    value=value)
+                for pos, name, value in annotations])
+            self.annotations_dict = annotations_dict.analyse_types(env)
 
     def may_be_none(self):
         return False
@@ -6532,14 +7193,18 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         code.put_gotref(self.py_result())
 
     def generate_cyfunction_code(self, code):
-        def_node = self.def_node
-
         if self.specialized_cpdefs:
-            constructor = "__pyx_FusedFunction_NewEx"
             def_node = self.specialized_cpdefs[0]
-        elif self.is_specialization:
+        else:
+            def_node = self.def_node
+
+        if self.specialized_cpdefs or self.is_specialization:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
             constructor = "__pyx_FusedFunction_NewEx"
         else:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             constructor = "__Pyx_CyFunction_NewEx"
 
         if self.code_object:
@@ -6561,15 +7226,15 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
                 flags,
+                self.get_py_qualified_name(code),
                 self.self_result_code(),
-                py_mod_name,
+                self.get_py_mod_name(code),
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
 
@@ -6599,9 +7264,15 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.defaults_tuple:
             code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
                 self.result(), self.defaults_tuple.py_result()))
+        if self.defaults_kwdict:
+            code.putln('__Pyx_CyFunction_SetDefaultsKwDict(%s, %s);' % (
+                self.result(), self.defaults_kwdict.py_result()))
         if def_node.defaults_getter:
             code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
                 self.result(), def_node.defaults_getter.entry.pyfunc_cname))
+        if self.annotations_dict:
+            code.putln('__Pyx_CyFunction_SetAnnotationsDict(%s, %s);' % (
+                self.result(), self.annotations_dict.py_result()))
 
 
 class InnerFunctionNode(PyCFunctionNode):
@@ -6613,8 +7284,9 @@ class InnerFunctionNode(PyCFunctionNode):
 
     def self_result_code(self):
         if self.needs_self_code:
-            return "((PyObject*)%s)" % (Naming.cur_scope_cname)
+            return "((PyObject*)%s)" % Naming.cur_scope_cname
         return "NULL"
+
 
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
@@ -6691,7 +7363,7 @@ class DefaultLiteralArgNode(ExprNode):
         self.evaluated = False
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def generate_result_code(self, code):
         pass
@@ -6718,6 +7390,7 @@ class DefaultNonLiteralArgNode(ExprNode):
     def analyse_types(self, env):
         self.type = self.arg.type
         self.is_temp = False
+        return self
 
     def generate_result_code(self, code):
         pass
@@ -6740,6 +7413,21 @@ class DefaultsTupleNode(TupleNode):
                 arg = arg.default
             args.append(arg)
         super(DefaultsTupleNode, self).__init__(pos, args=args)
+
+
+class DefaultsKwDictNode(DictNode):
+    # CyFunction's __kwdefaults__ dict
+
+    def __init__(self, pos, defaults, defaults_struct):
+        items = []
+        for arg in defaults:
+            name = IdentifierStringNode(arg.pos, value=arg.name)
+            if not arg.default.is_literal:
+                arg = DefaultNonLiteralArgNode(pos, arg, defaults_struct)
+            else:
+                arg = arg.default
+            items.append(DictItemNode(arg.pos, key=name, value=arg))
+        super(DefaultsKwDictNode, self).__init__(pos, key_value_pairs=items)
 
 
 class LambdaNode(InnerFunctionNode):
@@ -6765,8 +7453,8 @@ class LambdaNode(InnerFunctionNode):
         env.add_lambda_def(self.def_node)
 
     def analyse_types(self, env):
-        self.def_node.analyse_expressions(env)
-        super(LambdaNode, self).analyse_types(env)
+        self.def_node = self.def_node.analyse_expressions(env)
+        return super(LambdaNode, self).analyse_types(env)
 
     def generate_result_code(self, code):
         self.def_node.generate_execution_code(code)
@@ -6821,9 +7509,10 @@ class YieldExprNode(ExprNode):
             error(self.pos, "'yield' not supported here")
         self.is_temp = 1
         if self.arg is not None:
-            self.arg.analyse_types(env)
+            self.arg = self.arg.analyse_types(env)
             if not self.arg.type.is_pyobject:
                 self.coerce_yield_argument(env)
+        return self
 
     def coerce_yield_argument(self, env):
         self.arg = self.arg.coerce_to_pyobject(env)
@@ -6864,7 +7553,7 @@ class YieldExprNode(ExprNode):
         code.putln("/* return from generator, yielding value */")
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, self.label_num))
-        code.putln("return %s;" % Naming.retval_cname);
+        code.putln("return %s;" % Naming.retval_cname)
 
         code.put_label(self.label_name)
         for cname, save_cname, type in saved:
@@ -6929,8 +7618,12 @@ class GlobalsExprNode(AtomicExprNode):
 
     def analyse_types(self, env):
         env.use_utility_code(Builtin.globals_utility_code)
+        return self
 
     gil_message = "Constructing globals dict"
+
+    def may_be_none(self):
+        return False
 
     def generate_result_code(self, code):
         code.putln('%s = __Pyx_Globals(); %s' % (
@@ -6941,13 +7634,14 @@ class GlobalsExprNode(AtomicExprNode):
 
 class LocalsDictItemNode(DictItemNode):
     def analyse_types(self, env):
-        self.key.analyse_types(env)
-        self.value.analyse_types(env)
+        self.key = self.key.analyse_types(env)
+        self.value = self.value.analyse_types(env)
         self.key = self.key.coerce_to_pyobject(env)
         if self.value.type.can_coerce_to_pyobject(env):
             self.value = self.value.coerce_to_pyobject(env)
         else:
             self.value = None
+        return self
 
 
 class FuncLocalsExprNode(DictNode):
@@ -6962,9 +7656,10 @@ class FuncLocalsExprNode(DictNode):
                           exclude_null_values=True)
 
     def analyse_types(self, env):
-        super(FuncLocalsExprNode, self).analyse_types(env)
-        self.key_value_pairs = [i for i in self.key_value_pairs
-                                if i.value is not None]
+        node = super(FuncLocalsExprNode, self).analyse_types(env)
+        node.key_value_pairs = [ i for i in node.key_value_pairs
+                                 if i.value is not None ]
+        return node
 
 
 class PyClassLocalsExprNode(AtomicExprNode):
@@ -6974,7 +7669,11 @@ class PyClassLocalsExprNode(AtomicExprNode):
 
     def analyse_types(self, env):
         self.type = self.pyclass_dict.type
-        self.is_tmep = 0
+        self.is_temp = False
+        return self
+
+    def may_be_none(self):
+        return False
 
     def result(self):
         return self.pyclass_dict.result()
@@ -7050,7 +7749,7 @@ class UnopNode(ExprNode):
             return operand_type
 
     def analyse_types(self, env):
-        self.operand.analyse_types(env)
+        self.operand = self.operand.analyse_types(env)
         if self.is_py_operation():
             self.coerce_operand_to_pyobject(env)
             self.type = py_object_type
@@ -7059,6 +7758,7 @@ class UnopNode(ExprNode):
             self.analyse_cpp_operation(env)
         else:
             self.analyse_c_operation(env)
+        return self
 
     def check_const(self):
         return self.operand.check_const()
@@ -7129,7 +7829,7 @@ class NotNode(UnopNode):
         return PyrexTypes.c_bint_type
 
     def analyse_types(self, env):
-        self.operand.analyse_types(env)
+        self.operand = self.operand.analyse_types(env)
         operand_type = self.operand.type
         if operand_type.is_cpp_class:
             cpp_type = operand_type.find_cpp_operation_type(self.operator)
@@ -7140,6 +7840,7 @@ class NotNode(UnopNode):
             self.type = cpp_type
         else:
             self.operand = self.operand.coerce_to_boolean(env)
+        return self
 
     def calculate_result_code(self):
         return "(!%s)" % self.operand.result()
@@ -7195,7 +7896,7 @@ class UnaryMinusNode(UnopNode):
     def get_constant_c_result_code(self):
         value = self.operand.get_constant_c_result_code()
         if value:
-            return "(-%s)" % (value)
+            return "(-%s)" % value
 
 class TildeNode(UnopNode):
     #  unary '~' operator
@@ -7274,23 +7975,24 @@ class AmpersandNode(CUnopNode):
         return PyrexTypes.c_ptr_type(operand_type)
 
     def analyse_types(self, env):
-        self.operand.analyse_types(env)
+        self.operand = self.operand.analyse_types(env)
         argtype = self.operand.type
         if argtype.is_cpp_class:
             cpp_type = argtype.find_cpp_operation_type(self.operator)
             if cpp_type is not None:
                 self.type = cpp_type
-                return
+                return self
         if not (argtype.is_cfunction or argtype.is_reference or self.operand.is_addressable()):
             if argtype.is_memoryviewslice:
                 self.error("Cannot take address of memoryview slice")
             else:
                 self.error("Taking address of non-lvalue")
-            return
+            return self
         if argtype.is_pyobject:
             self.error("Cannot take address of Python variable")
-            return
+            return self
         self.type = PyrexTypes.c_ptr_type(argtype)
+        return self
 
     def check_const(self):
         return self.operand.check_const_addr()
@@ -7317,7 +8019,8 @@ def unop_node(pos, operator, operand):
     # Construct unnop node of appropriate class for
     # given operator.
     if isinstance(operand, IntNode) and operator == '-':
-        return IntNode(pos = operand.pos, value = str(-Utils.str_to_number(operand.value)))
+        return IntNode(pos = operand.pos, value = str(-Utils.str_to_number(operand.value)),
+                       longness=operand.longness, unsigned=operand.unsigned)
     elif isinstance(operand, UnopNode) and operand.operator == operator in '+-':
         warning(pos, "Python has no increment/decrement operator: %s%sx == %s(%sx) == x" % ((operator,)*4), 5)
     return unop_node_classes[operator](pos,
@@ -7331,6 +8034,7 @@ class TypecastNode(ExprNode):
     #  operand      ExprNode
     #  base_type    CBaseTypeNode
     #  declarator   CDeclaratorNode
+    #  typecheck    boolean
     #
     #  If used from a transform, one can if wanted specify the attribute
     #  "type" directly and leave base_type and declarator to None
@@ -7358,7 +8062,7 @@ class TypecastNode(ExprNode):
             error(self.pos,
                 "Cannot cast to a function type")
             self.type = PyrexTypes.error_type
-        self.operand.analyse_types(env)
+        self.operand = self.operand.analyse_types(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject
         if from_py and not to_py and self.operand.is_ephemeral():
@@ -7372,7 +8076,8 @@ class TypecastNode(ExprNode):
                 self.operand = CoerceIntToBytesNode(self.operand, env)
             elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
-                self.operand = self.operand.coerce_to_pyobject(env)
+                base_type = self.base_type.analyse(env)
+                self.operand = self.operand.coerce_to(base_type, env)
             else:
                 if self.operand.type.is_ptr:
                     if not (self.operand.type.base_type.is_void or self.operand.type.base_type.is_struct):
@@ -7390,13 +8095,17 @@ class TypecastNode(ExprNode):
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
-            if self.typecheck and self.type.is_extension_type:
+            if self.typecheck and self.type.is_pyobject:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
+            elif isinstance(self.operand, SliceIndexNode):
+                # This cast can influence the created type of string slices.
+                self.operand = self.operand.coerce_to(self.type, env)
         elif self.type.is_complex and self.operand.type.is_complex:
             self.operand = self.operand.coerce_to_simple(env)
         elif self.operand.type.is_fused:
             self.operand = self.operand.coerce_to(self.type, env)
             #self.type = self.operand.type
+        return self
 
     def is_simple(self):
         # either temp or a C cast => no side effects other than the operand's
@@ -7494,7 +8203,7 @@ class CythonArrayNode(ExprNode):
     def analyse_types(self, env):
         import MemoryView
 
-        self.operand.analyse_types(env)
+        self.operand = self.operand.analyse_types(env)
         if self.array_dtype:
             array_dtype = self.array_dtype
         else:
@@ -7511,7 +8220,8 @@ class CythonArrayNode(ExprNode):
         base_type = self.operand.type
 
         if not self.operand.type.is_ptr and not self.operand.type.is_array:
-            return error(self.operand.pos, ERR_NOT_POINTER)
+            error(self.operand.pos, ERR_NOT_POINTER)
+            return self
 
         # Dimension sizes of C array
         array_dimension_sizes = []
@@ -7522,21 +8232,25 @@ class CythonArrayNode(ExprNode):
         elif base_type.is_ptr:
             base_type = base_type.base_type
         else:
-            return error()
+            error(self.pos, "unexpected base type %s found" % base_type)
+            return self
 
         if not (base_type.same_as(array_dtype) or base_type.is_void):
-            return error(self.operand.pos, ERR_BASE_TYPE)
+            error(self.operand.pos, ERR_BASE_TYPE)
+            return self
         elif self.operand.type.is_array and len(array_dimension_sizes) != ndim:
-            return error(self.operand.pos,
-                         "Expected %d dimensions, array has %d dimensions" %
+            error(self.operand.pos,
+                  "Expected %d dimensions, array has %d dimensions" %
                                             (ndim, len(array_dimension_sizes)))
+            return self
 
         # Verify the start, stop and step values
         # In case of a C array, use the size of C array in each dimension to
         # get an automatic cast
         for axis_no, axis in enumerate(axes):
             if not axis.start.is_none:
-                return error(axis.start.pos, ERR_START)
+                error(axis.start.pos, ERR_START)
+                return self
 
             if axis.stop.is_none:
                 if array_dimension_sizes:
@@ -7545,9 +8259,10 @@ class CythonArrayNode(ExprNode):
                                         constant_result=dimsize,
                                         type=PyrexTypes.c_int_type)
                 else:
-                    return error(axis.pos, ERR_NOT_STOP)
+                    error(axis.pos, ERR_NOT_STOP)
+                    return self
 
-            axis.stop.analyse_types(env)
+            axis.stop = axis.stop.analyse_types(env)
             shape = axis.stop.coerce_to(self.shape_type, env)
             if not shape.is_literal:
                 shape.coerce_to_temp(env)
@@ -7557,20 +8272,23 @@ class CythonArrayNode(ExprNode):
             first_or_last = axis_no in (0, ndim - 1)
             if not axis.step.is_none and first_or_last:
                 # '1' in the first or last dimension denotes F or C contiguity
-                axis.step.analyse_types(env)
+                axis.step = axis.step.analyse_types(env)
                 if (not axis.step.type.is_int and axis.step.is_literal and not
                         axis.step.type.is_error):
-                    return error(axis.step.pos, "Expected an integer literal")
+                    error(axis.step.pos, "Expected an integer literal")
+                    return self
 
                 if axis.step.compile_time_value(env) != 1:
-                    return error(axis.step.pos, ERR_STEPS)
+                    error(axis.step.pos, ERR_STEPS)
+                    return self
 
                 if axis_no == 0:
                     self.mode = "fortran"
 
             elif not axis.step.is_none and not first_or_last:
                 # step provided in some other dimension
-                return error(axis.step.pos, ERR_STEPS)
+                error(axis.step.pos, ERR_STEPS)
+                return self
 
         if not self.operand.is_name:
             self.operand = self.operand.coerce_to_temp(env)
@@ -7585,6 +8303,7 @@ class CythonArrayNode(ExprNode):
         self.type = self.get_cython_array_type(env)
         MemoryView.use_cython_array_utility_code(env)
         env.use_utility_code(MemoryView.typeinfo_to_format_code)
+        return self
 
     def allocate_temp_result(self, code):
         if self.temp_code:
@@ -7621,9 +8340,8 @@ class CythonArrayNode(ExprNode):
         code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
                                                 (format_temp, type_info))
         buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
-        code.putln('%s = Py_BuildValue("(" %s ")", %s);' % (shapes_temp,
-                                                            buildvalue_fmt,
-                                                            ", ".join(shapes)))
+        code.putln('%s = Py_BuildValue((char*) "(" %s ")", %s);' % (
+            shapes_temp, buildvalue_fmt, ", ".join(shapes)))
 
         err = "!%s || !%s || !PyBytes_AsString(%s)" % (format_temp,
                                                        shapes_temp,
@@ -7668,7 +8386,7 @@ class CythonArrayNode(ExprNode):
                                                      base_type_node=base_type)
         result = CythonArrayNode(pos, base_type_node=memslicenode,
                                  operand=src_node, array_dtype=base_type)
-        result.analyse_types(env)
+        result = result.analyse_types(env)
         return result
 
 class SizeofNode(ExprNode):
@@ -7705,13 +8423,14 @@ class SizeofTypeNode(SizeofNode):
                 operand = AttributeNode(pos=self.pos, obj=operand, attribute=self.base_type.name)
                 self.operand = operand
                 self.__class__ = SizeofVarNode
-                self.analyse_types(env)
-                return
+                node = self.analyse_types(env)
+                return node
         if self.arg_type is None:
             base_type = self.base_type.analyse(env)
             _, arg_type = self.declarator.analyse(base_type, env)
             self.arg_type = arg_type
         self.check_type()
+        return self
 
     def check_type(self):
         arg_type = self.arg_type
@@ -7750,7 +8469,8 @@ class SizeofVarNode(SizeofNode):
             self.__class__ = SizeofTypeNode
             self.check_type()
         else:
-            self.operand.analyse_types(env)
+            self.operand = self.operand.analyse_types(env)
+        return self
 
     def calculate_result_code(self):
         return "(sizeof(%s))" % self.operand.result()
@@ -7770,11 +8490,12 @@ class TypeofNode(ExprNode):
     subexprs = ['literal'] # 'operand' will be ignored after type analysis!
 
     def analyse_types(self, env):
-        self.operand.analyse_types(env)
+        self.operand = self.operand.analyse_types(env)
         value = StringEncoding.EncodedString(str(self.operand.type)) #self.operand.type.typeof_name())
-        self.literal = StringNode(self.pos, value=value)
-        self.literal.analyse_types(env)
-        self.literal = self.literal.coerce_to_pyobject(env)
+        literal = StringNode(self.pos, value=value)
+        literal = literal.analyse_types(env)
+        self.literal = literal.coerce_to_pyobject(env)
+        return self
 
     def may_be_none(self):
         return False
@@ -7790,9 +8511,6 @@ class TypeofNode(ExprNode):
 #  Binary operator nodes
 #
 #-------------------------------------------------------------------
-
-def _not_in(x, seq):
-    return x not in seq
 
 compile_time_binary_operators = {
     '<': operator.lt,
@@ -7815,8 +8533,8 @@ compile_time_binary_operators = {
     '>>': operator.rshift,
     '-': operator.sub,
     '^': operator.xor,
-    'in': operator.contains,
-    'not_in': _not_in,
+    'in': lambda x, seq: x in seq,
+    'not_in': lambda x, seq: x not in seq,
 }
 
 def get_compile_time_binop(node):
@@ -7863,9 +8581,10 @@ class BinopNode(ExprNode):
                                 self.operand2.infer_type(env))
 
     def analyse_types(self, env):
-        self.operand1.analyse_types(env)
-        self.operand2.analyse_types(env)
+        self.operand1 = self.operand1.analyse_types(env)
+        self.operand2 = self.operand2.analyse_types(env)
         self.analyse_operation(env)
+        return self
 
     def analyse_operation(self, env):
         if self.is_py_operation():
@@ -7890,8 +8609,6 @@ class BinopNode(ExprNode):
             or self.operand2.type.is_cpp_class)
 
     def analyse_cpp_operation(self, env):
-        type1 = self.operand1.type
-        type2 = self.operand2.type
         entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
         if not entry:
             self.type_error()
@@ -7910,8 +8627,12 @@ class BinopNode(ExprNode):
         if self.is_py_operation_types(type1, type2):
             if type2.is_string:
                 type2 = Builtin.bytes_type
+            elif type2.is_pyunicode_ptr:
+                type2 = Builtin.unicode_type
             if type1.is_string:
                 type1 = Builtin.bytes_type
+            elif type1.is_pyunicode_ptr:
+                type1 = Builtin.unicode_type
             elif self.operator == '%' \
                      and type1 in (Builtin.str_type, Builtin.unicode_type):
                 # note that  b'%s' % b'abc'  doesn't work in Py3
@@ -7964,6 +8685,8 @@ class BinopNode(ExprNode):
                     extra_args,
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+        elif self.is_temp:
+            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
 
     def type_error(self):
         if not (self.operand1.type.is_error
@@ -7977,9 +8700,10 @@ class BinopNode(ExprNode):
 class CBinopNode(BinopNode):
 
     def analyse_types(self, env):
-        BinopNode.analyse_types(self, env)
-        if self.is_py_operation():
-            self.type = PyrexTypes.error_type
+        node = BinopNode.analyse_types(self, env)
+        if node.is_py_operation():
+            node.type = PyrexTypes.error_type
+        return node
 
     def py_operation_function(self):
         return ""
@@ -8011,6 +8735,7 @@ class NumBinopNode(BinopNode):
 
     infix = True
     overflow_check = False
+    overflow_bit_node = None
 
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
@@ -8029,6 +8754,7 @@ class NumBinopNode(BinopNode):
                     and not self.operand2.has_constant_result()):
                 self.operand1, self.operand2 = self.operand2, self.operand1
             self.overflow_check = True
+            self.overflow_fold = env.directives['overflowcheck.fold']
             self.func = self.type.overflow_check_binop(
                 self.overflow_op_names[self.operator],
                 env,
@@ -8075,12 +8801,13 @@ class NumBinopNode(BinopNode):
         return (type1.is_numeric  or type1.is_enum) \
             and (type2.is_numeric  or type2.is_enum)
 
-    def generate_result_code(self, code):
-        super(NumBinopNode, self).generate_result_code(code)
+    def generate_evaluation_code(self, code):
         if self.overflow_check:
+            self.overflow_bit_node = self
             self.overflow_bit = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-            code.putln("%s = 0;" % self.overflow_bit);
-            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
+            code.putln("%s = 0;" % self.overflow_bit)
+        super(NumBinopNode, self).generate_evaluation_code(code)
+        if self.overflow_check:
             code.putln("if (unlikely(%s)) {" % self.overflow_bit)
             code.putln('PyErr_Format(PyExc_OverflowError, "value too large");')
             code.putln(code.error_goto(self.pos))
@@ -8088,12 +8815,12 @@ class NumBinopNode(BinopNode):
             code.funcstate.release_temp(self.overflow_bit)
 
     def calculate_result_code(self):
-        if self.overflow_check:
+        if self.overflow_bit_node is not None:
             return "%s(%s, %s, &%s)" % (
                 self.func,
                 self.operand1.result(),
                 self.operand2.result(),
-                self.overflow_bit)
+                self.overflow_bit_node.overflow_bit)
         elif self.infix:
             return "(%s %s %s)" % (
                 self.operand1.result(),
@@ -8114,10 +8841,10 @@ class NumBinopNode(BinopNode):
                 BinopNode.is_py_operation_types(self, type1, type2))
 
     def py_operation_function(self):
-        fuction = self.py_functions[self.operator]
+        function_name = self.py_functions[self.operator]
         if self.inplace:
-            fuction = fuction.replace('PyNumber_', 'PyNumber_InPlace')
-        return fuction
+            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+        return function_name
 
     py_functions = {
         "|":        "PyNumber_Or",
@@ -8154,7 +8881,7 @@ class AddNode(NumBinopNode):
     #  '+' operator.
 
     def is_py_operation_types(self, type1, type2):
-        if type1.is_string and type2.is_string:
+        if type1.is_string and type2.is_string or type1.is_pyunicode_ptr and type2.is_pyunicode_ptr:
             return 1
         else:
             return NumBinopNode.is_py_operation_types(self, type1, type2)
@@ -8177,7 +8904,7 @@ class SubNode(NumBinopNode):
         if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
             return type1
         elif (type1.is_ptr or type1.is_array) and (type2.is_ptr or type2.is_array):
-            return PyrexTypes.c_int_type
+            return PyrexTypes.c_ptrdiff_t_type
         else:
             return NumBinopNode.compute_c_result_type(
                 self, type1, type2)
@@ -8246,8 +8973,6 @@ class DivNode(NumBinopNode):
                 # Need to check ahead of time to warn or raise zero division error
                 self.operand1 = self.operand1.coerce_to_simple(env)
                 self.operand2 = self.operand2.coerce_to_simple(env)
-                if env.nogil:
-                    error(self.pos, "Pythonic division not allowed without gil, consider using cython.cdivision(True)")
 
     def compute_c_result_type(self, type1, type2):
         if self.operator == '/' and self.ctruedivision:
@@ -8282,7 +9007,9 @@ class DivNode(NumBinopNode):
                 else:
                     zero_test = "%s == 0" % self.operand2.result()
                 code.putln("if (unlikely(%s)) {" % zero_test)
+                code.put_ensure_gil()
                 code.putln('PyErr_Format(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
+                code.put_release_ensured_gil()
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
                 if self.type.is_int and self.type.signed and self.operator != '%':
@@ -8291,22 +9018,27 @@ class DivNode(NumBinopNode):
                                     self.type.declaration_code(''),
                                     self.operand2.result(),
                                     self.operand1.result()))
+                    code.put_ensure_gil()
                     code.putln('PyErr_Format(PyExc_OverflowError, "value too large to perform division");')
+                    code.put_release_ensured_gil()
                     code.putln(code.error_goto(self.pos))
                     code.putln("}")
             if code.globalstate.directives['cdivision_warnings'] and self.operator != '/':
                 code.globalstate.use_utility_code(cdivision_warning_utility_code)
-                code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
+                code.putln("if (unlikely((%s < 0) ^ (%s < 0))) {" % (
                                 self.operand1.result(),
                                 self.operand2.result()))
-                code.putln(code.set_error_info(self.pos));
-                code.put("if (__Pyx_cdivision_warning(%(FILENAME)s, "
-                                                     "%(LINENO)s)) " % {
+                code.put_ensure_gil()
+                code.putln(code.set_error_info(self.pos, used=True))
+                code.putln("if (__Pyx_cdivision_warning(%(FILENAME)s, "
+                                                       "%(LINENO)s)) {" % {
                     'FILENAME': Naming.filename_cname,
                     'LINENO':  Naming.lineno_cname,
                     })
-
+                code.put_release_ensured_gil()
                 code.put_goto(code.error_label)
+                code.putln("}")
+                code.put_release_ensured_gil()
                 code.putln("}")
 
     def calculate_result_code(self):
@@ -8346,16 +9078,24 @@ class ModNode(DivNode):
         else:
             return "float divmod()"
 
-    def generate_evaluation_code(self, code):
+    def analyse_operation(self, env):
+        DivNode.analyse_operation(self, env)
         if not self.type.is_pyobject:
             if self.cdivision is None:
-                self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
-            if not self.cdivision:
-                if self.type.is_int:
-                    code.globalstate.use_utility_code(mod_int_utility_code.specialize(self.type))
-                else:
-                    code.globalstate.use_utility_code(
-                        mod_float_utility_code.specialize(self.type, math_h_modifier=self.type.math_h_modifier))
+                self.cdivision = env.directives['cdivision'] or not self.type.signed
+            if not self.cdivision and not self.type.is_int and not self.type.is_float:
+                error(self.pos, "mod operator not supported for type '%s'" % self.type)
+
+    def generate_evaluation_code(self, code):
+        if not self.type.is_pyobject and not self.cdivision:
+            if self.type.is_int:
+                code.globalstate.use_utility_code(
+                    mod_int_utility_code.specialize(self.type))
+            else:  # float
+                code.globalstate.use_utility_code(
+                    mod_float_utility_code.specialize(
+                        self.type, math_h_modifier=self.type.math_h_modifier))
+        # note: skipping over DivNode here
         NumBinopNode.generate_evaluation_code(self, code)
         self.generate_div_warning_code(code)
 
@@ -8391,11 +9131,16 @@ class PowNode(NumBinopNode):
                 self.pow_func = "<error>"
         elif self.type.is_float:
             self.pow_func = "pow" + self.type.math_h_modifier
-        else:
+        elif self.type.is_int:
             self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
             env.use_utility_code(
-                    int_pow_utility_code.specialize(func_name=self.pow_func,
-                                                type=self.type.declaration_code('')))
+                int_pow_utility_code.specialize(
+                    func_name=self.pow_func,
+                    type=self.type.declaration_code(''),
+                    signed=self.type.signed and 1 or 0))
+        elif not self.type.is_error:
+            error(self.pos, "got unexpected types for C power operator: %s, %s" %
+                            (self.operand1.type, self.operand2.type))
 
     def calculate_result_code(self):
         # Work around MSVC overloading ambiguity.
@@ -8464,8 +9209,8 @@ class BoolBinopNode(ExprNode):
             is_temp = self.is_temp)
 
     def analyse_types(self, env):
-        self.operand1.analyse_types(env)
-        self.operand2.analyse_types(env)
+        self.operand1 = self.operand1.analyse_types(env)
+        self.operand2 = self.operand2.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(self.operand1.type, self.operand2.type)
         self.operand1 = self.operand1.coerce_to(self.type, env)
         self.operand2 = self.operand2.coerce_to(self.type, env)
@@ -8475,6 +9220,7 @@ class BoolBinopNode(ExprNode):
         self.operand1 = self.operand1.coerce_to_simple(env)
         self.operand2 = self.operand2.coerce_to_simple(env)
         self.is_temp = 1
+        return self
 
     gil_message = "Truth-testing Python object"
 
@@ -8550,21 +9296,23 @@ class CondExprNode(ExprNode):
             self.constant_result = self.false_val.constant_result
 
     def analyse_types(self, env):
-        self.test.analyse_types(env)
-        self.test = self.test.coerce_to_boolean(env)
-        self.true_val.analyse_types(env)
-        self.false_val.analyse_types(env)
+        self.test = self.test.analyse_types(env).coerce_to_boolean(env)
+        self.true_val = self.true_val.analyse_types(env)
+        self.false_val = self.false_val.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(self.true_val.type, self.false_val.type)
+        if self.type.is_pyobject:
+            self.result_ctype = py_object_type
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
         self.is_temp = 1
         if self.type == PyrexTypes.error_type:
             self.type_error()
+        return self
 
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
-            error(self.pos, "Incompatable types in conditional expression (%s; %s)" %
+            error(self.pos, "Incompatible types in conditional expression (%s; %s)" %
                 (self.true_val.type, self.false_val.type))
         self.type = PyrexTypes.error_type
 
@@ -8668,7 +9416,10 @@ class CmpNode(object):
                 return type2
         elif type1_can_be_int:
             if type2_can_be_int:
-                return PyrexTypes.c_uchar_type
+                if Builtin.unicode_type in (type1, type2):
+                    return PyrexTypes.c_py_ucs4_type
+                else:
+                    return PyrexTypes.c_uchar_type
 
         return None
 
@@ -8709,12 +9460,12 @@ class CmpNode(object):
                 new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
-                    if operand2.check_for_coercion_error(type1):
+                    if operand2.check_for_coercion_error(type1, env):
                         new_common_type = error_type
                     else:
                         new_common_type = py_object_type
                 elif type1.is_numeric or type1.is_string:
-                    if operand1.check_for_coercion_error(type2):
+                    if operand1.check_for_coercion_error(type2, env):
                         new_common_type = error_type
                     else:
                         new_common_type = py_object_type
@@ -8814,6 +9565,11 @@ class CmpNode(object):
                 self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_PyDict_Contains"
+                return True
+            elif self.operand2.type is Builtin.unicode_type:
+                self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyUnicodeContains", "StringTools.c")
+                self.special_bool_cmp_function = "__Pyx_PyUnicode_Contains"
                 return True
             else:
                 if not self.operand2.type.is_pyobject:
@@ -8940,19 +9696,19 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return self.cascaded_compile_time_value(operand1, denv)
 
     def analyse_types(self, env):
-        self.operand1.analyse_types(env)
-        self.operand2.analyse_types(env)
+        self.operand1 = self.operand1.analyse_types(env)
+        self.operand2 = self.operand2.analyse_types(env)
         if self.is_cpp_comparison():
             self.analyse_cpp_comparison(env)
             if self.cascade:
                 error(self.pos, "Cascading comparison not yet supported for cpp types.")
-            return
+            return self
 
         if self.analyse_memoryviewslice_comparison(env):
-            return
+            return self
 
         if self.cascade:
-            self.cascade.analyse_types(env)
+            self.cascade = self.cascade.analyse_types(env)
 
         if self.operator in ('in', 'not_in'):
             if self.is_c_string_contains():
@@ -8960,7 +9716,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 common_type = None
                 if self.cascade:
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
-                    return
+                    return self
                 if self.operand2.type is unicode_type:
                     env.use_utility_code(UtilityCode.load_cached("PyUCS4InUnicode", "StringTools.c"))
                 else:
@@ -8976,7 +9732,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     error(self.pos, "Cascading comparison not supported for 'val in sliced pointer'.")
                 self.type = PyrexTypes.c_bint_type
                 # Will be transformed by IterationTransform
-                return
+                return self
             elif self.find_special_bool_compare_function(env, self.operand1):
                 if not self.operand1.type.is_pyobject:
                     self.operand1 = self.operand1.coerce_to_pyobject(env)
@@ -9016,6 +9772,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if self.is_pycmp or self.cascade or self.special_bool_cmp_function:
             # 1) owned reference, 2) reused value, 3) potential function error return value
             self.is_temp = 1
+        return self
 
     def analyse_cpp_comparison(self, env):
         type1 = self.operand1.type
@@ -9163,9 +9920,10 @@ class CascadedCmpNode(Node, CmpNode):
                self.constant_result is not not_a_constant
 
     def analyse_types(self, env):
-        self.operand2.analyse_types(env)
+        self.operand2 = self.operand2.analyse_types(env)
         if self.cascade:
-            self.cascade.analyse_types(env)
+            self.cascade = self.cascade.analyse_types(env)
+        return self
 
     def has_python_operands(self):
         return self.operand2.type.is_pyobject
@@ -9268,7 +10026,7 @@ class CoercionNode(ExprNode):
     constant_result = not_a_constant
 
     def __init__(self, arg):
-        self.pos = arg.pos
+        super(CoercionNode, self).__init__(arg.pos)
         self.arg = arg
         if debug_coercion:
             print("%s Coercing %s" % (self, self.arg))
@@ -9331,6 +10089,8 @@ class PyTypeTestNode(CoercionNode):
     #  object is an instance of a particular extension type.
     #  This node borrows the result of its argument node.
 
+    exact_builtin_type = True
+
     def __init__(self, arg, dst_type, env, notnone=False):
         #  The arg is know to be a Python object, and
         #  the dst_type is known to be an extension type.
@@ -9344,7 +10104,7 @@ class PyTypeTestNode(CoercionNode):
     gil_message = "Python type test"
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def may_be_none(self):
         if self.notnone:
@@ -9372,12 +10132,17 @@ class PyTypeTestNode(CoercionNode):
 
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
-            if not self.type.is_builtin_type:
-                code.globalstate.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
-            code.putln(
-                "if (!(%s)) %s" % (
-                    self.type.type_test_code(self.arg.py_result(), self.notnone),
-                    code.error_goto(self.pos)))
+            if self.type.is_builtin_type:
+                type_test = self.type.type_test_code(
+                    self.arg.py_result(),
+                    self.notnone, exact=self.exact_builtin_type)
+            else:
+                type_test = self.type.type_test_code(
+                    self.arg.py_result(), self.notnone)
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
+            code.putln("if (!(%s)) %s" % (
+                type_test, code.error_goto(self.pos)))
         else:
             error(self.pos, "Cannot test type of extern C class "
                 "without type object name specification")
@@ -9408,7 +10173,7 @@ class NoneCheckNode(CoercionNode):
     nogil_check = None # this node only guards an operation that would fail already
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def may_be_none(self):
         return False
@@ -9488,11 +10253,17 @@ class CoerceToPyTypeNode(CoercionNode):
         if type is py_object_type:
             # be specific about some known types
             if arg.type.is_string or arg.type.is_cpp_string:
-                self.type = bytes_type
-            elif arg.type.is_unicode_char:
+                self.type = default_str_type(env)
+            elif arg.type.is_pyunicode_ptr or arg.type.is_unicode_char:
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+        elif arg.type.is_string or arg.type.is_cpp_string:
+            if type is not bytes_type and not env.directives['c_string_encoding']:
+                error(arg.pos,
+                    "default encoding required for conversion from '%s' to '%s'" % 
+                    (arg.type, type))
+            self.type = type
         else:
             # FIXME: check that the target type and the resulting type are compatible
             pass
@@ -9526,14 +10297,18 @@ class CoerceToPyTypeNode(CoercionNode):
 
     def analyse_types(self, env):
         # The arg is always already analysed
-        pass
+        return self
 
     def generate_result_code(self, code):
-        if self.arg.type.is_memoryviewslice:
-            funccall = self.arg.type.get_to_py_function(self.env, self.arg)
+        arg_type = self.arg.type
+        if arg_type.is_memoryviewslice:
+            funccall = arg_type.get_to_py_function(self.env, self.arg)
         else:
-            funccall = "%s(%s)" % (self.arg.type.to_py_function,
-                                   self.arg.result())
+            func = arg_type.to_py_function
+            if ((arg_type.is_string or arg_type.is_cpp_string)
+                    and self.type in (bytes_type, str_type, unicode_type)):
+                func = func.replace("Object", self.type.name.title())
+            funccall = "%s(%s)" % (func, self.arg.result())
 
         code.putln('%s = %s; %s' % (
             self.result(),
@@ -9594,18 +10369,18 @@ class CoerceFromPyTypeNode(CoercionNode):
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
-        if self.type.is_string:
+        if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_ephemeral():
                 error(arg.pos,
-                      "Obtaining char* from temporary Python value")
+                      "Obtaining '%s' from temporary Python value" % result_type)
             elif self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,
-                        "Obtaining char* from externally modifiable global Python value",
+                        "Obtaining '%s' from externally modifiable global Python value" % result_type,
                         level=1)
 
     def analyse_types(self, env):
         # The arg is always already analysed
-        pass
+        return self
 
     def generate_result_code(self, code):
         function = self.type.from_py_function
@@ -9705,7 +10480,7 @@ class CoerceToTempNode(CoercionNode):
 
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
-        self.type = self.arg.type
+        self.type = self.arg.type.as_argument_type()
         self.constant_result = self.arg.constant_result
         self.is_temp = 1
         if self.type.is_pyobject:
@@ -9715,7 +10490,7 @@ class CoerceToTempNode(CoercionNode):
 
     def analyse_types(self, env):
         # The arg is always already analysed
-        pass
+        return self
 
     def coerce_to_boolean(self, env):
         self.arg = self.arg.coerce_to_boolean(env)
@@ -9750,11 +10525,13 @@ class ProxyNode(CoercionNode):
 
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
+        self.constant_result = arg.constant_result
         self._proxy_type()
 
     def analyse_expressions(self, env):
-        self.arg.analyse_expressions(env)
+        self.arg = self.arg.analyse_expressions(env)
         self._proxy_type()
+        return self
 
     def _proxy_type(self):
         if hasattr(self.arg, 'type'):
@@ -9800,6 +10577,7 @@ class CloneNode(CoercionNode):
 
     def __init__(self, arg):
         CoercionNode.__init__(self, arg)
+        self.constant_result = arg.constant_result
         if hasattr(arg, 'type'):
             self.type = arg.type
             self.result_ctype = arg.result_ctype
@@ -9824,6 +10602,7 @@ class CloneNode(CoercionNode):
         self.is_temp = 1
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
+        return self
 
     def is_simple(self):
         return True # result is always in a temp (or a name)
@@ -9861,7 +10640,7 @@ class ModuleRefNode(ExprNode):
     subexprs = []
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def may_be_none(self):
         return False
@@ -9885,11 +10664,12 @@ class DocstringRefNode(ExprNode):
         self.body = body
 
     def analyse_types(self, env):
-        pass
+        return self
 
     def generate_result_code(self, code):
-        code.putln('%s = __Pyx_GetAttrString(%s, "__doc__"); %s' % (
+        code.putln('%s = __Pyx_GetAttr(%s, %s); %s' % (
             self.result(), self.body.result(),
+            code.intern_identifier(StringEncoding.EncodedString("__doc__")),
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.result())
 
@@ -9899,29 +10679,6 @@ class DocstringRefNode(ExprNode):
 #
 #  Runtime support code
 #
-#------------------------------------------------------------------------------------
-
-get_name_interned_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
-    PyObject *result;
-    result = PyObject_GetAttr(dict, name);
-    if (!result) {
-        if (dict != %(BUILTINS)s) {
-            PyErr_Clear();
-            result = PyObject_GetAttr(%(BUILTINS)s, name);
-        }
-        if (!result) {
-            PyErr_SetObject(PyExc_NameError, name);
-        }
-    }
-    return result;
-}
-""" % {'BUILTINS' : Naming.builtins_cname})
-
 #------------------------------------------------------------------------------------
 
 pyerr_occurred_withgil_utility_code= UtilityCode(
@@ -10008,7 +10765,9 @@ static CYTHON_INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
         case 0:
             return 1;
     }
+    #if %(signed)s
     if (unlikely(e<0)) return 0;
+    #endif
     t = 1;
     while (likely(e)) {
         t *= (b * (e&1)) | ((~e)&1);    /* 1 or b */

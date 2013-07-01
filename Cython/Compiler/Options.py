@@ -34,6 +34,12 @@ warning_errors = False
 # you should disable this option and also 'cache_builtins'.
 error_on_unknown_names = True
 
+# Make uninitialized local variable reference a compile time error.
+# Python raises UnboundLocalError at runtime, whereas this option makes
+# them a compile time error. Note that this option affects only variables
+# of "python object" type.
+error_on_uninitialized = True
+
 # This will convert statements of the form "for i in range(...)"
 # to "for i from ..." when i is a cdef'd integer type, and the direction
 # (i.e. sign of step) can be determined.
@@ -55,10 +61,6 @@ lookup_module_cpdef = False
 # executes the body of this module.
 embed = None
 
-# Disables function redefinition, allowing all functions to be declared at
-# module creation time. For legacy code only, needed for some circular imports.
-disable_function_redefinition = False
-
 # In previous iterations of Cython, globals() gave the first non-Cython module
 # globals in the call stack.  Sage relies on this behavior for variable injection.
 old_style_globals = False
@@ -71,6 +73,9 @@ cimport_from_pyx = False
 # slices are passed by value and involve a lot of copying
 buffer_max_dims = 8
 
+# Number of function closure instances to keep in a freelist (0: no freelists)
+closure_freelist_size = 8
+
 # Declare compiler directives
 directive_defaults = {
     'boundscheck' : True,
@@ -82,6 +87,7 @@ directive_defaults = {
     'cdivision': False, # was True before 0.12
     'cdivision_warnings': False,
     'overflowcheck': False,
+    'overflowcheck.fold': True,
     'always_allow_keywords': False,
     'allow_none_for_extension_args': True,
     'wraparound' : True,
@@ -90,6 +96,7 @@ directive_defaults = {
     'final' : False,
     'internal' : False,
     'profile': False,
+    'linetrace': False,
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
@@ -98,6 +105,9 @@ directive_defaults = {
     'language_level': 2,
     'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
     'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
+    'c_string_type': 'bytes',
+    'c_string_encoding': '',
+    'type_version_tag': True,   # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -111,7 +121,7 @@ directive_defaults = {
     'warn.unused_result': False,
 
 # optimizations
-    'optimize.inline_defnode_calls': False,
+    'optimize.inline_defnode_calls': True,
 
 # remove unreachable code
     'remove_unreachable': True,
@@ -126,7 +136,8 @@ directive_defaults = {
 
 # experimental, subject to change
     'binding': None,
-    'experimental_cpp_class_def': False
+    'experimental_cpp_class_def': False,
+    'freelist': 0,
 }
 
 # Extra warning directives
@@ -135,6 +146,50 @@ extra_warnings = {
     'warn.unreachable': True,
     'warn.unused': True,
 }
+
+def one_of(*args):
+    def validate(name, value):
+        if value not in args:
+            raise ValueError("%s directive must be one of %s, got '%s'" % (
+                name, args, value))
+        else:
+            return value
+    return validate
+
+
+def normalise_encoding_name(option_name, encoding):
+    """
+    >>> normalise_encoding_name('c_string_encoding', 'ascii')
+    'ascii'
+    >>> normalise_encoding_name('c_string_encoding', 'AsCIi')
+    'ascii'
+    >>> normalise_encoding_name('c_string_encoding', 'us-ascii')
+    'ascii'
+    >>> normalise_encoding_name('c_string_encoding', 'utF8')
+    'utf8'
+    >>> normalise_encoding_name('c_string_encoding', 'utF-8')
+    'utf8'
+    >>> normalise_encoding_name('c_string_encoding', 'deFAuLT')
+    'default'
+    >>> normalise_encoding_name('c_string_encoding', 'default')
+    'default'
+    >>> normalise_encoding_name('c_string_encoding', 'SeriousLyNoSuch--Encoding')
+    'SeriousLyNoSuch--Encoding'
+    """
+    if not encoding:
+        return ''
+    if encoding.lower() in ('default', 'ascii', 'utf8'):
+        return encoding.lower()
+    import codecs
+    try:
+        decoder = codecs.getdecoder(encoding)
+    except LookupError:
+        return encoding  # may exists at runtime ...
+    for name in ('ascii', 'utf8'):
+        if codecs.getdecoder(name) == decoder:
+            return name
+    return encoding
+
 
 # Override types possibilities above, if needed
 directive_types = {
@@ -147,7 +202,10 @@ directive_types = {
     'cclass' : None,
     'returns' : type,
     'set_initial_path': str,
-    }
+    'freelist': int,
+    'c_string_type': one_of('bytes', 'str', 'unicode'),
+    'c_string_encoding': normalise_encoding_name,
+}
 
 for key, val in directive_defaults.items():
     if key not in directive_types:
@@ -163,6 +221,11 @@ directive_scopes = { # defaults to available everywhere
     'set_initial_path' : ('module',),
     'test_assert_path_exists' : ('function', 'class', 'cclass'),
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
+    'freelist': ('cclass',),
+    # Avoid scope-specific to/from_py_functions for c_string.
+    'c_string_type': ('module',),
+    'c_string_encoding': ('module',),
+    'type_version_tag': ('module', 'cclass'),
 }
 
 def parse_directive_value(name, value, relaxed_bool=False):
@@ -179,6 +242,17 @@ def parse_directive_value(name, value, relaxed_bool=False):
        ...
     ValueError: boundscheck directive must be set to True or False, got 'true'
 
+    >>> parse_directive_value('c_string_encoding', 'us-ascii')
+    'ascii'
+    >>> parse_directive_value('c_string_type', 'str')
+    'str'
+    >>> parse_directive_value('c_string_type', 'bytes')
+    'bytes'
+    >>> parse_directive_value('c_string_type', 'unicode')
+    'unicode'
+    >>> parse_directive_value('c_string_type', 'unnicode')
+    Traceback (most recent call last):
+    ValueError: c_string_type directive must be one of ('bytes', 'str', 'unicode'), got 'unnicode'
     """
     type = directive_types.get(name)
     if not type: return None
@@ -201,6 +275,8 @@ def parse_directive_value(name, value, relaxed_bool=False):
                 name, orig_value))
     elif type is str:
         return str(value)
+    elif callable(type):
+        return type(name, value)
     else:
         assert False
 

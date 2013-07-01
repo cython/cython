@@ -31,6 +31,42 @@ def test_name():
     'foo'
     """
 
+
+def test_qualname():
+    """
+    >>> test_qualname.__qualname__
+    'test_qualname'
+    >>> test_qualname.__qualname__ = 123 #doctest:+ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: __qualname__ must be set to a ... object
+    >>> test_qualname.__qualname__ = 'foo'
+    >>> test_qualname.__qualname__
+    'foo'
+    """
+
+
+def test_nested_qualname():
+    """
+    >>> func, lambda_func = test_nested_qualname()
+
+    >>> func().__qualname__
+    'test_nested_qualname.<locals>.outer.<locals>.Test'
+    >>> func().test.__qualname__
+    'test_nested_qualname.<locals>.outer.<locals>.Test.test'
+    >>> func()().test.__qualname__
+    'test_nested_qualname.<locals>.outer.<locals>.Test.test'
+
+    >>> lambda_func.__qualname__
+    'test_nested_qualname.<locals>.<lambda>'
+    """
+    def outer():
+        class Test(object):
+            def test(self):
+                return 123
+        return Test
+    return outer, lambda:None
+
+
 def test_doc():
     """
     >>> del test_doc.__doc__
@@ -184,3 +220,44 @@ def test_code():
     >>> codeof(cy_default_args).co_varnames
     ('x', 'b', 'l', 'm')
     """
+
+
+def test_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
+    """
+    >>> isinstance(test_annotations.__annotations__, dict)
+    True
+    >>> sorted(test_annotations.__annotations__.items())
+    [('a', 'test'), ('b', 'other'), ('c', 123), ('return', 'ret')]
+
+    >>> def func_b(): return 42
+    >>> def func_c(): return 99
+    >>> inner = test_annotations(1, func_b, func_c)
+    >>> sorted(inner.__annotations__.items())
+    [('return', 99), ('x', 'banana'), ('y', 42)]
+
+    >>> inner.__annotations__ = {234: 567}
+    >>> inner.__annotations__
+    {234: 567}
+    >>> inner.__annotations__ = None
+    >>> inner.__annotations__
+    {}
+    >>> inner.__annotations__ = 321
+    Traceback (most recent call last):
+    TypeError: __annotations__ must be set to a dict object
+    >>> inner.__annotations__
+    {}
+
+    >>> inner = test_annotations(1, func_b, func_c)
+    >>> sorted(inner.__annotations__.items())
+    [('return', 99), ('x', 'banana'), ('y', 42)]
+    >>> inner.__annotations__['abc'] = 66
+    >>> sorted(inner.__annotations__.items())
+    [('abc', 66), ('return', 99), ('x', 'banana'), ('y', 42)]
+
+    >>> inner = test_annotations(1, func_b, func_c)
+    >>> sorted(inner.__annotations__.items())
+    [('return', 99), ('x', 'banana'), ('y', 42)]
+    """
+    def inner(x: "banana", y: b()) -> c():
+        return x,y
+    return inner

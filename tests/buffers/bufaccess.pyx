@@ -19,6 +19,11 @@ import sys
 #import re
 exclude = []#re.compile('object').search]
 
+if getattr(sys, 'pypy_version_info', None) is not None:
+    # disable object-in-buffer tests in PyPy
+    import re
+    exclude.append(re.compile('object').search)
+
 def testcase(func):
     for e in exclude:
         if e(func.__name__):

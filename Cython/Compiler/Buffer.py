@@ -1,13 +1,14 @@
-from Visitor import CythonTransform
-from ModuleNode import ModuleNode
-from ExprNodes import *
-from Errors import CompileError
-from UtilityCode import CythonUtilityCode
-from Code import UtilityCode, TempitaUtilityCode
-import Interpreter
-import PyrexTypes
-import Naming
-import Symtab
+from Cython.Compiler.Visitor import CythonTransform
+from Cython.Compiler.ModuleNode import ModuleNode
+from Cython.Compiler.Errors import CompileError
+from Cython.Compiler.UtilityCode import CythonUtilityCode
+from Cython.Compiler.Code import UtilityCode, TempitaUtilityCode
+
+from Cython.Compiler import Options
+from Cython.Compiler import Interpreter
+from Cython.Compiler import PyrexTypes
+from Cython.Compiler import Naming
+from Cython.Compiler import Symtab
 
 
 def dedent(text, reindent=0):
@@ -600,9 +601,13 @@ class GetAndReleaseBufferUtilityCode(object):
 
         find_buffer_types(env)
 
-        proto, impl = TempitaUtilityCode.load_as_string(
+        util_code = TempitaUtilityCode.load(
             "GetAndReleaseBuffer", from_file="Buffer.c",
             context=dict(types=types))
+
+        proto = util_code.format_code(util_code.proto)
+        impl = util_code.format_code(
+            util_code.inject_string_constants(util_code.impl, output))
 
         proto_code.putln(proto)
         code.putln(impl)

@@ -160,22 +160,12 @@ class TreeVisitor(object):
     @cython.final
     def _visit(self, obj):
         try:
-            handler_method = self.dispatch_table[type(obj)]
-        except KeyError:
-            handler_method = self.find_handler(obj)
-            self.dispatch_table[type(obj)] = handler_method
-        return handler_method(obj)
-
-    @cython.final
-    def _visitchild(self, child, parent, attrname, idx):
-        self.access_path.append((parent, attrname, idx))
-        try:
             try:
-                handler_method = self.dispatch_table[type(child)]
+                handler_method = self.dispatch_table[type(obj)]
             except KeyError:
-                handler_method = self.find_handler(child)
-                self.dispatch_table[type(child)] = handler_method
-            result = handler_method(child)
+                handler_method = self.find_handler(obj)
+                self.dispatch_table[type(obj)] = handler_method
+            return handler_method(obj)
         except Errors.CompileError:
             raise
         except Errors.AbortError:
@@ -183,7 +173,12 @@ class TreeVisitor(object):
         except Exception, e:
             if DebugFlags.debug_no_exception_intercept:
                 raise
-            self._raise_compiler_error(child, e)
+            self._raise_compiler_error(obj, e)
+
+    @cython.final
+    def _visitchild(self, child, parent, attrname, idx):
+        self.access_path.append((parent, attrname, idx))
+        result = self._visit(child)
         self.access_path.pop()
         return result
 
@@ -191,6 +186,7 @@ class TreeVisitor(object):
         return self._visitchildren(parent, attrs)
 
     @cython.final
+    @cython.locals(idx=int)
     def _visitchildren(self, parent, attrs):
         """
         Visits the children of the given parent. If parent is None, returns
@@ -239,7 +235,7 @@ class VisitorTransform(TreeVisitor):
     def visitchildren(self, parent, attrs=None):
         result = self._visitchildren(parent, attrs)
         for attr, newnode in result.iteritems():
-            if not type(newnode) is list:
+            if type(newnode) is not list:
                 setattr(parent, attr, newnode)
             else:
                 # Flatten the list one level and remove any None
@@ -325,7 +321,8 @@ class EnvTransform(CythonTransform):
     This transformation keeps a stack of the environments.
     """
     def __call__(self, root):
-        self.env_stack = [(root, root.scope)]
+        self.env_stack = []
+        self.enter_scope(root, root.scope)
         return super(EnvTransform, self).__call__(root)
 
     def current_env(self):
@@ -334,10 +331,19 @@ class EnvTransform(CythonTransform):
     def current_scope_node(self):
         return self.env_stack[-1][0]
 
-    def visit_FuncDefNode(self, node):
-        self.env_stack.append((node, node.local_scope))
-        self.visitchildren(node)
+    def global_scope(self):
+        return self.current_env().global_scope()
+
+    def enter_scope(self, node, scope):
+        self.env_stack.append((node, scope))
+
+    def exit_scope(self):
         self.env_stack.pop()
+
+    def visit_FuncDefNode(self, node):
+        self.enter_scope(node, node.local_scope)
+        self.visitchildren(node)
+        self.exit_scope()
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -345,32 +351,112 @@ class EnvTransform(CythonTransform):
         return node
 
     def visit_ClassDefNode(self, node):
-        self.env_stack.append((node, node.scope))
+        self.enter_scope(node, node.scope)
         self.visitchildren(node)
-        self.env_stack.pop()
+        self.exit_scope()
         return node
 
     def visit_CStructOrUnionDefNode(self, node):
-        self.env_stack.append((node, node.scope))
+        self.enter_scope(node, node.scope)
         self.visitchildren(node)
-        self.env_stack.pop()
+        self.exit_scope()
         return node
 
     def visit_ScopedExprNode(self, node):
         if node.expr_scope:
-            self.env_stack.append((node, node.expr_scope))
+            self.enter_scope(node, node.expr_scope)
             self.visitchildren(node)
-            self.env_stack.pop()
+            self.exit_scope()
+        else:
+            self.visitchildren(node)
+        return node
+
+    def visit_CArgDeclNode(self, node):
+        # default arguments are evaluated in the outer scope
+        if node.default:
+            attrs = [ attr for attr in node.child_attrs if attr != 'default' ]
+            self.visitchildren(node, attrs)
+            self.enter_scope(node, self.current_env().outer_scope)
+            self.visitchildren(node, ('default',))
+            self.exit_scope()
         else:
             self.visitchildren(node)
         return node
 
 
+class NodeRefCleanupMixin(object):
+    """
+    Clean up references to nodes that were replaced.
+
+    NOTE: this implementation assumes that the replacement is
+    done first, before hitting any further references during
+    normal tree traversal.  This needs to be arranged by calling
+    "self.visitchildren()" at a proper place in the transform
+    and by ordering the "child_attrs" of nodes appropriately.
+    """
+    def __init__(self, *args):
+        super(NodeRefCleanupMixin, self).__init__(*args)
+        self._replacements = {}
+
+    def visit_CloneNode(self, node):
+        arg = node.arg
+        if arg not in self._replacements:
+            self.visitchildren(node)
+            arg = node.arg
+        node.arg = self._replacements.get(arg, arg)
+        return node
+
+    def visit_ResultRefNode(self, node):
+        expr = node.expression
+        if expr is None or expr not in self._replacements:
+            self.visitchildren(node)
+            expr = node.expression
+        if expr is not None:
+            node.expression = self._replacements.get(expr, expr)
+        return node
+
+    def replace(self, node, replacement):
+        self._replacements[node] = replacement
+        return replacement
+
+
+find_special_method_for_binary_operator = {
+    '<':  '__lt__',
+    '<=': '__le__',
+    '==': '__eq__',
+    '!=': '__ne__',
+    '>=': '__ge__',
+    '>':  '__gt__',
+    '+':  '__add__',
+    '&':  '__and__',
+    '/':  '__truediv__',
+    '//': '__floordiv__',
+    '<<': '__lshift__',
+    '%':  '__mod__',
+    '*':  '__mul__',
+    '|':  '__or__',
+    '**': '__pow__',
+    '>>': '__rshift__',
+    '-':  '__sub__',
+    '^':  '__xor__',
+    'in': '__contains__',
+}.get
+
+
+find_special_method_for_unary_operator = {
+    'not': '__not__',
+    '~':   '__inv__',
+    '-':   '__neg__',
+    '+':   '__pos__',
+}.get
+
+
 class MethodDispatcherTransform(EnvTransform):
     """
     Base class for transformations that want to intercept on specific
-    builtin functions or methods of builtin types.  Must run after
-    declaration analysis when entries were assigned.
+    builtin functions or methods of builtin types, including special
+    methods triggered by Python operators.  Must run after declaration
+    analysis when entries were assigned.
 
     Naming pattern for handler methods is as follows:
 
@@ -378,7 +464,7 @@ class MethodDispatcherTransform(EnvTransform):
 
     * builtin methods: _handle_(general|simple|any)_method_TYPENAME_METHODNAME
     """
-    # only visit call nodes
+    # only visit call nodes and Python operations
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
         function = node.function
@@ -392,8 +478,7 @@ class MethodDispatcherTransform(EnvTransform):
             # can't handle **kwargs
             return node
         args = arg_tuple.args
-        return self._dispatch_to_handler(
-            node, function, args, keyword_args)
+        return self._dispatch_to_handler(node, function, args, keyword_args)
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
@@ -405,8 +490,50 @@ class MethodDispatcherTransform(EnvTransform):
             args = arg_tuple.args
         else:
             args = node.args
-        return self._dispatch_to_handler(
-            node, function, args)
+        return self._dispatch_to_handler(node, function, args, None)
+
+    def visit_PrimaryCmpNode(self, node):
+        if node.cascade:
+            # not currently handled below
+            self.visitchildren(node)
+            return node
+        return self._visit_binop_node(node)
+
+    def visit_BinopNode(self, node):
+        return self._visit_binop_node(node)
+
+    def _visit_binop_node(self, node):
+        self.visitchildren(node)
+        # FIXME: could special case 'not_in'
+        special_method_name = find_special_method_for_binary_operator(node.operator)
+        if special_method_name:
+            operand1, operand2 = node.operand1, node.operand2
+            if special_method_name == '__contains__':
+                operand1, operand2 = operand2, operand1
+            obj_type = operand1.type
+            if obj_type.is_builtin_type:
+                type_name = obj_type.name
+            else:
+                type_name = "object"  # safety measure
+            node = self._dispatch_to_method_handler(
+                special_method_name, None, False, type_name,
+                node, None, [operand1, operand2], None)
+        return node
+
+    def visit_UnopNode(self, node):
+        self.visitchildren(node)
+        special_method_name = find_special_method_for_unary_operator(node.operator)
+        if special_method_name:
+            operand = node.operand
+            obj_type = operand.type
+            if obj_type.is_builtin_type:
+                type_name = obj_type.name
+            else:
+                type_name = "object"  # safety measure
+            node = self._dispatch_to_method_handler(
+                special_method_name, None, False, type_name,
+                node, None, [operand], None)
+        return node
 
     ### dispatch to specific handlers
 
@@ -417,25 +544,47 @@ class MethodDispatcherTransform(EnvTransform):
             handler = getattr(self, '_handle_any_%s' % match_name, None)
         return handler
 
-    def _dispatch_to_handler(self, node, function, arg_list, kwargs=None):
+    def _delegate_to_assigned_value(self, node, function, arg_list, kwargs):
+        assignment = function.cf_state[0]
+        value = assignment.rhs
+        if value.is_name:
+            if not value.entry or len(value.entry.cf_assignments) > 1:
+                # the variable might have been reassigned => play safe
+                return node
+        elif value.is_attribute and value.obj.is_name:
+            if not value.obj.entry or len(value.obj.entry.cf_assignments) > 1:
+                # the underlying variable might have been reassigned => play safe
+                return node
+        else:
+            return node
+        return self._dispatch_to_handler(
+            node, value, arg_list, kwargs)
+
+    def _dispatch_to_handler(self, node, function, arg_list, kwargs):
         if function.is_name:
             # we only consider functions that are either builtin
             # Python functions or builtins that were already replaced
             # into a C function call (defined in the builtin scope)
             if not function.entry:
                 return node
-            is_builtin = function.entry.is_builtin or\
-                         function.entry is self.current_env().builtin_scope().lookup_here(function.name)
+            is_builtin = (
+                function.entry.is_builtin or
+                function.entry is self.current_env().builtin_scope().lookup_here(function.name))
             if not is_builtin:
+                if function.cf_state and function.cf_state.is_single:
+                    # we know the value of the variable
+                    # => see if it's usable instead
+                    return self._delegate_to_assigned_value(
+                        node, function, arg_list, kwargs)
                 return node
             function_handler = self._find_handler(
                 "function_%s" % function.name, kwargs)
             if function_handler is None:
                 return node
             if kwargs:
-                return function_handler(node, arg_list, kwargs)
+                return function_handler(node, function, arg_list, kwargs)
             else:
-                return function_handler(node, arg_list)
+                return function_handler(node, function, arg_list)
         elif function.is_attribute and function.type.is_pyobject:
             attr_name = function.attribute
             self_arg = function.obj
@@ -446,30 +595,39 @@ class MethodDispatcherTransform(EnvTransform):
                         arg_list and arg_list[0].type.is_pyobject):
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
-                    type_name = function.obj.name
+                    type_name = self_arg.name
                     self_arg = None
                     is_unbound_method = True
                 else:
                     type_name = obj_type.name
             else:
-                type_name = "object" # safety measure
-            method_handler = self._find_handler(
-                "method_%s_%s" % (type_name, attr_name), kwargs)
-            if method_handler is None:
-                if attr_name in TypeSlots.method_name_to_slot\
-                or attr_name == '__new__':
-                    method_handler = self._find_handler(
-                        "slot%s" % attr_name, kwargs)
-                if method_handler is None:
-                    return node
-            if self_arg is not None:
-                arg_list = [self_arg] + list(arg_list)
-            if kwargs:
-                return method_handler(node, arg_list, kwargs, is_unbound_method)
-            else:
-                return method_handler(node, arg_list, is_unbound_method)
+                type_name = "object"  # safety measure
+            return self._dispatch_to_method_handler(
+                attr_name, self_arg, is_unbound_method, type_name,
+                node, function, arg_list, kwargs)
         else:
             return node
+
+    def _dispatch_to_method_handler(self, attr_name, self_arg,
+                                    is_unbound_method, type_name,
+                                    node, function, arg_list, kwargs):
+        method_handler = self._find_handler(
+            "method_%s_%s" % (type_name, attr_name), kwargs)
+        if method_handler is None:
+            if (attr_name in TypeSlots.method_name_to_slot
+                    or attr_name == '__new__'):
+                method_handler = self._find_handler(
+                    "slot%s" % attr_name, kwargs)
+            if method_handler is None:
+                return node
+        if self_arg is not None:
+            arg_list = [self_arg] + list(arg_list)
+        if kwargs:
+            return method_handler(
+                node, function, arg_list, is_unbound_method, kwargs)
+        else:
+            return method_handler(
+                node, function, arg_list, is_unbound_method)
 
 
 class RecursiveNodeReplacer(VisitorTransform):
@@ -491,6 +649,29 @@ class RecursiveNodeReplacer(VisitorTransform):
 def recursively_replace_node(tree, old_node, new_node):
     replace_in = RecursiveNodeReplacer(old_node, new_node)
     replace_in(tree)
+
+
+class NodeFinder(TreeVisitor):
+    """
+    Find out if a node appears in a subtree.
+    """
+    def __init__(self, node):
+        super(NodeFinder, self).__init__()
+        self.node = node
+        self.found = False
+
+    def visit_Node(self, node):
+        if self.found:
+            pass  # short-circuit
+        elif node is self.node:
+            self.found = True
+        else:
+            self._visitchildren(node, None)
+
+def tree_contains(tree, node):
+    finder = NodeFinder(node)
+    finder.visit(tree)
+    return finder.found
 
 
 # Utils
@@ -519,7 +700,7 @@ class PrintTree(TreeVisitor):
 
     def __call__(self, tree, phase=None):
         print("Parse tree dump at phase '%s'" % phase)
-        self._visit(tree)
+        self.visit(tree)
         return tree
 
     # Don't do anything about process_list, the defaults gives

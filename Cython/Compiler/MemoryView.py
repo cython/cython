@@ -180,6 +180,9 @@ def valid_memslice_dtype(dtype, i=0):
     if dtype.is_complex and dtype.real_type.is_int:
         return False
 
+    if dtype is PyrexTypes.c_bint_type:
+        return False
+
     if dtype.is_struct and dtype.kind == 'struct':
         for member in dtype.scope.var_entries:
             if not valid_memslice_dtype(member.type):
@@ -273,7 +276,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         return bufp
 
     def generate_buffer_slice_code(self, code, indices, dst, have_gil,
-                                   have_slices):
+                                   have_slices, directives):
         """
         Slice a memoryviewslice.
 
@@ -359,6 +362,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                                      "All preceding dimensions must be "
                                      "indexed and not sliced")
 
+                wraparound = int(directives['wraparound'])
+                boundscheck = int(directives['boundscheck'])
                 d = locals()
                 code.put(load_slice_util("SliceIndex", d))
 
@@ -914,8 +919,7 @@ memviewslice_init_code = load_memview_c_utility(
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code,
               Buffer.acquire_utility_code,
-              atomic_utility,
-              Buffer.typeinfo_compare_code],
+              atomic_utility],
 )
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")

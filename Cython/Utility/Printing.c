@@ -72,7 +72,7 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
     PyObject* result = 0;
     PyObject* end_string;
     if (unlikely(!$print_function)) {
-        $print_function = __Pyx_GetAttrString($builtins_cname, "print");
+        $print_function = PyObject_GetAttr($builtins_cname, PYIDENT("print"));
         if (!$print_function)
             return -1;
     }
@@ -80,13 +80,13 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
         kwargs = PyDict_New();
         if (unlikely(!kwargs))
             return -1;
-        if (unlikely(PyDict_SetItemString(kwargs, "file", stream) < 0))
+        if (unlikely(PyDict_SetItem(kwargs, PYIDENT("file"), stream) < 0))
             goto bad;
         if (!newline) {
             end_string = PyUnicode_FromStringAndSize(" ", 1);
             if (unlikely(!end_string))
                 goto bad;
-            if (PyDict_SetItemString(kwargs, "end", end_string) < 0) {
+            if (PyDict_SetItem(kwargs, PYIDENT("end"), end_string) < 0) {
                 Py_DECREF(end_string);
                 goto bad;
             }
@@ -100,7 +100,7 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
             end_string = PyUnicode_FromStringAndSize(" ", 1);
             if (unlikely(!end_string))
                 return -1;
-            if (PyDict_SetItemString($print_function_kwargs, "end", end_string) < 0) {
+            if (PyDict_SetItem($print_function_kwargs, PYIDENT("end"), end_string) < 0) {
                 Py_DECREF(end_string);
                 return -1;
             }

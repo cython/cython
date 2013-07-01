@@ -1,8 +1,9 @@
 # 7.19 Input/output <stdio.h>
 
-cdef extern from *:
-    ctypedef char const_char "const char"
-    ctypedef void const_void "const void"
+
+# deprecated cimports for backwards compatibility:
+from libc.string cimport const_char, const_void
+
 
 cdef extern from "stdio.h" nogil:
 
@@ -13,53 +14,67 @@ cdef extern from "stdio.h" nogil:
 
     enum: FOPEN_MAX
     enum: FILENAME_MAX
-    FILE *fopen   (const_char *FILENAME, const_char  *OPENTYPE)
-    FILE *freopen (const_char *FILENAME, const_char *OPENTYPE, FILE *STREAM)
-    int  fclose   (FILE *STREAM)
-    int  remove   (const_char *FILENAME)
-    int  rename   (const_char *OLDNAME, const_char *NEWNAME)
+    FILE *fopen   (const char *filename, const char  *opentype)
+    FILE *freopen (const char *filename, const char *opentype, FILE *stream)
+    FILE *fdopen  (int fdescriptor, const char *opentype)
+    int  fclose   (FILE *stream)
+    int  remove   (const char *filename)
+    int  rename   (const char *oldname, const char *newname)
     FILE *tmpfile ()
+
+    int remove (const char *pathname)
+    int rename (const char *oldpath, const char *newpath)
 
     enum: _IOFBF
     enum: _IOLBF
     enum: _IONBF
-    int setvbuf (FILE *STREAM, char *BUF, int MODE, size_t SIZE)
+    int setvbuf (FILE *stream, char *buf, int mode, size_t size)
     enum: BUFSIZ
-    void setbuf (FILE *STREAM, char *BUF)
+    void setbuf (FILE *stream, char *buf)
 
-    size_t fread  (void *DATA, size_t SIZE, size_t COUNT, FILE *STREAM)
-    size_t fwrite (const_void *DATA, size_t SIZE, size_t COUNT, FILE *STREAM)
-    int    fflush (FILE *STREAM)
+    size_t fread  (void *data, size_t size, size_t count, FILE *stream)
+    size_t fwrite (const void *data, size_t size, size_t count, FILE *stream)
+    int    fflush (FILE *stream)
 
     enum: EOF
-    int feof   (FILE *STREAM)
-    int ferror (FILE *STREAM)
+    void clearerr (FILE *stream)
+    int feof      (FILE *stream)
+    int ferror    (FILE *stream)
 
     enum: SEEK_SET
     enum: SEEK_CUR
     enum: SEEK_END
-    int      fseek  (FILE *STREAM, long int OFFSET, int WHENCE)
-    void     rewind (FILE *STREAM)
-    long int ftell  (FILE *STREAM)
+    int      fseek  (FILE *stream, long int offset, int whence)
+    void     rewind (FILE *stream)
+    long int ftell  (FILE *stream)
 
     ctypedef long long int fpos_t
-    ctypedef fpos_t const_fpos_t "const fpos_t"
-    int fgetpos (FILE *STREAM, fpos_t *POSITION)
-    int fsetpos (FILE *STREAM, const_fpos_t *POSITION)
+    ctypedef const fpos_t const_fpos_t "const fpos_t"
+    int fgetpos (FILE *stream, fpos_t *position)
+    int fsetpos (FILE *stream, const fpos_t *position)
 
-    int scanf    (const_char *TEMPLATE, ...)
-    int sscanf   (const_char *S, const_char *TEMPLATE, ...)
-    int fscanf   (FILE *STREAM, const_char *TEMPLATE, ...)
+    int scanf    (const char *template, ...)
+    int sscanf   (const char *s, const char *template, ...)
+    int fscanf   (FILE *stream, const char *template, ...)
 
-    int printf   (const_char *TEMPLATE, ...)
-    int sprintf  (char *S, const_char *TEMPLATE, ...)
-    int snprintf (char *S, size_t SIZE, const_char *TEMPLATE, ...)
-    int fprintf  (FILE *STREAM, const_char *TEMPLATE, ...)
+    int printf   (const char *template, ...)
+    int sprintf  (char *s, const char *template, ...)
+    int snprintf (char *s, size_t size, const char *template, ...)
+    int fprintf  (FILE *stream, const char *template, ...)
 
-    void perror  (const_char *MESSAGE)
+    void perror  (const char *message)
 
-    char *gets  (char *S)
-    char *fgets (char *S, int COUNT, FILE *STREAM)
+    char *gets  (char *s)
+    char *fgets (char *s, int count, FILE *stream)
+    int getchar ()
+    int fgetc   (FILE *stream)
+    int getc    (FILE *stream)
+    int ungetc  (int c, FILE *stream)
 
-    int  puts   (const_char *S)
-    int  fputs  (const_char *S, FILE *STREAM)
+    int puts    (const char *s)
+    int fputs   (const char *s, FILE *stream)
+    int putchar (int c)
+    int fputc   (int c, FILE *stream)
+    int putc    (int c, FILE *stream)
+
+

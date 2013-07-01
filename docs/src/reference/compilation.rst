@@ -67,6 +67,49 @@ The ``cythonize`` command also allows for multi-threaded compilation and
 dependency resolution.  Recompilation will be skipped if the target file
 is up to date with its main source file and dependencies.
 
+If you have include files in non-standard places you can pass an
+``include_path`` parameter to ``cythonize``::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize("src/*.pyx", include_path = [...]),
+    )
+
+If you need to specify compiler options, libraries to link with or other linker
+options you will need to create ``Extension`` instances manually (note
+that glob syntax can still be used to specify multiple extensions in one line)::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension("primes", ["primes.pyx"],
+            include_dirs = [...],
+            libraries = [...],
+            library_dirs = [...]),
+        # Everything but primes.pyx is included here.
+        Extension("*", ["*.pyx"],
+            include_dirs = [...],
+            libraries = [...],
+            library_dirs = [...]),
+    ]
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize(extensions),
+    )
+
+If your options are static (for example you do not need to call a tool like
+``pkg-config`` to determine them) you can also provide them directly in your
+.pyx source file using a special comment block at the start of the file::
+
+    # distutils: libraries = spam eggs
+    # distutils: include_dirs = /opt/food/include
+
+
 Compiling with ``pyximport``
 =============================
 
@@ -151,8 +194,15 @@ Cython code.  Here is the list of currently supported directives:
     
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
-    operations.  Incurs a slight runtime penalty, but much faster than
+    operations.  Incurs a modest runtime penalty, but is much faster than
     using Python ints.  Default is False.
+    
+``overflowcheck.fold`` (True / False)
+    If set to True, and overflowcheck is True, check the overflow bit for
+    nested, side-effect-free arithmetic expressions once rather than at every
+    step.  Depending on the compiler, architecture, and optimization settings,
+    this may help or hurt performance.  A simple suite of benchmarks can be
+    found in ``Demos/overflow_perf.pyx``.  Default is True.
 
 ``embedsignature`` (True / False)
     If set to True, Cython will embed a textual copy of the call
@@ -187,6 +237,17 @@ Cython code.  Here is the list of currently supported directives:
     Add hooks for Python profilers into the compiled C code.  Default
     is False.
 
+``linetrace`` (True / False)
+    Add line tracing hooks for Python profilers into the compiled C code.
+    This also enables profiling.  Default is False.  Note that the
+    generated module will not actually use line tracing, unless you
+    additionally pass the C macro definition ``CYTHON_TRACE=1`` to the
+    C compiler (e.g. using the distutils option ``define_macros``).
+
+    Note that this feature is currently EXPERIMENTAL.  It will slow down
+    your code, may not work at all for what you want to do with it, and
+    may even crash arbitrarily.
+
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is
     None, indicating that on safe (semantically-unchanging) inferences
@@ -200,6 +261,24 @@ Cython code.  Here is the list of currently supported directives:
     Note that cimported and included source files inherit this
     setting from the module being compiled, unless they explicitly
     set their own language level.
+
+``c_string_type`` (bytes / str / unicode)
+    Globally set the type of an implicit coercion from char* or std::string.
+
+``c_string_encoding`` (ascii, default, utf-8, etc.)
+    Globally set the encoding to use when implicitly coercing char* or std:string
+    to a unicode object.  Coercion from a unicode object to C type is only allowed
+    when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
+    nearly-always ascii in Python 2.
+
+``type_version_tag`` (True / False)
+    Enables the attribute cache for extension types in CPython by setting the
+    type flag ``Py_TPFLAGS_HAVE_VERSION_TAG``.  Default is True, meaning that
+    the cache is enabled for Cython implemented types.  To disable it
+    explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
+    internally without paying attention to cache consistency, this option can
+    be set to False.
+
 
 How to set directives
 ---------------------

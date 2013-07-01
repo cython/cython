@@ -239,7 +239,7 @@ Parameters
  * New references are returned
 
 .. todo::
-    link or label here the one ref count caveat for numpy.
+    link or label here the one ref count caveat for NumPy.
 
 * The name ``object`` can be used to explicitly declare something as a Python Object.
 
@@ -480,24 +480,31 @@ Operator Precedence
 For-loops
 ==========
 
-* ``range()`` is C optimized when the index value has been declared by ``cdef``::
+The "for ... in iterable" loop works as in Python, but is even more versatile
+in Cython as it can additionally be used on C types.
 
-    cdef i
+* ``range()`` is C optimized when the index value has been declared by ``cdef``,
+  for example::
+
+    cdef size_t i
     for i in range(n):
         ...
 
-* Iteration over C arrays is also permitted, e.g.::
+* Iteration over C arrays and sliced pointers is supported and automatically
+  infers the type of the loop variable, e.g.::
 
-    cdef double x
-    cdef double* data
+    cdef double* data = ...
     for x in data[:10]:
         ...
 
 * Iterating over many builtin types such as lists and tuples is optimized.
 
-* There is also a more C-style for-from syntax
+* There is also a more verbose C-style for-from syntax which, however, is
+  deprecated in favour of the normal Python "for ... in range()" loop.  You
+  might still find it in legacy code that was written for Pyrex, though.
 
- * The target expression must be a variable name.
+ * The target expression must be a plain variable name.
+
  * The name between the lower and upper bounds must be the same as the target name.
 
     for i from 0 <= i < n:
@@ -513,8 +520,10 @@ For-loops
     for i from n > i >= 0:
         ...
 
-* The ``break`` and ``continue`` are permissible.
+* The ``break`` and ``continue`` statements are permissible.
+
 * Can contain an else clause.
+
 
 =====================
 Functions and Methods
@@ -572,43 +581,52 @@ Function Pointers
 * Functions declared in a ``struct`` are automatically converted to function pointers.
 * see **using exceptions with function pointers**
 
+
 Python Built-ins
 ================
 
-The following are provided:
+Cython compiles calls to most built-in functions into direct calls to
+the corresponding Python/C API routines, making them particularly fast.
 
-.. todo:: incomplete
+Only direct function calls using these names are optimised. If you do
+something else with one of these names that assumes it's a Python object,
+such as assign it to a Python variable, and later call it, the call will
+be made as a Python function call.
 
 +------------------------------+-------------+----------------------------+
 | Function and arguments       | Return type | Python/C API Equivalent    |
 +==============================+=============+============================+
-| abs(obj)                     | object      | PyNumber_Absolute          |
+| abs(obj)                     | object,     | PyNumber_Absolute, fabs,   |
+|                              | double, ... | fabsf, ...                 |
 +------------------------------+-------------+----------------------------+
-| bool(obj)                    | object      | Py_True, Py_False          |
+| callable(obj)                | bint        | PyObject_Callable          |
 +------------------------------+-------------+----------------------------+
-| chr(obj)                     | object      | char                       |
+| delattr(obj, name)           | None        | PyObject_DelAttr           |
 +------------------------------+-------------+----------------------------+
-| delattr(obj, name)           | int         | PyObject_DelAttr           |
+| exec(code, [glob, [loc]])    | object      | -                          |
 +------------------------------+-------------+----------------------------+
-| dir(obj)                     | object      | PyObject_Dir               |
-| getattr(obj, name) (Note 1)  |             |                            |
-| getattr3(obj, name, default) |             |                            |
+| dir(obj)                     | list        | PyObject_Dir               |
 +------------------------------+-------------+----------------------------+
-| hasattr(obj, name)           | int         | PyObject_HasAttr           |
+| divmod(a, b)                 | tuple       | PyNumber_Divmod            |
 +------------------------------+-------------+----------------------------+
-| hash(obj)                    | int         | PyObject_Hash              |
+| getattr(obj, name, [default])| object      | PyObject_GetAttr           |
+| (Note 1)                     |             |                            |
 +------------------------------+-------------+----------------------------+
-| intern(obj)                  | object      | PyObject_InternFromString  |
+| hasattr(obj, name)           | bint        | PyObject_HasAttr           |
 +------------------------------+-------------+----------------------------+
-| isinstance(obj, type)        | int         | PyObject_IsInstance        |
+| hash(obj)                    | int / long  | PyObject_Hash              |
 +------------------------------+-------------+----------------------------+
-| issubclass(obj, type)        | int         | PyObject_IsSubclass        |
+| intern(obj)                  | object      | Py*_InternFromString       |
 +------------------------------+-------------+----------------------------+
-| iter(obj)                    | object      | PyObject_GetIter           |
+| isinstance(obj, type)        | bint        | PyObject_IsInstance        |
++------------------------------+-------------+----------------------------+
+| issubclass(obj, type)        | bint        | PyObject_IsSubclass        |
++------------------------------+-------------+----------------------------+
+| iter(obj, [sentinel])        | object      | PyObject_GetIter           |
 +------------------------------+-------------+----------------------------+
 | len(obj)                     | Py_ssize_t  | PyObject_Length            |
 +------------------------------+-------------+----------------------------+
-| pow(x, y, z) (Note 2)        | object      | PyNumber_Power             |
+| pow(x, y, [z])               | object      | PyNumber_Power             |
 +------------------------------+-------------+----------------------------+
 | reload(obj)                  | object      | PyImport_ReloadModule      |
 +------------------------------+-------------+----------------------------+
@@ -616,6 +634,11 @@ The following are provided:
 +------------------------------+-------------+----------------------------+
 | setattr(obj, name)           | void        | PyObject_SetAttr           |
 +------------------------------+-------------+----------------------------+
+
+Note 1: Pyrex originally provided a function :func:`getattr3(obj, name, default)`
+corresponding to the three-argument form of the Python builtin :func:`getattr()`.
+Cython still supports this function, but the usage is deprecated in favour of
+the normal builtin, which Cython can optimise in both forms.
 
 
 ============================

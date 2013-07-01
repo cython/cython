@@ -107,8 +107,6 @@ typedef struct {
 /////////////// GetAndReleaseBuffer ///////////////
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-    CYTHON_UNUSED PyObject *getbuffer_cobj;
-
   #if PY_VERSION_HEX >= 0x02060000
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
   #endif
@@ -120,23 +118,19 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
     {{endfor}}
 
   #if PY_VERSION_HEX < 0x02060000
-    if (obj->ob_type->tp_dict &&
-        (getbuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
-                                             "__pyx_getbuffer"))) {
-        getbufferproc func;
+    if (obj->ob_type->tp_dict) {
+        PyObject *getbuffer_cobj = PyObject_GetItem(
+            obj->ob_type->tp_dict, PYIDENT("__pyx_getbuffer"));
+        if (getbuffer_cobj) {
+            getbufferproc func = (getbufferproc) PyCObject_AsVoidPtr(getbuffer_cobj);
+            Py_DECREF(getbuffer_cobj);
+            if (!func)
+                goto fail;
 
-      #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
-        func = (getbufferproc) PyCapsule_GetPointer(getbuffer_cobj, "getbuffer(obj, view, flags)");
-      #else
-        func = (getbufferproc) PyCObject_AsVoidPtr(getbuffer_cobj);
-      #endif
-        Py_DECREF(getbuffer_cobj);
-        if (!func)
-            goto fail;
-
-        return func(obj, view, flags);
-    } else {
-        PyErr_Clear();
+            return func(obj, view, flags);
+        } else {
+            PyErr_Clear();
+        }
     }
   #endif
 
@@ -151,8 +145,6 @@ fail:
 
 static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     PyObject *obj = view->obj;
-    CYTHON_UNUSED PyObject *releasebuffer_cobj;
-
     if (!obj) return;
 
   #if PY_VERSION_HEX >= 0x02060000
@@ -169,26 +161,19 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     {{endfor}}
 
   #if PY_VERSION_HEX < 0x02060000
-    if (obj->ob_type->tp_dict &&
-        (releasebuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
-                                                      "__pyx_releasebuffer"))) {
-        releasebufferproc func;
-
-      #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
-        func = (releasebufferproc) PyCapsule_GetPointer(releasebuffer_cobj, "releasebuffer(obj, view)");
-      #else
-        func = (releasebufferproc) PyCObject_AsVoidPtr(releasebuffer_cobj);
-      #endif
-
-        Py_DECREF(releasebuffer_cobj);
-
-        if (!func)
-            goto fail;
-
-        func(obj, view);
-        return;
-    } else {
-        PyErr_Clear();
+    if (obj->ob_type->tp_dict) {
+        PyObject *releasebuffer_cobj = PyObject_GetItem(
+            obj->ob_type->tp_dict, PYIDENT("__pyx_releasebuffer"));
+        if (releasebuffer_cobj) {
+            releasebufferproc func = (releasebufferproc) PyCObject_AsVoidPtr(releasebuffer_cobj);
+            Py_DECREF(releasebuffer_cobj);
+            if (!func)
+                goto fail;
+            func(obj, view);
+            return;
+        } else {
+            PyErr_Clear();
+        }
     }
   #endif
 

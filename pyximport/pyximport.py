@@ -186,7 +186,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
                                   reload_support=pyxargs.reload_support)
     assert os.path.exists(so_path), "Cannot find: %s" % so_path
     
-    junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ?
+    junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
     for path in junkstuff:
         if path!=so_path:
@@ -291,17 +291,21 @@ class PyxImporter(object):
             paths = sys.path
         join_path = os.path.join
         is_file = os.path.isfile
+        is_abs = os.path.isabs
+        abspath = os.path.abspath
         #is_dir = os.path.isdir
         sep = os.path.sep
         for path in paths:
             if not path:
                 path = os.getcwd()
+            elif not is_abs(path):
+                path = abspath(path)
             if is_file(path+sep+pyx_module_name):
                 return PyxLoader(fullname, join_path(path, pyx_module_name),
                                  pyxbuild_dir=self.pyxbuild_dir,
                                  inplace=self.inplace,
                                  language_level=self.language_level)
-                
+
         # not found, normal package, not a .pyx file, none of our business
         _debug("%s not found" % fullname)
         return None
@@ -497,7 +501,7 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     runtime for .py files and Py2 for .pyx files.
     """
     if not build_dir:
-        build_dir = os.path.expanduser('~/.pyxbld')
+        build_dir = os.path.join(os.path.expanduser('~'), '.pyxbld')
         
     global pyxargs
     pyxargs = PyxArgs()  #$pycheck_no

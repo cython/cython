@@ -43,10 +43,6 @@ Options:
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
-# The following is broken http://trac.cython.org/cython_trac/ticket/379
-#  -r, --recursive                Recursively find and compile dependencies (implies -t)
-
-
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
 #  --link           Link .o file to produce extension module (implies -C)
@@ -98,8 +94,6 @@ def parse_command_line(args):
                 options.working_path = pop_arg()
             elif option in ("-o", "--output-file"):
                 options.output_file = pop_arg()
-            elif option in ("-r", "--recursive"):
-                options.recursive = 1
             elif option in ("-t", "--timestamps"):
                 options.timestamps = 1
             elif option in ("-f", "--force"):
@@ -137,8 +131,6 @@ def parse_command_line(args):
                 Options.warning_errors = True
             elif option in ('-Wextra', '--warning-extra'):
                 options.compiler_directives.update(Options.extra_warnings)
-            elif option == "--disable-function-redefinition":
-                Options.disable_function_redefinition = True
             elif option == "--old-style-globals":
                 Options.old_style_globals = True
             elif option == "--directive" or option.startswith('-X'):

@@ -1,0 +1,59 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import pkg.my_test_module"
+PYTHON -c "import pkg.b; pkg.b.test_reimport()"
+PYTHON -c "import pkg.c; pkg.c.test_reimport()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("**/*.pyx"),
+    )
+
+######## pkg/__init__.py ########
+
+######## pkg/a_module.pyx ########
+
+######## pkg/my_test_module.pyx ########
+
+import sys
+from . import a_module
+assert a_module in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg.a_module'] is a_module, list(sys.modules)
+
+######## pkg/b.pyx ########
+
+from __future__ import absolute_import
+
+import sys
+try:
+    import my_test_module
+except ImportError:
+    pass
+else:
+    assert "expected ImportError on absolute import"
+
+import pkg.my_test_module
+
+assert pkg.my_test_module in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg.my_test_module'] is pkg.my_test_module, list(sys.modules)
+
+def test_reimport():
+    import pkg.my_test_module as mod
+    assert pkg.my_test_module is mod
+
+######## pkg/c.pyx ########
+
+from __future__ import absolute_import
+
+import sys
+from pkg import my_test_module
+
+assert my_test_module in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg.my_test_module'] is my_test_module, list(sys.modules)
+
+def test_reimport():
+    from pkg import my_test_module as mod
+    assert my_test_module is mod

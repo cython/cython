@@ -8,7 +8,7 @@ Sharing Declarations Between Cython Modules
 
 This section describes a new set of facilities for making C declarations,
 functions and extension types in one Cython module available for use in
-another Cython module. These facilities are closely modelled on the Python
+another Cython module. These facilities are closely modeled on the Python
 import mechanism, and can be thought of as a compile-time version of it.
 
 Definition and Implementation files
@@ -24,7 +24,8 @@ statement.
 A ``.pxd`` file that consists solely of extern declarations does not need
 to correspond to an actual ``.pyx`` file or Python module. This can make it a
 convenient place to put common declarations, for example declarations of 
-functions from  an :ref:`external library <external-C-code>` that one wants to use in several modules. 
+functions from  an :ref:`external library <external-C-code>` that one
+wants to use in several modules. 
 
 What a Definition File contains
 ================================
@@ -35,8 +36,6 @@ A definition file can contain:
 * extern C function or variable declarations.
 * Declarations of C functions defined in the module.
 * The definition part of an extension type (see below).
-
-It cannot contain any non-extern C variable declarations.
 
 It cannot contain the implementations of any C or Python functions, or any
 Python class definitions, or any executable statements. It is needed when one 
@@ -73,8 +72,8 @@ statement::
 
     from module cimport name [as name] [, name [as name] ...]
 
-Here is an example. The file on the left is a definition file which exports a
-C data type. The file on the right is an implementation file which imports and
+Here is an example. :file:`dishes.pxd` is a definition file which exports a
+C data type. :file:`restaurant.pxd` an implementation file which imports and
 uses it.
  
 :file:`dishes.pxd`::
@@ -113,7 +112,7 @@ you imported it. Using :keyword:`cimport` to import extension types is covered i
 detail below.  
 
 If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be 
-recompiled. 
+recompiled.  The ``Cython.Build.cythonize`` utility can take care of this for you.
 
 Search paths for definition files 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -136,12 +135,12 @@ for an imaginary module, and :keyword:`cimport` that module. You can then
 refer to the C functions by qualifying them with the name of the module.
 Here's an example:
  
-:file:`c_lunch.pxd` ::
+:file:`c_lunch.pxd`::
 
     cdef extern from "lunch.h":
         void eject_tomato(float) 	
 
-:file:`lunch.pyx` ::
+:file:`lunch.pyx`::
 
     cimport c_lunch
 
@@ -159,11 +158,16 @@ Sharing C Functions
 
 C functions defined at the top level of a module can be made available via
 :keyword:`cimport` by putting headers for them in the ``.pxd`` file, for
-example,:
+example,::
 
 :file:`volume.pxd`::
 
     cdef float cube(float)
+
+:file:`volume.pyx`::
+
+    cdef float cube(float x):
+        return x * x * x
 
 :file:`spammery.pyx`::
 
@@ -176,11 +180,6 @@ example,:
     menu("Entree", 1)
     menu("Main course", 3)
     menu("Dessert", 2)
-
-:file:`volume.pyx`::
-
-    cdef float cube(float x):
-        return x * x * x
 
 .. note::
 
@@ -205,14 +204,16 @@ definition part, and may not add any further C attributes. It may also define
 Python methods.
 
 Here is an example of a module which defines and exports an extension type,
-and another module which uses it.::
- 
-    # Shrubbing.pxd
+and another module which uses it:
+
+:file:`Shrubbing.pxd`::
+
     cdef class Shrubbery:
         cdef int width
         cdef int length
-        
-    # Shrubbing.pyx
+
+:file:`Shrubbing.pyx`::
+
     cdef class Shrubbery:
         def __cinit__(self, int w, int l):
             self.width = w
@@ -221,15 +222,23 @@ and another module which uses it.::
     def standard_shrubbery():
         return Shrubbery(3, 7)
 
+:file:`Landscaping.pyx`::
 
-    # Landscaping.pyx
     cimport Shrubbing
     import Shrubbing
 
     cdef Shrubbing.Shrubbery sh
     sh = Shrubbing.standard_shrubbery()
     print "Shrubbery size is %d x %d" % (sh.width, sh.length)
- 
+
+One would then need to compile both of these modules, e.g. using
+
+:file:`setup.py`::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+    setup(ext_modules = cythonize(["Landscaping.pyx", "Shrubbing.pyx"]))
+
 Some things to note about this example:
 
 * There is a :keyword:`cdef` class Shrubbery declaration in both

@@ -1,0 +1,68 @@
+PYTHON -c "import a; assert a.__file__.rstrip('co').endswith('.py'), a.__file__; a.test()"
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; assert not a.__file__.rstrip('co').endswith('.py'), a.__file__; a.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("a.py"),
+    )
+
+######## a.pxd ########
+
+cimport cython
+
+cdef class ExtType:
+    @cython.final
+    cdef int final_func(self)
+
+@cython.final
+cdef class FinalExtType:
+    cdef int func(self)
+
+@cython.final
+cdef class FinalExtSubType(ExtType):
+    cdef int func(self)
+
+cdef class NonFinalSubType(ExtType):
+    cdef int func(self)
+
+
+######## a.py ########
+
+import cython
+
+class ExtType(object):
+    @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=True]")
+    def final_func(self):
+        return 1
+
+class FinalExtType(object):
+    @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=True]")
+    def func(self):
+        return 2
+
+class FinalExtSubType(ExtType):
+    @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=True]")
+    def func(self):
+        return 3
+
+class NonFinalSubType(ExtType):
+    @cython.test_assert_path_exists("//CFuncDefNode[@entry.is_final_cmethod=True]")
+    @cython.final
+    def func(self):
+        return 4
+
+
+def test():
+    assert ExtType().final_func() == 1
+    assert FinalExtSubType().final_func() == 1
+    assert NonFinalSubType().final_func() == 1
+
+    assert FinalExtType().func() == 2
+    assert FinalExtSubType().func() == 3
+    assert NonFinalSubType().func() == 4

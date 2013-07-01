@@ -6,7 +6,7 @@ import cython
 
 # from cpython cimport ...
 cdef extern from "Python.h":
-    int PyIndex_Check(object)
+    int PyIndex_Check "__Pyx_PyIndex_Check" (object)
     object PyLong_FromVoidPtr(void *)
 
 cdef extern from "pythread.h":
@@ -117,7 +117,7 @@ cdef class array:
         cdef Py_ssize_t i
         cdef PyObject **p
 
-        self.ndim = len(shape)
+        self.ndim = <int> len(shape)
         self.itemsize = itemsize
 
         if not self.ndim:
@@ -621,7 +621,7 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, __Pyx_TypeIn
     return result
 
 @cname('__pyx_memoryview_check')
-cdef bint memoryview_check(object o):
+cdef inline bint memoryview_check(object o):
     return isinstance(o, memoryview)
 
 cdef tuple _unellipsify(object index, int ndim):
@@ -836,7 +836,7 @@ cdef int slice_memviewslice(
         with cython.cdivision(True):
             new_shape = (stop - start) // step
 
-            if (stop - start) % step:
+            if (stop - start) - step * new_shape:
                 new_shape += 1
 
         if new_shape < 0:
@@ -870,7 +870,7 @@ cdef int slice_memviewslice(
 #
 @cname('__pyx_pybuffer_index')
 cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
-                          int dim) except NULL:
+                          Py_ssize_t dim) except NULL:
     cdef Py_ssize_t shape, stride, suboffset = -1
     cdef Py_ssize_t itemsize = view.itemsize
     cdef char *resultp

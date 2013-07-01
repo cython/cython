@@ -1,27 +1,28 @@
 /////////////// append.proto ///////////////
 
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*proto*/
+
+/////////////// append ///////////////
+//@requires: ListAppend
+//@requires: ObjectHandling.c::PyObjectCallMethod
+
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
-        if (unlikely(PyList_Append(L, x) < 0)) return NULL;
+        if (unlikely(__Pyx_PyList_Append(L, x) < 0)) return NULL;
         Py_INCREF(Py_None);
         return Py_None; /* this is just to have an accurate signature */
     } else {
-        PyObject *r, *m;
-        m = __Pyx_GetAttrString(L, "append");
-        if (!m) return NULL;
-        r = PyObject_CallFunctionObjArgs(m, x, NULL);
-        Py_DECREF(m);
-        return r;
+        return __Pyx_PyObject_CallMethod1(L, PYIDENT("append"), x);
     }
 }
 
-/////////////// InternalListAppend.proto ///////////////
+/////////////// ListAppend.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     PyListObject* L = (PyListObject*) list;
     Py_ssize_t len = Py_SIZE(list);
-    if (likely(L->allocated > len)) {
+    if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
         PyList_SET_ITEM(list, len, x);
         Py_SIZE(list) = len+1;
@@ -33,7 +34,30 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
 #define __Pyx_PyList_Append(L,x) PyList_Append(L,x)
 #endif
 
+/////////////// ListCompAppend.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
+    PyListObject* L = (PyListObject*) list;
+    Py_ssize_t len = Py_SIZE(list);
+    if (likely(L->allocated > len)) {
+        Py_INCREF(x);
+        PyList_SET_ITEM(list, len, x);
+        Py_SIZE(list) = len+1;
+        return 0;
+    }
+    return PyList_Append(list, x);
+}
+#else
+#define __Pyx_ListComp_Append(L,x) PyList_Append(L,x)
+#endif
+
 /////////////// pop.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L); /*proto*/
+
+/////////////// pop ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
@@ -49,210 +73,50 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
     }
 #endif
 #endif
-    return PyObject_CallMethod(L, (char*)"pop", NULL);
+    return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
 
 
 /////////////// pop_index.proto ///////////////
 
+static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
+
+/////////////// pop_index ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
+
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
-    PyObject *r, *m, *t, *py_ix;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
+    PyObject *r, *py_ix;
+#if CYTHON_COMPILING_IN_CPYTHON
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
-            if (ix < 0) {
-                ix += size;
+            Py_ssize_t cix = ix;
+            if (cix < 0) {
+                cix += size;
             }
-            if (likely(0 <= ix && ix < size)) {
-                PyObject* v = PyList_GET_ITEM(L, ix);
+            if (likely(0 <= cix && cix < size)) {
+                PyObject* v = PyList_GET_ITEM(L, cix);
                 Py_SIZE(L) -= 1;
                 size -= 1;
-                memmove(&PyList_GET_ITEM(L, ix), &PyList_GET_ITEM(L, ix+1), (size-ix)*sizeof(PyObject*));
+                memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size-cix)*sizeof(PyObject*));
                 return v;
             }
         }
     }
 #endif
-    py_ix = t = NULL;
-    m = __Pyx_GetAttrString(L, "pop");
-    if (!m) goto bad;
     py_ix = PyInt_FromSsize_t(ix);
-    if (!py_ix) goto bad;
-    t = PyTuple_New(1);
-    if (!t) goto bad;
-    PyTuple_SET_ITEM(t, 0, py_ix);
-    py_ix = NULL;
-    r = PyObject_CallObject(m, t);
-    Py_DECREF(m);
-    Py_DECREF(t);
+    if (!py_ix) return NULL;
+    r = __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
+    Py_DECREF(py_ix);
     return r;
-bad:
-    Py_XDECREF(m);
-    Py_XDECREF(t);
-    Py_XDECREF(py_ix);
-    return NULL;
-}
-
-
-/////////////// py_unicode_istitle.proto ///////////////
-
-// Py_UNICODE_ISTITLE() doesn't match unicode.istitle() as the latter
-// additionally allows character that comply with Py_UNICODE_ISUPPER()
-
-#if PY_VERSION_HEX < 0x030200A2
-static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UNICODE uchar)
-#else
-static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar)
-#endif
-{
-    return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
-}
-
-
-/////////////// unicode_tailmatch.proto ///////////////
-
-// Python's unicode.startswith() and unicode.endswith() support a
-// tuple of prefixes/suffixes, whereas it's much more common to
-// test for a single unicode string.
-
-static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
-                                     Py_ssize_t start, Py_ssize_t end, int direction) {
-    if (unlikely(PyTuple_Check(substr))) {
-        Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
-        for (i = 0; i < count; i++) {
-            int result;
-#if CYTHON_COMPILING_IN_CPYTHON
-            result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
-                                         start, end, direction);
-#else
-            PyObject* sub = PySequence_GetItem(substr, i);
-            if (unlikely(!sub)) return -1;
-            result = PyUnicode_Tailmatch(s, sub, start, end, direction);
-            Py_DECREF(sub);
-#endif
-            if (result) {
-                return result;
-            }
-        }
-        return 0;
-    }
-    return PyUnicode_Tailmatch(s, substr, start, end, direction);
-}
-
-
-/////////////// bytes_tailmatch.proto ///////////////
-
-static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
-                                         Py_ssize_t end, int direction)
-{
-    const char* self_ptr = PyBytes_AS_STRING(self);
-    Py_ssize_t self_len = PyBytes_GET_SIZE(self);
-    const char* sub_ptr;
-    Py_ssize_t sub_len;
-    int retval;
-    
-#if PY_VERSION_HEX >= 0x02060000
-    Py_buffer view;
-    view.obj = NULL;
-#endif
-    
-    if ( PyBytes_Check(arg) ) {
-        sub_ptr = PyBytes_AS_STRING(arg);
-        sub_len = PyBytes_GET_SIZE(arg);
-    }
-#if PY_MAJOR_VERSION < 3
-    // Python 2.x allows mixing unicode and str
-    else if ( PyUnicode_Check(arg) ) {
-        return PyUnicode_Tailmatch(self, arg, start, end, direction);
-    }
-#endif
-    else {
-#if PY_VERSION_HEX < 0x02060000
-        if (unlikely(PyObject_AsCharBuffer(arg, &sub_ptr, &sub_len)))
-            return -1;
-#else
-        if (unlikely(PyObject_GetBuffer(self, &view, PyBUF_SIMPLE) == -1))
-            return -1;
-        sub_ptr = (const char*) view.buf;
-        sub_len = view.len;
-#endif
-    }
-    
-    if (end > self_len)
-        end = self_len;
-    else if (end < 0)
-        end += self_len;
-    if (end < 0)
-        end = 0;
-    if (start < 0)
-        start += self_len;
-    if (start < 0)
-        start = 0;
-    
-    if (direction > 0) {
-        /* endswith */
-        if (end-sub_len > start)
-            start = end - sub_len;
-    }
-    
-    if (start + sub_len <= end)
-        retval = !memcmp(self_ptr+start, sub_ptr, sub_len);
-    else
-        retval = 0;
-    
-#if PY_VERSION_HEX >= 0x02060000
-    if (view.obj)
-        PyBuffer_Release(&view);
-#endif
-    
-    return retval;
-}
-
-static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t start,
-                                   Py_ssize_t end, int direction)
-{
-    if (unlikely(PyTuple_Check(substr))) {
-        Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
-        for (i = 0; i < count; i++) {
-            int result;
-#if CYTHON_COMPILING_IN_CPYTHON
-            result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
-                                                   start, end, direction);
-#else
-            PyObject* sub = PySequence_GetItem(substr, i);
-            if (unlikely(!sub)) return -1;
-            result = __Pyx_PyBytes_SingleTailmatch(self, sub, start, end, direction);
-            Py_DECREF(sub);
-#endif
-            if (result) {
-                return result;
-            }
-        }
-        return 0;
-    }
-    
-    return __Pyx_PyBytes_SingleTailmatch(self, substr, start, end, direction);
-}
-
-
-/////////////// bytes_index.proto ///////////////
-
-static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
-    if (check_bounds) {
-        Py_ssize_t size = PyBytes_GET_SIZE(bytes);
-        if (unlikely(index >= size) | ((index < 0) & unlikely(index < -size))) {
-            PyErr_Format(PyExc_IndexError, "string index out of range");
-            return -1;
-        }
-    }
-    if (index < 0)
-        index += PyBytes_GET_SIZE(bytes);
-    return PyBytes_AS_STRING(bytes)[index];
 }
 
 
 /////////////// dict_getitem_default.proto ///////////////
+
+static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value); /*proto*/
+
+/////////////// dict_getitem_default ///////////////
 
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
     PyObject* value;
@@ -273,12 +137,10 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
         }
         Py_INCREF(value);
     } else {
-        PyObject *m;
-        m = __Pyx_GetAttrString(d, "get");
-        if (!m) return NULL;
-        value = PyObject_CallFunctionObjArgs(m, key,
-                                             (default_value == Py_None) ? NULL : default_value, NULL);
-        Py_DECREF(m);
+        if (default_value == Py_None)
+            default_value = NULL;
+        value = PyObject_CallMethodObjArgs(
+            d, PYIDENT("get"), key, default_value, NULL);
     }
 #endif
     return value;
@@ -287,21 +149,36 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 
 /////////////// dict_setdefault.proto ///////////////
 
-static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
+
+/////////////// dict_setdefault ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
+
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
+                                                       CYTHON_UNUSED int is_safe_type) {
     PyObject* value;
-#if PY_MAJOR_VERSION >= 3
-    value = PyDict_GetItemWithError(d, key);
-    if (unlikely(!value)) {
-        if (unlikely(PyErr_Occurred()))
-            return NULL;
-        if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
-            return NULL;
-        value = default_value;
-    }
-    Py_INCREF(value);
+#if PY_VERSION_HEX >= 0x030400A0
+    // we keep the method call at the end to avoid "unused" C compiler warnings
+    if (1) {
+        value = PyDict_SetDefault(d, key, default_value);
+        if (unlikely(!value)) return NULL;
+        Py_INCREF(value);
 #else
-    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
-        /* these presumably have safe hash functions */
+    if (is_safe_type == 1 || (is_safe_type == -1 &&
+        /* the following builtins presumably have repeatably safe and fast hash functions */
+#if PY_MAJOR_VERSION >= 3
+            (PyUnicode_CheckExact(key) || PyString_CheckExact(key) || PyLong_CheckExact(key)))) {
+        value = PyDict_GetItemWithError(d, key);
+        if (unlikely(!value)) {
+            if (unlikely(PyErr_Occurred()))
+                return NULL;
+            if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
+                return NULL;
+            value = default_value;
+        }
+        Py_INCREF(value);
+#else
+            (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key) || PyLong_CheckExact(key)))) {
         value = PyDict_GetItem(d, key);
         if (unlikely(!value)) {
             if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
@@ -309,14 +186,11 @@ static PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *d
             value = default_value;
         }
         Py_INCREF(value);
-    } else {
-        PyObject *m;
-        m = __Pyx_GetAttrString(d, "setdefault");
-        if (!m) return NULL;
-        value = PyObject_CallFunctionObjArgs(m, key, default_value, NULL);
-        Py_DECREF(m);
-    }
 #endif
+#endif
+    } else {
+        value = __Pyx_PyObject_CallMethod2(d, PYIDENT("setdefault"), key, default_value);
+    }
     return value;
 }
 
@@ -335,6 +209,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 /////////////// dict_iter ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
@@ -350,7 +225,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     *p_orig_length = 0;
     if (method_name) {
         PyObject* iter;
-        iterable = PyObject_CallMethodObjArgs(iterable, method_name, NULL);
+        iterable = __Pyx_PyObject_CallMethod0(iterable, method_name);
         if (!iterable)
             return NULL;
 #if !CYTHON_COMPILING_IN_PYPY
@@ -476,8 +351,16 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
 #if CYTHON_COMPILING_IN_PYPY
     float_value = PyNumber_Float(obj);
 #else
-    if (Py_TYPE(obj)->tp_as_number && Py_TYPE(obj)->tp_as_number->nb_float) {
-        return PyFloat_AsDouble(obj);
+    PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
+    if (likely(nb) && likely(nb->nb_float)) {
+        float_value = nb->nb_float(obj);
+        if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
+            PyErr_Format(PyExc_TypeError,
+                "__float__ returned non-float (type %.200s)",
+                Py_TYPE(float_value)->tp_name);
+            Py_DECREF(float_value);
+            goto bad;
+        }
     } else if (PyUnicode_CheckExact(obj) || PyBytes_CheckExact(obj)) {
 #if PY_MAJOR_VERSION >= 3
         float_value = PyFloat_FromString(obj);

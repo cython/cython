@@ -52,12 +52,15 @@
                                 (PyErr_Format(PyExc_TypeError, \
                                               "expected index value, got %.200s", Py_TYPE(o)->tp_name), \
                                  (PyObject*)0))
-  #define PyIndex_Check(o)     (PyNumber_Check(o) && !PyFloat_Check(o) && !PyComplex_Check(o))
+  #define __Pyx_PyIndex_Check(o) (PyNumber_Check(o) && !PyFloat_Check(o) && \
+                                  !PyComplex_Check(o))
+  #define PyIndex_Check __Pyx_PyIndex_Check
   #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)
   #define __PYX_BUILD_PY_SSIZE_T "i"
 #else
   #define __PYX_BUILD_PY_SSIZE_T "n"
   #define CYTHON_FORMAT_SSIZE_T "z"
+  #define __Pyx_PyIndex_Check PyIndex_Check
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
@@ -121,6 +124,10 @@
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
 
+#if PY_VERSION_HEX < 0x02060000
+  #define Py_TPFLAGS_HAVE_VERSION_TAG 0
+#endif
+
 /* new Py3.3 unicode type (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
   #define CYTHON_PEP393_ENABLED 1
@@ -163,6 +170,15 @@
   #define PyBytes_Repr                 PyString_Repr
   #define PyBytes_Concat               PyString_Concat
   #define PyBytes_ConcatAndDel         PyString_ConcatAndDel
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
+  #define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
+#else
+  #define __Pyx_PyBaseString_Check(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj) || \
+                                         PyString_Check(obj) || PyUnicode_Check(obj))
+  #define __Pyx_PyBaseString_CheckExact(obj) (Py_TYPE(obj) == &PyBaseString_Type)
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
@@ -245,6 +261,65 @@
   #define __Pyx_NAMESTR(n) (n)
   #define __Pyx_DOCSTR(n)  (n)
 #endif
+
+/* inline attribute */
+#ifndef CYTHON_INLINE
+  #if defined(__GNUC__)
+    #define CYTHON_INLINE __inline__
+  #elif defined(_MSC_VER)
+    #define CYTHON_INLINE __inline
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_INLINE inline
+  #else
+    #define CYTHON_INLINE
+  #endif
+#endif
+
+/* restrict */
+#ifndef CYTHON_RESTRICT
+  #if defined(__GNUC__)
+    #define CYTHON_RESTRICT __restrict__
+  #elif defined(_MSC_VER) && _MSC_VER >= 1400
+    #define CYTHON_RESTRICT __restrict
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_RESTRICT restrict
+  #else
+    #define CYTHON_RESTRICT
+  #endif
+#endif
+
+#ifdef NAN
+#define __PYX_NAN() ((float) NAN)
+#else
+static CYTHON_INLINE float __PYX_NAN() {
+  /* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
+   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
+   a quiet NaN. */
+  float value;
+  memset(&value, 0xFF, sizeof(value));
+  return value;
+}
+#endif
+
+/////////////// UtilityFunctionPredeclarations.proto ///////////////
+
+/* unused attribute */
+#ifndef CYTHON_UNUSED
+# if defined(__GNUC__)
+#   if !(defined(__cplusplus)) || (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+#     define CYTHON_UNUSED __attribute__ ((__unused__))
+#   else
+#     define CYTHON_UNUSED
+#   endif
+# elif defined(__ICC) || (defined(__INTEL_COMPILER) && !defined(_MSC_VER))
+#   define CYTHON_UNUSED __attribute__ ((__unused__))
+# else
+#   define CYTHON_UNUSED
+# endif
+#endif
+
+typedef struct {PyObject **p; char *s; const Py_ssize_t n; const char* encoding;
+                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 /////////////// ForceInitThreads.proto ///////////////
 
@@ -455,6 +530,15 @@ static int __Pyx_check_binary_version(void) {
   #define __Pyx_XGOTREF(r)
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
+
+#define __Pyx_XDECREF_SET(r, v) do {                            \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; __Pyx_XDECREF(tmp);                              \
+    } while (0)
+#define __Pyx_DECREF_SET(r, v) do {                             \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; __Pyx_DECREF(tmp);                               \
+    } while (0)
 
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)

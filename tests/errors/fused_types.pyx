@@ -74,8 +74,6 @@ _ERRORS = u"""
 27:4: Not enough types specified to specialize the function, int2_t is still fused
 28:16: Call with wrong number of arguments (expected 2, got 1)
 29:16: Call with wrong number of arguments (expected 2, got 3)
-30:4: Invalid use of fused types, type cannot be specialized
-30:4: Keyword and starred arguments not allowed in cdef functions.
 36:6: Invalid base type for memoryview slice: int *
 39:0: Fused lambdas not allowed
 42:5: Fused types not allowed here

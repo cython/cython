@@ -24,7 +24,7 @@ External declarations
 
 By default, C functions and variables declared at the module level are local
 to the module (i.e. they have the C static storage class). They can also be
-declared extern to specify that they are defined elsewhere, for example::
+declared extern to specify that they are defined elsewhere, for example,::
 
     cdef extern int spam_counter
 
@@ -63,44 +63,10 @@ file, so you still need to provide Cython versions of any declarations from it
 that you use. However, the Cython declarations don't always have to exactly
 match the C ones, and in some cases they shouldn't or can't. In particular:
 
-1. Don't use ``const``. Cython doesn't know anything about ``const``, so just
-   leave it out. Most of the time this shouldn't cause any problem, although
-   on rare occasions you might have to use a cast. You can also explicitly 
-   declare something like::
-
-	ctypedef char* const_char_ptr "const char*"
-
-   though in most cases this will not be needed. 
-
-   .. warning:: 
-
-        A problem with const could arise if you have something like::
-
-           cdef extern from "grail.h":
-               char *nun
-
-        where grail.h actually contains::
-
-           extern const char *nun;
-
-        and you do::
-
-           cdef void languissement(char *s):
-               #something that doesn't change s
-
-               ...
-
-           languissement(nun)
-
-        which will cause the C compiler to complain. You can work around it by
-        casting away the constness::
-
-           languissement(<char *>nun)  
-  
-2. Leave out any platform-specific extensions to C declarations such as
+#. Leave out any platform-specific extensions to C declarations such as
    ``__declspec()``.
 
-3. If the header file declares a big struct and you only want to use a few
+#. If the header file declares a big struct and you only want to use a few
    members, you only need to declare the members you're interested in. Leaving
    the rest out doesn't do any harm, because the C compiler will use the full
    definition from the header file.
@@ -116,10 +82,8 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
        you can only do this inside a ``cdef extern from`` block; struct
        declarations anywhere else must be non-empty.
-       
 
-
-4. If the header file uses ``typedef`` names such as :c:type:`word` to refer
+#. If the header file uses ``typedef`` names such as :c:type:`word` to refer
    to platform-dependent flavours of numeric types, you will need a
    corresponding :keyword:`ctypedef` statement, but you don't need to match
    the type exactly, just use something of the right general kind (int, float,
@@ -131,13 +95,16 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
    file defines it correctly). Conversion to and from Python types, if any, will also 
    be used for this new type. 
 
-5. If the header file uses macros to define constants, translate them into a
-   dummy :keyword:`enum` declaration.
+#. If the header file uses macros to define constants, translate them into a
+   normal external variable declaration.  You can also declare them as an
+   :keyword:`enum` if they contain normal :c:type:`int` values.  Note that
+   Cython considers :keyword:`enum` to be equivalent to :c:type:`int`, so do
+   not do this for non-int values.
 
-6. If the header file defines a function using a macro, declare it as though
+#. If the header file defines a function using a macro, declare it as though
    it were an ordinary function, with appropriate argument and result types.
 
-7. For archaic reasons C uses the keyword ``void`` to declare a function
+#. For archaic reasons C uses the keyword ``void`` to declare a function
    taking no parameters. In Cython as in Python, simply declare such functions
    as :meth:`foo()`.
 

@@ -144,6 +144,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from Optimize import InlineDefNodeCalls
     from Optimize import ConstantFolding, FinalOptimizePhase
     from Optimize import DropRefcountingTransform
+    from Optimize import ConsolidateOverflowCheck
     from Buffer import IntroduceBufferAuxiliaryVars
     from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
@@ -196,7 +197,8 @@ def create_pipeline(context, mode, exclude_classes=()):
         CreateClosureClasses(context),  ## After all lookups and type inference
         ExpandInplaceOperators(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
-        IterationTransform(),
+        ConsolidateOverflowCheck(context),
+        IterationTransform(context),
         SwitchTransform(),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
@@ -273,7 +275,8 @@ def create_pyx_as_pxd_pipeline(context, result):
             break
     def fake_pxd(root):
         for entry in root.scope.entries.values():
-            entry.defined_in_pxd = 1
+            if not entry.in_cinclude:
+                entry.defined_in_pxd = 1
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline

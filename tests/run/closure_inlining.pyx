@@ -75,3 +75,75 @@ def test_starred(a):
     def inner(a, *args, **kwargs):
         return a, args, kwargs
     return inner(a)
+
+
+def test_global_calls_still_work():
+    """
+    >>> global_call_result
+    123
+    """
+    return 123
+
+global_call_result = test_global_calls_still_work()
+
+
+@cython.test_fail_if_path_exists(
+    '//InlinedDefNodeCallNode//SimpleCallNode')
+@cython.test_assert_path_exists(
+    '//InlinedDefNodeCallNode',
+    '//InlinedDefNodeCallNode[@function_name.name = "call"]',
+    '//InlinedDefNodeCallNode//InlinedDefNodeCallNode')
+def test_sideeffect_call_order():
+    """
+    >>> test_sideeffect_call_order()
+    [2, 4, 5]
+    """
+    L = []
+    def sideeffect(x):
+        L.append(x)
+        return x
+    def call(x1, x2, x3, x4, x5):
+        pass
+    call(1, sideeffect(2), 3, sideeffect(4), sideeffect(5))
+    return L
+
+
+def test_redef(redefine):
+    """
+    >>> test_redef(False)
+    1
+    >>> test_redef(True)
+    2
+    """
+    def inner():
+        return 1
+    def inner2():
+        return 2
+    def redef():
+        nonlocal inner
+        inner = inner2
+    if redefine:
+        redef()
+        assert inner == inner2
+    else:
+        assert inner != inner2
+    return inner()
+
+
+def test_with_statement():
+    """
+    >>> test_with_statement()
+    enter
+    running
+    exit
+    """
+    def make_context_manager():
+        class CM(object):
+            def __enter__(self):
+                print "enter"
+            def __exit__(self, *args):
+                print "exit"
+        return CM()
+
+    with make_context_manager():
+        print "running"

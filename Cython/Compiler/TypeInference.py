@@ -335,6 +335,9 @@ class PyObjectTypeInferer(object):
 class SimpleAssignmentTypeInferer(object):
     """
     Very basic type inference.
+
+    Note: in order to support cross-closure type inference, this must be
+    applies to nested scopes in top-down order.
     """
     # TODO: Implement a real type inference algorithm.
     # (Something more powerful than just extending this one...)
@@ -357,13 +360,9 @@ class SimpleAssignmentTypeInferer(object):
         ready_to_infer = []
         for name, entry in scope.entries.items():
             if entry.type is unspecified_type:
-                if entry.in_closure or entry.from_closure:
-                    # cross-closure type inference is not currently supported
-                    entry.type = py_object_type
-                    continue
                 all = set()
                 for assmt in entry.cf_assignments:
-                    all.update(assmt.type_dependencies(scope))
+                    all.update(assmt.type_dependencies(entry.scope))
                 if all:
                     dependancies_by_entry[entry] = all
                     for dep in all:
@@ -387,14 +386,25 @@ class SimpleAssignmentTypeInferer(object):
         while True:
             while ready_to_infer:
                 entry = ready_to_infer.pop()
-                types = [assmt.rhs.infer_type(scope)
-                         for assmt in entry.cf_assignments]
+                types = [
+                    assmt.rhs.infer_type(scope)
+                    for assmt in entry.cf_assignments
+                    ]
                 if types and Utils.all(types):
-                    entry.type = spanning_type(types, entry.might_overflow, entry.pos)
+                    entry_type = spanning_type(types, entry.might_overflow, entry.pos)
                 else:
                     # FIXME: raise a warning?
                     # print "No assignments", entry.pos, entry
-                    entry.type = py_object_type
+                    entry_type = py_object_type
+                # propagate entry type to all nested scopes
+                for e in entry.all_entries():
+                    if e.type is unspecified_type:
+                        e.type = entry_type
+                    else:
+                        # FIXME: can this actually happen?
+                        assert e.type == entry_type, (
+                            'unexpected type mismatch between closures for inferred type %s: %s vs. %s' %
+                            entry_type, e, entry)
                 if verbose:
                     message(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type))
                 resolve_dependancy(entry)
@@ -473,9 +483,9 @@ def safe_spanning_type(types, might_overflow, pos):
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
         return result_type
-    elif result_type.is_ptr and not (result_type.is_int and result_type.rank == 0):
+    elif result_type.is_ptr:
         # Any pointer except (signed|unsigned|) char* can't implicitly
-        # become a PyObject.
+        # become a PyObject, and inferring char* is now accepted, too.
         return result_type
     elif result_type.is_cpp_class:
         # These can't implicitly become Python objects either.

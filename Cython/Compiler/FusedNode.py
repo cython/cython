@@ -673,22 +673,22 @@ class FusedCFuncDefNode(StatListNode):
                         specialization_type.create_declaration_utility_code(env)
 
         if self.py_func:
-            self.__signatures__.analyse_expressions(env)
-            self.py_func.analyse_expressions(env)
-            self.resulting_fused_function.analyse_expressions(env)
-            self.fused_func_assignment.analyse_expressions(env)
+            self.__signatures__ = self.__signatures__.analyse_expressions(env)
+            self.py_func = self.py_func.analyse_expressions(env)
+            self.resulting_fused_function = self.resulting_fused_function.analyse_expressions(env)
+            self.fused_func_assignment = self.fused_func_assignment.analyse_expressions(env)
 
         self.defaults = defaults = []
 
         for arg in self.node.args:
             if arg.default:
-                arg.default.analyse_expressions(env)
+                arg.default = arg.default.analyse_expressions(env)
                 defaults.append(ProxyNode(arg.default))
             else:
                 defaults.append(None)
 
-        for stat in self.stats:
-            stat.analyse_expressions(env)
+        for i, stat in enumerate(self.stats):
+            stat = self.stats[i] = stat.analyse_expressions(env)
             if isinstance(stat, FuncDefNode):
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
@@ -697,7 +697,7 @@ class FusedCFuncDefNode(StatListNode):
         if self.py_func:
             args = [CloneNode(default) for default in defaults if default]
             self.defaults_tuple = TupleNode(self.pos, args=args)
-            self.defaults_tuple.analyse_types(env, skip_children=True)
+            self.defaults_tuple = self.defaults_tuple.analyse_types(env, skip_children=True)
             self.defaults_tuple = ProxyNode(self.defaults_tuple)
             self.code_object = ProxyNode(self.specialized_pycfuncs[0].code_object)
 
@@ -705,10 +705,11 @@ class FusedCFuncDefNode(StatListNode):
             fused_func.defaults_tuple = CloneNode(self.defaults_tuple)
             fused_func.code_object = CloneNode(self.code_object)
 
-            for pycfunc in self.specialized_pycfuncs:
+            for i, pycfunc in enumerate(self.specialized_pycfuncs):
                 pycfunc.code_object = CloneNode(self.code_object)
-                pycfunc.analyse_types(env)
+                pycfunc = self.specialized_pycfuncs[i] = pycfunc.analyse_types(env)
                 pycfunc.defaults_tuple = CloneNode(self.defaults_tuple)
+        return self
 
     def synthesize_defnodes(self):
         """

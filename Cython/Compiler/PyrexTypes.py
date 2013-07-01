@@ -145,6 +145,7 @@ class PyrexType(BaseType):
     #  is_enum               boolean     Is a C enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
+    #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string type
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
@@ -175,7 +176,7 @@ class PyrexType(BaseType):
     #    as other_type.
     #
     #  as_argument_type():
-    #    Coerces array type into pointer type for use as
+    #    Coerces array and C function types into pointer type for use as
     #    a formal argument type.
     #
 
@@ -202,6 +203,7 @@ class PyrexType(BaseType):
     is_enum = 0
     is_typedef = 0
     is_string = 0
+    is_pyunicode_ptr = 0
     is_unicode_char = 0
     is_returncode = 0
     is_error = 0
@@ -295,9 +297,9 @@ def create_typedef_type(name, base_type, cname, is_external=0):
 class CTypedefType(BaseType):
     #
     #  Pseudo-type defined with a ctypedef statement in a
-    #  'cdef extern from' block. Delegates most attribute
-    #  lookups to the base type. ANYTHING NOT DEFINED
-    #  HERE IS DELEGATED!
+    #  'cdef extern from' block.
+    #  Delegates most attribute lookups to the base type.
+    #  (Anything not defined here or in the BaseType is delegated.)
     #
     #  qualified_name      string
     #  typedef_name        string
@@ -439,6 +441,9 @@ class CTypedefType(BaseType):
     def py_type_name(self):
         return self.typedef_base_type.py_type_name()
 
+    def can_coerce_to_pyobject(self, env):
+        return self.typedef_base_type.can_coerce_to_pyobject(env)
+
 
 class MemoryViewSliceType(PyrexType):
 
@@ -447,7 +452,7 @@ class MemoryViewSliceType(PyrexType):
     has_attributes = 1
     scope = None
 
-    # These are specialcased in Defnode
+    # These are special cased in Defnode
     from_py_function = None
     to_py_function = None
 
@@ -457,7 +462,7 @@ class MemoryViewSliceType(PyrexType):
     subtypes = ['dtype']
 
     def __init__(self, base_dtype, axes):
-        '''
+        """
         MemoryViewSliceType(base, axes)
 
         Base is the C base type; axes is a list of (access, packing) strings,
@@ -489,7 +494,7 @@ class MemoryViewSliceType(PyrexType):
         Fortran-contiguous memory has 'direct' as the access spec, 'contig' as
         the *first* axis' packing spec and 'follow' for all other packing
         specs.
-        '''
+        """
         import MemoryView
 
         self.dtype = base_dtype
@@ -684,8 +689,6 @@ class MemoryViewSliceType(PyrexType):
         return "__pyx_memoryview_fromslice(%s, %s, %s, %s, %d);" % tup
 
     def dtype_object_conversion_funcs(self, env):
-        import MemoryView, Code
-
         get_function = "__pyx_memview_get_%s" % self.dtype_name
         set_function = "__pyx_memview_set_%s" % self.dtype_name
 
@@ -724,13 +727,13 @@ class MemoryViewSliceType(PyrexType):
         return get_function, set_function
 
     def axes_to_code(self):
-        "Return a list of code constants for each axis"
+        """Return a list of code constants for each axis"""
         import MemoryView
         d = MemoryView._spec_to_const
         return ["(%s | %s)" % (d[a], d[p]) for a, p in self.axes]
 
     def axes_to_name(self):
-        "Return an abbreviated name for our axes"
+        """Return an abbreviated name for our axes"""
         import MemoryView
         d = MemoryView._spec_to_abbrev
         return "".join(["%s%s" % (d[a], d[p]) for a, p in self.axes])
@@ -763,7 +766,7 @@ class MemoryViewSliceType(PyrexType):
         return "%s[%s]" % (dtype_name, ", ".join(axes_code_list))
 
     def specialize(self, values):
-        "This does not validate the base type!!"
+        """This does not validate the base type!!"""
         dtype = self.dtype.specialize(values)
         if dtype is not self.dtype:
             return MemoryViewSliceType(dtype, self.axes)
@@ -776,10 +779,9 @@ class MemoryViewSliceType(PyrexType):
 
 class BufferType(BaseType):
     #
-    #  Delegates most attribute
-    #  lookups to the base type. ANYTHING NOT DEFINED
-    #  HERE IS DELEGATED!
-
+    #  Delegates most attribute lookups to the base type.
+    #  (Anything not defined here or in the BaseType is delegated.)
+    #
     # dtype            PyrexType
     # ndim             int
     # mode             str
@@ -868,12 +870,12 @@ class PyObjectType(PyrexType):
         return True
 
     def default_coerced_ctype(self):
-        "The default C type that this Python type coerces to, or None."
+        """The default C type that this Python type coerces to, or None."""
         return None
 
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
-        return not src_type.is_ptr or src_type.is_string
+        return not src_type.is_ptr or src_type.is_string or src_type.is_pyunicode_ptr
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -975,6 +977,8 @@ class BuiltinObjectType(PyObjectType):
         type_name = self.name
         if type_name == 'str':
             type_check = 'PyString_Check'
+        elif type_name == 'basestring':
+            type_check = '__Pyx_PyBaseString_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:
@@ -986,11 +990,11 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, arg, notnone=False):
-        type_check = self.type_check_function(exact=True)
+    def type_test_code(self, arg, notnone=False, exact=True):
+        type_check = self.type_check_function(exact=exact)
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
-            check = check + ('||((%s) == Py_None)' % arg)
+            check += '||((%s) == Py_None)' % arg
         error = '(PyErr_Format(PyExc_TypeError, "Expected %s, got %%.200s", Py_TYPE(%s)->tp_name), 0)' % (self.name, arg)
         return check + '||' + error
 
@@ -1035,9 +1039,6 @@ class PyExtensionType(PyObjectType):
     is_extension_type = 1
     has_attributes = 1
 
-    def needs_nonecheck(self):
-        return True
-
     objtypedef_cname = None
 
     def __init__(self, name, typedef_flag, base_type, is_external=0):
@@ -1061,6 +1062,9 @@ class PyExtensionType(PyObjectType):
         self.scope = scope
         if scope:
             scope.parent_type = self
+
+    def needs_nonecheck(self):
+        return True
 
     def subtype_of_resolved_type(self, other_type):
         if other_type.is_extension_type or other_type.is_builtin_type:
@@ -1161,7 +1165,7 @@ class CType(PyrexType):
 
     def error_condition(self, result_code):
         conds = []
-        if self.is_string:
+        if self.is_string or self.is_pyunicode_ptr:
             conds.append("(!%s)" % result_code)
         elif self.exception_value is not None:
             conds.append("(%s == (%s)%s)" % (result_code, self.sign_and_name(), self.exception_value))
@@ -1198,7 +1202,7 @@ class CConstType(BaseType):
         if base_type == self.const_base_type:
             return self
         else:
-            return ConstType(base_type)
+            return CConstType(base_type)
 
     def create_to_py_utility_code(self, env):
         if self.const_base_type.create_to_py_utility_code(env):
@@ -1330,7 +1334,7 @@ class CNumericType(CType):
                     visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            entry = scope.declare_cfunction(
+            scope.declare_cfunction(
                     "conjugate",
                     CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
@@ -1339,7 +1343,7 @@ class CNumericType(CType):
         return True
 
     def __lt__(self, other):
-        "Sort based on rank, preferring signed over unsigned"
+        """Sort based on rank, preferring signed over unsigned"""
         if other.is_numeric:
             return self.rank > other.rank and self.signed >= other.signed
 
@@ -1350,9 +1354,6 @@ class CNumericType(CType):
         if self.rank <= 4:
             return "(int, long)"
         return "float"
-
-type_conversion_predeclarations = ""
-type_conversion_functions = ""
 
 c_int_from_py_function = UtilityCode(
 proto="""
@@ -1384,10 +1385,15 @@ proto="""
 static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 """,
 impl="""
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
+#include "longintrepr.h"
+#endif
+#endif
 static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
-#if PY_VERSION_HEX < 0x03000000
+#if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
         long val = PyInt_AS_LONG(x);
         if (is_unsigned && unlikely(val < 0)) {
@@ -1400,6 +1406,16 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
 #endif
     if (likely(PyLong_Check(x))) {
         if (is_unsigned) {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
+            if (sizeof(digit) <= sizeof(%(type)s)) {
+                switch (Py_SIZE(x)) {
+                    case  0: return 0;
+                    case  1: return (%(type)s) ((PyLongObject*)x)->ob_digit[0];
+                }
+            }
+#endif
+#endif
             if (unlikely(Py_SIZE(x) < 0)) {
                 PyErr_SetString(PyExc_OverflowError,
                                 "can't convert negative value to %(type)s");
@@ -1407,6 +1423,17 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x
             }
             return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
         } else {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
+            if (sizeof(digit) <= sizeof(%(type)s)) {
+                switch (Py_SIZE(x)) {
+                    case  0: return 0;
+                    case  1: return +(%(type)s) ((PyLongObject*)x)->ob_digit[0];
+                    case -1: return -(%(type)s) ((PyLongObject*)x)->ob_digit[0];
+                }
+            }
+#endif
+#endif
             return (%(type)s)PyLong_As%(TypeName)s(x);
         }
     } else {
@@ -1460,7 +1487,7 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
         #else
         %(type)s val;
         PyObject *v = __Pyx_PyNumber_Int(x);
-        #if PY_VERSION_HEX < 0x03000000
+        #if PY_MAJOR_VERSION < 3
         if (likely(v) && !PyLong_Check(v)) {
             PyObject *tmp = v;
             v = PyNumber_Long(tmp);
@@ -1638,6 +1665,14 @@ class CBIntType(CIntType):
     from_py_function = "__Pyx_PyObject_IsTrue"
     exception_check = 1 # for C++ bool
 
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            base_code = 'bool'
+        else:
+            base_code = public_decl('int', dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
+
     def __repr__(self):
         return "<CNumericType bint>"
 
@@ -1663,63 +1698,11 @@ class CPyUCS4IntType(CIntType):
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
     def create_from_py_utility_code(self, env):
-        env.use_utility_code(pyobject_as_py_ucs4_utility_code)
+        env.use_utility_code(UtilityCode.load_cached("ObjectAsUCS4", "TypeConversion.c"))
         return True
 
     def sign_and_name(self):
         return "Py_UCS4"
-
-
-pyobject_as_py_ucs4_utility_code = UtilityCode(
-proto='''
-static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject*);
-''',
-impl='''
-static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
-   long ival;
-   if (PyUnicode_Check(x)) {
-       Py_ssize_t length;
-       #if CYTHON_PEP393_ENABLED
-       length = PyUnicode_GET_LENGTH(x);
-       if (likely(length == 1)) {
-           return PyUnicode_READ_CHAR(x, 0);
-       }
-       #else
-       length = PyUnicode_GET_SIZE(x);
-       if (likely(length == 1)) {
-           return PyUnicode_AS_UNICODE(x)[0];
-       }
-       #if Py_UNICODE_SIZE == 2
-       else if (PyUnicode_GET_SIZE(x) == 2) {
-           Py_UCS4 high_val = PyUnicode_AS_UNICODE(x)[0];
-           if (high_val >= 0xD800 && high_val <= 0xDBFF) {
-               Py_UCS4 low_val = PyUnicode_AS_UNICODE(x)[1];
-               if (low_val >= 0xDC00 && low_val <= 0xDFFF) {
-                   return 0x10000 + (((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1)));
-               }
-           }
-       }
-       #endif
-       #endif
-       PyErr_Format(PyExc_ValueError,
-                    "only single character unicode strings can be converted to Py_UCS4, "
-                    "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
-       return (Py_UCS4)-1;
-   }
-   ival = __Pyx_PyInt_AsLong(x);
-   if (unlikely(ival < 0)) {
-       if (!PyErr_Occurred())
-           PyErr_SetString(PyExc_OverflowError,
-                           "cannot convert negative value to Py_UCS4");
-       return (Py_UCS4)-1;
-   } else if (unlikely(ival > 1114111)) {
-       PyErr_SetString(PyExc_OverflowError,
-                       "value too large to convert to Py_UCS4");
-       return (Py_UCS4)-1;
-   }
-   return (Py_UCS4)ival;
-}
-''')
 
 
 class CPyUnicodeIntType(CIntType):
@@ -1736,56 +1719,11 @@ class CPyUnicodeIntType(CIntType):
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
 
     def create_from_py_utility_code(self, env):
-        env.use_utility_code(pyobject_as_py_unicode_utility_code)
+        env.use_utility_code(UtilityCode.load_cached("ObjectAsPyUnicode", "TypeConversion.c"))
         return True
 
     def sign_and_name(self):
         return "Py_UNICODE"
-
-pyobject_as_py_unicode_utility_code = UtilityCode(
-proto='''
-static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject*);
-''',
-impl='''
-static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
-    long ival;
-    #if CYTHON_PEP393_ENABLED
-    const long maxval = 1114111;
-    #else
-    static long maxval = 0;
-    #endif
-    if (PyUnicode_Check(x)) {
-        if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
-            PyErr_Format(PyExc_ValueError,
-                         "only single character unicode strings can be converted to Py_UNICODE, "
-                         "got length %" CYTHON_FORMAT_SSIZE_T "d", __Pyx_PyUnicode_GET_LENGTH(x));
-            return (Py_UNICODE)-1;
-        }
-        #if CYTHON_PEP393_ENABLED
-        ival = PyUnicode_READ_CHAR(x, 0);
-        #else
-        return PyUnicode_AS_UNICODE(x)[0];
-        #endif
-    } else {
-        #if !CYTHON_PEP393_ENABLED
-        if (unlikely(!maxval))
-            maxval = (long)PyUnicode_GetMax();
-        #endif
-        ival = __Pyx_PyInt_AsLong(x);
-    }
-    if (unlikely(ival < 0)) {
-        if (!PyErr_Occurred())
-            PyErr_SetString(PyExc_OverflowError,
-                            "cannot convert negative value to Py_UNICODE");
-        return (Py_UNICODE)-1;
-    } else if (unlikely(ival > maxval)) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "value too large to convert to Py_UNICODE");
-        return (Py_UNICODE)-1;
-    }
-    return (Py_UNICODE)ival;
-}
-''')
 
 
 class CPyHashTType(CIntType):
@@ -1819,6 +1757,14 @@ class CSizeTType(CIntType):
 
     def sign_and_name(self):
         return "size_t"
+
+class CPtrdiffTType(CIntType):
+
+    to_py_function = "__Pyx_PyInt_FromPtrdiff_t"
+    from_py_function = "__Pyx_PyInt_AsPtrdiff_t"
+
+    def sign_and_name(self):
+        return "ptrdiff_t"
 
 
 class CFloatType(CNumericType):
@@ -1928,7 +1874,7 @@ class CComplexType(CNumericType):
             scope.directives = {}
             scope.declare_var("real", self.real_type, None, cname="real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, cname="imag", is_cdef=True)
-            entry = scope.declare_cfunction(
+            scope.declare_cfunction(
                     "conjugate",
                     CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
@@ -2278,21 +2224,31 @@ class CPointerBaseType(CType):
             if base_type.same_as(char_type):
                 self.is_string = 1
                 break
+        else:
+            if base_type.same_as(c_py_unicode_type):
+                self.is_pyunicode_ptr = 1
 
         if self.is_string and not base_type.is_error:
             if base_type.signed:
-                self.to_py_function = "PyBytes_FromString"
+                self.to_py_function = "__Pyx_PyObject_FromString"
                 if self.is_ptr:
-                    self.from_py_function = "PyBytes_AsString"
+                    self.from_py_function = "__Pyx_PyObject_AsString"
             else:
-                self.to_py_function = "__Pyx_PyBytes_FromUString"
+                self.to_py_function = "__Pyx_PyObject_FromUString"
                 if self.is_ptr:
-                    self.from_py_function = "__Pyx_PyBytes_AsUString"
+                    self.from_py_function = "__Pyx_PyObject_AsUString"
+            self.exception_value = "NULL"
+        elif self.is_pyunicode_ptr and not base_type.is_error:
+            self.to_py_function = "__Pyx_PyUnicode_FromUnicode"
+            if self.is_ptr:
+                self.from_py_function = "__Pyx_PyUnicode_AsUnicode"
             self.exception_value = "NULL"
 
     def py_type_name(self):
         if self.is_string:
             return "bytes"
+        elif self.is_pyunicode_ptr:
+            return "unicode"
         else:
             return super(CPointerBaseType, self).py_type_name()
 
@@ -2367,6 +2323,9 @@ class CPtrType(CPointerBaseType):
         if isinstance(other, CType) and other.is_ptr:
             return self.base_type.same_as(other.base_type)
         return False
+
+    def __ne__(self, other):
+        return not (self == other)
 
     def __repr__(self):
         return "<CPtrType %s>" % repr(self.base_type)
@@ -2519,6 +2478,9 @@ class CFuncType(CType):
             return cc + " "
         else:
             return ""
+
+    def as_argument_type(self):
+        return c_ptr_type(self)
 
     def same_c_signature_as(self, other_type, as_cmethod = 0):
         return self.same_c_signature_as_resolved_type(
@@ -2787,7 +2749,7 @@ class CFuncType(CType):
         return result
 
     def get_fused_types(self, result=None, seen=None, subtypes=None):
-        "Return fused types in the order they appear as parameter types"
+        """Return fused types in the order they appear as parameter types"""
         return super(CFuncType, self).get_fused_types(result, seen,
                                                       subtypes=['args'])
 
@@ -3220,8 +3182,8 @@ class CppClassType(CType):
 
     def specialize_here(self, pos, template_values = None):
         if self.templates is None:
-            error(pos, "'%s' type is not a template" % self);
-            return PyrexTypes.error_type
+            error(pos, "'%s' type is not a template" % self)
+            return error_type
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
@@ -3494,6 +3456,7 @@ c_py_hash_t_type =   CPyHashTType(RANK_LONG+0.5, SIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
+c_ptrdiff_t_type =   CPtrdiffTType(RANK_LONG+0.75, SIGNED)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_void_ptr_type =     CPtrType(c_void_type)
@@ -3507,6 +3470,10 @@ c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
+# GIL state
+c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
+c_threadstate_type = CStructOrUnionType("PyThreadState", "struct", None, 1, "PyThreadState")
+c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
@@ -3583,6 +3550,7 @@ modifiers_and_name_to_type = {
     (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
     (2,  0, "ssize_t") :   c_ssize_t_type,
     (0,  0, "size_t") :    c_size_t_type,
+    (2,  0, "ptrdiff_t") : c_ptrdiff_t_type,
 
     (1,  0, "object"): py_object_type,
 }
@@ -3622,8 +3590,6 @@ def best_match(args, functions, pos=None, env=None):
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
     """
-    from Cython import Utils
-
     # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(args)
 
@@ -3944,121 +3910,3 @@ def typecast(to_type, from_type, expr_code):
     else:
         #print "typecast: to", to_type, "from", from_type ###
         return to_type.cast_code(expr_code)
-
-
-type_conversion_predeclarations = """
-/* Type Conversion Predeclarations */
-
-#define __Pyx_PyBytes_FromUString(s) PyBytes_FromString((char*)s)
-#define __Pyx_PyBytes_AsUString(s)   ((unsigned char*) PyBytes_AsString(s))
-
-#define __Pyx_Owned_Py_None(b) (Py_INCREF(Py_None), Py_None)
-#define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
-
-static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
-static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
-static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
-
-#if CYTHON_COMPILING_IN_CPYTHON
-#define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
-#else
-#define __pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
-#endif
-#define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
-""" + type_conversion_predeclarations
-
-# Note: __Pyx_PyObject_IsTrue is written to minimize branching.
-type_conversion_functions = """
-/* Type Conversion Functions */
-
-static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
-   int is_true = x == Py_True;
-   if (is_true | (x == Py_False) | (x == Py_None)) return is_true;
-   else return PyObject_IsTrue(x);
-}
-
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
-  PyNumberMethods *m;
-  const char *name = NULL;
-  PyObject *res = NULL;
-#if PY_VERSION_HEX < 0x03000000
-  if (PyInt_Check(x) || PyLong_Check(x))
-#else
-  if (PyLong_Check(x))
-#endif
-    return Py_INCREF(x), x;
-  m = Py_TYPE(x)->tp_as_number;
-#if PY_VERSION_HEX < 0x03000000
-  if (m && m->nb_int) {
-    name = "int";
-    res = PyNumber_Int(x);
-  }
-  else if (m && m->nb_long) {
-    name = "long";
-    res = PyNumber_Long(x);
-  }
-#else
-  if (m && m->nb_int) {
-    name = "int";
-    res = PyNumber_Long(x);
-  }
-#endif
-  if (res) {
-#if PY_VERSION_HEX < 0x03000000
-    if (!PyInt_Check(res) && !PyLong_Check(res)) {
-#else
-    if (!PyLong_Check(res)) {
-#endif
-      PyErr_Format(PyExc_TypeError,
-                   "__%s__ returned non-%s (type %.200s)",
-                   name, name, Py_TYPE(res)->tp_name);
-      Py_DECREF(res);
-      return NULL;
-    }
-  }
-  else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_TypeError,
-                    "an integer is required");
-  }
-  return res;
-}
-
-static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
-  Py_ssize_t ival;
-  PyObject* x = PyNumber_Index(b);
-  if (!x) return -1;
-  ival = PyInt_AsSsize_t(x);
-  Py_DECREF(x);
-  return ival;
-}
-
-static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
-#if PY_VERSION_HEX < 0x02050000
-   if (ival <= LONG_MAX)
-       return PyInt_FromLong((long)ival);
-   else {
-       unsigned char *bytes = (unsigned char *) &ival;
-       int one = 1; int little = (int)*(unsigned char*)&one;
-       return _PyLong_FromByteArray(bytes, sizeof(size_t), little, 0);
-   }
-#else
-   return PyInt_FromSize_t(ival);
-#endif
-}
-
-static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
-   unsigned PY_LONG_LONG val = __Pyx_PyInt_AsUnsignedLongLong(x);
-   if (unlikely(val == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())) {
-       return (size_t)-1;
-   } else if (unlikely(val != (unsigned PY_LONG_LONG)(size_t)val)) {
-       PyErr_SetString(PyExc_OverflowError,
-                       "value too large to convert to size_t");
-       return (size_t)-1;
-   }
-   return (size_t)val;
-}
-
-""" + type_conversion_functions
-

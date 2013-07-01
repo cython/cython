@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import os
 import sys
@@ -59,6 +59,11 @@ except ImportError:
         def __repr__(self):
             return repr(self._dict)
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 WITH_CYTHON = True
 CY3_DIR = None
 
@@ -86,6 +91,27 @@ EXT_DEP_MODULES = {
     'tag:posix' : 'posix',
     'tag:array' : 'array',
 }
+
+def patch_inspect_isfunction():
+    import inspect
+    orig_isfunction = inspect.isfunction
+    def isfunction(obj):
+        return orig_isfunction(obj) or type(obj).__name__ == 'cython_function_or_method'
+    isfunction._orig_isfunction = orig_isfunction
+    inspect.isfunction = isfunction
+
+def unpatch_inspect_isfunction():
+    import inspect
+    try:
+        orig_isfunction = inspect.isfunction._orig_isfunction
+    except AttributeError:
+        pass
+    else:
+        inspect.isfunction = orig_isfunction
+
+def update_linetrace_extension(ext):
+    ext.define_macros.append(('CYTHON_TRACE', 1))
+    return ext
 
 def update_numpy_extension(ext):
     import numpy
@@ -169,6 +195,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:trace':  update_linetrace_extension,
 }
 
 # TODO: use tags
@@ -183,9 +210,12 @@ VER_DEP_MODULES = {
                                           'run.all',
                                           'run.yield_from_pep380',  # GeneratorExit
                                           'run.generator_frame_cycle', # yield in try-finally
+                                          'run.generator_expressions_in_class',
+                                          'run.absolute_import',
                                           'run.relativeimport_T542',
                                           'run.relativeimport_star_T542',
                                           'run.initial_file_path',  # relative import
+                                          'run.pynumber_subtype_conversion',  # bug in Py2.4
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.language_level', # print function
@@ -196,6 +226,7 @@ VER_DEP_MODULES = {
                                           'run.purecdef',
                                           'run.struct_conversion',
                                           # memory views require buffer protocol
+                                          'memoryview.relaxed_strides',
                                           'memoryview.cythonarray',
                                           'memoryview.memslice',
                                           'memoryview.numpy_memoryview',
@@ -204,6 +235,7 @@ VER_DEP_MODULES = {
                                           ]),
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
                                           'run.yield_inside_lambda',
+                                          'run.test_dictviews',
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
@@ -265,6 +297,20 @@ def parse_tags(filepath):
     return tags
 
 list_unchanging_dir = memoize(lambda x: os.listdir(x))
+
+
+def import_ext(module_name, file_path=None):
+    if file_path:
+        import imp
+        return imp.load_dynamic(module_name, file_path)
+    else:
+        try:
+            from importlib import invalidate_caches
+        except ImportError:
+            pass
+        else:
+            invalidate_caches()
+        return __import__(module_name, globals(), locals(), ['*'])
 
 
 class build_ext(_build_ext):
@@ -474,7 +520,9 @@ class CythonCompileTestCase(unittest.TestCase):
     def setUp(self):
         from Cython.Compiler import Options
         self._saved_options = [ (name, getattr(Options, name))
-                                for name in ('warning_errors', 'error_on_unknown_names') ]
+                                for name in ('warning_errors',
+                                             'error_on_unknown_names',
+                                             'error_on_uninitialized') ]
         self._saved_default_directives = Options.directive_defaults.items()
         Options.warning_errors = self.warning_errors
 
@@ -488,6 +536,7 @@ class CythonCompileTestCase(unittest.TestCase):
         for name, value in self._saved_options:
             setattr(Options, name, value)
         Options.directive_defaults = dict(self._saved_default_directives)
+        unpatch_inspect_isfunction()
 
         try:
             sys.path.remove(self.workdir)
@@ -527,8 +576,9 @@ class CythonCompileTestCase(unittest.TestCase):
         self.success = True
 
     def runCompileTest(self):
-        self.compile(self.test_directory, self.module, self.workdir,
-                     self.test_directory, self.expect_errors, self.annotate)
+        return self.compile(
+            self.test_directory, self.module, self.workdir,
+            self.test_directory, self.expect_errors, self.annotate)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -671,6 +721,24 @@ class CythonCompileTestCase(unittest.TestCase):
         finally:
             os.chdir(cwd)
 
+        try:
+            get_ext_fullpath = build_extension.get_ext_fullpath
+        except AttributeError:
+            def get_ext_fullpath(ext_name, self=build_extension):
+                # copied from distutils.command.build_ext (missing in Py2.[45])
+                fullname = self.get_ext_fullname(ext_name)
+                modpath = fullname.split('.')
+                filename = self.get_ext_filename(modpath[-1])
+                if not self.inplace:
+                    filename = os.path.join(*modpath[:-1]+[filename])
+                    return os.path.join(self.build_lib, filename)
+                package = '.'.join(modpath[0:-1])
+                build_py = self.get_finalized_command('build_py')
+                package_dir = os.path.abspath(build_py.get_package_dir(package))
+                return os.path.join(package_dir, filename)
+
+        return get_ext_fullpath(module)
+
     def compile(self, test_directory, module, workdir, incdir,
                 expect_errors, annotate):
         expected_errors = errors = ()
@@ -705,9 +773,13 @@ class CythonCompileTestCase(unittest.TestCase):
                 print('\n'.join(errors))
                 print('\n')
                 raise
+            return None
+
+        if self.cython_only:
+            so_path = None
         else:
-            if not self.cython_only:
-                self.run_distutils(test_directory, module, workdir, incdir)
+            so_path = self.run_distutils(test_directory, module, workdir, incdir)
+        return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
     def shortDescription(self):
@@ -724,9 +796,10 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.setUp()
             try:
                 self.success = False
-                self.runCompileTest()
+                ext_so_path = self.runCompileTest()
                 failures, errors = len(result.failures), len(result.errors)
-                self.run_tests(result)
+                if not self.cython_only:
+                    self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
                     # No new errors...
                     self.success = True
@@ -740,13 +813,16 @@ class CythonRunTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
-    def run_tests(self, result):
-        if not self.cython_only:
-            self.run_doctests(self.module, result)
+    def run_tests(self, result, ext_so_path):
+        self.run_doctests(self.module, result, ext_so_path)
 
-    def run_doctests(self, module_name, result):
+    def run_doctests(self, module_or_name, result, ext_so_path):
         def run_test(result):
-            tests = doctest.DocTestSuite(module_name)
+            if isinstance(module_or_name, basestring):
+                module = import_ext(module_or_name, ext_so_path)
+            else:
+                module = module_or_name
+            tests = doctest.DocTestSuite(module)
             tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
@@ -905,8 +981,9 @@ class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
         return "compiling (%s) tests in %s" % (self.language, self.module)
 
-    def run_tests(self, result):
-        unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
+    def run_tests(self, result, ext_so_path):
+        module = import_ext(self.module, ext_so_path)
+        unittest.defaultTestLoader.loadTestsFromModule(module).run(result)
 
 
 class CythonPyregrTestCase(CythonRunTestCase):
@@ -914,9 +991,11 @@ class CythonPyregrTestCase(CythonRunTestCase):
         CythonRunTestCase.setUp(self)
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
+        Options.error_on_uninitialized = False
         Options.directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
+        patch_inspect_isfunction()
 
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
@@ -935,9 +1014,9 @@ class CythonPyregrTestCase(CythonRunTestCase):
         suite.run(result)
 
     def _run_doctest(self, result, module):
-        self.run_doctests(module, result)
+        self.run_doctests(module, result, None)
 
-    def run_tests(self, result):
+    def run_tests(self, result, ext_so_path):
         try:
             from test import support
         except ImportError: # Python2.x
@@ -956,7 +1035,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
             try:
                 try:
                     sys.stdout.flush() # helps in case of crashes
-                    module = __import__(self.module)
+                    module = import_ext(self.module, ext_so_path)
                     sys.stdout.flush() # helps in case of crashes
                     if hasattr(module, 'test_main'):
                         module.test_main()
@@ -1112,8 +1191,8 @@ class EndToEndTest(unittest.TestCase):
         old_path = os.environ.get('PYTHONPATH')
         os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
         try:
-            for command in commands.split('\n'):
-                p = subprocess.Popen(commands,
+            for command in filter(None, commands.splitlines()):
+                p = subprocess.Popen(command,
                                      stderr=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
                                      shell=True)

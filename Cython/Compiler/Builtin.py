@@ -6,76 +6,17 @@ from Symtab import BuiltinScope, StructOrUnionScope
 from Code import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
-import Naming
 import Options
 
 
 # C-level implementations of builtin types, functions and methods
 
-pow2_utility_code = UtilityCode(
-proto = """
-#define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
-""")
-
-abs_int_utility_code = UtilityCode(
-proto = '''
-#if HAVE_LONG_LONG && defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-#define __Pyx_abs_int(x) \
-    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : \
-     ((sizeof(x) <= sizeof(long)) ? ((unsigned long)labs(x)) : \
-      ((unsigned PY_LONG_LONG)llabs(x))))
-#else
-#define __Pyx_abs_int(x) \
-    ((sizeof(x) <= sizeof(int)) ? ((unsigned int)abs(x)) : ((unsigned long)labs(x)))
-#endif
-#define __Pyx_abs_long(x) __Pyx_abs_int(x)
-''')
-
-iter_next_utility_code = UtilityCode.load_cached("IterNext", "ObjectHandling.c")
-
-getattr3_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
-""",
-impl = """
-static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
-    PyObject *r = PyObject_GetAttr(o, n);
-    if (!r) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            goto bad;
-        PyErr_Clear();
-        r = d;
-        Py_INCREF(d);
-    }
-    return r;
-bad:
-    return NULL;
-}
-""")
-
-globals_utility_code = UtilityCode.load_cached("Globals", "Builtins.c")
-pyexec_utility_code = UtilityCode.load_cached("PyExec", "Builtins.c")
-pyexec_globals_utility_code = UtilityCode.load_cached("PyExecGlobals", "Builtins.c")
-
-intern_utility_code = UtilityCode(
-proto = """
-static PyObject* __Pyx_Intern(PyObject* s); /* proto */
-""",
-impl = '''
-static PyObject* __Pyx_Intern(PyObject* s) {
-    if (!(likely(PyString_CheckExact(s)))) {
-        PyErr_Format(PyExc_TypeError, "Expected str, got %s", Py_TYPE(s)->tp_name);
-        return 0;
-    }
-    Py_INCREF(s);
-    #if PY_MAJOR_VERSION >= 3
-    PyUnicode_InternInPlace(&s);
-    #else
-    PyString_InternInPlace(&s);
-    #endif
-    return s;
-}
-''')
+iter_next_utility_code = UtilityCode.load("IterNext", "ObjectHandling.c")
+getattr3_utility_code = UtilityCode.load("GetAttr3", "Builtins.c")
+getattr_utility_code = UtilityCode.load("GetAttr", "Builtins.c")
+pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
+pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
+globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 
 py_set_utility_code = UtilityCode(
 proto = """
@@ -194,22 +135,29 @@ builtin_function_table = [
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
                     is_strict_signature = True),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_int",
-                    utility_code = abs_int_utility_code,
+                    utility_code = UtilityCode.load("abs_int", "Builtins.c"),
                     func_type = PyrexTypes.CFuncType(
                         PyrexTypes.c_uint_type, [
                             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_int_type, None)
                             ],
                         is_strict_signature = True)),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_long",
-                    utility_code = abs_int_utility_code,
+                    utility_code = UtilityCode.load("abs_long", "Builtins.c"),
                     func_type = PyrexTypes.CFuncType(
                         PyrexTypes.c_ulong_type, [
                             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_long_type, None)
                             ],
                         is_strict_signature = True)),
+    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
+                    utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
+                    func_type = PyrexTypes.CFuncType(
+                        PyrexTypes.c_ulonglong_type, [
+                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longlong_type, None)
+                        ],
+                        is_strict_signature = True)),
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
-                    utility_code = UtilityCode.load_cached("CallableCheck", "ObjectHandling.c")),
+                    utility_code = UtilityCode.load("CallableCheck", "ObjectHandling.c")),
     #('chr',       "",     "",      ""),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
@@ -226,17 +174,18 @@ builtin_function_table = [
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
-                    utility_code = getattr3_utility_code), # Pyrex compatibility
+                    utility_code=getattr3_utility_code),  # Pyrex legacy
     BuiltinFunction('getattr',    "OOO",  "O",     "__Pyx_GetAttr3",
-                    utility_code = getattr3_utility_code),
-    BuiltinFunction('getattr',    "OO",   "O",     "PyObject_GetAttr"),
+                    utility_code=getattr3_utility_code),
+    BuiltinFunction('getattr',    "OO",   "O",     "__Pyx_GetAttr",
+                    utility_code=getattr_utility_code),
     BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
     BuiltinFunction('intern',     "O",    "O",     "__Pyx_Intern",
-                    utility_code = intern_utility_code),
+                    utility_code = UtilityCode.load("Intern", "Builtins.c")),
     BuiltinFunction('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     BuiltinFunction('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     BuiltinFunction('iter',       "OO",   "O",     "PyCallIter_New"),
@@ -255,7 +204,7 @@ builtin_function_table = [
     #('ord',       "",     "",      ""),
     BuiltinFunction('pow',        "OOO",  "O",     "PyNumber_Power"),
     BuiltinFunction('pow',        "OO",   "O",     "__Pyx_PyNumber_Power2",
-                    utility_code = pow2_utility_code),
+                    utility_code = UtilityCode.load("pow2", "Builtins.c")),
     #('range',     "",     "",      ""),
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
@@ -280,7 +229,7 @@ builtin_function_table = [
 if not Options.old_style_globals:
     builtin_function_table.append(
         BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
-                        utility_code = globals_utility_code))
+                        utility_code=globals_utility_code))
 
 # Builtin types
 #  bool
@@ -321,24 +270,47 @@ builtin_types_table = [
                                     BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
                                     ]),
 
-    ("bytes",   "PyBytes_Type",    []),
-    ("str",     "PyString_Type",   []),
-    ("unicode", "PyUnicode_Type",  [BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
+    ("basestring",   "PyBaseString_Type",      []),
+    ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    ]),
+    ("str",     "PyString_Type",   [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    ]),
+    ("unicode", "PyUnicode_Type",  [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
+                                    BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
                                     ]),
 
-    ("tuple",   "PyTuple_Type",    []),
+    ("tuple",   "PyTuple_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    ]),
 
-    ("list",    "PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
+    ("list",    "PyList_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
-                                    BuiltinMethod("append",  "TO",   "r", "PyList_Append"),
+                                    BuiltinMethod("append",  "TO",   "r", "__Pyx_PyList_Append",
+                                                  utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
                                     ]),
 
-    ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),  # FIXME: Py3 mode?
-                                    BuiltinMethod("keys",  "T",   "O", "PyDict_Keys"),   # FIXME: Py3 mode?
-                                    BuiltinMethod("values","T",   "O", "PyDict_Values"), # FIXME: Py3 mode?
-                                    BuiltinMethod("clear", "T",   "r", "__Pyx_PyDict_Clear",
-                                                  utility_code = UtilityCode.load_cached("py_dict_clear", "Optimize.c")),
-                                    BuiltinMethod("copy",  "T",   "T", "PyDict_Copy")]),
+    ("dict",    "PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
+                                    BuiltinMethod("items",  "T",   "O", "__Pyx_PyDict_Items",
+                                                  utility_code=UtilityCode.load("py_dict_items", "Builtins.c")),
+                                    BuiltinMethod("keys",   "T",   "O", "__Pyx_PyDict_Keys",
+                                                  utility_code=UtilityCode.load("py_dict_keys", "Builtins.c")),
+                                    BuiltinMethod("values", "T",   "O", "__Pyx_PyDict_Values",
+                                                  utility_code=UtilityCode.load("py_dict_values", "Builtins.c")),
+                                    BuiltinMethod("iteritems",  "T",   "O", "__Pyx_PyDict_IterItems",
+                                                  utility_code=UtilityCode.load("py_dict_iteritems", "Builtins.c")),
+                                    BuiltinMethod("iterkeys",   "T",   "O", "__Pyx_PyDict_IterKeys",
+                                                  utility_code=UtilityCode.load("py_dict_iterkeys", "Builtins.c")),
+                                    BuiltinMethod("itervalues", "T",   "O", "__Pyx_PyDict_IterValues",
+                                                  utility_code=UtilityCode.load("py_dict_itervalues", "Builtins.c")),
+                                    BuiltinMethod("viewitems",  "T",   "O", "__Pyx_PyDict_ViewItems",
+                                                  utility_code=UtilityCode.load("py_dict_viewitems", "Builtins.c")),
+                                    BuiltinMethod("viewkeys",   "T",   "O", "__Pyx_PyDict_ViewKeys",
+                                                  utility_code=UtilityCode.load("py_dict_viewkeys", "Builtins.c")),
+                                    BuiltinMethod("viewvalues", "T",   "O", "__Pyx_PyDict_ViewValues",
+                                                  utility_code=UtilityCode.load("py_dict_viewvalues", "Builtins.c")),
+                                    BuiltinMethod("clear",  "T",   "r", "__Pyx_PyDict_Clear",
+                                                  utility_code=UtilityCode.load("py_dict_clear", "Optimize.c")),
+                                    BuiltinMethod("copy",   "T",   "T", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    [BuiltinAttribute('start'),
                                     BuiltinAttribute('stop'),
@@ -346,10 +318,12 @@ builtin_types_table = [
                                     ]),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
+    ("set",       "PySet_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
                                                   utility_code = py_set_utility_code),
-                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",
-                                                  utility_code = py_set_utility_code),
+                                    # discard() and remove() have a special treatment for unhashable values
+#                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",
+#                                                  utility_code = py_set_utility_code),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add",
                                                   utility_code = py_set_utility_code),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop",

@@ -2,6 +2,8 @@
 # ticket: 466
 # extension to T409
 
+cimport cython
+
 def simple_parallel_typed():
     """
     >>> simple_parallel_typed()
@@ -67,3 +69,23 @@ def non_simple_rhs_malloc():
     # check copied values
     assert x[0] == c'X'
     assert x[1] == c'\0'
+
+@cython.test_assert_path_exists(
+    '//CascadedAssignmentNode',
+    '//CascadedAssignmentNode//CoerceToTempNode',
+    '//CascadedAssignmentNode//CoerceToTempNode[@type.is_ptr]')
+def assign_carray():
+    """
+    assign_carray()
+    (1, 2, 3)
+    """
+    cdef int *b, *c
+    cdef int[3] a
+    a[0] = 1
+    a[1] = 2
+    a[2] = 3
+
+    b = c = a+1
+    assert b[0] == 2
+    assert c[1] == 3
+    return a[0], b[0], c[1]

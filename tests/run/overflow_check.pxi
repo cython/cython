@@ -34,7 +34,7 @@ cpdef check(func, op, a, b):
     if not func_overflow:
         assert res == op_res, "Inconsistant values: %s(%s, %s) == %s != %s" % (func, a, b, res, op_res)
 
-medium_values = (max_value_ / 2, max_value_ / 3, min_value_ / 2, <INT>sqrt(max_value_) - <INT>1, <INT>sqrt(max_value_) + 1)
+medium_values = (max_value_ / 2, max_value_ / 3, min_value_ / 2, <INT>sqrt(<long double>max_value_) - <INT>1, <INT>sqrt(<long double>max_value_) + 1)
 def run_test(func, op):
     cdef INT offset, b
     check(func, op, 300, 200)
@@ -106,12 +106,12 @@ def test_mul(INT a, INT b):
     return int(a * b)
 
 @cython.overflowcheck(True)
-def test_nested(INT a, INT b, INT c):
+def test_nested_add(INT a, INT b, INT c):
     """
-    >>> test_nested(1, 2, 3)
+    >>> test_nested_add(1, 2, 3)
     6
-    >>> expect_overflow(test_nested, half + 1, half + 1, half + 1)
-    >>> expect_overflow(test_nested, half - 1, half - 1, half - 1)
+    >>> expect_overflow(test_nested_add, half + 1, half + 1, half + 1)
+    >>> expect_overflow(test_nested_add, half - 1, half - 1, half - 1)
     """
     return int(a + b + c)
 
@@ -155,6 +155,25 @@ cdef INT called(INT value):
     return value
 
 @cython.overflowcheck(True)
+def test_nested(INT a, INT b, INT c, INT d):
+    """
+    >>> test_nested_func(1, 2, 3)
+    called(5)
+    6
+    >>> expect_overflow(test_nested, half, half, 1, 1)
+    >>> expect_overflow(test_nested, half, 1, half, half)
+    >>> expect_overflow(test_nested, half, 2, half, 2)
+
+    >>> print(format(test_nested(half, 2, 0, 1)))
+    half + half - 0
+    >>> print(format(test_nested(1, 0, half, 2)))
+    half + half - 0
+    >>> print(format(test_nested(half, 1, 1, half)))
+    half + half - 0
+    """
+    return int(a * b + c * d)
+
+@cython.overflowcheck(True)
 def test_nested_func(INT a, INT b, INT c):
     """
     >>> test_nested_func(1, 2, 3)
@@ -166,7 +185,6 @@ def test_nested_func(INT a, INT b, INT c):
     >>> print(format(test_nested_func(1, half - 1, half - 1)))
     called(half + half - 2)
     half + half - 1
-    >>> 
     """
     return int(a + called(b + c))
 

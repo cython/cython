@@ -18,13 +18,28 @@ try:
 except ImportError:
     import md5 as hashlib
 
+try:
+    from os.path import relpath as _relpath
+except ImportError:
+    # Py<2.6
+    def _relpath(path, start=os.path.curdir):
+        if not path:
+            raise ValueError("no path specified")
+        start_list = os.path.abspath(start).split(os.path.sep)
+        path_list = os.path.abspath(path).split(os.path.sep)
+        i = len(os.path.commonprefix([start_list, path_list]))
+        rel_list = [os.path.pardir] * (len(start_list)-i) + path_list[i:]
+        if not rel_list:
+            return os.path.curdir
+        return os.path.join(*rel_list)
+
 
 from distutils.extension import Extension
 
 from Cython import Utils
-from Cython.Utils import cached_function, cached_method, path_exists
+from Cython.Utils import cached_function, cached_method, path_exists, find_root_package_dir
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
-    
+
 join_path = cached_function(os.path.join)
 
 if sys.version_info[0] < 3:
@@ -53,7 +68,7 @@ def extended_iglob(pattern):
                 if path not in seen:
                     seen.add(path)
                     yield path
-            for path in extended_iglob(join_path(root, '*', '**', rest)):
+            for path in extended_iglob(join_path(root, '*', '**/' + rest)):
                 if path not in seen:
                     seen.add(path)
                     yield path
@@ -208,7 +223,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     in_quote = False
     hash_mark = single_q = double_q = -1
     code_len = len(code)
-    
+
     while True:
         if hash_mark < q:
             hash_mark = code.find('#', q)
@@ -288,12 +303,33 @@ def normalize_existing(base_path, rel_paths):
 
 @cached_function
 def normalize_existing0(base_dir, rel_paths):
-    filtered = []
+    normalized = []
     for rel in rel_paths:
         path = join_path(base_dir, rel)
-        if os.path.exists(path):
-            filtered.append(os.path.normpath(path))
-    return filtered
+        if path_exists(path):
+            normalized.append(os.path.normpath(path))
+        else:
+            normalized.append(rel)
+    return normalized
+
+def resolve_depends(depends, include_dirs):
+    include_dirs = tuple(include_dirs)
+    resolved = []
+    for depend in depends:
+        path = resolve_depend(depend, include_dirs)
+        if path is not None:
+            resolved.append(path)
+    return resolved
+
+@cached_function
+def resolve_depend(depend, include_dirs):
+    if depend[0] == '<' and depend[-1] == '>':
+        return None
+    for dir in include_dirs:
+        path = join_path(dir, depend)
+        if path_exists(path):
+            return os.path.normpath(path)
+    return None
 
 @cached_function
 def parse_dependencies(source_filename):
@@ -353,7 +389,7 @@ class DependencyTree(object):
             elif not self.quiet:
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
-    
+
     @cached_method
     def cimports_and_externs(self, filename):
         # This is really ugly. Nested cimports are resolved with respect to the
@@ -383,16 +419,29 @@ class DependencyTree(object):
         module = os.path.splitext(os.path.basename(filename))[0]
         return '.'.join(self.package(filename) + (module,))
 
+    @cached_method
     def find_pxd(self, module, filename=None):
-        if module[0] == '.':
+        is_relative = module[0] == '.'
+        if is_relative and not filename:
             raise NotImplementedError("New relative imports.")
         if filename is not None:
-            relative = '.'.join(self.package(filename) + tuple(module.split('.')))
+            module_path = module.split('.')
+            if is_relative:
+                module_path.pop(0)  # just explicitly relative
+            package_path = list(self.package(filename))
+            while module_path and not module_path[0]:
+                try:
+                    package_path.pop()
+                except IndexError:
+                    return None   # FIXME: error?
+                module_path.pop(0)
+            relative = '.'.join(package_path + module_path)
             pxd = self.context.find_pxd_file(relative, None)
             if pxd:
                 return pxd
+        if is_relative:
+            return None   # FIXME: error?
         return self.context.find_pxd_file(module, None)
-    find_pxd = cached_method(find_pxd)
 
     @cached_method
     def cimported_files(self, filename):
@@ -448,7 +497,7 @@ class DependencyTree(object):
         externs = self.cimports_and_externs(filename)[1]
         if externs:
             if 'depends' in info.values:
-                info.values['depends'] = list(set(info.values['depends']).union(set(externs)))
+                info.values['depends'] = list(set(info.values['depends']).union(externs))
             else:
                 info.values['depends'] = list(externs)
         return info
@@ -502,6 +551,8 @@ def create_dependency_tree(ctx=None, quiet=False):
 
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, exclude_failures=False):
+    if not isinstance(patterns, list):
+        patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
     deps = create_dependency_tree(ctx, quiet=quiet)
@@ -510,8 +561,6 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         exclude = [exclude]
     for pattern in exclude:
         to_exclude.update(extended_iglob(pattern))
-    if not isinstance(patterns, list):
-        patterns = [patterns]
     module_list = []
     for pattern in patterns:
         if isinstance(pattern, str):
@@ -563,6 +612,12 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                         if source not in sources:
                             sources.append(source)
                     del kwds['sources']
+                if 'depends' in kwds:
+                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + [find_root_package_dir(file)])
+                    if template is not None:
+                        # Always include everything from the template.
+                        depends = list(set(template.depends).union(set(depends)))
+                    kwds['depends'] = depends
                 module_list.append(exn_type(
                         name=module_name,
                         sources=sources,
@@ -600,6 +655,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
+    options = c_options
     module_list = create_extension_list(
         module_list,
         exclude=exclude,
@@ -608,9 +664,25 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         exclude_failures=exclude_failures,
         aliases=aliases)
     deps = create_dependency_tree(ctx, quiet=quiet)
+    build_dir = getattr(options, 'build_dir', None)
     modules_by_cfile = {}
     to_compile = []
     for m in module_list:
+        if build_dir:
+            root = os.path.realpath(os.path.abspath(find_root_package_dir(m.sources[0])))
+            def copy_to_build_dir(filepath, root=root):
+                filepath_abs = os.path.realpath(os.path.abspath(filepath))
+                if os.path.isabs(filepath):
+                    filepath = filepath_abs
+                if filepath_abs.startswith(root):
+                    mod_dir = os.path.join(build_dir,
+                            os.path.dirname(_relpath(filepath, root)))
+                    if not os.path.isdir(mod_dir):
+                        os.makedirs(mod_dir)
+                    shutil.copy(filepath, mod_dir)
+            for dep in m.depends:
+                copy_to_build_dir(dep)
+
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
@@ -621,11 +693,19 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                 else:
                     c_file = base + '.c'
                     options = c_options
+
+                # setup for out of place build directory if enabled
+                if build_dir:
+                    c_file = os.path.join(build_dir, c_file)
+                    dir = os.path.dirname(c_file)
+                    if not os.path.isdir(dir):
+                        os.makedirs(dir)
+
                 if os.path.exists(c_file):
                     c_timestamp = os.path.getmtime(c_file)
                 else:
                     c_timestamp = -1
-                    
+
                 # Priority goes first to modified files, second to direct
                 # dependents, and finally to indirect dependents.
                 if c_timestamp < deps.timestamp(source):
@@ -654,6 +734,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     modules_by_cfile[c_file].append(m)
             else:
                 new_sources.append(source)
+                if build_dir:
+                    copy_to_build_dir(source)
         m.sources = new_sources
     if hasattr(options, 'cache'):
         if not os.path.exists(options.cache):
@@ -680,6 +762,9 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             module_list.remove(module)
     if hasattr(options, 'cache'):
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
+    # cythonize() is often followed by the (non-Python-buffered)
+    # compiler output, flush now to avoid interleaving output.
+    sys.stdout.flush()
     return module_list
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module

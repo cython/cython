@@ -21,7 +21,18 @@ def test_non_optimised():
     return True
 
 @cython.test_assert_path_exists('//PythonCapiCallNode',
-                                '//PythonCapiCallNode//SimpleCallNode')
+                                '//PythonCapiCallNode//SimpleCallNode',
+                                '//PythonCapiFunctionNode[@cname = "PyType_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyInt_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyFloat_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyBytes_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyUnicode_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyTuple_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyList_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyDict_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PySet_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PySlice_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyComplex_Check"]')
 @cython.test_fail_if_path_exists('//SimpleCallNode//SimpleCallNode',
                                  '//SimpleCallNode//PythonCapiCallNode')
 def test_optimised():
@@ -104,9 +115,9 @@ def test_optimised_tuple():
     >>> test_optimised_tuple()
     True
     """
-    assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
-    assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
-    assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
+    assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
+    assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
+    assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
     return True
 
 def test_custom():

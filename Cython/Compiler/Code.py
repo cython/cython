@@ -16,6 +16,11 @@ from string import Template
 import operator
 import textwrap
 
+try:
+    import hashlib
+except ImportError:
+    import md5 as hashlib
+
 import Naming
 import Options
 import StringEncoding
@@ -36,6 +41,7 @@ non_portable_builtins_map = {
     # builtins that have different names in different Python versions
     'bytes'         : ('PY_MAJOR_VERSION < 3',  'str'),
     'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
+    'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
     'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
     }
@@ -55,11 +61,13 @@ modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
 
+
 def get_utility_dir():
     # make this a function and not global variables:
     # http://trac.cython.org/cython_trac/ticket/475
     Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(Cython_dir, "Utility")
+
 
 class UtilityCodeBase(object):
     """
@@ -144,7 +152,7 @@ class UtilityCodeBase(object):
             replace_comments = re.compile(r'^\s*//.*|^\s*/\*[^*]*\*/').sub
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)' # add more tag names here at need
+             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)'
                 ) % {'C':comment}).match
         match_type = re.compile('(.+)[.](proto|impl|init|cleanup)$').match
 
@@ -293,6 +301,7 @@ class UtilityCodeBase(object):
     def get_tree(self):
         pass
 
+
 class UtilityCode(UtilityCodeBase):
     """
     Stores utility code to add during code generation.
@@ -372,14 +381,29 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+    def inject_string_constants(self, impl, output):
+        """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
+        """
+        pystrings = re.findall('(PYIDENT\("([^"]+)"\))', impl)
+        for ref, name in pystrings:
+            py_const = output.get_interned_identifier(
+                StringEncoding.EncodedString(name))
+            impl = impl.replace(ref, py_const.cname)
+        return impl
+
     def put_code(self, output):
         if self.requires:
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            output[self.proto_block].put(self.format_code(self.proto))
+            output[self.proto_block].put_or_include(
+                self.format_code(self.proto),
+                '%s_proto' % self.name)
         if self.impl:
-            output['utility_code_def'].put(self.format_code(self.impl))
+            output['utility_code_def'].put_or_include(
+                self.format_code(
+                    self.inject_string_constants(self.impl, output)),
+                '%s_impl' % self.name)
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
@@ -392,7 +416,9 @@ class UtilityCode(UtilityCodeBase):
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             if isinstance(self.cleanup, basestring):
-                writer.put(self.format_code(self.cleanup))
+                writer.put_or_include(
+                    self.format_code(self.cleanup),
+                    '%s_cleanup' % self.name)
             else:
                 self.cleanup(writer, output.module_pos)
 
@@ -452,6 +478,7 @@ class FunctionState(object):
     # label_counter    integer         counter for naming labels
     # in_try_finally   boolean         inside try of try...finally
     # exc_vars         (string * 3)    exception variables for reraise, or None
+    # can_trace        boolean         line tracing is supported in the current context
 
     # Not used for now, perhaps later
     def __init__(self, owner, names_taken=set()):
@@ -468,8 +495,9 @@ class FunctionState(object):
 
         self.in_try_finally = 0
         self.exc_vars = None
+        self.can_trace = False
 
-        self.temps_allocated = [] # of (name, type, manage_ref)
+        self.temps_allocated = [] # of (name, type, manage_ref, static)
         self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {} # name -> (type, manage_ref)
         self.temp_counter = 0
@@ -484,6 +512,7 @@ class FunctionState(object):
         # However, exceptions may need to be propagated through 'nogil'
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
+        self.uses_error_indicator = False
 
     # labels
 
@@ -548,7 +577,7 @@ class FunctionState(object):
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref):
+    def allocate_temp(self, type, manage_ref, static=False):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -563,8 +592,14 @@ class FunctionState(object):
         still has to be passed. It is recommended to pass False by convention
         if it is known that type will never be a Python object.
 
+        static=True marks the temporary declaration with "static".
+        This is only used when allocating backing store for a module-level
+        C array literals.
+
         A C string referring to the variable is returned.
         """
+        if type.is_const:
+            type = type.const_base_type
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
@@ -578,7 +613,7 @@ class FunctionState(object):
                 self.temp_counter += 1
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if not result in self.names_taken: break
-            self.temps_allocated.append((result, type, manage_ref))
+            self.temps_allocated.append((result, type, manage_ref, static))
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s allocated */" % result)
@@ -609,7 +644,7 @@ class FunctionState(object):
         that are currently in use.
         """
         used = []
-        for name, type, manage_ref in self.temps_allocated:
+        for name, type, manage_ref, static in self.temps_allocated:
             freelist = self.temps_free.get((type, manage_ref))
             if freelist is None or name not in freelist:
                 used.append((name, type, manage_ref and type.is_pyobject))
@@ -628,7 +663,7 @@ class FunctionState(object):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
         """
         return [(cname, type)
-                    for cname, type, manage_ref in self.temps_allocated
+                    for cname, type, manage_ref, static in self.temps_allocated
                         if manage_ref]
 
     def all_free_managed_temps(self):
@@ -844,7 +879,7 @@ class GlobalState(object):
     ]
 
 
-    def __init__(self, writer, module_node, emit_linenums=False):
+    def __init__(self, writer, module_node, emit_linenums=False, common_utility_include_dir=None):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
@@ -852,12 +887,14 @@ class GlobalState(object):
         self.declared_cnames = {}
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
+        self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer
 
         self.const_cname_counter = 1
         self.string_const_index = {}
+        self.pyunicode_ptr_const_index = {}
         self.int_const_index = {}
         self.py_constants = []
 
@@ -913,8 +950,7 @@ class GlobalState(object):
         # utility_code_def
         #
         code = self.parts['utility_code_def']
-        import PyrexTypes
-        code.put(PyrexTypes.type_conversion_functions)
+        code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[1])
         code.putln("")
 
     def __getitem__(self, key):
@@ -1002,6 +1038,15 @@ class GlobalState(object):
         c.add_py_version(py_version)
         return c
 
+    def get_pyunicode_ptr_const(self, text):
+        # return a Py_UNICODE[] constant, creating a new one if necessary
+        assert text.is_unicode
+        try:
+            c = self.pyunicode_ptr_const_index[text]
+        except KeyError:
+            c = self.pyunicode_ptr_const_index[text] = self.new_const_cname()
+        return c
+
     def get_py_string_const(self, text, identifier=None,
                             is_str=False, unicode_value=None):
         # return a Python string constant, creating a new one if necessary
@@ -1083,11 +1128,10 @@ class GlobalState(object):
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
         interned_cname = self.get_interned_identifier(name).cname
-        from ExprNodes import get_name_interned_utility_code
-        self.use_utility_code(get_name_interned_utility_code)
-        w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+        self.use_utility_code(
+            UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
+        w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
             cname,
-            Naming.builtins_cname,
             interned_cname,
             cname,
             w.error_goto(pos)))
@@ -1127,10 +1171,19 @@ class GlobalState(object):
                 for py_string in c.py_strings.values():
                     py_strings.append((c.cname, len(py_string.cname), py_string))
 
-        if py_strings:
-            import Nodes
-            self.use_utility_code(Nodes.init_string_tab_utility_code)
+        for c, cname in self.pyunicode_ptr_const_index.items():
+            utf16_array, utf32_array = StringEncoding.encode_pyunicode_string(c)
+            if utf16_array:
+                # Narrow and wide representations differ
+                decls_writer.putln("#ifdef Py_UNICODE_WIDE")
+            decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf32_array))
+            if utf16_array:
+                decls_writer.putln("#else")
+                decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
+                decls_writer.putln("#endif")
 
+        if py_strings:
+            self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
@@ -1423,6 +1476,9 @@ class CCodeWriter(object):
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
 
+    def get_pyunicode_ptr_const(self, text):
+        return self.globalstate.get_pyunicode_ptr_const(text)
+
     def get_py_string_const(self, text, identifier=None,
                             is_str=False, unicode_value=None):
         return self.globalstate.get_py_string_const(
@@ -1442,7 +1498,7 @@ class CCodeWriter(object):
 
     # code generation
 
-    def putln(self, code = "", safe=False):
+    def putln(self, code="", safe=False):
         if self.marker and self.bol:
             self.emit_marker()
         if self.emit_linenums and self.last_marker_line != 0:
@@ -1453,13 +1509,17 @@ class CCodeWriter(object):
                 self.put_safe(code)
             else:
                 self.put(code)
-        self.write("\n");
+        self.write("\n")
         self.bol = 1
 
     def emit_marker(self):
-        self.write("\n");
+        self.write("\n")
         self.indent()
         self.write("/* %s */\n" % self.marker[1])
+        if (self.funcstate and self.funcstate.can_trace
+                and self.globalstate.directives['linetrace']):
+            self.indent()
+            self.write('__Pyx_TraceLine(%d)\n' % self.marker[0])
         self.last_marker_line = self.marker[0]
         self.marker = None
 
@@ -1467,6 +1527,18 @@ class CCodeWriter(object):
         # put code, but ignore {}
         self.write(code)
         self.bol = 0
+
+    def put_or_include(self, code, name):
+        if code:
+            if self.globalstate.common_utility_include_dir and len(code) > 1042:
+                include_file = "%s_%s.h" % (name, hashlib.md5(code).hexdigest())
+                path = os.path.join(self.globalstate.common_utility_include_dir, include_file)
+                if not os.path.exists(path):
+                    tmp_path = '%s.tmp%s' % (path, os.getpid())
+                    open(tmp_path, 'w').write(code)
+                    os.rename(tmp_path, path)
+                code = '#include "%s"\n' % path
+            self.put(code)
 
     def put(self, code):
         fix_indent = False
@@ -1500,10 +1572,10 @@ class CCodeWriter(object):
         self.put(sub(code, **context))
 
     def increase_indent(self):
-        self.level = self.level + 1
+        self.level += 1
 
     def decrease_indent(self):
-        self.level = self.level - 1
+        self.level -= 1
 
     def begin_block(self):
         self.putln("{")
@@ -1527,7 +1599,7 @@ class CCodeWriter(object):
             return
         assert isinstance(source_desc, SourceDescriptor)
         contents = self.globalstate.commented_file_contents(source_desc)
-        lines = contents[max(0,line-3):line] # line numbers start at 1
+        lines = contents[max(0, line-3):line]  # line numbers start at 1
         lines[-1] += u'             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
 
@@ -1546,7 +1618,7 @@ class CCodeWriter(object):
         self.putln("goto %s;" % lbl)
 
     def put_var_declaration(self, entry, storage_class="",
-                            dll_linkage = None, definition = True):
+                            dll_linkage=None, definition=True):
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
         if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
             #print "...private and not definition, skipping", entry.cname ###
@@ -1559,15 +1631,15 @@ class CCodeWriter(object):
         if not entry.cf_used:
             self.put('CYTHON_UNUSED ')
         self.put(entry.type.declaration_code(
-                entry.cname, dll_linkage = dll_linkage))
+            entry.cname, dll_linkage=dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
-            self.put(" = NULL");
+            self.put(" = NULL")
         self.putln(";")
 
     def put_temp_declarations(self, func_context):
-        for name, type, manage_ref in func_context.temps_allocated:
+        for name, type, manage_ref, static in func_context.temps_allocated:
             decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
@@ -1575,7 +1647,17 @@ class CCodeWriter(object):
                 import MemoryView
                 self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
             else:
-                self.putln("%s;" % decl)
+                self.putln("%s%s;" % (static and "static " or "", decl))
+
+        if func_context.should_declare_error_indicator:
+            if self.funcstate.uses_error_indicator:
+                unused = ''
+            else:
+                unused = 'CYTHON_UNUSED '
+            # Initialize these variables to silence compiler warnings
+            self.putln("%sint %s = 0;" % (unused, Naming.lineno_cname))
+            self.putln("%sconst char *%s = NULL;" % (unused, Naming.filename_cname))
+            self.putln("%sint %s = 0;" % (unused, Naming.clineno_cname))
 
     def put_h_guard(self, guard):
         self.putln("#ifndef %s" % guard)
@@ -1680,6 +1762,12 @@ class CCodeWriter(object):
             self.putln("%s_%sDECREF(%s);" % (
                 prefix, X, self.as_pyobject(cname, type)))
 
+    def put_decref_set(self, cname, rhs_cname):
+        self.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
+
+    def put_xdecref_set(self, cname, rhs_cname):
+        self.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+
     def put_var_decref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
@@ -1782,7 +1870,7 @@ class CCodeWriter(object):
 
     # GIL methods
 
-    def put_ensure_gil(self, declare_gilstate=True):
+    def put_ensure_gil(self, declare_gilstate=True, variable=None):
         """
         Acquire the GIL. The generated code is safe even when no PyThreadState
         has been allocated for this thread (for threads not initialized by
@@ -1792,32 +1880,42 @@ class CCodeWriter(object):
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.putln("#ifdef WITH_THREAD")
-        if declare_gilstate:
-            self.put("PyGILState_STATE ")
-        self.putln("__pyx_gilstate_save = PyGILState_Ensure();")
+        if not variable:
+            variable = '__pyx_gilstate_save'
+            if declare_gilstate:
+                self.put("PyGILState_STATE ")
+        self.putln("%s = PyGILState_Ensure();" % variable)
         self.putln("#endif")
 
-    def put_release_ensured_gil(self):
+    def put_release_ensured_gil(self, variable=None):
         """
         Releases the GIL, corresponds to `put_ensure_gil`.
         """
+        if not variable:
+            variable = '__pyx_gilstate_save'
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_Release(__pyx_gilstate_save);")
+        self.putln("PyGILState_Release(%s);" % variable)
         self.putln("#endif")
 
-    def put_acquire_gil(self):
+    def put_acquire_gil(self, variable=None):
         """
         Acquire the GIL. The thread's thread state must have been initialized
         by a previous `put_release_gil`
         """
+        self.putln("#ifdef WITH_THREAD")
+        if variable:
+            self.putln('_save = %s;' % variable)
         self.putln("Py_BLOCK_THREADS")
+        self.putln("#endif")
 
-    def put_release_gil(self):
+    def put_release_gil(self, variable=None):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyThreadState *_save = NULL;")
-        self.putln("#endif")
+        self.putln("PyThreadState *_save;")
         self.putln("Py_UNBLOCK_THREADS")
+        if variable:
+            self.putln('%s = _save;' % variable)
+        self.putln("#endif")
 
     def declare_gilstate(self):
         self.putln("#ifdef WITH_THREAD")
@@ -1851,8 +1949,10 @@ class CCodeWriter(object):
                                 entry.name,
                                 self.error_goto(pos)))
 
-    def set_error_info(self, pos):
+    def set_error_info(self, pos, used=False):
         self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
         if self.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
@@ -1904,7 +2004,7 @@ class CCodeWriter(object):
         """
         Build a Python traceback for propagating exceptions.
 
-        qualified_name should be the qualified name of the function
+        qualified_name should be the qualified name of the function.
         """
         format_tuple = (
             qualified_name,
@@ -1912,13 +2012,31 @@ class CCodeWriter(object):
             Naming.lineno_cname,
             Naming.filename_cname,
         )
+        self.funcstate.uses_error_indicator = True
         self.putln('__Pyx_AddTraceback("%s", %s, %s, %s);' % format_tuple)
 
+    def put_unraisable(self, qualified_name):
+        """
+        Generate code to print a Python warning for an unraisable exception.
+
+        qualified_name should be the qualified name of the function.
+        """
+        format_tuple = (
+            qualified_name,
+            Naming.clineno_cname,
+            Naming.lineno_cname,
+            Naming.filename_cname,
+        )
+        self.funcstate.uses_error_indicator = True
+        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s);' % format_tuple)
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
+
     def put_trace_declarations(self):
-        self.putln('__Pyx_TraceDeclarations');
+        self.putln('__Pyx_TraceDeclarations')
 
     def put_trace_call(self, name, pos):
-        self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]));
+        self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]))
 
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")

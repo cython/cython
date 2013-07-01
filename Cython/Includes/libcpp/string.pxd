@@ -1,4 +1,7 @@
+
+# deprecated cimport for backwards compatibility:
 from libc.string cimport const_char
+
 
 cdef extern from "<string>" namespace "std":
 
@@ -12,8 +15,8 @@ cdef extern from "<string>" namespace "std":
         # as a string formed by a repetition of character c, n times.
         string(size_t, char) nogil except +
 
-        const_char* c_str() nogil
-        const_char* data() nogil
+        const char* c_str() nogil
+        const char* data() nogil
         size_t size() nogil
         size_t max_size() nogil
         size_t length() nogil

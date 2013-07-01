@@ -14,6 +14,7 @@
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /*proto*/
 
 /////////////// Import ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
@@ -23,8 +24,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *empty_dict = 0;
     PyObject *list;
     #if PY_VERSION_HEX < 0x03030000
-    PyObject *py_import = 0;
-    py_import = __Pyx_GetAttrString($builtins_cname, "__import__");
+    PyObject *py_import;
+    py_import = __Pyx_PyObject_GetAttrStr($builtins_cname, PYIDENT("__import__"));
     if (!py_import)
         goto bad;
     #endif
@@ -99,6 +100,28 @@ bad:
     return module;
 }
 
+
+/////////////// ImportFrom.proto ///////////////
+
+static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
+
+/////////////// ImportFrom ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
+    PyObject* value = __Pyx_PyObject_GetAttrStr(module, name);
+    if (unlikely(!value) && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        PyErr_Format(PyExc_ImportError,
+        #if PY_MAJOR_VERSION < 3
+            "cannot import name %.230s", PyString_AS_STRING(name));
+        #else
+            "cannot import name %S", name);
+        #endif
+    }
+    return value;
+}
+
+
 /////////////// ModuleImport.proto ///////////////
 
 static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
@@ -141,6 +164,10 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     PyObject *result = 0;
     PyObject *py_name = 0;
     char warning[200];
+    Py_ssize_t basicsize;
+#ifdef Py_LIMITED_API
+    PyObject *py_basicsize;
+#endif
 
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
@@ -161,7 +188,19 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
             module_name, class_name);
         goto bad;
     }
-    if (!strict && (size_t)((PyTypeObject *)result)->tp_basicsize > size) {
+#ifndef Py_LIMITED_API
+    basicsize = ((PyTypeObject *)result)->tp_basicsize;
+#else
+    py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
+    if (!py_basicsize)
+        goto bad;
+    basicsize = PyLong_AsSsize_t(py_basicsize);
+    Py_DECREF(py_basicsize);
+    py_basicsize = 0;
+    if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
+        goto bad;
+#endif
+    if (!strict && (size_t)basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
@@ -171,7 +210,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
         #endif
     }
-    else if ((size_t)((PyTypeObject *)result)->tp_basicsize != size) {
+    else if ((size_t)basicsize != size) {
         PyErr_Format(PyExc_ValueError,
             "%s.%s has the wrong size, try recompiling",
             module_name, class_name);
@@ -348,23 +387,23 @@ bad:
 
 /////////////// VoidPtrExport.proto ///////////////
 
-static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig); /*proto*/
+static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig); /*proto*/
 
 /////////////// VoidPtrExport ///////////////
 //@substitute: naming
+//@requires: ObjectHandling.c::PyObjectSetAttrStr
 
-static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig) {
-    PyObject *d = 0;
+static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
+    PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyObject_GetAttrString($module_cname, (char *)"$api_name");
+    d = PyDict_GetItem($moddict_cname, PYIDENT("$api_name"));
+    Py_XINCREF(d);
     if (!d) {
-        PyErr_Clear();
         d = PyDict_New();
         if (!d)
             goto bad;
-        Py_INCREF(d);
-        if (PyModule_AddObject($module_cname, (char *)"$api_name", d) < 0)
+        if (__Pyx_PyObject_SetAttrStr($module_cname, PYIDENT("$api_name"), d) < 0)
             goto bad;
     }
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
@@ -374,7 +413,7 @@ static int __Pyx_ExportVoidPtr(const char *name, void *p, const char *sig) {
 #endif
     if (!cobj)
         goto bad;
-    if (PyDict_SetItemString(d, name, cobj) < 0)
+    if (PyDict_SetItem(d, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
     Py_DECREF(d);
@@ -383,4 +422,54 @@ bad:
     Py_XDECREF(cobj);
     Py_XDECREF(d);
     return -1;
+}
+
+
+/////////////// SetVTable.proto ///////////////
+
+static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
+
+/////////////// SetVTable ///////////////
+
+static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
+    PyObject *ob = PyCapsule_New(vtable, 0, 0);
+#else
+    PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
+#endif
+    if (!ob)
+        goto bad;
+    if (PyDict_SetItem(dict, PYIDENT("__pyx_vtable__"), ob) < 0)
+        goto bad;
+    Py_DECREF(ob);
+    return 0;
+bad:
+    Py_XDECREF(ob);
+    return -1;
+}
+
+
+/////////////// GetVTable.proto ///////////////
+
+static void* __Pyx_GetVtable(PyObject *dict); /*proto*/
+
+/////////////// GetVTable ///////////////
+
+static void* __Pyx_GetVtable(PyObject *dict) {
+    void* ptr;
+    PyObject *ob = PyObject_GetItem(dict, PYIDENT("__pyx_vtable__"));
+    if (!ob)
+        goto bad;
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
+    ptr = PyCapsule_GetPointer(ob, 0);
+#else
+    ptr = PyCObject_AsVoidPtr(ob);
+#endif
+    if (!ptr && !PyErr_Occurred())
+        PyErr_SetString(PyExc_RuntimeError, "invalid vtable found for imported type");
+    Py_DECREF(ob);
+    return ptr;
+bad:
+    Py_XDECREF(ob);
+    return NULL;
 }

@@ -117,12 +117,12 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
 @cached_function
 def find_root_package_dir(file_path):
     dir = os.path.dirname(file_path)
-    while is_package_dir(dir):
-        parent = os.path.dirname(dir)
-        if parent == dir:
-            break
-        dir = parent
-    return dir
+    if file_path == dir:
+        return dir
+    elif is_package_dir(dir):
+        return find_root_package_dir(dir)
+    else:
+        return dir
 
 @cached_function
 def check_package_dir(dir, package_names):

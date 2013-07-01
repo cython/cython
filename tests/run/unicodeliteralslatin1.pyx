@@ -55,6 +55,8 @@ __doc__ = br"""
     True
     >>> f == u'\\xf8' # unescaped by Python
     True
+    >>> k == u'ä' == u'\\N{LATIN SMALL LETTER A WITH DIAERESIS}'
+    True
     >>> add == u'Søk ik' + u'üÖä' + 'abc'
     True
     >>> null == u'\\x00' # unescaped by Python (required by doctest)
@@ -75,6 +77,7 @@ c = u'Søk ik'
 d = u'üÖä'
 e = u'\x03\x67\xf8\uf8d2Søk ik'
 f = u'\xf8'
+k = u'\N{LATIN SMALL LETTER A WITH DIAERESIS}'
 
 add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'

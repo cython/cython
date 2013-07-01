@@ -38,11 +38,13 @@ def slice_charptr_for_loop_c():
     """
     >>> slice_charptr_for_loop_c()
     ['a', 'b', 'c']
+    ['a', 'b', 'c']
     ['b', 'c', 'A', 'B']
     ['B', 'C', 'q', 't', 'p']
     """
     cdef char c
     print [ chr(c) for c in cstring[:3] ]
+    print [ chr(c) for c in cstring[None:3] ]
     print [ chr(c) for c in cstring[1:5] ]
     print [ chr(c) for c in cstring[4:9] ]
 
@@ -53,11 +55,13 @@ def slice_charptr_for_loop_c_to_bytes():
     """
     >>> slice_charptr_for_loop_c_to_bytes()
     ['a', 'b', 'c']
+    ['a', 'b', 'c']
     ['b', 'c', 'A', 'B']
     ['B', 'C', 'q', 't', 'p']
     """
     cdef bytes b
     print str([ b for b in cstring[:3] ]).replace(" b'", " '").replace("[b'", "['")
+    print str([ b for b in cstring[None:3] ]).replace(" b'", " '").replace("[b'", "['")
     print str([ b for b in cstring[1:5] ]).replace(" b'", " '").replace("[b'", "['")
     print str([ b for b in cstring[4:9] ]).replace(" b'", " '").replace("[b'", "['")
 
@@ -94,11 +98,13 @@ def slice_charptr_for_loop_c_dynamic_bounds():
     """
     >>> slice_charptr_for_loop_c_dynamic_bounds()
     ['a', 'b', 'c']
+    ['a', 'b', 'c']
     ['b', 'c', 'A', 'B']
     ['B', 'C', 'q', 't', 'p']
     """
     cdef char c
     print [ chr(c) for c in cstring[0:return3()] ]
+    print [ chr(c) for c in cstring[None:return3()] ]
     print [ chr(c) for c in cstring[return1():return5()] ]
     print [ chr(c) for c in cstring[return4():return9()] ]
 
@@ -133,11 +139,13 @@ def slice_charptr_for_loop_c_enumerate():
     """
     >>> slice_charptr_for_loop_c_enumerate()
     [(0, 97), (1, 98), (2, 99)]
+    [(0, 97), (1, 98), (2, 99)]
     [(0, 98), (1, 99), (2, 65), (3, 66)]
     [(0, 66), (1, 67), (2, 113), (3, 116), (4, 112)]
     """
     cdef int c,i
     print [ (i,c) for i,c in enumerate(cstring[:3]) ]
+    print [ (i,c) for i,c in enumerate(cstring[None:3]) ]
     print [ (i,c) for i,c in enumerate(cstring[1:5]) ]
     print [ (i,c) for i,c in enumerate(cstring[4:9]) ]
 
@@ -156,11 +164,13 @@ def slice_intarray_for_loop_c():
     """
     >>> slice_intarray_for_loop_c()
     [0, 1, 2]
+    [0, 1, 2]
     [1, 2, 3, 4]
     [4, 5]
     """
     cdef int i
     print [ i for i in cints[:3] ]
+    print [ i for i in cints[None:3] ]
     print [ i for i in cints[1:5] ]
     print [ i for i in cints[4:6] ]
 
@@ -182,12 +192,14 @@ def slice_intptr_for_loop_c():
     """
     >>> slice_intptr_for_loop_c()
     [0, 1, 2]
+    [0, 1, 2]
     [1, 2, 3, 4]
     [4, 5]
     """
     cdef int* nums = cints
     cdef int i
     print [ i for i in nums[:3] ]
+    print [ i for i in nums[None:3] ]
     print [ i for i in nums[1:5] ]
     print [ i for i in nums[4:6] ]
 
@@ -208,11 +220,13 @@ def slice_doublptr_for_loop_c():
     """
     >>> slice_doublptr_for_loop_c()
     [0.5, 1.5, 2.5]
+    [0.5, 1.5, 2.5]
     [1.5, 2.5, 3.5, 4.5]
     [4.5, 5.5]
     """
     cdef double d
     print [ d for d in cdoubles_ptr[:3] ]
+    print [ d for d in cdoubles_ptr[None:3] ]
     print [ d for d in cdoubles_ptr[1:5] ]
     print [ d for d in cdoubles_ptr[4:6] ]
 

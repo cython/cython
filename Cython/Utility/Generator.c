@@ -56,6 +56,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
@@ -123,7 +124,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     Py_DECREF(ev);
 #else
     {
-        PyObject* args = PyObject_GetAttrString(ev, "args");
+        PyObject* args = PyObject_GetAttr(ev, PYIDENT("args"));
         Py_DECREF(ev);
         if (likely(args)) {
             value = PyObject_GetItem(args, 0);
@@ -285,7 +286,7 @@ static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
             if (value == Py_None)
                 ret = PyIter_Next(yf);
             else
-                ret = PyObject_CallMethod(yf, (char*)"send", (char*)"O", value);
+                ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
         gen->is_running = 0;
         //Py_DECREF(yf);
@@ -310,7 +311,7 @@ static int __Pyx_Generator_CloseIter(__pyx_GeneratorObject *gen, PyObject *yf) {
     } else {
         PyObject *meth;
         gen->is_running = 1;
-        meth = PyObject_GetAttrString(yf, "close");
+        meth = PyObject_GetAttr(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
             if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyErr_WriteUnraisable(yf);
@@ -402,7 +403,7 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
         if (__Pyx_Generator_CheckExact(yf)) {
             ret = __Pyx_Generator_Throw(yf, args);
         } else {
-            PyObject *meth = PyObject_GetAttrString(yf, "throw");
+            PyObject *meth = PyObject_GetAttr(yf, PYIDENT("throw"));
             if (unlikely(!meth)) {
                 Py_DECREF(yf);
                 if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
@@ -513,7 +514,7 @@ static void __Pyx_Generator_del(PyObject *self) {
         _Py_NewReference(self);
         self->ob_refcnt = refcnt;
     }
-#if CYTHON_COMPILING_FOR_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
     assert(PyType_IS_GC(self->ob_type) &&
            _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
 

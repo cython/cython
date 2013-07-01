@@ -2,7 +2,251 @@
 Cython Changelog
 ================
 
-0.17.2 (2012-11-??)
+0.20 (??)
+===================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* The automatic C switch statement generation behaves more safely for
+  heterogeneous value types (e.g. mixing enum and char), allowing for
+  a slightly wider application and reducing corner cases.  It now always
+  generates a 'default' clause to avoid C compiler warnings about
+  unmatched enum values.
+
+Other changes
+-------------
+
+
+0.19.1 (2013-05-11)
+===================
+
+Features added
+--------------
+
+* Completely empty C-API structs for extension type slots (protocols like
+  number/mapping/sequence) are no longer generated into the C code.
+
+* Docstrings that directly follow a public/readonly attribute declaration
+  in a cdef class will be used as docstring of the auto-generated property.
+  This fixes ticket 206.
+
+* The automatic signature documentation tries to preserve more semantics
+  of default arguments and argument types.  Specifically, ``bint`` arguments
+  now appear as type ``bool``.
+
+* A warning is emitted when negative literal indices are found inside of
+  a code section that disables ``wraparound`` handling.  This helps with
+  fixing invalid code that might fail in the face of future compiler
+  optimisations.
+
+* Constant folding for boolean expressions (and/or) was improved.
+
+* Added a build_dir option to cythonize() which allows one to place
+  the generated .c files outside the source tree.
+
+Bugs fixed
+----------
+
+* ``isinstance(X, type)`` failed to get optimised into a call to
+  ``PyType_Check()``, as done for other builtin types.
+
+* A spurious "from datetime cimport *" was removed from the "cpython"
+  declaration package. This means that the "datetime" declarations
+  (added in 0.19) are no longer available directly from the "cpython"
+  namespace, but only from "cpython.datetime". This is the correct
+  way of doing it because the declarations refer to a standard library
+  module, not the core CPython C-API itself.
+
+* The C code for extension types is now generated in topological order
+  instead of source code order to avoid C compiler errors about missing
+  declarations for subtypes that are defined before their parent.
+
+* The ``memoryview`` type name no longer shows up in the module dict of
+  modules that use memory views.  This fixes trac ticket 775.
+
+* Regression in 0.19 that rejected valid C expressions from being used
+  in C array size declarations.
+
+* In C++ mode, the C99-only keyword ``restrict`` could accidentally be
+  seen by the GNU C++ compiler. It is now specially handled for both
+  GCC and MSVC.
+
+* Testing large (> int) C integer values for their truth value could fail
+  due to integer wrap-around.
+
+Other changes
+-------------
+
+
+0.19 (2013-04-19)
+=================
+
+Features added
+--------------
+
+* New directives ``c_string_type`` and ``c_string_encoding`` to more easily
+  and automatically convert between C strings and the different Python string
+  types.
+
+* The extension type flag ``Py_TPFLAGS_HAVE_VERSION_TAG`` is enabled by default
+  on extension types and can be disabled using the ``type_version_tag`` compiler
+  directive.
+
+* EXPERIMENTAL support for simple Cython code level line tracing.  Enabled by
+  the "linetrace" compiler directive.
+
+* Cython implemented functions make their argument and return type annotations
+  available through the ``__annotations__`` attribute (PEP 3107).
+
+* Access to non-cdef module globals and Python object attributes is faster.
+
+* ``Py_UNICODE*`` coerces from and to Python unicode strings.  This is
+  helpful when talking to Windows APIs, which use compatible wchar_t
+  arrays for strings.  Note that the ``Py_UNICODE`` type is otherwise
+  deprecated as of CPython 3.3.
+
+* ``isinstance(obj, basestring)`` is optimised.  In Python 3 it only tests
+  for instances of ``str`` (i.e. Py2 ``unicode``).
+
+* The ``basestring`` builtin is mapped to ``str`` (i.e. Py2 ``unicode``) when
+  compiling the generated C code under Python 3.
+
+* Closures use freelists, which can speed up their creation quite substantially.
+  This is also visible for short running generator expressions, for example.
+
+* A new class decorator ``@cython.freelist(N)`` creates a static freelist of N
+  instances for an extension type, thus avoiding the costly allocation step if
+  possible. This can speed up object instantiation by 20-30% in suitable
+  scenarios. Note that freelists are currently only supported for base types,
+  not for types that inherit from others.
+
+* Fast extension type instantiation using the ``Type.__new__(Type)`` idiom has
+  gained support for passing arguments.  It is also a bit faster for types defined
+  inside of the module.
+
+* The Python2-only dict methods ``.iter*()`` and ``.view*()`` (requires Python 2.7)
+  are automatically mapped to the equivalent keys/values/items methods in Python 3
+  for typed dictionaries.
+
+* Slicing unicode strings, lists and tuples is faster.
+
+* list.append() is faster on average.
+
+* ``raise Exception() from None`` suppresses the exception context in Py3.3.
+
+* Py3 compatible ``exec(tuple)`` syntax is supported in Py2 code.
+
+* Keyword arguments are supported for cdef functions.
+
+* External C++ classes can be declared nogil.  Patch by John Stumpo.  This fixes
+  trac ticket 805.
+
+Bugs fixed
+----------
+
+* 2-value slicing of unknown objects passes the correct slice when the ``getitem``
+  protocol is used instead of the ``getslice`` protocol (especially in Python 3),
+  i.e. ``None`` values for missing bounds instead of ``[0,maxsize]``.  It is also
+  a bit faster in some cases, e.g. for constant bounds.  This fixes trac ticket 636.
+
+* Cascaded assignments of None values to extension type variables failed with
+  a ``TypeError`` at runtime.
+
+* The ``__defaults__`` attribute was not writable for Cython implemented
+  functions.
+
+* Default values of keyword-only arguments showed up in ``__defaults__`` instead
+  of ``__kwdefaults__`` (which was not implemented).  Both are available for
+  Cython implemented functions now, as specified in Python 3.x.
+
+* ``yield`` works inside of ``with gil`` sections.  It previously lead to a crash.
+  This fixes trac ticket 803.
+
+* Static methods without explicitly named positional arguments (e.g. having only
+  ``*args``) crashed when being called.  This fixes trac ticket 804.
+
+* ``dir()`` without arguments previously returned an unsorted list, which now
+  gets sorted as expected.
+
+* ``dict.items()``, ``dict.keys()`` and ``dict.values()`` no longer return lists
+  in Python 3.
+
+* Exiting from an ``except-as`` clause now deletes the exception in Python 3 mode.
+
+* The declarations of ``frexp()`` and ``ldexp()`` in ``math.pxd`` were incorrect.
+
+Other changes
+-------------
+
+
+0.18 (2013-01-28)
+=================
+
+Features added
+--------------
+
+* Named Unicode escapes ("\N{...}") are supported.
+
+* Python functions/classes provide the special attribute "__qualname__"
+  as defined by PEP 3155.
+
+* Added a directive ``overflowcheck`` which raises an OverflowException when
+  arithmetic with C ints overflow.  This has a modest performance penalty, but
+  is much faster than using Python ints.
+
+* Calls to nested Python functions are resolved at compile time.
+
+* Type inference works across nested functions.
+
+* ``py_bytes_string.decode(...)`` is optimised.
+
+* C ``const`` declarations are supported in the language.
+
+Bugs fixed
+----------
+
+* Automatic C++ exception mapping didn't work in nogil functions (only in
+  "with nogil" blocks).
+
+Other changes
+-------------
+
+
+0.17.4 (2013-01-03)
+===================
+
+Bugs fixed
+----------
+
+* Garbage collection triggered during deallocation of container classes could lead to a double-deallocation.
+
+
+0.17.3 (2012-12-14)
+===================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* During final interpreter cleanup (with types cleanup enabled at compile time), extension types that inherit from base types over more than one level that were cimported from other modules could lead to a crash.
+
+* Weak-reference support in extension types (with a ``cdef __weakref__`` attribute) generated incorrect deallocation code.
+
+* In CPython 3.3, converting a Unicode character to the Py_UNICODE type could fail to raise an overflow for non-BMP characters that do not fit into a wchar_t on the current platform.
+
+* Negative C integer constants lost their longness suffix in the generated C code.
+
+Other changes
+-------------
+
+
+0.17.2 (2012-11-20)
 ===================
 
 Features added
@@ -12,6 +256,10 @@ Features added
 
 Bugs fixed
 ----------
+
+* Replacing an object reference with the value of one of its cdef attributes could generate incorrect C code that accessed the object after deleting its last reference.
+
+* C-to-Python type coercions during cascaded comparisons could generate invalid C code, specifically when using the 'in' operator.
 
 * "obj[1,]" passed a single integer into the item getter instead of a tuple.
 

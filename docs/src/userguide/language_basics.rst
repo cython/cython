@@ -62,7 +62,7 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
         ctypedef unsigned long ULong
 
-        ctypedef int *IntPtr
+        ctypedef int* IntPtr
 
 Grouping multiple C declarations
 --------------------------------
@@ -79,7 +79,7 @@ can group them into a :keyword:`cdef` block like this::
         Spam *p
 
         void f(Spam *s):
-        print s.tons, "Tons of spam"
+            print s.tons, "Tons of spam"
 
 
 Python functions vs. C functions
@@ -100,7 +100,11 @@ interpreted Python code. So, any functions that you want to "export" from your
 Cython module must be declared as Python functions using def. 
 There is also a hybrid function, called :keyword:`cpdef`. A :keyword:`cpdef` 
 can be called from anywhere, but uses the faster C calling conventions 
-when being called from other Cython code. 
+when being called from other Cython code. A :keyword:`cpdef` can also be overridden
+by a Python method on a subclass or an instance attribute, even when called from Cython.
+If this happens, most performance gains are of course lost and even if it does not,
+there is a tiny overhead in calling a :keyword:`cpdef` method from Cython compared to
+calling a :keyword:`cdef` method.
 
 Parameters of either type of function can be declared to have C data types,
 using normal C declaration syntax. For example,::
@@ -220,7 +224,7 @@ Some things to note:
   example of a pointer-to-function declaration with an exception
   value::
 
-      int (*grail)(int, char *) except -1
+      int (*grail)(int, char*) except -1
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
@@ -243,7 +247,7 @@ function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
 return value and raise it yourself, for example,::
 
-    cdef FILE *p
+    cdef FILE* p
     p = fopen("spam.txt", "r")
     if p == NULL:
         raise SpamError("Couldn't open the spam file")
@@ -270,7 +274,7 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | float, double, long double | int, long, float   | float            |
 +----------------------------+--------------------+------------------+
-| char *                     | str/bytes          | str/bytes [#]_   |
+| char*                      | str/bytes          | str/bytes [#]_   |
 +----------------------------+--------------------+------------------+
 | struct                     |                    | dict             |
 +----------------------------+--------------------+------------------+
@@ -281,7 +285,7 @@ Caveats when using a Python string in a C context
 -------------------------------------------------
 
 You need to be careful when using a Python string in a context expecting a
-``char *``. In this situation, a pointer to the contents of the Python string is
+``char*``. In this situation, a pointer to the contents of the Python string is
 used, which is only valid as long as the Python string exists. So you need to
 make sure that a reference to the original Python string is held for as long
 as the C string is needed. If you can't guarantee that the Python string will
@@ -293,7 +297,7 @@ attempt something like::
     cdef char *s
     s = pystring1 + pystring2
 
-then Cython will produce the error message ``Obtaining char * from temporary
+then Cython will produce the error message ``Obtaining char* from temporary
 Python value``. The reason is that concatenating the two Python strings
 produces a new Python string object that is referenced only by a temporary
 internal variable that Cython generates. As soon as the statement has finished,
@@ -302,7 +306,7 @@ leaving ``s`` dangling. Since this code could not possibly work, Cython refuses 
 compile it.
 
 The solution is to assign the result of the concatenation to a Python
-variable, and then obtain the ``char *`` from that, i.e.::
+variable, and then obtain the ``char*`` from that, i.e.::
 
     cdef char *s
     p = pystring1 + pystring2
@@ -347,9 +351,9 @@ direct equivalent in Python.
 * There is no unary ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
 * There is an ``&`` operator, with the same semantics as in C.
 * The null C pointer is called ``NULL``, not ``0`` (and ``NULL`` is a reserved word).
-* Type casts are written ``<type>value`` , for example::
+* Type casts are written ``<type>value`` , for example,::
 
-        cdef char *p, float *q
+        cdef char* p, float* q
         p = <char*>q
 
 Scope rules
@@ -383,35 +387,48 @@ Python variable residing in the scope where it is assigned.
 Built-in Functions
 ------------------
 
-Cython compiles calls to the following built-in functions into direct calls to
+Cython compiles calls to most built-in functions into direct calls to
 the corresponding Python/C API routines, making them particularly fast.
+
+Only direct function calls using these names are optimised. If you do
+something else with one of these names that assumes it's a Python object,
+such as assign it to a Python variable, and later call it, the call will
+be made as a Python function call.
 
 +------------------------------+-------------+----------------------------+
 | Function and arguments       | Return type | Python/C API Equivalent    |
 +==============================+=============+============================+
-| abs(obj)                     | object      | PyNumber_Absolute          |
+| abs(obj)                     | object,     | PyNumber_Absolute, fabs,   |
+|                              | double, ... | fabsf, ...                 |
 +------------------------------+-------------+----------------------------+
-| delattr(obj, name)           | int         | PyObject_DelAttr           |
+| callable(obj)                | bint        | PyObject_Callable          |
 +------------------------------+-------------+----------------------------+
-| dir(obj)                     | object      | PyObject_Dir               |
-| getattr(obj, name) (Note 1)  |             |                            |
-| getattr3(obj, name, default) |             |                            |
+| delattr(obj, name)           | None        | PyObject_DelAttr           |
 +------------------------------+-------------+----------------------------+
-| hasattr(obj, name)           | int         | PyObject_HasAttr           |
+| exec(code, [glob, [loc]])    | object      | -                          |
 +------------------------------+-------------+----------------------------+
-| hash(obj)                    | int         | PyObject_Hash              |
+| dir(obj)                     | list        | PyObject_Dir               |
 +------------------------------+-------------+----------------------------+
-| intern(obj)                  | object      | PyObject_InternFromString  |
+| divmod(a, b)                 | tuple       | PyNumber_Divmod            |
 +------------------------------+-------------+----------------------------+
-| isinstance(obj, type)        | int         | PyObject_IsInstance        |
+| getattr(obj, name, [default])| object      | PyObject_GetAttr           |
+| (Note 1)                     |             |                            |
 +------------------------------+-------------+----------------------------+
-| issubclass(obj, type)        | int         | PyObject_IsSubclass        |
+| hasattr(obj, name)           | bint        | PyObject_HasAttr           |
 +------------------------------+-------------+----------------------------+
-| iter(obj)                    | object      | PyObject_GetIter           |
+| hash(obj)                    | int / long  | PyObject_Hash              |
++------------------------------+-------------+----------------------------+
+| intern(obj)                  | object      | Py*_InternFromString       |
++------------------------------+-------------+----------------------------+
+| isinstance(obj, type)        | bint        | PyObject_IsInstance        |
++------------------------------+-------------+----------------------------+
+| issubclass(obj, type)        | bint        | PyObject_IsSubclass        |
++------------------------------+-------------+----------------------------+
+| iter(obj, [sentinel])        | object      | PyObject_GetIter           |
 +------------------------------+-------------+----------------------------+
 | len(obj)                     | Py_ssize_t  | PyObject_Length            |
 +------------------------------+-------------+----------------------------+
-| pow(x, y, z) (Note 2)        | object      | PyNumber_Power             |
+| pow(x, y, [z])               | object      | PyNumber_Power             |
 +------------------------------+-------------+----------------------------+
 | reload(obj)                  | object      | PyImport_ReloadModule      |
 +------------------------------+-------------+----------------------------+
@@ -420,17 +437,10 @@ the corresponding Python/C API routines, making them particularly fast.
 | setattr(obj, name)           | void        | PyObject_SetAttr           |
 +------------------------------+-------------+----------------------------+
 
-Note 1: There are two different functions corresponding to the Python
-:func:`getattr` depending on whether a third argument is used. In a Python
-context, they both evaluate to the Python :func:`getattr` function.
-
-Note 2: Only the three-argument form of :func:`pow` is supported. Use the
-``**`` operator otherwise.
-
-Only direct function calls using these names are optimised. If you do
-something else with one of these names that assumes it's a Python object, such
-as assign it to a Python variable, and later call it, the call will be made as
-a Python function call.
+Note 1: Pyrex originally provided a function :func:`getattr3(obj, name, default)`
+corresponding to the three-argument form of the Python builtin :func:`getattr()`.
+Cython still supports this function, but the usage is deprecated in favour of
+the normal builtin, which Cython can optimise in both forms.
 
 
 Operator Precedence
@@ -455,8 +465,8 @@ the loop is not being converted correctly, use the annotate feature of
 the cython commandline (``-a``) to easily see the generated C code.
 See :ref:`automatic-range-conversion`
 
-For backwards compatibility to Pyrex, Cython also supports another
-form of for-loop::
+For backwards compatibility to Pyrex, Cython also supports a more verbose
+form of for-loop which you might find in legacy code::
 
     for i from 0 <= i < n:
         ...
@@ -468,9 +478,12 @@ or::
 
 where ``s`` is some integer step size.
 
+.. note:: This syntax is deprecated and should not be used in new code.
+          Use the normal Python for-loop instead.
+
 Some things to note about the for-from loop:
 
-* The target expression must be a variable name.
+* The target expression must be a plain variable name.
 * The name between the lower and upper bounds must be the same as the target
   name.
 * The direction of iteration is determined by the relations. If they are both
@@ -489,7 +502,7 @@ The include statement
     Use :ref:`sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
-statement, for example::
+statement, for example,::
 
     include "spamstuff.pxi"
 

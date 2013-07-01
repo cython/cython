@@ -1,4 +1,7 @@
-from distutils.core import setup, Extension
+try:
+    from setuptools import setup, Extension
+except ImportError:
+    from distutils.core import setup, Extension
 from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
@@ -27,7 +30,7 @@ class sdist(sdist_orig):
         self.force_manifest = 1
         if (sys.platform != "win32" and 
             os.path.isdir('.git')):
-            assert os.system("git show-ref -s HEAD > .gitrev") == 0
+            assert os.system("git rev-parse --verify HEAD > .gitrev") == 0
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
@@ -272,6 +275,7 @@ packages = [
     'Cython.Compiler.Tests',
     'Cython.Utility',
     'Cython.Tempita',
+    'pyximport',
 ]
 
 if include_debugger:
@@ -322,12 +326,7 @@ setup(
   scripts = scripts,
   packages=packages,
 
-  # pyximport
-  py_modules = ["pyximport/__init__",
-                "pyximport/pyximport",
-                "pyximport/pyxbuild",
-
-                "cython"],
+  py_modules = ["cython"],
 
   **setup_args
   )

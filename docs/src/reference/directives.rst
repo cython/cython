@@ -1,4 +1,4 @@
 Compiler Directives
 ===================
 
-TODO. See http://wiki.cython.org/enhancements/compilerdirectives
+See `Compilation <compilation.html#compiler-directives>`_.

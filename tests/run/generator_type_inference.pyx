@@ -31,12 +31,12 @@ def test_unicode_loop():
         print 2, cython.typeof(c)
         yield c
 
-def test_nonlocal_disables_inference():
+def test_with_nonlocal():
     """
-    >>> chars = list(test_nonlocal_disables_inference())
-    1 Python object
-    2 Python object
-    2 Python object
+    >>> chars = list(test_with_nonlocal())
+    1 Py_UCS4
+    2 Py_UCS4
+    2 Py_UCS4
     >>> len(chars)
     2
     >>> ''.join(chars) == 'ab'

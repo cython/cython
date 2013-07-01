@@ -1,0 +1,30 @@
+# tag: cpp
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import test"
+
+######## test.pyx ########
+# distutils: language = c++
+
+cdef extern from "test.h":
+    ctypedef struct c_Test "Test":
+        const char *getString() except +RuntimeError
+
+cdef class Test:
+    cdef c_Test *thisptr
+    def getString(self):
+        return self.thisptr.getString()
+
+######## test.h ########
+
+static const char *astring = "123";
+class Test {
+public:
+    const char *getString(void) { return astring; }
+};
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build.Dependencies import cythonize
+
+setup(name='test', ext_modules=cythonize('*.pyx'))

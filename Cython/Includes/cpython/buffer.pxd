@@ -56,7 +56,7 @@ cdef extern from "Python.h":
     void* PyBuffer_GetPointer(Py_buffer *view, Py_ssize_t *indices)
     # ??
 
-    int PyBuffer_SizeFromFormat(char *) # actually const char
+    Py_ssize_t PyBuffer_SizeFromFormat(char *) # actually const char
     # Return the implied ~Py_buffer.itemsize from the struct-stype
     # ~Py_buffer.format
 
@@ -90,7 +90,7 @@ cdef extern from "Python.h":
     void PyBuffer_FillContiguousStrides(int ndims,
                                         Py_ssize_t *shape,
                                         Py_ssize_t *strides,
-                                        int itemsize,
+                                        Py_ssize_t itemsize,
                                         char fort)
     # Fill the strides array with byte-strides of a contiguous
     # (Fortran-style if fort is 'F' or C-style otherwise) array of the
