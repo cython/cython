@@ -24,6 +24,12 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 
 verbose = 0
 
+#hack, global
+dep_out = None
+dep_include = set()
+dep_phony = []
+import io
+
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
     #  (For now, this is only)
@@ -112,6 +118,8 @@ class Context(object):
         # and the module will first be searched for relative to
         # that module, provided its name is not a dotted name.
         debug_find_module = 0
+        # hack
+        global dep_phony
         if debug_find_module:
             print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (
                     module_name, relative_to, pos, need_pxd))
@@ -160,6 +168,9 @@ class Context(object):
                 try:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
+                    if self.options.dep_makefile:
+                        dep_out.write("\\" + os.linesep + " " + pxd_pathname)
+                        dep_phony.append(pxd_pathname)
                     rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
                     if not pxd_pathname.endswith(rel_path):
                         rel_path = pxd_pathname # safety measure to prevent printing incorrect paths
@@ -217,6 +228,8 @@ class Context(object):
                                                include=True)
         if not path:
             error(pos, "'%s' not found" % filename)
+        elif self.options.dep_makefile:
+           dep_include.add(path)
         return path
 
     def search_include_directories(self, qualified_name, suffix, pos,
@@ -452,6 +465,7 @@ class CompilationOptions(object):
     errors_to_stderr  boolean   Echo errors to stderr when using .lis
     include_path      [string]  Directories to search for include files
     output_file       string    Name of generated .c file
+    dep_makefile      string    write dependency makefile
     generate_pxi      boolean   Generate .pxi file for public declarations
     capi_reexport_cincludes  
                       boolean   Add cincluded headers to any auto-generated 
@@ -603,6 +617,7 @@ def setuptools_main():
     return main(command_line = 1)
 
 def main(command_line = 0):
+    global dep_out
     args = sys.argv[1:]
     any_failures = 0
     if command_line:
@@ -616,6 +631,10 @@ def main(command_line = 0):
         sys.stderr.write("Cython version %s\n" % Version.version)
     if options.working_path!="":
         os.chdir(options.working_path)
+    if options.dep_makefile:
+        dep_out = io.open(options.dep_makefile, mode="w+b")
+        dep_out.write(options.output_file+":")
+
     try:
         result = compile(sources, options)
         if result.num_errors > 0:
@@ -623,6 +642,17 @@ def main(command_line = 0):
     except (EnvironmentError, PyrexError), e:
         sys.stderr.write(str(e) + '\n')
         any_failures = 1
+
+    if options.dep_makefile:
+       for i in dep_include:
+           dep_out.write("\\" + os.linesep + " " + i)
+       dep_out.write(os.linesep)
+       for i in dep_phony:
+          dep_out.write(os.linesep + i + ":" + os.linesep)
+       for i in dep_include:
+          dep_out.write(os.linesep + i + ":" + os.linesep)
+       dep_out.close()
+
     if any_failures:
         sys.exit(1)
 
@@ -640,6 +670,7 @@ default_options = dict(
     errors_to_stderr = 1,
     cplus = 0,
     output_file = None,
+    dep_makefile = None,
     annotate = None,
     generate_pxi = 0,
     capi_reexport_cincludes = 0,

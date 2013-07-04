@@ -18,6 +18,11 @@ Options:
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiple include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
+  -M                             Write out dependency makefile
+  -F <filename>                  Specifies a file to write dependencies to,
+                                 implies -M (default: stdout)
+  -MD                            Use outfilename + ".d" as makefile name, implies -M
+  -P                             Also write phony targets (FIXME: don't without -P)
   -t, --timestamps               Only compile newer source files
   -f, --force                    Compile all source files (overrides implied -t)
   -v, --verbose                  Be verbose, print file names on multiple compilation
@@ -94,6 +99,14 @@ def parse_command_line(args):
                 options.working_path = pop_arg()
             elif option in ("-o", "--output-file"):
                 options.output_file = pop_arg()
+            elif option == "-M":
+                options.dep_makefile = sys.stdout
+            elif option == "-MF" or option == "-F":
+                options.dep_makefile = pop_arg()
+            elif option == "-MD":
+                options.dep_makefile = options.output_file + ".d"
+            elif option == "-MP" or option == "-P":
+                pass # FIXME: not -P is not implemented.
             elif option in ("-t", "--timestamps"):
                 options.timestamps = 1
             elif option in ("-f", "--force"):
