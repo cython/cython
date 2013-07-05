@@ -1004,3 +1004,17 @@ def test_delegating_generators_claim_to_be_running_close():
     ret = next(g1)
     g1.close()
     return ret
+
+
+def yield_in_return(x):
+    """
+    >>> x = yield_in_return(range(3))
+    >>> while True:
+    ...     try:
+    ...         print(next(x))
+    ...     except StopIteration as exc:
+    ...         print(exc.value)
+    ...     break
+
+    """
+    return (yield from x)
