@@ -1015,6 +1015,6 @@ def yield_in_return(x):
     ...     except StopIteration as exc:
     ...         print(exc.value)
     ...     break
-
+    0
     """
     return (yield from x)
