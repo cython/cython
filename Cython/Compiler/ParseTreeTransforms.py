@@ -2096,13 +2096,14 @@ class YieldNodeCollector(TreeVisitor):
         self.has_return_value = False
 
     def visit_Node(self, node):
-        return self.visitchildren(node)
+        self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
         self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
+        self.visitchildren(node)
         if node.value:
             self.has_return_value = True
         self.returns.append(node)
@@ -2118,6 +2119,7 @@ class YieldNodeCollector(TreeVisitor):
 
     def visit_GeneratorExpressionNode(self, node):
         pass
+
 
 class MarkClosureVisitor(CythonTransform):
 
