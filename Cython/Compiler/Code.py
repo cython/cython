@@ -1539,22 +1539,21 @@ class CCodeWriter(object):
         self.bol = 0
 
     def put_or_include(self, code, name):
-        if code:
-            include_dir = self.globalstate.common_utility_include_dir
-            if include_dir and len(code) > 1042:
-                include_file = "%s_%s.h" % (
-                    name, hashlib.md5(code).hexdigest())
-                path = os.path.join(include_dir, include_file)
-                if not os.path.exists(path):
-                    tmp_path = '%s.tmp%s' % (path, os.getpid())
-                    f = Utils.open_new_file(tmp_path)
-                    try:
-                        f.write(code)
-                    finally:
-                        f.close()
-                    os.rename(tmp_path, path)
-                code = '#include "%s"\n' % path
-            self.put(code)
+        include_dir = self.globalstate.common_utility_include_dir
+        if include_dir and len(code) > 1042:
+            include_file = "%s_%s.h" % (
+                name, hashlib.md5(code).hexdigest())
+            path = os.path.join(include_dir, include_file)
+            if not os.path.exists(path):
+                tmp_path = '%s.tmp%s' % (path, os.getpid())
+                f = Utils.open_new_file(tmp_path)
+                try:
+                    f.write(code)
+                finally:
+                    f.close()
+                os.rename(tmp_path, path)
+            code = '#include "%s"\n' % path
+        self.put(code)
 
     def put(self, code):
         fix_indent = False
