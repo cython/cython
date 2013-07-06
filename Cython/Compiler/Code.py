@@ -385,11 +385,13 @@ class UtilityCode(UtilityCodeBase):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
         pystrings = re.findall('(PYIDENT\("([^"]+)"\))', impl)
+        any_replacements = False
         for ref, name in pystrings:
             py_const = output.get_interned_identifier(
                 StringEncoding.EncodedString(name))
+            any_replacements = True
             impl = impl.replace(ref, py_const.cname)
-        return impl
+        return any_replacements, impl
 
     def put_code(self, output):
         if self.requires:
@@ -400,10 +402,14 @@ class UtilityCode(UtilityCodeBase):
                 self.format_code(self.proto),
                 '%s_proto' % self.name)
         if self.impl:
-            output['utility_code_def'].put_or_include(
-                self.format_code(
-                    self.inject_string_constants(self.impl, output)),
-                '%s_impl' % self.name)
+            impl = self.format_code(self.impl)
+            is_specialised, impl = self.inject_string_constants(impl, output)
+            if not is_specialised:
+                # no module specific adaptations => can be reused
+                output['utility_code_def'].put_or_include(
+                    impl, '%s_impl' % self.name)
+            else:
+                output['utility_code_def'].put(impl)
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
@@ -1530,12 +1536,19 @@ class CCodeWriter(object):
 
     def put_or_include(self, code, name):
         if code:
-            if self.globalstate.common_utility_include_dir and len(code) > 1042:
-                include_file = "%s_%s.h" % (name, hashlib.md5(code).hexdigest())
-                path = os.path.join(self.globalstate.common_utility_include_dir, include_file)
+            include_dir = self.globalstate.common_utility_include_dir
+            if include_dir and len(code) > 1042:
+                include_file = "%s_%s.h" % (
+                    name, hashlib.md5(code).hexdigest())
+                path = os.path.join(
+                    include_dir, include_file)
                 if not os.path.exists(path):
                     tmp_path = '%s.tmp%s' % (path, os.getpid())
-                    open(tmp_path, 'w').write(code)
+                    f = Utils.open_new_file(tmp_path)
+                    try:
+                        f.write(code)
+                    finally:
+                        f.close()
                     os.rename(tmp_path, path)
                 code = '#include "%s"\n' % path
             self.put(code)
