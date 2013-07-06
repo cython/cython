@@ -29,6 +29,7 @@ The other, and probably better, way is to use the :mod:`distutils` extension
 provided with Cython. The benifit of this method is that it will give the
 platform specific compilation options, acting like a stripped down autotools.
 
+
 Basic setup.py
 ===============
 The distutils extension provided with Cython allows you to pass ``.pyx`` files
@@ -39,12 +40,10 @@ extension, say with filename :file:`example.pyx` the associated :file:`setup.py`
 would be::
 
     from distutils.core import setup
-    from distutils.extension import Extension
-    from Cython.Distutils import build_ext
+    from Cython.Build import cythonize
 
     setup(
-        cmdclass = {'build_ext': build_ext},
-        ext_modules = [Extension("example", ["example.pyx"])]
+        ext_modules = cythonize("example.pyx")
     ) 
 
 To understand the :file:`setup.py` more fully look at the official
@@ -55,6 +54,7 @@ current directory use:
 
     $ python setup.py build_ext --inplace
 
+
 Cython Files Depending on C Files
 ===================================
 
@@ -63,14 +63,15 @@ compile them into your extension the basic :file:`setup.py` file to do this
 would be::
 
     from distutils.core import setup
+    from Cython.Build import cythonize
     from distutils.extension import Extension
-    from Cython.Distutils import build_ext
 
     sourcefiles = ['example.pyx', 'helper.c', 'another_helper.c']
 
+    extensions = [Extension("example", sourcefiles)]
+
     setup(
-        cmdclass = {'build_ext': build_ext},
-        ext_modules = [Extension("example", sourcefiles)]
+        ext_modules = cythonize(extensions)
     )
 
 Notice that the files have been given a name, this is not necessary, but it
@@ -88,17 +89,33 @@ to find the ``.h`` and library files when linking to external libraries.
 Multiple Cython Files in a Package
 ===================================
 
-TODO
+To automatically compile multiple Cython files without listing all of them
+explicitly, you can use glob patterns::
+
+    setup(
+        ext_modules = cythonize("package/*.pyx")
+    )
+
+You can also use glob patterns in :class:`Extension` objects if you pass
+them through :func:`cythonize`::
+
+    extensions = [Extension("*", "*.pyx")]
+
+    setup(
+        ext_modules = cythonize(extensions)
+    )
+
 
 Distributing Cython modules
 ============================
+
 It is strongly recommended that you distribute the generated ``.c`` files as well
 as your Cython sources, so that users can install your module without needing
 to have Cython available.
 
 It is also recommended that Cython compilation not be enabled by default in the
-version you distribute. Even if the user has Cython installed, he probably
-doesn't want to use it just to install your module. Also, the version he has
+version you distribute. Even if the user has Cython installed, he/she probably
+doesn't want to use it just to install your module. Also, the installed version
 may not be the same one you used, and may not compile your sources correctly.
 
 This simply means that the :file:`setup.py` file that you ship with will just
@@ -111,6 +128,26 @@ we would have instead::
     setup(
         ext_modules = [Extension("example", ["example.c"])]
     ) 
+
+This is easy to combine with :func:`cythonize` by changing the file extension
+of the extension module sources::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+    USE_CYTHON = ...   # command line option, try-import, ...
+
+    ext = '.pyx' if USE_CYTHON else '.c'
+
+    extensions = [Extension("example", ["example"+ext])]
+
+    if USE_CYTHON:
+        from Cython.Build import cythonize
+        extensions = cythonize(extensions)
+
+    setup(
+        ext_modules = extensions
+    )
 
 
 .. _pyximport:
