@@ -384,14 +384,18 @@ class UtilityCode(UtilityCodeBase):
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
-        pystrings = re.findall('(PYIDENT\("([^"]+)"\))', impl)
-        any_replacements = False
-        for ref, name in pystrings:
-            py_const = output.get_interned_identifier(
-                StringEncoding.EncodedString(name))
-            any_replacements = True
-            impl = impl.replace(ref, py_const.cname)
-        return any_replacements, impl
+        replacements = {}
+        def externalise(matchobj):
+            name = matchobj.group(1)
+            try:
+                cname = replacements[name]
+            except KeyError:
+                cname = replacements[name] = output.get_interned_identifier(
+                    StringEncoding.EncodedString(name)).cname
+            return cname
+
+        impl = re.sub('PYIDENT\("([^"]+)"\)', externalise, impl)
+        return bool(replacements), impl
 
     def put_code(self, output):
         if self.requires:
