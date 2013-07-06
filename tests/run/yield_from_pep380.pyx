@@ -1009,12 +1009,18 @@ def test_delegating_generators_claim_to_be_running_close():
 def yield_in_return(x):
     """
     >>> x = yield_in_return(range(3))
-    >>> while True:
+    >>> for _ in range(10):
     ...     try:
     ...         print(next(x))
-    ...     except StopIteration as exc:
-    ...         print(exc.value)
-    ...     break
+    ...     except StopIteration:
+    ...         if sys.version_info >= (3,3):
+    ...             print(sys.exc_info()[1].value is None)
+    ...         else:
+    ...             print(True)
+    ...         break
     0
+    1
+    2
+    True
     """
     return (yield from x)
