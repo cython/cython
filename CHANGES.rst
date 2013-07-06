@@ -21,6 +21,24 @@ Other changes
 -------------
 
 
+0.19.2 (??)
+===================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Calling the unbound method dict.keys/value/items() in dict subtypes could
+  call the bound object method instead of the unbound supertype method.
+
+* "yield" wasn't supported in "return" value expressions
+
+Other changes
+-------------
+
+
 0.19.1 (2013-05-11)
 ===================
 
