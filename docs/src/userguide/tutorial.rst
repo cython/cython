@@ -26,7 +26,6 @@ handling facilities, including the try-except and try-finally statements, is
 available to you -- even in the midst of manipulating C data.
 
 
-
 Cython Hello World
 ===================
 
@@ -37,17 +36,15 @@ So lets start with the canonical python hello world::
 
     print "Hello World"
 
-So the first thing to do is rename the file to :file:`helloworld.pyx`. Now we
-need to make the :file:`setup.py`, which is like a python Makefile (for more
-information see :ref:`compilation`). Your :file:`setup.py` should look like::
+Save this code in a file named :file:`helloworld.pyx`.  Now we need to create
+the :file:`setup.py`, which is like a python Makefile (for more information
+see :ref:`compilation`). Your :file:`setup.py` should look like::
 
     from distutils.core import setup
-    from distutils.extension import Extension
-    from Cython.Distutils import build_ext
+    from Cython.Build import cythonize
 
     setup(
-        cmdclass = {'build_ext': build_ext},
-        ext_modules = [Extension("helloworld", ["helloworld.pyx"])]
+        ext_modules = cythonize("helloworld.pyx")
     )
 
 To use this to build your Cython file use the commandline options:
