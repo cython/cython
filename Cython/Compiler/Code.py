@@ -1544,8 +1544,7 @@ class CCodeWriter(object):
             if include_dir and len(code) > 1042:
                 include_file = "%s_%s.h" % (
                     name, hashlib.md5(code).hexdigest())
-                path = os.path.join(
-                    include_dir, include_file)
+                path = os.path.join(include_dir, include_file)
                 if not os.path.exists(path):
                     tmp_path = '%s.tmp%s' % (path, os.getpid())
                     f = Utils.open_new_file(tmp_path)
