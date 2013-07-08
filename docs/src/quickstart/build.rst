@@ -22,6 +22,7 @@ There are several ways to build Cython code:
 
 Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
 
+
 Building a Cython module using distutils
 ----------------------------------------
 
