@@ -33,15 +33,11 @@ Imagine a simple "hello world" script in a file ``hello.pyx``::
 The following could be a corresponding ``setup.py`` script::
 
   from distutils.core import setup
-  from distutils.extension import Extension
-  from Cython.Distutils import build_ext
-
-  ext_modules = [Extension("hello", ["hello.pyx"])]
+  from Cython.Build import cythonize
 
   setup(
     name = 'Hello world app',
-    cmdclass = {'build_ext': build_ext},
-    ext_modules = ext_modules
+    ext_modules = cythonize("hello.pyx"),
   )
 
 To build, run ``python setup.py build_ext --inplace``.  Then simply
@@ -49,12 +45,14 @@ start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
 
+Using the Sage notebook
+-----------------------
 
 .. figure:: sage.png
 
-  The Sage notebook allows transparently editing and compiling Cython
-  code simply by typing ``%cython`` at the top of a cell and evaluate
-  it. Variables and functions defined in a Cython cell imported into
-  the running session.
+  For users of the Sage math distribution, the Sage notebook allows
+  transparently editing and compiling Cython code simply by typing
+  ``%cython`` at the top of a cell and evaluate it.  Variables and
+  functions defined in a Cython cell imported into the running session.
 
 .. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
