@@ -936,7 +936,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 //@requires: PyObjectGetAttrStr
 //@substitute: naming
 
-static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_name, PyObject* args) {
+static CYTHON_UNUSED PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_name, PyObject* args) {
     PyObject *method, *result = NULL;
     if (unlikely(!args)) return NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
