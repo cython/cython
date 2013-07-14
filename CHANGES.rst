@@ -14,7 +14,13 @@ Bugs fixed
 * Calling the unbound method dict.keys/value/items() in dict subtypes could
   call the bound object method instead of the unbound supertype method.
 
-* "yield" wasn't supported in "return" value expressions
+* "yield" wasn't supported in "return" value expressions.
+
+* Using the "bint" type in memory views lead to unexpected results.
+  It is now an error.
+
+* Assignments to global/closure variables could catch them in an illegal state
+  while deallocating the old value.
 
 Other changes
 -------------
