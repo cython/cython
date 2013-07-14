@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* The cython-mode.el script for Emacs was updated.
+
 Bugs fixed
 ----------
 
