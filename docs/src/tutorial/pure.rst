@@ -1,3 +1,6 @@
+
+.. _pure-mode:
+
 Pure Python Mode
 ================
 
