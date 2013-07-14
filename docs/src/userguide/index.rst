@@ -6,7 +6,6 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   tutorial
    language_basics
    extension_types
    special_methods
