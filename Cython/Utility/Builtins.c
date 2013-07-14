@@ -266,54 +266,45 @@ static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 
 //////////////////// py_dict_keys.proto ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Keys(d) PyDict_Keys(d)
-#endif
 
 //////////////////// py_dict_keys ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
-    return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("keys"), d);
+    if (PY_MAJOR_VERSION >= 3)
+        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("keys"), d);
+    else
+        return PyDict_Keys(d);
 }
-#endif
 
 //////////////////// py_dict_values.proto ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Values(d) PyDict_Values(d)
-#endif
 
 //////////////////// py_dict_values ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
-    return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("values"), d);
+    if (PY_MAJOR_VERSION >= 3)
+        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("values"), d);
+    else
+        return PyDict_Values(d);
 }
-#endif
 
 //////////////////// py_dict_items.proto ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Items(d) PyDict_Items(d)
-#endif
 
 //////////////////// py_dict_items ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
-    return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("items"), d);
+    if (PY_MAJOR_VERSION >= 3)
+        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("items"), d);
+    else
+        return PyDict_Items(d);
 }
-#endif
 
 //////////////////// py_dict_iterkeys.proto ////////////////////
 
