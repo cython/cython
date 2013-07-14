@@ -4,6 +4,7 @@ Tutorials
 .. toctree::
    :maxdepth: 2
 
+   cython_tutorial
    external
    clibraries
    cdef_classes
