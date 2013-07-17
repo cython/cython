@@ -889,8 +889,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     'The %s directive takes one compile-time integer argument' % optname)
             return (optname, int(args[0].value))
         elif directivetype is str:
-            if kwds is not None or len(args) != 1 or not isinstance(args[0], (ExprNodes.StringNode,
-                                                                              ExprNodes.UnicodeNode)):
+            if kwds is not None or len(args) != 1 or not isinstance(
+                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, str(args[0].value))
@@ -909,6 +909,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 raise PostParseError(pos,
                     'The %s directive takes no keyword arguments' % optname)
             return optname, [ str(arg.value) for arg in args ]
+        elif callable(directivetype):
+            if kwds is not None or len(args) != 1 or not isinstance(
+                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time string argument' % optname)
+            return (optname, directivetype(optname, args[0].value))
         else:
             assert False
 
