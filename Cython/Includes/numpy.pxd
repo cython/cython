@@ -52,6 +52,8 @@ cdef extern from "numpy/arrayobject.h":
         NPY_STRING
         NPY_UNICODE
         NPY_VOID
+        NPY_DATETIME
+        NPY_TIMEDELTA
         NPY_NTYPES
         NPY_NOTYPE
 
@@ -152,15 +154,20 @@ cdef extern from "numpy/arrayobject.h":
 
     ctypedef void (*PyArray_VectorUnaryFunc)(void *, void *, npy_intp, void *,  void *)
 
+    ctypedef struct _arr_descr:
+        PyObject* shape # a tuple
+
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined. Please
         # ask on cython-dev if you need more.
+        cdef char kind
         cdef int type_num
         cdef int itemsize "elsize"
         cdef char byteorder
         cdef object fields
         cdef tuple names
+        cdef _arr_descr* subarray
 
     ctypedef extern class numpy.flatiter [object PyArrayIterObject]:
         # Use through macros
@@ -426,6 +433,7 @@ cdef extern from "numpy/arrayobject.h":
     bint PyDataType_ISEXTENDED(dtype)
     bint PyDataType_ISOBJECT(dtype)
     bint PyDataType_HASFIELDS(dtype)
+    bint PyDataType_HASSUBARRAY(dtype)
 
     bint PyArray_ISBOOL(ndarray)
     bint PyArray_ISUNSIGNED(ndarray)
@@ -445,7 +453,7 @@ cdef extern from "numpy/arrayobject.h":
     bint PyArray_ISVARIABLE(ndarray)
 
     bint PyArray_SAFEALIGNEDCOPY(ndarray)
-    bint PyArray_ISNBO(ndarray)
+    bint PyArray_ISNBO(char)
     bint PyArray_IsNativeByteOrder(ndarray)
     bint PyArray_ISNOTSWAPPED(ndarray)
     bint PyArray_ISBYTESWAPPED(ndarray)
