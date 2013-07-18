@@ -154,7 +154,7 @@ cdef extern from "numpy/arrayobject.h":
 
     ctypedef void (*PyArray_VectorUnaryFunc)(void *, void *, npy_intp, void *,  void *)
 
-    ctypedef struct PyArray_SubArrayDescr "_arr_descr":
+    ctypedef struct PyArray_ArrayDescr:
         # shape is a tuple, but Cython doesn't support "tuple shape"
         # inside a non-PyObject declaration, so we have to declare it
         # as just a PyObject*.
@@ -177,7 +177,7 @@ cdef extern from "numpy/arrayobject.h":
         cdef tuple names
         # Use PyDataType_HASSUBARRAY to test whether this field is
         # valid (the pointer can be NULL).
-        cdef PyArray_SubArrayDescr* subarray
+        cdef PyArray_ArrayDescr* subarray
 
     ctypedef extern class numpy.flatiter [object PyArrayIterObject]:
         # Use through macros
