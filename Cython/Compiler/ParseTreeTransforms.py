@@ -914,7 +914,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
-            return (optname, directivetype(optname, args[0].value))
+            return (optname, directivetype(optname, str(args[0].value)))
         else:
             assert False
 
