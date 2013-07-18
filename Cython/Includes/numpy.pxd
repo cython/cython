@@ -52,6 +52,8 @@ cdef extern from "numpy/arrayobject.h":
         NPY_STRING
         NPY_UNICODE
         NPY_VOID
+        NPY_DATETIME
+        NPY_TIMEDELTA
         NPY_NTYPES
         NPY_NOTYPE
 
@@ -152,15 +154,30 @@ cdef extern from "numpy/arrayobject.h":
 
     ctypedef void (*PyArray_VectorUnaryFunc)(void *, void *, npy_intp, void *,  void *)
 
+    ctypedef struct PyArray_SubArrayDescr "_arr_descr":
+        # shape is a tuple, but Cython doesn't support "tuple shape"
+        # inside a non-PyObject declaration, so we have to declare it
+        # as just a PyObject*.
+        PyObject* shape
+
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined. Please
         # ask on cython-dev if you need more.
+        cdef char kind
         cdef int type_num
         cdef int itemsize "elsize"
+        # Numpy sometimes mutates this without warning (e.g. it'll
+        # sometimes change "|" to "<" in shared dtype objects on
+        # little-endian machines). If this matters to you, use
+        # PyArray_IsNativeByteOrder(dtype.byteorder) instead of
+        # directly accessing this field.
         cdef char byteorder
         cdef object fields
         cdef tuple names
+        # Use PyDataType_HASSUBARRAY to test whether this field is
+        # valid (the pointer can be NULL).
+        cdef PyArray_SubArrayDescr* subarray
 
     ctypedef extern class numpy.flatiter [object PyArrayIterObject]:
         # Use through macros
@@ -426,6 +443,7 @@ cdef extern from "numpy/arrayobject.h":
     bint PyDataType_ISEXTENDED(dtype)
     bint PyDataType_ISOBJECT(dtype)
     bint PyDataType_HASFIELDS(dtype)
+    bint PyDataType_HASSUBARRAY(dtype)
 
     bint PyArray_ISBOOL(ndarray)
     bint PyArray_ISUNSIGNED(ndarray)
