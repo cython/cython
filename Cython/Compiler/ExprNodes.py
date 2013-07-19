@@ -3193,11 +3193,22 @@ class IndexNode(ExprNode):
         return self.base.check_const_addr() and self.index.check_const()
 
     def is_lvalue(self):
-        base_type = self.base.type
-        if self.type.is_ptr or self.type.is_array:
-            return not base_type.base_type.is_array
-        else:
+        # NOTE: references currently have both is_reference and is_ptr
+        # set.  Since pointers and references have different lvalue
+        # rules, we must be careful to separate the two.
+        if self.type.is_reference:
+            if self.type.ref_base_type.is_array:
+                # fixed-sized arrays aren't l-values
+                return False
+        elif self.type.is_ptr:
+            # non-const pointers can always be reassigned
             return True
+        elif self.type.is_array:
+            # fixed-sized arrays aren't l-values
+            return False
+        # Just about everything else returned by the index operator
+        # can be an lvalue.
+        return True
 
     def calculate_result_code(self):
         if self.is_buffer_access:
