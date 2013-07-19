@@ -803,7 +803,7 @@ cdef inline tuple PyDataType_SHAPE(dtype d):
     if PyDataType_HASSUBARRAY(d):
         return <tuple>d.subarray.shape
     else:
-        return None
+        return ()
 
 cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset) except NULL:
     # Recursive utility function used in __getbuffer__ to get format

@@ -32,6 +32,6 @@ def test_record_subarray():
     assert <tuple>b_descr.subarray.shape == (3, 3)
 
     # Make sure the safe high-level helper function works
-    assert np.PyDataType_SHAPE(descr) is None
-    assert np.PyDataType_SHAPE(a_descr) is None
+    assert np.PyDataType_SHAPE(descr) == ()
+    assert np.PyDataType_SHAPE(a_descr) == ()
     assert np.PyDataType_SHAPE(b_descr) == (3, 3)
