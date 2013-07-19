@@ -176,7 +176,8 @@ cdef extern from "numpy/arrayobject.h":
         cdef object fields
         cdef tuple names
         # Use PyDataType_HASSUBARRAY to test whether this field is
-        # valid (the pointer can be NULL).
+        # valid (the pointer can be NULL). Most users should access
+        # this field via the inline helper method PyDataType_SHAPE.
         cdef PyArray_ArrayDescr* subarray
 
     ctypedef extern class numpy.flatiter [object PyArrayIterObject]:
@@ -797,6 +798,12 @@ cdef inline object PyArray_MultiIterNew4(a, b, c, d):
 
 cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):
     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)
+
+cdef inline tuple PyDataType_SHAPE(dtype d):
+    if PyDataType_HASSUBARRAY(d):
+        return <tuple>d.subarray.shape
+    else:
+        return None
 
 cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset) except NULL:
     # Recursive utility function used in __getbuffer__ to get format

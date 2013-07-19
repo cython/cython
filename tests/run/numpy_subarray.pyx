@@ -19,10 +19,19 @@ def test_record_subarray():
     cdef np.dtype a_descr = descr.fields['a'][0]
     cdef np.dtype b_descr = descr.fields['b'][0]
 
+    # Make sure the dtype looks like we expect
     assert descr.fields == {'a': (py_numpy.dtype('int32'), 0),
                             'b': (py_numpy.dtype(('<f8', (3, 3))), 4)}
+
+    # Make sure that HASSUBARRAY is working
     assert not np.PyDataType_HASSUBARRAY(descr)
     assert not np.PyDataType_HASSUBARRAY(a_descr)
     assert np.PyDataType_HASSUBARRAY(b_descr)
 
+    # Make sure the direct field access works
     assert <tuple>b_descr.subarray.shape == (3, 3)
+
+    # Make sure the safe high-level helper function works
+    assert np.PyDataType_SHAPE(descr) is None
+    assert np.PyDataType_SHAPE(a_descr) is None
+    assert np.PyDataType_SHAPE(b_descr) == (3, 3)
