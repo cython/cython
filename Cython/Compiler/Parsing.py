@@ -6,9 +6,11 @@
 # This should be done automatically
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
-               StringEncoding=object, lookup_unicodechar=object, re=object,
+               BytesLiteral=object, StringEncoding=object,
+               FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
-               Builtin=object)
+               Builtin=object, ModuleNode=object, Utils=object,
+               re=object, _unicode=object, _bytes=object)
 
 import re
 from unicodedata import lookup as lookup_unicodechar
@@ -235,10 +237,10 @@ def p_cmp_op(s):
         op = '!='
     return op
 
-comparison_ops = (
+comparison_ops = cython.declare(set, set([
     '<', '>', '==', '>=', '<=', '<>', '!=',
     'in', 'is', 'not'
-)
+]))
 
 #expr: xor_expr ('|' xor_expr)*
 
@@ -1083,7 +1085,8 @@ def p_genexp(s, expr):
         expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
 
-expr_terminators = (')', ']', '}', ':', '=', 'NEWLINE')
+expr_terminators = cython.declare(set, set([
+    ')', ']', '}', ':', '=', 'NEWLINE']))
 
 #-------------------------------------------------------
 #
@@ -1392,7 +1395,8 @@ def p_from_import_statement(s, first_statement = 0):
                 name_list = import_list),
             items = items)
 
-imported_name_kinds = ('class', 'struct', 'union')
+imported_name_kinds = cython.declare(
+    set, set(['class', 'struct', 'union']))
 
 def p_imported_name(s, is_cimport):
     pos = s.position()
@@ -1435,7 +1439,7 @@ def p_assert_statement(s):
         value = None
     return Nodes.AssertStatNode(pos, cond = cond, value = value)
 
-statement_terminators = (';', 'NEWLINE', 'EOF')
+statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))
 
 def p_if_statement(s):
     # s.sy == 'if'
@@ -1543,7 +1547,7 @@ def p_for_from_step(s):
     else:
         return None
 
-inequality_relations = ('<', '<=', '>', '>=')
+inequality_relations = cython.declare(set, set(['<', '<=', '>', '>=']))
 
 def p_target(s, terminator):
     pos = s.position()
@@ -2017,7 +2021,8 @@ def p_calling_convention(s):
     else:
         return ""
 
-calling_convention_words = ("__stdcall", "__cdecl", "__fastcall")
+calling_convention_words = cython.declare(
+    set, set(["__stdcall", "__cdecl", "__fastcall"]))
 
 def p_c_complex_base_type(s):
     # s.sy == '('
@@ -2255,9 +2260,10 @@ def looking_at_call(s):
         s.start_line, s.start_col = position
     return result
 
-basic_c_type_names = ("void", "char", "int", "float", "double", "bint")
+basic_c_type_names = cython.declare(
+    set, set(["void", "char", "int", "float", "double", "bint"]))
 
-special_basic_c_types = {
+special_basic_c_types = cython.declare(dict, {
     # name : (signed, longness)
     "Py_UNICODE" : (0, 0),
     "Py_UCS4"    : (0, 0),
@@ -2265,14 +2271,19 @@ special_basic_c_types = {
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
     "ptrdiff_t"  : (2, 0),
-}
+})
 
-sign_and_longness_words = ("short", "long", "signed", "unsigned")
+sign_and_longness_words = cython.declare(
+    set, set(["short", "long", "signed", "unsigned"]))
 
-base_type_start_words = \
-    basic_c_type_names + sign_and_longness_words + tuple(special_basic_c_types)
+base_type_start_words = cython.declare(
+    set,
+    basic_c_type_names
+    | sign_and_longness_words
+    | set(special_basic_c_types))
 
-struct_enum_union = ("struct", "union", "enum", "packed")
+struct_enum_union = cython.declare(
+    set, set(["struct", "union", "enum", "packed"]))
 
 def p_sign_and_longness(s):
     signed = 1
@@ -2357,12 +2368,12 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = set([
+supported_overloaded_operators = cython.declare(set, set([
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
     '[]', '()', '!',
-])
+]))
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
@@ -2480,7 +2491,7 @@ def p_exception_value_clause(s):
             exc_val = p_test(s)
     return exc_val, exc_check
 
-c_arg_list_terminators = ('*', '**', '.', ')')
+c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')']))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -3066,17 +3077,18 @@ def p_code(s, level=None, ctx=Ctx):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython\s*:\s*((\w|[.])+\s*=.*)$")
+_match_compiler_directive_comment = cython.declare(object, re.compile(
+    r"^#\s*cython\s*:\s*((\w|[.])+\s*=.*)$").match)
 
 def p_compiler_directive_comments(s):
     result = {}
     while s.sy == 'commentline':
-        m = COMPILER_DIRECTIVE_COMMENT_RE.match(s.systring)
+        m = _match_compiler_directive_comment(s.systring)
         if m:
             directives = m.group(1).strip()
             try:
-                result.update( Options.parse_directive_list(
-                    directives, ignore_unknown=True) )
+                result.update(Options.parse_directive_list(
+                    directives, ignore_unknown=True))
             except ValueError, e:
                 s.error(e.args[0], fatal=False)
         s.next()
