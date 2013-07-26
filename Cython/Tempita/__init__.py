@@ -712,9 +712,8 @@ def trim_lex(tokens):
        [('if x', (1, 3)), 'x\n', ('endif', (3, 3)), 'y']
     """
     last_trim = None
-    for i in range(len(tokens)):
-        current = tokens[i]
-        if isinstance(tokens[i], basestring_):
+    for i, current in enumerate(tokens):
+        if isinstance(current, basestring_):
             # we don't trim this
             continue
         item = current[0]
