@@ -12,6 +12,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 
 //////////////////// Globals ////////////////////
 //@substitute: naming
+//@requires: ObjectHandling.c::GetAttr
 
 // This is a stub implementation until we have something more complete.
 // Currently, we only handle the most common case of a read-only dict
@@ -40,7 +41,7 @@ static PyObject* __Pyx_Globals(void) {
         PyObject* name = PyList_GET_ITEM(names, i);
 #endif
         if (!PyDict_Contains(globals, name)) {
-            PyObject* value = PyObject_GetAttr($module_cname, name);
+            PyObject* value = __Pyx_GetAttr($module_cname, name);
             if (!value) {
 #if CYTHON_COMPILING_IN_PYPY
                 Py_DECREF(name);
