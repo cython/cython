@@ -104,7 +104,6 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         "Cython.Compiler.Visitor",
                         "Cython.Compiler.FlowControl",
                         "Cython.Compiler.Code",
-                        "Cython.Tempita.__init__",
                         "Cython.Runtime.refnanny",
                         # "Cython.Compiler.FusedNode",
                         ]
