@@ -1,3 +1,12 @@
+/*
+ * General object operations and protocol implementations,
+ * including their specialisations for certain builtins.
+ *
+ * Optional optimisations for builtins are in Optimize.c.
+ *
+ * Required replacements of builtins are in Builtins.c.
+ */
+
 /////////////// RaiseNoneIterError.proto ///////////////
 
 static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);

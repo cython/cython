@@ -1,3 +1,10 @@
+/*
+ * Special implementations of built-in functions and methods.
+ *
+ * Optional optimisations for builtins are in Optimize.c.
+ *
+ * General object operations and protocols are in ObjectHandling.c.
+ */
 
 //////////////////// Globals.proto ////////////////////
 

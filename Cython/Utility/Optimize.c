@@ -1,3 +1,11 @@
+/*
+ * Optional optimisations of built-in functions and methods.
+ *
+ * Required replacements of builtins are in Builtins.c.
+ *
+ * General object operations and protocols are in ObjectHandling.c.
+ */
+
 /////////////// append.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*proto*/
