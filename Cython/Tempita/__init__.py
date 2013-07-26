@@ -659,13 +659,13 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
     in_expr = False
     chunks = []
     last = 0
-    last_pos = (1, 1)
+    last_pos = (line_offset + 1, 1)
 
     token_re = re.compile(r'%s|%s' % (re.escape(delimeters[0]),
                                       re.escape(delimeters[1])))
     for match in token_re.finditer(s):
         expr = match.group(0)
-        pos = find_position(s, match.end(), line_offset)
+        pos = find_position(s, match.end(), last, last_pos)
         if expr == delimeters[0] and in_expr:
             raise TemplateError('%s inside expression' % delimeters[0],
                                 position=pos,
@@ -759,10 +759,14 @@ def trim_lex(tokens):
     return tokens
 
 
-def find_position(string, index, line_offset):
+def find_position(string, index, last_index, last_pos):
     """Given a string and index, return (line, column)"""
-    leading = string[:index].splitlines()
-    return (len(leading) + line_offset, len(leading[-1]) + 1)
+    lines = string.count('\n', last_index, index)
+    if lines > 0:
+        column = index - string.rfind('\n', last_index, index)
+    else:
+        column = last_pos[1] + (index - last_index)
+    return (last_pos[0] + lines, column)
 
 
 def parse(s, name=None, line_offset=0, delimeters=None):
