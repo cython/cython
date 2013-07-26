@@ -287,6 +287,8 @@ builtin_types_table = [
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
                                     BuiltinMethod("append",  "TO",   "r", "__Pyx_PyList_Append",
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
+                                    BuiltinMethod("extend",  "TO",   "r", "__Pyx_PyList_Extend",
+                                                  utility_code=UtilityCode.load("ListExtend", "Optimize.c")),
                                     ]),
 
     ("dict",    "PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
