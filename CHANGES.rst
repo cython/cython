@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* Package compilation (i.e. ``__init__.py`` files) now works, starting
+  with Python 3.3.
+
 * The cython-mode.el script for Emacs was updated.  Patch by Ivan Andrus.
 
 Bugs fixed

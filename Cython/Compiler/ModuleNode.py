@@ -1973,7 +1973,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto(self.pos)))
         code.putln("}")
 
-        self.generate_module_path_setup(env, code)
+        # set up __file__ and __path__, then add the module to sys.modules
+        self.generate_module_import_setup(env, code)
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
@@ -2043,34 +2044,65 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.exit_cfunc_scope()
 
-    def generate_module_path_setup(self, env, code):
-        if not env.directives['set_initial_path']:
-            return
+    def generate_module_import_setup(self, env, code):
         module_path = env.directives['set_initial_path']
         if module_path == 'SOURCEFILE':
             module_path = self.pos[0].filename
-            if not module_path:
-                return
-        code.putln('if (__Pyx_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
-            env.module_cname,
-            code.globalstate.get_py_string_const(
-                EncodedString(decode_filename(module_path))).cname,
-            code.error_goto(self.pos)))
-        if env.is_package:
-            # compiling a package => set __path__ as well
-            temp = code.funcstate.allocate_temp(py_object_type, True)
-            code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
-                temp,
-                code.globalstate.get_py_string_const(
-                    EncodedString(decode_filename(os.path.dirname(module_path)))).cname,
-                code.error_goto_if_null(temp, self.pos)))
-            code.put_gotref(temp)
-            code.putln('if (__Pyx_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
+
+        if module_path:
+            code.putln('if (__Pyx_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
-                temp,
+                code.globalstate.get_py_string_const(
+                    EncodedString(decode_filename(module_path))).cname,
                 code.error_goto(self.pos)))
-            code.put_decref_clear(temp, py_object_type)
-            code.funcstate.release_temp(temp)
+
+            if env.is_package:
+                # set __path__ to mark the module as package
+                temp = code.funcstate.allocate_temp(py_object_type, True)
+                code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
+                    temp,
+                    code.globalstate.get_py_string_const(
+                        EncodedString(decode_filename(
+                            os.path.dirname(module_path)))).cname,
+                    code.error_goto_if_null(temp, self.pos)))
+                code.put_gotref(temp)
+                code.putln(
+                    'if (__Pyx_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
+                        env.module_cname, temp, code.error_goto(self.pos)))
+                code.put_decref_clear(temp, py_object_type)
+                code.funcstate.release_temp(temp)
+
+        elif env.is_package:
+            # packages require __path__, so all we can do is try to figure
+            # out the module path at runtime by rerunning the import lookup
+            package_name, _ = self.full_module_name.rsplit('.', 1)
+            if '.' in package_name:
+                parent_name = '"%s"' % (package_name.rsplit('.', 1)[0],)
+            else:
+                parent_name = 'NULL'
+            code.globalstate.use_utility_code(UtilityCode.load(
+                "SetPackagePathFromImportLib", "ImportExport.c"))
+            code.putln(code.error_goto_if_neg(
+                '__Pyx_SetPackagePathFromImportLib(%s, %s)' % (
+                    parent_name,
+                    code.globalstate.get_py_string_const(
+                        EncodedString(env.module_name)).cname),
+                self.pos))
+
+        # CPython may not have put us into sys.modules yet, but relative imports and reimports require it
+        fq_module_name = self.full_module_name
+        if fq_module_name.endswith('.__init__'):
+            fq_module_name = fq_module_name[:-len('.__init__')]
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("{")
+        code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
+                   code.error_goto_if_null("modules", self.pos))
+        code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % fq_module_name)
+        code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, "%s", %s)' % (
+            fq_module_name, env.module_cname), self.pos))
+        code.putln("}")
+        code.putln("}")
+        code.putln("#endif")
 
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
@@ -2209,21 +2241,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_dict_cname, env.module_cname,
                 code.error_goto_if_null(env.module_dict_cname, self.pos)))
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
-
-        # CPython may not have put us into sys.modules yet, but relative imports and reimports require it
-        fq_module_name = env.qualified_name
-        if fq_module_name.endswith('.__init__'):
-            fq_module_name = fq_module_name[:-len('.__init__')]
-        code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("{")
-        code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
-                   code.error_goto_if_null("modules", self.pos))
-        code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % fq_module_name)
-        code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, "%s", %s)' % (
-            fq_module_name, env.module_cname), self.pos))
-        code.putln("}")
-        code.putln("}")
-        code.putln("#endif")
 
         code.putln(
             '%s = PyImport_AddModule(__Pyx_NAMESTR(__Pyx_BUILTIN_MODULE_NAME)); %s' % (
