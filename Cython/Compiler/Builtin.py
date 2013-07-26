@@ -12,8 +12,8 @@ import Options
 # C-level implementations of builtin types, functions and methods
 
 iter_next_utility_code = UtilityCode.load("IterNext", "ObjectHandling.c")
+getattr_utility_code = UtilityCode.load("GetAttr", "ObjectHandling.c")
 getattr3_utility_code = UtilityCode.load("GetAttr3", "Builtins.c")
-getattr_utility_code = UtilityCode.load("GetAttr", "Builtins.c")
 pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
