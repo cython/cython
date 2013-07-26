@@ -32,10 +32,16 @@ If there are syntax errors ``TemplateError`` will be raised.
 import re
 import sys
 import cgi
-from urllib import quote as url_quote
+try:
+    from urllib import quote as url_quote
+except ImportError:  # Py3
+    from urllib.parse import quote as url_quote
 import os
 import tokenize
-from cStringIO import StringIO
+try:
+    from io import StringIO
+except ImportError:
+    from cStringIO import StringIO
 from Cython.Tempita._looper import looper
 from Cython.Tempita.compat3 import bytes, basestring_, next, is_unicode, coerce_text
 
