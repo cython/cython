@@ -180,7 +180,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r = __Pyx_GetAttr(o, n);
-    if (!r) {
+    if (unlikely(!r)) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             goto bad;
         PyErr_Clear();
