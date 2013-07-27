@@ -319,10 +319,10 @@ class GCDependentSlot(InternalMethodSlot):
     def slot_code(self, scope):
         if not scope.needs_gc():
             return "0"
-        if not scope.has_pyobject_attrs:
-            # if the type does not have object attributes, it can
-            # delegate GC methods to its parent - iff the parent
-            # functions are defined in the same module
+        if not scope.has_cyclic_pyobject_attrs:
+            # if the type does not have GC relevant object attributes, it can
+            # delegate GC methods to its parent - iff the parent functions
+            # are defined in the same module
             parent_type_scope = scope.parent_type.base_type.scope
             if scope.parent_scope is parent_type_scope.parent_scope:
                 entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
@@ -339,10 +339,10 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
-        if self.slot_name != 'tp_new' \
-            and scope.parent_type.base_type \
-            and not scope.has_pyobject_attrs \
-            and not scope.lookup_here(self.method):
+        if (self.slot_name != 'tp_new'
+                and scope.parent_type.base_type
+                and not scope.has_pyobject_attrs
+                and not scope.lookup_here(self.method)):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module

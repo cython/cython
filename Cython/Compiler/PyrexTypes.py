@@ -859,6 +859,7 @@ class PyObjectType(PyrexType):
     buffer_defaults = None
     is_extern = False
     is_subclassed = False
+    is_gc_simple = False
 
     def __str__(self):
         return "Python object"
@@ -909,6 +910,12 @@ class PyObjectType(PyrexType):
         return cname
 
 
+builtin_types_that_cannot_create_refcycles = set([
+    'bool', 'int', 'long', 'float', 'complex',
+    'bytearray', 'bytes', 'unicode', 'str', 'basestring'
+])
+
+
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
 
@@ -929,6 +936,7 @@ class BuiltinObjectType(PyObjectType):
         self.cname = cname
         self.typeptr_cname = "(&%s)" % cname
         self.objstruct_cname = objstruct_cname
+        self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
 
     def set_scope(self, scope):
         self.scope = scope

@@ -1769,6 +1769,7 @@ class CClassScope(ClassScope):
     #  method_table_cname    string
     #  getset_table_cname    string
     #  has_pyobject_attrs    boolean  Any PyObject attributes?
+    #  has_cyclic_pyobject_attrs    boolean  Any PyObject attributes that may need GC?
     #  property_entries      [Entry]
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
@@ -1776,24 +1777,30 @@ class CClassScope(ClassScope):
 
     is_c_class_scope = 1
 
+    has_pyobject_attrs = False
+    has_cyclic_pyobject_attrs = False
+    defined = False
+    implemented = False
+
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
             self.method_table_cname = outer_scope.mangle(Naming.methtab_prefix, name)
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
-        self.has_pyobject_attrs = 0
         self.property_entries = []
         self.inherited_var_entries = []
-        self.defined = 0
-        self.implemented = 0
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
-        return self.has_pyobject_attrs or \
-            (self.parent_type.base_type and
-                self.parent_type.base_type.scope is not None and
-                self.parent_type.base_type.scope.needs_gc())
+        if self.has_cyclic_pyobject_attrs:
+            return True
+        base_type = self.parent_type.base_type
+        if base_type and base_type.scope is not None:
+            return base_type.scope.needs_gc()
+        elif self.parent_type.is_builtin_type:
+            return not self.parent_type.is_gc_simple
+        return False
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
@@ -1819,7 +1826,10 @@ class CClassScope(ClassScope):
             entry.is_variable = 1
             self.var_entries.append(entry)
             if type.is_pyobject and name != '__weakref__':
-                self.has_pyobject_attrs = 1
+                self.has_pyobject_attrs = True
+                if (not type.is_builtin_type
+                        or not type.scope or type.scope.needs_gc()):
+                    self.has_cyclic_pyobject_attrs = True
             if visibility not in ('private', 'public', 'readonly'):
                 error(pos,
                     "Attribute of extension type cannot be declared %s" % visibility)
