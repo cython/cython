@@ -1,5 +1,5 @@
 # mode: run
-# tag: freelist
+# tag: freelist, cyclicgc
 
 cimport cython
 
