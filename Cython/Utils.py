@@ -217,42 +217,45 @@ def detect_opened_file_encoding(f):
 
 normalise_newlines = re.compile(u'\r\n?|\n').sub
 
+
 class NormalisedNewlineStream(object):
-  """The codecs module doesn't provide universal newline support.
-  This class is used as a stream wrapper that provides this
-  functionality.  The new 'io' in Py2.6+/3.x supports this out of the
-  box.
-  """
-  def __init__(self, stream):
-    # let's assume .read() doesn't change
-    self.stream = stream
-    self._read = stream.read
-    self.close = stream.close
-    self.encoding = getattr(stream, 'encoding', 'UTF-8')
+    """The codecs module doesn't provide universal newline support.
+    This class is used as a stream wrapper that provides this
+    functionality.  The new 'io' in Py2.6+/3.x supports this out of the
+    box.
+    """
 
-  def read(self, count=-1):
-    data = self._read(count)
-    if u'\r' not in data:
-      return data
-    if data.endswith(u'\r'):
-      # may be missing a '\n'
-      data += self._read(1)
-    return normalise_newlines(u'\n', data)
+    def __init__(self, stream):
+        # let's assume .read() doesn't change
+        self.stream = stream
+        self._read = stream.read
+        self.close = stream.close
+        self.encoding = getattr(stream, 'encoding', 'UTF-8')
 
-  def readlines(self):
-    content = []
-    data = self.read(0x1000)
-    while data:
-        content.append(data)
+    def read(self, count=-1):
+        data = self._read(count)
+        if u'\r' not in data:
+            return data
+        if data.endswith(u'\r'):
+            # may be missing a '\n'
+            data += self._read(1)
+        return normalise_newlines(u'\n', data)
+
+    def readlines(self):
+        content = []
         data = self.read(0x1000)
+        while data:
+            content.append(data)
+            data = self.read(0x1000)
 
-    return u''.join(content).splitlines(True)
+        return u''.join(content).splitlines(True)
 
-  def seek(self, pos):
-    if pos == 0:
-        self.stream.seek(0)
-    else:
-        raise NotImplementedError
+    def seek(self, pos):
+        if pos == 0:
+            self.stream.seek(0)
+        else:
+            raise NotImplementedError
+
 
 io = None
 if sys.version_info >= (2,6):
