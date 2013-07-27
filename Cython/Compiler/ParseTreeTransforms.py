@@ -121,12 +121,19 @@ class NormalizeTree(CythonTransform):
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_StatNode(node, True)
 
-    # Eliminate PassStatNode
     def visit_PassStatNode(self, node):
+        """Eliminate PassStatNode"""
         if not self.is_in_statlist:
             return Nodes.StatListNode(pos=node.pos, stats=[])
         else:
             return []
+
+    def visit_ExprStatNode(self, node):
+        """Eliminate useless string literals"""
+        if node.expr.is_string_literal:
+            return None
+        self.visitchildren(node)
+        return node
 
     def visit_CDeclaratorNode(self, node):
         return node
