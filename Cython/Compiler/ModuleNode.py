@@ -1290,8 +1290,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, visitproc v, void *a) {"
                 % slot_func)
 
-        have_entries, (py_attrs, py_buffers,
-                       memoryview_slices) = scope.get_refcounted_entries()
+        have_entries, (py_attrs, py_buffers, memoryview_slices) = (
+            scope.get_refcounted_entries(include_gc_simple=False))
 
         if base_type or py_attrs:
             code.putln("int e;")
@@ -1354,13 +1354,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if tp_slot.slot_code(scope) != slot_func:
             return # never used
 
-        py_attrs = []
-        py_buffers = []
-        for entry in scope.var_entries:
-            if entry.type.is_pyobject and entry.name != "__weakref__":
-                py_attrs.append(entry)
-            if entry.type == PyrexTypes.c_py_buffer_type:
-                py_buffers.append(entry)
+        have_entries, (py_attrs, py_buffers, memoryview_slices) = (
+            scope.get_refcounted_entries(include_gc_simple=False))
 
         if py_attrs or py_buffers or base_type:
             unused = ''

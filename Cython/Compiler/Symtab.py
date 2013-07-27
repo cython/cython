@@ -832,7 +832,8 @@ class Scope(object):
     def add_include_file(self, filename):
         self.outer_scope.add_include_file(filename)
 
-    def get_refcounted_entries(self, include_weakref=False):
+    def get_refcounted_entries(self, include_weakref=False,
+                               include_gc_simple=True):
         py_attrs = []
         py_buffers = []
         memoryview_slices = []
@@ -840,7 +841,8 @@ class Scope(object):
         for entry in self.var_entries:
             if entry.type.is_pyobject:
                 if include_weakref or entry.name != "__weakref__":
-                    py_attrs.append(entry)
+                    if include_gc_simple or not entry.type.is_gc_simple:
+                        py_attrs.append(entry)
             elif entry.type == PyrexTypes.c_py_buffer_type:
                 py_buffers.append(entry)
             elif entry.type.is_memoryviewslice:
