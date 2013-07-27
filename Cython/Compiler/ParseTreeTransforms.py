@@ -953,8 +953,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             if name == 'locals':
                 node.directive_locals = value
             elif name != 'final':
-                self.context.nonfatal_error(PostParseError(dec.pos,
-                    "Cdef functions can only take cython.locals() or final decorators, got %s." % name))
+                self.context.nonfatal_error(PostParseError(
+                    node.pos,
+                    "Cdef functions can only take cython.locals() "
+                    "or final decorators, got %s." % name))
         body = Nodes.StatListNode(node.pos, stats=[node])
         return self.visit_with_directives(body, directives)
 
