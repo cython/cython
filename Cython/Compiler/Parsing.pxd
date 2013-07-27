@@ -126,7 +126,7 @@ cdef p_IF_statement(PyrexScanner s, ctx)
 cdef p_statement(PyrexScanner s, ctx, bint first_statement = *)
 cdef p_statement_list(PyrexScanner s, ctx, bint first_statement = *)
 cdef p_suite(PyrexScanner s, ctx = *)
-cdef tuple p_suite_with_docstring(s, ctx, with_doc_only = *)
+cdef tuple p_suite_with_docstring(PyrexScanner s, ctx, with_doc_only = *)
 cdef tuple _extract_docstring(node)
 cdef p_positional_and_keyword_args(PyrexScanner s, end_sy_set, templates = *)
 
