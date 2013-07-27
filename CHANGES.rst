@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* During cyclic garbage collection, attributes of extension types that
+  cannot create reference cycles due to their type are no longer
+  considered.
+
 * Package compilation (i.e. ``__init__.py`` files) now works, starting
   with Python 3.3.
 
