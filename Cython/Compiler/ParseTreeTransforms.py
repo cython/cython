@@ -131,9 +131,9 @@ class NormalizeTree(CythonTransform):
     def visit_ExprStatNode(self, node):
         """Eliminate useless string literals"""
         if node.expr.is_string_literal:
-            return None
-        self.visitchildren(node)
-        return node
+            return self.visit_PassStatNode(node)
+        else:
+            return self.visit_StatNode(node)
 
     def visit_CDeclaratorNode(self, node):
         return node
