@@ -1367,7 +1367,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if py_attrs or py_buffers:
             self.generate_self_cast(scope, code)
-            code.putln("PyObject* tmp;")
 
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
@@ -1390,13 +1389,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     UtilityCode.load_cached("CallNextTpClear", "ExtensionTypes.c"))
 
         for entry in py_attrs:
-            name = "p->%s" % entry.cname
-            code.putln("tmp = ((PyObject*)%s);" % name)
-            if entry.is_declared_generic:
-                code.put_init_to_py_none(name, py_object_type, nanny=False)
-            else:
-                code.put_init_to_py_none(name, entry.type, nanny=False)
-            code.putln("Py_XDECREF(tmp);")
+            code.putln("Py_CLEAR(p->%s);" % entry.cname)
 
         for entry in py_buffers:
             # Note: shouldn't this call __Pyx_ReleaseBuffer ??
