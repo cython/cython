@@ -1009,7 +1009,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_dealloc_function(scope, code)
                     if scope.needs_gc():
                         self.generate_traverse_function(scope, code, entry)
-                        self.generate_clear_function(scope, code, entry)
+                        if scope.needs_tp_clear():
+                            self.generate_clear_function(scope, code, entry)
                     if scope.defines_any(["__getitem__"]):
                         self.generate_getitem_int_function(scope, code)
                     if scope.defines_any(["__setitem__", "__delitem__"]):

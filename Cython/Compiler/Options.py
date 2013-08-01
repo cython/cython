@@ -96,6 +96,7 @@ directive_defaults = {
     'final' : False,
     'internal' : False,
     'profile': False,
+    'no_gc_clear': False,
     'linetrace': False,
     'infer_types': None,
     'infer_types.verbose': False,
@@ -201,6 +202,7 @@ directive_types = {
     'ccall' : None,
     'cclass' : None,
     'returns' : type,
+    'no_gc_clear': bool,
     'set_initial_path': str,
     'freelist': int,
     'c_string_type': one_of('bytes', 'str', 'unicode'),
@@ -214,6 +216,7 @@ for key, val in directive_defaults.items():
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'final' : ('cclass', 'function'),
+    'no_gc_clear' : ('cclass',),
     'internal' : ('cclass',),
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),
