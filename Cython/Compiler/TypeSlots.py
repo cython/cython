@@ -788,6 +788,8 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
+    # TODO: change __dealloc__ to be called by tp_finalize (PEP 442)
+    EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x03040000"),
 )
 
 #------------------------------------------------------------------------------------------
