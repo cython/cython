@@ -482,9 +482,11 @@ static void __Pyx_Generator_del(PyObject *self) {
     if (gen->resume_label <= 0)
         return ;
 
+#if PY_VERSION_HEX < 0x03040a00
     /* Temporarily resurrect the object. */
     assert(self->ob_refcnt == 0);
     self->ob_refcnt = 1;
+#endif
 
     /* Save the current exception, if any. */
     __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
@@ -499,6 +501,7 @@ static void __Pyx_Generator_del(PyObject *self) {
     /* Restore the saved exception. */
     __Pyx_ErrRestore(error_type, error_value, error_traceback);
 
+#if PY_VERSION_HEX < 0x03040a00
     /* Undo the temporary resurrection; can't use DECREF here, it would
      * cause a recursive call.
      */
@@ -531,6 +534,7 @@ static void __Pyx_Generator_del(PyObject *self) {
 #ifdef COUNT_ALLOCS
     --Py_TYPE(self)->tp_frees;
     --Py_TYPE(self)->tp_allocs;
+#endif
 #endif
 }
 
@@ -604,12 +608,16 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_cache*/
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
+#if PY_VERSION_HEX >= 0x03040a00
+    0,
+#else
     __Pyx_Generator_del,                /*tp_del*/
+#endif
 #if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
 #endif
 #if PY_VERSION_HEX >= 0x03040a00
-    0,                                  /*tp_finalize*/
+    __Pyx_Generator_del,                /*tp_finalize*/
 #endif
 };
 
