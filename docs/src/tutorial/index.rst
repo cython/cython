@@ -12,6 +12,7 @@ Tutorials
    caveats
    profiling_tutorial
    strings
+   memory_allocation
    pure
    numpy
    readings
