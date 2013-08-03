@@ -608,6 +608,9 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
 #endif
+#if PY_VERSION_HEX >= 0x03040a00
+    0,                                  /*tp_finalize*/
+#endif
 };
 
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
