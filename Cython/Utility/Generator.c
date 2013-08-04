@@ -482,7 +482,7 @@ static void __Pyx_Generator_del(PyObject *self) {
     if (gen->resume_label <= 0)
         return ;
 
-#if PY_VERSION_HEX < 0x03040a00
+#if PY_VERSION_HEX < 0x030400a1
     /* Temporarily resurrect the object. */
     assert(self->ob_refcnt == 0);
     self->ob_refcnt = 1;
@@ -501,7 +501,7 @@ static void __Pyx_Generator_del(PyObject *self) {
     /* Restore the saved exception. */
     __Pyx_ErrRestore(error_type, error_value, error_traceback);
 
-#if PY_VERSION_HEX < 0x03040a00
+#if PY_VERSION_HEX < 0x030400a1
     /* Undo the temporary resurrection; can't use DECREF here, it would
      * cause a recursive call.
      */
@@ -582,7 +582,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /* tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Generator_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
@@ -608,7 +608,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_cache*/
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
-#if PY_VERSION_HEX >= 0x03040a00
+#if PY_VERSION_HEX >= 0x030400a1
     0,
 #else
     __Pyx_Generator_del,                /*tp_del*/
@@ -616,7 +616,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
 #endif
-#if PY_VERSION_HEX >= 0x03040a00
+#if PY_VERSION_HEX >= 0x030400a1
     __Pyx_Generator_del,                /*tp_finalize*/
 #endif
 };
