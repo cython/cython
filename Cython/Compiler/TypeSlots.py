@@ -331,6 +331,21 @@ class GCDependentSlot(InternalMethodSlot):
         return InternalMethodSlot.slot_code(self, scope)
 
 
+class FinaliserSlot(InternalMethodSlot):
+    """
+    Descriptor for tp_finalize().
+    """
+    def __init__(self):
+        InternalMethodSlot.__init__(
+            self, 'tp_finalize',
+            ifdef="PY_VERSION_HEX >= 0x030400a1")
+
+    def slot_code(self, scope):
+        if not scope.needs_finalisation():
+            return '0'
+        return InternalMethodSlot.slot_code(self, scope)
+
+
 class ConstructorSlot(InternalMethodSlot):
     #  Descriptor for tp_new and tp_dealloc.
 
@@ -788,8 +803,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
-    # TODO: change __dealloc__ to be called by tp_finalize (PEP 442)
-    EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x03040a00"),
+    FinaliserSlot(),  # 'tp_finalize'
 )
 
 #------------------------------------------------------------------------------------------

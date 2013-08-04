@@ -832,25 +832,6 @@ class Scope(object):
     def add_include_file(self, filename):
         self.outer_scope.add_include_file(filename)
 
-    def get_refcounted_entries(self, include_weakref=False,
-                               include_gc_simple=True):
-        py_attrs = []
-        py_buffers = []
-        memoryview_slices = []
-
-        for entry in self.var_entries:
-            if entry.type.is_pyobject:
-                if include_weakref or entry.name != "__weakref__":
-                    if include_gc_simple or not entry.type.is_gc_simple:
-                        py_attrs.append(entry)
-            elif entry.type == PyrexTypes.c_py_buffer_type:
-                py_buffers.append(entry)
-            elif entry.type.is_memoryviewslice:
-                memoryview_slices.append(entry)
-
-        have_entries = py_attrs or py_buffers or memoryview_slices
-        return have_entries, (py_attrs, py_buffers, memoryview_slices)
-
 
 class PreImportScope(Scope):
 
@@ -1804,6 +1785,33 @@ class CClassScope(ClassScope):
             return not self.parent_type.is_gc_simple
         return False
 
+    def get_refcounted_entries(self, include_weakref=False,
+                               include_gc_simple=True):
+        py_attrs = []
+        py_buffers = []
+        memoryview_slices = []
+
+        for entry in self.var_entries:
+            if entry.type.is_pyobject:
+                if include_weakref or entry.name != "__weakref__":
+                    if include_gc_simple or not entry.type.is_gc_simple:
+                        py_attrs.append(entry)
+            elif entry.type == PyrexTypes.c_py_buffer_type:
+                py_buffers.append(entry)
+            elif entry.type.is_memoryviewslice:
+                memoryview_slices.append(entry)
+
+        have_entries = py_attrs or py_buffers or memoryview_slices
+        return have_entries, (py_attrs, py_buffers, memoryview_slices)
+
+    def needs_finalisation(self):
+        if self.lookup_here("__dealloc__"):
+            return True
+        has_gc_entries, _ = self.get_refcounted_entries(include_weakref=True)
+        if has_gc_entries:
+            return True
+        return False
+
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
@@ -1864,7 +1872,6 @@ class CClassScope(ClassScope):
                                   # later on
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
             return entry
-
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         # Add an entry for a method.
@@ -2032,6 +2039,7 @@ class CClassScope(ClassScope):
                 entry.as_variable = var_entry
             if base_entry.utility_code:
                 entry.utility_code = base_entry.utility_code
+
 
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
