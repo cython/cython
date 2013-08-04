@@ -1256,12 +1256,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not scope.needs_finalisation():
             return
 
-        entry = scope.lookup_here("__dealloc__")
-        if entry:
-            dealloc_user_cfunc = entry.func_cname
-        else:
-            dealloc_user_cfunc = None
-
         weakref_slot = scope.lookup_here("__weakref__")
         if weakref_slot not in scope.var_entries:
             weakref_slot = None
@@ -1274,7 +1268,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if py_attrs or memoryview_slices or weakref_slot:
             self.generate_self_cast(scope, code)
 
-        if dealloc_user_cfunc:
+        entry = scope.lookup_here("__dealloc__")
+        if entry:
             code.putln("PyObject *etype, *eval, *etb;")
             code.putln("PyErr_Fetch(&etype, &eval, &etb);")
 
@@ -1282,7 +1277,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("++Py_REFCNT(o);")
             code.putln("#endif")
 
-            code.putln("%s(o);" % dealloc_user_cfunc)
+            code.putln("%s(o);" % entry.func_cname)
             code.putln("if (PyErr_Occurred()) PyErr_WriteUnraisable(o);")
 
             code.putln("#if PY_VERSION_HEX < 0x030400a1")
