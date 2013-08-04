@@ -460,16 +460,20 @@ static void __Pyx_Generator_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(gen);
     if (gen->gi_weakreflist != NULL)
         PyObject_ClearWeakRefs(self);
-    PyObject_GC_Track(self);
 
     if (gen->resume_label > 0) {
         /* Generator is paused, so we need to close */
+        PyObject_GC_Track(self);
+#if PY_VERSION_HEX >= 0x030400a1
+        if (PyObject_CallFinalizerFromDealloc(self))
+#else
         Py_TYPE(gen)->tp_del(self);
         if (self->ob_refcnt > 0)
+#endif
             return;                     /* resurrected.  :( */
+        PyObject_GC_UnTrack(self);
     }
 
-    PyObject_GC_UnTrack(self);
     __Pyx_Generator_clear(self);
     PyObject_GC_Del(gen);
 }
