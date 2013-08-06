@@ -202,7 +202,6 @@ directive_types = {
     'ccall' : None,
     'cclass' : None,
     'returns' : type,
-    'no_gc_clear': bool,
     'set_initial_path': str,
     'freelist': int,
     'c_string_type': one_of('bytes', 'str', 'unicode'),
