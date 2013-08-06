@@ -40,18 +40,18 @@ cdef class TpClearFixture:
     'NULL'
     """
     
-    cdef public object any_object
-    cdef public ExtensionType extension_type
+    cdef readonly object any_object
+    cdef readonly ExtensionType extension_type
 
     def __cinit__(self):
         self.any_object = "Hello World"
         self.extension_type = ExtensionType()
 
-    cpdef public call_tp_clear(self):
+    def call_tp_clear(self):
         cdef PyTypeObject *pto = Py_TYPE(self)
         pto.tp_clear(self)
 
-    cpdef public str check_any_object_status(self):
+    def check_any_object_status(self):
         if <void*>(self.any_object) == NULL:
             return 'NULL'
         elif self.any_object is None:
@@ -59,7 +59,7 @@ cdef class TpClearFixture:
         else:
             return 'not cleared'
 
-    cpdef public str check_extension_type_status(self):
+    def check_extension_type_status(self):
         if <void*>(self.any_object) == NULL:
             return 'NULL'
         elif self.any_object is None:
