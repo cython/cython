@@ -8,10 +8,6 @@ Cython Changelog
 Features added
 --------------
 
-* Starting with CPython 3.4, the user provided finalisation code in the
-  ``__dealloc__()`` special method is called by ``tp_finalize()`` instead
-  of ``tp_dealloc()`` to provide a safer execution environment.
-
 * During cyclic garbage collection, attributes of extension types that
   cannot create reference cycles due to their type (e.g. strings) are
   no longer considered for traversal or clearing.

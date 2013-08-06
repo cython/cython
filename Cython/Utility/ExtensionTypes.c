@@ -16,27 +16,6 @@ static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_deal
         type->tp_dealloc(obj);
 }
 
-/////////////// CallNextTpFinalize.proto ///////////////
-
-#if PY_VERSION_HEX >= 0x030400a1
-static void __Pyx_call_next_tp_finalize(PyObject* obj, destructor current_tp_finalize);
-#endif
-
-/////////////// CallNextTpFinalize ///////////////
-
-#if PY_VERSION_HEX >= 0x030400a1
-static void __Pyx_call_next_tp_finalize(PyObject* obj, destructor current_tp_finalize) {
-    PyTypeObject* type = Py_TYPE(obj);
-    /* try to find the first parent type that has a different tp_finalize() function */
-    while (type && type->tp_finalize != current_tp_finalize)
-        type = type->tp_base;
-    while (type && (!type->tp_finalize || type->tp_finalize == current_tp_finalize))
-        type = type->tp_base;
-    if (type)
-        type->tp_finalize(obj);
-}
-#endif
-
 /////////////// CallNextTpTraverse.proto ///////////////
 
 static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, traverseproc current_tp_traverse);

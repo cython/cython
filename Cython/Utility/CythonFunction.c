@@ -634,7 +634,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
 #endif
-#if PY_VERSION_HEX >= 0x030400a1
+#if PY_VERSION_HEX >= 0x03040a00
     0,                                  /*tp_finalize*/
 #endif
 };
@@ -1082,7 +1082,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
 #endif
-#if PY_VERSION_HEX >= 0x030400a1
+#if PY_VERSION_HEX >= 0x03040a00
     0,                                  /*tp_finalize*/
 #endif
 };

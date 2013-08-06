@@ -128,10 +128,6 @@
   #define Py_TPFLAGS_HAVE_VERSION_TAG 0
 #endif
 
-#if PY_VERSION_HEX < 0x030400a1 && !defined(Py_TPFLAGS_HAVE_FINALIZE)
-  #define Py_TPFLAGS_HAVE_FINALIZE 0
-#endif
-
 /* new Py3.3 unicode type (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
   #define CYTHON_PEP393_ENABLED 1
