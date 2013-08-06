@@ -1187,14 +1187,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cpp_class_attrs:
             self.generate_self_cast(scope, code)
 
-        if needs_gc and not base_type:
-            code.putln("PyObject_GC_UnTrack(o);")
-
         if needs_finalisation:
             # before Py3.4, tp_finalize() isn't available, so this is
             # the earliest possible time where we can call it ourselves
             code.putln("#if PY_VERSION_HEX < 0x030400a1")
-            if needs_gc and base_type:
+            if needs_gc:
                 # We must mark ths object as (gc) untracked while tearing
                 # it down, lest the garbage collection is invoked while
                 # running this destructor.
@@ -1206,6 +1203,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # tracked, so undo the untracking above.
                 code.putln("PyObject_GC_Track(o);")
             code.putln("#endif")
+
+        if needs_gc and not base_type:
+            code.putln("PyObject_GC_UnTrack(o);")
 
         for entry in cpp_class_attrs:
             split_cname = entry.type.cname.split('::')
