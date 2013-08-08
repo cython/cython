@@ -16,7 +16,6 @@ except ImportError:
     warnings = None
 
 class Extension(_Extension.Extension):
-    _Extension.Extension.__doc__ + \
     """cython_include_dirs : [string]
         list of directories to search for Pyrex header files (.pxd) (in
         Unix form for portability)
@@ -37,7 +36,8 @@ class Extension(_Extension.Extension):
     no_c_in_traceback : boolean
         emit the c file and line number from the traceback for exceptions
     """
-
+    __doc__ = _Extension.Extension.__doc__ + __doc__
+    
     # When adding arguments to this constructor, be sure to update
     # user_options.extend in build_ext.py.
     def __init__(self, name, sources,
