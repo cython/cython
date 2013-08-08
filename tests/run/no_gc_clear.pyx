@@ -12,9 +12,21 @@ from cpython.ref cimport PyObject, Py_TYPE
 # Pull tp_clear for PyTypeObject as I did not find another way to access it
 # from Cython code.
 
-cdef extern from "Python.h":
+cdef extern from *:
     ctypedef struct PyTypeObject:
         void (*tp_clear)(object)
+
+    ctypedef struct __pyx_CyFunctionObject:
+        PyObject* func_closure
+
+
+def is_tp_clear_null(obj):
+    return (<PyTypeObject*>Py_TYPE(obj)).tp_clear is NULL
+
+
+def is_closure_tp_clear_null(func):
+    return is_tp_clear_null(
+        <object>(<__pyx_CyFunctionObject*>func).func_closure)
 
 
 @cython.no_gc_clear
@@ -24,6 +36,8 @@ cdef class DisableTpClear:
     actually clears the references to NULL.
 
     >>> uut = DisableTpClear()
+    >>> is_tp_clear_null(uut)
+    True
     >>> uut.call_tp_clear()
     >>> type(uut.requires_cleanup) == list
     True
@@ -36,7 +50,37 @@ cdef class DisableTpClear:
         self.requires_cleanup = [
                 "Some object that needs cleaning in __dealloc__"]
 
-    cpdef public call_tp_clear(self):
+    def call_tp_clear(self):
         cdef PyTypeObject *pto = Py_TYPE(self)
         if pto.tp_clear != NULL:
             pto.tp_clear(self)
+
+
+def test_closure_without_clear(str x):
+    """
+    >>> c = test_closure_without_clear('abc')
+    >>> is_tp_clear_null(c)
+    False
+    >>> is_closure_tp_clear_null(c)
+    True
+    >>> c('cba')
+    'abcxyzcba'
+    """
+    def c(str s):
+        return x + 'xyz' + s
+    return c
+
+
+def test_closure_with_clear(list x):
+    """
+    >>> c = test_closure_with_clear(list('abc'))
+    >>> is_tp_clear_null(c)
+    False
+    >>> is_closure_tp_clear_null(c)
+    False
+    >>> c('cba')
+    'abcxyzcba'
+    """
+    def c(str s):
+        return ''.join(x) + 'xyz' + s
+    return c
