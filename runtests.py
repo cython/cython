@@ -523,6 +523,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [ (name, getattr(Options, name))
                                 for name in ('warning_errors',
+                                             'clear_to_none',
                                              'error_on_unknown_names',
                                              'error_on_uninitialized') ]
         self._saved_default_directives = Options.directive_defaults.items()
@@ -784,6 +785,11 @@ class CythonCompileTestCase(unittest.TestCase):
         return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
+    def setUp(self):
+        CythonCompileTestCase.setUp(self)
+        from Cython.Compiler import Options
+        Options.clear_to_none = False
+
     def shortDescription(self):
         if self.cython_only:
             return CythonCompileTestCase.shortDescription(self)

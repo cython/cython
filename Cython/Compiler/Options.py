@@ -68,13 +68,16 @@ old_style_globals = False
 # Allows cimporting from a pyx file without a pxd file.
 cimport_from_pyx = False
 
-
 # max # of dims for buffers -- set lower than number of dimensions in numpy, as
 # slices are passed by value and involve a lot of copying
 buffer_max_dims = 8
 
 # Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
+
+# Should tp_clear() set object fields to None instead of clearing them to NULL?
+clear_to_none = True
+
 
 # Declare compiler directives
 directive_defaults = {
