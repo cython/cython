@@ -1804,6 +1804,13 @@ class CClassScope(ClassScope):
             return not self.parent_type.is_gc_simple
         return False
 
+    def needs_tp_clear(self):
+        """
+        Do we need to generate an implementation for the tp_clear slot? Can
+        be disabled to keep references for the __dealloc__ cleanup function.
+        """
+        return self.needs_gc() and not self.directives.get('no_gc_clear', False)
+
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):

@@ -331,6 +331,14 @@ class GCDependentSlot(InternalMethodSlot):
         return InternalMethodSlot.slot_code(self, scope)
 
 
+class GCClearReferencesSlot(GCDependentSlot):
+
+    def slot_code(self, scope):
+        if scope.needs_tp_clear():
+            return GCDependentSlot.slot_code(self, scope)
+        return "0"
+
+
 class ConstructorSlot(InternalMethodSlot):
     #  Descriptor for tp_new and tp_dealloc.
 
@@ -753,7 +761,7 @@ slot_table = (
     DocStringSlot("tp_doc"),
 
     GCDependentSlot("tp_traverse"),
-    GCDependentSlot("tp_clear"),
+    GCClearReferencesSlot("tp_clear"),
 
     # Later -- synthesize a method to split into separate ops?
     MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
