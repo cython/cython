@@ -652,6 +652,9 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     """
     if 'include_path' not in options:
         options['include_path'] = ['.']
+    if 'common_utility_include_dir' in options:
+        if not os.path.exists(options['common_utility_include_dir']):
+            os.makedirs(options['common_utility_include_dir'])
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
@@ -811,6 +814,9 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
     except (EnvironmentError, PyrexError), e:
         sys.stderr.write('%s\n' % e)
         any_failures = 1
+        # XXX
+        import traceback
+        traceback.print_exc()
     except Exception:
         if raise_on_failure:
             raise

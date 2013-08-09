@@ -1,0 +1,49 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+# Verify some files were created.
+ls common/AddTraceback_impl*.h common/RaiseException_impl_*.h
+
+# Verify that they're used.
+grep -c '#include "common/AddTraceback_impl_.*h"' a.c
+grep -c '#include "common/AddTraceback_impl_.*h"' b.c
+grep -c '#include "common/AddTraceback_impl_.*h"' c.c
+
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx", common_utility_include_dir='common', nthreads=2),
+)
+
+######## a.pyx ########
+
+def generator(n):
+    for k in range(n):
+        yield k
+
+assert list(generator(10)) == list(range(10))
+
+######## b.pyx ########
+
+def generator(n):
+    for k in range(n):
+        yield k
+
+assert list(generator(10)) == list(range(10))
+
+if __name__ == "__main__":
+    print "here", "b"
+
+######## c.pyx ########
+
+if __name__ == "__main__":
+    print "here", "c"
+
+######## runner.py ########
+
+import a, b, c

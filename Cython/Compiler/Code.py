@@ -1540,7 +1540,7 @@ class CCodeWriter(object):
 
     def put_or_include(self, code, name):
         include_dir = self.globalstate.common_utility_include_dir
-        if include_dir and len(code) > 1042:
+        if include_dir and len(code) > 1024:
             include_file = "%s_%s.h" % (
                 name, hashlib.md5(code).hexdigest())
             path = os.path.join(include_dir, include_file)
