@@ -7,7 +7,6 @@ __revision__ = "$Id:$"
 
 import os
 import sys
-from types import *
 import distutils.extension as _Extension
 
 try:
@@ -99,8 +98,10 @@ class Extension(_Extension.Extension):
 
 # class Extension
 
+
 # reuse and extend original docstring from base class
-if _Extension.Extension.__doc__:  # -OO discards docstrings
+if sys.version_info[0] < 3 and _Extension.Extension.__doc__:
+    # -OO discards docstrings
     Extension.__doc__ = _Extension.Extension.__doc__ + """\
     cython_include_dirs : [string]
         list of directories to search for Pyrex header files (.pxd) (in
