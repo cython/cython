@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* The new extension type decorator ``@cython.no_gc_clear`` prevents
+  the type from being cleared during cyclic garbage collection, thus
+  making sure that object attributes are kept alive until deallocation.
+
 * During cyclic garbage collection, attributes of extension types that
   cannot create reference cycles due to their type (e.g. strings) are
   no longer considered for traversal or clearing.
