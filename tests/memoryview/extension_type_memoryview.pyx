@@ -11,6 +11,13 @@ cdef class ExtensionType(object):
     def __init__(self, n):
         self.dummy = n
 
+    def foo(self):
+        print self.dummy
+
+    cdef cfoo(self):
+        print self.dummy
+
+
 items = [ExtensionType(1), ExtensionType(2)]
 cdef ExtensionType[:] view = np.array(items, dtype=ExtensionType)
 
@@ -34,3 +41,30 @@ def test_getitem_typed():
     for i in range(view.shape[0]):
         item = view[i]
         print item.dummy
+
+def test_getitem_inline():
+    """
+    >>> test_getitem_inline()
+    1
+    2
+    """
+    print view[0].dummy
+    print view[1].dummy
+
+def test_py_call_inline():
+    """
+    >>> test_py_call_inline()
+    1
+    2
+    """
+    view[0].foo()
+    view[1].foo()
+
+def test_c_call_inline():
+    """
+    >>> test_c_call_inline()
+    1
+    2
+    """
+    view[0].cfoo()
+    view[1].cfoo()
