@@ -1173,31 +1173,52 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         slot_func = scope.mangle_internal("tp_dealloc")
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
-            return # never used
+            return  # never used
 
         slot_func_cname = scope.mangle_internal("tp_dealloc")
         code.putln("")
         code.putln(
             "static void %s(PyObject *o) {" % slot_func_cname)
 
-        weakref_slot = scope.lookup_here("__weakref__")
-        _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
-        cpp_class_attrs = [entry for entry in scope.var_entries if entry.type.is_cpp_class]
+        is_final_type = scope.parent_type.is_final_type
+        needs_gc = scope.needs_gc()
 
-        if (py_attrs
-            or cpp_class_attrs
-            or memoryview_slices
-            or weakref_slot in scope.var_entries):
+        weakref_slot = scope.lookup_here("__weakref__")
+        if weakref_slot not in scope.var_entries:
+            weakref_slot = None
+
+        _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
+        cpp_class_attrs = [entry for entry in scope.var_entries
+                           if entry.type.is_cpp_class]
+
+        if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot:
             self.generate_self_cast(scope, code)
-        
-        # We must mark ths object as (gc) untracked while tearing it down, lest
-        # the garbage collection is invoked while running this destructor.
-        if scope.needs_gc():
+
+        if not is_final_type:
+            # in Py3.4+, call tp_finalize() as early as possible
+            code.putln("#if PY_VERSION_HEX >= 0x030400a1")
+            if needs_gc:
+                finalised_check = '!_PyGC_FINALIZED(o)'
+            else:
+                finalised_check = (
+                    '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
+            code.putln("if (unlikely(Py_TYPE(o)->tp_finalize) && %s) {" %
+                       finalised_check)
+            # if instance was resurrected by finaliser, return
+            code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
+            code.putln("}")
+            code.putln("#endif")
+
+        if needs_gc:
+            # We must mark this object as (gc) untracked while tearing
+            # it down, lest the garbage collection is invoked while
+            # running this destructor.
             code.putln("PyObject_GC_UnTrack(o);")
 
         # call the user's __dealloc__
         self.generate_usr_dealloc_call(scope, code)
-        if weakref_slot in scope.var_entries:
+
+        if weakref_slot:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
         for entry in cpp_class_attrs:
@@ -1206,9 +1227,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Make sure the namespace delimiter was not in a template arg.
             while destructor_name.count('<') != destructor_name.count('>'):
                 destructor_name = split_cname.pop() + '::' + destructor_name
-            destructor_name = destructor_name.split('<',1)[0]
-            code.putln("p->%s.%s::~%s();" %
-                (entry.cname, entry.type.declaration_code(""), destructor_name))
+            destructor_name = destructor_name.split('<', 1)[0]
+            code.putln("p->%s.%s::~%s();" % (
+                entry.cname, entry.type.declaration_code(""), destructor_name))
 
         for entry in py_attrs:
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
@@ -1219,10 +1240,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                              have_gil=True)
 
         if base_type:
-            # The base class deallocator probably expects this to be tracked, so
-            # undo the untracking above.
-            if scope.needs_gc():
-                code.putln("PyObject_GC_Track(o);")
+            if needs_gc:
+                # The base class deallocator probably expects this to be tracked,
+                # so undo the untracking above.
+                code.putln("if (PyType_IS_GC(Py_TYPE(o)->tp_base))"
+                           " PyObject_GC_Track(o);")
 
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
@@ -1235,8 +1257,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
                 base_cname = base_type.typeptr_cname
-                code.putln("if (likely(%s)) %s->tp_dealloc(o); else __Pyx_call_next_tp_dealloc(o, %s);" % (
-                    base_cname, base_cname, slot_func_cname))
+                code.putln("if (likely(%s)) %s->tp_dealloc(o); "
+                           "else __Pyx_call_next_tp_dealloc(o, %s);" % (
+                               base_cname, base_cname, slot_func_cname))
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpDealloc", "ExtensionTypes.c"))
         else:
@@ -1259,26 +1282,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
-        if entry:
-            code.putln(
-                "{")
-            code.putln(
-                    "PyObject *etype, *eval, *etb;")
-            code.putln(
-                    "PyErr_Fetch(&etype, &eval, &etb);")
-            code.putln(
-                    "++Py_REFCNT(o);")
-            code.putln(
-                    "%s(o);" %
-                        entry.func_cname)
-            code.putln(
-                    "if (PyErr_Occurred()) PyErr_WriteUnraisable(o);")
-            code.putln(
-                    "--Py_REFCNT(o);")
-            code.putln(
-                    "PyErr_Restore(etype, eval, etb);")
-            code.putln(
-                "}")
+        if not entry:
+            return
+
+        code.putln("{")
+        code.putln("PyObject *etype, *eval, *etb;")
+        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("++Py_REFCNT(o);")
+        code.putln("%s(o);" % entry.func_cname)
+        code.putln("if (PyErr_Occurred()) PyErr_WriteUnraisable(o);")
+        code.putln("--Py_REFCNT(o);")
+        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("}")
 
     def generate_traverse_function(self, scope, code, cclass_entry):
         tp_slot = TypeSlots.GCDependentSlot("tp_traverse")
