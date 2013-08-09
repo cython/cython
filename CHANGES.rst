@@ -29,6 +29,9 @@ Bugs fixed
 Other changes
 -------------
 
+* In Py3.4+, the Cython generator type uses ``tp_finalize()`` for cleanup
+  instead of ``tp_del()``.
+
 
 0.19.2 (??)
 ===================
