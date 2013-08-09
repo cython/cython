@@ -97,7 +97,7 @@ cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 returns = lambda type_arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = _empty_decorator
+final = internal = type_version_tag = no_gc_clear = _empty_decorator
 
 def inline(f, *args, **kwds):
   if isinstance(f, basestring):
