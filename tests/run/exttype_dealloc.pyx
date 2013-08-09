@@ -2,6 +2,7 @@
 # tag: dealloc
 
 import gc
+import sys
 
 
 test_results = []
@@ -132,7 +133,11 @@ class PySubTypeRefCycleDel(ExtTypeRefCycle):
     >>> obj = None
     >>> _ = gc.collect()
 
-    # no guarantees here ...
+    >>> count = 2
+    >>> if sys.version_info >= (3, 4):
+    ...     count = find_name(PySubTypeRefCycleDel)
+    >>> count
+    2
     """
     def __del__(self):
         add_name(self)
