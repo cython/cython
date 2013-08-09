@@ -1293,7 +1293,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
         code.putln("++Py_REFCNT(o);")
         code.putln("%s(o);" % entry.func_cname)
-        code.putln("if (PyErr_Occurred()) PyErr_WriteUnraisable(o);")
         code.putln("--Py_REFCNT(o);")
         code.putln("PyErr_Restore(etype, eval, etb);")
         code.putln("}")

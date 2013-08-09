@@ -93,6 +93,7 @@ class Signature(object):
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
+        self.exception_check = self.error_value is not None
         self.is_staticmethod = False
 
     def num_fixed_args(self):
@@ -135,7 +136,9 @@ class Signature(object):
         else:
             ret_type = self.return_type()
         exc_value = self.exception_value()
-        return PyrexTypes.CFuncType(ret_type, args, exception_value = exc_value)
+        return PyrexTypes.CFuncType(
+            ret_type, args, exception_value=exc_value,
+            exception_check=self.exception_check)
 
     def method_flags(self):
         if self.ret_format == "O":

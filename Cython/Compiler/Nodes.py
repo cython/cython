@@ -2788,7 +2788,7 @@ class DefNode(FuncDefNode):
         return self.entry.signature.error_value
 
     def caller_will_check_exceptions(self):
-        return 1
+        return self.entry.signature.exception_check
 
     def generate_function_definitions(self, env, code):
         if self.defaults_getter:
