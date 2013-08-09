@@ -15,6 +15,18 @@ cdef class ExtTypeNoGC:
     """
 
 
+cdef class ExtSubTypeNoGC(ExtTypeNoGC):
+    """
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    """
+    cdef bytes x
+
+
 @cython.freelist(4)
 cdef class ExtTypeWithGC:
     """
