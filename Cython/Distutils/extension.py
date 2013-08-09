@@ -15,29 +15,8 @@ try:
 except ImportError:
     warnings = None
 
-class Extension(_Extension.Extension):
-    _Extension.Extension.__doc__ + \
-    """cython_include_dirs : [string]
-        list of directories to search for Pyrex header files (.pxd) (in
-        Unix form for portability)
-    cython_directives : {string:value}
-        dict of compiler directives
-    cython_create_listing_file : boolean
-        write pyrex error messages to a listing (.lis) file.
-    cython_line_directives : boolean
-        emit pyx line numbers for debugging/profiling
-    cython_cplus : boolean
-        use the C++ compiler for compiling and linking.
-    cython_c_in_temp : boolean
-        put generated C files in temp directory.
-    cython_gen_pxi : boolean
-        generate .pxi file for public declarations
-    cython_gdb : boolean
-        generate Cython debug information for this extension for cygdb
-    no_c_in_traceback : boolean
-        emit the c file and line number from the traceback for exceptions
-    """
 
+class Extension(_Extension.Extension):
     # When adding arguments to this constructor, be sure to update
     # user_options.extend in build_ext.py.
     def __init__(self, name, sources,
@@ -119,5 +98,29 @@ class Extension(_Extension.Extension):
         self.cython_compile_time_env = cython_compile_time_env
 
 # class Extension
+
+# reuse and extend original docstring from base class
+if _Extension.Extension.__doc__:  # -OO discards docstrings
+    Extension.__doc__ = _Extension.Extension.__doc__ + """\
+    cython_include_dirs : [string]
+        list of directories to search for Pyrex header files (.pxd) (in
+        Unix form for portability)
+    cython_directives : {string:value}
+        dict of compiler directives
+    cython_create_listing_file : boolean
+        write pyrex error messages to a listing (.lis) file.
+    cython_line_directives : boolean
+        emit pyx line numbers for debugging/profiling
+    cython_cplus : boolean
+        use the C++ compiler for compiling and linking.
+    cython_c_in_temp : boolean
+        put generated C files in temp directory.
+    cython_gen_pxi : boolean
+        generate .pxi file for public declarations
+    cython_gdb : boolean
+        generate Cython debug information for this extension for cygdb
+    no_c_in_traceback : boolean
+        emit the c file and line number from the traceback for exceptions
+"""
 
 read_setup_file = _Extension.read_setup_file
