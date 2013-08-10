@@ -768,10 +768,13 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             if not os.path.exists(c_file):
                 failed_modules.update(modules)
             elif os.path.getsize(c_file) < 200:
-                with io_open(c_file, 'r', encoding='iso8859-1') as f:
+                f = io_open(c_file, 'r', encoding='iso8859-1')
+                try:
                     if f.read(len('#error ')) == '#error ':
                         # dead compilation result
                         failed_modules.update(modules)
+                finally:
+                    f.close()
         if failed_modules:
             for module in failed_modules:
                 module_list.remove(module)
