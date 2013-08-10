@@ -23,6 +23,23 @@ cdef class ExtTypeNoGC:
 @cython.test_assert_path_exists('//CClassDefNode',
                                 '//CClassDefNode[@scope]',
                                 '//CClassDefNode[@scope.has_cyclic_pyobject_attrs = False]')
+@cython.final
+cdef class ExtTypeFinalNoGC:
+    """
+    >>> obj = ExtTypeFinalNoGC()
+    >>> obj = ExtTypeFinalNoGC()
+    >>> obj = ExtTypeFinalNoGC()
+    >>> obj = ExtTypeFinalNoGC()
+    >>> obj = ExtTypeFinalNoGC()
+    >>> obj = ExtTypeFinalNoGC()
+    """
+    cdef bytes s
+
+
+@cython.test_fail_if_path_exists('//CClassDefNode[@scope.has_cyclic_pyobject_attrs = True]')
+@cython.test_assert_path_exists('//CClassDefNode',
+                                '//CClassDefNode[@scope]',
+                                '//CClassDefNode[@scope.has_cyclic_pyobject_attrs = False]')
 cdef class ExtSubTypeNoGC(ExtTypeNoGC):
     """
     >>> obj = ExtSubTypeNoGC()
@@ -50,6 +67,8 @@ cdef class ExtTypePyArgsNoGC:
     cdef bytes b
     cdef str s
     cdef unicode u
+# eventually, this should work, too:
+#    cdef ExtTypeFinalNoGC x
 
 
 @cython.test_fail_if_path_exists('//CClassDefNode[@scope.has_cyclic_pyobject_attrs = True]')
