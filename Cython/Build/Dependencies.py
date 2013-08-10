@@ -19,6 +19,11 @@ except ImportError:
     import md5 as hashlib
 
 try:
+    from io import open as io_open
+except ImportError:
+    from codecs import open as io_open
+
+try:
     from os.path import relpath as _relpath
 except ImportError:
     # Py<2.6
@@ -761,8 +766,16 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         for c_file, modules in modules_by_cfile.iteritems():
             if not os.path.exists(c_file):
                 failed_modules.update(modules)
-        for module in failed_modules:
-            module_list.remove(module)
+            elif os.path.getsize(c_file) < 200:
+                with io_open(c_file, 'r', encoding='iso8859-1') as f:
+                    if f.read(len('#error ')) == '#error ':
+                        # dead compilation result
+                        failed_modules.update(modules)
+        if failed_modules:
+            for module in failed_modules:
+                module_list.remove(module)
+            print("Failed compilations: %s" % ', '.join(sorted([
+                module.name for module in failed_modules])))
     if hasattr(options, 'cache'):
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
     # cythonize() is often followed by the (non-Python-buffered)
