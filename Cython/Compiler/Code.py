@@ -1542,7 +1542,7 @@ class CCodeWriter(object):
         include_dir = self.globalstate.common_utility_include_dir
         if include_dir and len(code) > 1024:
             include_file = "%s_%s.h" % (
-                name, hashlib.md5(code).hexdigest())
+                name, hashlib.md5(code.encode('utf8')).hexdigest())
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = '%s.tmp%s' % (path, os.getpid())
