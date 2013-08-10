@@ -18,6 +18,17 @@ except ImportError:
     parallel_compiles = 0
 
 
+class _FakePool(object):
+    def map_async(self, func, args):
+        from itertools import imap
+        for _ in imap(func, args):
+            pass
+
+    def close(self): pass
+    def terminate(self): pass
+    def join(self): pass
+
+
 def parse_directives(option, name, value, parser):
     dest = option.dest
     old_directives = dict(getattr(parser.values, dest,
@@ -87,7 +98,10 @@ def cython_compile(path_pattern, options):
             if options.build:
                 if len(ext_modules) > 1 and options.parallel:
                     if pool is None:
-                        pool = multiprocessing.Pool(options.parallel)
+                        try:
+                            pool = multiprocessing.Pool(options.parallel)
+                        except OSError:
+                            pool = _FakePool()
                     pool.map_async(run_distutils, [
                         (base_dir, [ext]) for ext in ext_modules])
                 else:
