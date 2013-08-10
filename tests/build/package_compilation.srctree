@@ -46,6 +46,10 @@ MODULE = 'b'
 
 PACKAGE = 2
 
+from . import a
+assert a.__name__ == 'toppkg.subpkg.a'
+assert a.MODULE == 'subpkg.a'
+
 ######## toppkg/subpkg/a.py ########
 
 MODULE = 'subpkg.a'
