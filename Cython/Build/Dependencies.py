@@ -840,7 +840,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
             f.close()
 
 def cythonize_one_helper(m):
-    return cythonize_one(*m[1:])
+    import traceback
+    try:
+        return cythonize_one(*m[1:])
+    except Exception:
+        traceback.print_exc()
+        raise
 
 def cleanup_cache(cache, target_size, ratio=.85):
     try:
