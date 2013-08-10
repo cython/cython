@@ -120,26 +120,32 @@ def run_distutils(args):
 def parse_args(args):
     from optparse import OptionParser
     parser = OptionParser(usage='%prog [options] [sources and packages]+')
+
     parser.add_option('-X', '--directive', metavar='NAME=VALUE,...', dest='directives',
                       action='callback', callback=parse_directives, default={},
                       help='set a compiler directive')
     parser.add_option('-s', '--option', metavar='NAME=VALUE', dest='options',
                       action='callback', callback=parse_options, default={},
                       help='set a cythonize option')
+
     parser.add_option('-x', '--exclude', metavar='PATTERN', dest='excludes',
                       action='append', default=[],
                       help='exclude certain file patterns from the compilation')
+
+    parser.add_option('-b', '--build', dest='build', action='store_true',
+                      help='build extension modules using distutils')
+    parser.add_option('-i', '--inplace', dest='build_inplace', action='store_true',
+                      help='build extension modules in place using distutils (implies -b)')
+    parser.add_option('-j', '--parallel', dest='parallel', metavar='N',
+                      type=int, default=parallel_compiles,
+                      help=('run builds in N parallel jobs (default: %d)' %
+                            parallel_compiles or 1))
+
     parser.add_option('--lenient', dest='lenient', action='store_true',
                       help='increase Python compatibility by ignoring some compile time errors')
     parser.add_option('-k', '--keep-going', dest='keep_going', action='store_true',
                       help='compile as much as possible, ignore compilation failures')
-    parser.add_option('-i', '--inplace', dest='build_inplace', action='store_true',
-                      help='build extension modules in place using distutils (implies -b)')
-    parser.add_option('-b', '--build', dest='build', action='store_true',
-                      help='build extension modules using distutils')
-    parser.add_option('-j', '--parallel', dest='parallel', metavar='N',
-                      type=int, default=parallel_compiles,
-                      help='run builds in N parallel jobs')
+
     options, args = parser.parse_args(args)
     if not args:
         parser.error("no source files provided")
