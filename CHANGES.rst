@@ -14,7 +14,8 @@ Features added
 
 * During cyclic garbage collection, attributes of extension types that
   cannot create reference cycles due to their type (e.g. strings) are
-  no longer considered for traversal or clearing.
+  no longer considered for traversal or clearing.  This can reduce the
+  processing overhead when searching for or cleaning up reference cycles.
 
 * Package compilation (i.e. ``__init__.py`` files) now works, starting
   with Python 3.3.
@@ -33,8 +34,8 @@ Bugs fixed
 Other changes
 -------------
 
-* In Py3.4+, the Cython generator type uses ``tp_finalize()`` for cleanup
-  instead of ``tp_del()``.
+* In Py3.4+, the Cython generator type uses ``tp_finalize()`` for safer
+  cleanup instead of ``tp_del()``.
 
 
 0.19.2 (??)
