@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* A new script in ``bin/cythonize`` provides a command line frontend
+  to the cythonize() compilation function (including distutils build).
+
 * The new extension type decorator ``@cython.no_gc_clear`` prevents
   the type from being cleared during cyclic garbage collection, thus
   making sure that object attributes are kept alive until deallocation.
