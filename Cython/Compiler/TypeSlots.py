@@ -460,7 +460,10 @@ class MethodTableSlot(SlotDescriptor):
     #  Slot descriptor for the method table.
 
     def slot_code(self, scope):
-        return scope.method_table_cname
+        if scope.pyfunc_entries:
+            return scope.method_table_cname
+        else:
+            return "0"
 
 
 class MemberTableSlot(SlotDescriptor):

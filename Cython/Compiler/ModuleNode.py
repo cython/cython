@@ -1820,6 +1820,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "};")
 
     def generate_method_table(self, env, code):
+        if env.is_c_class_scope and not env.pyfunc_entries:
+            return
         code.putln("")
         code.putln(
             "static PyMethodDef %s[] = {" %
