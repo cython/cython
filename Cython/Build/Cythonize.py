@@ -95,7 +95,7 @@ def cython_compile(path_pattern, options):
                     os.chdir(cwd)
 
             if ext_modules and options.build:
-                if len(ext_modules) > 1 and options.parallel:
+                if len(ext_modules) > 1 and options.parallel > 1:
                     if pool is None:
                         try:
                             pool = multiprocessing.Pool(options.parallel)
