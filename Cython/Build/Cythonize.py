@@ -60,14 +60,13 @@ def find_package_base(path):
 
 def cython_compile(path_pattern, options):
     pool = None
+    paths = map(os.path.abspath, glob.iglob(path_pattern))
     try:
-        for path in glob.iglob(path_pattern):
-            path = os.path.abspath(path)
+        for path in paths:
             if options.build_inplace:
-                if is_package_dir(path):
-                    base_dir = find_root_package_dir(path)
-                else:
-                    base_dir = path
+                base_dir = path
+                while not os.path.isdir(base_dir) or is_package_dir(base_dir):
+                    base_dir = os.path.dirname(base_dir)
             else:
                 base_dir = None
 
