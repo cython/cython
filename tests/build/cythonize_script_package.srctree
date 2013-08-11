@@ -1,5 +1,5 @@
 '''
-PYTHON -m Cython.Build.Cythonize -i pkg
+PYTHON -m Cython.Build.Cythonize -i pkg -j1
 PYTHON package_test.py
 '''
 
