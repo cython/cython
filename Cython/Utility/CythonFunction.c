@@ -67,6 +67,7 @@ static int __Pyx_CyFunction_init(void);
 
 //////////////////// CythonFunction ////////////////////
 //@substitute: naming
+//@requires: CommonTypes.c::FetchCommonType
 
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
@@ -645,9 +646,15 @@ static int __Pyx_CyFunction_init(void) {
     // avoid a useless level of call indirection
     __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;
 #endif
+#if 1
+    __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
+    if (__pyx_CyFunctionType == NULL)
+        return -1;
+#else
     if (PyType_Ready(&__pyx_CyFunctionType_type) < 0)
         return -1;
     __pyx_CyFunctionType = &__pyx_CyFunctionType_type;
+#endif
     return 0;
 }
 
