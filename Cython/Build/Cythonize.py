@@ -5,8 +5,8 @@ import sys
 import glob
 
 from distutils.core import setup
-from Cython.Build import cythonize
-from Cython.Utils import find_root_package_dir, is_package_dir
+from Cython.Build.Dependencies import cythonize, extended_iglob
+from Cython.Utils import is_package_dir
 from Cython.Compiler import Options
 
 try:
@@ -60,7 +60,7 @@ def find_package_base(path):
 
 def cython_compile(path_pattern, options):
     pool = None
-    paths = map(os.path.abspath, glob.iglob(path_pattern))
+    paths = map(os.path.abspath, extended_iglob(path_pattern))
     try:
         for path in paths:
             if options.build_inplace:
