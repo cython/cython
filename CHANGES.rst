@@ -25,6 +25,10 @@ Features added
 
 * The cython-mode.el script for Emacs was updated.  Patch by Ivan Andrus.
 
+* An option common_utility_include_dir was added to cythonize() to save
+  oft-used utility code once in a separate directory rather than as
+  part of each generated file.
+
 Bugs fixed
 ----------
 
