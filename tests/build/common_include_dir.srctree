@@ -20,9 +20,9 @@ from distutils.core import setup
 # (In particular, TravisCI does not support spawning processes from tests.)
 try:
     import multiprocessing
-    multiprocessing.Pool(2)
+    multiprocessing.Pool(2).close()
     nthreads = 2
-except:
+except (ImportError, OSError):
     nthreads = 0
 
 setup(
