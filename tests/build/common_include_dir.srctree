@@ -16,8 +16,17 @@ from Cython.Build.Dependencies import cythonize
 
 from distutils.core import setup
 
+# Test concurrent safety if multiprocessing is available.
+# (In particular, TravisCI does not support spawning processes from tests.)
+try:
+    import multiprocessing
+    multiprocessing.Pool(2)
+    nthreads = 2
+except:
+    nthreads = 0
+
 setup(
-  ext_modules = cythonize("*.pyx", common_utility_include_dir='common', nthreads=2),
+  ext_modules = cythonize("*.pyx", common_utility_include_dir='common', nthreads=nthreads),
 )
 
 ######## a.pyx ########
