@@ -95,7 +95,7 @@ def cython_compile(path_pattern, options):
                 if base_dir:
                     os.chdir(cwd)
 
-            if options.build:
+            if ext_modules and options.build:
                 if len(ext_modules) > 1 and options.parallel:
                     if pool is None:
                         try:
