@@ -112,8 +112,6 @@ def cython_compile(path_pattern, options):
     else:
         if pool is not None:
             pool.close()
-    finally:
-        if pool is not None:
             pool.join()
 
 
