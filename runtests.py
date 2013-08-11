@@ -216,6 +216,8 @@ VER_DEP_MODULES = {
                                           'run.relativeimport_star_T542',
                                           'run.initial_file_path',  # relative import
                                           'run.pynumber_subtype_conversion',  # bug in Py2.4
+                                          'build.cythonize_script',  # python2.4 -m a.b.c
+                                          'build.cythonize_script_package',  # python2.4 -m a.b.c
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.language_level', # print function
