@@ -117,15 +117,16 @@ using normal C declaration syntax. For example,::
 
 When a parameter of a Python function is declared to have a C data type, it is
 passed in as a Python object and automatically converted to a C value, if
-possible. In other words, the definition of `spam` above is equivalent to writing::
+possible. In other words, the definition of ``spam`` above is equivalent to
+writing::
 
     def spam(python_i, python_s):
-        int i = python_i
-        char* s = python_s
+        cdef int i = python_i
+        cdef char* s = python_s
         ...
 
 Automatic conversion is currently only possible for numeric types,
-string types and structs (composed recusively of any of these types);
+string types and structs (composed recursively of any of these types);
 attempting to use any other type for the parameter of a
 Python function will result in a compile-time error.
 Care must be taken with strings to ensure a reference if the pointer is to be used
