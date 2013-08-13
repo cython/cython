@@ -150,7 +150,7 @@ bad:
 
 /////////////// SetPackagePathFromImportLib.proto ///////////////
 
-#if PY_MAJOR_VERSION >= 3
+#if PY_VERSION_HEX >= 0x03030000
 static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name);
 #else
 #define __Pyx_SetPackagePathFromImportLib(a, b) 0
@@ -160,7 +160,7 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
-#if PY_MAJOR_VERSION >= 3
+#if PY_VERSION_HEX >= 0x03030000
 static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
     PyObject *importlib, *loader, *osmod, *ossep, *parts, *package_path;
     PyObject *path = NULL, *file_path = NULL;
