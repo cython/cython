@@ -6,17 +6,13 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     static PyObject* fake_module = NULL;
-    PyObject* sys = NULL;
-    PyObject* sys_modules = NULL;
     PyObject* args = NULL;
     PyTypeObject* cached_type = NULL;
     const char* cython_module = "_cython_" CYTHON_ABI;
     if (fake_module == NULL) {
-        sys = PyImport_ImportModule("sys"); if (sys == NULL) goto bad;
-        sys_modules = PyObject_GetAttrString(sys, "modules"); if (sys_modules == NULL) goto bad;
-        fake_module = PyDict_GetItemString(sys_modules, cython_module);
+        PyObject* sys_modules = PyImport_GetModuleDict(); // borrowed
+        fake_module = PyDict_GetItemString(sys_modules, cython_module); // borrowed
         if (fake_module != NULL) {
-            // borrowed
             Py_INCREF(fake_module);
         } else {
             PyObject* py_cython_module;
@@ -33,6 +29,7 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
                 goto bad;
         }
     }
+
     if (PyObject_HasAttrString(fake_module, type->tp_name)) {
         cached_type = (PyTypeObject*) PyObject_GetAttrString(fake_module, type->tp_name);
     } else {
@@ -43,8 +40,6 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     }
 
 cleanup:
-    Py_XDECREF(sys);
-    Py_XDECREF(sys_modules);
     Py_XDECREF(args);
     return cached_type;
 
