@@ -1,0 +1,34 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## a.pyx ########
+
+# cython: binding=True
+
+def funcA():
+    return
+
+######## b.pyx ########
+
+# cython: binding=True
+
+def funcB():
+    return
+
+######## runner.py ########
+
+print("importing...")
+import a, b
+print(type(a.funcA))
+assert type(a.funcA).__name__ == 'cython_function_or_method'
+assert type(a.funcA) is type(b.funcB)
