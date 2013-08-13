@@ -646,15 +646,10 @@ static int __Pyx_CyFunction_init(void) {
     // avoid a useless level of call indirection
     __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;
 #endif
-#if 1
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
-    if (__pyx_CyFunctionType == NULL)
+    if (__pyx_CyFunctionType == NULL) {
         return -1;
-#else
-    if (PyType_Ready(&__pyx_CyFunctionType_type) < 0)
-        return -1;
-    __pyx_CyFunctionType = &__pyx_CyFunctionType_type;
-#endif
+    }
     return 0;
 }
 
@@ -1095,10 +1090,10 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 };
 
 static int __pyx_FusedFunction_init(void) {
-    if (PyType_Ready(&__pyx_FusedFunctionType_type) < 0) {
+    __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
+    if (__pyx_FusedFunctionType == NULL) {
         return -1;
     }
-    __pyx_FusedFunctionType = &__pyx_FusedFunctionType_type;
     return 0;
 }
 

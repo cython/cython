@@ -10,7 +10,7 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     PyObject* sys_modules = NULL;
     PyObject* args = NULL;
     PyTypeObject* cached_type = NULL;
-    char* cython_module = "_cython_" CYTHON_ABI;
+    const char* cython_module = "_cython_" CYTHON_ABI;
     if (fake_module == NULL) {
         sys = PyImport_ImportModule("sys"); if (sys == NULL) goto bad;
         sys_modules = PyObject_GetAttrString(sys, "modules"); if (sys_modules == NULL) goto bad;
