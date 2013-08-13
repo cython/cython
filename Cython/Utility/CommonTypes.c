@@ -19,9 +19,15 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
             // borrowed
             Py_INCREF(fake_module);
         } else {
+            PyObject* py_cython_module;
             args = PyTuple_New(1); if (args == NULL) goto bad;
-            PyTuple_SET_ITEM(args, 0, __Pyx_PyStr_FromString(cython_module));
-            if (PyTuple_GET_ITEM(args, 0) == NULL) goto bad;
+#if PY_MAJOR_VERSION >= 3
+            py_cython_module = PyUnicode_DecodeUTF8(cython_module, strlen(cython_module), NULL);
+#else
+            py_cython_module = PyBytes_FromString(cython_module);
+#endif
+            if (py_cython_module == NULL) goto bad;
+            PyTuple_SET_ITEM(args, 0, py_cython_module);
             fake_module = PyObject_Call((PyObject*) &PyModule_Type, args, NULL);
             if (PyDict_SetItemString(sys_modules, cython_module, fake_module) < 0)
                 goto bad;
