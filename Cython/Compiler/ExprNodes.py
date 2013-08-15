@@ -7236,7 +7236,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             flags = '0'
 
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
@@ -7244,6 +7244,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.self_result_code(),
                 self.get_py_mod_name(code),
+                "PyModule_GetDict(%s)" % Naming.module_cname,
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
 
