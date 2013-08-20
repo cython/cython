@@ -132,10 +132,10 @@ def parse_args(args):
     parser = OptionParser(usage='%prog [options] [sources and packages]+')
 
     parser.add_option('-X', '--directive', metavar='NAME=VALUE,...', dest='directives',
-                      action='callback', callback=parse_directives, default={},
+                      type=str, action='callback', callback=parse_directives, default={},
                       help='set a compiler directive')
     parser.add_option('-s', '--option', metavar='NAME=VALUE', dest='options',
-                      action='callback', callback=parse_options, default={},
+                      type=str, action='callback', callback=parse_options, default={},
                       help='set a cythonize option')
 
     parser.add_option('-x', '--exclude', metavar='PATTERN', dest='excludes',
