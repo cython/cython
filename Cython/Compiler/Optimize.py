@@ -19,6 +19,7 @@ from StringEncoding import EncodedString, BytesLiteral
 from Errors import error
 from ParseTreeTransforms import SkipDeclarations
 
+import copy
 import codecs
 
 try:
@@ -3068,21 +3069,21 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return self._handle_UnaryMinusNode(node)
         return node
 
+    _negate_operator = {
+        'in': 'not_in',
+        'not_in': 'in',
+        'is': 'is_not',
+        'is_not': 'is'
+    }.get
+
     def _handle_UnaryNotNode(self, node):
-        if isinstance(node.operand, ExprNodes.PrimaryCmpNode):
-            cmp_node = node.operand
-            if cmp_node.operator == 'in':
-                operator = 'not_in'
-            elif cmp_node.operator == 'is':
-                operator = 'is_not'
-            else:
-                return node
-            return ExprNodes.PrimaryCmpNode(
-                cmp_node.pos,
-                operand1=cmp_node.operand1,
-                operand2=cmp_node.operand2,
-                operator=operator,
-                cascade=cmp_node.cascade)
+        operand = node.operand
+        if isinstance(operand, ExprNodes.PrimaryCmpNode):
+            operator = self._negate_operator(operand.operator)
+            if operator:
+                node = copy.copy(operand)
+                node.operator = operator
+                node = self.visit_PrimaryCmpNode(node)
         return node
 
     def _handle_UnaryMinusNode(self, node):
