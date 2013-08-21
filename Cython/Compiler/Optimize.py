@@ -3050,6 +3050,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
     def visit_UnopNode(self, node):
         self._calculate_const(node)
         if node.constant_result is ExprNodes.not_a_constant:
+            if node.operator == '!':
+                return self._handle_UnaryNotNode(node)
             return node
         if not node.operand.is_literal:
             return node
@@ -3064,6 +3066,23 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return self._handle_UnaryPlusNode(node)
         elif node.operator == '-':
             return self._handle_UnaryMinusNode(node)
+        return node
+
+    def _handle_UnaryNotNode(self, node):
+        if isinstance(node.operand, ExprNodes.PrimaryCmpNode):
+            cmp_node = node.operand
+            if cmp_node.operator == 'in':
+                operator = 'not_in'
+            elif cmp_node.operator == 'is':
+                operator = 'is_not'
+            else:
+                return node
+            return ExprNodes.PrimaryCmpNode(
+                cmp_node.pos,
+                operand1=cmp_node.operand1,
+                operand2=cmp_node.operand2,
+                operator=operator,
+                cascade=cmp_node.cascade)
         return node
 
     def _handle_UnaryMinusNode(self, node):
