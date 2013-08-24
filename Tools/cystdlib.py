@@ -163,8 +163,8 @@ if __name__ == '__main__':
             parallel_jobs = 0
 
     extensions = build_extensions(parallel=parallel_jobs)
+    sys_args = ['build_ext', '-i']
     if pool is not None:
-        sys_args = ['-i']
         results = pool.map(_build, [(sys_args, ext) for ext in extensions])
         pool.close()
         pool.join()
@@ -172,4 +172,5 @@ if __name__ == '__main__':
             if not result:
                 print("building extension %s failed" % (ext[0].name,))
     else:
+        sys.argv[1:] = sys_args
         build(extensions)
