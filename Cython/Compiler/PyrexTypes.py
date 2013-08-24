@@ -1566,10 +1566,17 @@ class CIntType(CNumericType):
             self.get_from_py_type_conversion()
 
     def create_from_py_utility_code(self, env):
-        self.from_py_function = "__Pyx_PyInt_As" + self.specialization_name()
+        self.from_py_function = "__Pyx_PyInt_to_py_" + self.specialization_name()
         env.use_utility_code(TempitaUtilityCode.load(
             "CIntFromPy", "TypeConversion.c",
             context={"TYPE": self.declaration_code(''), "FROM_PY_FUNCTION": self.from_py_function}))
+        return True
+
+    def create_to_py_utility_code(self, env):
+        self.from_to_function = "__Pyx_PyInt_As" + self.specialization_name()
+        env.use_utility_code(TempitaUtilityCode.load(
+            "CIntToPy", "TypeConversion.c",
+            context={"TYPE": self.declaration_code(''), "TO_PY_FUNCTION": self.from_to_function}))
         return True
 
     def get_to_py_type_conversion(self):

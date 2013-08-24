@@ -449,9 +449,39 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     return (Py_UNICODE)ival;
 }
 
+
 /////////////// CIntToPy.proto ///////////////
 
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
+
 /////////////// CIntToPy ///////////////
+
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = 0;
+    const int is_unsigned = neg_one > const_zero;
+    if (is_unsigned) {
+        if (sizeof({{TYPE}}) < sizeof(unsigned long)) {
+            return PyInt_FromLong(value);
+        } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
+            return PyLong_FromUnsignedLong(value);
+        } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
+            return PyLong_FromUnsignedLongLong(value);
+        }
+    } else {
+        if (sizeof({{TYPE}}) <= sizeof(long)) {
+            return PyInt_FromLong(value);
+        } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
+            return PyLong_FromLong(value);
+        }
+    }
+    {
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        unsigned char *bytes = (unsigned char *)&value;
+        return _PyLong_FromByteArray(bytes, sizeof({{TYPE}}),
+                                     little, !is_unsigned);
+    }
+}
+
 
 /////////////// CIntFromPyVerify ///////////////
 
@@ -469,6 +499,7 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
         }                                                           \
         return (type) value;                                        \
     }
+
 
 /////////////// CIntFromPy.proto ///////////////
 
