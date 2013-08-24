@@ -453,11 +453,29 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
 
 /////////////// CIntToPy ///////////////
 
+/////////////// CIntFromPyVerify ///////////////
+
+#define __PYX_VERIFY_RETURN_INT(type, value_type, func)             \
+    {                                                               \
+        value_type value = func(x);                                 \
+        if (sizeof(type) < sizeof(value_type)) {                    \
+            if (unlikely(value != (type) value)) {                  \
+                PyErr_SetString(PyExc_OverflowError,                \
+                    (is_unsigned && unlikely(value < 0)) ?          \
+                    "can't convert negative value to " #type :      \
+                    "value too large to convert to " #type);        \
+                return (type) -1;                                   \
+            }                                                       \
+        }                                                           \
+        return (type) value;                                        \
+    }
+
 /////////////// CIntFromPy.proto ///////////////
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 /////////////// CIntFromPy ///////////////
+//@requires: CIntFromPyVerify
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
 #if CYTHON_USE_PYLONG_INTERNALS
@@ -469,25 +487,16 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
-        long val = PyInt_AS_LONG(x);
         if (sizeof({{TYPE}}) < sizeof(long)) {
-            if (unlikely(val != ({{TYPE}}) val)) {
-                PyErr_SetString(PyExc_OverflowError,
-                    (is_unsigned && unlikely(val < 0)) ?
-                    "can't convert negative value to {{TYPE}}" :
-                    "value too large to convert to {{TYPE}}");
-                return ({{TYPE}}) -1;
-            } else {
-                return ({{TYPE}}) val;
-            }
+            __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyInt_AS_LONG)
         } else {
+            long val = PyInt_AS_LONG(x);
             if (is_unsigned && unlikely(val < 0)) {
                 PyErr_SetString(PyExc_OverflowError,
                                 "can't convert negative value to {{TYPE}}");
                 return ({{TYPE}}) -1;
-            } else {
-                return ({{TYPE}}) val;
             }
+            return ({{TYPE}}) val;
         }
     } else
 #endif
@@ -498,7 +507,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             if (sizeof(digit) <= sizeof({{TYPE}})) {
                 switch (Py_SIZE(x)) {
                     case  0: return 0;
-                    case  1: return (%(type)s) ((PyLongObject*)x)->ob_digit[0];
+                    case  1: return ({{TYPE}}) ((PyLongObject*)x)->ob_digit[0];
                 }
             }
 #endif
@@ -509,25 +518,11 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 return ({{TYPE}}) -1;
             }
             if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
-                unsigned long val = PyLong_AsUnsignedLong(x);
-                if (sizeof({{TYPE}}) < sizeof(unsigned long)
-                    && unlikely(val != ({{TYPE}}) val)) {
-                    PyErr_SetString(PyExc_OverflowError,
-                                    "value too large to convert to {{TYPE}}");
-                    return ({{TYPE}}) -1;
-                }
-                return ({{TYPE}}) val;
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, PyLong_AsUnsignedLong)
             } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
-                unsigned long long val = PyLong_AsUnsignedLongLong(x);
-                if (sizeof({{TYPE}}) < sizeof(unsigned long long)
-                    && unlikely(val != ({{TYPE}}) val)) {
-                    PyErr_SetString(PyExc_OverflowError,
-                                    "value too large to convert to {{TYPE}}");
-                    return ({{TYPE}}) -1;
-                }
-                return ({{TYPE}}) val;
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long long, PyLong_AsUnsignedLongLong)
             } else {
-                // Huh?
+                // That's a big type...
                 return ({{TYPE}}) PyLong_AsUnsignedLongLong(x);
             }
         } else {
@@ -543,25 +538,11 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
 #endif
             if (sizeof({{TYPE}}) <= sizeof(long)) {
-                long val = PyLong_AsLong(x);
-                if (sizeof({{TYPE}}) < sizeof(long)
-                    && unlikely(val != ({{TYPE}}) val)) {
-                    PyErr_SetString(PyExc_OverflowError,
-                                    "value too large to convert to {{TYPE}}");
-                    return ({{TYPE}}) -1;
-                }
-                return ({{TYPE}}) val;
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyLong_AsLong)
             } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
-                long long val = PyLong_AsLongLong(x);
-                if (sizeof({{TYPE}}) < sizeof(long long)
-                    && unlikely(val != ({{TYPE}}) val)) {
-                    PyErr_SetString(PyExc_OverflowError,
-                                    "value too large to convert to {{TYPE}}");
-                    return ({{TYPE}}) -1;
-                }
-                return ({{TYPE}}) val;
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, long long, PyLong_AsLongLong)
             } else {
-                // Huh?
+                // That's a big type...
                 return ({{TYPE}}) PyLong_AsLongLong(x);
             }
         }
