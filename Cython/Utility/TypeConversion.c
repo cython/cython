@@ -448,3 +448,130 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     }
     return (Py_UNICODE)ival;
 }
+
+/////////////// CIntToPy.proto ///////////////
+
+/////////////// CIntToPy ///////////////
+
+/////////////// CIntFromPy.proto ///////////////
+
+static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
+
+/////////////// CIntFromPy ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
+#include "longintrepr.h"
+#endif
+#endif
+static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = 0;
+    const int is_unsigned = neg_one > const_zero;
+#if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_Check(x))) {
+        long val = PyInt_AS_LONG(x);
+        if (sizeof({{TYPE}}) < sizeof(long)) {
+            if (unlikely(val != ({{TYPE}}) val)) {
+                PyErr_SetString(PyExc_OverflowError,
+                    (is_unsigned && unlikely(val < 0)) ?
+                    "can't convert negative value to {{TYPE}}" :
+                    "value too large to convert to {{TYPE}}");
+                return ({{TYPE}}) -1;
+            } else {
+                return ({{TYPE}}) val;
+            }
+        } else {
+            if (is_unsigned && unlikely(val < 0)) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "can't convert negative value to {{TYPE}}");
+                return ({{TYPE}}) -1;
+            } else {
+                return ({{TYPE}}) val;
+            }
+        }
+    } else
+#endif
+    if (likely(PyLong_Check(x))) {
+        if (is_unsigned) {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
+            if (sizeof(digit) <= sizeof({{TYPE}})) {
+                switch (Py_SIZE(x)) {
+                    case  0: return 0;
+                    case  1: return (%(type)s) ((PyLongObject*)x)->ob_digit[0];
+                }
+            }
+#endif
+#endif
+            if (unlikely(Py_SIZE(x) < 0)) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "can't convert negative value to {{TYPE}}");
+                return ({{TYPE}}) -1;
+            }
+            if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
+                unsigned long val = PyLong_AsUnsignedLong(x);
+                if (sizeof({{TYPE}}) < sizeof(unsigned long)
+                    && unlikely(val != ({{TYPE}}) val)) {
+                    PyErr_SetString(PyExc_OverflowError,
+                                    "value too large to convert to {{TYPE}}");
+                    return ({{TYPE}}) -1;
+                }
+                return ({{TYPE}}) val;
+            } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
+                unsigned long long val = PyLong_AsUnsignedLongLong(x);
+                if (sizeof({{TYPE}}) < sizeof(unsigned long long)
+                    && unlikely(val != ({{TYPE}}) val)) {
+                    PyErr_SetString(PyExc_OverflowError,
+                                    "value too large to convert to {{TYPE}}");
+                    return ({{TYPE}}) -1;
+                }
+                return ({{TYPE}}) val;
+            } else {
+                // Huh?
+                return ({{TYPE}}) PyLong_AsUnsignedLongLong(x);
+            }
+        } else {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_PYLONG_INTERNALS
+            if (sizeof(digit) <= sizeof({{TYPE}}) {
+                switch (Py_SIZE(x)) {
+                    case  0: return 0;
+                    case  1: return +({{TYPE}}) ((PyLongObject*)x)->ob_digit[0];
+                    case -1: return -({{TYPE}}) ((PyLongObject*)x)->ob_digit[0];
+                }
+            }
+#endif
+#endif
+            if (sizeof({{TYPE}}) <= sizeof(long)) {
+                long val = PyLong_AsLong(x);
+                if (sizeof({{TYPE}}) < sizeof(long)
+                    && unlikely(val != ({{TYPE}}) val)) {
+                    PyErr_SetString(PyExc_OverflowError,
+                                    "value too large to convert to {{TYPE}}");
+                    return ({{TYPE}}) -1;
+                }
+                return ({{TYPE}}) val;
+            } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
+                long long val = PyLong_AsLongLong(x);
+                if (sizeof({{TYPE}}) < sizeof(long long)
+                    && unlikely(val != ({{TYPE}}) val)) {
+                    PyErr_SetString(PyExc_OverflowError,
+                                    "value too large to convert to {{TYPE}}");
+                    return ({{TYPE}}) -1;
+                }
+                return ({{TYPE}}) val;
+            } else {
+                // Huh?
+                return ({{TYPE}}) PyLong_AsLongLong(x);
+            }
+        }
+    } else {
+        {{TYPE}} val;
+        PyObject *tmp = __Pyx_PyNumber_Int(x);
+        if (!tmp) return ({{TYPE}}) -1;
+        val = {{FROM_PY_FUNCTION}}(tmp);
+        Py_DECREF(tmp);
+        return val;
+    }
+}
+
