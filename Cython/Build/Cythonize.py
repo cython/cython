@@ -88,6 +88,8 @@ def cython_compile(path_pattern, options):
                     exclude_failures=options.keep_going,
                     exclude=options.excludes,
                     compiler_directives=options.directives,
+                    force=options.force,
+                    quiet=options.quiet,
                     **options.options)
             finally:
                 if base_dir:
@@ -150,6 +152,10 @@ def parse_args(args):
                       type=int, default=parallel_compiles,
                       help=('run builds in N parallel jobs (default: %d)' %
                             parallel_compiles or 1))
+    parser.add_option('-f', '--force', dest='force', action='store_true',
+                      help='force recompilation')
+    parser.add_option('-q', '--quiet', dest='quiet', action='store_true',
+                      help='be less verbose during compilation')
 
     parser.add_option('--lenient', dest='lenient', action='store_true',
                       help='increase Python compatibility by ignoring some compile time errors')
