@@ -471,7 +471,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
             return PyInt_FromLong(value);
         } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
-            return PyLong_FromLong(value);
+            return PyLong_FromLongLong(value);
         }
     }
     {
@@ -509,9 +509,9 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 //@requires: CIntFromPyVerify
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
-#include "longintrepr.h"
-#endif
+ #if CYTHON_USE_PYLONG_INTERNALS
+  #include "longintrepr.h"
+ #endif
 #endif
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = 0;
@@ -534,14 +534,14 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     if (likely(PyLong_Check(x))) {
         if (is_unsigned) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
+ #if CYTHON_USE_PYLONG_INTERNALS
             if (sizeof(digit) <= sizeof({{TYPE}})) {
                 switch (Py_SIZE(x)) {
                     case  0: return 0;
                     case  1: return ({{TYPE}}) ((PyLongObject*)x)->ob_digit[0];
                 }
             }
-#endif
+ #endif
 #endif
             if (unlikely(Py_SIZE(x) < 0)) {
                 PyErr_SetString(PyExc_OverflowError,
@@ -552,13 +552,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, PyLong_AsUnsignedLong)
             } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long long, PyLong_AsUnsignedLongLong)
-            } else {
-                // That's a big type...
-                return ({{TYPE}}) PyLong_AsUnsignedLongLong(x);
             }
         } else {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
+ #if CYTHON_USE_PYLONG_INTERNALS
             if (sizeof(digit) <= sizeof({{TYPE}}) {
                 switch (Py_SIZE(x)) {
                     case  0: return 0;
@@ -566,16 +563,40 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                     case -1: return -({{TYPE}}) ((PyLongObject*)x)->ob_digit[0];
                 }
             }
-#endif
+ #endif
 #endif
             if (sizeof({{TYPE}}) <= sizeof(long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyLong_AsLong)
             } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, long long, PyLong_AsLongLong)
-            } else {
-                // That's a big type...
-                return ({{TYPE}}) PyLong_AsLongLong(x);
             }
+        }
+        {
+#if CYTHON_COMPILING_IN_PYPY && !defined(_PyLong_AsByteArray)
+            PyErr_SetString(PyExc_RuntimeError,
+                            "_PyLong_AsByteArray() not available in PyPy, cannot convert large numbers");
+#else
+            {{TYPE}} val;
+            PyObject *v = __Pyx_PyNumber_Int(x);
+ #if PY_MAJOR_VERSION < 3
+            if (likely(v) && !PyLong_Check(v)) {
+                PyObject *tmp = v;
+                v = PyNumber_Long(tmp);
+                Py_DECREF(tmp);
+            }
+ #endif
+            if (likely(v)) {
+                int one = 1; int is_little = (int)*(unsigned char *)&one;
+                unsigned char *bytes = (unsigned char *)&val;
+                int ret = _PyLong_AsByteArray((PyLongObject *)v,
+                                              bytes, sizeof(val),
+                                              is_little, !is_unsigned);
+                Py_DECREF(v);
+                if (likely(!ret))
+                    return val;
+            }
+#endif
+            return ({{TYPE}}) -1;
         }
     } else {
         {{TYPE}} val;
