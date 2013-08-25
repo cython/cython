@@ -139,6 +139,8 @@ def parse_args(args):
     parser.add_option('-s', '--option', metavar='NAME=VALUE', dest='options',
                       type=str, action='callback', callback=parse_options, default={},
                       help='set a cythonize option')
+    parser.add_option('-3', dest='python3_mode', action='store_true',
+                      help='use Python 3 syntax mode by default')
 
     parser.add_option('-x', '--exclude', metavar='PATTERN', dest='excludes',
                       action='append', default=[],
@@ -169,6 +171,8 @@ def parse_args(args):
         options.build = True
     if multiprocessing is None:
         options.parallel = 0
+    if options.python3_mode:
+        options.options['language_level'] = 3
     return options, args
 
 
