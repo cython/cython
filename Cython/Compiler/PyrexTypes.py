@@ -368,11 +368,12 @@ class CTypedefType(BaseType):
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.to_py_utility_code, self.to_py_function = \
-                        self._create_utility_code(c_typedef_int_to_py_function,
-                                                  '__Pyx_PyInt_to_py_%s')
+                    self.from_py_function = "__Pyx_PyInt_from_py_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntFromPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -389,11 +390,12 @@ class CTypedefType(BaseType):
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.from_py_utility_code, self.from_py_function = \
-                        self._create_utility_code(c_typedef_int_from_py_function,
-                                                  '__Pyx_PyInt_from_py_%s')
+                    self.to_py_function = "__Pyx_PyInt_to_py_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntToPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "TO_PY_FUNCTION": self.to_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -1565,18 +1567,20 @@ class CIntType(CNumericType):
             # Inject specializatioin used elsewhere.
             self.get_from_py_type_conversion()
 
-    def create_from_py_utility_code(self, env):
-        self.from_py_function = "__Pyx_PyInt_from_py_" + self.specialization_name()
-        env.use_utility_code(TempitaUtilityCode.load(
-            "CIntFromPy", "TypeConversion.c",
-            context={"TYPE": self.declaration_code(''), "FROM_PY_FUNCTION": self.from_py_function}))
-        return True
-
     def create_to_py_utility_code(self, env):
         self.to_py_function = "__Pyx_PyInt_to_py_" + self.specialization_name()
         env.use_utility_code(TempitaUtilityCode.load(
             "CIntToPy", "TypeConversion.c",
-            context={"TYPE": self.declaration_code(''), "TO_PY_FUNCTION": self.to_py_function}))
+            context={"TYPE": self.declaration_code(''),
+                     "TO_PY_FUNCTION": self.to_py_function}))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        self.from_py_function = "__Pyx_PyInt_from_py_" + self.specialization_name()
+        env.use_utility_code(TempitaUtilityCode.load(
+            "CIntFromPy", "TypeConversion.c",
+            context={"TYPE": self.declaration_code(''),
+                     "FROM_PY_FUNCTION": self.from_py_function}))
         return True
 
     def get_to_py_type_conversion(self):
