@@ -1375,19 +1375,21 @@ class CIntType(CNumericType):
     exception_value = -1
 
     def create_to_py_utility_code(self, env):
-        self.to_py_function = "__Pyx_PyInt_to_py_" + self.specialization_name()
-        env.use_utility_code(TempitaUtilityCode.load(
-            "CIntToPy", "TypeConversion.c",
-            context={"TYPE": self.declaration_code(''),
-                     "TO_PY_FUNCTION": self.to_py_function}))
+        if type(self).to_py_function is None:
+            self.to_py_function = "__Pyx_PyInt_to_py_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntToPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "TO_PY_FUNCTION": self.to_py_function}))
         return True
 
     def create_from_py_utility_code(self, env):
-        self.from_py_function = "__Pyx_PyInt_from_py_" + self.specialization_name()
-        env.use_utility_code(TempitaUtilityCode.load(
-            "CIntFromPy", "TypeConversion.c",
-            context={"TYPE": self.declaration_code(''),
-                     "FROM_PY_FUNCTION": self.from_py_function}))
+        if type(self).from_py_function is None:
+            self.from_py_function = "__Pyx_PyInt_from_py_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntFromPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "FROM_PY_FUNCTION": self.from_py_function}))
         return True
 
     def get_to_py_type_conversion(self):
