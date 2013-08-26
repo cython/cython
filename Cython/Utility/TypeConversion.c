@@ -44,6 +44,7 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
+static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
@@ -262,6 +263,20 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   return ival;
 }
 
+static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
+#if PY_VERSION_HEX < 0x02050000
+   if (ival <= LONG_MAX)
+       return PyInt_FromLong((long)ival);
+   else {
+       unsigned char *bytes = (unsigned char *) &ival;
+       int one = 1; int little = (int)*(unsigned char*)&one;
+       return _PyLong_FromByteArray(bytes, sizeof(size_t), little, 0);
+   }
+#else
+   return PyInt_FromSize_t(ival);
+#endif
+}
+
 
 /////////////// FromPyStructUtility.proto ///////////////
 {{struct_type_decl}};
@@ -336,7 +351,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
                     "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
        return (Py_UCS4)-1;
    }
-   ival = __Pyx_PyInt_AsLong(x);
+   ival = __Pyx_PyInt_As_long(x);
    if (unlikely(ival < 0)) {
        if (!PyErr_Occurred())
            PyErr_SetString(PyExc_OverflowError,
@@ -384,7 +399,7 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
         if (unlikely(!maxval))
             maxval = (long)PyUnicode_GetMax();
         #endif
-        ival = __Pyx_PyInt_AsLong(x);
+        ival = __Pyx_PyInt_As_long(x);
     }
     if (unlikely(ival < 0)) {
         if (!PyErr_Occurred())

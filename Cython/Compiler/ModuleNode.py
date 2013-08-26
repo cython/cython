@@ -589,6 +589,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_type.title())
         code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])
         
+        # These utility functions are assumed to exist and used elsewhere.
+        PyrexTypes.c_long_type.create_to_py_utility_code(env)
+        PyrexTypes.c_long_type.create_from_py_utility_code(env)
+        
         code.put(Nodes.branch_prediction_macros)
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)

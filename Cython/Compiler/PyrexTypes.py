@@ -368,11 +368,11 @@ class CTypedefType(BaseType):
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    self.from_py_function = "__Pyx_PyInt_from_py_" + self.specialization_name()
+                    self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load(
-                        "CIntFromPy", "TypeConversion.c",
+                        "CIntToPy", "TypeConversion.c",
                         context={"TYPE": self.declaration_code(''),
-                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                                 "TO_PY_FUNCTION": self.to_py_function}))
                     return True
                 elif base_type.is_float:
                     pass # XXX implement!
@@ -390,11 +390,11 @@ class CTypedefType(BaseType):
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    self.to_py_function = "__Pyx_PyInt_to_py_" + self.specialization_name()
+                    self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load(
-                        "CIntToPy", "TypeConversion.c",
+                        "CIntFromPy", "TypeConversion.c",
                         context={"TYPE": self.declaration_code(''),
-                                 "TO_PY_FUNCTION": self.to_py_function}))
+                                 "FROM_PY_FUNCTION": self.from_py_function}))
                     return True
                 elif base_type.is_float:
                     pass # XXX implement!
@@ -1366,6 +1366,14 @@ class CNumericType(CType):
         return "float"
 
 
+class ForbidUseClass:
+    def __repr__(self):
+        raise RuntimeError()
+    def __str__(self):
+        raise RuntimeError()
+ForbidUse = ForbidUseClass()
+
+
 class CIntType(CNumericType):
 
     is_int = 1
@@ -1376,7 +1384,7 @@ class CIntType(CNumericType):
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
-            self.to_py_function = "__Pyx_PyInt_to_py_" + self.specialization_name()
+            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load(
                 "CIntToPy", "TypeConversion.c",
                 context={"TYPE": self.declaration_code(''),
@@ -1385,7 +1393,7 @@ class CIntType(CNumericType):
 
     def create_from_py_utility_code(self, env):
         if type(self).from_py_function is None:
-            self.from_py_function = "__Pyx_PyInt_from_py_" + self.specialization_name()
+            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load(
                 "CIntFromPy", "TypeConversion.c",
                 context={"TYPE": self.declaration_code(''),
@@ -1587,6 +1595,8 @@ class CSSizeTType(CIntType):
         return "Py_ssize_t"
 
 class CSizeTType(CIntType):
+
+    to_py_function = "__Pyx_PyInt_FromSize_t"
 
     def sign_and_name(self):
         return "size_t"
