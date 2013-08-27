@@ -592,6 +592,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # These utility functions are assumed to exist and used elsewhere.
         PyrexTypes.c_long_type.create_to_py_utility_code(env)
         PyrexTypes.c_long_type.create_from_py_utility_code(env)
+        PyrexTypes.c_int_type.create_from_py_utility_code(env)
         
         code.put(Nodes.branch_prediction_macros)
         code.putln('')

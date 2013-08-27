@@ -47,7 +47,7 @@
   #define PY_FORMAT_SIZE_T ""
   #define CYTHON_FORMAT_SSIZE_T ""
   #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
-  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_AsInt(o)
+  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_As_int(o)
   #define PyNumber_Index(o)    ((PyNumber_Check(o) && !PyFloat_Check(o)) ? PyNumber_Int(o) : \
                                 (PyErr_Format(PyExc_TypeError, \
                                               "expected index value, got %.200s", Py_TYPE(o)->tp_name), \
