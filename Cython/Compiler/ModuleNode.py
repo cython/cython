@@ -532,6 +532,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("    #error Cython requires Python 2.4+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
+        
+        from Cython import __version__
+        code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
 
         code.put(UtilityCode.load_as_string("CModulePreamble", "ModuleSetupCode.c")[1])
 

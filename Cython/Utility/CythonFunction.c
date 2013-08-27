@@ -27,6 +27,7 @@ typedef struct {
     PyObject *func_name;
     PyObject *func_qualname;
     PyObject *func_doc;
+    PyObject *func_globals;
     PyObject *func_code;
     PyObject *func_closure;
     PyObject *func_classobj; /* No-args super() class cell */
@@ -44,12 +45,13 @@ typedef struct {
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
 
-#define __Pyx_CyFunction_NewEx(ml, flags, qualname, self, module, code) \
-    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, self, module, code)
+#define __Pyx_CyFunction_NewEx(ml, flags, qualname, self, module, globals, code) \
+    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, self, module, globals, code)
 
 static PyObject *__Pyx_CyFunction_New(PyTypeObject *, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
-                                      PyObject *self, PyObject *module,
+                                      PyObject *self,
+                                      PyObject *module, PyObject *globals,
                                       PyObject* code);
 
 static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *m,
@@ -67,6 +69,7 @@ static int __Pyx_CyFunction_init(void);
 
 //////////////////// CythonFunction ////////////////////
 //@substitute: naming
+//@requires: CommonTypes.c::FetchCommonType
 
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
@@ -212,18 +215,11 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
     return 0;
 }
 
-//  TODO: we implicitly use the global module to get func_globals.  This
-//  will need to be passed into __Pyx_CyFunction_NewEx() if we share
-//  this type across modules.  We currently avoid doing this to reduce
-//  the overhead of creating a function object, and to avoid keeping a
-//  reference to the module dict as long as we don't need to.
-
 static PyObject *
-__Pyx_CyFunction_get_globals(CYTHON_UNUSED __pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_globals(__pyx_CyFunctionObject *op)
 {
-    PyObject* dict = PyModule_GetDict(${module_cname});
-    Py_XINCREF(dict);
-    return dict;
+    Py_INCREF(op->func_globals);
+    return op->func_globals;
 }
 
 static PyObject *
@@ -399,7 +395,7 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
 
 
 static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject* qualname,
-                                      PyObject *closure, PyObject *module, PyObject* code) {
+                                      PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, type);
     if (op == NULL)
         return NULL;
@@ -417,6 +413,8 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->func_qualname = qualname;
     op->func_doc = NULL;
     op->func_classobj = NULL;
+    op->func_globals = globals;
+    Py_INCREF(op->func_globals);
     Py_XINCREF(code);
     op->func_code = code;
     /* Dynamic Default args */
@@ -439,6 +437,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_name);
     Py_CLEAR(m->func_qualname);
     Py_CLEAR(m->func_doc);
+    Py_CLEAR(m->func_globals);
     Py_CLEAR(m->func_code);
     Py_CLEAR(m->func_classobj);
     Py_CLEAR(m->defaults_tuple);
@@ -476,6 +475,7 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_name);
     Py_VISIT(m->func_qualname);
     Py_VISIT(m->func_doc);
+    Py_VISIT(m->func_globals);
     Py_VISIT(m->func_code);
     Py_VISIT(m->func_classobj);
     Py_VISIT(m->defaults_tuple);
@@ -645,9 +645,10 @@ static int __Pyx_CyFunction_init(void) {
     // avoid a useless level of call indirection
     __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;
 #endif
-    if (PyType_Ready(&__pyx_CyFunctionType_type) < 0)
+    __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
+    if (__pyx_CyFunctionType == NULL) {
         return -1;
-    __pyx_CyFunctionType = &__pyx_CyFunctionType_type;
+    }
     return 0;
 }
 
@@ -706,11 +707,12 @@ typedef struct {
     PyObject *self;
 } __pyx_FusedFunctionObject;
 
-#define __pyx_FusedFunction_NewEx(ml, flags, qualname, self, module, code)         \
-        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, qualname, self, module, code)
+#define __pyx_FusedFunction_NewEx(ml, flags, qualname, self, module, globals, code)         \
+        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, qualname, self, module, globals, code)
 static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
                                          PyMethodDef *ml, int flags,
-                                         PyObject *qualname, PyObject *self, PyObject *module,
+                                         PyObject *qualname, PyObject *self,
+                                         PyObject *module, PyObject *globals,
                                          PyObject *code);
 
 static int __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self);
@@ -725,11 +727,12 @@ static int __pyx_FusedFunction_init(void);
 static PyObject *
 __pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
                         PyObject *qualname, PyObject *self,
-                        PyObject *module, PyObject *code)
+                        PyObject *module, PyObject *globals,
+                        PyObject *code)
 {
     __pyx_FusedFunctionObject *fusedfunc =
         (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, flags, qualname,
-                                                           self, module, code);
+                                                           self, module, globals, code);
     if (!fusedfunc)
         return NULL;
 
@@ -787,6 +790,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
                     ((__pyx_CyFunctionObject *) func)->func_qualname,
                     ((__pyx_CyFunctionObject *) func)->func_closure,
                     ((PyCFunctionObject *) func)->m_module,
+                    ((__pyx_CyFunctionObject *) func)->func_globals,
                     ((__pyx_CyFunctionObject *) func)->func_code);
     if (!meth)
         return NULL;
@@ -1088,10 +1092,10 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 };
 
 static int __pyx_FusedFunction_init(void) {
-    if (PyType_Ready(&__pyx_FusedFunctionType_type) < 0) {
+    __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
+    if (__pyx_FusedFunctionType == NULL) {
         return -1;
     }
-    __pyx_FusedFunctionType = &__pyx_FusedFunctionType_type;
     return 0;
 }
 

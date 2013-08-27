@@ -57,6 +57,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
 //@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: CommonTypes.c::FetchCommonType
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
@@ -653,9 +654,10 @@ static int __pyx_Generator_init(void) {
     /* on Windows, C-API functions can't be used in slots statically */
     __pyx_GeneratorType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
-    if (PyType_Ready(&__pyx_GeneratorType_type)) {
+
+    __pyx_GeneratorType = __Pyx_FetchCommonType(&__pyx_GeneratorType_type);
+    if (__pyx_GeneratorType == NULL) {
         return -1;
     }
-    __pyx_GeneratorType = &__pyx_GeneratorType_type;
     return 0;
 }
