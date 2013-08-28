@@ -8,6 +8,13 @@ Cython Changelog
 Features added
 --------------
 
+* Some types that Cython provides internally, such as functions and
+  generators, are now shared across modules if more than one Cython
+  implemented module is imported.
+
+* The type inference algorithm works more fine granular by taking the
+  results of the control flow analysis into account.
+
 * A new script in ``bin/cythonize`` provides a command line frontend
   to the cythonize() compilation function (including distutils build).
 
