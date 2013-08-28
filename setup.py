@@ -105,6 +105,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         "Cython.Compiler.Code",
                         "Cython.Runtime.refnanny",
                         # "Cython.Compiler.FusedNode",
+                        "Cython.Tempita._tempita",
                         ]
     if compile_more:
         compiled_modules.extend([
