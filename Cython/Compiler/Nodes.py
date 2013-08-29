@@ -5183,6 +5183,7 @@ class AssertStatNode(StatNode):
 
     def generate_execution_code(self, code):
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
+        code.putln("if (unlikely(!Py_OptimizeFlag)) {")
         self.cond.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
@@ -5203,6 +5204,8 @@ class AssertStatNode(StatNode):
             "}")
         self.cond.generate_disposal_code(code)
         self.cond.free_temps(code)
+        code.putln(
+            "}")
         code.putln("#endif")
 
     def generate_function_definitions(self, env, code):
