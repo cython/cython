@@ -337,8 +337,9 @@ builtin_types_table = [
 types_that_construct_their_instance = set([
     # some builtin types do not always return an instance of
     # themselves - these do:
-    'type', 'bool', 'long', 'float', 'bytes', 'unicode', 'tuple', 'list',
-    'dict', 'set', 'frozenset'
+    'type', 'bool', 'long', 'float', 'complex',
+    'bytes', 'unicode', 'bytearray',
+    'tuple', 'list', 'dict', 'set', 'frozenset'
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
 ])
