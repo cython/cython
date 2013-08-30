@@ -40,6 +40,10 @@
 #define CYTHON_COMPILING_IN_CPYTHON 1
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY
+#define Py_OptimizeFlag 0
+#endif
+
 #if PY_VERSION_HEX < 0x02050000
   typedef int Py_ssize_t;
   #define PY_SSIZE_T_MAX INT_MAX
