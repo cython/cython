@@ -8,6 +8,11 @@ Cython Changelog
 Features added
 --------------
 
+* Support for the ``__debug__`` builtin.
+
+* Assertions in Cython compiled modules are disabled if the running
+  Python interpreter was started with the "-O" option.
+
 * Some types that Cython provides internally, such as functions and
   generators, are now shared across modules if more than one Cython
   implemented module is imported.
