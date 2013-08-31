@@ -22,7 +22,7 @@ from Cython.Compiler import Options
 Options.error_on_unknown_names = False
 Options.error_on_uninitialized = False
 
-excludes = ['**/test/**/*.py', '**/tests/**/*.py', '**/__init__.py']
+exclude_patterns = ['**/test/**/*.py', '**/tests/**/*.py', '**/__init__.py']
 broken = [
     'idlelib/MultiCall.py',
     'email/utils.py',
@@ -79,12 +79,13 @@ special_directives = [
 del special_directives[:]  # currently unused
 
 def build_extensions(includes='**/*.py',
-                     excludes=excludes+broken,
+                     excludes=None,
                      special_directives=special_directives,
                      language_level=sys.version_info[0],
                      parallel=None):
     if isinstance(includes, str):
         includes = [includes]
+    excludes = list(excludes or ()) + exclude_patterns + broken
 
     all_groups = (special_directives or []) + [(includes, {})]
     extensions = []
@@ -98,13 +99,14 @@ def build_extensions(includes='**/*.py',
         d.update(directives)
 
         extensions.extend(
-            cythonize(modules,
+            cythonize(
+                modules,
                 exclude=exclude_now,
                 exclude_failures=True,
                 language_level=language_level,
                 compiler_directives=d,
                 nthreads=parallel,
-                ))
+            ))
     return extensions
 
 
@@ -137,6 +139,9 @@ def parse_args():
         '-j', '--jobs', dest='parallel_jobs', metavar='N',
         type=int, default=1,
         help='run builds in N parallel jobs (default: 1)')
+    parser.add_option(
+        '-x', '--exclude', dest='excludes', metavar='PATTERN',
+        action="append", help='exclude modules/packages matching PATTERN')
     options, args = parser.parse_args()
     if not args:
         args = ['./Lib']
@@ -164,7 +169,9 @@ if __name__ == '__main__':
             print("Not building in parallel")
             parallel_jobs = 0
 
-    extensions = build_extensions(parallel=parallel_jobs)
+    extensions = build_extensions(
+        parallel=parallel_jobs,
+        excludes=options.excludes)
     sys_args = ['build_ext', '-i']
     if pool is not None:
         results = pool.map(_build, [(sys_args, ext) for ext in extensions])
