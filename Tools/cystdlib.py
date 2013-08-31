@@ -31,6 +31,7 @@ broken = [
     'threading.py',      # interrupt handling
     'lib2to3/fixes/fix_sys_exc.py',
     'traceback.py',
+    'importlib/_bootstrap',
 ]
 
 default_directives = dict(
