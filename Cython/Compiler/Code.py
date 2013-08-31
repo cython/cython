@@ -43,6 +43,7 @@ non_portable_builtins_map = {
     'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
     'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
+    'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
     'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
     }
 
