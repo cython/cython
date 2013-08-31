@@ -20,6 +20,7 @@ from Cython.Compiler import Options
 
 # improve Python compatibility by allowing some broken code
 Options.error_on_unknown_names = False
+Options.error_on_uninitialized = False
 
 excludes = ['**/test/**/*.py', '**/tests/**/*.py', '**/__init__.py']
 broken = [
