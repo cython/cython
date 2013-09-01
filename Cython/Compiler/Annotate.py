@@ -76,8 +76,7 @@ class AnnotationCCodeWriter(CCodeWriter):
                     else:
                         all.append((pos, start+end))
 
-        all.sort()
-        all.reverse()
+        all.sort(reverse=True)
         for pos, item in all:
             _, line_no, col = pos
             line_no -= 1
