@@ -122,7 +122,7 @@ body { font-family: courier; font-size: 12; }
 <script>
 function toggleDiv(id) {
     theDiv = document.getElementById(id);
-    if (theDiv.style.display == 'none') theDiv.style.display = 'block';
+    if (theDiv.style.display != 'block') theDiv.style.display = 'block';
     else theDiv.style.display = 'none';
 }
 </script>
