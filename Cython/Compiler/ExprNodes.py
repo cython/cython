@@ -2043,9 +2043,10 @@ class NameNode(AtomicExprNode):
         if hasattr(self, 'is_called') and self.is_called:
             pos = (self.pos[0], self.pos[1], self.pos[2] - len(self.name) - 1)
             if self.type.is_pyobject:
-                code.annotate(pos, AnnotationItem('py_call', 'python function', size=len(self.name)))
+                style, text = 'py_call', 'python function (%s)'
             else:
-                code.annotate(pos, AnnotationItem('c_call', 'c function', size=len(self.name)))
+                style, text = 'c_call', 'c function (%s)'
+            code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
 class BackquoteNode(ExprNode):
     #  `expr`
@@ -5378,9 +5379,10 @@ class AttributeNode(ExprNode):
 
     def annotate(self, code):
         if self.is_py_attr:
-            code.annotate(self.pos, AnnotationItem('py_attr', 'python attribute', size=len(self.attribute)))
+            style, text = 'py_attr', 'python attribute (%s)'
         else:
-            code.annotate(self.pos, AnnotationItem('c_attr', 'c attribute', size=len(self.attribute)))
+            style, text = 'c_attr', 'c attribute (%s)'
+        code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
 
 #-------------------------------------------------------------------
@@ -10049,7 +10051,8 @@ class CoercionNode(ExprNode):
         self.arg.annotate(code)
         if self.arg.type != self.type:
             file, line, col = self.pos
-            code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
+            code.annotate((file, line, col-1), AnnotationItem(
+                style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
 class CoerceToMemViewSliceNode(CoercionNode):
     """
