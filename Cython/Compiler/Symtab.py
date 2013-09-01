@@ -42,6 +42,7 @@ class BufferAux(object):
     def __repr__(self):
         return "<BufferAux %r>" % self.__dict__
 
+
 class Entry(object):
     # A symbol table entry in a Scope or ModuleNamespace.
     #
@@ -2005,10 +2006,11 @@ class CClassScope(ClassScope):
 
         entries = base_scope.inherited_var_entries + base_scope.var_entries
         for base_entry in entries:
-                entry = self.declare(base_entry.name, adapt(base_entry.cname),
-                    base_entry.type, None, 'private')
-                entry.is_variable = 1
-                self.inherited_var_entries.append(entry)
+            entry = self.declare(
+                base_entry.name, adapt(base_entry.cname),
+                base_entry.type, None, 'private')
+            entry.is_variable = 1
+            self.inherited_var_entries.append(entry)
 
         # If the class defined in a pxd, specific entries have not been added.
         # Ensure now that the parent (base) scope has specific entries
@@ -2031,7 +2033,7 @@ class CClassScope(ClassScope):
                 entry.is_final_cmethod = True
                 entry.is_inline_cmethod = base_entry.is_inline_cmethod
                 if (self.parent_scope == base_scope.parent_scope or
-                    entry.is_inline_cmethod):
+                        entry.is_inline_cmethod):
                     entry.final_func_cname = base_entry.final_func_cname
             if is_builtin:
                 entry.is_builtin_cmethod = True
