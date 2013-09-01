@@ -87,7 +87,7 @@ def build_extensions(includes='**/*.py',
                      parallel=None):
     if isinstance(includes, str):
         includes = [includes]
-    excludes = list(excludes or ()) + exclude_patterns + broken
+    excludes = list(excludes or exclude_patterns) + broken
 
     all_groups = (special_directives or []) + [(includes, {})]
     extensions = []
