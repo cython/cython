@@ -3513,8 +3513,6 @@ c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
 cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
                                       None, 0, "__pyx_memoryview_obj")
 
-cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
-
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
