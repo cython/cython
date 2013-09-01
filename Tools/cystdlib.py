@@ -31,6 +31,8 @@ broken = [
     'threading.py',      # interrupt handling
     'lib2to3/fixes/fix_sys_exc.py',
     'traceback.py',
+    'types.py',
+    'enum.py',
     'importlib/_bootstrap',
 ]
 
