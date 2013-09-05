@@ -48,8 +48,8 @@ fast for use from Cython and one slower for use from Python. Then::
 
 This does slightly more than providing a python wrapper for a cdef
 method: unlike a cdef method, a cpdef method is fully overrideable by
-subclasses and instance attributes. This adds a little calling overhead
-compared to a cdef method.
+methods and instance attributes in Python subclasses.  It adds a
+little calling overhead compared to a cdef method.
 
 Using this, we can now change our integration example::
 
