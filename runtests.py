@@ -479,9 +479,13 @@ class TestBuilder(object):
                 languages = self.languages[:1]
         else:
             languages = self.languages
+
         if 'cpp' in tags['tag'] and 'c' in languages:
             languages = list(languages)
             languages.remove('c')
+        elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
+            languages = list(languages)
+            languages.remove('cpp')
         tests = [ self.build_test(test_class, path, workdir, module,
                                   language, expect_errors, warning_errors)
                   for language in languages ]
