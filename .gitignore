@@ -7,6 +7,7 @@ __pycache__
 Cython/Compiler/*.c
 Cython/Plex/*.c
 Cython/Runtime/refnanny.c
+Cython/Tempita/*.c
 
 Tools/*.elc
 

@@ -115,7 +115,14 @@ def update_linetrace_extension(ext):
 
 def update_numpy_extension(ext):
     import numpy
+    from numpy.distutils.misc_util import get_info
+
     ext.include_dirs.append(numpy.get_include())
+
+    # We need the npymath library for numpy.math.
+    # This is typically a static-only library.
+    for attr, value in get_info('npymath').items():
+        getattr(ext, attr).extend(value)
 
 def update_openmp_extension(ext):
     ext.openmp = True
