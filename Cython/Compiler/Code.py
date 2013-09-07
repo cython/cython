@@ -724,10 +724,10 @@ class PyObjectConst(object):
         self.type = type
 
 cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
-               nice_identifier=object, find_alphanums=object)
+               replace_identifier=object, find_alphanums=object)
 possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
-nice_identifier = re.compile(r'\A[a-zA-Z0-9_]+\Z').match
+replace_identifier = re.compile(r'[^a-zA-Z0-9_]+').sub
 find_alphanums = re.compile('([a-zA-Z0-9]+)').findall
 
 class StringConst(object):
@@ -847,7 +847,7 @@ class GlobalState(object):
     #                                  In time, hopefully the literals etc. will be
     #                                  supplied directly instead.
     #
-    # const_cname_counter int          global counter for constant identifiers
+    # const_cname_counters dict        global counters for constant identifiers
     #
 
     # parts            {string:CCodeWriter}
@@ -903,7 +903,7 @@ class GlobalState(object):
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer
 
-        self.const_cname_counter = 1
+        self.const_cname_counters = {}
         self.string_const_index = {}
         self.pyunicode_ptr_const_index = {}
         self.int_const_index = {}
@@ -1027,9 +1027,9 @@ class GlobalState(object):
             c = self.new_int_const(str_value, longness)
         return c
 
-    def get_py_const(self, type, prefix='', cleanup_level=None):
+    def get_py_const(self, type, prefix='', cleanup_level=None, value=''):
         # create a new Python object constant
-        const = self.new_py_const(type, prefix)
+        const = self.new_py_const(type, prefix, value=value)
         if cleanup_level is not None \
                and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
@@ -1087,8 +1087,8 @@ class GlobalState(object):
         self.int_const_index[(value, longness)] = c
         return c
 
-    def new_py_const(self, type, prefix=''):
-        cname = self.new_const_cname(prefix)
+    def new_py_const(self, type, prefix='', value=''):
+        cname = self.new_const_cname(prefix, value=value)
         c = PyObjectConst(cname, type)
         self.py_constants.append(c)
         return c
@@ -1098,12 +1098,9 @@ class GlobalState(object):
         try:
             value = bytes_value.decode('ASCII')
         except UnicodeError:
-            return self.new_const_cname()
+            return self.new_const_cname(value=bytes_value)
 
-        if len(value) < 20 and nice_identifier(value):
-            return "%s_%s" % (Naming.const_prefix, value)
-        else:
-            return self.new_const_cname()
+        return self.new_const_cname(value=value)
 
     def new_int_const_cname(self, value, longness):
         if longness:
@@ -1112,10 +1109,16 @@ class GlobalState(object):
         cname = cname.replace('-', 'neg_').replace('.','_')
         return cname
 
-    def new_const_cname(self, prefix=''):
-        n = self.const_cname_counter
-        self.const_cname_counter += 1
-        return "%s%s%d" % (Naming.const_prefix, prefix, n)
+    def new_const_cname(self, prefix='', value=''):
+        if hasattr(value, 'decode'):
+            value = value.decode('ASCII', 'ignore')
+        value = replace_identifier('_', value)[:32].strip('_')
+        c = self.const_cname_counters
+        c[value] = c.setdefault(value, 0) + 1
+        if c[value] == 1:
+            return "%s%s%s" % (Naming.const_prefix, prefix, value)
+        else:
+            return "%s%s%s_%d" % (Naming.const_prefix, prefix, value, c[value])
 
     def add_cached_builtin_decl(self, entry):
         if entry.is_builtin and entry.is_const:
