@@ -13,7 +13,7 @@ There are several ways to build Cython code:
 
  - Write a distutils ``setup.py``.
  - Use ``pyximport``, importing Cython ``.pyx`` files as if they
-   were ``.py`` files (using distutils to compile and build the background).
+   were ``.py`` files (using distutils to compile and build in the background).
  - Run the ``cython`` command-line utility manually to produce the ``.c`` file
    from the ``.pyx`` file, then manually compiling the ``.c`` file into a shared
    object library or ``.dll`` suitable for import from Python.
