@@ -916,10 +916,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header)
         base_type = type.base_type
         if base_type:
+            basestruct_cname = base_type.objstruct_cname
+            if basestruct_cname == "PyTypeObject":
+                # User-defined subclasses of type are heap allocated.
+                basestruct_cname = "PyHeapTypeObject"
             code.putln(
                 "%s%s %s;" % (
                     ("struct ", "")[base_type.typedef_flag],
-                    base_type.objstruct_cname,
+                    basestruct_cname,
                     Naming.obj_base_cname))
         else:
             code.putln(
