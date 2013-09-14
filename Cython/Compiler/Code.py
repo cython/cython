@@ -1093,13 +1093,9 @@ class GlobalState(object):
         self.py_constants.append(c)
         return c
 
-    def new_string_const_cname(self, bytes_value, intern=None):
+    def new_string_const_cname(self, bytes_value):
         # Create a new globally-unique nice name for a C string constant.
-        try:
-            value = bytes_value.decode('ASCII')
-        except UnicodeError:
-            return self.new_const_cname(value=bytes_value)
-
+        value = bytes_value.decode('ASCII', 'ignore')
         return self.new_const_cname(value=value)
 
     def new_int_const_cname(self, value, longness):
@@ -1114,7 +1110,7 @@ class GlobalState(object):
             value = value.decode('ASCII', 'ignore')
         value = replace_identifier('_', value)[:32].strip('_')
         c = self.const_cname_counters
-        c[value] = c.setdefault(value, 0) + 1
+        c[value] = c.get(value, 0) + 1
         if c[value] == 1:
             return "%s%s%s" % (Naming.const_prefix, prefix, value)
         else:
