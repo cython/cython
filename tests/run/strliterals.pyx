@@ -148,6 +148,9 @@ __doc__ = ur"""
     ...  sys.version_info[0] >= 3 and ord(str_uescape[-2]) or str_uescape[-12:-1])
     True
 
+    >>> same_cname
+    [b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
+
     >>> newlines
     'Aaa\n'
 
@@ -165,7 +168,7 @@ import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u" u'", u" '").replace(u" U'", u" '").replace(u" ur'", u" r'").replace(u" uR'", u" R'").replace(u" Ur'", u" r'").replace(u" UR'", u" R'")
 else:
-    __doc__ = __doc__.replace(u" b'", u" '").replace(u" B'", u" '").replace(u" br'", u" r'").replace(u" bR'", u" R'").replace(u" Br'", u" r'").replace(u" BR'", u" R'")
+    __doc__ = __doc__.replace(u" b'", u" '").replace(u" B'", u" '").replace(u" br'", u" r'").replace(u" bR'", u" R'").replace(u" Br'", u" r'").replace(u" BR'", u" R'").replace(u"[b'", u"['")
 
 s1 = "abc\x11"
 s2 = r"abc\x11"
@@ -190,6 +193,8 @@ uresc = ur'\12\'\"\\'
 
 bytes_uescape = b'\u1234\U12345678\u\u1\u12\uX'
 str_uescape = '\u0063\U00012345\N{SNOWMAN}\x42'
+
+same_cname = [b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
 
 newlines = "Aaa\n"
 

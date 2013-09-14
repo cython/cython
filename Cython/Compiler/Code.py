@@ -847,7 +847,7 @@ class GlobalState(object):
     #                                  In time, hopefully the literals etc. will be
     #                                  supplied directly instead.
     #
-    # const_cname_counters dict        global counters for constant identifiers
+    # const_cnames_used  set           global index of unique constant identifiers
     #
 
     # parts            {string:CCodeWriter}
@@ -903,7 +903,7 @@ class GlobalState(object):
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer
 
-        self.const_cname_counters = {}
+        self.const_cnames_used = set()
         self.string_const_index = {}
         self.pyunicode_ptr_const_index = {}
         self.int_const_index = {}
@@ -1109,12 +1109,14 @@ class GlobalState(object):
         if hasattr(value, 'decode'):
             value = value.decode('ASCII', 'ignore')
         value = replace_identifier('_', value)[:32].strip('_')
-        c = self.const_cname_counters
-        c[value] = c.get(value, 0) + 1
-        if c[value] == 1:
-            return "%s%s%s" % (Naming.const_prefix, prefix, value)
-        else:
-            return "%s%s%s_%d" % (Naming.const_prefix, prefix, value, c[value])
+        used = self.const_cnames_used
+        counter = 1
+        name_suffix = value
+        while name_suffix in used:
+            counter += 1
+            name_suffix = '%s_%d' % (value, counter)
+        used.add(name_suffix)
+        return "%s%s%s" % (Naming.const_prefix, prefix, name_suffix)
 
     def add_cached_builtin_decl(self, entry):
         if entry.is_builtin and entry.is_const:
