@@ -1027,11 +1027,11 @@ class GlobalState(object):
             c = self.new_int_const(str_value, longness)
         return c
 
-    def get_py_const(self, type, prefix='', cleanup_level=None, value=''):
+    def get_py_const(self, type, prefix='', cleanup_level=None):
         # create a new Python object constant
-        const = self.new_py_const(type, prefix, value=value)
+        const = self.new_py_const(type, prefix)
         if cleanup_level is not None \
-               and cleanup_level <= Options.generate_cleanup_code:
+                and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         return const
@@ -1087,8 +1087,8 @@ class GlobalState(object):
         self.int_const_index[(value, longness)] = c
         return c
 
-    def new_py_const(self, type, prefix='', value=''):
-        cname = self.new_const_cname(prefix, value=value)
+    def new_py_const(self, type, prefix=''):
+        cname = self.new_const_cname(prefix)
         c = PyObjectConst(cname, type)
         self.py_constants.append(c)
         return c
@@ -1106,8 +1106,6 @@ class GlobalState(object):
         return cname
 
     def new_const_cname(self, prefix='', value=''):
-        if hasattr(value, 'decode'):
-            value = value.decode('ASCII', 'ignore')
         value = replace_identifier('_', value)[:32].strip('_')
         used = self.const_cnames_used
         counter = 1
