@@ -149,7 +149,7 @@ __doc__ = ur"""
     True
 
     >>> same_cname
-    [b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
+    [b'abc\xf0_2', b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
 
     >>> newlines
     'Aaa\n'
@@ -194,7 +194,7 @@ uresc = ur'\12\'\"\\'
 bytes_uescape = b'\u1234\U12345678\u\u1\u12\uX'
 str_uescape = '\u0063\U00012345\N{SNOWMAN}\x42'
 
-same_cname = [b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
+same_cname = [b'abc\xf0_2', b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
 
 newlines = "Aaa\n"
 
