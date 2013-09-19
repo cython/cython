@@ -2,7 +2,7 @@ import cython
 from Cython import __version__
 
 from glob import glob
-import re, os, sys
+import re, os, sys, time
 try:
     import gzip
     gzip_open = gzip.open
@@ -337,6 +337,20 @@ def resolve_depend(depend, include_dirs):
     return None
 
 @cached_function
+def package(filename):
+    dir = os.path.dirname(os.path.abspath(str(filename)))
+    if dir != filename and path_exists(join_path(dir, '__init__.py')):
+        return package(dir) + (os.path.basename(dir),)
+    else:
+        return ()
+
+@cached_function
+def fully_qualifeid_name(filename):
+    module = os.path.splitext(os.path.basename(filename))[0]
+    return '.'.join(package(filename) + (module,))
+
+
+@cached_function
 def parse_dependencies(source_filename):
     # Actual parsing is way to slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
@@ -411,18 +425,11 @@ class DependencyTree(object):
     def cimports(self, filename):
         return self.cimports_and_externs(filename)[0]
 
-    @cached_method
     def package(self, filename):
-        dir = os.path.dirname(os.path.abspath(str(filename)))
-        if dir != filename and path_exists(join_path(dir, '__init__.py')):
-            return self.package(dir) + (os.path.basename(dir),)
-        else:
-            return ()
+        return package(filename)
 
-    @cached_method
     def fully_qualifeid_name(self, filename):
-        module = os.path.splitext(os.path.basename(filename))[0]
-        return '.'.join(self.package(filename) + (module,))
+        return fully_qualifeid_name(filename)
 
     @cached_method
     def find_pxd(self, module, filename=None):
@@ -789,7 +796,42 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     sys.stdout.flush()
     return module_list
 
+
+if os.environ['XML_RESULTS']:
+    compile_result_dir = os.environ['XML_RESULTS']
+    def record_results(func):
+        def with_record(*args):
+            try:
+                t = time.time()
+                success = True
+                func(*args)
+            except:
+                success = False
+            finally:
+                t = time.time() - t
+                module = fully_qualifeid_name(args[0])
+                name = "cythonize." + module
+                failures = 1 - success
+                if success:
+                    failure_item = ""
+                else:
+                    failure_item = "failure"
+                output = open(os.path.join(compile_result_dir, name + ".xml"), "w")
+                output.write("""
+                    <?xml version="1.0" ?>
+                    <testsuite name="%(name)s" errors="0" failures="%(failures)s" tests="1" time="%(t)s">
+                    <testcase classname="%(name)s" name="cythonize">
+                    %(failure_item)s
+                    </testcase>
+                    </testsuite>
+                """.strip() % locals())
+                output.close()
+        return with_record
+else:
+    record_results = lambda x: x
+
 # TODO: Share context? Issue: pyx processing leaks into pxd module
+@record_results
 def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True):
     from Cython.Compiler.Main import compile, default_options
     from Cython.Compiler.Errors import CompileError, PyrexError
