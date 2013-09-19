@@ -157,6 +157,7 @@ class ControlFlow(object):
     def is_statically_assigned(self, entry):
         if (entry.is_local and entry.is_variable and
                 (entry.type.is_struct_or_union or
+                 entry.type.is_complex or
                  entry.type.is_array or
                  entry.type.is_cpp_class)):
             # stack allocated structured variable => never uninitialised
