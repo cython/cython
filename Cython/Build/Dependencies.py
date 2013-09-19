@@ -797,7 +797,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     return module_list
 
 
-if os.environ['XML_RESULTS']:
+if os.environ.get('XML_RESULTS'):
     compile_result_dir = os.environ['XML_RESULTS']
     def record_results(func):
         def with_record(*args):
