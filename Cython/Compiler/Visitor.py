@@ -64,7 +64,7 @@ class TreeVisitor(object):
         self.access_path = []
 
     def dump_node(self, node, indent=0):
-        ignored = list(node.child_attrs) + [u'child_attrs', u'pos',
+        ignored = list(node.child_attrs or []) + [u'child_attrs', u'pos',
                                             u'gil_message', u'cpp_message',
                                             u'subexprs']
         values = []

@@ -592,6 +592,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_type.title())
         code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])
         
+        # These utility functions are assumed to exist and used elsewhere.
+        PyrexTypes.c_long_type.create_to_py_utility_code(env)
+        PyrexTypes.c_long_type.create_from_py_utility_code(env)
+        PyrexTypes.c_int_type.create_from_py_utility_code(env)
+        
         code.put(Nodes.branch_prediction_macros)
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
@@ -605,12 +610,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static int %s = 0;' % Naming.clineno_cname)
         code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
-
-        # XXX this is a mess
-        for utility_code in PyrexTypes.c_int_from_py_function.specialize_list:
-            env.use_utility_code(utility_code)
-        for utility_code in PyrexTypes.c_long_from_py_function.specialize_list:
-            env.use_utility_code(utility_code)
 
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro

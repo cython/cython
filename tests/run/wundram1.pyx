@@ -4,7 +4,7 @@ __doc__ = u"""
 """
 
 import sys
-if sys.version_info[0] >= 3:
+if sys.version_info[0] >= 3 or sys.maxint > 2**31:
     __doc__ = __doc__.replace(u"5L", u"5")
 
 cdef unsigned int ui

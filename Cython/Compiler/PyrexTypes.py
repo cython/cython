@@ -368,11 +368,12 @@ class CTypedefType(BaseType):
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.to_py_utility_code, self.to_py_function = \
-                        self._create_utility_code(c_typedef_int_to_py_function,
-                                                  '__Pyx_PyInt_to_py_%s')
+                    self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntToPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "TO_PY_FUNCTION": self.to_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -389,11 +390,12 @@ class CTypedefType(BaseType):
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.from_py_utility_code, self.from_py_function = \
-                        self._create_utility_code(c_typedef_int_from_py_function,
-                                                  '__Pyx_PyInt_from_py_%s')
+                    self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntFromPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -1363,191 +1365,14 @@ class CNumericType(CType):
             return "(int, long)"
         return "float"
 
-c_int_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
-    if (sizeof(%(type)s) < sizeof(long)) {
-        long val = __Pyx_PyInt_AsLong(x);
-        if (unlikely(val != (long)(%(type)s)val)) {
-            if (!unlikely(val == -1 && PyErr_Occurred())) {
-                PyErr_SetString(PyExc_OverflowError,
-                    (is_unsigned && unlikely(val < 0)) ?
-                    "can't convert negative value to %(type)s" :
-                    "value too large to convert to %(type)s");
-            }
-            return (%(type)s)-1;
-        }
-        return (%(type)s)val;
-    }
-    return (%(type)s)__Pyx_PyInt_As%(SignWord)sLong(x);
-}
-""") #fool emacs: '
 
-c_long_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
-""",
-impl="""
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
-#include "longintrepr.h"
-#endif
-#endif
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
-#if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check(x))) {
-        long val = PyInt_AS_LONG(x);
-        if (is_unsigned && unlikely(val < 0)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "can't convert negative value to %(type)s");
-            return (%(type)s)-1;
-        }
-        return (%(type)s)val;
-    } else
-#endif
-    if (likely(PyLong_Check(x))) {
-        if (is_unsigned) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (sizeof(digit) <= sizeof(%(type)s)) {
-                switch (Py_SIZE(x)) {
-                    case  0: return 0;
-                    case  1: return (%(type)s) ((PyLongObject*)x)->ob_digit[0];
-                }
-            }
-#endif
-#endif
-            if (unlikely(Py_SIZE(x) < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to %(type)s");
-                return (%(type)s)-1;
-            }
-            return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
-        } else {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (sizeof(digit) <= sizeof(%(type)s)) {
-                switch (Py_SIZE(x)) {
-                    case  0: return 0;
-                    case  1: return +(%(type)s) ((PyLongObject*)x)->ob_digit[0];
-                    case -1: return -(%(type)s) ((PyLongObject*)x)->ob_digit[0];
-                }
-            }
-#endif
-#endif
-            return (%(type)s)PyLong_As%(TypeName)s(x);
-        }
-    } else {
-        %(type)s val;
-        PyObject *tmp = __Pyx_PyNumber_Int(x);
-        if (!tmp) return (%(type)s)-1;
-        val = __Pyx_PyInt_As%(SignWord)s%(TypeName)s(tmp);
-        Py_DECREF(tmp);
-        return val;
-    }
-}
-""")
+class ForbidUseClass:
+    def __repr__(self):
+        raise RuntimeError()
+    def __str__(self):
+        raise RuntimeError()
+ForbidUse = ForbidUseClass()
 
-c_typedef_int_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
-    const int is_unsigned = const_zero < neg_one;
-    if (sizeof(%(type)s) == sizeof(char)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedChar(x);
-    } else if (sizeof(%(type)s) == sizeof(short)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedShort(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedShort(x);
-    } else if (sizeof(%(type)s) == sizeof(int)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedInt(x);
-    } else if (sizeof(%(type)s) == sizeof(long)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedLong(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedLong(x);
-    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedLongLong(x);
-    }  else {
-        #if CYTHON_COMPILING_IN_PYPY && !defined(_PyLong_AsByteArray)
-        PyErr_SetString(PyExc_RuntimeError,
-                        "_PyLong_AsByteArray() not available in PyPy, cannot convert large numbers");
-        #else
-        %(type)s val;
-        PyObject *v = __Pyx_PyNumber_Int(x);
-        #if PY_MAJOR_VERSION < 3
-        if (likely(v) && !PyLong_Check(v)) {
-            PyObject *tmp = v;
-            v = PyNumber_Long(tmp);
-            Py_DECREF(tmp);
-        }
-        #endif
-        if (likely(v)) {
-            int one = 1; int is_little = (int)*(unsigned char *)&one;
-            unsigned char *bytes = (unsigned char *)&val;
-            int ret = _PyLong_AsByteArray((PyLongObject *)v,
-                                          bytes, sizeof(val),
-                                          is_little, !is_unsigned);
-            Py_DECREF(v);
-            if (likely(!ret))
-                return val;
-        }
-        #endif
-        return (%(type)s)-1;
-    }
-}
-""")
-
-c_typedef_int_to_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
-""",
-impl="""
-static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
-    const int is_unsigned = const_zero < neg_one;
-    if ((sizeof(%(type)s) == sizeof(char))  ||
-        (sizeof(%(type)s) == sizeof(short))) {
-        return PyInt_FromLong((long)val);
-    } else if ((sizeof(%(type)s) == sizeof(int)) ||
-               (sizeof(%(type)s) == sizeof(long))) {
-        if (is_unsigned)
-            return PyLong_FromUnsignedLong((unsigned long)val);
-        else
-            return PyInt_FromLong((long)val);
-    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
-        if (is_unsigned)
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
-        else
-            return PyLong_FromLongLong((PY_LONG_LONG)val);
-    } else {
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        unsigned char *bytes = (unsigned char *)&val;
-        return _PyLong_FromByteArray(bytes, sizeof(%(type)s),
-                                     little, !is_unsigned);
-    }
-}
-""")
 
 class CIntType(CNumericType):
 
@@ -1557,12 +1382,23 @@ class CIntType(CNumericType):
     from_py_function = None
     exception_value = -1
 
-    def __init__(self, rank, signed = 1):
-        CNumericType.__init__(self, rank, signed)
-        if self.to_py_function is None:
-            self.to_py_function = self.get_to_py_type_conversion()
-        if self.from_py_function is None:
-            self.from_py_function = self.get_from_py_type_conversion()
+    def create_to_py_utility_code(self, env):
+        if type(self).to_py_function is None:
+            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntToPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "TO_PY_FUNCTION": self.to_py_function}))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        if type(self).from_py_function is None:
+            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntFromPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "FROM_PY_FUNCTION": self.from_py_function}))
+        return True
 
     def get_to_py_type_conversion(self):
         if self.rank < list(rank_to_type_name).index('int'):
@@ -1761,15 +1597,11 @@ class CSSizeTType(CIntType):
 class CSizeTType(CIntType):
 
     to_py_function = "__Pyx_PyInt_FromSize_t"
-    from_py_function = "__Pyx_PyInt_AsSize_t"
 
     def sign_and_name(self):
         return "size_t"
 
 class CPtrdiffTType(CIntType):
-
-    to_py_function = "__Pyx_PyInt_FromPtrdiff_t"
-    from_py_function = "__Pyx_PyInt_AsPtrdiff_t"
 
     def sign_and_name(self):
         return "ptrdiff_t"

@@ -3020,6 +3020,7 @@ class IndexNode(ExprNode):
                     else:
                         self.is_temp = 1
                     self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                    self.original_index_type.create_to_py_utility_code(env)
                 else:
                     self.index = self.index.coerce_to_pyobject(env)
                     self.is_temp = 1
