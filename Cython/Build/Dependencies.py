@@ -801,12 +801,13 @@ if os.environ.get('XML_RESULTS'):
     compile_result_dir = os.environ['XML_RESULTS']
     def record_results(func):
         def with_record(*args):
+            t = time.time()
+            success = True
             try:
-                t = time.time()
-                success = True
-                func(*args)
-            except:
-                success = False
+                try:
+                    func(*args)
+                except:
+                    success = False
             finally:
                 t = time.time() - t
                 module = fully_qualifeid_name(args[0])
