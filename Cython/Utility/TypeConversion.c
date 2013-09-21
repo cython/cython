@@ -521,7 +521,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         } else {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
  #if CYTHON_USE_PYLONG_INTERNALS
-            if (sizeof(digit) <= sizeof({{TYPE}}) {
+            if (sizeof(digit) <= sizeof({{TYPE}})) {
                 switch (Py_SIZE(x)) {
                     case  0: return 0;
                     case  1: return +({{TYPE}}) ((PyLongObject*)x)->ob_digit[0];
