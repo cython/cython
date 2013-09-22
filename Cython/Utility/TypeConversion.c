@@ -450,20 +450,20 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 
 /////////////// CIntFromPyVerify ///////////////
 
-#define __PYX_VERIFY_RETURN_INT(type, value_type, func)             \
-    {                                                               \
-        value_type value = func(x);                                 \
-        if (sizeof(type) < sizeof(value_type)) {                    \
-            if (unlikely(value != (value_type) (type) value)) {     \
-                const value_type zero = 0;                          \ 
-                PyErr_SetString(PyExc_OverflowError,                \
-                    (is_unsigned && unlikely(value < zero)) ?       \
-                    "can't convert negative value to " #type :      \
-                    "value too large to convert to " #type);        \
-                return (type) -1;                                   \
-            }                                                       \
-        }                                                           \
-        return (type) value;                                        \
+#define __PYX_VERIFY_RETURN_INT(target_type, func_type, func)             \
+    {                                                                     \
+        func_type value = func(x);                                        \
+        if (sizeof(target_type) < sizeof(func_type)) {                    \
+            if (unlikely(value != (func_type) (target_type) value)) {     \
+                const func_type zero = 0;                                 \
+                PyErr_SetString(PyExc_OverflowError,                      \
+                    (is_unsigned && unlikely(value < zero)) ?             \
+                    "can't convert negative value to " #target_type :     \
+                    "value too large to convert to " #target_type);       \
+                return (target_type) -1;                                  \
+            }                                                             \
+        }                                                                 \
+        return (target_type) value;                                       \
     }
 
 
