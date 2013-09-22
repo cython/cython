@@ -455,8 +455,9 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         value_type value = func(x);                                 \
         if (sizeof(type) < sizeof(value_type)) {                    \
             if (unlikely(value != (value_type) (type) value)) {     \
+                const value_type zero = 0;                          \ 
                 PyErr_SetString(PyExc_OverflowError,                \
-                    (is_unsigned && unlikely(value < 0)) ?          \
+                    (is_unsigned && unlikely(value < zero)) ?       \
                     "can't convert negative value to " #type :      \
                     "value too large to convert to " #type);        \
                 return (type) -1;                                   \
