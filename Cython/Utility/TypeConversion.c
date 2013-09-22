@@ -454,7 +454,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     {                                                               \
         value_type value = func(x);                                 \
         if (sizeof(type) < sizeof(value_type)) {                    \
-            if (unlikely(value != (type) value)) {                  \
+            if (unlikely(value != (value_type) (type) value)) {     \
                 PyErr_SetString(PyExc_OverflowError,                \
                     (is_unsigned && unlikely(value < 0)) ?          \
                     "can't convert negative value to " #type :      \
