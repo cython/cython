@@ -1,5 +1,4 @@
 cdef extern from "math.h" nogil:
-
     double M_E
     double M_LOG2E
     double M_LOG10E
@@ -13,6 +12,13 @@ cdef extern from "math.h" nogil:
     double M_2_SQRTPI
     double M_SQRT2
     double M_SQRT1_2
+
+    # C99 constants
+    float INFINITY
+    float NAN
+    double HUGE_VAL
+    float HUGE_VALF
+    long double HUGE_VALL
 
     double acos(double x)
     double asin(double x)
@@ -71,8 +77,15 @@ cdef extern from "math.h" nogil:
     long lround(double)
 
     double copysign(double, double)
+    float copysignf(float, float)
+    long double copysignl(long double, long double)
+
     double erf(double)
+    float erff(float)
+    long double erfl(long double)
     double erfc(double)
+    double erfcf(double)
+    long double erfcl(double)
 
     double fdim(double x, double y)
     double fma(double x, double y)
@@ -82,4 +95,3 @@ cdef extern from "math.h" nogil:
     double scalbn(double x, int n)
 
     double nan(char*) # const char*
-    
