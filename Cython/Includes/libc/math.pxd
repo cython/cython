@@ -84,8 +84,8 @@ cdef extern from "math.h" nogil:
     float erff(float)
     long double erfl(long double)
     double erfc(double)
-    double erfcf(double)
-    long double erfcl(double)
+    float erfcf(float)
+    long double erfcl(long double)
 
     double fdim(double x, double y)
     double fma(double x, double y)
@@ -94,4 +94,9 @@ cdef extern from "math.h" nogil:
     double scalbln(double x, long n)
     double scalbn(double x, int n)
 
-    double nan(char*) # const char*
+    double nan(const char*)
+    
+    bint isfinite(long double)
+    bint isnormal(long double)
+    bint isnan(long double)
+    bint isinf(long double)
