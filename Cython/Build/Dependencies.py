@@ -1,7 +1,7 @@
 import cython
 from Cython import __version__
 
-from glob import glob
+from glob import iglob
 import re, os, sys, time
 try:
     import gzip
@@ -65,7 +65,7 @@ def extended_iglob(pattern):
         seen = set()
         first, rest = pattern.split('**/', 1)
         if first:
-            first = glob(first+'/')
+            first = iglob(first+'/')
         else:
             first = ['']
         for root in first:
@@ -78,7 +78,7 @@ def extended_iglob(pattern):
                     seen.add(path)
                     yield path
     else:
-        for path in glob(pattern):
+        for path in iglob(pattern):
             yield path
 
 @cached_function
