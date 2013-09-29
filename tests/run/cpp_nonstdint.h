@@ -107,11 +107,15 @@ class Integral {
         dst_offset = 0;
         src_offset = 0;
         msb = ((unsigned char*) src)[src_len - 1];
+        if (src_len > dst_len) {
+            src_len = dst_len;
+        }
     } else {
         if (dst_len > src_len) {
             dst_offset = dst_len - src_len;
         } else {
             src_offset = src_len - dst_len;
+            src_len = dst_len;
         }
         msb = ((unsigned char*) src)[0];
     }
