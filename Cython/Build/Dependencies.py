@@ -345,7 +345,7 @@ def package(filename):
         return ()
 
 @cached_function
-def fully_qualifeid_name(filename):
+def fully_qualified_name(filename):
     module = os.path.splitext(os.path.basename(filename))[0]
     return '.'.join(package(filename) + (module,))
 
@@ -428,8 +428,8 @@ class DependencyTree(object):
     def package(self, filename):
         return package(filename)
 
-    def fully_qualifeid_name(self, filename):
-        return fully_qualifeid_name(filename)
+    def fully_qualified_name(self, filename):
+        return fully_qualified_name(filename)
 
     @cached_method
     def find_pxd(self, module, filename=None):
@@ -598,7 +598,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                 continue
             pkg = deps.package(file)
             if '*' in name:
-                module_name = deps.fully_qualifeid_name(file)
+                module_name = deps.fully_qualified_name(file)
                 if module_name in explicit_modules:
                     continue
             else:
@@ -810,7 +810,7 @@ if os.environ.get('XML_RESULTS'):
                     success = False
             finally:
                 t = time.time() - t
-                module = fully_qualifeid_name(args[0])
+                module = fully_qualified_name(args[0])
                 name = "cythonize." + module
                 failures = 1 - success
                 if success:
