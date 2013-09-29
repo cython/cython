@@ -1,0 +1,49 @@
+PYTHON -m Cython.Build.Cythonize -i '**/*.pyx' -x '**/t/**/*.pyx' -x '**/m/**/*.pyx'
+PYTHON -c "import tests; assert tests.X.x == 2"
+
+######## tests.py ########
+
+import sys
+sys.path.append('src')
+
+import a.f.c.d.x as X
+assert X.x == 2
+assert 'src/a/' in X.__file__ or 'src\\a\\' in X.__file__
+
+try:
+    import a.t.c.d.x
+except ImportError:
+    pass
+else:
+    assert False, "ImportError not raised - exclude of 't' package did not work"
+
+try:
+    import a.m.c.d.x
+except ImportError:
+    pass
+else:
+    assert False, "ImportError not raised - exclude of 'm' package did not work"
+
+######## src/a/__init__.py ########
+######## src/a/t/__init__.py ########
+######## src/a/t/c/__init__.py ########
+######## src/a/t/c/d/__init__.py ########
+
+######## src/a/t/c/d/x.pyx ########
+x = 1
+
+######## src/a/__init__.py ########
+######## src/a/f/__init__.py ########
+######## src/a/f/c/__init__.py ########
+######## src/a/f/c/d/__init__.py ########
+
+######## src/a/f/c/d/x.pyx ########
+x = 2
+
+######## src/a/__init__.py ########
+######## src/a/m/__init__.py ########
+######## src/a/m/c/__init__.py ########
+######## src/a/m/c/d/__init__.py ########
+
+######## src/a/m/c/d/x.pyx ########
+x = 3
