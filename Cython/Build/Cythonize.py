@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import os
-import sys
+import shutil
+import tempfile
 
 from distutils.core import setup
 from Cython.Build.Dependencies import cythonize, extended_iglob
@@ -77,22 +78,15 @@ def cython_compile(path_pattern, options):
                 # assume it's a file(-like thing)
                 paths = [path]
 
-            cwd = os.getcwd()
-            try:
-                if base_dir:
-                    os.chdir(base_dir)
-                ext_modules = cythonize(
-                    paths,
-                    nthreads=options.parallel,
-                    exclude_failures=options.keep_going,
-                    exclude=options.excludes,
-                    compiler_directives=options.directives,
-                    force=options.force,
-                    quiet=options.quiet,
-                    **options.options)
-            finally:
-                if base_dir:
-                    os.chdir(cwd)
+            ext_modules = cythonize(
+                paths,
+                nthreads=options.parallel,
+                exclude_failures=options.keep_going,
+                exclude=options.excludes,
+                compiler_directives=options.directives,
+                force=options.force,
+                quiet=options.quiet,
+                **options.options)
 
             if ext_modules and options.build:
                 if len(ext_modules) > 1 and options.parallel > 1:
@@ -117,15 +111,24 @@ def cython_compile(path_pattern, options):
 
 def run_distutils(args):
     base_dir, ext_modules = args
-    sys.argv[1:] = ['build_ext', '-i']
+    script_args = ['build_ext', '-i']
     cwd = os.getcwd()
+    temp_dir = None
     try:
         if base_dir:
             os.chdir(base_dir)
-        setup(ext_modules=ext_modules)
+            temp_dir = tempfile.mkdtemp(dir=base_dir)
+            script_args.extend(['--build-temp', temp_dir])
+        setup(
+            script_name='setup.py',
+            script_args=script_args,
+            ext_modules=ext_modules,
+        )
     finally:
         if base_dir:
             os.chdir(cwd)
+            if temp_dir and os.path.isdir(temp_dir):
+                shutil.rmtree(temp_dir)
 
 
 def parse_args(args):
