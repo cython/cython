@@ -572,7 +572,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
     if not isinstance(exclude, list):
         exclude = [exclude]
     for pattern in exclude:
-        to_exclude.update(extended_iglob(pattern))
+        to_exclude.update(map(os.path.abspath, extended_iglob(pattern)))
     module_list = []
     for pattern in patterns:
         if isinstance(pattern, str):
@@ -594,7 +594,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         else:
             raise TypeError(pattern)
         for file in extended_iglob(filepattern):
-            if file in to_exclude:
+            if os.path.abspath(file) in to_exclude:
                 continue
             pkg = deps.package(file)
             if '*' in name:
