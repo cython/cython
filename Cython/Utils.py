@@ -215,6 +215,17 @@ def detect_opened_file_encoding(f):
                 return encoding.group(1)
     return "UTF-8"
 
+
+def skip_bom(f):
+    """
+    Read past a BOM at the beginning of a source file.
+    This could be added to the scanner, but it's *substantially* easier
+    to keep it at this level.
+    """
+    if f.read(1) != u'\uFEFF':
+        f.seek(0)
+
+
 normalise_newlines = re.compile(u'\r\n?|\n').sub
 
 
@@ -264,6 +275,7 @@ if sys.version_info >= (2,6):
     except ImportError:
         pass
 
+
 def open_source_file(source_filename, mode="r",
                      encoding=None, error_handling=None,
                      require_normalised_newlines=True):
@@ -272,8 +284,11 @@ def open_source_file(source_filename, mode="r",
         # it's UTF-8.
         f = open_source_file(source_filename, encoding="UTF-8", mode=mode, error_handling='ignore')
         encoding = detect_opened_file_encoding(f)
-        if encoding == "UTF-8" and error_handling=='ignore' and require_normalised_newlines:
+        if (encoding == "UTF-8"
+                and error_handling == 'ignore'
+                and require_normalised_newlines):
             f.seek(0)
+            skip_bom(f)
             return f
         else:
             f.close()
@@ -290,15 +305,17 @@ def open_source_file(source_filename, mode="r",
             pass
     #
     if io is not None:
-        return io.open(source_filename, mode=mode,
-                       encoding=encoding, errors=error_handling)
+        stream = io.open(source_filename, mode=mode,
+                         encoding=encoding, errors=error_handling)
     else:
         # codecs module doesn't have universal newline support
         stream = codecs.open(source_filename, mode=mode,
                              encoding=encoding, errors=error_handling)
         if require_normalised_newlines:
             stream = NormalisedNewlineStream(stream)
-        return stream
+    skip_bom(stream)
+    return stream
+
 
 def open_source_from_loader(loader,
                             source_filename,

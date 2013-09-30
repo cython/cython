@@ -277,6 +277,9 @@ TEST_SUPPORT_DIR = 'testsupport'
 
 BACKENDS = ['c', 'cpp']
 
+UTF8_BOM_BYTES = r'\xef\xbb\xbf'.encode('ISO-8859-1').decode('unicode_escape')
+
+
 def memoize(f):
     uncomputed = object()
     f._cache = {}
@@ -287,13 +290,15 @@ def memoize(f):
         return res
     return func
 
+
 @memoize
 def parse_tags(filepath):
     tags = defaultdict(list)
-    f = io_open(filepath, encoding='ISO-8859-1', errors='replace')
+    f = io_open(filepath, encoding='ISO-8859-1', errors='ignore')
     try:
         for line in f:
-            line = line.strip()
+            # ignore BOM-like bytes and whitespace
+            line = line.lstrip(UTF8_BOM_BYTES).strip()
             if not line:
                 continue
             if line[0] != '#':
