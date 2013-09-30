@@ -1,8 +1,13 @@
 import cython
 from Cython import __version__
 
-from glob import iglob
 import re, os, sys, time
+try:
+    from glob import iglob
+except ImportError:
+    # Py2.4
+    from glob import glob as iglob
+
 try:
     import gzip
     gzip_open = gzip.open
