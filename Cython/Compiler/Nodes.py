@@ -1175,6 +1175,12 @@ class CVarDefNode(StatNode):
         visibility = self.visibility
 
         for declarator in self.declarators:
+            
+            if (len(self.declarators) > 1
+                and not isinstance(declarator, CNameDeclaratorNode)
+                and env.directives['warn.multiple_declarators']):
+                warning(declarator.pos, "Non-trivial type declarators in shared declaration.", 1)
+            
             if isinstance(declarator, CFuncDeclaratorNode):
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
             else:

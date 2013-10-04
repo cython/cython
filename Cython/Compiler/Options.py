@@ -123,6 +123,7 @@ directive_defaults = {
     'warn.unused': False,
     'warn.unused_arg': False,
     'warn.unused_result': False,
+    'warn.multiple_declarators': True,
 
 # optimizations
     'optimize.inline_defnode_calls': True,
