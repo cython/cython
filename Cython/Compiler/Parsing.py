@@ -2031,8 +2031,14 @@ def p_c_complex_base_type(s):
     base_type = p_c_base_type(s)
     declarator = p_c_declarator(s, empty = 1)
     s.expect(')')
-    return Nodes.CComplexBaseTypeNode(pos,
-        base_type = base_type, declarator = declarator)
+    complex_type = Nodes.CComplexBaseTypeNode(pos,
+            base_type = base_type, declarator = declarator)
+    while s.sy == '[':
+        declarator = p_c_declarator(s, empty = 1)
+        complex_type = Nodes.CComplexBaseTypeNode(pos,
+                base_type = complex_type, declarator = declarator)
+    return complex_type
+
 
 def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
     #print "p_c_simple_base_type: self_flag =", self_flag, nonempty
@@ -2104,6 +2110,10 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             type_node = p_memoryviewslice_access(s, type_node)
         else:
             type_node = p_buffer_or_template(s, type_node, templates)
+            while s.sy == '[':
+                declarator = p_c_declarator(s, empty = 1)
+                type_node = Nodes.CComplexBaseTypeNode(pos,
+                        base_type = type_node, declarator = declarator)
 
     if s.sy == '.':
         s.next()
