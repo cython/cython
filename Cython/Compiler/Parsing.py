@@ -2009,7 +2009,7 @@ def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
     # If self_flag is true, this is the base type for the
     # self argument of a C method of an extension type.
     if s.sy == '(':
-        return p_c_complex_base_type(s)
+        return p_c_complex_base_type(s, templates = templates)
     else:
         return p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
 
@@ -2024,20 +2024,21 @@ def p_calling_convention(s):
 calling_convention_words = cython.declare(
     set, set(["__stdcall", "__cdecl", "__fastcall"]))
 
-def p_c_complex_base_type(s):
+def p_c_complex_base_type(s, templates = None):
     # s.sy == '('
     pos = s.position()
     s.next()
-    base_type = p_c_base_type(s)
+    base_type = p_c_base_type(s, templates = templates)
     declarator = p_c_declarator(s, empty = 1)
     s.expect(')')
-    complex_type = Nodes.CComplexBaseTypeNode(pos,
+    type_node = Nodes.CComplexBaseTypeNode(pos,
             base_type = base_type, declarator = declarator)
-    while s.sy == '[':
-        declarator = p_c_declarator(s, empty = 1)
-        complex_type = Nodes.CComplexBaseTypeNode(pos,
-                base_type = complex_type, declarator = declarator)
-    return complex_type
+    if s.sy == '[':
+        if is_memoryviewslice_access(s):
+            type_node = p_memoryviewslice_access(s, type_node)
+        else:
+            type_node = p_buffer_or_template(s, type_node, templates)
+    return type_node
 
 
 def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
@@ -2110,10 +2111,6 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             type_node = p_memoryviewslice_access(s, type_node)
         else:
             type_node = p_buffer_or_template(s, type_node, templates)
-            while s.sy == '[':
-                declarator = p_c_declarator(s, empty = 1)
-                type_node = Nodes.CComplexBaseTypeNode(pos,
-                        base_type = type_node, declarator = declarator)
 
     if s.sy == '.':
         s.next()
@@ -2132,6 +2129,9 @@ def p_buffer_or_template(s, base_type_node, templates):
         p_positional_and_keyword_args(s, (']',), templates)
     )
     s.expect(']')
+    
+    if s.sy == '[':
+        base_type_node = p_buffer_or_template(s, base_type_node, templates)
 
     keyword_dict = ExprNodes.DictNode(pos,
         key_value_pairs = [
