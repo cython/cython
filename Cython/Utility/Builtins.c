@@ -201,7 +201,7 @@ static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 
 static PyObject* __Pyx_Intern(PyObject* s) {
     if (!(likely(PyString_CheckExact(s)))) {
-        PyErr_Format(PyExc_TypeError, "Expected str, got %s", Py_TYPE(s)->tp_name);
+        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(s)->tp_name);
         return 0;
     }
     Py_INCREF(s);
