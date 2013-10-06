@@ -963,7 +963,7 @@ class BuiltinObjectType(PyObjectType):
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
             if self.name == 'basestring':
-                return src_type.name in ('bytes', 'str', 'unicode', 'basestring')
+                return src_type.name in ('str', 'unicode', 'basestring')
             else:
                 return src_type.name == self.name
         elif src_type.is_extension_type:

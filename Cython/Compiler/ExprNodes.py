@@ -1160,7 +1160,7 @@ class BytesNode(ConstNode):
         node = BytesNode(self.pos, value=self.value,
                          constant_result=self.constant_result)
         if dst_type.is_pyobject:
-            if dst_type in (py_object_type, Builtin.bytes_type, Builtin.basestring_type):
+            if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
             else:
                 self.check_for_coercion_error(dst_type, env, fail=True)
