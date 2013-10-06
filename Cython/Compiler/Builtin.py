@@ -408,7 +408,7 @@ def init_builtins():
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
     global list_type, tuple_type, dict_type, set_type, frozenset_type
-    global bytes_type, str_type, unicode_type
+    global bytes_type, str_type, unicode_type, basestring_type
     global float_type, bool_type, type_type, complex_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
@@ -419,6 +419,7 @@ def init_builtins():
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
+    basestring_type = builtin_scope.lookup('basestring').type
     float_type = builtin_scope.lookup('float').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type

@@ -962,7 +962,10 @@ class BuiltinObjectType(PyObjectType):
 
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
-            return src_type.name == self.name
+            if self.name == 'basestring':
+                return src_type.name in ('bytes', 'str', 'unicode', 'basestring')
+            else:
+                return src_type.name == self.name
         elif src_type.is_extension_type:
             # FIXME: This is an ugly special case that we currently
             # keep supporting.  It allows users to specify builtin
@@ -1005,7 +1008,15 @@ class BuiltinObjectType(PyObjectType):
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
             check += '||((%s) == Py_None)' % arg
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %s, got %%.200s", Py_TYPE(%s)->tp_name), 0)' % (self.name, arg)
+        if self.name == 'basestring':
+            name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
+            space_for_name = 16
+        else:
+            name = '"%s"' % self.name
+            # avoid wasting too much space but limit number of different format strings
+            space_for_name = (len(self.name) // 16 + 1) * 16
+        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, Py_TYPE(%s)->tp_name), 0)' % (
+            space_for_name, name, arg)
         return check + '||' + error
 
     def declaration_code(self, entity_code,

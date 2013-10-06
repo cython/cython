@@ -1160,7 +1160,7 @@ class BytesNode(ConstNode):
         node = BytesNode(self.pos, value=self.value,
                          constant_result=self.constant_result)
         if dst_type.is_pyobject:
-            if dst_type in (py_object_type, Builtin.bytes_type):
+            if dst_type in (py_object_type, Builtin.bytes_type, Builtin.basestring_type):
                 node.type = Builtin.bytes_type
             else:
                 self.check_for_coercion_error(dst_type, env, fail=True)
@@ -1250,9 +1250,8 @@ class UnicodeNode(ConstNode):
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
                   "(for strings).")
-        elif dst_type is not py_object_type:
-            if not self.check_for_coercion_error(dst_type, env):
-                self.fail_assignment(dst_type)
+        elif dst_type not in (py_object_type, Builtin.basestring_type):
+            self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
     def can_coerce_to_char_literal(self):
@@ -1337,7 +1336,8 @@ class StringNode(PyConstNode):
 #                return BytesNode(self.pos, value=self.value)
             if not dst_type.is_pyobject:
                 return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
-            self.check_for_coercion_error(dst_type, env, fail=True)
+            if dst_type is not Builtin.basestring_type:
+                self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
     def can_coerce_to_char_literal(self):
