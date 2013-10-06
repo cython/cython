@@ -10,8 +10,7 @@ Features added
 
 * Using ``cdef basestring stringvar`` and function arguments typed as
   ``basestring`` is now meaningful and allows assigning exactly
-  ``bytes`` (Py2-only), ``str`` and ``unicode`` (Py2/Py3) objects,
-  but no subtypes of these types.
+  ``str`` and ``unicode`` objects, but no subtypes of these types.
 
 * Support for the ``__debug__`` builtin.
 
