@@ -61,7 +61,7 @@ def basestring_typed_variable(obj):
     s = 'abc'
     assert s
     # make sure coercion also works in conditional expressions
-    s = u'abc' if obj else b'abc' if obj else 'abc'
+    s = u'abc' if obj else 'abc'
     assert s
     s = obj
     return s
