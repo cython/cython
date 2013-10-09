@@ -121,12 +121,19 @@ class NormalizeTree(CythonTransform):
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_StatNode(node, True)
 
-    # Eliminate PassStatNode
     def visit_PassStatNode(self, node):
+        """Eliminate PassStatNode"""
         if not self.is_in_statlist:
             return Nodes.StatListNode(pos=node.pos, stats=[])
         else:
             return []
+
+    def visit_ExprStatNode(self, node):
+        """Eliminate useless string literals"""
+        if node.expr.is_string_literal:
+            return self.visit_PassStatNode(node)
+        else:
+            return self.visit_StatNode(node)
 
     def visit_CDeclaratorNode(self, node):
         return node
@@ -889,8 +896,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     'The %s directive takes one compile-time integer argument' % optname)
             return (optname, int(args[0].value))
         elif directivetype is str:
-            if kwds is not None or len(args) != 1 or not isinstance(args[0], (ExprNodes.StringNode,
-                                                                              ExprNodes.UnicodeNode)):
+            if kwds is not None or len(args) != 1 or not isinstance(
+                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, str(args[0].value))
@@ -909,6 +916,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 raise PostParseError(pos,
                     'The %s directive takes no keyword arguments' % optname)
             return optname, [ str(arg.value) for arg in args ]
+        elif callable(directivetype):
+            if kwds is not None or len(args) != 1 or not isinstance(
+                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time string argument' % optname)
+            return (optname, directivetype(optname, str(args[0].value)))
         else:
             assert False
 
@@ -940,8 +953,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             if name == 'locals':
                 node.directive_locals = value
             elif name != 'final':
-                self.context.nonfatal_error(PostParseError(dec.pos,
-                    "Cdef functions can only take cython.locals() or final decorators, got %s." % name))
+                self.context.nonfatal_error(PostParseError(
+                    node.pos,
+                    "Cdef functions can only take cython.locals() "
+                    "or final decorators, got %s." % name))
         body = Nodes.StatListNode(node.pos, stats=[node])
         return self.visit_with_directives(body, directives)
 
@@ -2096,13 +2111,14 @@ class YieldNodeCollector(TreeVisitor):
         self.has_return_value = False
 
     def visit_Node(self, node):
-        return self.visitchildren(node)
+        self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
         self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
+        self.visitchildren(node)
         if node.value:
             self.has_return_value = True
         self.returns.append(node)
@@ -2118,6 +2134,7 @@ class YieldNodeCollector(TreeVisitor):
 
     def visit_GeneratorExpressionNode(self, node):
         pass
+
 
 class MarkClosureVisitor(CythonTransform):
 

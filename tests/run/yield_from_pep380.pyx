@@ -9,9 +9,16 @@ see <http://www.cosc.canterbury.ac.nz/greg.ewing/python/yield-from/YieldFrom-Pyt
 
 import sys
 
+try:
+    _next = next  # not in Py<=2.5
+except NameError:
+    def _next(it):
+        return it.next()
+
 def _lines(trace):
     for line in trace:
         print(line)
+
 
 def test_delegation_of_initial_next_to_subgenerator():
     """
@@ -1004,3 +1011,23 @@ def test_delegating_generators_claim_to_be_running_close():
     ret = next(g1)
     g1.close()
     return ret
+
+
+def yield_in_return(x):
+    """
+    >>> x = yield_in_return(range(3))
+    >>> for _ in range(10):
+    ...     try:
+    ...         print(_next(x))
+    ...     except StopIteration:
+    ...         if sys.version_info >= (3,3):
+    ...             print(sys.exc_info()[1].value is None)
+    ...         else:
+    ...             print(True)
+    ...         break
+    0
+    1
+    2
+    True
+    """
+    return (yield from x)

@@ -40,6 +40,10 @@
 #define CYTHON_COMPILING_IN_CPYTHON 1
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY
+#define Py_OptimizeFlag 0
+#endif
+
 #if PY_VERSION_HEX < 0x02050000
   typedef int Py_ssize_t;
   #define PY_SSIZE_T_MAX INT_MAX
@@ -47,7 +51,7 @@
   #define PY_FORMAT_SIZE_T ""
   #define CYTHON_FORMAT_SSIZE_T ""
   #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
-  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_AsInt(o)
+  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_As_int(o)
   #define PyNumber_Index(o)    ((PyNumber_Check(o) && !PyFloat_Check(o)) ? PyNumber_Int(o) : \
                                 (PyErr_Format(PyExc_TypeError, \
                                               "expected index value, got %.200s", Py_TYPE(o)->tp_name), \
@@ -128,6 +132,10 @@
   #define Py_TPFLAGS_HAVE_VERSION_TAG 0
 #endif
 
+#if PY_VERSION_HEX < 0x030400a1 && !defined(Py_TPFLAGS_HAVE_FINALIZE)
+  #define Py_TPFLAGS_HAVE_FINALIZE 0
+#endif
+
 /* new Py3.3 unicode type (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
   #define CYTHON_PEP393_ENABLED 1
@@ -178,7 +186,7 @@
 #else
   #define __Pyx_PyBaseString_Check(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj) || \
                                          PyString_Check(obj) || PyUnicode_Check(obj))
-  #define __Pyx_PyBaseString_CheckExact(obj) (Py_TYPE(obj) == &PyBaseString_Type)
+  #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
 #endif
 
 #if PY_VERSION_HEX < 0x02060000

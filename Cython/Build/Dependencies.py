@@ -1,8 +1,13 @@
 import cython
 from Cython import __version__
 
-from glob import glob
-import re, os, sys
+import re, os, sys, time
+try:
+    from glob import iglob
+except ImportError:
+    # Py2.4
+    from glob import glob as iglob
+
 try:
     import gzip
     gzip_open = gzip.open
@@ -17,6 +22,11 @@ try:
     import hashlib
 except ImportError:
     import md5 as hashlib
+
+try:
+    from io import open as io_open
+except ImportError:
+    from codecs import open as io_open
 
 try:
     from os.path import relpath as _relpath
@@ -60,7 +70,7 @@ def extended_iglob(pattern):
         seen = set()
         first, rest = pattern.split('**/', 1)
         if first:
-            first = glob(first+'/')
+            first = iglob(first+'/')
         else:
             first = ['']
         for root in first:
@@ -73,7 +83,7 @@ def extended_iglob(pattern):
                     seen.add(path)
                     yield path
     else:
-        for path in glob(pattern):
+        for path in iglob(pattern):
             yield path
 
 @cached_function
@@ -332,6 +342,20 @@ def resolve_depend(depend, include_dirs):
     return None
 
 @cached_function
+def package(filename):
+    dir = os.path.dirname(os.path.abspath(str(filename)))
+    if dir != filename and path_exists(join_path(dir, '__init__.py')):
+        return package(dir) + (os.path.basename(dir),)
+    else:
+        return ()
+
+@cached_function
+def fully_qualified_name(filename):
+    module = os.path.splitext(os.path.basename(filename))[0]
+    return '.'.join(package(filename) + (module,))
+
+
+@cached_function
 def parse_dependencies(source_filename):
     # Actual parsing is way to slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
@@ -406,18 +430,11 @@ class DependencyTree(object):
     def cimports(self, filename):
         return self.cimports_and_externs(filename)[0]
 
-    @cached_method
     def package(self, filename):
-        dir = os.path.dirname(os.path.abspath(str(filename)))
-        if dir != filename and path_exists(join_path(dir, '__init__.py')):
-            return self.package(dir) + (os.path.basename(dir),)
-        else:
-            return ()
+        return package(filename)
 
-    @cached_method
-    def fully_qualifeid_name(self, filename):
-        module = os.path.splitext(os.path.basename(filename))[0]
-        return '.'.join(self.package(filename) + (module,))
+    def fully_qualified_name(self, filename):
+        return fully_qualified_name(filename)
 
     @cached_method
     def find_pxd(self, module, filename=None):
@@ -560,7 +577,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
     if not isinstance(exclude, list):
         exclude = [exclude]
     for pattern in exclude:
-        to_exclude.update(extended_iglob(pattern))
+        to_exclude.update(map(os.path.abspath, extended_iglob(pattern)))
     module_list = []
     for pattern in patterns:
         if isinstance(pattern, str):
@@ -582,11 +599,11 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         else:
             raise TypeError(pattern)
         for file in extended_iglob(filepattern):
-            if file in to_exclude:
+            if os.path.abspath(file) in to_exclude:
                 continue
             pkg = deps.package(file)
             if '*' in name:
-                module_name = deps.fully_qualifeid_name(file)
+                module_name = deps.fully_qualified_name(file)
                 if module_name in explicit_modules:
                     continue
             else:
@@ -652,6 +669,11 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     """
     if 'include_path' not in options:
         options['include_path'] = ['.']
+    if 'common_utility_include_dir' in options:
+        if 'cache' in options:
+            raise NotImplementedError, "common_utility_include_dir does not yet work with caching"
+        if not os.path.exists(options['common_utility_include_dir']):
+            os.makedirs(options['common_utility_include_dir'])
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
@@ -746,10 +768,11 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         try:
             import multiprocessing
             pool = multiprocessing.Pool(nthreads)
-            pool.map(cythonize_one_helper, to_compile)
-        except ImportError:
+        except (ImportError, OSError):
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
+        else:
+            pool.map(cythonize_one_helper, to_compile)
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args[1:])
@@ -758,8 +781,19 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         for c_file, modules in modules_by_cfile.iteritems():
             if not os.path.exists(c_file):
                 failed_modules.update(modules)
-        for module in failed_modules:
-            module_list.remove(module)
+            elif os.path.getsize(c_file) < 200:
+                f = io_open(c_file, 'r', encoding='iso8859-1')
+                try:
+                    if f.read(len('#error ')) == '#error ':
+                        # dead compilation result
+                        failed_modules.update(modules)
+                finally:
+                    f.close()
+        if failed_modules:
+            for module in failed_modules:
+                module_list.remove(module)
+            print("Failed compilations: %s" % ', '.join(sorted([
+                module.name for module in failed_modules])))
     if hasattr(options, 'cache'):
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
     # cythonize() is often followed by the (non-Python-buffered)
@@ -767,7 +801,43 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     sys.stdout.flush()
     return module_list
 
+
+if os.environ.get('XML_RESULTS'):
+    compile_result_dir = os.environ['XML_RESULTS']
+    def record_results(func):
+        def with_record(*args):
+            t = time.time()
+            success = True
+            try:
+                try:
+                    func(*args)
+                except:
+                    success = False
+            finally:
+                t = time.time() - t
+                module = fully_qualified_name(args[0])
+                name = "cythonize." + module
+                failures = 1 - success
+                if success:
+                    failure_item = ""
+                else:
+                    failure_item = "failure"
+                output = open(os.path.join(compile_result_dir, name + ".xml"), "w")
+                output.write("""
+                    <?xml version="1.0" ?>
+                    <testsuite name="%(name)s" errors="0" failures="%(failures)s" tests="1" time="%(t)s">
+                    <testcase classname="%(name)s" name="cythonize">
+                    %(failure_item)s
+                    </testcase>
+                    </testsuite>
+                """.strip() % locals())
+                output.close()
+        return with_record
+else:
+    record_results = lambda x: x
+
 # TODO: Share context? Issue: pyx processing leaks into pxd module
+@record_results
 def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True):
     from Cython.Compiler.Main import compile, default_options
     from Cython.Compiler.Errors import CompileError, PyrexError
@@ -811,6 +881,9 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
     except (EnvironmentError, PyrexError), e:
         sys.stderr.write('%s\n' % e)
         any_failures = 1
+        # XXX
+        import traceback
+        traceback.print_exc()
     except Exception:
         if raise_on_failure:
             raise
@@ -834,7 +907,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
             f.close()
 
 def cythonize_one_helper(m):
-    return cythonize_one(*m[1:])
+    import traceback
+    try:
+        return cythonize_one(*m[1:])
+    except Exception:
+        traceback.print_exc()
+        raise
 
 def cleanup_cache(cache, target_size, ratio=.85):
     try:

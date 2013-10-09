@@ -14,7 +14,10 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
     }
     if (none_allowed && obj == Py_None) return 1;
     else if (exact) {
-        if (Py_TYPE(obj) == type) return 1;
+        if (likely(Py_TYPE(obj) == type)) return 1;
+        #if PY_MAJOR_VERSION == 2
+        else if ((type == &PyBaseString_Type) && __Pyx_PyBaseString_CheckExact(obj)) return 1;
+        #endif
     }
     else {
         if (PyObject_TypeCheck(obj, type)) return 1;

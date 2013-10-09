@@ -147,6 +147,89 @@ bad:
 }
 #endif
 
+
+/////////////// SetPackagePathFromImportLib.proto ///////////////
+
+#if PY_VERSION_HEX >= 0x03030000
+static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name);
+#else
+#define __Pyx_SetPackagePathFromImportLib(a, b) 0
+#endif
+
+/////////////// SetPackagePathFromImportLib ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@substitute: naming
+
+#if PY_VERSION_HEX >= 0x03030000
+static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
+    PyObject *importlib, *loader, *osmod, *ossep, *parts, *package_path;
+    PyObject *path = NULL, *file_path = NULL;
+    int result;
+    if (parent_package_name) {
+        PyObject *package = PyImport_ImportModule(parent_package_name);
+        if (unlikely(!package))
+            goto bad;
+        path = PyObject_GetAttrString(package, "__path__");
+        Py_DECREF(package);
+        if (unlikely(!path) || unlikely(path == Py_None))
+            goto bad;
+    } else {
+        path = Py_None; Py_INCREF(Py_None);
+    }
+    // package_path = [importlib.find_loader(module_name, path).path.rsplit(os.sep, 1)[0]]
+    importlib = PyImport_ImportModule("importlib");
+    if (unlikely(!importlib))
+        goto bad;
+    loader = PyObject_CallMethod(importlib, "find_loader", "(OO)", module_name, path);
+    Py_DECREF(importlib);
+    Py_DECREF(path); path = NULL;
+    if (unlikely(!loader))
+        goto bad;
+    file_path = PyObject_GetAttrString(loader, "path");
+    Py_DECREF(loader);
+    if (unlikely(!file_path))
+        goto bad;
+
+    if (unlikely(__Pyx_SetAttrString($module_cname, "__file__", file_path) < 0))
+        goto bad;
+
+    osmod = PyImport_ImportModule("os");
+    if (unlikely(!osmod))
+        goto bad;
+    ossep = PyObject_GetAttrString(osmod, "sep");
+    Py_DECREF(osmod);
+    if (unlikely(!ossep))
+        goto bad;
+    parts = PyObject_CallMethod(file_path, "rsplit", "(Oi)", ossep, 1);
+    Py_DECREF(file_path); file_path = NULL;
+    Py_DECREF(ossep);
+    if (unlikely(!parts))
+        goto bad;
+    package_path = Py_BuildValue("[O]", PyList_GET_ITEM(parts, 0));
+    Py_DECREF(parts);
+    if (unlikely(!package_path))
+        goto bad;
+    goto set_path;
+
+bad:
+    PyErr_WriteUnraisable(module_name);
+    Py_XDECREF(path);
+    Py_XDECREF(file_path);
+
+    // set an empty path list on failure
+    PyErr_Clear();
+    package_path = PyList_New(0);
+    if (unlikely(!package_path))
+        return -1;
+
+set_path:
+    result = __Pyx_SetAttrString($module_cname, "__path__", package_path);
+    Py_DECREF(package_path);
+    return result;
+}
+#endif
+
+
 /////////////// TypeImport.proto ///////////////
 
 static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/

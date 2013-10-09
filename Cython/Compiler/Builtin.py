@@ -12,8 +12,8 @@ import Options
 # C-level implementations of builtin types, functions and methods
 
 iter_next_utility_code = UtilityCode.load("IterNext", "ObjectHandling.c")
+getattr_utility_code = UtilityCode.load("GetAttr", "ObjectHandling.c")
 getattr3_utility_code = UtilityCode.load("GetAttr3", "Builtins.c")
-getattr_utility_code = UtilityCode.load("GetAttr", "Builtins.c")
 pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
@@ -287,6 +287,8 @@ builtin_types_table = [
                                     BuiltinMethod("reverse", "T",    "r", "PyList_Reverse"),
                                     BuiltinMethod("append",  "TO",   "r", "__Pyx_PyList_Append",
                                                   utility_code=UtilityCode.load("ListAppend", "Optimize.c")),
+                                    BuiltinMethod("extend",  "TO",   "r", "__Pyx_PyList_Extend",
+                                                  utility_code=UtilityCode.load("ListExtend", "Optimize.c")),
                                     ]),
 
     ("dict",    "PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
@@ -331,14 +333,16 @@ builtin_types_table = [
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 
-types_that_construct_their_instance = (
+
+types_that_construct_their_instance = set([
     # some builtin types do not always return an instance of
     # themselves - these do:
-    'type', 'bool', 'long', 'float', 'bytes', 'unicode', 'tuple', 'list',
-    'dict', 'set', 'frozenset'
+    'type', 'bool', 'long', 'float', 'complex',
+    'bytes', 'unicode', 'bytearray',
+    'tuple', 'list', 'dict', 'set', 'frozenset'
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
-    )
+])
 
 
 builtin_structs_table = [
@@ -400,8 +404,11 @@ def init_builtins():
     init_builtin_structs()
     init_builtin_funcs()
     init_builtin_types()
+    builtin_scope.declare_var(
+        '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
+        pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
     global list_type, tuple_type, dict_type, set_type, frozenset_type
-    global bytes_type, str_type, unicode_type
+    global bytes_type, str_type, unicode_type, basestring_type
     global float_type, bool_type, type_type, complex_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
@@ -412,6 +419,7 @@ def init_builtins():
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
+    basestring_type = builtin_scope.lookup('basestring').type
     float_type = builtin_scope.lookup('float').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type

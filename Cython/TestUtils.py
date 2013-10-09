@@ -189,7 +189,8 @@ def unpack_source_tree(tree_file, dir=None):
         elif cur_file is not None:
             cur_file.write(line)
         elif line.strip() and not line.lstrip().startswith('#'):
-            header.append(line)
+            if line.strip() not in ('"""', "'''"):
+                header.append(line)
     if cur_file is not None:
         cur_file.close()
     return dir, ''.join(header)

@@ -25,7 +25,7 @@ import Nodes
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
-     unspecified_type, cython_memoryview_ptr_type
+    unspecified_type
 import TypeSlots
 from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
@@ -67,7 +67,9 @@ coercion_error_dict = {
     (Builtin.unicode_type, PyrexTypes.c_uchar_ptr_type) : "Unicode objects only support coercion to Py_UNICODE*.",
     (Builtin.bytes_type, Builtin.unicode_type) : "Cannot convert 'bytes' object to unicode implicitly, decoding required",
     (Builtin.bytes_type, Builtin.str_type) : "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
+    (Builtin.bytes_type, Builtin.basestring_type) : "Cannot convert 'bytes' object to basestring implicitly. This is not portable to Py3.",
     (Builtin.bytes_type, PyrexTypes.c_py_unicode_ptr_type) : "Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'.",
+    (Builtin.basestring_type, Builtin.bytes_type) : "Cannot convert 'basestring' object to bytes implicitly. This is not portable.",
     (Builtin.str_type, Builtin.unicode_type) : "str objects do not support coercion to unicode, use a unicode string literal instead (u'')",
     (Builtin.str_type, Builtin.bytes_type) : "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
     (Builtin.str_type, PyrexTypes.c_char_ptr_type) : "'str' objects do not support coercion to C types (use 'bytes'?).",
@@ -76,6 +78,7 @@ coercion_error_dict = {
     (PyrexTypes.c_char_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_uchar_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
 }
+
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
     if err is None:
@@ -1250,9 +1253,8 @@ class UnicodeNode(ConstNode):
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
                   "(for strings).")
-        elif dst_type is not py_object_type:
-            if not self.check_for_coercion_error(dst_type, env):
-                self.fail_assignment(dst_type)
+        elif dst_type not in (py_object_type, Builtin.basestring_type):
+            self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
     def can_coerce_to_char_literal(self):
@@ -1337,7 +1339,8 @@ class StringNode(PyConstNode):
 #                return BytesNode(self.pos, value=self.value)
             if not dst_type.is_pyobject:
                 return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
-            self.check_for_coercion_error(dst_type, env, fail=True)
+            if dst_type is not Builtin.basestring_type:
+                self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
     def can_coerce_to_char_literal(self):
@@ -1476,6 +1479,7 @@ class NameNode(AtomicExprNode):
     cf_is_null = False
     allow_null = False
     nogil = False
+    inferred_type = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -1484,7 +1488,7 @@ class NameNode(AtomicExprNode):
         if self.entry is None:
             self.entry = env.lookup(self.name)
         if self.entry is not None and self.entry.type.is_unspecified:
-            return (self.entry,)
+            return (self,)
         else:
             return ()
 
@@ -1492,6 +1496,8 @@ class NameNode(AtomicExprNode):
         if self.entry is None:
             self.entry = env.lookup(self.name)
         if self.entry is None or self.entry.type is unspecified_type:
+            if self.inferred_type is not None:
+                return self.inferred_type
             return py_object_type
         elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
                 self.name == self.entry.type.name:
@@ -1506,6 +1512,12 @@ class NameNode(AtomicExprNode):
                 # special case: referring to a C function must return its pointer
                 return PyrexTypes.CPtrType(self.entry.type)
         else:
+            # If entry is inferred as pyobject it's safe to use local
+            # NameNode's inferred_type.
+            if self.entry.type.is_pyobject and self.inferred_type:
+                # Overflow may happen if integer
+                if not (self.inferred_type.is_int and self.entry.might_overflow):
+                    return self.inferred_type
             return self.entry.type
 
     def compile_time_value(self, denv):
@@ -2034,9 +2046,10 @@ class NameNode(AtomicExprNode):
         if hasattr(self, 'is_called') and self.is_called:
             pos = (self.pos[0], self.pos[1], self.pos[2] - len(self.name) - 1)
             if self.type.is_pyobject:
-                code.annotate(pos, AnnotationItem('py_call', 'python function', size=len(self.name)))
+                style, text = 'py_call', 'python function (%s)'
             else:
-                code.annotate(pos, AnnotationItem('c_call', 'c function', size=len(self.name)))
+                style, text = 'c_call', 'c function (%s)'
+            code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
 class BackquoteNode(ExprNode):
     #  `expr`
@@ -3010,6 +3023,7 @@ class IndexNode(ExprNode):
                     else:
                         self.is_temp = 1
                     self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                    self.original_index_type.create_to_py_utility_code(env)
                 else:
                     self.index = self.index.coerce_to_pyobject(env)
                     self.is_temp = 1
@@ -3193,11 +3207,22 @@ class IndexNode(ExprNode):
         return self.base.check_const_addr() and self.index.check_const()
 
     def is_lvalue(self):
-        base_type = self.base.type
-        if self.type.is_ptr or self.type.is_array:
-            return not base_type.base_type.is_array
-        else:
+        # NOTE: references currently have both is_reference and is_ptr
+        # set.  Since pointers and references have different lvalue
+        # rules, we must be careful to separate the two.
+        if self.type.is_reference:
+            if self.type.ref_base_type.is_array:
+                # fixed-sized arrays aren't l-values
+                return False
+        elif self.type.is_ptr:
+            # non-const pointers can always be reassigned
             return True
+        elif self.type.is_array:
+            # fixed-sized arrays aren't l-values
+            return False
+        # Just about everything else returned by the index operator
+        # can be an lvalue.
+        return True
 
     def calculate_result_code(self):
         if self.is_buffer_access:
@@ -5369,9 +5394,10 @@ class AttributeNode(ExprNode):
 
     def annotate(self, code):
         if self.is_py_attr:
-            code.annotate(self.pos, AnnotationItem('py_attr', 'python attribute', size=len(self.attribute)))
+            style, text = 'py_attr', 'python attribute (%s)'
         else:
-            code.annotate(self.pos, AnnotationItem('c_attr', 'c attribute', size=len(self.attribute)))
+            style, text = 'c_attr', 'c attribute (%s)'
+        code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
 
 #-------------------------------------------------------------------
@@ -7227,7 +7253,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             flags = '0'
 
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
@@ -7235,6 +7261,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.self_result_code(),
                 self.get_py_mod_name(code),
+                "PyModule_GetDict(%s)" % Naming.module_cname,
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
 
@@ -10039,7 +10066,8 @@ class CoercionNode(ExprNode):
         self.arg.annotate(code)
         if self.arg.type != self.type:
             file, line, col = self.pos
-            code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
+            code.annotate((file, line, col-1), AnnotationItem(
+                style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
 class CoerceToMemViewSliceNode(CoercionNode):
     """

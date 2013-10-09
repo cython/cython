@@ -14,16 +14,16 @@ class Integral {
     for (unsigned int i=0; i<N; i++)
       bytes[i] = I.bytes[i];
   }
-  Integral(signed char I) {
-    unsigned char p = (I<0) ? 0xFF : 0x00;
-    for (unsigned int i=0; i<N; i++)
-      bytes[i] = p;
-    bytes[lsb()] = *(unsigned char*)&I;
+  Integral(long long value) {
+    resize_signed_int((unsigned char*)&value, sizeof(value), bytes, N);
   }
 
-  operator signed char() const {
-    return *(signed char*)&bytes[lsb()];
+  operator long long() const {
+    long long value;
+    resize_signed_int(bytes, N, (unsigned char*)&value, sizeof(value));
+    return value;
   }
+  
   Integral& operator=(const Integral &I) {
     for (unsigned int i=0; i<N; i++)
       bytes[i] = I.bytes[i];
@@ -41,6 +41,23 @@ class Integral {
   { return cmp(I) == 0; }
   bool operator!=(const Integral &I) const
   { return cmp(I) != 0; }
+  
+  bool operator==(const long long value) const {
+    size_t len = sizeof(long long) > N ? sizeof(long long) : N;
+    unsigned char* extended = new unsigned char[len];
+    unsigned char* other;
+    if (sizeof(long long) < N) {
+        resize_signed_int((unsigned char*)&value, sizeof(value), extended, len);
+        other = bytes;
+    } else {
+        resize_signed_int(bytes, N, extended, len);
+    }
+    bool res = memcmp(extended, other, len);
+    delete extended;
+    return res;
+  }
+  bool operator!=(const long long val) const
+  { return !(*this == val); }
 
  private:
   static bool is_le() {
@@ -81,7 +98,34 @@ class Integral {
     if (sI) return -cmpabs;
     else    return +cmpabs;
   }
-
+  
+  static void resize_signed_int(const unsigned char* src, size_t src_len, unsigned char* dst, size_t dst_len) {
+    unsigned char msb;
+    size_t dst_offset = 0;
+    size_t src_offset = 0;
+    if (is_le()) {
+        dst_offset = 0;
+        src_offset = 0;
+        msb = ((unsigned char*) src)[src_len - 1];
+        if (src_len > dst_len) {
+            src_len = dst_len;
+        }
+    } else {
+        if (dst_len > src_len) {
+            dst_offset = dst_len - src_len;
+        } else {
+            src_offset = src_len - dst_len;
+            src_len = dst_len;
+        }
+        msb = ((unsigned char*) src)[0];
+    }
+    if (msb & 0x80) {
+        memset(dst, 0xFF, dst_len);
+    } else {
+        memset(dst, 0, dst_len);
+    }
+    memcpy(dst + dst_offset, src + src_offset, src_len);
+  }
 };
 
 typedef Integral<3> Int24;

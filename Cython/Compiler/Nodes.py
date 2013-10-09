@@ -1175,6 +1175,12 @@ class CVarDefNode(StatNode):
         visibility = self.visibility
 
         for declarator in self.declarators:
+            
+            if (len(self.declarators) > 1
+                and not isinstance(declarator, CNameDeclaratorNode)
+                and env.directives['warn.multiple_declarators']):
+                warning(declarator.pos, "Non-trivial type declarators in shared declaration.", 1)
+            
             if isinstance(declarator, CFuncDeclaratorNode):
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
             else:
@@ -2788,7 +2794,7 @@ class DefNode(FuncDefNode):
         return self.entry.signature.error_value
 
     def caller_will_check_exceptions(self):
-        return 1
+        return self.entry.signature.exception_check
 
     def generate_function_definitions(self, env, code):
         if self.defaults_getter:
@@ -5183,6 +5189,7 @@ class AssertStatNode(StatNode):
 
     def generate_execution_code(self, code):
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
+        code.putln("if (unlikely(!Py_OptimizeFlag)) {")
         self.cond.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
@@ -5203,6 +5210,8 @@ class AssertStatNode(StatNode):
             "}")
         self.cond.generate_disposal_code(code)
         self.cond.free_temps(code)
+        code.putln(
+            "}")
         code.putln("#endif")
 
     def generate_function_definitions(self, env, code):

@@ -1,5 +1,5 @@
 # mode: run
-# tag: freelist
+# tag: freelist, cyclicgc
 
 cimport cython
 
@@ -13,6 +13,18 @@ cdef class ExtTypeNoGC:
     >>> obj = ExtTypeNoGC()
     >>> obj = ExtTypeNoGC()
     """
+
+
+cdef class ExtSubTypeNoGC(ExtTypeNoGC):
+    """
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    >>> obj = ExtSubTypeNoGC()
+    """
+    cdef bytes x
 
 
 @cython.freelist(4)

@@ -4,14 +4,16 @@
 #   Tree visitor and transform framework
 #
 import inspect
-import TypeSlots
-import Builtin
-import Nodes
-import ExprNodes
-import Errors
-import DebugFlags
+
+from Cython.Compiler import TypeSlots
+from Cython.Compiler import Builtin
+from Cython.Compiler import Nodes
+from Cython.Compiler import ExprNodes
+from Cython.Compiler import Errors
+from Cython.Compiler import DebugFlags
 
 import cython
+
 
 class TreeVisitor(object):
     """
@@ -62,7 +64,7 @@ class TreeVisitor(object):
         self.access_path = []
 
     def dump_node(self, node, indent=0):
-        ignored = list(node.child_attrs) + [u'child_attrs', u'pos',
+        ignored = list(node.child_attrs or []) + [u'child_attrs', u'pos',
                                             u'gil_message', u'cpp_message',
                                             u'subexprs']
         values = []

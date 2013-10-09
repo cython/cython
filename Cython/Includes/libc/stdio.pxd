@@ -48,7 +48,7 @@ cdef extern from "stdio.h" nogil:
     void     rewind (FILE *stream)
     long int ftell  (FILE *stream)
 
-    ctypedef long long int fpos_t
+    ctypedef struct fpos_t
     ctypedef const fpos_t const_fpos_t "const fpos_t"
     int fgetpos (FILE *stream, fpos_t *position)
     int fsetpos (FILE *stream, const fpos_t *position)

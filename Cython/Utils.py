@@ -215,44 +215,58 @@ def detect_opened_file_encoding(f):
                 return encoding.group(1)
     return "UTF-8"
 
+
+def skip_bom(f):
+    """
+    Read past a BOM at the beginning of a source file.
+    This could be added to the scanner, but it's *substantially* easier
+    to keep it at this level.
+    """
+    if f.read(1) != u'\uFEFF':
+        f.seek(0)
+
+
 normalise_newlines = re.compile(u'\r\n?|\n').sub
 
+
 class NormalisedNewlineStream(object):
-  """The codecs module doesn't provide universal newline support.
-  This class is used as a stream wrapper that provides this
-  functionality.  The new 'io' in Py2.6+/3.x supports this out of the
-  box.
-  """
-  def __init__(self, stream):
-    # let's assume .read() doesn't change
-    self.stream = stream
-    self._read = stream.read
-    self.close = stream.close
-    self.encoding = getattr(stream, 'encoding', 'UTF-8')
+    """The codecs module doesn't provide universal newline support.
+    This class is used as a stream wrapper that provides this
+    functionality.  The new 'io' in Py2.6+/3.x supports this out of the
+    box.
+    """
 
-  def read(self, count=-1):
-    data = self._read(count)
-    if u'\r' not in data:
-      return data
-    if data.endswith(u'\r'):
-      # may be missing a '\n'
-      data += self._read(1)
-    return normalise_newlines(u'\n', data)
+    def __init__(self, stream):
+        # let's assume .read() doesn't change
+        self.stream = stream
+        self._read = stream.read
+        self.close = stream.close
+        self.encoding = getattr(stream, 'encoding', 'UTF-8')
 
-  def readlines(self):
-    content = []
-    data = self.read(0x1000)
-    while data:
-        content.append(data)
+    def read(self, count=-1):
+        data = self._read(count)
+        if u'\r' not in data:
+            return data
+        if data.endswith(u'\r'):
+            # may be missing a '\n'
+            data += self._read(1)
+        return normalise_newlines(u'\n', data)
+
+    def readlines(self):
+        content = []
         data = self.read(0x1000)
+        while data:
+            content.append(data)
+            data = self.read(0x1000)
 
-    return u''.join(content).splitlines(True)
+        return u''.join(content).splitlines(True)
 
-  def seek(self, pos):
-    if pos == 0:
-        self.stream.seek(0)
-    else:
-        raise NotImplementedError
+    def seek(self, pos):
+        if pos == 0:
+            self.stream.seek(0)
+        else:
+            raise NotImplementedError
+
 
 io = None
 if sys.version_info >= (2,6):
@@ -260,6 +274,7 @@ if sys.version_info >= (2,6):
         import io
     except ImportError:
         pass
+
 
 def open_source_file(source_filename, mode="r",
                      encoding=None, error_handling=None,
@@ -269,8 +284,11 @@ def open_source_file(source_filename, mode="r",
         # it's UTF-8.
         f = open_source_file(source_filename, encoding="UTF-8", mode=mode, error_handling='ignore')
         encoding = detect_opened_file_encoding(f)
-        if encoding == "UTF-8" and error_handling=='ignore' and require_normalised_newlines:
+        if (encoding == "UTF-8"
+                and error_handling == 'ignore'
+                and require_normalised_newlines):
             f.seek(0)
+            skip_bom(f)
             return f
         else:
             f.close()
@@ -287,15 +305,17 @@ def open_source_file(source_filename, mode="r",
             pass
     #
     if io is not None:
-        return io.open(source_filename, mode=mode,
-                       encoding=encoding, errors=error_handling)
+        stream = io.open(source_filename, mode=mode,
+                         encoding=encoding, errors=error_handling)
     else:
         # codecs module doesn't have universal newline support
         stream = codecs.open(source_filename, mode=mode,
                              encoding=encoding, errors=error_handling)
         if require_normalised_newlines:
             stream = NormalisedNewlineStream(stream)
-        return stream
+    skip_bom(stream)
+    return stream
+
 
 def open_source_from_loader(loader,
                             source_filename,

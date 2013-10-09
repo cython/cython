@@ -43,6 +43,7 @@ non_portable_builtins_map = {
     'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
     'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
+    'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
     'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
     }
 
@@ -384,12 +385,18 @@ class UtilityCode(UtilityCodeBase):
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
-        pystrings = re.findall('(PYIDENT\("([^"]+)"\))', impl)
-        for ref, name in pystrings:
-            py_const = output.get_interned_identifier(
-                StringEncoding.EncodedString(name))
-            impl = impl.replace(ref, py_const.cname)
-        return impl
+        replacements = {}
+        def externalise(matchobj):
+            name = matchobj.group(1)
+            try:
+                cname = replacements[name]
+            except KeyError:
+                cname = replacements[name] = output.get_interned_identifier(
+                    StringEncoding.EncodedString(name)).cname
+            return cname
+
+        impl = re.sub('PYIDENT\("([^"]+)"\)', externalise, impl)
+        return bool(replacements), impl
 
     def put_code(self, output):
         if self.requires:
@@ -400,10 +407,14 @@ class UtilityCode(UtilityCodeBase):
                 self.format_code(self.proto),
                 '%s_proto' % self.name)
         if self.impl:
-            output['utility_code_def'].put_or_include(
-                self.format_code(
-                    self.inject_string_constants(self.impl, output)),
-                '%s_impl' % self.name)
+            impl = self.format_code(self.impl)
+            is_specialised, impl = self.inject_string_constants(impl, output)
+            if not is_specialised:
+                # no module specific adaptations => can be reused
+                output['utility_code_def'].put_or_include(
+                    impl, '%s_impl' % self.name)
+            else:
+                output['utility_code_def'].put(impl)
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
@@ -713,10 +724,10 @@ class PyObjectConst(object):
         self.type = type
 
 cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
-               nice_identifier=object, find_alphanums=object)
+               replace_identifier=object, find_alphanums=object)
 possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
-nice_identifier = re.compile(r'\A[a-zA-Z0-9_]+\Z').match
+replace_identifier = re.compile(r'[^a-zA-Z0-9_]+').sub
 find_alphanums = re.compile('([a-zA-Z0-9]+)').findall
 
 class StringConst(object):
@@ -836,7 +847,7 @@ class GlobalState(object):
     #                                  In time, hopefully the literals etc. will be
     #                                  supplied directly instead.
     #
-    # const_cname_counter int          global counter for constant identifiers
+    # const_cnames_used  dict          global counter for unique constant identifiers
     #
 
     # parts            {string:CCodeWriter}
@@ -892,7 +903,7 @@ class GlobalState(object):
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer
 
-        self.const_cname_counter = 1
+        self.const_cnames_used = {}
         self.string_const_index = {}
         self.pyunicode_ptr_const_index = {}
         self.int_const_index = {}
@@ -1020,7 +1031,7 @@ class GlobalState(object):
         # create a new Python object constant
         const = self.new_py_const(type, prefix)
         if cleanup_level is not None \
-               and cleanup_level <= Options.generate_cleanup_code:
+                and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         return const
@@ -1082,17 +1093,10 @@ class GlobalState(object):
         self.py_constants.append(c)
         return c
 
-    def new_string_const_cname(self, bytes_value, intern=None):
+    def new_string_const_cname(self, bytes_value):
         # Create a new globally-unique nice name for a C string constant.
-        try:
-            value = bytes_value.decode('ASCII')
-        except UnicodeError:
-            return self.new_const_cname()
-
-        if len(value) < 20 and nice_identifier(value):
-            return "%s_%s" % (Naming.const_prefix, value)
-        else:
-            return self.new_const_cname()
+        value = bytes_value.decode('ASCII', 'ignore')
+        return self.new_const_cname(value=value)
 
     def new_int_const_cname(self, value, longness):
         if longness:
@@ -1101,10 +1105,15 @@ class GlobalState(object):
         cname = cname.replace('-', 'neg_').replace('.','_')
         return cname
 
-    def new_const_cname(self, prefix=''):
-        n = self.const_cname_counter
-        self.const_cname_counter += 1
-        return "%s%s%d" % (Naming.const_prefix, prefix, n)
+    def new_const_cname(self, prefix='', value=''):
+        value = replace_identifier('_', value)[:32].strip('_')
+        used = self.const_cnames_used
+        name_suffix = value
+        while name_suffix in used:
+            counter = used[value] = used[value] + 1
+            name_suffix = '%s_%d' % (value, counter)
+        used[name_suffix] = 1
+        return "%s%s%s" % (Naming.const_prefix, prefix, name_suffix)
 
     def add_cached_builtin_decl(self, entry):
         if entry.is_builtin and entry.is_const:
@@ -1529,16 +1538,21 @@ class CCodeWriter(object):
         self.bol = 0
 
     def put_or_include(self, code, name):
-        if code:
-            if self.globalstate.common_utility_include_dir and len(code) > 1042:
-                include_file = "%s_%s.h" % (name, hashlib.md5(code).hexdigest())
-                path = os.path.join(self.globalstate.common_utility_include_dir, include_file)
-                if not os.path.exists(path):
-                    tmp_path = '%s.tmp%s' % (path, os.getpid())
-                    open(tmp_path, 'w').write(code)
-                    os.rename(tmp_path, path)
-                code = '#include "%s"\n' % path
-            self.put(code)
+        include_dir = self.globalstate.common_utility_include_dir
+        if include_dir and len(code) > 1024:
+            include_file = "%s_%s.h" % (
+                name, hashlib.md5(code.encode('utf8')).hexdigest())
+            path = os.path.join(include_dir, include_file)
+            if not os.path.exists(path):
+                tmp_path = '%s.tmp%s' % (path, os.getpid())
+                f = Utils.open_new_file(tmp_path)
+                try:
+                    f.write(code)
+                finally:
+                    f.close()
+                os.rename(tmp_path, path)
+            code = '#include "%s"\n' % path
+        self.put(code)
 
     def put(self, code):
         fix_indent = False

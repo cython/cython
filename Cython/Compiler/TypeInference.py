@@ -339,8 +339,11 @@ class SimpleAssignmentTypeInferer(object):
     Note: in order to support cross-closure type inference, this must be
     applies to nested scopes in top-down order.
     """
-    # TODO: Implement a real type inference algorithm.
-    # (Something more powerful than just extending this one...)
+    def set_entry_type(self, entry, entry_type):
+        entry.type = entry_type
+        for e in entry.all_entries():
+            e.type = entry_type
+
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
         verbose = scope.directives['infer_types.verbose']
@@ -352,85 +355,126 @@ class SimpleAssignmentTypeInferer(object):
         else:
             for entry in scope.entries.values():
                 if entry.type is unspecified_type:
-                    entry.type = py_object_type
+                    self.set_entry_type(entry, py_object_type)
             return
 
-        dependancies_by_entry = {} # entry -> dependancies
-        entries_by_dependancy = {} # dependancy -> entries
-        ready_to_infer = []
+        # Set of assignemnts
+        assignments = set([])
+        assmts_resolved = set([])
+        dependencies = {}
+        assmt_to_names = {}
+
         for name, entry in scope.entries.items():
+            for assmt in entry.cf_assignments:
+                names = assmt.type_dependencies()
+                assmt_to_names[assmt] = names
+                assmts = set()
+                for node in names:
+                    assmts.update(node.cf_state)
+                dependencies[assmt] = assmts
             if entry.type is unspecified_type:
-                all = set()
-                for assmt in entry.cf_assignments:
-                    all.update(assmt.type_dependencies(entry.scope))
-                if all:
-                    dependancies_by_entry[entry] = all
-                    for dep in all:
-                        if dep not in entries_by_dependancy:
-                            entries_by_dependancy[dep] = set([entry])
-                        else:
-                            entries_by_dependancy[dep].add(entry)
-                else:
-                    ready_to_infer.append(entry)
+                assignments.update(entry.cf_assignments)
+            else:
+                assmts_resolved.update(entry.cf_assignments)
 
-        def resolve_dependancy(dep):
-            if dep in entries_by_dependancy:
-                for entry in entries_by_dependancy[dep]:
-                    entry_deps = dependancies_by_entry[entry]
-                    entry_deps.remove(dep)
-                    if not entry_deps and entry != dep:
-                        del dependancies_by_entry[entry]
-                        ready_to_infer.append(entry)
+        def infer_name_node_type(node):
+            types = [assmt.inferred_type for assmt in node.cf_state]
+            if not types:
+                node_type = py_object_type
+            else:
+                node_type = spanning_type(
+                    types, entry.might_overflow, entry.pos)
+            node.inferred_type = node_type
 
-        # Try to infer things in order...
+        def infer_name_node_type_partial(node):
+            types = [assmt.inferred_type for assmt in node.cf_state
+                     if assmt.inferred_type is not None]
+            if not types:
+                return
+            return spanning_type(types, entry.might_overflow, entry.pos)
+
+        def resolve_assignments(assignments):
+            resolved = set()
+            for assmt in assignments:
+                deps = dependencies[assmt]
+                # All assignments are resolved
+                if assmts_resolved.issuperset(deps):
+                    for node in assmt_to_names[assmt]:
+                        infer_name_node_type(node)
+                    # Resolve assmt
+                    inferred_type = assmt.infer_type()
+                    done = False
+                    assmts_resolved.add(assmt)
+                    resolved.add(assmt)
+            assignments -= resolved
+            return resolved
+
+        def partial_infer(assmt):
+            partial_types = []
+            for node in assmt_to_names[assmt]:
+                partial_type = infer_name_node_type_partial(node)
+                if partial_type is None:
+                    return False
+                partial_types.append((node, partial_type))
+            for node, partial_type in partial_types:
+                node.inferred_type = partial_type
+            assmt.infer_type()
+            return True
+
+        partial_assmts = set()
+        def resolve_partial(assignments):
+            # try to handle circular references
+            partials = set()
+            for assmt in assignments:
+                partial_types = []
+                if assmt in partial_assmts:
+                    continue
+                for node in assmt_to_names[assmt]:
+                    if partial_infer(assmt):
+                        partials.add(assmt)
+                        assmts_resolved.add(assmt)
+            partial_assmts.update(partials)
+            return partials
+
+        # Infer assignments
         while True:
-            while ready_to_infer:
-                entry = ready_to_infer.pop()
-                types = [
-                    assmt.rhs.infer_type(scope)
-                    for assmt in entry.cf_assignments
-                    ]
+            if not resolve_assignments(assignments):
+                if not resolve_partial(assignments):
+                    break
+        inferred = set()
+        # First pass
+        for entry in scope.entries.values():
+            if entry.type is not unspecified_type:
+                continue
+            entry_type = py_object_type
+            if assmts_resolved.issuperset(entry.cf_assignments):
+                types = [assmt.inferred_type for assmt in entry.cf_assignments]
                 if types and Utils.all(types):
-                    entry_type = spanning_type(types, entry.might_overflow, entry.pos)
-                else:
-                    # FIXME: raise a warning?
-                    # print "No assignments", entry.pos, entry
-                    entry_type = py_object_type
-                # propagate entry type to all nested scopes
-                for e in entry.all_entries():
-                    if e.type is unspecified_type:
-                        e.type = entry_type
-                    else:
-                        # FIXME: can this actually happen?
-                        assert e.type == entry_type, (
-                            'unexpected type mismatch between closures for inferred type %s: %s vs. %s' %
-                            entry_type, e, entry)
-                if verbose:
-                    message(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type))
-                resolve_dependancy(entry)
-            # Deal with simple circular dependancies...
-            for entry, deps in dependancies_by_entry.items():
-                if len(deps) == 1 and deps == set([entry]):
-                    types = [assmt.infer_type(scope)
-                             for assmt in entry.cf_assignments
-                             if assmt.type_dependencies(scope) == ()]
-                    if types:
-                        entry.type = spanning_type(types, entry.might_overflow, entry.pos)
-                        types = [assmt.infer_type(scope)
-                                 for assmt in entry.cf_assignments]
-                        entry.type = spanning_type(types, entry.might_overflow, entry.pos) # might be wider...
-                        resolve_dependancy(entry)
-                        del dependancies_by_entry[entry]
-                        if ready_to_infer:
-                            break
-            if not ready_to_infer:
-                break
+                    entry_type = spanning_type(
+                        types, entry.might_overflow, entry.pos)
+                    inferred.add(entry)
+            self.set_entry_type(entry, entry_type)
 
-        # We can't figure out the rest with this algorithm, let them be objects.
-        for entry in dependancies_by_entry:
-            entry.type = py_object_type
-            if verbose:
-                message(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type))
+        def reinfer():
+            dirty = False
+            for entry in inferred:
+                types = [assmt.infer_type()
+                         for assmt in entry.cf_assignments]
+                new_type = spanning_type(types, entry.might_overflow, entry.pos)
+                if new_type != entry.type:
+                    self.set_entry_type(entry, new_type)
+                    dirty = True
+            return dirty
+
+        # types propagation
+        while reinfer():
+            pass
+
+        if verbose:
+            for entry in inferred:
+                message(entry.pos, "inferred '%s' to be of type '%s'" % (
+                    entry.name, entry.type))
+
 
 def find_spanning_type(type1, type2):
     if type1 is type2:

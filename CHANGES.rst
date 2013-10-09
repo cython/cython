@@ -8,6 +8,43 @@ Cython Changelog
 Features added
 --------------
 
+* Using ``cdef basestring stringvar`` and function arguments typed as
+  ``basestring`` is now meaningful and allows assigning exactly
+  ``str`` and ``unicode`` objects, but no subtypes of these types.
+
+* Support for the ``__debug__`` builtin.
+
+* Assertions in Cython compiled modules are disabled if the running
+  Python interpreter was started with the "-O" option.
+
+* Some types that Cython provides internally, such as functions and
+  generators, are now shared across modules if more than one Cython
+  implemented module is imported.
+
+* The type inference algorithm works more fine granular by taking the
+  results of the control flow analysis into account.
+
+* A new script in ``bin/cythonize`` provides a command line frontend
+  to the cythonize() compilation function (including distutils build).
+
+* The new extension type decorator ``@cython.no_gc_clear`` prevents
+  objects from being cleared during cyclic garbage collection, thus
+  making sure that object attributes are kept alive until deallocation.
+
+* During cyclic garbage collection, attributes of extension types that
+  cannot create reference cycles due to their type (e.g. strings) are
+  no longer considered for traversal or clearing.  This can reduce the
+  processing overhead when searching for or cleaning up reference cycles.
+
+* Package compilation (i.e. ``__init__.py`` files) now works, starting
+  with Python 3.3.
+
+* The cython-mode.el script for Emacs was updated.  Patch by Ivan Andrus.
+
+* An option common_utility_include_dir was added to cythonize() to save
+  oft-used utility code once in a separate directory rather than as
+  part of each generated file.
+
 Bugs fixed
 ----------
 
@@ -16,6 +53,33 @@ Bugs fixed
   a slightly wider application and reducing corner cases.  It now always
   generates a 'default' clause to avoid C compiler warnings about
   unmatched enum values.
+
+Other changes
+-------------
+
+* In Py3.4+, the Cython generator type uses ``tp_finalize()`` for safer
+  cleanup instead of ``tp_del()``.
+
+
+0.19.2 (??)
+===================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Calling the unbound method dict.keys/value/items() in dict subtypes could
+  call the bound object method instead of the unbound supertype method.
+
+* "yield" wasn't supported in "return" value expressions.
+
+* Using the "bint" type in memory views lead to unexpected results.
+  It is now an error.
+
+* Assignments to global/closure variables could catch them in an illegal state
+  while deallocating the old value.
 
 Other changes
 -------------
@@ -312,13 +376,13 @@ Other changes
 Features added
 --------------
 
-* Alpha quality support for compiling and running Cython generated extension modules in PyPy (through cpyext). Note that this requires at leastPyPy 1.9 and in many cases also adaptations in user code, especially to avoid borrowed references when no owned reference is being held directly in C space (a reference in a Python list or dict is not enough, for example). See the documentation on porting Cython code to PyPy.
+* Alpha quality support for compiling and running Cython generated extension modules in PyPy (through cpyext). Note that this requires at least PyPy 1.9 and in many cases also adaptations in user code, especially to avoid borrowed references when no owned reference is being held directly in C space (a reference in a Python list or dict is not enough, for example). See the documentation on porting Cython code to PyPy.
 
 * "yield from" is supported (PEP 380) and a couple of minor problems with generators were fixed.
 
-* C++ STL container classes automatically coerce from and to the equivalent Python container types on typed assignments and casts. Usage examples are here. Note that the data in the containers is copied during this conversion.
+* C++ STL container classes automatically coerce from and to the equivalent Python container types on typed assignments and casts. Note that the data in the containers is copied during this conversion.
 
-* C++ iterators can now be iterated over using for x in cpp_container whenever cpp_container has begin() and end() methods returning objects satisfying the iterator pattern (that is, it can be incremented, dereferenced, and compared (for non-equality)).
+* C++ iterators can now be iterated over using "for x in cpp_container" whenever cpp_container has begin() and end() methods returning objects satisfying the iterator pattern (that is, it can be incremented, dereferenced, and compared (for non-equality)).
 
 * cdef classes can now have C++ class members (provided a zero-argument constructor exists)
 
@@ -343,7 +407,7 @@ Bugs fixed
 
 * Old-style Py2 imports did not work reliably in Python 3.x and were broken in Python 3.3. Regardless of this fix, it's generally best to be explicit about relative and global imports in Cython code because old-style imports have a higher overhead. To this end, "from __future__ import absolute_import" is supported in Python/Cython 2.x code now (previous versions of Cython already used it when compiling Python 3 code).
 
-* Stricter constraints on the inline and final modifiers. If your code does not compile due to this change, chances are these modifiers were previously being ignored by the compiler and can be removed without any performance regression.
+* Stricter constraints on the "inline" and "final" modifiers. If your code does not compile due to this change, chances are these modifiers were previously being ignored by the compiler and can be removed without any performance regression.
 
 * Exceptions are always instantiated while raising them (as in Python), instead of risking to instantiate them in potentially unsafe situations when they need to be handled or otherwise processed.
 

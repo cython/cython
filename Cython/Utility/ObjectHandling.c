@@ -1,3 +1,12 @@
+/*
+ * General object operations and protocol implementations,
+ * including their specialisations for certain builtins.
+ *
+ * Optional optimisations for builtins are in Optimize.c.
+ *
+ * Required replacements of builtins are in Builtins.c.
+ */
+
 /////////////// RaiseNoneIterError.proto ///////////////
 
 static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
@@ -894,6 +903,25 @@ static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
         result = __Pyx_GetBuiltinName(name);
     }
     return result;
+}
+
+//////////////////// GetAttr.proto ////////////////////
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *, PyObject *); /*proto*/
+
+//////////////////// GetAttr ////////////////////
+//@requires: PyObjectGetAttrStr
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
+#if CYTHON_COMPILING_IN_CPYTHON
+#if PY_MAJOR_VERSION >= 3
+    if (likely(PyUnicode_Check(n)))
+#else
+    if (likely(PyString_Check(n)))
+#endif
+        return __Pyx_PyObject_GetAttrStr(o, n);
+#endif
+    return PyObject_GetAttr(o, n);
 }
 
 /////////////// PyObjectGetAttrStr.proto ///////////////

@@ -1,0 +1,55 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import toppkg; assert '.py' not in toppkg.__file__; assert toppkg.PACKAGE == 1"
+PYTHON -c "import toppkg.subpkg; assert '.py' not in toppkg.__file__; assert '.py' not in toppkg.subpkg.__file__; assert toppkg.subpkg.PACKAGE == 2"
+PYTHON -c "import toppkg.a; assert toppkg.a.MODULE == 'a'"
+PYTHON -c "from toppkg.subpkg import a; assert a.MODULE == 'subpkg.a'"
+
+######## setup.py ########
+
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("toppkg/**/*.py"),
+)
+
+######## toppkg/__init__.py ########
+
+import sys
+assert 'toppkg' in sys.modules
+
+assert __path__ is not None, "__path__ is None"
+
+assert __path__, "__path__ is empty"
+assert 'toppkg' in __path__[0], "toppkg not in __path__[0]"
+
+assert 'toppkg' in __file__
+
+from . import a
+assert a.MODULE == 'a'
+
+from . import b
+assert b.MODULE == 'b'
+
+PACKAGE = 1
+
+######## toppkg/a.py ########
+
+MODULE = 'a'
+
+######## toppkg/b.py ########
+
+MODULE = 'b'
+
+######## toppkg/subpkg/__init__.py ########
+
+PACKAGE = 2
+
+from . import a
+assert a.__name__ == 'toppkg.subpkg.a'
+assert a.MODULE == 'subpkg.a'
+
+######## toppkg/subpkg/a.py ########
+
+MODULE = 'subpkg.a'

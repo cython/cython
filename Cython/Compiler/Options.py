@@ -68,13 +68,16 @@ old_style_globals = False
 # Allows cimporting from a pyx file without a pxd file.
 cimport_from_pyx = False
 
-
 # max # of dims for buffers -- set lower than number of dimensions in numpy, as
 # slices are passed by value and involve a lot of copying
 buffer_max_dims = 8
 
 # Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
+
+# Should tp_clear() set object fields to None instead of clearing them to NULL?
+clear_to_none = True
+
 
 # Declare compiler directives
 directive_defaults = {
@@ -96,6 +99,7 @@ directive_defaults = {
     'final' : False,
     'internal' : False,
     'profile': False,
+    'no_gc_clear': False,
     'linetrace': False,
     'infer_types': None,
     'infer_types.verbose': False,
@@ -119,6 +123,7 @@ directive_defaults = {
     'warn.unused': False,
     'warn.unused_arg': False,
     'warn.unused_result': False,
+    'warn.multiple_declarators': True,
 
 # optimizations
     'optimize.inline_defnode_calls': True,
@@ -214,6 +219,7 @@ for key, val in directive_defaults.items():
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'final' : ('cclass', 'function'),
+    'no_gc_clear' : ('cclass',),
     'internal' : ('cclass',),
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),
@@ -303,6 +309,11 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
     Traceback (most recent call last):
        ...
     ValueError: Unknown option: "unknown"
+    >>> warnings = parse_directive_list('warn.all=True')
+    >>> len(warnings) > 1
+    True
+    >>> sum(warnings.values()) == len(warnings)  # all true.
+    True
     """
     if current_settings is None:
         result = {}
@@ -313,10 +324,18 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
         if not item: continue
         if not '=' in item: raise ValueError('Expected "=" in option "%s"' % item)
         name, value = [ s.strip() for s in item.strip().split('=', 1) ]
-        parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
-        if parsed_value is None:
-            if not ignore_unknown:
+        if name not in directive_defaults:
+            found = False
+            if name.endswith('.all'):
+                prefix = name[:-3]
+                for directive in directive_defaults:
+                    if directive.startswith(prefix):
+                        found = True
+                        parsed_value = parse_directive_value(directive, value, relaxed_bool=relaxed_bool)
+                        result[directive] = parsed_value
+            if not found and not ignore_unknown:
                 raise ValueError('Unknown option: "%s"' % name)
         else:
+            parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
             result[name] = parsed_value
     return result

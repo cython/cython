@@ -43,7 +43,7 @@ generally preferred to use the usual :keyword:`for` ... :keyword:`in`
 
 .. note:: see :ref:`automatic-range-conversion`
 
-Note that Cython also supports set literals starting from Python 2.3.
+Note that Cython also supports set literals starting from Python 2.4.
 
 Keyword-only arguments
 ----------------------
@@ -68,8 +68,8 @@ takes exactly two positional parameters and has two required keyword parameters.
 
 
 
-Conditional expressions "x if b else y" (Python 2.5)
-=====================================================
+Conditional expressions "x if b else y"
+=========================================
 
 Conditional expressions as described in
 http://www.python.org/dev/peps/pep-0308/::
@@ -156,8 +156,8 @@ Cython. One can declare variables and return values for functions to be of the
     cdef bint b = x
 
 The first conversion would happen via ``x.__int__()`` whereas the second would
-happen via ``x.__nonzero__()``. (Actually, if ``x`` is the python object
-``True`` or ``False`` then no method call is made.) 
+happen via ``x.__bool__()`` (a.k.a. ``__nonzero__()``), with appropriate
+optimisations for known builtin types.
 
 Executable class bodies
 =======================
@@ -170,7 +170,7 @@ Including a working :func:`classmethod`::
         some_method = classmethod(some_method)
         a = 2*3
         print "hi", a
-        
+
 cpdef functions
 =================
 
@@ -181,18 +181,18 @@ essentially think of a :keyword:`cpdef` method as a :keyword:`cdef` method +
 some extras. (That's how it's implemented at least.) First, it creates a
 :keyword:`def` method that does nothing but call the underlying
 :keyword:`cdef` method (and does argument unpacking/coercion if needed). At
-the top of the :keyword:`cdef` method a little bit of code is added to check
-to see if it's overridden.  Specifically, in pseudocode::
+the top of the :keyword:`cdef` method a little bit of code is added to see
+if it's overridden, similar to the following pseudocode::
 
-    if type(self) has a __dict__:
-        foo = self.getattr('foo')
+    if hasattr(type(self), '__dict__'):
+        foo = self.foo
         if foo is not wrapper_foo:
             return foo(args)
     [cdef method body]
 
 To detect whether or not a type has a dictionary, it just checks the
-tp_dictoffset slot, which is ``NULL`` (by default) for extension types, but
-non- null for instance classes. If the dictionary exists, it does a single
+``tp_dictoffset`` slot, which is ``NULL`` (by default) for extension types,
+but non- null for instance classes. If the dictionary exists, it does a single
 attribute lookup and can tell (by comparing pointers) whether or not the
 returned result is actually a new function. If, and only if, it is a new
 function, then the arguments packed into a tuple and the method called. This
@@ -240,10 +240,10 @@ In Cython ``<type>x`` will try and do a coercion (as would happen on assignment 
 It does not stop one from casting where there is no conversion (though it will
 emit a warning). If one really wants the address, cast to a ``void *`` first.
 
-As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type :c:type:`MyExtensionType` without any
-type checking. Cython supports the syntax ``<MyExtensionType?>`` to do the cast
-with type checking (i.e. it will throw an error if ``x`` is not a (subclass of)
-:c:type:`MyExtensionType`.
+As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type :c:type:`MyExtensionType`
+without any type checking. Cython supports the syntax ``<MyExtensionType?>`` to do
+the cast with type checking (i.e. it will throw an error if ``x`` is not a
+(subclass of) :c:type:`MyExtensionType`.
 
 Optional arguments in cdef/cpdef functions
 ============================================
@@ -329,7 +329,8 @@ Cython emits a (non-spoofable and faster) typecheck whenever
 From __future__ directives
 ==========================
 
-Cython supports several from __future__ directives, namely ``unicode_literals`` and ``division``. 
+Cython supports several ``from __future__ import ...`` directives, namely
+``absolute_import``, ``unicode_literals``, ``print_function`` and ``division``.
 
 With statements are always enabled. 
 
@@ -340,7 +341,4 @@ Cython has support for compiling ``.py`` files, and
 accepting type annotations using decorators and other
 valid Python syntax. This allows the same source to 
 be interpreted as straight Python, or compiled for 
-optimized results. 
-See http://wiki.cython.org/pure 
-for more details. 
-
+optimized results. See :ref:`pure-mode` for more details.

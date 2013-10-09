@@ -28,6 +28,7 @@ Options:
   -w, --working <directory>      Sets the working directory for Cython (the directory modules
                                  are searched from)
   --gdb                          Output debug information for cygdb
+  --gdb-outdir <directory>       Specify gdb debug information output directory. Implies --gdb.
 
   -D, --no-docstrings            Strip docstrings from the compiled module.
   -a, --annotate                 Produce a colorized HTML version of the source.
@@ -36,6 +37,8 @@ Options:
   --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
+  --lenient                      Change some compile time errors to runtime errors to
+                                 improve Python compatibility
   --capi-reexport-cincludes      Add cincluded headers to any auto-generated header files.
   --fast-fail                    Abort the compilation on the first error
   --warning-errors, -Werror      Make all warnings into errors
@@ -119,6 +122,12 @@ def parse_command_line(args):
             elif option == "--gdb":
                 options.gdb_debug = True
                 options.output_dir = os.curdir
+            elif option == "--gdb-outdir":
+                options.gdb_debug = True
+                options.output_dir = pop_arg()
+            elif option == "--lenient":
+                Options.error_on_unknown_names = False
+                Options.error_on_uninitialized = False
             elif option == '-2':
                 options.language_level = 2
             elif option == '-3':

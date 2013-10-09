@@ -1,3 +1,10 @@
+/*
+ * Special implementations of built-in functions and methods.
+ *
+ * Optional optimisations for builtins are in Optimize.c.
+ *
+ * General object operations and protocols are in ObjectHandling.c.
+ */
 
 //////////////////// Globals.proto ////////////////////
 
@@ -5,6 +12,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 
 //////////////////// Globals ////////////////////
 //@substitute: naming
+//@requires: ObjectHandling.c::GetAttr
 
 // This is a stub implementation until we have something more complete.
 // Currently, we only handle the most common case of a read-only dict
@@ -33,7 +41,7 @@ static PyObject* __Pyx_Globals(void) {
         PyObject* name = PyList_GET_ITEM(names, i);
 #endif
         if (!PyDict_Contains(globals, name)) {
-            PyObject* value = PyObject_GetAttr($module_cname, name);
+            PyObject* value = __Pyx_GetAttr($module_cname, name);
             if (!value) {
 #if CYTHON_COMPILING_IN_PYPY
                 Py_DECREF(name);
@@ -164,35 +172,16 @@ bad:
     return 0;
 }
 
-//////////////////// GetAttr.proto ////////////////////
-
-static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *, PyObject *); /*proto*/
-
-//////////////////// GetAttr ////////////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
-
-static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
-#if CYTHON_COMPILING_IN_CPYTHON
-#if PY_MAJOR_VERSION >= 3
-    if (likely(PyUnicode_Check(n)))
-#else
-    if (likely(PyString_Check(n)))
-#endif
-        return __Pyx_PyObject_GetAttrStr(o, n);
-#endif
-    return PyObject_GetAttr(o, n);
-}
-
 //////////////////// GetAttr3.proto ////////////////////
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 
 //////////////////// GetAttr3 ////////////////////
-//@requires: GetAttr
+//@requires: ObjectHandling.c::GetAttr
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r = __Pyx_GetAttr(o, n);
-    if (!r) {
+    if (unlikely(!r)) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             goto bad;
         PyErr_Clear();
@@ -212,7 +201,7 @@ static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 
 static PyObject* __Pyx_Intern(PyObject* s) {
     if (!(likely(PyString_CheckExact(s)))) {
-        PyErr_Format(PyExc_TypeError, "Expected str, got %s", Py_TYPE(s)->tp_name);
+        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(s)->tp_name);
         return 0;
     }
     Py_INCREF(s);
@@ -266,60 +255,55 @@ static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 
 //////////////////// py_dict_keys.proto ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Keys(d) PyDict_Keys(d)
-#endif
 
 //////////////////// py_dict_keys ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, PYIDENT("keys"), NULL);
+    if (PY_MAJOR_VERSION >= 3)
+        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("keys"), d);
+    else
+        return PyDict_Keys(d);
 }
-#endif
 
 //////////////////// py_dict_values.proto ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Values(d) PyDict_Values(d)
-#endif
 
 //////////////////// py_dict_values ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, PYIDENT("values"), NULL);
+    if (PY_MAJOR_VERSION >= 3)
+        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("values"), d);
+    else
+        return PyDict_Values(d);
 }
-#endif
 
 //////////////////// py_dict_items.proto ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
-#else
-#define __Pyx_PyDict_Items(d) PyDict_Items(d)
-#endif
 
 //////////////////// py_dict_items ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
-#if PY_MAJOR_VERSION >= 3
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, PYIDENT("items"), NULL);
+    if (PY_MAJOR_VERSION >= 3)
+        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("items"), d);
+    else
+        return PyDict_Items(d);
 }
-#endif
 
 //////////////////// py_dict_iterkeys.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_iterkeys ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("iterkeys"), NULL);
+    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("iterkeys"));
 }
 
 //////////////////// py_dict_itervalues.proto ////////////////////
@@ -327,9 +311,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d); /*proto*/
 
 //////////////////// py_dict_itervalues ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("itervalues"), NULL);
+    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("itervalues"));
 }
 
 //////////////////// py_dict_iteritems.proto ////////////////////
@@ -337,9 +322,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d); /*proto*/
 
 //////////////////// py_dict_iteritems ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("iteritems"), NULL);
+    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("iteritems"));
 }
 
 //////////////////// py_dict_viewkeys.proto ////////////////////
@@ -350,9 +336,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewkeys ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("viewkeys"), NULL);
+    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("viewkeys"));
 }
 
 //////////////////// py_dict_viewvalues.proto ////////////////////
@@ -363,9 +350,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewvalues ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("viewvalues"), NULL);
+    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("viewvalues"));
 }
 
 //////////////////// py_dict_viewitems.proto ////////////////////
@@ -376,7 +364,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewitems ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
-    return PyObject_CallMethodObjArgs(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("viewitems"), NULL);
+    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("viewitems"));
 }

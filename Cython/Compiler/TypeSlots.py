@@ -93,6 +93,7 @@ class Signature(object):
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
+        self.exception_check = self.error_value is not None
         self.is_staticmethod = False
 
     def num_fixed_args(self):
@@ -135,7 +136,9 @@ class Signature(object):
         else:
             ret_type = self.return_type()
         exc_value = self.exception_value()
-        return PyrexTypes.CFuncType(ret_type, args, exception_value = exc_value)
+        return PyrexTypes.CFuncType(
+            ret_type, args, exception_value=exc_value,
+            exception_check=self.exception_check)
 
     def method_flags(self):
         if self.ret_format == "O":
@@ -319,16 +322,24 @@ class GCDependentSlot(InternalMethodSlot):
     def slot_code(self, scope):
         if not scope.needs_gc():
             return "0"
-        if not scope.has_pyobject_attrs:
-            # if the type does not have object attributes, it can
-            # delegate GC methods to its parent - iff the parent
-            # functions are defined in the same module
+        if not scope.has_cyclic_pyobject_attrs:
+            # if the type does not have GC relevant object attributes, it can
+            # delegate GC methods to its parent - iff the parent functions
+            # are defined in the same module
             parent_type_scope = scope.parent_type.base_type.scope
             if scope.parent_scope is parent_type_scope.parent_scope:
                 entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
                 if entry.visibility != 'extern':
                     return self.slot_code(parent_type_scope)
         return InternalMethodSlot.slot_code(self, scope)
+
+
+class GCClearReferencesSlot(GCDependentSlot):
+
+    def slot_code(self, scope):
+        if scope.needs_tp_clear():
+            return GCDependentSlot.slot_code(self, scope)
+        return "0"
 
 
 class ConstructorSlot(InternalMethodSlot):
@@ -339,10 +350,10 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
-        if self.slot_name != 'tp_new' \
-            and scope.parent_type.base_type \
-            and not scope.has_pyobject_attrs \
-            and not scope.lookup_here(self.method):
+        if (self.slot_name != 'tp_new'
+                and scope.parent_type.base_type
+                and not scope.has_pyobject_attrs
+                and not scope.lookup_here(self.method)):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
@@ -449,7 +460,10 @@ class MethodTableSlot(SlotDescriptor):
     #  Slot descriptor for the method table.
 
     def slot_code(self, scope):
-        return scope.method_table_cname
+        if scope.pyfunc_entries:
+            return scope.method_table_cname
+        else:
+            return "0"
 
 
 class MemberTableSlot(SlotDescriptor):
@@ -753,7 +767,7 @@ slot_table = (
     DocStringSlot("tp_doc"),
 
     GCDependentSlot("tp_traverse"),
-    GCDependentSlot("tp_clear"),
+    GCClearReferencesSlot("tp_clear"),
 
     # Later -- synthesize a method to split into separate ops?
     MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
@@ -788,6 +802,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
+    EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
 )
 
 #------------------------------------------------------------------------------------------

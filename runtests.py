@@ -115,7 +115,14 @@ def update_linetrace_extension(ext):
 
 def update_numpy_extension(ext):
     import numpy
+    from numpy.distutils.misc_util import get_info
+
     ext.include_dirs.append(numpy.get_include())
+
+    # We need the npymath library for numpy.math.
+    # This is typically a static-only library.
+    for attr, value in get_info('npymath').items():
+        getattr(ext, attr).extend(value)
 
 def update_openmp_extension(ext):
     ext.openmp = True
@@ -216,6 +223,9 @@ VER_DEP_MODULES = {
                                           'run.relativeimport_star_T542',
                                           'run.initial_file_path',  # relative import
                                           'run.pynumber_subtype_conversion',  # bug in Py2.4
+                                          'build.cythonize_script',  # python2.4 -m a.b.c
+                                          'build.cythonize_script_excludes',  # python2.4 -m a.b.c
+                                          'build.cythonize_script_package',  # python2.4 -m a.b.c
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.language_level', # print function
@@ -248,6 +258,8 @@ VER_DEP_MODULES = {
                                         'compile.extsetslice',
                                         'compile.extdelslice',
                                         'run.special_methods_T561_py2']),
+    (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
+                                          ]),
 }
 
 # files that should not be converted to Python 3 code with 2to3
@@ -266,6 +278,9 @@ TEST_SUPPORT_DIR = 'testsupport'
 
 BACKENDS = ['c', 'cpp']
 
+UTF8_BOM_BYTES = r'\xef\xbb\xbf'.encode('ISO-8859-1').decode('unicode_escape')
+
+
 def memoize(f):
     uncomputed = object()
     f._cache = {}
@@ -276,13 +291,15 @@ def memoize(f):
         return res
     return func
 
+
 @memoize
 def parse_tags(filepath):
     tags = defaultdict(list)
-    f = io_open(filepath, encoding='ISO-8859-1', errors='replace')
+    f = io_open(filepath, encoding='ISO-8859-1', errors='ignore')
     try:
         for line in f:
-            line = line.strip()
+            # ignore BOM-like bytes and whitespace
+            line = line.lstrip(UTF8_BOM_BYTES).strip()
             if not line:
                 continue
             if line[0] != '#':
@@ -468,9 +485,13 @@ class TestBuilder(object):
                 languages = self.languages[:1]
         else:
             languages = self.languages
+
         if 'cpp' in tags['tag'] and 'c' in languages:
             languages = list(languages)
             languages.remove('c')
+        elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
+            languages = list(languages)
+            languages.remove('cpp')
         tests = [ self.build_test(test_class, path, workdir, module,
                                   language, expect_errors, warning_errors)
                   for language in languages ]
@@ -521,6 +542,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [ (name, getattr(Options, name))
                                 for name in ('warning_errors',
+                                             'clear_to_none',
                                              'error_on_unknown_names',
                                              'error_on_uninitialized') ]
         self._saved_default_directives = Options.directive_defaults.items()
@@ -782,6 +804,11 @@ class CythonCompileTestCase(unittest.TestCase):
         return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
+    def setUp(self):
+        CythonCompileTestCase.setUp(self)
+        from Cython.Compiler import Options
+        Options.clear_to_none = False
+
     def shortDescription(self):
         if self.cython_only:
             return CythonCompileTestCase.shortDescription(self)

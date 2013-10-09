@@ -6,9 +6,11 @@
 # This should be done automatically
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
-               StringEncoding=object, lookup_unicodechar=object, re=object,
+               BytesLiteral=object, StringEncoding=object,
+               FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
-               Builtin=object)
+               Builtin=object, ModuleNode=object, Utils=object,
+               re=object, _unicode=object, _bytes=object)
 
 import re
 from unicodedata import lookup as lookup_unicodechar
@@ -235,10 +237,10 @@ def p_cmp_op(s):
         op = '!='
     return op
 
-comparison_ops = (
+comparison_ops = cython.declare(set, set([
     '<', '>', '==', '>=', '<=', '<>', '!=',
     'in', 'is', 'not'
-)
+]))
 
 #expr: xor_expr ('|' xor_expr)*
 
@@ -1083,7 +1085,8 @@ def p_genexp(s, expr):
         expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
 
-expr_terminators = (')', ']', '}', ':', '=', 'NEWLINE')
+expr_terminators = cython.declare(set, set([
+    ')', ']', '}', ':', '=', 'NEWLINE']))
 
 #-------------------------------------------------------
 #
@@ -1138,10 +1141,7 @@ def p_expression_or_assignment(s):
                 rhs = p_testlist(s)
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
         expr = expr_list[0]
-        if isinstance(expr, (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)):
-            return Nodes.PassStatNode(expr.pos)
-        else:
-            return Nodes.ExprStatNode(expr.pos, expr = expr)
+        return Nodes.ExprStatNode(expr.pos, expr=expr)
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:
@@ -1392,7 +1392,8 @@ def p_from_import_statement(s, first_statement = 0):
                 name_list = import_list),
             items = items)
 
-imported_name_kinds = ('class', 'struct', 'union')
+imported_name_kinds = cython.declare(
+    set, set(['class', 'struct', 'union']))
 
 def p_imported_name(s, is_cimport):
     pos = s.position()
@@ -1435,7 +1436,7 @@ def p_assert_statement(s):
         value = None
     return Nodes.AssertStatNode(pos, cond = cond, value = value)
 
-statement_terminators = (';', 'NEWLINE', 'EOF')
+statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))
 
 def p_if_statement(s):
     # s.sy == 'if'
@@ -1543,7 +1544,7 @@ def p_for_from_step(s):
     else:
         return None
 
-inequality_relations = ('<', '<=', '>', '>=')
+inequality_relations = cython.declare(set, set(['<', '<=', '>', '>=']))
 
 def p_target(s, terminator):
     pos = s.position()
@@ -1884,7 +1885,7 @@ def p_statement(s, ctx, first_statement = 0):
         elif ctx.level == 'c_class' and s.sy == 'IDENT' and s.systring == 'property':
             return p_property_decl(s)
         elif s.sy == 'pass' and ctx.level != 'property':
-            return p_pass_statement(s, with_newline = 1)
+            return p_pass_statement(s, with_newline=True)
         else:
             if ctx.level in ('c_class_pxd', 'property'):
                 s.error("Executable statement not allowed here")
@@ -1919,15 +1920,18 @@ def p_statement_list(s, ctx, first_statement = 0):
     else:
         return Nodes.StatListNode(pos, stats = stats)
 
-def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
-    pos = s.position()
+
+def p_suite(s, ctx=Ctx()):
+    return p_suite_with_docstring(s, ctx, with_doc_only=False)[1]
+
+
+def p_suite_with_docstring(s, ctx, with_doc_only=False):
     s.expect(':')
     doc = None
-    stmts = []
     if s.sy == 'NEWLINE':
         s.next()
         s.expect_indent()
-        if with_doc or with_pseudo_doc:
+        if with_doc_only:
             doc = p_doc_string(s)
         body = p_statement_list(s, ctx)
         s.expect_dedent()
@@ -1939,10 +1943,10 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
         else:
             body = p_pass_statement(s)
             s.expect_newline("Syntax error in declarations")
-    if with_doc:
-        return doc, body
-    else:
-        return body
+    if not with_doc_only:
+        doc, body = _extract_docstring(body)
+    return doc, body
+
 
 def p_positional_and_keyword_args(s, end_sy_set, templates = None):
     """
@@ -2017,7 +2021,8 @@ def p_calling_convention(s):
     else:
         return ""
 
-calling_convention_words = ("__stdcall", "__cdecl", "__fastcall")
+calling_convention_words = cython.declare(
+    set, set(["__stdcall", "__cdecl", "__fastcall"]))
 
 def p_c_complex_base_type(s):
     # s.sy == '('
@@ -2255,9 +2260,10 @@ def looking_at_call(s):
         s.start_line, s.start_col = position
     return result
 
-basic_c_type_names = ("void", "char", "int", "float", "double", "bint")
+basic_c_type_names = cython.declare(
+    set, set(["void", "char", "int", "float", "double", "bint"]))
 
-special_basic_c_types = {
+special_basic_c_types = cython.declare(dict, {
     # name : (signed, longness)
     "Py_UNICODE" : (0, 0),
     "Py_UCS4"    : (0, 0),
@@ -2265,14 +2271,19 @@ special_basic_c_types = {
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
     "ptrdiff_t"  : (2, 0),
-}
+})
 
-sign_and_longness_words = ("short", "long", "signed", "unsigned")
+sign_and_longness_words = cython.declare(
+    set, set(["short", "long", "signed", "unsigned"]))
 
-base_type_start_words = \
-    basic_c_type_names + sign_and_longness_words + tuple(special_basic_c_types)
+base_type_start_words = cython.declare(
+    set,
+    basic_c_type_names
+    | sign_and_longness_words
+    | set(special_basic_c_types))
 
-struct_enum_union = ("struct", "union", "enum", "packed")
+struct_enum_union = cython.declare(
+    set, set(["struct", "union", "enum", "packed"]))
 
 def p_sign_and_longness(s):
     signed = 1
@@ -2357,12 +2368,12 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = set([
+supported_overloaded_operators = cython.declare(set, set([
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
     '[]', '()', '!',
-])
+]))
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
@@ -2480,7 +2491,7 @@ def p_exception_value_clause(s):
             exc_val = p_test(s)
     return exc_val, exc_check
 
-c_arg_list_terminators = ('*', '**', '.', ')')
+c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')']))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -2786,7 +2797,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
     if s.sy == ':':
         if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd', 'cpp_class') and not ctx.templates:
             s.error("C function definition not allowed here")
-        doc, suite = p_suite(s, Ctx(level = 'function'), with_doc = 1)
+        doc, suite = p_suite_with_docstring(s, Ctx(level='function'))
         result = Nodes.CFuncDefNode(pos,
             visibility = ctx.visibility,
             base_type = base_type,
@@ -2873,7 +2884,7 @@ def p_def_statement(s, decorators=None):
     pos = s.position()
     s.next()
     name = EncodedString( p_ident(s) )
-    s.expect('(');
+    s.expect('(')
     args, star_arg, starstar_arg = p_varargslist(s, terminator=')')
     s.expect(')')
     if p_nogil(s):
@@ -2882,7 +2893,7 @@ def p_def_statement(s, decorators=None):
     if s.sy == '->':
         s.next()
         return_type_annotation = p_test(s)
-    doc, body = p_suite(s, Ctx(level = 'function'), with_doc = 1)
+    doc, body = p_suite_with_docstring(s, Ctx(level='function'))
     return Nodes.DefNode(pos, name = name, args = args,
         star_arg = star_arg, starstar_arg = starstar_arg,
         doc = doc, body = body, decorators = decorators,
@@ -2933,8 +2944,8 @@ def p_class_statement(s, decorators):
             pos, positional_args, keyword_args, star_arg, None)
     if arg_tuple is None:
         # XXX: empty arg_tuple
-        arg_tuple = ExprNodes.TupleNode(pos, args = [])
-    doc, body = p_suite(s, Ctx(level = 'class'), with_doc = 1)
+        arg_tuple = ExprNodes.TupleNode(pos, args=[])
+    doc, body = p_suite_with_docstring(s, Ctx(level='class'))
     return Nodes.PyClassDefNode(pos,
         name = class_name,
         bases = arg_tuple,
@@ -2982,7 +2993,7 @@ def p_c_class_definition(s, pos,  ctx):
             body_level = 'c_class_pxd'
         else:
             body_level = 'c_class'
-        doc, body = p_suite(s, Ctx(level = body_level), with_doc = 1)
+        doc, body = p_suite_with_docstring(s, Ctx(level=body_level))
     else:
         s.expect_newline("Syntax error in C class definition")
         doc = None
@@ -3039,12 +3050,15 @@ def p_c_class_options(s):
     s.expect(']', "Expected 'object' or 'type'")
     return objstruct_name, typeobj_name
 
+
 def p_property_decl(s):
     pos = s.position()
-    s.next() # 'property'
+    s.next()  # 'property'
     name = p_ident(s)
-    doc, body = p_suite(s, Ctx(level = 'property'), with_doc = 1)
-    return Nodes.PropertyNode(pos, name = name, doc = doc, body = body)
+    doc, body = p_suite_with_docstring(
+        s, Ctx(level='property'), with_doc_only=True)
+    return Nodes.PropertyNode(pos, name=name, doc=doc, body=body)
+
 
 def p_doc_string(s):
     if s.sy == 'BEGIN_STRING':
@@ -3059,6 +3073,42 @@ def p_doc_string(s):
     else:
         return None
 
+
+def _extract_docstring(node):
+    """
+    Extract a docstring from a statement or from the first statement
+    in a list.  Remove the statement if found.  Return a tuple
+    (plain-docstring or None, node).
+    """
+    doc_node = None
+    if node is None:
+        pass
+    elif isinstance(node, Nodes.ExprStatNode):
+        if node.expr.is_string_literal:
+            doc_node = node.expr
+            node = Nodes.StatListNode(node.pos, stats=[])
+    elif isinstance(node, Nodes.StatListNode) and node.stats:
+        stats = node.stats
+        if isinstance(stats[0], Nodes.ExprStatNode):
+            if stats[0].expr.is_string_literal:
+                doc_node = stats[0].expr
+                del stats[0]
+
+    if doc_node is None:
+        doc = None
+    elif isinstance(doc_node, ExprNodes.BytesNode):
+        warning(node.pos,
+                "Python 3 requires docstrings to be unicode strings")
+        doc = doc_node.value
+    elif isinstance(doc_node, ExprNodes.StringNode):
+        doc = doc_node.unicode_value
+        if doc is None:
+            doc = doc_node.value
+    else:
+        doc = doc_node.value
+    return doc, node
+
+
 def p_code(s, level=None, ctx=Ctx):
     body = p_statement_list(s, ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
@@ -3066,17 +3116,18 @@ def p_code(s, level=None, ctx=Ctx):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython\s*:\s*((\w|[.])+\s*=.*)$")
+_match_compiler_directive_comment = cython.declare(object, re.compile(
+    r"^#\s*cython\s*:\s*((\w|[.])+\s*=.*)$").match)
 
 def p_compiler_directive_comments(s):
     result = {}
     while s.sy == 'commentline':
-        m = COMPILER_DIRECTIVE_COMMENT_RE.match(s.systring)
+        m = _match_compiler_directive_comment(s.systring)
         if m:
             directives = m.group(1).strip()
             try:
-                result.update( Options.parse_directive_list(
-                    directives, ignore_unknown=True) )
+                result.update(Options.parse_directive_list(
+                    directives, ignore_unknown=True))
             except ValueError, e:
                 s.error(e.args[0], fatal=False)
         s.next()
