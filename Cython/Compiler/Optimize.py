@@ -285,6 +285,29 @@ class IterationTransform(Visitor.EnvTransform):
         exception_value = '-1')
 
     def _transform_unicode_iteration(self, node, slice_node, reversed=False):
+        if slice_node.is_literal:
+            # try to reduce to byte iteration for plain Latin-1 strings
+            try:
+                bytes_value = BytesLiteral(slice_node.value.encode('latin1'))
+            except UnicodeEncodeError:
+                pass
+            else:
+                bytes_slice = ExprNodes.SliceIndexNode(
+                    slice_node.pos,
+                    base=ExprNodes.BytesNode(
+                        slice_node.pos, value=bytes_value,
+                        constant_result=bytes_value,
+                        type=PyrexTypes.c_char_ptr_type).coerce_to(
+                            PyrexTypes.c_uchar_ptr_type, self.current_env()),
+                    start=None,
+                    stop=ExprNodes.IntNode(
+                        slice_node.pos, value=len(bytes_value),
+                        constant_result=len(bytes_value),
+                        type=PyrexTypes.c_py_ssize_t_type),
+                    type=Builtin.unicode_type,  # hint for Python conversion
+                )
+                return self._transform_carray_iteration(node, bytes_slice, reversed)
+
         unpack_temp_node = UtilNodes.LetRefNode(
             slice_node.as_none_safe_node("'NoneType' is not iterable"))
 
@@ -455,22 +478,32 @@ class IterationTransform(Visitor.EnvTransform):
         counter_temp = counter.ref(node.target.pos)
 
         if slice_base.type.is_string and node.target.type.is_pyobject:
-            # special case: char* -> bytes
-            target_value = ExprNodes.SliceIndexNode(
-                node.target.pos,
-                start=ExprNodes.IntNode(node.target.pos, value='0',
-                                        constant_result=0,
-                                        type=PyrexTypes.c_int_type),
-                stop=ExprNodes.IntNode(node.target.pos, value='1',
-                                       constant_result=1,
-                                       type=PyrexTypes.c_int_type),
-                base=counter_temp,
-                type=Builtin.bytes_type,
-                is_temp=1)
+            # special case: char* -> bytes/unicode
+            if slice_node.type is Builtin.unicode_type:
+                target_value = ExprNodes.CastNode(
+                    ExprNodes.DereferenceNode(
+                        node.target.pos, operand=counter_temp,
+                        type=ptr_type.base_type),
+                    PyrexTypes.c_py_ucs4_type).coerce_to(
+                        node.target.type, self.current_env())
+            else:
+                # char* -> bytes coercion requires slicing, not indexing
+                target_value = ExprNodes.SliceIndexNode(
+                    node.target.pos,
+                    start=ExprNodes.IntNode(node.target.pos, value='0',
+                                            constant_result=0,
+                                            type=PyrexTypes.c_int_type),
+                    stop=ExprNodes.IntNode(node.target.pos, value='1',
+                                           constant_result=1,
+                                           type=PyrexTypes.c_int_type),
+                    base=counter_temp,
+                    type=Builtin.bytes_type,
+                    is_temp=1)
         elif node.target.type.is_ptr and not node.target.type.assignable_from(ptr_type.base_type):
             # Allow iteration with pointer target to avoid copy.
             target_value = counter_temp
         else:
+            # TODO: can this safely be replaced with DereferenceNode() as above?
             target_value = ExprNodes.IndexNode(
                 node.target.pos,
                 index=ExprNodes.IntNode(node.target.pos, value='0',
