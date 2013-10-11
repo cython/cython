@@ -103,6 +103,7 @@ cdef extern from "Python.h":
     # bytes” of the given length. Return 0 on success and -1 (with
     # raising an error) on error.
 
+    # DEPRECATED HERE: do not cimport from here, cimport from cpython.object instead
     object PyObject_Format(object obj, object format_spec)
     # Takes an arbitrary object and returns the result of calling
     # obj.__format__(format_spec).
