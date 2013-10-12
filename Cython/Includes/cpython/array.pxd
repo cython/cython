@@ -122,9 +122,9 @@ cdef extern from *:  # Hard-coded utility code hack.
 
     # fast resize/realloc
     # not suitable for small increments; reallocation 'to the point'
-    int resize(array self, Py_ssize_t n)
+    int resize(array self, Py_ssize_t n) except -1
     # efficient for small increments (not in Py2.3-)
-    int resize_smart(array self, Py_ssize_t n)
+    int resize_smart(array self, Py_ssize_t n) except -1
 
 
 cdef inline array clone(array template, Py_ssize_t length, bint zero):
@@ -144,17 +144,17 @@ cdef inline array copy(array self):
     memcpy(op.data.as_chars, self.data.as_chars, Py_SIZE(op) * op.ob_descr.itemsize)
     return op
 
-cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n):
+cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1:
     """ efficent appending of new stuff of same type
     (e.g. of same array type)
     n: number of elements (not number of bytes!) """
     cdef Py_ssize_t itemsize = self.ob_descr.itemsize
     cdef Py_ssize_t orgsize = Py_SIZE(self)
-    if resize_smart(self, orgsize + n) == -1:
-        return -1
+    resize_smart(self, orgsize + n)
     memcpy(self.data.as_chars + orgsize * itemsize, stuff, n * itemsize)
+    return 0
 
-cdef inline int extend(array self, array other) except -2:
+cdef inline int extend(array self, array other) except -1:
     """ extend array with data from another array; types must match. """
     if self.ob_descr.typecode != other.ob_descr.typecode:
         PyErr_BadArgument()

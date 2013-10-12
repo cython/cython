@@ -70,6 +70,13 @@ Features added
 Bugs fixed
 ----------
 
+* Some standard declarations were fixed or updated, including the previously
+  incorrect declaration of ``PyBuffer_FillInfo()`` and some missing bits in
+  ``libc.math``.
+
+* Heap allocated subtypes of ``type`` used the wrong base type struct at the
+  C level.
+
 * Calling the unbound method dict.keys/value/items() in dict subtypes could
   call the bound object method instead of the unbound supertype method.
 
