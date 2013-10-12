@@ -788,6 +788,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
+    EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1 && defined(Py_TPFLAGS_HAVE_FINALIZE)"),
 )
 
 #------------------------------------------------------------------------------------------
