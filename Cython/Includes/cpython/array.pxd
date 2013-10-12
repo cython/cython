@@ -154,11 +154,10 @@ cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n):
         return -1
     memcpy(self.data.as_chars + orgsize * itemsize, stuff, n * itemsize)
 
-cdef inline int extend(array self, array other):
+cdef inline int extend(array self, array other) except -2:
     """ extend array with data from another array; types must match. """
-    if self.ob_descr.typecode != self.ob_descr.typecode:
+    if self.ob_descr.typecode != other.ob_descr.typecode:
         PyErr_BadArgument()
-        return -1
     return extend_buffer(self, other.data.as_chars, Py_SIZE(other))
 
 cdef inline void zero(array op):
