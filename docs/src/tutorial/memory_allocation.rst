@@ -73,24 +73,28 @@ to a Python object to leverage the Python runtime's memory management,
 e.g.::
 
   cdef class SomeMemory:
-  
+
       cdef double* data
-      
-      def __init__(self, number):
+
+      def __cinit__(self, number):
           # allocate some memory (filled with random data)
-          self.data = <double*> malloc(number * sizeof(double))
-          if self.data == NULL:
+          self.data = <double*> PyMem_Malloc(number * sizeof(double))
+          if not self.data:
               raise MemoryError()
-    
+
       def resize(self, new_number):
           # Allocates new_number * sizeof(double) bytes,
           # preserving the contents and making a best-effort to
           # re-use the original data location.
-          self.data = <double*> realloc(self.data, new_number * sizeof(double))
-          
+          mem = <double*> PyMem_Realloc(self.data, new_number * sizeof(double))
+          if not mem:
+              raise MemoryError()
+          # Only overwrite the pointer if the memory was really reallocated.
+          # On error (mem is NULL), the originally memory has not been freed.
+          self.data = mem
+
       def __dealloc__(self, number):
-          if self.data != NULL:
-              free(self.data)
+          PyMem_Free(self.data)     # no-op if self.data is NULL
 
 It should be noted that Cython has special support for (multi-dimensional)
 arrays of simple types via NumPy and memory views which are more full featured
