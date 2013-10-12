@@ -67,7 +67,7 @@ when they are no longer used (and *must* always use the matching
 type of free function).  Otherwise, they won't be reclaimed until the
 python process exits.  This is called a memory leak.
 
-If a chuck of memory needs a larger lifetime then can be managed by a
+If a chunk of memory needs a larger lifetime than can be managed by a
 ``try..finally`` block, another helpful idiom is to tie its lifetime
 to a Python object to leverage the Python runtime's memory management,
 e.g.::
