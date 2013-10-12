@@ -155,7 +155,7 @@ def test_extend():
     except TypeError:
         pass
     else:
-        raise AssertionError('tried to extend with an incompatible array type')
+        assert False, 'extending incompatible array types did not raise'
 
 def test_likes(a):
     """
