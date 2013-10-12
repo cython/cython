@@ -46,13 +46,13 @@
               : 2012-05-02 andreasvc
               : (see revision control)
 """
-from libc cimport stdlib
 from libc.string cimport strcat, strncat, \
     memset, memchr, memcmp, memcpy, memmove
 
 from cpython.object cimport Py_SIZE
 from cpython.ref cimport PyTypeObject, Py_TYPE
 from cpython.exc cimport PyErr_BadArgument
+from cpython.mem cimport PyMem_Malloc, PyMem_Free
 
 cdef extern from *:  # Hard-coded utility code hack.
     ctypedef class array.array [object arrayobject]
@@ -82,7 +82,7 @@ cdef extern from *:  # Hard-coded utility code hack.
 
     ctypedef class array.array [object arrayobject]:
         cdef __cythonbufferdefaults__ = {'ndim' : 1, 'mode':'c'}
-        
+
         cdef:
             Py_ssize_t ob_size
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
@@ -93,31 +93,29 @@ cdef extern from *:  # Hard-coded utility code hack.
             # requirements, and does not yet fullfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
-            cdef unsigned rows, columns, itemsize
-            
+            item_count = Py_SIZE(self)
+
             info.suboffsets = NULL
             info.buf = self.data.as_chars
             info.readonly = 0
             info.ndim = 1
-            info.itemsize = itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
-            
-            info.strides = <Py_ssize_t*> \
-                           stdlib.malloc(sizeof(Py_ssize_t) * info.ndim * 2 + 2)
-            info.shape = info.strides + 1
-            info.shape[0] = Py_SIZE(self)            # number of items
-            info.strides[0] = info.itemsize
+            info.itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
+            info.len = info.itemsize * item_count
 
-            info.format = <char*>(info.strides + 2 * info.ndim)
+            info.shape = <Py_ssize_t*> PyMem_Malloc(sizeof(Py_ssize_t) + 2)
+            if not info.shape:
+                raise MemoryError()
+            info.shape[0] = item_count      # constant regardless of resizing
+            info.strides = &info.itemsize
+
+            info.format = <char*> (info.shape + 1)
             info.format[0] = self.ob_descr.typecode
             info.format[1] = 0
             info.obj = self
 
         def __releasebuffer__(array self, Py_buffer* info):
-            #if PyArray_HASFIELDS(self):
-            #    stdlib.free(info.format)
-            #if sizeof(npy_intp) != sizeof(Py_ssize_t):
-            stdlib.free(info.strides)
-        
+            PyMem_Free(info.shape)
+
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
 
     # fast resize/realloc
