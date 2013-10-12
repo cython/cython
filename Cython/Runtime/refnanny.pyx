@@ -86,8 +86,7 @@ cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except N
         # In that case, we don't want to be doing anything fancy
         # like caching and resetting exceptions.
         return NULL
-    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
-    cdef PyObject* result = NULL
+    cdef (PyObject*) type = NULL, value = NULL, tb = NULL, result = NULL
     PyThreadState_Get()
     PyErr_Fetch(&type, &value, &tb)
     try:
@@ -101,7 +100,7 @@ cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except N
 
 cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
     if ctx == NULL: return
-    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
+    cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     PyErr_Fetch(&type, &value, &tb)
     try:
         try:
@@ -118,7 +117,7 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
 
 cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     if ctx == NULL: return 1
-    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
+    cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef bint decref_ok = False
     PyErr_Fetch(&type, &value, &tb)
     try:
@@ -150,7 +149,7 @@ cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
 
 cdef void FinishContext(PyObject** ctx):
     if ctx == NULL or ctx[0] == NULL: return
-    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
+    cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef object errors = None
     cdef Context context
     PyThreadState_Get()
