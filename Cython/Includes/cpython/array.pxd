@@ -88,7 +88,7 @@ cdef extern from *:  # Hard-coded utility code hack.
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
             __data_union data
 
-        def __getbuffer__(array self, Py_buffer* info, int flags):
+        def __getbuffer__(self, Py_buffer* info, int flags):
             # This implementation of getbuffer is geared towards Cython
             # requirements, and does not yet fullfill the PEP.
             # In particular strided access is always provided regardless
@@ -113,7 +113,7 @@ cdef extern from *:  # Hard-coded utility code hack.
             info.format[1] = 0
             info.obj = self
 
-        def __releasebuffer__(array self, Py_buffer* info):
+        def __releasebuffer__(self, Py_buffer* info):
             PyMem_Free(info.shape)
 
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
@@ -129,7 +129,6 @@ cdef inline array clone(array template, Py_ssize_t length, bint zero):
     """ fast creation of a new array, given a template array.
     type will be same as template.
     if zero is true, new array will be initialized with zeroes."""
-    cdef array op
     op = newarrayobject(Py_TYPE(template), length, template.ob_descr)
     if zero and op is not None:
         memset(op.data.as_chars, 0, length * op.ob_descr.itemsize)
@@ -137,7 +136,6 @@ cdef inline array clone(array template, Py_ssize_t length, bint zero):
 
 cdef inline array copy(array self):
     """ make a copy of an array. """
-    cdef array op
     op = newarrayobject(Py_TYPE(self), Py_SIZE(self), self.ob_descr)
     memcpy(op.data.as_chars, self.data.as_chars, Py_SIZE(op) * op.ob_descr.itemsize)
     return op
@@ -147,9 +145,9 @@ cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1:
     (e.g. of same array type)
     n: number of elements (not number of bytes!) """
     cdef Py_ssize_t itemsize = self.ob_descr.itemsize
-    cdef Py_ssize_t orgsize = Py_SIZE(self)
-    resize_smart(self, orgsize + n)
-    memcpy(self.data.as_chars + orgsize * itemsize, stuff, n * itemsize)
+    cdef Py_ssize_t origsize = Py_SIZE(self)
+    resize_smart(self, origsize + n)
+    memcpy(self.data.as_chars + origsize * itemsize, stuff, n * itemsize)
     return 0
 
 cdef inline int extend(array self, array other) except -1:
@@ -158,6 +156,6 @@ cdef inline int extend(array self, array other) except -1:
         PyErr_BadArgument()
     return extend_buffer(self, other.data.as_chars, Py_SIZE(other))
 
-cdef inline void zero(array op):
+cdef inline void zero(array self):
     """ set all elements of array to zero. """
-    memset(op.data.as_chars, 0, Py_SIZE(op) * op.ob_descr.itemsize)
+    memset(self.data.as_chars, 0, Py_SIZE(self) * self.ob_descr.itemsize)
