@@ -6680,8 +6680,10 @@ class ClassNode(ExprNode, ModuleNameMixin):
 
         if self.doc:
             code.put_error_if_neg(self.pos,
-                'PyDict_SetItemString(%s, "__doc__", %s)' % (
+                'PyDict_SetItem(%s, %s, %s)' % (
                     self.dict.py_result(),
+                    code.intern_identifier(
+                        StringEncoding.EncodedString("__doc__")),
                     self.doc.py_result()))
         py_mod_name = self.get_py_mod_name(code)
         qualname = self.get_py_qualified_name(code)
