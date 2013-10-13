@@ -2197,6 +2197,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#if CYTHON_COMPILING_IN_PYPY')
         code.putln('Py_CLEAR(%s);' % Naming.builtins_cname)
         code.putln('#endif')
+        code.put_decref_clear(env.module_dict_cname, py_object_type,
+                              nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
