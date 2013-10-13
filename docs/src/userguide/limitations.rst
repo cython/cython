@@ -20,9 +20,8 @@ Most of these things that fall more into the implementation details rather
 than semantics, and we may decide not to fix (or require a --pedantic flag to get).
 
 
-==========
-Nested tuple argument unpacking.
-==========
+Nested tuple argument unpacking
+===============================
 
 ::
 
@@ -32,9 +31,8 @@ Nested tuple argument unpacking.
 This was removed in Python 3.
 
 
-==========
 Inspect support
-==========
+===============
 
 While it is quite possible to emulate the interface of functions in
 Cython's own function type, and recent Cython releases have seen several
@@ -45,9 +43,8 @@ base class. This has a negative impact on code that uses inspect to
 inspect function objects, but would require a change to Python itself.
 
 
-==========
 Stack frames
-==========
+============
 
 Currently we generate fake tracebacks as part of exception propagation,
 but don't fill in locals and can't fill in co_code.
@@ -55,18 +52,15 @@ To be fully compatible, we would have to generate these stack frame objects at
 function call time (with a potential performance penalty).  We may have an
 option to enable this for debugging.
 
-==========
-Identity vs. equality for inferred literals.
-==========
+
+Identity vs. equality for inferred literals
+===========================================
 
 ::
-    a = 1.0        # a inferred to be double
-    b = c = None   # a inferred to be type object
+
+    a = 1.0          # a inferred to be C type 'double'
+    b = c = None     # b and c inferred to be type 'object'
     if some_runtime_expression:
-        b = a
-        c = a
-    print b is c   # py float created twice
-
-
-
-
+        b = a        # creates a new Python float object
+        c = a        # creates a new Python float object
+    print b is c     # most likely not the same object
