@@ -61,7 +61,7 @@ Other changes
   cleanup instead of ``tp_del()``.
 
 
-0.19.2 (??)
+0.19.2 (2013-10-13)
 ===================
 
 Features added
