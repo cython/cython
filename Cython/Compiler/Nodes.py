@@ -1368,8 +1368,8 @@ class CEnumDefNode(StatNode):
                         item.cname,
                         code.error_goto_if_null(temp, item.pos)))
                 code.put_gotref(temp)
-                code.putln('if (__Pyx_SetAttrString(%s, "%s", %s) < 0) %s' % (
-                        Naming.module_cname,
+                code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
+                        Naming.moddict_cname,
                         item.name,
                         temp,
                         code.error_goto(item.pos)))
