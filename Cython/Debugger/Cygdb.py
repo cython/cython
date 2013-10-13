@@ -62,7 +62,7 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
 
     return tempfilename
 
-usage = "Usage: cygdb [options] [PATH [GDB_ARGUMENTS]]"
+usage = "Usage: cygdb [options] [PATH [-- GDB_ARGUMENTS]]"
 
 def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     """
