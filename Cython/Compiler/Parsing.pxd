@@ -132,7 +132,7 @@ cdef p_positional_and_keyword_args(PyrexScanner s, end_sy_set, templates = *)
 
 cpdef p_c_base_type(PyrexScanner s, bint self_flag = *, bint nonempty = *, templates = *)
 cdef p_calling_convention(PyrexScanner s)
-cdef p_c_complex_base_type(PyrexScanner s)
+cdef p_c_complex_base_type(PyrexScanner s, templates = *)
 cdef p_c_simple_base_type(PyrexScanner s, bint self_flag, bint nonempty, templates = *)
 cdef p_buffer_or_template(PyrexScanner s, base_type_node, templates)
 cdef p_bracketed_base_type(PyrexScanner s, base_type_node, nonempty, empty)
