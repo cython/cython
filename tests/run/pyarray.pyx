@@ -147,8 +147,15 @@ def test_extend():
     """
     cdef array.array ca = array.array('i', [1, 2, 3])
     cdef array.array cb = array.array('i', [4, 5])
+    cdef array.array cf = array.array('f', [1.0, 2.0, 3.0])
     array.extend(ca, cb)
     assert list(ca) == [1, 2, 3, 4, 5], list(ca)
+    try:
+        array.extend(ca, cf)
+    except TypeError:
+        pass
+    else:
+        assert False, 'extending incompatible array types did not raise'
 
 def test_likes(a):
     """

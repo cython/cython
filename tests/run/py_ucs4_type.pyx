@@ -209,14 +209,31 @@ def count_lower_case_characters_slice_reversed(unicode ustring):
              count += 1
     return count
 
-def loop_object_over_unicode_literal():
+def loop_object_over_latin1_unicode_literal():
     """
-    >>> print(loop_object_over_unicode_literal())
+    >>> result = loop_object_over_latin1_unicode_literal()
+    >>> print(result[:-1])
     abcdefg
+    >>> ord(result[-1]) == 0xD7
+    True
     """
     cdef object uchar
     chars = []
-    for uchar in u'abcdefg':
+    for uchar in u'abcdefg\xD7':
+        chars.append(uchar)
+    return u''.join(chars)
+
+def loop_object_over_unicode_literal():
+    """
+    >>> result = loop_object_over_unicode_literal()
+    >>> print(result[:-1])
+    abcdefg
+    >>> ord(result[-1]) == 0xF8FD
+    True
+    """
+    cdef object uchar
+    chars = []
+    for uchar in u'abcdefg\uF8FD':
         chars.append(uchar)
     return u''.join(chars)
 

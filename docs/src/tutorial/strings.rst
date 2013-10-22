@@ -16,18 +16,23 @@ implicitly insert these encoding/decoding steps.
 Python string types in Cython code
 ----------------------------------
 
-Cython supports three Python string types: ``bytes``, ``str``
-and ``unicode``.  The ``str`` type is special in that it is the
-byte string in Python 2 and the Unicode string in Python 3 (for Cython
-code compiled with language level 2, i.e. the default).  Thus, in Python
-2, both ``bytes`` and ``str`` represent the byte string type,
-whereas in Python 3, ``str`` and ``unicode`` represent the Python
-Unicode string type.  The switch is made at C compile time, the Python
-version that is used to run Cython is not relevant.
+Cython supports four Python string types: ``bytes``, ``str``,
+``unicode`` and ``basestring``.  The ``bytes`` and ``unicode`` types
+are the specific types known from normal Python 2.x (named ``bytes``
+and ``str`` in Python 3).
 
-When compiling Cython code with language level 3, the ``str`` type
-is identified with exactly the Unicode string type at Cython compile time,
-i.e. it no does not identify with ``bytes`` when running in Python 2.
+The ``str`` type is special in that it is the byte string in Python 2
+and the Unicode string in Python 3 (for Cython code compiled with
+language level 2, i.e. the default).  Meaning, it always corresponds
+exactly with the type that the Python runtime itself calls ``str``.
+Thus, in Python 2, both ``bytes`` and ``str`` represent the byte string
+type, whereas in Python 3, both ``str`` and ``unicode`` represent the
+Python Unicode string type.  The switch is made at C compile time, the
+Python version that is used to run Cython is not relevant.
+
+When compiling Cython code with language level 3, the ``str`` type is
+identified with exactly the Unicode string type at Cython compile time,
+i.e. it does not identify with ``bytes`` when running in Python 2.
 
 Note that the ``str`` type is not compatible with the ``unicode``
 type in Python 2, i.e. you cannot assign a Unicode string to a variable
@@ -39,6 +44,17 @@ Python version allows a mix of byte strings and unicode strings for data
 and users normally expect code to be able to work with both.  Code that
 only targets Python 3 can safely type variables and arguments as either
 ``bytes`` or ``unicode``.
+
+The ``basestring`` type represents both the types ``str`` and ``unicode``,
+i.e. all Python text string types in Python 2 and Python 3.  This can be
+used for typing text variables that normally contain Unicode text (at
+least in Python 3) but must additionally accept the ``str`` type in
+Python 2 for backwards compatibility reasons.  It is not compatible with
+the ``bytes`` type.  Its usage should be rare in normal Cython code as
+the generic ``object`` type (i.e. untyped code) will normally be good
+enough and has the additional advantage of supporting the assignment of
+string subtypes.  Support for the ``basestring`` type is new in Cython
+0.20.
 
 
 General notes about C strings

@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* Using ``cdef basestring stringvar`` and function arguments typed as
+  ``basestring`` is now meaningful and allows assigning exactly
+  ``str`` and ``unicode`` objects, but no subtypes of these types.
+
 * Support for the ``__debug__`` builtin.
 
 * Assertions in Cython compiled modules are disabled if the running
@@ -24,7 +28,7 @@ Features added
   to the cythonize() compilation function (including distutils build).
 
 * The new extension type decorator ``@cython.no_gc_clear`` prevents
-  the type from being cleared during cyclic garbage collection, thus
+  objects from being cleared during cyclic garbage collection, thus
   making sure that object attributes are kept alive until deallocation.
 
 * During cyclic garbage collection, attributes of extension types that
@@ -57,7 +61,7 @@ Other changes
   cleanup instead of ``tp_del()``.
 
 
-0.19.2 (??)
+0.19.2 (2013-10-13)
 ===================
 
 Features added
@@ -65,6 +69,13 @@ Features added
 
 Bugs fixed
 ----------
+
+* Some standard declarations were fixed or updated, including the previously
+  incorrect declaration of ``PyBuffer_FillInfo()`` and some missing bits in
+  ``libc.math``.
+
+* Heap allocated subtypes of ``type`` used the wrong base type struct at the
+  C level.
 
 * Calling the unbound method dict.keys/value/items() in dict subtypes could
   call the bound object method instead of the unbound supertype method.

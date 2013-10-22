@@ -288,7 +288,7 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
     PyObject *value = NULL;
 
     if (!PyMapping_Check(o)) {
-        PyErr_Format(PyExc_TypeError, "Expected a mapping, not %s", o->ob_type->tp_name);
+        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "a mapping", Py_TYPE(o)->tp_name);
         goto bad;
     }
 

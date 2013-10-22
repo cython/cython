@@ -291,7 +291,7 @@ def loop_over_unicode_literal():
     """
     # Py_UCS4 can represent any Unicode character
     for uchar in 'abcdefg':
-        pass
+        assert uchar in 'abcdefg'
     return cython.typeof(uchar)
 
 def list_comp():

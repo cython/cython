@@ -1252,8 +1252,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if base_type.scope and base_type.scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 else:
-                    code.putln("if (PyType_IS_GC(Py_TYPE(o)->tp_base))"
-                               " PyObject_GC_Track(o);")
+                    code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+                    code.putln("if (PyType_IS_GC(Py_TYPE(o)->tp_base))")
+                    code.putln("#endif")
+                    code.putln("PyObject_GC_Track(o);")
 
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
@@ -2197,6 +2199,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#if CYTHON_COMPILING_IN_PYPY')
         code.putln('Py_CLEAR(%s);' % Naming.builtins_cname)
         code.putln('#endif')
+        code.put_decref_clear(env.module_dict_cname, py_object_type,
+                              nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
