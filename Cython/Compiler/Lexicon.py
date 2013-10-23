@@ -37,32 +37,6 @@ def make_lexicon():
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
     imagconst = (intconst | fltconst) + Any("jJ")
 
-    sq_string = (
-        Str("'") +
-        Rep(AnyBut("\\\n'") | (Str("\\") + AnyChar)) +
-        Str("'")
-    )
-
-    dq_string = (
-        Str('"') +
-        Rep(AnyBut('\\\n"') | (Str("\\") + AnyChar)) +
-        Str('"')
-    )
-
-    non_sq = AnyBut("'") | (Str('\\') + AnyChar)
-    tsq_string = (
-        Str("'''")
-        + Rep(non_sq | (Str("'") + non_sq) | (Str("''") + non_sq))
-        + Str("'''")
-    )
-
-    non_dq = AnyBut('"') | (Str('\\') + AnyChar)
-    tdq_string = (
-        Str('"""')
-        + Rep(non_dq | (Str('"') + non_dq) | (Str('""') + non_dq))
-        + Str('"""')
-    )
-
     beginstring = Opt(Any(string_prefixes) + Opt(Any(raw_prefixes)) |
                       Any(raw_prefixes) + Opt(Any(bytes_prefixes)) |
                       Any(char_prefixes)
@@ -75,7 +49,6 @@ def make_lexicon():
                              Str('N{') + Rep(AnyBut('}')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex | AnyChar)
-
 
     deco = Str("@")
     bra = Any("([{")
@@ -102,7 +75,6 @@ def make_lexicon():
         (ket, Method('close_bracket_action')),
         (lineterm, Method('newline_action')),
 
-        #(stringlit, 'STRING'),
         (beginstring, Method('begin_string_action')),
 
         (comment, IGNORE),
