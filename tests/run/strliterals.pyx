@@ -180,6 +180,17 @@ s7 = Br"abc\x11"
 s8 = bR"abc\x11"
 s9 = BR"abc\x11"
 
+# and in reversed order: r+b
+s6_2 = rb"abc\x11"
+s7_2 = rB"abc\x11"
+s8_2 = Rb"abc\x11"
+s9_2 = RB"abc\x11"
+
+assert s6 == s6_2
+assert s7 == s7_2
+assert s8 == s8_2
+assert s9 == s9_2
+
 u1 = u"abc\x11"
 u2 = U"abc\x11"
 u3 = ur"abc\x11"

@@ -785,13 +785,17 @@ def p_string_literal(s, kind_override=None):
 
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
-    is_raw = 0
+    is_raw = False
     is_python3_source = s.context.language_level >= 3
     has_non_ASCII_literal_characters = False
     kind = s.systring[:1].lower()
     if kind == 'r':
-        kind = ''
-        is_raw = 1
+        # Py3 allows both 'br' and 'rb' as prefix
+        if s.systring[1:2].lower() == 'b':
+            kind = 'b'
+        else:
+            kind = ''
+        is_raw = True
     elif kind in 'ub':
         is_raw = s.systring[1:2].lower() == 'r'
     elif kind != 'c':
@@ -808,6 +812,7 @@ def p_string_literal(s, kind_override=None):
             chars = StringEncoding.StrLiteralBuilder(s.source_encoding)
         else:
             chars = StringEncoding.BytesLiteralBuilder(s.source_encoding)
+
     while 1:
         s.next()
         sy = s.sy
@@ -872,6 +877,7 @@ def p_string_literal(s, kind_override=None):
         else:
             s.error("Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
+
     if kind == 'c':
         unicode_value = None
         bytes_value = chars.getchar()

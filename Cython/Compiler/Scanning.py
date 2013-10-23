@@ -7,14 +7,14 @@ import os
 import platform
 
 import cython
-cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=unicode,
+cython.declare(EncodedString=object, any_string_prefix=unicode, IDENT=unicode,
                print_function=object)
 
 from Cython import Utils
 from Cython.Plex.Scanners import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import error
-from Lexicon import string_prefixes, raw_prefixes, make_lexicon, IDENT
+from Lexicon import any_string_prefix, make_lexicon, IDENT
 from Future import print_function
 
 from StringEncoding import EncodedString
@@ -340,9 +340,7 @@ class PyrexScanner(Scanner):
     }
 
     def begin_string_action(self, text):
-        if text[:1] in string_prefixes:
-            text = text[1:]
-        if text[:1] in raw_prefixes:
+        while text[:1] in any_string_prefix:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')

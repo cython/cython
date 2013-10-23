@@ -4,7 +4,10 @@
 #
 
 raw_prefixes = "rR"
-string_prefixes = "cCuUbB"
+bytes_prefixes = "bB"
+string_prefixes = "uU" + bytes_prefixes
+char_prefixes = "cC"
+any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
 
 def make_lexicon():
@@ -60,7 +63,10 @@ def make_lexicon():
         + Str('"""')
     )
 
-    beginstring = Opt(Any(string_prefixes)) + Opt(Any(raw_prefixes)) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
+    beginstring = Opt(Any(string_prefixes) + Opt(Any(raw_prefixes)) |
+                      Any(raw_prefixes) + Opt(Any(bytes_prefixes)) |
+                      Any(char_prefixes)
+                      ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
