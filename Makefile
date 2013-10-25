@@ -6,17 +6,14 @@ all:    local
 local:
 	${PYTHON} setup.py build_ext --inplace
 
-.git: REV := $(shell cat .gitrev)
-.git: TMPDIR := $(shell mktemp -d tmprepo.XXXXXX)
-.git: 
+TMPDIR = .repo_tmp
+.git: .gitrev
 	rm -rf $(TMPDIR)
-	git clone $(REPO) $(TMPDIR)
-	cd $(TMPDIR); git checkout -b working $(REV)
-	mv $(TMPDIR)/.hgtags .
-	mv $(TMPDIR)/.hgignore .
+	git clone -n $(REPO) $(TMPDIR)
+	cd $(TMPDIR) && git reset -q "$(shell cat .gitrev)"
 	mv $(TMPDIR)/.git .
-	mv $(TMPDIR)/Doc/s5 Doc/s5
 	rm -rf $(TMPDIR)
+	git ls-files -d | xargs git checkout --
 
 repo: .git
 
