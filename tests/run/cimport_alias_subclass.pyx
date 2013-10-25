@@ -1,3 +1,6 @@
+# mode: compile
+
+
 cimport cimport_alias_subclass_helper as cash
 
 cdef class Derived(cash.Base):

@@ -13,6 +13,7 @@ for_from_pyvar_loop_T601
 temp_sideeffects_T654    # not really a bug, Cython warns about it
 inherited_final_method
 tryfinallychaining        # also see FIXME in "yield_from_pep380" test
+cimport_alias_subclass
 
 # CPython regression tests that don't current work:
 pyregr.test_signal
