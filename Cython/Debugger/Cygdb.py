@@ -56,6 +56,8 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
                     'Python was not compiled with debug symbols (or it was '
                     'stripped). Some functionality may not work (properly).\\n')
             end
+
+            source .cygdbinit
         '''))
 
     f.close()
