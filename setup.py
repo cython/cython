@@ -1,7 +1,10 @@
-from distutils.core import setup, Extension
+import sys
+if 'bdist_egg' in sys.argv or 'bdist_wheel' in sys.argv:
+    from setuptools import setup, Extension
+else:
+    from distutils.core import setup, Extension
 from distutils.sysconfig import get_python_lib
 import os, os.path
-import sys
 
 try:
     import platform
