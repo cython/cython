@@ -24,7 +24,7 @@ def test_class_locals_and_dir():
     >>> 'visible' in klass.locs and 'not_visible' not in klass.locs
     True
     >>> klass.names
-    ['visible']
+    ['__module__', '__qualname__', 'visible']
     """
     not_visible = 1234
     class Foo:

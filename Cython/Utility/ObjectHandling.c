@@ -663,38 +663,93 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
 {{endfor}}
 #endif
 
-/////////////// FindPy2Metaclass.proto ///////////////
 
-static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases); /*proto*/
+/////////////// CalculateMetaclass.proto ///////////////
 
-/////////////// FindPy2Metaclass ///////////////
-//@requires: PyObjectGetAttrStr
+static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases);
 
-static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
-    PyObject *metaclass;
-    /* Default metaclass */
+/////////////// CalculateMetaclass ///////////////
+
+static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases) {
+    Py_ssize_t i, nbases = PyTuple_GET_SIZE(bases);
+    for (i=0; i < nbases; i++) {
+        PyTypeObject *tmptype;
+        PyObject *tmp = PyTuple_GET_ITEM(bases, i);
+        tmptype = Py_TYPE(tmp);
 #if PY_MAJOR_VERSION < 3
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = __Pyx_PyObject_GetAttrStr(base, PYIDENT("__class__"));
+        if (tmptype == &PyClass_Type)
+            continue;
+#endif
         if (!metaclass) {
-            PyErr_Clear();
-            metaclass = (PyObject*) Py_TYPE(base);
-            Py_INCREF(metaclass);
+            metaclass = tmptype;
+            continue;
         }
+        if (PyType_IsSubtype(metaclass, tmptype))
+            continue;
+        if (PyType_IsSubtype(tmptype, metaclass)) {
+            metaclass = tmptype;
+            continue;
+        }
+        // else:
+        PyErr_SetString(PyExc_TypeError,
+                        "metaclass conflict: "
+                        "the metaclass of a derived class "
+                        "must be a (non-strict) subclass "
+                        "of the metaclasses of all its bases");
+        return NULL;
+    }
+    if (!metaclass) {
+#if PY_MAJOR_VERSION < 3
+        metaclass = &PyClass_Type;
+#else
+        metaclass = &PyType_Type;
+#endif
+    }
+    // make owned reference
+    Py_INCREF((PyObject*) metaclass);
+    return (PyObject*) metaclass;
+}
+
+
+/////////////// FindInheritedMetaclass.proto ///////////////
+
+static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases); /*proto*/
+
+/////////////// FindInheritedMetaclass ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: CalculateMetaclass
+
+static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
+    PyObject *metaclass;
+    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        PyTypeObject *metatype;
+        PyObject *base = PyTuple_GET_ITEM(bases, 0);
+#if PY_MAJOR_VERSION < 3
+        PyObject* basetype = __Pyx_PyObject_GetAttrStr(base, PYIDENT("__class__"));
+        if (basetype) {
+            metatype = (PyType_Check(basetype)) ? ((PyTypeObject*) basetype) : NULL;
+        } else {
+            PyErr_Clear();
+            metatype = Py_TYPE(base);
+            basetype = (PyObject*) metatype;
+            Py_INCREF(basetype);
+        }
+#else
+        metatype = Py_TYPE(base);
+#endif
+        metaclass = __Pyx_CalculateMetaclass(metatype, bases);
+#if PY_MAJOR_VERSION < 3
+        Py_DECREF(basetype);
+#endif
     } else {
+        // no bases => use default metaclass
+#if PY_MAJOR_VERSION < 3
         metaclass = (PyObject *) &PyClass_Type;
+#else
+        metaclass = (PyObject *) &PyType_Type;
+#endif
         Py_INCREF(metaclass);
     }
-#else
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = (PyObject*) Py_TYPE(base);
-    } else {
-        metaclass = (PyObject *) &PyType_Type;
-    }
-    Py_INCREF(metaclass);
-#endif
     return metaclass;
 }
 
@@ -703,7 +758,8 @@ static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
 
 /////////////// Py3MetaclassGet ///////////////
-//@requires: FindPy2Metaclass
+//@requires: FindInheritedMetaclass
+//@requires: CalculateMetaclass
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
     PyObject *metaclass = PyDict_GetItem(mkw, PYIDENT("metaclass"));
@@ -713,9 +769,14 @@ static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
             Py_DECREF(metaclass);
             return NULL;
         }
+        if (PyType_Check(metaclass)) {
+            PyObject* orig = metaclass;
+            metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
+            Py_DECREF(orig);
+        }
         return metaclass;
     }
-    return __Pyx_FindPy2Metaclass(bases);
+    return __Pyx_FindInheritedMetaclass(bases);
 }
 
 /////////////// CreateClass.proto ///////////////
@@ -724,7 +785,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
                                    PyObject *qualname, PyObject *modname); /*proto*/
 
 /////////////// CreateClass ///////////////
-//@requires: FindPy2Metaclass
+//@requires: FindInheritedMetaclass
+//@requires: CalculateMetaclass
 
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
                                    PyObject *qualname, PyObject *modname) {
@@ -740,9 +802,16 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     metaclass = PyDict_GetItem(dict, PYIDENT("__metaclass__"));
     if (metaclass) {
         Py_INCREF(metaclass);
+        if (PyType_Check(metaclass)) {
+            PyObject* orig = metaclass;
+            metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
+            Py_DECREF(orig);
+        }
     } else {
-        metaclass = __Pyx_FindPy2Metaclass(bases);
+        metaclass = __Pyx_FindInheritedMetaclass(bases);
     }
+    if (unlikely(!metaclass))
+        return NULL;
     result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
     Py_DECREF(metaclass);
     return result;
@@ -750,11 +819,14 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 
 /////////////// Py3ClassCreate.proto ///////////////
 
-static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
-static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
+                                           PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
+static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict,
+                                      PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: CalculateMetaclass
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
@@ -764,27 +836,28 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
 
     prep = __Pyx_PyObject_GetAttrStr(metaclass, PYIDENT("__prepare__"));
     if (!prep) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+        if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError)))
             return NULL;
         PyErr_Clear();
-        return PyDict_New();
-    }
-    pargs = PyTuple_Pack(2, name, bases);
-    if (!pargs) {
+        ns = PyDict_New();
+    } else {
+        pargs = PyTuple_Pack(2, name, bases);
+        if (unlikely(!pargs)) {
+            Py_DECREF(prep);
+            return NULL;
+        }
+        ns = PyObject_Call(prep, pargs, mkw);
         Py_DECREF(prep);
-        return NULL;
+        Py_DECREF(pargs);
     }
-    ns = PyObject_Call(prep, pargs, mkw);
-    Py_DECREF(prep);
-    Py_DECREF(pargs);
 
-    if (ns == NULL)
+    if (unlikely(!ns))
         return NULL;
 
     /* Required here to emulate assignment order */
-    if (PyObject_SetItem(ns, PYIDENT("__module__"), modname) < 0) goto bad;
-    if (PyObject_SetItem(ns, PYIDENT("__qualname__"), qualname) < 0) goto bad;
-    if (doc && PyObject_SetItem(ns, PYIDENT("__doc__"), doc) < 0) goto bad;
+    if (unlikely(PyObject_SetItem(ns, PYIDENT("__module__"), modname) < 0)) goto bad;
+    if (unlikely(PyObject_SetItem(ns, PYIDENT("__qualname__"), qualname) < 0)) goto bad;
+    if (unlikely(doc && PyObject_SetItem(ns, PYIDENT("__doc__"), doc) < 0)) goto bad;
     return ns;
 bad:
     Py_DECREF(ns);
@@ -792,13 +865,48 @@ bad:
 }
 
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
-                                      PyObject *dict, PyObject *mkw) {
-    PyObject *result;
-    PyObject *margs = PyTuple_Pack(3, name, bases, dict);
-    if (!margs)
-        return NULL;
-    result = PyObject_Call(metaclass, margs, mkw);
-    Py_DECREF(margs);
+                                      PyObject *dict, PyObject *mkw,
+                                      int calculate_metaclass, int allow_py2_metaclass) {
+    PyObject *result, *margs;
+    PyObject *py2_metaclass = NULL;
+    if (allow_py2_metaclass) {
+        /* honour Python2 __metaclass__ for backward compatibility */
+        py2_metaclass = PyObject_GetItem(dict, PYIDENT("__metaclass__"));
+        if (py2_metaclass) {
+            if (likely(PyType_Check(py2_metaclass))) {
+                metaclass = py2_metaclass;
+                calculate_metaclass = 1;
+            } else {
+                /* py2_metaclass != NULL => calculate_metaclass != 0 */
+                Py_DECREF(py2_metaclass);
+                py2_metaclass = NULL;
+            }
+        } else if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) {
+            PyErr_Clear();
+        } else {
+            return NULL;
+        }
+    }
+    if (calculate_metaclass) {
+        if (py2_metaclass || PyType_Check(metaclass)) {
+            metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
+            Py_XDECREF(py2_metaclass);
+            if (unlikely(!metaclass))
+                return NULL;
+        } else {
+            Py_XDECREF(py2_metaclass);
+            calculate_metaclass = 0;
+        }
+    }
+    margs = PyTuple_Pack(3, name, bases, dict);
+    if (unlikely(!margs)) {
+        result = NULL;
+    } else {
+        result = PyObject_Call(metaclass, margs, mkw);
+        Py_DECREF(margs);
+    }
+    if (calculate_metaclass)
+        Py_DECREF(metaclass);
     return result;
 }
 

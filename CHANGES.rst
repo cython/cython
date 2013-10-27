@@ -52,6 +52,16 @@ Features added
 Bugs fixed
 ----------
 
+* The metaclass of a Python class was not inherited from its parent
+  class(es).  It is now extracted from the list of base classes if not
+  provided explicitly using the Py3 ``metaclass`` keyword argument.
+  In Py2 compilation mode, a ``__metaclass__`` entry in the class
+  dict will still take precedence if not using Py3 metaclass syntax,
+  but only *after* creating the class dict (which may have been done
+  by a metaclass of a base class, see PEP 3115).  It is generally
+  recommended to use the explicit Py3 syntax to define metaclasses
+  for Python types at compile time.
+
 * The automatic C switch statement generation behaves more safely for
   heterogeneous value types (e.g. mixing enum and char), allowing for
   a slightly wider application and reducing corner cases.  It now always
@@ -60,6 +70,9 @@ Bugs fixed
 
 Other changes
 -------------
+
+* In Py3 compilation mode, Python2-style metaclasses declared by a
+  ``__metaclass__`` class dict entry are ignored.
 
 * In Py3.4+, the Cython generator type uses ``tp_finalize()`` for safer
   cleanup instead of ``tp_del()``.

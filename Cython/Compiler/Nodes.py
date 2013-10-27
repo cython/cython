@@ -3915,25 +3915,29 @@ class PyClassDefNode(ClassDefNode):
                    "target", "class_cell", "decorators"]
     decorators = None
     class_result = None
-    py3_style_class = False # Python3 style class (bases+kwargs)
+    is_py3_style_class = False  # Python3 style class (kwargs)
+    metaclass = None
+    mkw = None
 
-    def __init__(self, pos, name, bases, doc, body, decorators = None,
-                 keyword_args = None, starstar_arg = None):
+    def __init__(self, pos, name, bases, doc, body, decorators=None,
+                 keyword_args=None, starstar_arg=None, force_py3_semantics=False):
         StatNode.__init__(self, pos)
         self.name = name
         self.doc = doc
         self.body = body
         self.decorators = decorators
+        self.bases = bases
         import ExprNodes
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
-            doc_node = ExprNodes.StringNode(pos, value = doc)
+            doc_node = ExprNodes.StringNode(pos, value=doc)
         else:
             doc_node = None
+
+        allow_py2_metaclass = not force_py3_semantics
         if keyword_args or starstar_arg:
-            self.py3_style_class = True
-            self.bases = bases
-            self.metaclass = None
+            allow_py2_metaclass = False
+            self.is_py3_style_class = True
             if keyword_args and not starstar_arg:
                 for i, item in list(enumerate(keyword_args.key_value_pairs))[::-1]:
                     if item.key.value == 'metaclass':
@@ -3946,36 +3950,50 @@ class PyClassDefNode(ClassDefNode):
                         del keyword_args.key_value_pairs[i]
             if starstar_arg:
                 self.mkw = ExprNodes.KeywordArgsNode(
-                    pos, keyword_args = keyword_args and keyword_args.key_value_pairs or [],
-                    starstar_arg = starstar_arg)
-            elif keyword_args and keyword_args.key_value_pairs:
+                    pos, keyword_args=keyword_args and keyword_args.key_value_pairs or [],
+                    starstar_arg=starstar_arg)
+            elif keyword_args.key_value_pairs:
                 self.mkw = keyword_args
             else:
-                self.mkw = ExprNodes.NullNode(pos)
+                assert self.metaclass is not None
+
+        if force_py3_semantics or self.bases or self.mkw or self.metaclass:
             if self.metaclass is None:
+                if starstar_arg:
+                    # **kwargs may contain 'metaclass' arg
+                    mkdict = self.mkw
+                else:
+                    mkdict = None
                 self.metaclass = ExprNodes.PyClassMetaclassNode(
-                    pos, mkw = self.mkw, bases = self.bases)
-            self.dict = ExprNodes.PyClassNamespaceNode(pos, name = name,
-                        doc = doc_node, metaclass = self.metaclass, bases = self.bases,
-                        mkw = self.mkw)
-            self.classobj = ExprNodes.Py3ClassNode(pos, name = name,
-                    bases = self.bases, dict = self.dict, doc = doc_node,
-                    metaclass = self.metaclass, mkw = self.mkw)
+                    pos, mkw=mkdict, bases=self.bases)
+                needs_metaclass_calculation = False
+            else:
+                needs_metaclass_calculation = True
+
+            self.dict = ExprNodes.PyClassNamespaceNode(
+                pos, name=name, doc=doc_node,
+                metaclass=self.metaclass, bases=self.bases, mkw=self.mkw)
+            self.classobj = ExprNodes.Py3ClassNode(
+                pos, name=name,
+                bases=self.bases, dict=self.dict, doc=doc_node,
+                metaclass=self.metaclass, mkw=self.mkw,
+                calculate_metaclass=needs_metaclass_calculation,
+                allow_py2_metaclass=allow_py2_metaclass)
         else:
-            self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
-            self.metaclass = None
-            self.mkw = None
-            self.bases = None
-            self.classobj = ExprNodes.ClassNode(pos, name = name,
-                    bases = bases, dict = self.dict, doc = doc_node)
-        self.target = ExprNodes.NameNode(pos, name = name)
+            # no bases, no metaclass => old style class creation
+            self.dict = ExprNodes.DictNode(pos, key_value_pairs=[])
+            self.classobj = ExprNodes.ClassNode(
+                pos, name=name,
+                bases=bases, dict=self.dict, doc=doc_node)
+
+        self.target = ExprNodes.NameNode(pos, name=name)
         self.class_cell = ExprNodes.ClassCellInjectorNode(self.pos)
 
     def as_cclass(self):
         """
         Return this node as if it were declared as an extension class
         """
-        if self.py3_style_class:
+        if self.is_py3_style_class:
             error(self.classobj.pos, "Python3 style class could not be represented as C class")
             return
         bases = self.classobj.bases.args
@@ -4039,9 +4057,11 @@ class PyClassDefNode(ClassDefNode):
         self.body.analyse_declarations(cenv)
 
     def analyse_expressions(self, env):
-        if self.py3_style_class:
+        if self.bases:
             self.bases = self.bases.analyse_expressions(env)
+        if self.metaclass:
             self.metaclass = self.metaclass.analyse_expressions(env)
+        if self.mkw:
             self.mkw = self.mkw.analyse_expressions(env)
         self.dict = self.dict.analyse_expressions(env)
         self.class_result = self.class_result.analyse_expressions(env)
@@ -4059,9 +4079,11 @@ class PyClassDefNode(ClassDefNode):
     def generate_execution_code(self, code):
         code.pyclass_stack.append(self)
         cenv = self.scope
-        if self.py3_style_class:
+        if self.bases:
             self.bases.generate_evaluation_code(code)
+        if self.mkw:
             self.mkw.generate_evaluation_code(code)
+        if self.metaclass:
             self.metaclass.generate_evaluation_code(code)
         self.dict.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
@@ -4075,11 +4097,13 @@ class PyClassDefNode(ClassDefNode):
         self.target.generate_assignment_code(self.class_result, code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
-        if self.py3_style_class:
-            self.mkw.generate_disposal_code(code)
-            self.mkw.free_temps(code)
+        if self.metaclass:
             self.metaclass.generate_disposal_code(code)
             self.metaclass.free_temps(code)
+        if self.mkw:
+            self.mkw.generate_disposal_code(code)
+            self.mkw.free_temps(code)
+        if self.bases:
             self.bases.generate_disposal_code(code)
             self.bases.free_temps(code)
         code.pyclass_stack.pop()

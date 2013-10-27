@@ -6,7 +6,7 @@ class Base(type):
         attrs['metaclass_was_here'] = True
         return type.__new__(cls, name, bases, attrs)
 
-@cython.test_fail_if_path_exists("//PyClassMetaclassNode", "//Py3ClassNode")
+@cython.test_assert_path_exists("//PyClassMetaclassNode", "//Py3ClassNode")
 class Foo(object):
     """
     >>> obj = Foo()
@@ -27,6 +27,7 @@ class ODict(dict):
 
 class Py3MetaclassPlusAttr(type):
     def __new__(cls, name, bases, attrs, **kwargs):
+        assert isinstance(attrs, ODict), str(type(attrs))
         for key, value in kwargs.items():
             attrs[key] = value
         attrs['metaclass_was_here'] = True
@@ -53,8 +54,21 @@ class Py3ClassMCOnly(object, metaclass=Py3MetaclassPlusAttr):
     """
     bar = 321
 
+class Py3InheritedMetaclass(Py3ClassMCOnly):
+    """
+    >>> obj = Py3InheritedMetaclass()
+    >>> obj.bar
+    345
+    >>> obj.metaclass_was_here
+    True
+    >>> obj._order
+    ['__module__', '__qualname__', '__doc__', 'bar', 'metaclass_was_here']
+    """
+    bar = 345
+
 class Py3Base(type):
     def __new__(cls, name, bases, attrs, **kwargs):
+        assert isinstance(attrs, ODict), str(type(attrs))
         for key, value in kwargs.items():
             attrs[key] = value
         return type.__new__(cls, name, bases, attrs)
@@ -73,6 +87,19 @@ class Py3Foo(object, metaclass=Py3Base, foo=123):
     >>> obj = Py3Foo()
     >>> obj.foo
     123
+    >>> obj.bar
+    321
+    >>> obj._order
+    ['__module__', '__qualname__', '__doc__', 'bar', 'foo']
+    """
+    bar = 321
+
+@cython.test_assert_path_exists("//PyClassMetaclassNode", "//Py3ClassNode")
+class Py3FooInherited(Py3Foo, foo=567):
+    """
+    >>> obj = Py3FooInherited()
+    >>> obj.foo
+    567
     >>> obj.bar
     321
     >>> obj._order

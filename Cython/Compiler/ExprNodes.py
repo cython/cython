@@ -6782,6 +6782,8 @@ class Py3ClassNode(ExprNode):
     #  name         EncodedString      Name of the class
     #  dict         ExprNode           Class dict (not owned by this node)
     #  module_name  EncodedString      Name of defining module
+    #  calculate_metaclass  bool       should call CalculateMetaclass()
+    #  allow_py2_metaclass  bool       should look for Py2 metaclass
 
     subexprs = []
 
@@ -6798,14 +6800,20 @@ class Py3ClassNode(ExprNode):
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
         cname = code.intern_identifier(self.name)
+        if self.mkw:
+            mkw = self.mkw.py_result()
+        else:
+            mkw = 'NULL'
         code.putln(
-            '%s = __Pyx_Py3ClassCreate(%s, %s, %s, %s, %s); %s' % (
+            '%s = __Pyx_Py3ClassCreate(%s, %s, %s, %s, %s, %d, %d); %s' % (
                 self.result(),
                 self.metaclass.result(),
                 cname,
                 self.bases.py_result(),
                 self.dict.py_result(),
-                self.mkw.py_result(),
+                mkw,
+                self.calculate_metaclass,
+                self.allow_py2_metaclass,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -6941,12 +6949,20 @@ class PyClassMetaclassNode(ExprNode):
         return True
 
     def generate_result_code(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("Py3MetaclassGet", "ObjectHandling.c"))
-        code.putln(
-            "%s = __Pyx_Py3MetaclassGet(%s, %s); %s" % (
-                self.result(),
+        if self.mkw:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("Py3MetaclassGet", "ObjectHandling.c"))
+            call = "__Pyx_Py3MetaclassGet(%s, %s)" % (
                 self.bases.result(),
-                self.mkw.result(),
+                self.mkw.result())
+        else:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CalculateMetaclass", "ObjectHandling.c"))
+            call = "__Pyx_CalculateMetaclass(NULL, %s)" % (
+                self.bases.result())
+        code.putln(
+            "%s = %s; %s" % (
+                self.result(), call,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -6983,6 +6999,10 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
             doc_code = self.doc.result()
         else:
             doc_code = '(PyObject *) NULL'
+        if self.mkw:
+            mkw = self.mkw.py_result()
+        else:
+            mkw = '(PyObject *) NULL'
         code.putln(
             "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s, %s); %s" % (
                 self.result(),
@@ -6990,7 +7010,7 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
                 self.bases.result(),
                 cname,
                 qualname,
-                self.mkw.result(),
+                mkw,
                 py_mod_name,
                 doc_code,
                 code.error_goto_if_null(self.result(), self.pos)))

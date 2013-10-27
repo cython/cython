@@ -2962,12 +2962,13 @@ def p_class_statement(s, decorators):
         # XXX: empty arg_tuple
         arg_tuple = ExprNodes.TupleNode(pos, args=[])
     doc, body = p_suite_with_docstring(s, Ctx(level='class'))
-    return Nodes.PyClassDefNode(pos,
-        name = class_name,
-        bases = arg_tuple,
-        keyword_args = keyword_dict,
-        starstar_arg = starstar_arg,
-        doc = doc, body = body, decorators = decorators)
+    return Nodes.PyClassDefNode(
+        pos, name=class_name,
+        bases=arg_tuple,
+        keyword_args=keyword_dict,
+        starstar_arg=starstar_arg,
+        doc=doc, body=body, decorators=decorators,
+        force_py3_semantics=s.context.language_level >= 3)
 
 def p_c_class_definition(s, pos,  ctx):
     # s.sy == 'class'
