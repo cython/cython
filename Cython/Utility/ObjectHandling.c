@@ -668,9 +668,11 @@ static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
         if (!metaclass) {
             PyErr_Clear();
             metaclass = (PyObject*) Py_TYPE(base);
+            Py_INCREF(metaclass);
         }
     } else {
         metaclass = (PyObject *) &PyClass_Type;
+        Py_INCREF(metaclass);
     }
 #else
     if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
@@ -679,8 +681,8 @@ static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
     } else {
         metaclass = (PyObject *) &PyType_Type;
     }
-#endif
     Py_INCREF(metaclass);
+#endif
     return metaclass;
 }
 
