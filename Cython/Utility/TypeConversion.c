@@ -19,6 +19,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
     #define __Pyx_PyStr_FromStringAndSize __Pyx_PyUnicode_FromStringAndSize
 #endif
 
+#define __Pyx_PyObject_AsSString(s)    ((signed char*) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsUString(s)    ((unsigned char*) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_FromUString(s)  __Pyx_PyObject_FromString((char*)s)
 #define __Pyx_PyBytes_FromUString(s)   __Pyx_PyBytes_FromString((char*)s)

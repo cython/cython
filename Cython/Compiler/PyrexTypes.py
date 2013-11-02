@@ -2085,7 +2085,10 @@ class CPointerBaseType(CType):
             if base_type.signed:
                 self.to_py_function = "__Pyx_PyObject_FromString"
                 if self.is_ptr:
-                    self.from_py_function = "__Pyx_PyObject_AsString"
+                    if base_type.signed == 2:
+                        self.from_py_function = "__Pyx_PyObject_AsSString"
+                    else:
+                        self.from_py_function = "__Pyx_PyObject_AsString"
             else:
                 self.to_py_function = "__Pyx_PyObject_FromUString"
                 if self.is_ptr:
