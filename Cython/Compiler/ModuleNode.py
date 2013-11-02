@@ -2514,6 +2514,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "if (PyType_Ready(&%s) < 0) %s" % (
                         typeobj_cname,
                         code.error_goto(entry.pos)))
+                # Don't inherit tp_dict from builting types, restoring the
+                # behavior of using tp_repr or tp_str instead.
+                code.putln("%s.tp_print = 0;" % typeobj_cname)
                 # Fix special method docstrings. This is a bit of a hack, but
                 # unless we let PyType_Ready create the slot wrappers we have
                 # a significant performance hit. (See trac #561.)
