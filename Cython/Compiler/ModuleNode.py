@@ -2521,7 +2521,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "if (PyType_Ready(&%s) < 0) %s" % (
                         typeobj_cname,
                         code.error_goto(entry.pos)))
-                # Don't inherit tp_dict from builtin types, restoring the
+                # Don't inherit tp_print from builtin types, restoring the
                 # behavior of using tp_repr or tp_str instead.
                 code.putln("%s.tp_print = 0;" % typeobj_cname)
                 # Fix special method docstrings. This is a bit of a hack, but
