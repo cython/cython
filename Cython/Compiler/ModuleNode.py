@@ -773,12 +773,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [base_class.declaration_code("") for base_class in type.base_classes])
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
+            has_virtual_methods = False
+            has_destructor = False
             for attr in scope.var_entries:
                 if attr.type.is_cfunction and attr.name != "<init>":
                     code.put("virtual ")
+                    has_virtual_methods = True
+                if attr.cname[0] == '~':
+                    has_destructor = True
                 code.putln(
                     "%s;" %
                         attr.type.declaration_code(attr.cname))
+            if has_virtual_methods and not has_destructor:
+                code.put("virtual ~%s() { }" % type.cname)
             code.putln("};")
 
     def generate_enum_definition(self, entry, code):
