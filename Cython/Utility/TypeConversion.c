@@ -5,8 +5,8 @@
 static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject*);
 static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject*, Py_ssize_t* length);
 
-#define __Pyx_PyByteArray_FromString(s) PyByteArray_FromStringAndSize(s, strlen(s))
-#define __Pyx_PyByteArray_FromStringAndSize(s, l) PyByteArray_FromStringAndSize(s, l)
+#define __Pyx_PyByteArray_FromString(s) PyByteArray_FromStringAndSize((const char*)s, strlen((const char*)s))
+#define __Pyx_PyByteArray_FromStringAndSize(s, l) PyByteArray_FromStringAndSize((const char*)s, l)
 #define __Pyx_PyBytes_FromString        PyBytes_FromString
 #define __Pyx_PyBytes_FromStringAndSize PyBytes_FromStringAndSize
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
