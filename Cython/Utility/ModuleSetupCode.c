@@ -115,7 +115,7 @@
           PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #endif
 
-#if PY_MAJOR_VERSION < 3 && PY_MINOR_VERSION < 6
+#if PY_VERSION_HEX < 0x02060000
   #define PyUnicode_FromString(s) PyUnicode_Decode(s, strlen(s), "UTF-8", "strict")
 #endif
 
