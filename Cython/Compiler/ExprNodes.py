@@ -10,7 +10,8 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                list_type=object, tuple_type=object, set_type=object, dict_type=object,
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
-               debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object)
+               debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
+               bytearray_type=object)
 
 import sys
 import copy
@@ -28,7 +29,7 @@ from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 import TypeSlots
 from Builtin import list_type, tuple_type, set_type, dict_type, \
-     unicode_type, str_type, bytes_type, type_type
+     unicode_type, str_type, bytes_type, bytearray_type, type_type
 import Builtin
 import Symtab
 from Cython import Utils
@@ -3674,8 +3675,9 @@ class SliceIndexNode(ExprNode):
 
     def coerce_to(self, dst_type, env):
         if ((self.base.type.is_string or self.base.type.is_cpp_string)
-                and dst_type in (bytes_type, str_type, unicode_type)):
-            if dst_type is not bytes_type and not env.directives['c_string_encoding']:
+                and dst_type in (bytes_type, bytearray_type, str_type, unicode_type)):
+            if (dst_type not in (bytes_type, bytearray_type)
+                    and not env.directives['c_string_encoding']):
                 error(self.pos,
                     "default encoding required for conversion from '%s' to '%s'" % 
                     (self.base.type, dst_type))
@@ -3696,11 +3698,15 @@ class SliceIndexNode(ExprNode):
             base_result = self.base.result()
             if self.base.type != PyrexTypes.c_char_ptr_type:
                 base_result = '((const char*)%s)' % base_result
+            if self.type is bytearray_type:
+                type_name = 'ByteArray'
+            else:
+                type_name = self.type.name.title()
             if self.stop is None:
                 code.putln(
                     "%s = __Pyx_Py%s_FromString(%s + %s); %s" % (
                         result,
-                        self.type.name.title(),
+                        type_name,
                         base_result,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
@@ -3708,7 +3714,7 @@ class SliceIndexNode(ExprNode):
                 code.putln(
                     "%s = __Pyx_Py%s_FromStringAndSize(%s + %s, %s - %s); %s" % (
                         result,
-                        self.type.name.title(),
+                        type_name,
                         base_result,
                         start_code,
                         stop_code,
@@ -10289,7 +10295,8 @@ class CoerceToPyTypeNode(CoercionNode):
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
         elif arg.type.is_string or arg.type.is_cpp_string:
-            if type is not bytes_type and not env.directives['c_string_encoding']:
+            if (type not in (bytes_type, bytearray_type)
+                    and not env.directives['c_string_encoding']):
                 error(arg.pos,
                     "default encoding required for conversion from '%s' to '%s'" % 
                     (arg.type, type))
@@ -10335,9 +10342,11 @@ class CoerceToPyTypeNode(CoercionNode):
             funccall = arg_type.get_to_py_function(self.env, self.arg)
         else:
             func = arg_type.to_py_function
-            if ((arg_type.is_string or arg_type.is_cpp_string)
-                    and self.type in (bytes_type, str_type, unicode_type)):
-                func = func.replace("Object", self.type.name.title())
+            if arg_type.is_string or arg_type.is_cpp_string:
+                if self.type in (bytes_type, str_type, unicode_type):
+                    func = func.replace("Object", self.type.name.title())
+                elif self.type is bytearray_type:
+                    func = func.replace("Object", "ByteArray")
             funccall = "%s(%s)" % (func, self.arg.result())
 
         code.putln('%s = %s; %s' % (

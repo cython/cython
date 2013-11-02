@@ -941,6 +941,7 @@ class BuiltinScope(Scope):
         "complex":["((PyObject*)&PyComplex_Type)", py_object_type],
 
         "bytes":  ["((PyObject*)&PyBytes_Type)", py_object_type],
+        "bytearray":   ["((PyObject*)&PyByteArray_Type)", py_object_type],
         "str":    ["((PyObject*)&PyString_Type)", py_object_type],
         "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
 

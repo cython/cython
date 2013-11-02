@@ -19,7 +19,9 @@ Python string types in Cython code
 Cython supports four Python string types: ``bytes``, ``str``,
 ``unicode`` and ``basestring``.  The ``bytes`` and ``unicode`` types
 are the specific types known from normal Python 2.x (named ``bytes``
-and ``str`` in Python 3).
+and ``str`` in Python 3).  Additionally, Cython also supports the
+``bytearray`` type starting with Python 2.6.  It behaves like the
+``bytes`` type, except that it is mutable.
 
 The ``str`` type is special in that it is the byte string in Python 2
 and the Unicode string in Python 3 (for Cython code compiled with
@@ -160,6 +162,13 @@ receives the pointer as parameter.  Special care must be taken,
 however, when the C function stores the pointer for later use.  Apart
 from keeping a Python reference to the string object, no manual memory
 management is required.
+
+Starting with Cython 0.20, the ``bytearray`` type is supported and
+coerces in the same way as the ``bytes`` type.  However, when using it
+in a C context, special care must be taken not to grow or shrink the
+object buffer after converting it to a C string pointer.  These
+modifications can change the internal buffer address, which will make
+the pointer invalid.
 
 Dealing with "const"
 --------------------

@@ -5,6 +5,8 @@
 static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject*);
 static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject*, Py_ssize_t* length);
 
+#define __Pyx_PyByteArray_FromString(s) PyByteArray_FromStringAndSize(s, strlen(s))
+#define __Pyx_PyByteArray_FromStringAndSize(s, l) PyByteArray_FromStringAndSize(s, l)
 #define __Pyx_PyBytes_FromString        PyBytes_FromString
 #define __Pyx_PyBytes_FromStringAndSize PyBytes_FromStringAndSize
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
@@ -20,6 +22,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
 #define __Pyx_PyObject_AsUString(s)    ((unsigned char*) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_FromUString(s)  __Pyx_PyObject_FromString((char*)s)
 #define __Pyx_PyBytes_FromUString(s)   __Pyx_PyBytes_FromString((char*)s)
+#define __Pyx_PyByteArray_FromUString(s)   __Pyx_PyByteArray_FromString((char*)s)
 #define __Pyx_PyStr_FromUString(s)     __Pyx_PyStr_FromString((char*)s)
 #define __Pyx_PyUnicode_FromUString(s) __Pyx_PyUnicode_FromString((char*)s)
 
@@ -190,10 +193,17 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
 #endif /* PY_VERSION_HEX < 0x03030000 */
     } else
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII  || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT */
+
+#if PY_VERSION_HEX >= 0x02060000
+    if (PyByteArray_Check(o)) {
+        *length = PyByteArray_GET_SIZE(o);
+        return PyByteArray_AS_STRING(o);
+    } else
+#endif
     {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
-        if (r < 0) {
+        if (unlikely(r < 0)) {
             return NULL;
         } else {
             return result;

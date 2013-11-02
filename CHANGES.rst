@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* ``bytearray`` has become a known type and supports coercion from and
+  to C strings.
+
 * Using ``cdef basestring stringvar`` and function arguments typed as
   ``basestring`` is now meaningful and allows assigning exactly
   ``str`` and ``unicode`` objects, but no subtypes of these types.

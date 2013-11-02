@@ -952,7 +952,7 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.cname
 
     def default_coerced_ctype(self):
-        if self.name == 'bytes':
+        if self.name in ('bytes', 'bytearray'):
             return c_char_ptr_type
         elif self.name == 'bool':
             return c_bint_type
@@ -992,6 +992,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = 'PyString_Check'
         elif type_name == 'basestring':
             type_check = '__Pyx_PyBaseString_Check'
+        elif type_name == 'bytearray':
+            type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:

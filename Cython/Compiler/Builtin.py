@@ -271,6 +271,7 @@ builtin_types_table = [
                                     ]),
 
     ("basestring",   "PyBaseString_Type",      []),
+    ("bytearray", "PyByteArray_Type", []),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
                                     ]),
     ("str",     "PyString_Type",   [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
@@ -409,7 +410,7 @@ def init_builtins():
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type
-    global float_type, bool_type, type_type, complex_type
+    global float_type, bool_type, type_type, complex_type, bytearray_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -420,6 +421,7 @@ def init_builtins():
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
     basestring_type = builtin_scope.lookup('basestring').type
+    bytearray_type = builtin_scope.lookup('bytearray').type
     float_type = builtin_scope.lookup('float').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
