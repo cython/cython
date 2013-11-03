@@ -2788,11 +2788,11 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             string_node = string_node.arg
 
         string_type = string_node.type
-        if string_type is Builtin.bytes_type:
+        if string_type in (Builtin.bytes_type, Builtin.bytearray_type):
             if is_unbound_method:
                 string_node = string_node.as_none_safe_node(
                     "descriptor '%s' requires a '%s' object but received a 'NoneType'",
-                    format_args = ['decode', 'bytes'])
+                    format_args = ['decode', string_type.name])
             else:
                 string_node = string_node.as_none_safe_node(
                     "'NoneType' object has no attribute '%s'",
@@ -2862,12 +2862,15 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             helper_func_type = self._decode_cpp_string_func_type
             utility_code_name = 'decode_cpp_string'
         else:
-            # Python bytes object
+            # Python bytes/bytearray object
             if not stop:
                 stop = ExprNodes.IntNode(node.pos, value='PY_SSIZE_T_MAX',
                                          constant_result=ExprNodes.not_a_constant)
             helper_func_type = self._decode_bytes_func_type
-            utility_code_name = 'decode_bytes'
+            if string_type is Builtin.bytes_type:
+                utility_code_name = 'decode_bytes'
+            else:
+                utility_code_name = 'decode_bytearray'
 
         node = ExprNodes.PythonCapiCallNode(
             node.pos, '__Pyx_%s' % utility_code_name, helper_func_type,
@@ -2879,6 +2882,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         for temp in temps[::-1]:
             node = UtilNodes.EvalWithTempExprNode(temp, node)
         return node
+
+    _handle_simple_method_bytearray_decode = _handle_simple_method_bytes_decode
 
     def _find_special_codec_name(self, encoding):
         try:
@@ -2956,6 +2961,18 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         return self._inject_tailmatch(
             node, function, args, is_unbound_method, 'bytes', 'startswith',
             bytes_tailmatch_utility_code, -1)
+
+    '''   # disabled for now, enable when we consider it worth it (see StringTools.c)
+    def _handle_simple_method_bytearray_endswith(self, node, function, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, function, args, is_unbound_method, 'bytearray', 'endswith',
+            bytes_tailmatch_utility_code, +1)
+
+    def _handle_simple_method_bytearray_startswith(self, node, function, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, function, args, is_unbound_method, 'bytearray', 'startswith',
+            bytes_tailmatch_utility_code, -1)
+    '''
 
     ### helpers
 
