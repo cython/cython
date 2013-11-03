@@ -1,12 +1,13 @@
 cimport cqueue
-cimport python_exc
 
 cdef class Queue:
+
     cdef cqueue.Queue* _c_queue
+
     def __cinit__(self):
         self._c_queue = cqueue.queue_new()
         if self._c_queue is NULL:
-            python_exc.PyErr_NoMemory()
+            raise MemoryError()
 
     def __dealloc__(self):
         if self._c_queue is not NULL:
@@ -14,14 +15,14 @@ cdef class Queue:
 
     cpdef int append(self, int value) except -1:
         if not cqueue.queue_push_tail(self._c_queue, <void*>value):
-            python_exc.PyErr_NoMemory()
+            raise MemoryError()
         return 0
 
     cdef int extend(self, int* values, Py_ssize_t count) except -1:
         cdef Py_ssize_t i
-        for i in xrange(count):
+        for i in range(count):
             if not cqueue.queue_push_tail(self._c_queue, <void*>values[i]):
-                python_exc.PyErr_NoMemory()
+                raise MemoryError()
         return 0
 
     cpdef int peek(self) except? 0:
@@ -42,7 +43,7 @@ cdef class Queue:
                 raise IndexError("Queue is empty")
         return value
 
-    def __nonzero__(self):
+    def __bool__(self):    # same as __nonzero__ in Python 2.x
         return not cqueue.queue_is_empty(self._c_queue)
 
 DEF repeat_count=10000
@@ -50,9 +51,9 @@ DEF repeat_count=10000
 def test_cy():
     cdef int i
     cdef Queue q = Queue()
-    for i in xrange(repeat_count):
+    for i in range(repeat_count):
         q.append(i)
-    for i in xrange(repeat_count):
+    for i in range(repeat_count):
         q.peek()
     while q:
         q.pop()
@@ -60,9 +61,9 @@ def test_cy():
 def test_py():
     cdef int i
     q = Queue()
-    for i in xrange(repeat_count):
+    for i in range(repeat_count):
         q.append(i)
-    for i in xrange(repeat_count):
+    for i in range(repeat_count):
         q.peek()
     while q:
         q.pop()
@@ -72,9 +73,9 @@ from collections import deque
 def test_deque():
     cdef int i
     q = deque()
-    for i in xrange(repeat_count):
+    for i in range(repeat_count):
         q.appendleft(i)
-    for i in xrange(repeat_count):
+    for i in range(repeat_count):
         q[-1]
     while q:
         q.pop()

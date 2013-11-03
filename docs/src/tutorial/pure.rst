@@ -1,3 +1,6 @@
+
+.. _pure-mode:
+
 Pure Python Mode
 ================
 
@@ -99,9 +102,9 @@ would be interpreted as::
         cpdef foo(self, int i):
             print "Big" if i > 1000 else "Small"
 
-The special cython module can also be imported and used within the augmenting
-:file:`.pxd` file. This makes it possible to add types to a pure python file without
-changing the file itself. For example, the following python file
+The special Cython module can also be imported and used within the augmenting
+:file:`.pxd` file. This makes it possible to add types to a pure Python file without
+changing the file itself. For example, the following Python file
 :file:`dostuff.py`::
 
     def dostuff(n):
@@ -128,24 +131,35 @@ signature, for instance.
 Types
 -----
 
-There are numerous types built in to the cython module. One has all the
+There are numerous types built in to the Cython module. One has all the
 standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
 as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
-``ulonglong``. One also has ``bint`` and ``Py_ssize_t``. For each type, one
-has pointer types ``p_int``, ``pp_int``, . . ., up to three levels deep in
+``ulonglong``.  One also has ``bint`` and ``Py_ssize_t``.  For each type, there
+are pointer types ``p_int``, ``pp_int``, . . ., up to three levels deep in
 interpreted mode, and infinitely deep in compiled mode.  The Python types int,
 long and bool are interpreted as C ``int``, ``long`` and ``bint``
-respectively. Also, the python types ``list``, ``dict``, ``tuple``, . . . may
+respectively. Also, the Python types ``list``, ``dict``, ``tuple``, . . . may
 be used, as well as any user defined types.
 
 Pointer types may be constructed with ``cython.pointer(cython.int)``, and
 arrays as ``cython.int[10]``. A limited attempt is made to emulate these more
 complex types, but only so much can be done from the Python language.
 
-Decorators
---------------------------------
+Extension types and cdef functions
+-----------------------------------
 
 Use the ``@cython.cclass`` decorator to create a ``cdef class``.
-Use the ``@cython.cfunc`` and ``@cython.ccall`` decorators for :keyword:`cdef`
-and :keyword:`cpdef` functions (respectively).
 
+Use the ``@cython.cfunc`` decorator for :keyword:`cdef` functions
+and the ``@cython.ccall`` decorators for :keyword:`cpdef` functions
+respectively.  To declare the argument types, use the
+``@cython.locals()`` decorator.  For the return type, use
+``@cython.returns(a_type)``.
+
+Here is an example of a :keyword:`cdef` function::
+
+    @cython.cfunc
+    @cython.returns(cython.bint)
+    @cython.locals(a=cython.int, b=cython.int)
+    def c_compare(a,b):
+        return a == b

@@ -16,7 +16,6 @@ It currently supports OpenMP, but later on more backends might be supported.
 .. NOTE:: Functionality in this module may only be used from the main thread
           or parallel regions due to OpenMP restrictions.
 
-__ nogil_
 
 .. function:: prange([start,] stop[, step][, nogil=False][, schedule=None[, chunksize=None]][, num_threads=None])
 
@@ -39,37 +38,51 @@ __ nogil_
 
     The ``schedule`` is passed to OpenMP and can be one of the following:
 
-    +-----------------+------------------------------------------------------+
-    | Schedule        | Description                                          |
-    +=================+======================================================+
-    |static           | The iteration space is divided into chunks that are  |
-    |                 | approximately equal in size, and at most one chunk   |
-    |                 | is distributed to each thread, if ``chunksize`` is   |
-    |                 | not given. If ``chunksize`` is specified, iterations |
-    |                 | are distributed cyclically in a static manner with a |
-    |                 | blocksize of ``chunksize``.                          |
-    +-----------------+------------------------------------------------------+
-    |dynamic          | The iterations are distributed to threads in the team|
-    |                 | as the threads request them, with a default chunk    |
-    |                 | size of 1.                                           |
-    +-----------------+------------------------------------------------------+
-    |guided           | The iterations are distributed to threads in the team|
-    |                 | as the threads request them. The size of each chunk  |
-    |                 | is proportional to the number of unassigned          |
-    |                 | iterations divided by the number of threads in the   |
-    |                 | team, decreasing to 1 (or ``chunksize`` if given).   |
-    +-----------------+------------------------------------------------------+
-    |runtime          | The schedule and chunk size are taken from the       |
-    |                 | runtime-scheduling-variable, which can be set through|
-    |                 | the ``omp_set_schedule`` function call, or the       |
-    |                 | ``OMP_SCHEDULE`` environment variable.               |
-    +-----------------+------------------------------------------------------+
+    static:
+       If a chunksize is provided, iterations are distributed to all
+       threads ahead of time in blocks of the given chunksize.  If no
+       chunksize is given, the iteration space is divided into chunks that
+       are approximately equal in size, and at most one chunk is assigned
+       to each thread in advance.
 
-..    |auto             | The decision regarding scheduling is delegated to the|
-..    |                 | compiler and/or runtime system. The programmer gives |
-..    |                 | the implementation the freedom to choose any possible|
-..    |                 | mapping of iterations to threads in the team.        |
-..    +-----------------+------------------------------------------------------+
+       This is most appropriate when the scheduling overhead matters and
+       the problem can be cut down into equally sized chunks that are
+       known to have approximately the same runtime.
+
+    dynamic:
+       The iterations are distributed to threads as they request them,
+       with a default chunk size of 1.
+
+       This is suitable when the runtime of each chunk differs and is not
+       known in advance and therefore a larger number of smaller chunks
+       is used in order to keep all threads busy.
+
+    guided:
+       As with dynamic scheduling, the iterations are distributed to
+       threads as they request them, but with decreasing chunk size.  The
+       size of each chunk is proportional to the number of unassigned
+       iterations divided by the number of participating threads,
+       decreasing to 1 (or the chunksize if provided).
+
+       This has an advantage over pure dynamic scheduling when it turns
+       out that the last chunks take more time than expected or are
+       otherwise being badly scheduled, so that most threads start running
+       idle while the last chunks are being worked on by only a smaller
+       number of threads.
+
+    runtime:
+       The schedule and chunk size are taken from the runtime scheduling
+       variable, which can be set through the ``openmp.omp_set_schedule()``
+       function call, or the OMP_SCHEDULE environment variable.  Note that
+       this essentially disables any static compile time optimisations of
+       the scheduling code itself and may therefore show a slightly worse
+       performance than when the same scheduling policy is statically
+       configured at compile time.
+
+..  auto             The decision regarding scheduling is delegated to the
+..                   compiler and/or runtime system. The programmer gives
+..                   the implementation the freedom to choose any possible
+..                   mapping of iterations to threads in the team.
 
     The default schedule is implementation defined. For more information consult
     the OpenMP specification [#]_.
@@ -130,7 +143,7 @@ __ nogil_
                abort()
 
            # populate our local buffer in a sequential loop
-           for idx in range(size):
+           for i in xrange(size):
                local_buf[i] = i * 2
 
            # share the work using the thread-local buffer(s)
@@ -145,7 +158,7 @@ __ nogil_
 .. function:: threadid()
 
     Returns the id of the thread. For n threads, the ids will range from 0 to
-    n.
+    n-1.
 
 Compiling
 =========
@@ -169,11 +182,11 @@ enable OpenMP. For gcc this can be done as follows in a setup.py::
         ext_modules = [ext_module],
     )
 
-Breaking
-========
-The parallel with and prange blocks support break, continue and return in
-nogil mode. Additionally, it is valid to use a ``with gil`` block inside these
-blocks, and have exceptions propagate from them.
+Breaking out of loops
+=====================
+The parallel with and prange blocks support the statements break, continue and
+return in nogil mode. Additionally, it is valid to use a ``with gil`` block
+inside these blocks, and have exceptions propagate from them.
 However, because the blocks use OpenMP, they can not just be left, so the
 exiting procedure is best-effort. For prange() this means that the loop
 body is skipped after the first break, return or exception for any subsequent

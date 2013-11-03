@@ -284,3 +284,9 @@ cdef extern from "Python.h":
     # itself if the object is already an iterator. Raises TypeError
     # and returns NULL if the object cannot be iterated.
 
+    Py_ssize_t Py_SIZE(object o)
+
+    object PyObject_Format(object obj, object format_spec)
+    # Takes an arbitrary object and returns the result of calling
+    # obj.__format__(format_spec).
+    # Added in Py2.6

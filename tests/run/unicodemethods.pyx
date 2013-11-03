@@ -279,6 +279,10 @@ def startswith_start_end(unicode s, sub, start, end):
     True
     >>> startswith_start_end(text, 'b ', 1, 5)
     'MATCH'
+    >>> text.startswith('ab ', -1000, 5000)
+    True
+    >>> startswith_start_end(text, 'ab ', -1000, 5000)
+    'MATCH'
     >>> text.startswith('b X', 1, 5)
     False
     >>> startswith_start_end(text, 'b X', 1, 5)
@@ -340,6 +344,11 @@ def endswith_start_end(unicode s, sub, start, end):
     >>> endswith_start_end(text, 'fsdf ', 10, len(text)-1)
     'NO MATCH'
 
+    >>> text.endswith('fsdf ', -1000, 5000)
+    True
+    >>> endswith_start_end(text, 'fsdf ', -1000, 5000)
+    'MATCH'
+
     >>> PY_VERSION < (2,5) or text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
     True
     >>> endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1)
@@ -353,6 +362,25 @@ def endswith_start_end(unicode s, sub, start, end):
         return 'MATCH'
     else:
         return 'NO MATCH'
+
+
+# unicode.__contains__(s, sub)
+
+@cython.test_fail_if_path_exists(
+    "//CoerceFromPyTypeNode", "//AttributeNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode", "//PrimaryCmpNode")
+def in_test(unicode s, substring):
+    """
+    >>> in_test(text, 'sa')
+    True
+    >>> in_test(text, 'XYZ')
+    False
+    >>> in_test(None, 'sa')
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
+    return substring in s
 
 
 # unicode.find(s, sub, [start, [end]])

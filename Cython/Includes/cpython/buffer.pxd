@@ -56,7 +56,7 @@ cdef extern from "Python.h":
     void* PyBuffer_GetPointer(Py_buffer *view, Py_ssize_t *indices)
     # ??
 
-    int PyBuffer_SizeFromFormat(char *) # actually const char
+    Py_ssize_t PyBuffer_SizeFromFormat(char *) # actually const char
     # Return the implied ~Py_buffer.itemsize from the struct-stype
     # ~Py_buffer.format
 
@@ -90,20 +90,20 @@ cdef extern from "Python.h":
     void PyBuffer_FillContiguousStrides(int ndims,
                                         Py_ssize_t *shape,
                                         Py_ssize_t *strides,
-                                        int itemsize,
+                                        Py_ssize_t itemsize,
                                         char fort)
     # Fill the strides array with byte-strides of a contiguous
     # (Fortran-style if fort is 'F' or C-style otherwise) array of the
     # given shape with the given number of bytes per element.
 
-    int PyBuffer_FillInfo(Py_buffer *view, void *buf,
-                          Py_ssize_t len, int readonly,
-                          int flags) except -1
+    int PyBuffer_FillInfo(Py_buffer *view, object exporter, void *buf,
+                          Py_ssize_t len, int readonly, int flags) except -1
     # Fill in a buffer-info structure, view, correctly for an exporter
     # that can only share a contiguous chunk of memory of “unsigned
     # bytes” of the given length. Return 0 on success and -1 (with
     # raising an error) on error.
 
+    # DEPRECATED HERE: do not cimport from here, cimport from cpython.object instead
     object PyObject_Format(object obj, object format_spec)
     # Takes an arbitrary object and returns the result of calling
     # obj.__format__(format_spec).

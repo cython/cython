@@ -40,19 +40,31 @@
 #define CYTHON_COMPILING_IN_CPYTHON 1
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY
+#define Py_OptimizeFlag 0
+#endif
+
 #if PY_VERSION_HEX < 0x02050000
   typedef int Py_ssize_t;
   #define PY_SSIZE_T_MAX INT_MAX
   #define PY_SSIZE_T_MIN INT_MIN
   #define PY_FORMAT_SIZE_T ""
+  #define CYTHON_FORMAT_SSIZE_T ""
   #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
-  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_AsInt(o)
-  #define PyNumber_Index(o)    PyNumber_Int(o)
-  #define PyIndex_Check(o)     PyNumber_Check(o)
+  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_As_int(o)
+  #define PyNumber_Index(o)    ((PyNumber_Check(o) && !PyFloat_Check(o)) ? PyNumber_Int(o) : \
+                                (PyErr_Format(PyExc_TypeError, \
+                                              "expected index value, got %.200s", Py_TYPE(o)->tp_name), \
+                                 (PyObject*)0))
+  #define __Pyx_PyIndex_Check(o) (PyNumber_Check(o) && !PyFloat_Check(o) && \
+                                  !PyComplex_Check(o))
+  #define PyIndex_Check __Pyx_PyIndex_Check
   #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)
   #define __PYX_BUILD_PY_SSIZE_T "i"
 #else
   #define __PYX_BUILD_PY_SSIZE_T "n"
+  #define CYTHON_FORMAT_SSIZE_T "z"
+  #define __Pyx_PyIndex_Check PyIndex_Check
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
@@ -103,7 +115,7 @@
           PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #endif
 
-#if PY_MAJOR_VERSION < 3 && PY_MINOR_VERSION < 6
+#if PY_VERSION_HEX < 0x02060000
   #define PyUnicode_FromString(s) PyUnicode_Decode(s, strlen(s), "UTF-8", "strict")
 #endif
 
@@ -114,6 +126,14 @@
 
 #if (PY_VERSION_HEX < 0x02060000) || (PY_MAJOR_VERSION >= 3)
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
+#endif
+
+#if PY_VERSION_HEX < 0x02060000
+  #define Py_TPFLAGS_HAVE_VERSION_TAG 0
+#endif
+
+#if PY_VERSION_HEX < 0x030400a1 && !defined(Py_TPFLAGS_HAVE_FINALIZE)
+  #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 
 /* new Py3.3 unicode type (PEP 393) */
@@ -158,6 +178,15 @@
   #define PyBytes_Repr                 PyString_Repr
   #define PyBytes_Concat               PyString_Concat
   #define PyBytes_ConcatAndDel         PyString_ConcatAndDel
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
+  #define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
+#else
+  #define __Pyx_PyBaseString_Check(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj) || \
+                                         PyString_Check(obj) || PyUnicode_Check(obj))
+  #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
@@ -241,6 +270,65 @@
   #define __Pyx_DOCSTR(n)  (n)
 #endif
 
+/* inline attribute */
+#ifndef CYTHON_INLINE
+  #if defined(__GNUC__)
+    #define CYTHON_INLINE __inline__
+  #elif defined(_MSC_VER)
+    #define CYTHON_INLINE __inline
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_INLINE inline
+  #else
+    #define CYTHON_INLINE
+  #endif
+#endif
+
+/* restrict */
+#ifndef CYTHON_RESTRICT
+  #if defined(__GNUC__)
+    #define CYTHON_RESTRICT __restrict__
+  #elif defined(_MSC_VER) && _MSC_VER >= 1400
+    #define CYTHON_RESTRICT __restrict
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_RESTRICT restrict
+  #else
+    #define CYTHON_RESTRICT
+  #endif
+#endif
+
+#ifdef NAN
+#define __PYX_NAN() ((float) NAN)
+#else
+static CYTHON_INLINE float __PYX_NAN() {
+  /* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
+   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
+   a quiet NaN. */
+  float value;
+  memset(&value, 0xFF, sizeof(value));
+  return value;
+}
+#endif
+
+/////////////// UtilityFunctionPredeclarations.proto ///////////////
+
+/* unused attribute */
+#ifndef CYTHON_UNUSED
+# if defined(__GNUC__)
+#   if !(defined(__cplusplus)) || (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+#     define CYTHON_UNUSED __attribute__ ((__unused__))
+#   else
+#     define CYTHON_UNUSED
+#   endif
+# elif defined(__ICC) || (defined(__INTEL_COMPILER) && !defined(_MSC_VER))
+#   define CYTHON_UNUSED __attribute__ ((__unused__))
+# else
+#   define CYTHON_UNUSED
+# endif
+#endif
+
+typedef struct {PyObject **p; char *s; const Py_ssize_t n; const char* encoding;
+                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
+
 /////////////// ForceInitThreads.proto ///////////////
 
 #ifndef __PYX_FORCE_INIT_THREADS
@@ -249,7 +337,9 @@
 
 /////////////// InitThreads.init ///////////////
 
+#ifdef WITH_THREAD
 PyEval_InitThreads();
+#endif
 
 /////////////// CodeObjectCache.proto ///////////////
 
@@ -394,101 +484,6 @@ static int __Pyx_check_binary_version(void) {
     return 0;
 }
 
-/////////////// PyIdentifierFromString.proto ///////////////
-
-#if !defined(__Pyx_PyIdentifier_FromString)
-#if PY_MAJOR_VERSION < 3
-  #define __Pyx_PyIdentifier_FromString(s) PyString_FromString(s)
-#else
-  #define __Pyx_PyIdentifier_FromString(s) PyUnicode_FromString(s)
-#endif
-#endif
-
-/////////////// TypeImport.proto ///////////////
-
-static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
-
-/////////////// TypeImport ///////////////
-//@requires: PyIdentifierFromString
-
-#ifndef __PYX_HAVE_RT_ImportType
-#define __PYX_HAVE_RT_ImportType
-static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
-    size_t size, int strict)
-{
-    PyObject *py_module = 0;
-    PyObject *result = 0;
-    PyObject *py_name = 0;
-    char warning[200];
-
-    py_module = __Pyx_ImportModule(module_name);
-    if (!py_module)
-        goto bad;
-    py_name = __Pyx_PyIdentifier_FromString(class_name);
-    if (!py_name)
-        goto bad;
-    result = PyObject_GetAttr(py_module, py_name);
-    Py_DECREF(py_name);
-    py_name = 0;
-    Py_DECREF(py_module);
-    py_module = 0;
-    if (!result)
-        goto bad;
-    if (!PyType_Check(result)) {
-        PyErr_Format(PyExc_TypeError,
-            "%s.%s is not a type object",
-            module_name, class_name);
-        goto bad;
-    }
-    if (!strict && (size_t)((PyTypeObject *)result)->tp_basicsize > size) {
-        PyOS_snprintf(warning, sizeof(warning),
-            "%s.%s size changed, may indicate binary incompatibility",
-            module_name, class_name);
-        #if PY_VERSION_HEX < 0x02050000
-        if (PyErr_Warn(NULL, warning) < 0) goto bad;
-        #else
-        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
-        #endif
-    }
-    else if ((size_t)((PyTypeObject *)result)->tp_basicsize != size) {
-        PyErr_Format(PyExc_ValueError,
-            "%s.%s has the wrong size, try recompiling",
-            module_name, class_name);
-        goto bad;
-    }
-    return (PyTypeObject *)result;
-bad:
-    Py_XDECREF(py_module);
-    Py_XDECREF(result);
-    return NULL;
-}
-#endif
-
-/////////////// ModuleImport.proto ///////////////
-
-static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
-
-/////////////// ModuleImport ///////////////
-//@requires: PyIdentifierFromString
-
-#ifndef __PYX_HAVE_RT_ImportModule
-#define __PYX_HAVE_RT_ImportModule
-static PyObject *__Pyx_ImportModule(const char *name) {
-    PyObject *py_name = 0;
-    PyObject *py_module = 0;
-
-    py_name = __Pyx_PyIdentifier_FromString(name);
-    if (!py_name)
-        goto bad;
-    py_module = PyImport_Import(py_name);
-    Py_DECREF(py_name);
-    return py_module;
-bad:
-    Py_XDECREF(py_name);
-    return 0;
-}
-#endif
-
 /////////////// Refnanny.proto ///////////////
 
 #ifndef CYTHON_REFNANNY
@@ -544,6 +539,15 @@ bad:
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
 
+#define __Pyx_XDECREF_SET(r, v) do {                            \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; __Pyx_XDECREF(tmp);                              \
+    } while (0)
+#define __Pyx_DECREF_SET(r, v) do {                             \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; __Pyx_DECREF(tmp);                               \
+    } while (0)
+
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
 
@@ -564,3 +568,91 @@ end:
     return (__Pyx_RefNannyAPIStruct *)r;
 }
 #endif /* CYTHON_REFNANNY */
+
+/////////////// RegisterModuleCleanup.proto ///////////////
+//@substitute: naming
+
+static void ${cleanup_cname}(PyObject *self); /*proto*/
+static int __Pyx_RegisterCleanup(void); /*proto*/
+
+/////////////// RegisterModuleCleanup ///////////////
+//@substitute: naming
+//@requires: ImportExport.c::ModuleImport
+
+#if PY_MAJOR_VERSION < 3
+static PyObject* ${cleanup_cname}_atexit(PyObject *module, CYTHON_UNUSED PyObject *unused) {
+    ${cleanup_cname}(module);
+    Py_INCREF(Py_None); return Py_None;
+}
+
+static int __Pyx_RegisterCleanup(void) {
+    // Don't use Py_AtExit because that has a 32-call limit and is called
+    // after python finalization.
+    // Also, we try to prepend the cleanup function to "atexit._exithandlers"
+    // in Py2 because CPython runs them last-to-first. Being run last allows
+    // user exit code to run before us that may depend on the globals
+    // and cached objects that we are about to clean up.
+
+    static PyMethodDef cleanup_def = {
+        __Pyx_NAMESTR("__cleanup"), (PyCFunction)${cleanup_cname}_atexit, METH_NOARGS, 0};
+
+    PyObject *cleanup_func = 0;
+    PyObject *atexit = 0;
+    PyObject *reg = 0;
+    PyObject *args = 0;
+    PyObject *res = 0;
+    int ret = -1;
+
+    cleanup_func = PyCFunction_New(&cleanup_def, 0);
+    if (!cleanup_func)
+        goto bad;
+
+    atexit = __Pyx_ImportModule("atexit");
+    if (!atexit)
+        goto bad;
+    reg = __Pyx_GetAttrString(atexit, "_exithandlers");
+    if (reg && PyList_Check(reg)) {
+        PyObject *a, *kw;
+        a = PyTuple_New(0);
+        kw = PyDict_New();
+        if (!a || !kw) {
+            Py_XDECREF(a);
+            Py_XDECREF(kw);
+            goto bad;
+        }
+        args = PyTuple_Pack(3, cleanup_func, a, kw);
+        Py_DECREF(a);
+        Py_DECREF(kw);
+        if (!args)
+            goto bad;
+        ret = PyList_Insert(reg, 0, args);
+    } else {
+        if (!reg)
+            PyErr_Clear();
+        Py_XDECREF(reg);
+        reg = __Pyx_GetAttrString(atexit, "register");
+        if (!reg)
+            goto bad;
+        args = PyTuple_Pack(1, cleanup_func);
+        if (!args)
+            goto bad;
+        res = PyObject_CallObject(reg, args);
+        if (!res)
+            goto bad;
+        ret = 0;
+    }
+bad:
+    Py_XDECREF(cleanup_func);
+    Py_XDECREF(atexit);
+    Py_XDECREF(reg);
+    Py_XDECREF(args);
+    Py_XDECREF(res);
+    return ret;
+}
+#else
+// fake call purely to work around "unused function" warning for __Pyx_ImportModule()
+static int __Pyx_RegisterCleanup(void) {
+    if (0) __Pyx_ImportModule(NULL);
+    return 0;
+}
+#endif

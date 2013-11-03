@@ -7,6 +7,7 @@ See Demos/freeze/README.txt for more details.
 """
 
 import optparse
+from os.path import splitext, basename
 
 usage= '%prog [-o outfile] [-p] module [module ...]'
 description = 'Create a C file for embedding Cython modules.'
@@ -27,14 +28,7 @@ if options.output:
     old_stdout = sys.stdout
     sys.stdout = open(options.output, 'w')
 
-def format_modname(name):
-    if name.endswith('.pyx'):
-        name = name[:-4]
-    elif name.endswith('.py'):
-        name = name[:-3]
-    return name.replace('.','_')
-
-modules = [format_modname(x) for x in args]
+modules = [basename(splitext(x)[0]).replace('.', '_') for x in args]
 
 print """\
 #include <Python.h>

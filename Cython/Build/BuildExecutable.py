@@ -13,8 +13,8 @@ import sys
 import os
 from distutils import sysconfig
 
-def get_config_var(name):
-    return sysconfig.get_config_var(name) or ''
+def get_config_var(name, default=''):
+    return sysconfig.get_config_var(name) or default
 
 INCDIR = sysconfig.get_python_inc()
 LIBDIR1 = get_config_var('LIBDIR')
@@ -27,9 +27,9 @@ if PYLIB_DYN == PYLIB:
 else:
     PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0] # 'lib(XYZ).so' -> XYZ
 
-CC = get_config_var('CC')
+CC = get_config_var('CC', os.environ.get('CC', ''))
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
-LINKCC = get_config_var('LINKCC')
+LINKCC = get_config_var('LINKCC', os.environ.get('LINKCC', CC))
 LINKFORSHARED = get_config_var('LINKFORSHARED')
 LIBS = get_config_var('LIBS')
 SYSLIBS = get_config_var('SYSLIBS')

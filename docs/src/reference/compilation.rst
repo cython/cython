@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. _compilation:
+.. _compilation-reference:
 
 =============
 Compilation
@@ -34,7 +34,8 @@ system.  Python documentation for writing extension modules should
 have some details for your system.  Here we give an example on a Linux
 system::
 
-    $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -I/usr/include/python2.5 -o yourmod.so yourmod.c
+    $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
+          -I/usr/include/python2.5 -o yourmod.so yourmod.c
 
 [``gcc`` will need to have paths to your included header files and
 paths to libraries you need to link with]
@@ -42,47 +43,156 @@ paths to libraries you need to link with]
 A ``yourmod.so`` file is now in the same directory and your module,
 ``yourmod``, is available for you to import as you normally would.
 
+
 Compiling with ``distutils``
 ============================
 
 First, make sure that ``distutils`` package is installed in your
-system.  The following assumes a Cython file to be compiled called
+system.  It normally comes as part of the standard library.
+The following assumes a Cython file to be compiled called
 *hello.pyx*.  Now, create a ``setup.py`` script::
-
-    from distutils.core import setup
-    from distutils.extension import Extension
-    from Cython.Distutils import build_ext
-
-    ext_modules = [Extension("spam", ["spam.pyx"]),
-                   Extension("ham", ["ham.pyx"])]
-    # You can add directives for each extension too
-    # by attaching the `pyrex_directives`
-    for e in ext modules:
-        e.pyrex_directives = {"boundscheck": False}
-    setup(
-        name = "My hello app",
-        cmdclass = {"build_ext": build_ext},
-        ext_modules = ext_modules
-    )
-
-Run the command ``python setup.py build_ext --inplace`` in your
-system's command shell and you are done.  Import your new extension
-module into your python shell or script as normal.
-
-Cython provides utility code to automatically generate lists of
-Extension objects from ```.pyx`` files, so one can write::
 
     from distutils.core import setup
     from Cython.Build import cythonize
 
     setup(
         name = "My hello app",
-        ext_modules = cythonize("*.pyx"),
+        ext_modules = cythonize('hello.pyx'), # accepts a glob pattern
     )
 
-to compile all ``.pyx`` files in a given directory.
+Run the command ``python setup.py build_ext --inplace`` in your
+system's command shell and you are done.  Import your new extension
+module into your python shell or script as normal.
+
 The ``cythonize`` command also allows for multi-threaded compilation and
-dependency resolution.
+dependency resolution.  Recompilation will be skipped if the target file
+is up to date with its main source file and dependencies.
+
+
+Configuring the C-Build
+------------------------
+
+If you have include files in non-standard places you can pass an
+``include_path`` parameter to ``cythonize``::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize("src/*.pyx", include_path = [...]),
+    )
+
+Often, Python packages that offer a C-level API provide a way to find
+the necessary include files, e.g. for NumPy::
+
+    include_path = [numpy.get_include()]
+
+If you need to specify compiler options, libraries to link with or other
+linker options you will need to create ``Extension`` instances manually
+(note that glob syntax can still be used to specify multiple extensions
+in one line)::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension("primes", ["primes.pyx"],
+            include_dirs = [...],
+            libraries = [...],
+            library_dirs = [...]),
+        # Everything but primes.pyx is included here.
+        Extension("*", ["*.pyx"],
+            include_dirs = [...],
+            libraries = [...],
+            library_dirs = [...]),
+    ]
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize(extensions),
+    )
+
+If your options are static (for example you do not need to call a tool like
+``pkg-config`` to determine them) you can also provide them directly in your
+.pyx source file using a special comment block at the start of the file::
+
+    # distutils: libraries = spam eggs
+    # distutils: include_dirs = /opt/food/include
+
+If you have some C files that have been wrapped with Cython and you want to
+compile them into your extension, you can define the distutils ``sources``
+parameter::
+
+    # distutils: sources = helper.c, another_helper.c
+
+Note that these sources are added to the list of sources of the current
+extension module.  Spelling this out in the :file:`setup.py` file looks
+as follows::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+    from distutils.extension import Extension
+
+    sourcefiles = ['example.pyx', 'helper.c', 'another_helper.c']
+
+    extensions = [Extension("example", sourcefiles)]
+
+    setup(
+        ext_modules = cythonize(extensions)
+    )
+
+The :class:`Extension` class takes many options, and a fuller explanation can
+be found in the `distutils documentation`_. Some useful options to know about
+are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
+to find the ``.h`` and library files when linking to external libraries.
+
+.. _distutils documentation: http://docs.python.org/extending/building.html
+
+
+Distributing Cython modules
+----------------------------
+
+It is strongly recommended that you distribute the generated ``.c`` files as well
+as your Cython sources, so that users can install your module without needing
+to have Cython available.
+
+It is also recommended that Cython compilation not be enabled by default in the
+version you distribute. Even if the user has Cython installed, he/she probably
+doesn't want to use it just to install your module. Also, the installed version
+may not be the same one you used, and may not compile your sources correctly.
+
+This simply means that the :file:`setup.py` file that you ship with will just
+be a normal distutils file on the generated `.c` files, for the basic example
+we would have instead::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+    setup(
+        ext_modules = [Extension("example", ["example.c"])]
+    )
+
+This is easy to combine with :func:`cythonize` by changing the file extension
+of the extension module sources::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+    USE_CYTHON = ...   # command line option, try-import, ...
+
+    ext = '.pyx' if USE_CYTHON else '.c'
+
+    extensions = [Extension("example", ["example"+ext])]
+
+    if USE_CYTHON:
+        from Cython.Build import cythonize
+        extensions = cythonize(extensions)
+
+    setup(
+        ext_modules = extensions
+    )
+
 
 Compiling with ``pyximport``
 =============================
@@ -108,7 +218,7 @@ using this feature, just tell that to ``pyximport``::
     >>> pyximport.install(pyimport = True)
 
 Compiling with ``cython.inline``
-=============================
+=================================
 
 One can also compile Cython in a fashion similar to SciPy's ``weave.inline``.
 For example::
@@ -143,7 +253,7 @@ Cython code.  Here is the list of currently supported directives:
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
-    raised. Lists, tuples, and stings are affected only if the index
+    raised. Lists, tuples, and strings are affected only if the index
     can be determined to be non-negative (or if ``wraparound`` is False). 
     Conditions
     which would normally trigger an IndexError may instead cause
@@ -165,6 +275,18 @@ Cython code.  Here is the list of currently supported directives:
     set to ``None``. Otherwise a check is inserted and the
     appropriate exception is raised. This is off by default for
     performance reasons.  Default is False.
+    
+``overflowcheck`` (True / False)
+    If set to True, raise errors on overflowing C integer arithmetic
+    operations.  Incurs a modest runtime penalty, but is much faster than
+    using Python ints.  Default is False.
+    
+``overflowcheck.fold`` (True / False)
+    If set to True, and overflowcheck is True, check the overflow bit for
+    nested, side-effect-free arithmetic expressions once rather than at every
+    step.  Depending on the compiler, architecture, and optimization settings,
+    this may help or hurt performance.  A simple suite of benchmarks can be
+    found in ``Demos/overflow_perf.pyx``.  Default is True.
 
 ``embedsignature`` (True / False)
     If set to True, Cython will embed a textual copy of the call
@@ -199,10 +321,48 @@ Cython code.  Here is the list of currently supported directives:
     Add hooks for Python profilers into the compiled C code.  Default
     is False.
 
+``linetrace`` (True / False)
+    Add line tracing hooks for Python profilers into the compiled C code.
+    This also enables profiling.  Default is False.  Note that the
+    generated module will not actually use line tracing, unless you
+    additionally pass the C macro definition ``CYTHON_TRACE=1`` to the
+    C compiler (e.g. using the distutils option ``define_macros``).
+
+    Note that this feature is currently EXPERIMENTAL.  It will slow down
+    your code, may not work at all for what you want to do with it, and
+    may even crash arbitrarily.
+
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is
     None, indicating that on safe (semantically-unchanging) inferences
-   are allowed.
+    are allowed.
+
+``language_level`` (2/3)
+    Globally set the Python language level to be used for module
+    compilation.  Default is compatibility with Python 2.  To enable
+    Python 3 source code semantics, set this to 3 at the start of a
+    module or pass the "-3" command line option to the compiler.
+    Note that cimported and included source files inherit this
+    setting from the module being compiled, unless they explicitly
+    set their own language level.
+
+``c_string_type`` (bytes / str / unicode)
+    Globally set the type of an implicit coercion from char* or std::string.
+
+``c_string_encoding`` (ascii, default, utf-8, etc.)
+    Globally set the encoding to use when implicitly coercing char* or std:string
+    to a unicode object.  Coercion from a unicode object to C type is only allowed
+    when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
+    nearly-always ascii in Python 2.
+
+``type_version_tag`` (True / False)
+    Enables the attribute cache for extension types in CPython by setting the
+    type flag ``Py_TPFLAGS_HAVE_VERSION_TAG``.  Default is True, meaning that
+    the cache is enabled for Cython implemented types.  To disable it
+    explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
+    internally without paying attention to cache consistency, this option can
+    be set to False.
+
 
 How to set directives
 ---------------------

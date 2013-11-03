@@ -1,4 +1,3 @@
-
 //////////////////// ArgTypeTest.proto ////////////////////
 
 static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
@@ -15,7 +14,10 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
     }
     if (none_allowed && obj == Py_None) return 1;
     else if (exact) {
-        if (Py_TYPE(obj) == type) return 1;
+        if (likely(Py_TYPE(obj) == type)) return 1;
+        #if PY_MAJOR_VERSION == 2
+        else if ((type == &PyBaseString_Type) && __Pyx_PyBaseString_CheckExact(obj)) return 1;
+        #endif
     }
     else {
         if (PyObject_TypeCheck(obj, type)) return 1;
@@ -58,7 +60,7 @@ static void __Pyx_RaiseArgtupleInvalid(
         more_or_less = "exactly";
     }
     PyErr_Format(PyExc_TypeError,
-                 "%s() takes %s %" PY_FORMAT_SIZE_T "d positional argument%s (%" PY_FORMAT_SIZE_T "d given)",
+                 "%s() takes %s %" CYTHON_FORMAT_SSIZE_T "d positional argument%s (%" CYTHON_FORMAT_SSIZE_T "d given)",
                  func_name, more_or_less, num_expected,
                  (num_expected == 1) ? "" : "s", num_found);
 }
@@ -99,7 +101,7 @@ static void __Pyx_RaiseDoubleKeywordsError(
         "%s() got multiple values for keyword argument '%U'", func_name, kw_name);
         #else
         "%s() got multiple values for keyword argument '%s'", func_name,
-        PyString_AS_STRING(kw_name));
+        PyString_AsString(kw_name));
         #endif
 }
 
@@ -130,10 +132,9 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(
     while (PyDict_Next(kwdict, &pos, &key, 0)) {
         #if PY_MAJOR_VERSION < 3
         if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key)))
-        #else
-        if (unlikely(!PyUnicode_Check(key)))
         #endif
-            goto invalid_keyword_type;
+            if (unlikely(!PyUnicode_Check(key)))
+                goto invalid_keyword_type;
     }
     if ((!kw_allowed) && unlikely(key))
         goto invalid_keyword;
@@ -196,49 +197,78 @@ static int __Pyx_ParseOptionalKeywords(
         while (*name && (**name != key)) name++;
         if (*name) {
             values[name-argnames] = value;
-        } else {
-            #if PY_MAJOR_VERSION < 3
-            if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key))) {
-            #else
-            if (unlikely(!PyUnicode_Check(key))) {
-            #endif
-                goto invalid_keyword_type;
-            } else {
-                for (name = first_kw_arg; *name; name++) {
-                    #if PY_MAJOR_VERSION >= 3
-                    if (PyUnicode_GET_SIZE(**name) == PyUnicode_GET_SIZE(key) &&
-                        PyUnicode_Compare(**name, key) == 0) break;
-                    #else
-                    if (PyString_GET_SIZE(**name) == PyString_GET_SIZE(key) &&
-                        _PyString_Eq(**name, key)) break;
-                    #endif
-                }
-                if (*name) {
+            continue;
+        }
+
+        name = first_kw_arg;
+        #if PY_MAJOR_VERSION < 3
+        if (likely(PyString_CheckExact(key)) || likely(PyString_Check(key))) {
+            while (*name) {
+                if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
+                        && _PyString_Eq(**name, key)) {
                     values[name-argnames] = value;
-                } else {
-                    /* unexpected keyword found */
-                    for (name=argnames; name != first_kw_arg; name++) {
-                        if (**name == key) goto arg_passed_twice;
-                        #if PY_MAJOR_VERSION >= 3
-                        if (PyUnicode_GET_SIZE(**name) == PyUnicode_GET_SIZE(key) &&
-                            PyUnicode_Compare(**name, key) == 0) goto arg_passed_twice;
-                        #else
-                        if (PyString_GET_SIZE(**name) == PyString_GET_SIZE(key) &&
-                            _PyString_Eq(**name, key)) goto arg_passed_twice;
-                        #endif
+                    break;
+                }
+                name++;
+            }
+            if (*name) continue;
+            else {
+                // not found after positional args, check for duplicate
+                PyObject*** argname = argnames;
+                while (argname != first_kw_arg) {
+                    if ((**argname == key) || (
+                            (CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**argname) == PyString_GET_SIZE(key))
+                             && _PyString_Eq(**argname, key))) {
+                        goto arg_passed_twice;
                     }
-                    if (kwds2) {
-                        if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
-                    } else {
-                        goto invalid_keyword;
-                    }
+                    argname++;
                 }
             }
+        } else
+        #endif
+        if (likely(PyUnicode_Check(key))) {
+            while (*name) {
+                int cmp = (**name == key) ? 0 :
+                #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
+                    (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
+                #endif
+                    // need to convert argument name from bytes to unicode for comparison
+                    PyUnicode_Compare(**name, key);
+                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+                if (cmp == 0) {
+                    values[name-argnames] = value;
+                    break;
+                }
+                name++;
+            }
+            if (*name) continue;
+            else {
+                // not found after positional args, check for duplicate
+                PyObject*** argname = argnames;
+                while (argname != first_kw_arg) {
+                    int cmp = (**argname == key) ? 0 :
+                    #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
+                        (PyUnicode_GET_SIZE(**argname) != PyUnicode_GET_SIZE(key)) ? 1 :
+                    #endif
+                        // need to convert argument name from bytes to unicode for comparison
+                        PyUnicode_Compare(**argname, key);
+                    if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+                    if (cmp == 0) goto arg_passed_twice;
+                    argname++;
+                }
+            }
+        } else
+            goto invalid_keyword_type;
+
+        if (kwds2) {
+            if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
+        } else {
+            goto invalid_keyword;
         }
     }
     return 0;
 arg_passed_twice:
-    __Pyx_RaiseDoubleKeywordsError(function_name, **name);
+    __Pyx_RaiseDoubleKeywordsError(function_name, key);
     goto bad;
 invalid_keyword_type:
     PyErr_Format(PyExc_TypeError,

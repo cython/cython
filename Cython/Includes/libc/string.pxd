@@ -1,46 +1,50 @@
 # 7.21 String handling <string.h>
 
 cdef extern from *:
-    ctypedef char const_char "const char"
-    ctypedef void const_void "const void"
+    # deprecated backwards compatibility declarations
+    ctypedef const char const_char "const char"
+    ctypedef const signed char const_schar "const signed char"
+    ctypedef const unsigned char const_uchar "const unsigned char"
+    ctypedef const void const_void "const void"
 
 cdef extern from "string.h" nogil:
 
-    void *memcpy  (void *TO, const_void *FROM, size_t SIZE)
-    void *memmove (void *TO, const_void *FROM, size_t SIZE)
-    void *memset  (void *BLOCK, int C, size_t SIZE)
-    int  memcmp   (const_void *A1, const_void *A2, size_t SIZE)
-    void *memchr  (const_void *BLOCK, int C, size_t SIZE)
+    void *memcpy  (void *pto, const void *pfrom, size_t size)
+    void *memmove (void *pto, const void *pfrom, size_t size)
+    void *memset  (void *block, int c, size_t size)
+    int  memcmp   (const void *a1, const void *a2, size_t size)
+    void *memchr  (const void *block, int c, size_t size)
 
-    void *memchr  (const_void *BLOCK, int C, size_t SIZE)
-    void *memrchr (const_void *BLOCK, int C, size_t SIZE)
+    void *memchr  (const void *block, int c, size_t size)
+    void *memrchr (const void *block, int c, size_t size)
 
-    size_t strlen   (const_char *S)
-    char   *strcpy  (char *TO, const_char *FROM)
-    char   *strncpy (char *TO, const_char *FROM, size_t SIZE)
-    char   *strdup  (const_char *S)
-    char   *strndup (const_char *S, size_t SIZE)
-    char   *strcat  (char *TO, const_char *FROM)
-    char   *strncat (char *TO, const_char *FROM, size_t SIZE)
+    size_t strlen   (const char *s)
+    char   *strcpy  (char *pto, const char *pfrom)
+    char   *strncpy (char *pto, const char *pfrom, size_t size)
+    char   *strdup  (const char *s)
+    char   *strndup (const char *s, size_t size)
+    char   *strcat  (char *pto, const char *pfrom)
+    char   *strncat (char *pto, const char *pfrom, size_t size)
 
-    int strcmp (const_char *S1, const_char *S2)
-    int strcasecmp (const_char *S1, const_char *S2)
-    int strncmp (const_char *S1, const_char *S2, size_t SIZE)
-    int strncasecmp (const_char *S1, const_char *S2, size_t N)
+    int strcmp (const char *s1, const char *s2)
+    int strcasecmp (const char *s1, const char *s2)
+    int strncmp (const char *s1, const char *s2, size_t size)
+    int strncasecmp (const char *s1, const char *s2, size_t n)
 
-    int    strcoll (const_char *S1, const_char *S2)
-    size_t strxfrm (char *TO, const_char *FROM, size_t SIZE)
+    int    strcoll (const char *s1, const char *s2)
+    size_t strxfrm (char *pto, const char *pfrom, size_t size)
 
-    char *strerror (int ERRNUM)
+    char *strerror (int errnum)
 
-    char *strchr  (const_char *STRING, int C)
-    char *strrchr (const_char *STRING, int C)
+    char *strchr  (const char *string, int c)
+    char *strrchr (const char *string, int c)
 
-    char *strstr     (const_char *HAYSTACK, const_char *NEEDLE)
-    char *strcasestr (const_char *HAYSTACK, const_char *NEEDLE)
+    char *strstr     (const char *haystack, const char *needle)
+    char *strcasestr (const char *haystack, const char *needle)
 
-    size_t strcspn (const_char *STRING, const_char *STOPSET)
-    char * strpbrk (const_char *STRING, const_char *STOPSET)
+    size_t strcspn (const char *string, const char *stopset)
+    size_t strspn  (const char *string, const char *set)
+    char * strpbrk (const char *string, const char *stopset)
 
-    char *strtok (char *NEWSTRING, const_char *DELIMITERS)
-    char *strsep (char **STRING_PTR, const_char *DELIMITER)
+    char *strtok (char *newstring, const char *delimiters)
+    char *strsep (char **string_ptr, const char *delimiter)

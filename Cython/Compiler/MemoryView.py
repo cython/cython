@@ -180,6 +180,9 @@ def valid_memslice_dtype(dtype, i=0):
     if dtype.is_complex and dtype.real_type.is_int:
         return False
 
+    if dtype is PyrexTypes.c_bint_type:
+        return False
+
     if dtype.is_struct and dtype.kind == 'struct':
         for member in dtype.scope.var_entries:
             if not valid_memslice_dtype(member.type):
@@ -273,12 +276,12 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         return bufp
 
     def generate_buffer_slice_code(self, code, indices, dst, have_gil,
-                                   have_slices):
+                                   have_slices, directives):
         """
         Slice a memoryviewslice.
 
-        indices     - list of index nodes. If not a SliceNode, then it must be
-                      coercible to Py_ssize_t
+        indices     - list of index nodes. If not a SliceNode, or NoneNode,
+                      then it must be coercible to Py_ssize_t
 
         Simply call __pyx_memoryview_slice_memviewslice with the right
         arguments.
@@ -307,28 +310,14 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
         code.put_incref_memoryviewslice(dst)
 
-        for dim, index in enumerate(indices):
+        dim = -1
+        for index in indices:
             error_goto = code.error_goto(index.pos)
-
-            if not isinstance(index, ExprNodes.SliceNode):
-                # normal index
-                idx = index.result()
-
+            if not index.is_none:
+                dim += 1
                 access, packing = self.type.axes[dim]
-                if access == 'direct':
-                    indirect = False
-                else:
-                    indirect = True
-                    generic = (access == 'full')
-                    if new_ndim != 0:
-                        return error(index.pos,
-                                     "All preceding dimensions must be "
-                                     "indexed and not sliced")
 
-                d = locals()
-                code.put(load_slice_util("SliceIndex", d))
-            else:
-
+            if isinstance(index, ExprNodes.SliceNode):
                 # slice, unspecified dimension, or part of ellipsis
                 d = locals()
                 for s in "start stop step".split():
@@ -344,13 +333,39 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     not d['have_step']):
                     # full slice (:), simply copy over the extent, stride
                     # and suboffset. Also update suboffset_dim if needed
-                    access, packing = self.type.axes[dim]
                     d['access'] = access
                     code.put(load_slice_util("SimpleSlice", d))
                 else:
                     code.put(load_slice_util("ToughSlice", d))
 
                 new_ndim += 1
+
+            elif index.is_none:
+                # newaxis
+                attribs = [('shape', 1), ('strides', 0), ('suboffsets', -1)]
+                for attrib, value in attribs:
+                    code.putln("%s.%s[%d] = %d;" % (dst, attrib, new_ndim, value))
+
+                new_ndim += 1
+
+            else:
+                # normal index
+                idx = index.result()
+
+                if access == 'direct':
+                    indirect = False
+                else:
+                    indirect = True
+                    generic = (access == 'full')
+                    if new_ndim != 0:
+                        return error(index.pos,
+                                     "All preceding dimensions must be "
+                                     "indexed and not sliced")
+
+                wraparound = int(directives['wraparound'])
+                boundscheck = int(directives['boundscheck'])
+                d = locals()
+                code.put(load_slice_util("SliceIndex", d))
 
         if not no_suboffset_dim:
             code.funcstate.release_temp(suboffset_dim)
@@ -361,10 +376,12 @@ def empty_slice(pos):
     return ExprNodes.SliceNode(pos, start=none,
                                stop=none, step=none)
 
-def unellipsify(indices, ndim):
+def unellipsify(indices, newaxes, ndim):
     result = []
     seen_ellipsis = False
     have_slices = False
+
+    n_indices = len(indices) - len(newaxes)
 
     for index in indices:
         if isinstance(index, ExprNodes.EllipsisNode):
@@ -374,16 +391,19 @@ def unellipsify(indices, ndim):
             if seen_ellipsis:
                 result.append(full_slice)
             else:
-                nslices = ndim - len(indices) + 1
+                nslices = ndim - n_indices + 1
                 result.extend([full_slice] * nslices)
                 seen_ellipsis = True
         else:
-            have_slices = have_slices or isinstance(index, ExprNodes.SliceNode)
+            have_slices = (have_slices or
+                           isinstance(index, ExprNodes.SliceNode) or
+                           index.is_none)
             result.append(index)
 
-    if len(result) < ndim:
+    result_length = len(result) - len(newaxes)
+    if result_length < ndim:
         have_slices = True
-        nslices = ndim - len(result)
+        nslices = ndim - result_length
         result.extend([empty_slice(indices[-1].pos)] * nslices)
 
     return have_slices, result
@@ -708,6 +728,14 @@ def get_axes_specs(env, axes):
 
     return axes_specs
 
+def validate_axes(pos, axes):
+    if len(axes) >= Options.buffer_max_dims:
+        error(pos, "More dimensions than the maximum number"
+                   " of buffer dimensions were used.")
+        return False
+
+    return True
+
 def all(it):
     for item in it:
         if not item:
@@ -891,8 +919,7 @@ memviewslice_init_code = load_memview_c_utility(
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code,
               Buffer.acquire_utility_code,
-              atomic_utility,
-              Buffer.typeinfo_compare_code],
+              atomic_utility],
 )
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")

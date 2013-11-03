@@ -39,6 +39,21 @@ cdef union int_or_float:
     int n
     double x
 
+def test_union_constructor(n,x):
+    """
+    >>> test_union_constructor(1, None)
+    1
+    >>> test_union_constructor(None, 2.0)
+    2.0
+    """
+    cdef int_or_float u
+    if n is None:
+        u = int_or_float(x=x)
+        return u.x
+    else:
+        u = int_or_float(n=n)
+        return u.n
+
 cdef struct with_pointers:
     bint is_integral
     int_or_float data
@@ -63,14 +78,16 @@ cdef struct MyStruct:
     float f
     char *s
 
+bhello = b"hello"  # must hold a C reference in PyPy
+
 def test_obj_to_struct(MyStruct mystruct):
     """
-    >>> test_obj_to_struct(dict(c=10, i=20, f=6.7, s=b"hello"))
+    >>> test_obj_to_struct(dict(c=10, i=20, f=6.7, s=bhello))
     c=10 i=20 f=6.70 s=hello
     >>> test_obj_to_struct(None)
     Traceback (most recent call last):
        ...
-    TypeError: Expected a mapping, not NoneType
+    TypeError: Expected a mapping, got NoneType
     >>> test_obj_to_struct(dict(s=b"world"))
     Traceback (most recent call last):
        ...
@@ -80,7 +97,7 @@ def test_obj_to_struct(MyStruct mystruct):
        ...
     TypeError: an integer is required
     """
-    print 'c=%d i=%d f=%.2f s=%s' % (mystruct.c, mystruct.i, mystruct.f, mystruct.s.decode('UTF-8'))
+    print 'c=%d i=%d f=%.2f s=%s' % (mystruct.c, mystruct.i, mystruct.f, mystruct.s.decode('ascii'))
 
 cdef struct NestedStruct:
     MyStruct mystruct
@@ -88,7 +105,7 @@ cdef struct NestedStruct:
 
 def test_nested_obj_to_struct(NestedStruct nested):
     """
-    >>> test_nested_obj_to_struct(dict(mystruct=dict(c=10, i=20, f=6.7, s=b"hello"), d=4.5))
+    >>> test_nested_obj_to_struct(dict(mystruct=dict(c=10, i=20, f=6.7, s=bhello), d=4.5))
     c=10 i=20 f=6.70 s=hello d=4.50
     >>> test_nested_obj_to_struct(dict(d=7.6))
     Traceback (most recent call last):

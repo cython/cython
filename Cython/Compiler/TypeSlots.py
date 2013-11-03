@@ -93,6 +93,7 @@ class Signature(object):
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
+        self.exception_check = self.error_value is not None
         self.is_staticmethod = False
 
     def num_fixed_args(self):
@@ -135,7 +136,9 @@ class Signature(object):
         else:
             ret_type = self.return_type()
         exc_value = self.exception_value()
-        return PyrexTypes.CFuncType(ret_type, args, exception_value = exc_value)
+        return PyrexTypes.CFuncType(
+            ret_type, args, exception_value=exc_value,
+            exception_check=self.exception_check)
 
     def method_flags(self):
         if self.ret_format == "O":
@@ -160,14 +163,16 @@ class SlotDescriptor(object):
     #
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
+    #  is_inherited                  Is inherited by subtypes (see PyType_Ready())
     #  py3                           Indicates presence of slot in Python 3
     #  py2                           Indicates presence of slot in Python 2
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
 
-    def __init__(self, slot_name, dynamic=0,
+    def __init__(self, slot_name, dynamic=False, inherited=False,
                  py3=True, py2=True, ifdef=None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
+        self.is_inherited = inherited
         self.ifdef = ifdef
         self.py3 = py3
         self.py2 = py2
@@ -186,10 +191,29 @@ class SlotDescriptor(object):
         return guard
 
     def generate(self, scope, code):
+        end_pypy_guard = False
         if self.is_initialised_dynamically:
-            value = 0
+            value = "0"
         else:
             value = self.slot_code(scope)
+            if value == "0" and self.is_inherited:
+                # PyPy currently has a broken PyType_Ready() that fails to
+                # inherit some slots.  To work around this, we explicitly
+                # set inherited slots here, but only in PyPy since CPython
+                # handles this better than we do.
+                inherited_value = value
+                current_scope = scope
+                while (inherited_value == "0"
+                       and current_scope.parent_type
+                       and current_scope.parent_type.base_type
+                       and current_scope.parent_type.base_type.scope):
+                    current_scope = current_scope.parent_type.base_type.scope
+                    inherited_value = self.slot_code(current_scope)
+                if inherited_value != "0":
+                    code.putln("#if CYTHON_COMPILING_IN_PYPY")
+                    code.putln("%s, /*%s*/" % (inherited_value, self.slot_name))
+                    code.putln("#else")
+                    end_pypy_guard = True
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -198,6 +222,8 @@ class SlotDescriptor(object):
             code.putln("#else")
             code.putln("0, /*reserved*/")
         if preprocessor_guard:
+            code.putln("#endif")
+        if end_pypy_guard:
             code.putln("#endif")
 
     # Some C implementations have trouble statically
@@ -214,7 +240,7 @@ class SlotDescriptor(object):
                     self.slot_name,
                     value
                     )
-            )
+                )
 
 
 class FixedSlot(SlotDescriptor):
@@ -245,8 +271,9 @@ class MethodSlot(SlotDescriptor):
     #  alternatives [string]         Alternative list of __xxx__ names for the method
 
     def __init__(self, signature, slot_name, method_name, fallback=None,
-                 py3=True, py2=True, ifdef=None):
-        SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2, ifdef=ifdef)
+                 py3=True, py2=True, ifdef=None, inherited=True):
+        SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2,
+                                ifdef=ifdef, inherited=inherited)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
@@ -295,16 +322,24 @@ class GCDependentSlot(InternalMethodSlot):
     def slot_code(self, scope):
         if not scope.needs_gc():
             return "0"
-        if not scope.has_pyobject_attrs:
-            # if the type does not have object attributes, it can
-            # delegate GC methods to its parent - iff the parent
-            # functions are defined in the same module
+        if not scope.has_cyclic_pyobject_attrs:
+            # if the type does not have GC relevant object attributes, it can
+            # delegate GC methods to its parent - iff the parent functions
+            # are defined in the same module
             parent_type_scope = scope.parent_type.base_type.scope
             if scope.parent_scope is parent_type_scope.parent_scope:
                 entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
                 if entry.visibility != 'extern':
                     return self.slot_code(parent_type_scope)
         return InternalMethodSlot.slot_code(self, scope)
+
+
+class GCClearReferencesSlot(GCDependentSlot):
+
+    def slot_code(self, scope):
+        if scope.needs_tp_clear():
+            return GCDependentSlot.slot_code(self, scope)
+        return "0"
 
 
 class ConstructorSlot(InternalMethodSlot):
@@ -315,9 +350,10 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
-        if scope.parent_type.base_type \
-            and not scope.has_pyobject_attrs \
-            and not scope.lookup_here(self.method):
+        if (self.slot_name != 'tp_new'
+                and scope.parent_type.base_type
+                and not scope.has_pyobject_attrs
+                and not scope.lookup_here(self.method)):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
@@ -353,7 +389,14 @@ class TypeFlagsSlot(SlotDescriptor):
     #  Descriptor for the type flags slot.
 
     def slot_code(self, scope):
-        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
+        value = "Py_TPFLAGS_DEFAULT"
+        if scope.directives['type_version_tag']:
+            # it's not in 'Py_TPFLAGS_DEFAULT' in Py2
+            value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
+        else:
+            # it's enabled in 'Py_TPFLAGS_DEFAULT' in Py3
+            value = "(%s&~Py_TPFLAGS_HAVE_VERSION_TAG)" % value
+        value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
@@ -386,21 +429,30 @@ class SuiteSlot(SlotDescriptor):
         self.slot_type = slot_type
         substructures.append(self)
 
+    def is_empty(self, scope):
+        for slot in self.sub_slots:
+            if slot.slot_code(scope) != "0":
+                return False
+        return True
+
     def substructure_cname(self, scope):
         return "%s%s_%s" % (Naming.pyrex_prefix, self.slot_name, scope.class_name)
 
     def slot_code(self, scope):
-        return "&%s" % self.substructure_cname(scope)
+        if not self.is_empty(scope):
+            return "&%s" % self.substructure_cname(scope)
+        return "0"
 
     def generate_substructure(self, scope, code):
-        code.putln("")
-        code.putln(
-            "static %s %s = {" % (
-                self.slot_type,
-                self.substructure_cname(scope)))
-        for slot in self.sub_slots:
-            slot.generate(scope, code)
-        code.putln("};")
+        if not self.is_empty(scope):
+            code.putln("")
+            code.putln(
+                "static %s %s = {" % (
+                    self.slot_type,
+                    self.substructure_cname(scope)))
+            for slot in self.sub_slots:
+                slot.generate(scope, code)
+            code.putln("};")
 
 substructures = []   # List of all SuiteSlot instances
 
@@ -408,7 +460,10 @@ class MethodTableSlot(SlotDescriptor):
     #  Slot descriptor for the method table.
 
     def slot_code(self, scope):
-        return scope.method_table_cname
+        if scope.pyfunc_entries:
+            return scope.method_table_cname
+        else:
+            return "0"
 
 
 class MemberTableSlot(SlotDescriptor):
@@ -469,10 +524,12 @@ def get_special_method_signature(name):
     else:
         return None
 
+
 def get_property_accessor_signature(name):
     #  Return signature of accessor for an extension type
     #  property, else None.
     return property_accessor_signatures.get(name)
+
 
 def get_base_slot_function(scope, slot):
     #  Returns the function implementing this slot in the baseclass.
@@ -485,6 +542,18 @@ def get_base_slot_function(scope, slot):
             entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
             if entry.visibility != 'extern':
                 return parent_slot
+    return None
+
+
+def get_slot_function(scope, slot):
+    #  Returns the function implementing this slot in the baseclass.
+    #  This is useful for enabling the compiler to optimize calls
+    #  that recursively climb the class hierarchy.
+    slot_code = slot.slot_code(scope)
+    if slot_code != '0':
+        entry = scope.parent_scope.lookup_here(scope.parent_type.name)
+        if entry.visibility != 'extern':
+            return slot_code
     return None
 
 #------------------------------------------------------------------------------------------
@@ -685,7 +754,7 @@ slot_table = (
     SuiteSlot(PySequenceMethods, "PySequenceMethods", "tp_as_sequence"),
     SuiteSlot(PyMappingMethods, "PyMappingMethods", "tp_as_mapping"),
 
-    MethodSlot(hashfunc, "tp_hash", "__hash__"),
+    MethodSlot(hashfunc, "tp_hash", "__hash__", inherited=False),    # Py3 checks for __richcmp__
     MethodSlot(callfunc, "tp_call", "__call__"),
     MethodSlot(reprfunc, "tp_str", "__str__"),
 
@@ -698,10 +767,10 @@ slot_table = (
     DocStringSlot("tp_doc"),
 
     GCDependentSlot("tp_traverse"),
-    GCDependentSlot("tp_clear"),
+    GCClearReferencesSlot("tp_clear"),
 
     # Later -- synthesize a method to split into separate ops?
-    MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__"),
+    MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
 
     EmptySlot("tp_weaklistoffset"),
 
@@ -733,6 +802,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
+    EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
 )
 
 #------------------------------------------------------------------------------------------

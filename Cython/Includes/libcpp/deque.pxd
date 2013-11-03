@@ -18,10 +18,10 @@ cdef extern from "<deque>" namespace "std":
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
-        deque()
-        deque(deque&)
-        deque(size_t)
-        deque(size_t, T&)
+        deque() nogil except +
+        deque(deque&) nogil except +
+        deque(size_t) nogil except +
+        deque(size_t, T&) nogil except +
         #deque[input_iterator](input_iterator, input_iterator)
         T& operator[](size_t) nogil
         #deque& operator=(deque&)

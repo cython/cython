@@ -1,4 +1,7 @@
+
+import sys
 import unittest
+
 # adapted from pyregr
 class TestCause(unittest.TestCase):
     def test_invalid_cause(self):
@@ -8,6 +11,30 @@ class TestCause(unittest.TestCase):
             self.assertTrue("exception cause" in str(e))
         else:
             self.fail("No exception raised")
+
+    def test_raise_from_none_sets_no_cause(self):
+        try:
+            raise IndexError from None
+        except IndexError as e:
+            self.assertFalse(e.__cause__)
+            if sys.version_info[:2] >= (3,3):
+                self.assertTrue(e.__suppress_context__)
+        else:
+            self.fail("No exception raised")
+
+    def test_raise_from_none_covers_context(self):
+        try:
+            try:
+                raise IndexError("INDEX")
+            except IndexError as e:
+                raise ValueError("VALUE") from None
+            else:
+                self.fail("No exception raised")
+        except ValueError as e:
+            self.assertFalse(e.__cause__)
+            self.assertTrue(e.__context__)
+            if sys.version_info[:2] >= (3,3):
+                self.assertTrue(e.__suppress_context__)
 
     def test_class_cause(self):
         try:

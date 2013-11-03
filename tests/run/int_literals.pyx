@@ -1,6 +1,8 @@
 __doc__ = u"""
 >>> c_longs()
-(1, 1L, -1L, 18446744073709551615L)
+(1, 1L, -1, 18446744073709551615L)
+>>> negative_c_longs()
+(-1, -9223285636854775809L)
 >>> py_longs()
 (1, 1L, 100000000000000000000000000000000L, -100000000000000000000000000000000L)
 
@@ -17,19 +19,31 @@ import sys
 
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u'L', u'')
+elif sys.maxint > 2**31:
+    # sizeof(long) == sizeof(long long)
+    __doc__ = __doc__.replace("9223285636854775809L", "9223285636854775809")
 
-import sys
-
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u'L', u'')
-
+@cython.test_assert_path_exists(
+    '//IntNode[@longness = "LL"]',
+    '//IntNode[@longness = "L"]',
+    )
+@cython.test_fail_if_path_exists('//IntNode[@longness = ""]')
 def c_longs():
     cdef long a = 1L
     cdef unsigned long ua = 1UL
     cdef long long aa = 0xFFFFFFFFFFFFFFFFLL
     cdef unsigned long long uaa = 0xFFFFFFFFFFFFFFFFULL
+    return a, ua, int(aa), uaa
 
-    return a, ua, aa, uaa
+@cython.test_assert_path_exists(
+    '//IntNode[@longness = "LL"]',
+    '//IntNode[@longness = "L"]',
+    )
+@cython.test_fail_if_path_exists('//IntNode[@longness = ""]')
+def negative_c_longs():
+    cdef long a = -1L
+    cdef long long aa = -9223285636854775809LL
+    return a, aa
 
 def py_longs():
     return 1, 1L, 100000000000000000000000000000000, -100000000000000000000000000000000

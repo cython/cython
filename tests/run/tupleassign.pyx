@@ -41,14 +41,14 @@ def assign3_typed(tuple t):
     ValueError: need more than 2 values to unpack
     >>> a,b,c = (1,2,3,4)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: too many values to unpack...
+    ValueError: ...
     >>> assign3_typed((1,2,3,4))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
     >>> a,b = 99,98
     >>> a,b = t     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: too many values to unpack...
+    ValueError: ...
     >>> a,b
     (99, 98)
     """

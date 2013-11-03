@@ -6,6 +6,9 @@ cdef extern from "Python.h":
     # 7.1.1 Type Objects
     ############################################################################
 
+    ctypedef class __builtin__.type [object PyTypeObject]:
+        pass
+
     # PyObject* PyType_Type
     # This is the type object for type objects; it is the same object
     # as type and types.TypeType in the Python layer.
@@ -28,16 +31,16 @@ cdef extern from "Python.h":
     # Return true if the type object includes support for the cycle
     # detector; this tests the type flag Py_TPFLAGS_HAVE_GC.
 
-    bint PyType_IsSubtype(object a, object b)
+    bint PyType_IsSubtype(type a, type b)
     # Return true if a is a subtype of b.
 
     object PyType_GenericAlloc(object type, Py_ssize_t nitems)
     # Return value: New reference.
 
-    object PyType_GenericNew(object type, object args, object kwds)
+    object PyType_GenericNew(type type, object args, object kwds)
     # Return value: New reference.
 
-    bint PyType_Ready(object type) except -1
+    bint PyType_Ready(type type) except -1
     # Finalize a type object. This should be called on all type
     # objects to finish their initialization. This function is
     # responsible for adding inherited slots from a type's base

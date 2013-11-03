@@ -1,5 +1,11 @@
+# mode: run
+# tag: exceptions
+
+import sys
+IS_PY3 = sys.version_info[0] >= 3
+
+
 __doc__ = u"""
->>> import sys
 >>> if not IS_PY3: sys.exc_clear()
 
 >>> def test_py(outer_exc):
@@ -76,9 +82,6 @@ True
 None
 """
 
-import sys
-
-IS_PY3 = sys.version_info[0] >= 3
 
 def test_c(outer_exc):
     try:
@@ -95,6 +98,7 @@ def test_c(outer_exc):
                 print(True)
         print(sys.exc_info()[0] is AttributeError or sys.exc_info()[0])
     print(sys.exc_info()[0] is outer_exc or sys.exc_info()[0])
+
 
 def test_c2():
     try:

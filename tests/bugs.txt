@@ -2,38 +2,44 @@
 # which will be skipped in the normal testing run.
 
 class_attribute_init_values_T18
-numpy_ValueError_T172
 unsignedbehaviour_T184
 missing_baseclass_in_predecl_T262
 cfunc_call_tuple_args_T408
-compile.cpp_operators
-cpp_templated_ctypedef
 cpp_structs
-function_as_method_T494
 closure_inside_cdef_T554
-pure_mode_cmethod_inheritance_T583
 genexpr_iterable_lookup_T600
+generator_expressions_in_class
 for_from_pyvar_loop_T601
-temp_sideeffects_T654
-class_scope_T671
-slice2_T636
-builtin_subtype_methods_T653
+temp_sideeffects_T654    # not really a bug, Cython warns about it
+inherited_final_method
+tryfinallychaining        # also see FIXME in "yield_from_pep380" test
+cimport_alias_subclass
 
 # CPython regression tests that don't current work:
-pyregr.test_threadsignals
 pyregr.test_signal
 pyregr.test_capi
 pyregr.test_socket
-pyregr.test_threading
 pyregr.test_sys
 pyregr.test_pep3131
 pyregr.test_multiprocessing
 pyregr.test_tempfile
+pyregr.test_ioctl
+
+# CPython regression tests with threading issues
+pyregr.test_threadsignals
+pyregr.test_threading
+pyregr.test_logging
 
 # CPython regression tests that don't make sense
 pyregr.test_gdb
 pyregr.test_support
 pyregr.test_peepholer
+
+# the atexit test runs the registered atexit functions => module cleanup => crash
+pyregr.test_atexit
+
+# tests for exception on infinite recursion - may crash with stack overflow when calling C function
+pyregr.test_exceptions
 
 # CPython regression tests that take too long
 pyregr.test_subprocess

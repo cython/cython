@@ -101,3 +101,22 @@ class SubSubClass(SubClass):
         print arg1
         super().mystaticmethod(self, arg1 + 1)
 
+
+cdef class ArgsKwargs(object):
+    @staticmethod
+    def with_first_arg(arg1, *args, **kwargs):
+        """
+        >>> ArgsKwargs().with_first_arg(1, 2, 3, a=4, b=5)
+        (1, 'pos', 2, 3, ('a', 4), ('b', 5))
+        """
+        return (arg1, 'pos') + args + tuple(sorted(kwargs.items()))
+
+    @staticmethod
+    def only_args_kwargs(*args, **kwargs):
+        """
+        >>> ArgsKwargs().only_args_kwargs()
+        ()
+        >>> ArgsKwargs().only_args_kwargs(1, 2, a=3)
+        (1, 2, ('a', 3))
+        """
+        return args + tuple(sorted(kwargs.items()))

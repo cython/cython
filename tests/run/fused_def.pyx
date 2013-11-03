@@ -48,7 +48,7 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     >>> opt_func[str, float, int]("spam", f, i)
     str object float int
     spam 5.60 9 5.60 9
-    >>> opt_func["str, double, long"]("spam", f, i)
+    >>> opt_func[str, cy.double, cy.long]("spam", f, i)
     str object double long
     spam 5.60 9 5.60 9
     >>> opt_func[str, float, cy.int]("spam", f, i)
@@ -62,7 +62,7 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     >>> opt_func[ExtClassA, float, int](ExtClassA(), f, i)
     ExtClassA float int
     ExtClassA 5.60 9 5.60 9
-    >>> opt_func["ExtClassA, double, long"](ExtClassA(), f, i)
+    >>> opt_func[ExtClassA, cy.double, cy.long](ExtClassA(), f, i)
     ExtClassA double long
     ExtClassA 5.60 9 5.60 9
 
@@ -303,4 +303,21 @@ def test_code_object(cython.floating dummy = 2.0):
 
     >>> getcode(test_code_object) is getcode(test_code_object[float])
     True
+    """
+
+def create_dec(value):
+    def dec(f):
+        if not hasattr(f, 'order'):
+            f.order = []
+        f.order.append(value)
+        return f
+    return dec
+
+@create_dec(1)
+@create_dec(2)
+@create_dec(3)
+def test_decorators(cython.floating arg):
+    """
+    >>> test_decorators.order
+    [3, 2, 1]
     """

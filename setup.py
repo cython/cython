@@ -1,6 +1,8 @@
-from distutils.core import setup, Extension
-from distutils.sysconfig import get_python_lib
-import os, os.path
+try:
+    from setuptools import setup, Extension
+except ImportError:
+    from distutils.core import setup, Extension
+import os
 import sys
 
 try:
@@ -27,7 +29,7 @@ class sdist(sdist_orig):
         self.force_manifest = 1
         if (sys.platform != "win32" and 
             os.path.isdir('.git')):
-            assert os.system("git show-ref -s HEAD > .gitrev") == 0
+            assert os.system("git rev-parse --verify HEAD > .gitrev") == 0
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
@@ -51,27 +53,13 @@ pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
     p+'/*.pyx' for p in pxd_include_dirs ]
 
-if sys.version_info < (2,4):
-    install_base_dir = get_python_lib(prefix='')
-    import glob
-    patterns = pxd_include_patterns + [
-        'Cython/Plex/*.pxd',
-        'Cython/Compiler/*.pxd',
-        'Cython/Runtime/*.pyx'
-        ]
-    setup_args['data_files'] = [
-        (os.path.dirname(os.path.join(install_base_dir, pattern)),
-         [ f for f in glob.glob(pattern) ])
-        for pattern in patterns
-        ]
-else:
-    setup_args['package_data'] = {
-        'Cython.Plex'     : ['*.pxd'],
-        'Cython.Compiler' : ['*.pxd'],
-        'Cython.Runtime'  : ['*.pyx', '*.pxd'],
-        'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '.cpp'],
-        'Cython'          : [ p[7:] for p in pxd_include_patterns ],
-        }
+setup_args['package_data'] = {
+    'Cython.Plex'     : ['*.pxd'],
+    'Cython.Compiler' : ['*.pxd'],
+    'Cython.Runtime'  : ['*.pyx', '*.pxd'],
+    'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ],
+    }
 
 # This dict is used for passing extra arguments that are setuptools
 # specific to setup
@@ -95,10 +83,14 @@ else:
         scripts = ["cython.py"]
 
 if include_debugger:
-    if os.name == "posix":
-        scripts.append('bin/cygdb')
+    if 'setuptools' in sys.modules:
+        setuptools_extra_args['entry_points']['console_scripts'].append(
+            'cygdb = Cython.Debugger.Cygdb:main')
     else:
-        scripts.append('cygdb.py')
+        if os.name == "posix":
+            scripts.append('bin/cygdb')
+        else:
+            scripts.append('cygdb.py')
 
 
 def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
@@ -112,9 +104,12 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                         "Cython.Compiler.FlowControl",
                         "Cython.Compiler.Code",
                         "Cython.Runtime.refnanny",
+                        # "Cython.Compiler.FusedNode",
+                        "Cython.Tempita._tempita",
                         ]
     if compile_more:
         compiled_modules.extend([
+            "Cython.Build.Dependencies",
             "Cython.Compiler.ParseTreeTransforms",
             "Cython.Compiler.Nodes",
             "Cython.Compiler.ExprNodes",
@@ -284,6 +279,7 @@ packages = [
     'Cython.Compiler.Tests',
     'Cython.Utility',
     'Cython.Tempita',
+    'pyximport',
 ]
 
 if include_debugger:
@@ -334,12 +330,7 @@ setup(
   scripts = scripts,
   packages=packages,
 
-  # pyximport
-  py_modules = ["pyximport/__init__",
-                "pyximport/pyximport",
-                "pyximport/pyxbuild",
-
-                "cython"],
+  py_modules = ["cython"],
 
   **setup_args
   )

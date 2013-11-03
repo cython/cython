@@ -24,7 +24,7 @@ External declarations
 
 By default, C functions and variables declared at the module level are local
 to the module (i.e. they have the C static storage class). They can also be
-declared extern to specify that they are defined elsewhere, for example::
+declared extern to specify that they are defined elsewhere, for example,::
 
     cdef extern int spam_counter
 
@@ -63,44 +63,10 @@ file, so you still need to provide Cython versions of any declarations from it
 that you use. However, the Cython declarations don't always have to exactly
 match the C ones, and in some cases they shouldn't or can't. In particular:
 
-1. Don't use ``const``. Cython doesn't know anything about ``const``, so just
-   leave it out. Most of the time this shouldn't cause any problem, although
-   on rare occasions you might have to use a cast. You can also explicitly 
-   declare something like::
-
-	ctypedef char* const_char_ptr "const char*"
-
-   though in most cases this will not be needed. 
-
-   .. warning:: 
-
-        A problem with const could arise if you have something like::
-
-           cdef extern from "grail.h":
-               char *nun
-
-        where grail.h actually contains::
-
-           extern const char *nun;
-
-        and you do::
-
-           cdef void languissement(char *s):
-               #something that doesn't change s
-
-               ...
-
-           languissement(nun)
-
-        which will cause the C compiler to complain. You can work around it by
-        casting away the constness::
-
-           languissement(<char *>nun)  
-  
-2. Leave out any platform-specific extensions to C declarations such as
+#. Leave out any platform-specific extensions to C declarations such as
    ``__declspec()``.
 
-3. If the header file declares a big struct and you only want to use a few
+#. If the header file declares a big struct and you only want to use a few
    members, you only need to declare the members you're interested in. Leaving
    the rest out doesn't do any harm, because the C compiler will use the full
    definition from the header file.
@@ -116,10 +82,8 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
        you can only do this inside a ``cdef extern from`` block; struct
        declarations anywhere else must be non-empty.
-       
 
-
-4. If the header file uses ``typedef`` names such as :ctype:`word` to refer
+#. If the header file uses ``typedef`` names such as :c:type:`word` to refer
    to platform-dependent flavours of numeric types, you will need a
    corresponding :keyword:`ctypedef` statement, but you don't need to match
    the type exactly, just use something of the right general kind (int, float,
@@ -127,17 +91,20 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
        ctypedef int word
 
-   will work okay whatever the actual size of a :ctype:`word ` is (provided the header
+   will work okay whatever the actual size of a :c:type:`word` is (provided the header
    file defines it correctly). Conversion to and from Python types, if any, will also 
    be used for this new type. 
 
-5. If the header file uses macros to define constants, translate them into a
-   dummy ``enum`` declaration.
+#. If the header file uses macros to define constants, translate them into a
+   normal external variable declaration.  You can also declare them as an
+   :keyword:`enum` if they contain normal :c:type:`int` values.  Note that
+   Cython considers :keyword:`enum` to be equivalent to :c:type:`int`, so do
+   not do this for non-int values.
 
-6. If the header file defines a function using a macro, declare it as though
+#. If the header file defines a function using a macro, declare it as though
    it were an ordinary function, with appropriate argument and result types.
 
-7. For archaic reasons C uses the keyword :keyword:`void` to declare a function
+#. For archaic reasons C uses the keyword ``void`` to declare a function
    taking no parameters. In Cython as in Python, simply declare such functions
    as :meth:`foo()`.
 
@@ -156,6 +123,8 @@ A few more tricks and tips:
 
     cdef extern from *:
         ...
+
+.. _struct-union-enum-styles:
 
 Styles of struct, union and enum declaration
 ----------------------------------------------
@@ -210,7 +179,7 @@ same applies equally to union and enum declarations.
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 
 Note that in all the cases below, you refer to the type in Cython code simply
-as :ctype:`Foo`, not ``struct Foo``.
+as :c:type:`Foo`, not ``struct Foo``.
 
 Accessing Python/C API routines
 ---------------------------------
@@ -314,11 +283,25 @@ the public keyword::
     cdef public int spam # public variable declaration
 
     cdef public void grail(Bunny *): # public function declaration
-        ...
+        print "Ready the holy hand grenade"
 
 If there are any public declarations in a Cython module, a header file called
 :file:`modulename.h` file is generated containing equivalent C declarations for
 inclusion in other C code.
+
+Users who are embedding Python in C with Cython need to make sure to call Py_Initialize()
+and Py_Finalize(). For example, in the following snippet that includes :file:`modulename.h`::
+
+    #include <Python.h>
+    #include "modulename.h"
+
+    void grail() {
+        Py_Initialize();
+        initmodulename();
+        Bunny b;
+        grail(b);
+        Py_Finalize();
+    }
 
 Any C code wanting to make use of these declarations will need to be linked,
 either statically or dynamically, with the extension module.
@@ -326,6 +309,8 @@ either statically or dynamically, with the extension module.
 If the Cython module resides within a package, then the name of the ``.h``
 file consists of the full dotted name of the module, e.g. a module called
 :mod:`foo.spam` would have a header file called :file:`foo.spam.h`.
+
+.. _api:
 
 C API Declarations
 -------------------
@@ -427,7 +412,7 @@ Releasing the GIL
 ^^^^^^^^^^^^^^^^^
 
 You can release the GIL around a section of code using the
-:keyword:`with nogil` statement::
+``with nogil`` statement::
 
     with nogil:
         <code to be executed with the GIL released>
@@ -435,6 +420,8 @@ You can release the GIL around a section of code using the
 Code in the body of the statement must not manipulate Python objects in any
 way, and must not call anything that manipulates Python objects without first
 re-acquiring the GIL. Cython currently does not check this.
+
+.. _gil:
 
 Acquiring the GIL
 ^^^^^^^^^^^^^^^^^

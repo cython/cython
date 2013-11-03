@@ -21,5 +21,5 @@ extern DL_EXPORT(void) g2(PyObject*);
 }
 #endif
 
-PyObject *g(PyObject* o) {return 0;}
-void g2(PyObject* o) {return;}
+PyObject *g(PyObject* o) {if (o) {}; return 0;}
+void g2(PyObject* o) {if (o) {}; return;}

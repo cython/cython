@@ -20,7 +20,6 @@ Options:
   -o, --output-file <filename>   Specify name of generated C file
   -t, --timestamps               Only compile newer source files
   -f, --force                    Compile all source files (overrides implied -t)
-  -q, --quiet                    Don't print module names in recursive mode
   -v, --verbose                  Be verbose, print file names on multiple compilation
   -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
@@ -29,6 +28,7 @@ Options:
   -w, --working <directory>      Sets the working directory for Cython (the directory modules
                                  are searched from)
   --gdb                          Output debug information for cygdb
+  --gdb-outdir <directory>       Specify gdb debug information output directory. Implies --gdb.
 
   -D, --no-docstrings            Strip docstrings from the compiled module.
   -a, --annotate                 Produce a colorized HTML version of the source.
@@ -37,15 +37,14 @@ Options:
   --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
+  --lenient                      Change some compile time errors to runtime errors to
+                                 improve Python compatibility
+  --capi-reexport-cincludes      Add cincluded headers to any auto-generated header files.
   --fast-fail                    Abort the compilation on the first error
-  --warning-error, -Werror       Make all warnings into errors
+  --warning-errors, -Werror      Make all warnings into errors
   --warning-extra, -Wextra       Enable extra warnings
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
-
-# The following is broken http://trac.cython.org/cython_trac/ticket/379
-#  -r, --recursive                Recursively find and compile dependencies (implies -t)
-
 
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
@@ -98,8 +97,6 @@ def parse_command_line(args):
                 options.working_path = pop_arg()
             elif option in ("-o", "--output-file"):
                 options.output_file = pop_arg()
-            elif option in ("-r", "--recursive"):
-                options.recursive = 1
             elif option in ("-t", "--timestamps"):
                 options.timestamps = 1
             elif option in ("-f", "--force"):
@@ -125,18 +122,24 @@ def parse_command_line(args):
             elif option == "--gdb":
                 options.gdb_debug = True
                 options.output_dir = os.curdir
+            elif option == "--gdb-outdir":
+                options.gdb_debug = True
+                options.output_dir = pop_arg()
+            elif option == "--lenient":
+                Options.error_on_unknown_names = False
+                Options.error_on_uninitialized = False
             elif option == '-2':
                 options.language_level = 2
             elif option == '-3':
                 options.language_level = 3
+            elif option == "--capi-reexport-cincludes":
+                options.capi_reexport_cincludes = True
             elif option == "--fast-fail":
                 Options.fast_fail = True
             elif option in ('-Werror', '--warning-errors'):
                 Options.warning_errors = True
             elif option in ('-Wextra', '--warning-extra'):
                 options.compiler_directives.update(Options.extra_warnings)
-            elif option == "--disable-function-redefinition":
-                Options.disable_function_redefinition = True
             elif option == "--old-style-globals":
                 Options.old_style_globals = True
             elif option == "--directive" or option.startswith('-X'):

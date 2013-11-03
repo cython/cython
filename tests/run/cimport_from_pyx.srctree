@@ -15,18 +15,21 @@ setup(
 
 ######## a.pyx ########
 
-from b cimport Bclass, Bfunc, Bstruct, Benum, Benum_value, Btypedef
+from b cimport Bclass, Bfunc, Bstruct, Benum, Benum_value, Btypedef, Py_EQ, Py_NE
 cdef Bclass b = Bclass(5)
 assert Bfunc(&b.value) == b.value
 assert b.asStruct().value == b.value
 cdef Btypedef b_type = &b.value
 cdef Benum b_enum = Benum_value
+cdef int tmp = Py_EQ
 
 #from c cimport ClassC
 #cdef ClassC c = ClassC()
 #print c.value
 
 ######## b.pyx ########
+
+from cpython.object cimport Py_EQ, Py_NE
 
 cdef enum Benum:
     Benum_value

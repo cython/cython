@@ -8,7 +8,6 @@ cdef class TreeVisitor:
     cdef _visit(self, obj)
     cdef find_handler(self, obj)
     cdef _visitchild(self, child, parent, attrname, idx)
-    @cython.locals(idx=int)
     cdef dict _visitchildren(self, parent, attrs)
     cpdef visitchildren(self, parent, attrs=*)
 
@@ -28,6 +27,24 @@ cdef class ScopeTrackingTransform(CythonTransform):
 cdef class EnvTransform(CythonTransform):
     cdef public list env_stack
 
+cdef class MethodDispatcherTransform(EnvTransform):
+    @cython.final
+    cdef _visit_binop_node(self, node)
+    @cython.final
+    cdef _find_handler(self, match_name, bint has_kwargs)
+    @cython.final
+    cdef _delegate_to_assigned_value(self, node, function, arg_list, kwargs)
+    @cython.final
+    cdef _dispatch_to_handler(self, node, function, arg_list, kwargs)
+    @cython.final
+    cdef _dispatch_to_method_handler(self, attr_name, self_arg,
+                                     is_unbound_method, type_name,
+                                     node, function, arg_list, kwargs)
+
 cdef class RecursiveNodeReplacer(VisitorTransform):
      cdef public orig_node
      cdef public new_node
+
+cdef class NodeFinder(TreeVisitor):
+    cdef node
+    cdef public bint found

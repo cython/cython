@@ -37,6 +37,8 @@ particular extension type), or they may be of any C data type. So you can use
 extension types to wrap arbitrary C data structures and provide a Python-like
 interface to them.  
 
+.. _readonly:
+
 Attributes
 ============
 
@@ -54,7 +56,7 @@ first method, but Cython code can use either method.
 By default, extension type attributes are only accessible by direct access,
 not Python access, which means that they are not accessible from Python code.
 To make them accessible from Python code, you need to declare them as
-:keyword:`public` or :keyword:`readonly`. For example,::
+:keyword:`public` or :keyword:`readonly`. For example::
 
     cdef class Shrubbery:
         cdef public int width, height
@@ -83,7 +85,7 @@ generic Python object. It knows this already in the case of the ``self``
 parameter of the methods of that type, but in other cases you will have to use
 a type declaration.
 
-For example, in the following function,::
+For example, in the following function::
 
     cdef widen_shrubbery(sh, extra_width): # BAD
         sh.width = sh.width + extra_width
@@ -337,10 +339,13 @@ subtyped at the C level by foreign code.
 
 C methods
 =========
+
 Extension types can have C methods as well as Python methods. Like C
 functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` instead of
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
-extension types.::
+extension types. In addition, :keyword:`cpdef` methods can even be overridden by python
+methods when called as C method. This adds a little to their calling overhead
+compared to a :keyword:`cdef` methd::
 
     # pets.pyx
     cdef class Parrot:
@@ -377,6 +382,7 @@ method using the usual Python technique, i.e.::
 
     Parrot.describe(self)
 
+
 Forward-declaring extension types
 ===================================
 
@@ -403,6 +409,52 @@ definition, for example,::
     cdef class A(B):
         # attributes and methods
 
+
+Fast instantiation
+===================
+
+Cython provides two ways to speed up the instantiation of extension types.
+The first one is a direct call to the ``__new__()`` special static method,
+as known from Python.  For an extension type ``Penguin``, you could use
+the following code::
+
+    cdef class Penguin:
+        cdef object food
+
+        def __cinit__(self, food):
+            self.food = food
+
+        def __init__(self, food):
+            print("eating!")
+
+    normal_penguin = Penguin('fish')
+    fast_penguin = Penguin.__new__(Penguin, 'wheat')  # note: not calling __init__() !
+
+Note that the path through ``__new__()`` will *not* call the type's
+``__init__()`` method (again, as known from Python).  Thus, in the example
+above, the first instantiation will print ``eating!``, but the second will
+not.  This is only one of the reasons why the ``__cinit__()`` method is
+safer and preferable over the normal ``__init__()`` method for extension
+types.
+
+The second performance improvement applies to types that are often created
+and deleted in a row, so that they can benefit from a freelist.  Cython
+provides the decorator ``@cython.freelist(N)`` for this, which creates a
+statically sized freelist of ``N`` instances for a given type.  Example::
+
+    cimport cython
+
+    @cython.freelist(8)
+    cdef class Penguin:
+        cdef object food
+        def __cinit__(self, food):
+            self.food = food
+
+    penguin = Penguin('fish 1')
+    penguin = None
+    penguin = Penguin('fish 2')  # does not need to allocate memory!
+
+
 Making extension types weak-referenceable
 ==========================================
 
@@ -415,6 +467,44 @@ object called :attr:`__weakref__`. For example,::
         no longer strongly referenced."""
     
         cdef object __weakref__
+
+
+Controlling cyclic garbage collection in CPython
+================================================
+
+By default each extension type will support the cyclic garbage collector of
+CPython. If any Python objects can be referenced, Cython will automatically
+generate the ``tp_traverse`` and ``tp_clear`` slots. This is usually what you
+want.
+
+There is at least one reason why this might not be what you want: If you need
+to cleanup some external resources in the ``__dealloc__`` special function and
+your object happened to be in a reference cycle, the garbage collector may
+have triggered a call to ``tp_clear`` to drop references. This is the way that
+reference cycles are broken so that the garbage can actually be reclaimed.
+
+In that case any object references have vanished by the time when
+``__dealloc__`` is called. Now your cleanup code lost access to the objects it
+has to clean up. In that case you can disable the cycle breaker ``tp_clear``
+by using the ``no_gc_clear`` decorator ::
+
+    @cython.no_gc_clear
+    cdef class DBCursor:
+        cdef DBConnection conn
+        cdef DBAPI_Cursor *raw_cursor
+        # ...
+        def __dealloc__(self):
+            DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)
+
+This example tries to close a cursor via a database connection when the Python
+object is destroyed. The ``DBConnection`` object is kept alive by the reference
+from ``DBCursor``. But if a cursor happens to be in a reference cycle, the
+garbage collector may effectively "steal" the database connection reference,
+which makes it impossible to clean up the cursor.
+
+Using the ``no_gc_clear`` decorator this can not happen anymore because the
+references of a cursor object will not be cleared anymore.
+
 
 Public and external extension types
 ====================================
@@ -464,7 +554,7 @@ built-in complex object.::
 
        .. sourcecode:: c
 
-        ctypedef struct {
+        typedef struct {
             ...
         } PyComplexObject;
 
@@ -475,7 +565,7 @@ built-in complex object.::
     3. When declaring an external extension type, you don't declare any
        methods.  Declaration of methods is not required in order to call them,
        because the calls are Python method calls. Also, as with
-       :keyword:`structs` and :keyword:`unions`, if your extension class
+       :keyword:`struct` and :keyword:`union`, if your extension class
        declaration is inside a :keyword:`cdef` extern from block, you only need to
        declare those C members which you wish to access.
 

@@ -1,16 +1,22 @@
+
+# deprecated cimport for backwards compatibility:
+from libc.string cimport const_char
+
+
 cdef extern from "<string>" namespace "std":
 
     size_t npos = -1
 
     cdef cppclass string:
-        string()
-        string(char *)
-        string(char *, size_t)
-        string(string&)
+        string() nogil except +
+        string(char *) nogil except +
+        string(char *, size_t) nogil except +
+        string(string&) nogil except +
         # as a string formed by a repetition of character c, n times.
-        string(size_t, char)
+        string(size_t, char) nogil except +
 
-        char* c_str() nogil
+        const char* c_str() nogil
+        const char* data() nogil
         size_t size() nogil
         size_t max_size() nogil
         size_t length() nogil
@@ -93,6 +99,9 @@ cdef extern from "<string>" namespace "std":
         #string& operator= (string&)
         #string& operator= (char*)
         #string& operator= (char)
+
+        string operator+ (string& rhs) nogil
+        string operator+ (char* rhs) nogil
 
         bint operator==(string&) nogil
         bint operator==(char*) nogil

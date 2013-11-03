@@ -343,6 +343,69 @@ def except_as_raise(x, a):
         assert isinstance(b, a)
     return i
 
+def except_as_no_raise_does_not_touch_target(a):
+    """
+    >>> i,b = except_as_no_raise_does_not_touch_target(TypeError)
+    >>> i
+    1
+    >>> b
+    1
+    """
+    b = 1
+    try:
+        i = 1
+    except a as b:
+        i = 2
+    return i, b
+
+def except_as_raise_does_not_delete_target(x, a):
+    """
+    >>> except_as_raise_does_not_delete_target(None, TypeError)
+    1
+    >>> except_as_raise_does_not_delete_target(TypeError('test'), TypeError)
+    2
+    >>> except_as_raise_does_not_delete_target(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_does_not_delete_target(None, TypeError)
+    1
+    """
+    b = 1
+    try:
+        i = 1
+        if x:
+            raise x
+    except a as b:
+        i = 2
+        assert isinstance(b, a)
+
+    # exception variable leaks with Py2 except-as semantics
+    if x:
+        assert isinstance(b, a)
+    else:
+        assert b == 1
+    return i
+
+def except_as_raise_with_empty_except(x, a):
+    """
+    >>> except_as_raise_with_empty_except(None, TypeError)
+    >>> except_as_raise_with_empty_except(TypeError('test'), TypeError)
+    >>> except_as_raise_with_empty_except(ValueError('test'), TypeError)
+    Traceback (most recent call last):
+    ValueError: test
+    >>> except_as_raise_with_empty_except(None, TypeError)
+    """
+    try:
+        if x:
+            raise x
+        b = 1
+    except a as b:
+        pass
+    if x:
+        assert isinstance(b, a)
+    else:
+        assert b == 1
+
 def complete_except_as_no_raise(a, b):
     """
     >>> complete_except_as_no_raise(TypeError, ValueError)

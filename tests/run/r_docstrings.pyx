@@ -3,72 +3,102 @@
 
 # More comments
 
-u'A module docstring'
+'A module docstring'
 
 doctest = u"""# Python 3 gets all of these right ...
     >>> __doc__
     'A module docstring'
 
     >>> f.__doc__
-    'This is a function docstring.'
+    '\\n    This is a function docstring.\\n    '
 
     >>> C.__doc__
-    'This is a class docstring.'
+    '\\n    This is a class docstring.\\n    '
     >>> CS.__doc__
-    'This is a subclass docstring.'
+    '\\n    This is a subclass docstring.\\n    '
     >>> print(CSS.__doc__)
     None
 
     >>> T.__doc__
-    'This is an extension type docstring.'
+    '\\n    This is an extension type docstring.\\n    '
     >>> TS.__doc__
-    'This is an extension subtype docstring.'
+    '\\n    This is an extension subtype docstring.\\n    '
     >>> TSS.__doc__
 
 Compare with standard Python:
 
-    >>> def f():
-    ...     u'This is a function docstring.'
-    >>> f.__doc__
-    u'This is a function docstring.'
+    >>> def Pyf():
+    ...     '''
+    ...     This is a function docstring.
+    ...     '''
+    >>> Pyf.__doc__
+    '\\n    This is a function docstring.\\n    '
 
-    >>> class C:
-    ...     u'This is a class docstring.'
-    >>> class CS(C):
-    ...     u'This is a subclass docstring.'
-    >>> class CSS(CS):
+    >>> class PyC:
+    ...     '''
+    ...     This is a class docstring.
+    ...     '''
+    >>> class PyCS(C):
+    ...     '''
+    ...     This is a subclass docstring.
+    ...     '''
+    >>> class PyCSS(CS):
     ...     pass
 
-    >>> C.__doc__
-    u'This is a class docstring.'
-    >>> CS.__doc__
-    u'This is a subclass docstring.'
-    >>> CSS.__doc__
+    >>> PyC.__doc__
+    '\\n    This is a class docstring.\\n    '
+    >>> PyCS.__doc__
+    '\\n    This is a subclass docstring.\\n    '
+    >>> PyCSS.__doc__
 """
 
-import sys
-if sys.version_info[0] >= 3:
-    doctest = doctest.replace(u" u'", u" '")
-
-__test__ = {u"test_docstrings" : doctest}
+__test__ = {"test_docstrings" : doctest}
 
 def f():
-    u"This is a function docstring."
+    """
+    This is a function docstring.
+    """
 
 class C:
-    u"This is a class docstring."
+    """
+    This is a class docstring.
+    """
 
 class CS(C):
-    u"This is a subclass docstring."
+    """
+    This is a subclass docstring.
+    """
 
 class CSS(CS):
     pass
 
 cdef class T:
-    u"This is an extension type docstring."
+    """
+    This is an extension type docstring.
+    """
 
 cdef class TS(T):
-    u"This is an extension subtype docstring."
+    """
+    This is an extension subtype docstring.
+    """
 
 cdef class TSS(TS):
     pass
+
+
+def n():
+    "This is not a docstring".lower()
+
+class PyN(object):
+    u"This is not a docstring".lower()
+
+cdef class CN(object):
+    b"This is not a docstring".lower()
+
+
+def test_non_docstrings():
+    """
+    >>> n.__doc__
+    >>> PyN.__doc__
+    >>> CN.__doc__
+    """

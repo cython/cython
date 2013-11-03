@@ -19,6 +19,9 @@ def outer(a):
     del a
     return inner()
 
+cdef object g
+del g
+
 
 _ERRORS = u"""
 10:9: Cannot assign to or delete this
@@ -26,4 +29,5 @@ _ERRORS = u"""
 13:9: Deletion of non-Python, non-C++ object
 14:9: Deletion of non-Python, non-C++ object
 19:9: can not delete variable 'a' referenced in nested scope
+23:5: Deletion of global C variable
 """

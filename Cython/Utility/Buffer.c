@@ -66,7 +66,7 @@ typedef struct {
   size_t size;     /* sizeof(type) */
   size_t arraysize[8]; /* length of array in each dimension */
   int ndim;
-  char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject */
+  char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject, c_H_ar */
   char is_unsigned;
   int flags;
 } __Pyx_TypeInfo;
@@ -107,8 +107,6 @@ typedef struct {
 /////////////// GetAndReleaseBuffer ///////////////
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-    CYTHON_UNUSED PyObject *getbuffer_cobj;
-
   #if PY_VERSION_HEX >= 0x02060000
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
   #endif
@@ -120,23 +118,19 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
     {{endfor}}
 
   #if PY_VERSION_HEX < 0x02060000
-    if (obj->ob_type->tp_dict &&
-        (getbuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
-                                             "__pyx_getbuffer"))) {
-        getbufferproc func;
+    if (obj->ob_type->tp_dict) {
+        PyObject *getbuffer_cobj = PyObject_GetItem(
+            obj->ob_type->tp_dict, PYIDENT("__pyx_getbuffer"));
+        if (getbuffer_cobj) {
+            getbufferproc func = (getbufferproc) PyCObject_AsVoidPtr(getbuffer_cobj);
+            Py_DECREF(getbuffer_cobj);
+            if (!func)
+                goto fail;
 
-      #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
-        func = (getbufferproc) PyCapsule_GetPointer(getbuffer_cobj, "getbuffer(obj, view, flags)");
-      #else
-        func = (getbufferproc) PyCObject_AsVoidPtr(getbuffer_cobj);
-      #endif
-        Py_DECREF(getbuffer_cobj);
-        if (!func)
-            goto fail;
-
-        return func(obj, view, flags);
-    } else {
-        PyErr_Clear();
+            return func(obj, view, flags);
+        } else {
+            PyErr_Clear();
+        }
     }
   #endif
 
@@ -151,8 +145,6 @@ fail:
 
 static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     PyObject *obj = view->obj;
-    CYTHON_UNUSED PyObject *releasebuffer_cobj;
-
     if (!obj) return;
 
   #if PY_VERSION_HEX >= 0x02060000
@@ -169,26 +161,19 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     {{endfor}}
 
   #if PY_VERSION_HEX < 0x02060000
-    if (obj->ob_type->tp_dict &&
-        (releasebuffer_cobj = PyMapping_GetItemString(obj->ob_type->tp_dict,
-                                                      "__pyx_releasebuffer"))) {
-        releasebufferproc func;
-
-      #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
-        func = (releasebufferproc) PyCapsule_GetPointer(releasebuffer_cobj, "releasebuffer(obj, view)");
-      #else
-        func = (releasebufferproc) PyCObject_AsVoidPtr(releasebuffer_cobj);
-      #endif
-
-        Py_DECREF(releasebuffer_cobj);
-
-        if (!func)
-            goto fail;
-
-        func(obj, view);
-        return;
-    } else {
-        PyErr_Clear();
+    if (obj->ob_type->tp_dict) {
+        PyObject *releasebuffer_cobj = PyObject_GetItem(
+            obj->ob_type->tp_dict, PYIDENT("__pyx_releasebuffer"));
+        if (releasebuffer_cobj) {
+            releasebufferproc func = (releasebufferproc) PyCObject_AsVoidPtr(releasebuffer_cobj);
+            Py_DECREF(releasebuffer_cobj);
+            if (!func)
+                goto fail;
+            func(obj, view);
+            return;
+        } else {
+            PyErr_Clear();
+        }
     }
   #endif
 
@@ -290,7 +275,8 @@ static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
 
 static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
   switch (ch) {
-    case 'b': return "'char'";
+    case 'c': return "'char'";
+    case 'b': return "'signed char'";
     case 'B': return "'unsigned char'";
     case 'h': return "'short'";
     case 'H': return "'unsigned short'";
@@ -417,7 +403,9 @@ static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_compl
 
 static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
   switch (ch) {
-    case 'c': case 'b': case 'h': case 'i':
+    case 'c':
+        return 'H';
+    case 'b': case 'h': case 'i':
     case 'l': case 'q': case 's': case 'p':
         return 'I';
     case 'B': case 'H': case 'I': case 'L': case 'Q':
@@ -530,14 +518,18 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
         continue;
       }
 
-      __Pyx_BufFmt_RaiseExpected(ctx);
-      return -1;
+      if ((type->typegroup == 'H' || group == 'H') && type->size == size) {
+          /* special case -- chars don't care about sign */
+      } else {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return -1;
+      }
     }
 
     offset = ctx->head->parent_offset + field->offset;
     if (ctx->fmt_offset != offset) {
       PyErr_Format(PyExc_ValueError,
-                   "Buffer dtype mismatch; next field is at offset %" PY_FORMAT_SIZE_T "d but %" PY_FORMAT_SIZE_T "d expected",
+                   "Buffer dtype mismatch; next field is at offset %" CYTHON_FORMAT_SSIZE_T "d but %" CYTHON_FORMAT_SSIZE_T "d expected",
                    (Py_ssize_t)ctx->fmt_offset, (Py_ssize_t)offset);
       return -1;
     }
@@ -802,7 +794,7 @@ static CYTHON_INLINE int __Pyx_GetBufferAndValidate(
   }
   if ((unsigned)buf->itemsize != dtype->size) {
     PyErr_Format(PyExc_ValueError,
-      "Item size of buffer (%"PY_FORMAT_SIZE_T"d byte%s) does not match size of '%s' (%"PY_FORMAT_SIZE_T"d byte%s)",
+      "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "d byte%s) does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "d byte%s)",
       buf->itemsize, (buf->itemsize > 1) ? "s" : "",
       dtype->name, (Py_ssize_t)dtype->size, (dtype->size > 1) ? "s" : "");
     goto fail;
@@ -837,8 +829,14 @@ __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
         return 1;
 
     if (a->size != b->size || a->typegroup != b->typegroup ||
-            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim)
-        return 0;
+            a->is_unsigned != b->is_unsigned || a->ndim != b->ndim) {
+        if (a->typegroup == 'H' || b->typegroup == 'H') {
+            /* Special case for chars */
+            return a->size == b->size;
+        } else {
+            return 0;
+        }
+    }
 
     if (a->ndim) {
         /* Verify multidimensional C arrays */
@@ -893,6 +891,9 @@ static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type)
     size_t size = type->size;
 
     switch (type->typegroup) {
+        case 'H':
+            *buf = 'c';
+            break;
         case 'I':
         case 'U':
             if (size == 1)

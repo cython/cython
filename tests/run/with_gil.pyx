@@ -3,9 +3,7 @@ Test the 'with gil:' statement.
 """
 
 cimport cython
-
-#from libc.stdio cimport printf, puts
-from cpython cimport PyObject, Py_INCREF
+from cpython.ref cimport PyObject
 
 import sys
 
@@ -277,22 +275,22 @@ cdef void void_nogil_nested_gil() nogil:
 
 def test_nogil_void_funcs_with_gil():
     """
-    >>> redirect_stderr(test_nogil_void_funcs_with_gil)
-    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('This is swallowed') in 'with_gil.void_nogil_ignore_exception' ignored
+    >>> redirect_stderr(test_nogil_void_funcs_with_gil)  # doctest: +ELLIPSIS
+    Exception... ignored...
     Inner gil section
     nogil section
-    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('Swallow this') in 'with_gil.void_nogil_nested_gil' ignored
+    Exception... ignored...
     """
     void_nogil_ignore_exception()
     void_nogil_nested_gil()
 
 def test_nogil_void_funcs_with_nogil():
     """
-    >>> redirect_stderr(test_nogil_void_funcs_with_nogil)
-    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('This is swallowed') in 'with_gil.void_nogil_ignore_exception' ignored
+    >>> redirect_stderr(test_nogil_void_funcs_with_nogil)  # doctest: +ELLIPSIS
+    Exception... ignored...
     Inner gil section
     nogil section
-    Exception with_gil.ExceptionWithMsg: ExceptionWithMsg('Swallow this') in 'with_gil.void_nogil_nested_gil' ignored
+    Exception... ignored...
     """
     with nogil:
         void_nogil_ignore_exception()

@@ -1,0 +1,86 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import tp_new_tests; tp_new_tests.test_all()"
+PYTHON -c "import tp_new_tests; tp_new_tests.test_sub()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("**/*.pyx"),
+    )
+
+######## tp_new_tests.py ########
+
+def test_all():
+    test_a()
+    test_b()
+    test_a_in_b()
+    test_sub()
+
+def test_a():
+    import a
+    assert isinstance(a.tpnew_ExtTypeA(), a.ExtTypeA)
+    assert a.tpnew_ExtTypeA().attrA == 123
+
+def test_b():
+    import b
+    assert isinstance(b.tpnew_ExtTypeB(), b.ExtTypeB)
+    assert b.tpnew_ExtTypeB().attrB == 234
+
+def test_a_in_b():
+    import a,b
+    assert isinstance(b.tpnew_ExtTypeA(), a.ExtTypeA)
+    assert b.tpnew_ExtTypeA().attrA == 123
+
+def test_sub():
+    import b
+    assert isinstance(b.tpnew_SubExtTypeA(), b.SubExtTypeA)
+    assert b.tpnew_SubExtTypeA().attrAB == 345
+    assert b.tpnew_SubExtTypeA().attrA == 123
+
+######## a.pxd ########
+
+cdef api class ExtTypeA[type ExtTypeA_Type, object ExtTypeAObject]:
+    cdef readonly attrA
+
+######## a.pyx ########
+
+cdef class ExtTypeA:
+    def __cinit__(self):
+        self.attrA = 123
+
+def tpnew_ExtTypeA():
+    return ExtTypeA.__new__(ExtTypeA)
+
+######## b.pxd ########
+
+from a cimport ExtTypeA
+
+cdef class ExtTypeB:
+    cdef readonly attrB
+
+cdef class SubExtTypeA(ExtTypeA):
+    cdef readonly attrAB
+
+######## b.pyx ########
+
+from a cimport ExtTypeA
+
+cdef class ExtTypeB:
+    def __cinit__(self):
+        self.attrB = 234
+
+cdef class SubExtTypeA(ExtTypeA):
+    def __cinit__(self):
+        self.attrAB = 345
+
+def tpnew_ExtTypeA():
+    return ExtTypeA.__new__(ExtTypeA)
+
+def tpnew_ExtTypeB():
+    return ExtTypeB.__new__(ExtTypeB)
+
+def tpnew_SubExtTypeA():
+    return SubExtTypeA.__new__(SubExtTypeA)

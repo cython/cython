@@ -1,0 +1,21 @@
+language: python
+
+python:
+  - 2.6
+  - 2.7
+  - 3.2
+  - 3.3
+
+#  - pypy
+
+branches:
+  only:
+    - master
+
+install: pip install .
+
+script: CFLAGS=-O0 python runtests.py -vv
+
+matrix:
+  allow_failures:
+    - python: pypy

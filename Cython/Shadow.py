@@ -1,4 +1,71 @@
 # cython.* namespace for pure mode.
+__version__ = "0.20dev"
+
+
+# BEGIN shameless copy from Cython/minivect/minitypes.py
+
+class _ArrayType(object):
+
+    is_array = True
+    subtypes = ['dtype']
+
+    def __init__(self, dtype, ndim, is_c_contig=False, is_f_contig=False,
+                 inner_contig=False, broadcasting=None):
+        self.dtype = dtype
+        self.ndim = ndim
+        self.is_c_contig = is_c_contig
+        self.is_f_contig = is_f_contig
+        self.inner_contig = inner_contig or is_c_contig or is_f_contig
+        self.broadcasting = broadcasting
+
+    def __repr__(self):
+        axes = [":"] * self.ndim
+        if self.is_c_contig:
+            axes[-1] = "::1"
+        elif self.is_f_contig:
+            axes[0] = "::1"
+
+        return "%s[%s]" % (self.dtype, ", ".join(axes))
+
+
+def index_type(base_type, item):
+    """
+    Support array type creation by slicing, e.g. double[:, :] specifies
+    a 2D strided array of doubles. The syntax is the same as for
+    Cython memoryviews.
+    """
+    assert isinstance(item, (tuple, slice))
+
+    class InvalidTypeSpecification(Exception):
+        pass
+
+    def verify_slice(s):
+        if s.start or s.stop or s.step not in (None, 1):
+            raise InvalidTypeSpecification(
+                "Only a step of 1 may be provided to indicate C or "
+                "Fortran contiguity")
+
+    if isinstance(item, tuple):
+        step_idx = None
+        for idx, s in enumerate(item):
+            verify_slice(s)
+            if s.step and (step_idx or idx not in (0, len(item) - 1)):
+                raise InvalidTypeSpecification(
+                    "Step may only be provided once, and only in the "
+                    "first or last dimension.")
+
+            if s.step == 1:
+                step_idx = idx
+
+        return _ArrayType(base_type, len(item),
+                          is_c_contig=step_idx == len(item) - 1,
+                          is_f_contig=step_idx == 0)
+    else:
+        verify_slice(item)
+        return _ArrayType(base_type, 1, is_c_contig=bool(item.step))
+
+# END shameless copy
+
 
 compiled = False
 
@@ -12,10 +79,10 @@ def _empty_decorator(x):
 def locals(**arg_types):
     return _empty_decorator
 
-def test_assert_path_exists(path):
+def test_assert_path_exists(*paths):
     return _empty_decorator
 
-def test_fail_if_path_exists(path):
+def test_fail_if_path_exists(*paths):
     return _empty_decorator
 
 class _EmptyDecoratorAndManager(object):
@@ -30,7 +97,7 @@ cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 returns = lambda type_arg: _EmptyDecoratorAndManager()
 
-final = internal = _empty_decorator
+final = internal = type_version_tag = no_gc_clear = _empty_decorator
 
 def inline(f, *args, **kwds):
   if isinstance(f, basestring):
@@ -77,7 +144,7 @@ def address(arg):
     return pointer(type(arg))([arg])
 
 def declare(type=None, value=_Unspecified, **kwds):
-    if type is not None and hasattr(type, '__call__'):
+    if type not in (None, object) and hasattr(type, '__call__'):
         if value is not _Unspecified:
             return type(value)
         else:
@@ -239,6 +306,8 @@ class typedef(CythonType):
 
     def __repr__(self):
         return self.name or str(self._basetype)
+
+    __getitem__ = index_type
 
 class _FusedType(CythonType):
     pass

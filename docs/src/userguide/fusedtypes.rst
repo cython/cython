@@ -230,9 +230,10 @@ __signatures__
 Finally, function objects from ``def`` or ``cpdef`` functions have an attribute
 __signatures__, which maps the signature strings to the actual specialized
 functions. This may be useful for inspection.  Listed signature strings may also
-be used as indices to the fused function::
+be used as indices to the fused function, but the index format may change between
+Cython versions::
 
-    specialized_function = fused_function["MyExtensionClass, int, float"]
+    specialized_function = fused_function["MyExtensionClass|int|float"]
 
 It would usually be preferred to index like this, however::
 
@@ -242,8 +243,7 @@ Although the latter will select the biggest types for ``int`` and ``float`` from
 Python space, as they are not type identifiers but builtin types there. Passing
 ``cython.int`` and ``cython.float`` would resolve that, however.
 
-For memoryview indexing from python space you have to use strings instead of
-types::
+For memoryview indexing from python space we can do the following::
 
     ctypedef fused my_fused_type:
         int[:, ::1]
@@ -252,6 +252,6 @@ types::
     def func(my_fused_type array):
         ...
 
-    my_fused_type['int[:, ::1]'](myarray)
+    my_fused_type[cython.int[:, ::1]](myarray)
 
 The same goes for when using e.g. ``cython.numeric[:, :]``.

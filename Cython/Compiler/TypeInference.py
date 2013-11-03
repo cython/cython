@@ -5,7 +5,7 @@ import Builtin
 import PyrexTypes
 from Cython import Utils
 from PyrexTypes import py_object_type, unspecified_type
-from Visitor import CythonTransform
+from Visitor import CythonTransform, EnvTransform
 
 
 class TypedExprNode(ExprNodes.ExprNode):
@@ -15,7 +15,10 @@ class TypedExprNode(ExprNodes.ExprNode):
 
 object_expr = TypedExprNode(py_object_type)
 
-class MarkAssignments(CythonTransform):
+
+class MarkParallelAssignments(EnvTransform):
+    # Collects assignments inside parallel blocks prange, with parallel.
+    # Perhaps it's better to move it to ControlFlowAnalysis.
 
     # tells us whether we're in a normal loop
     in_loop = False
@@ -23,18 +26,15 @@ class MarkAssignments(CythonTransform):
     parallel_errors = False
 
     def __init__(self, context):
-        super(CythonTransform, self).__init__()
-        self.context = context
-
         # Track the parallel block scopes (with parallel, for i in prange())
         self.parallel_block_stack = []
+        return super(MarkParallelAssignments, self).__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
                 return
-            lhs.entry.assignments.append(rhs)
 
             if self.parallel_block_stack:
                 parallel_node = self.parallel_block_stack[-1]
@@ -90,25 +90,43 @@ class MarkAssignments(CythonTransform):
         # TODO: Remove redundancy with range optimization...
         is_special = False
         sequence = node.iterator.sequence
+        target = node.target
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                if function.name == 'reversed' and len(sequence.args) == 1:
-                    sequence = sequence.args[0]
+                entry = self.current_env().lookup(function.name)
+                if not entry or entry.is_builtin:
+                    if function.name == 'reversed' and len(sequence.args) == 1:
+                        sequence = sequence.args[0]
+                    elif function.name == 'enumerate' and len(sequence.args) == 1:
+                        if target.is_sequence_constructor and len(target.args) == 2:
+                            iterator = sequence.args[0]
+                            if iterator.is_name:
+                                iterator_type = iterator.infer_type(self.current_env())
+                                if iterator_type.is_builtin_type:
+                                    # assume that builtin types have a length within Py_ssize_t
+                                    self.mark_assignment(
+                                        target.args[0],
+                                        ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
+                                                          type=PyrexTypes.c_py_ssize_t_type))
+                                    target = target.args[1]
+                                    sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                if function.name in ('range', 'xrange'):
-                    is_special = True
-                    for arg in sequence.args[:2]:
-                        self.mark_assignment(node.target, arg)
-                    if len(sequence.args) > 2:
-                        self.mark_assignment(
-                            node.target,
-                            ExprNodes.binop_node(node.pos,
-                                                 '+',
-                                                 sequence.args[0],
-                                                 sequence.args[2]))
+                entry = self.current_env().lookup(function.name)
+                if not entry or entry.is_builtin:
+                    if function.name in ('range', 'xrange'):
+                        is_special = True
+                        for arg in sequence.args[:2]:
+                            self.mark_assignment(target, arg)
+                        if len(sequence.args) > 2:
+                            self.mark_assignment(
+                                target,
+                                ExprNodes.binop_node(node.pos,
+                                                     '+',
+                                                     sequence.args[0],
+                                                     sequence.args[2]))
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
@@ -116,7 +134,7 @@ class MarkAssignments(CythonTransform):
             # naturally infer the base type of pointers, C arrays,
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
-            self.mark_assignment(node.target, ExprNodes.IndexNode(
+            self.mark_assignment(target, ExprNodes.IndexNode(
                 node.pos,
                 base = sequence,
                 index = ExprNodes.IntNode(node.pos, value = '0')))
@@ -163,7 +181,7 @@ class MarkAssignments(CythonTransform):
         if node.starstar_arg:
             self.mark_assignment(
                 node.starstar_arg, TypedExprNode(Builtin.dict_type))
-        self.visitchildren(node)
+        EnvTransform.visit_FuncDefNode(self, node)
         return node
 
     def visit_DelStatNode(self, node):
@@ -317,9 +335,15 @@ class PyObjectTypeInferer(object):
 class SimpleAssignmentTypeInferer(object):
     """
     Very basic type inference.
+
+    Note: in order to support cross-closure type inference, this must be
+    applies to nested scopes in top-down order.
     """
-    # TODO: Implement a real type inference algorithm.
-    # (Something more powerful than just extending this one...)
+    def set_entry_type(self, entry, entry_type):
+        entry.type = entry_type
+        for e in entry.all_entries():
+            e.type = entry_type
+
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
         verbose = scope.directives['infer_types.verbose']
@@ -331,74 +355,126 @@ class SimpleAssignmentTypeInferer(object):
         else:
             for entry in scope.entries.values():
                 if entry.type is unspecified_type:
-                    entry.type = py_object_type
+                    self.set_entry_type(entry, py_object_type)
             return
 
-        dependancies_by_entry = {} # entry -> dependancies
-        entries_by_dependancy = {} # dependancy -> entries
-        ready_to_infer = []
+        # Set of assignemnts
+        assignments = set([])
+        assmts_resolved = set([])
+        dependencies = {}
+        assmt_to_names = {}
+
         for name, entry in scope.entries.items():
+            for assmt in entry.cf_assignments:
+                names = assmt.type_dependencies()
+                assmt_to_names[assmt] = names
+                assmts = set()
+                for node in names:
+                    assmts.update(node.cf_state)
+                dependencies[assmt] = assmts
             if entry.type is unspecified_type:
-                if entry.in_closure or entry.from_closure:
-                    # cross-closure type inference is not currently supported
-                    entry.type = py_object_type
+                assignments.update(entry.cf_assignments)
+            else:
+                assmts_resolved.update(entry.cf_assignments)
+
+        def infer_name_node_type(node):
+            types = [assmt.inferred_type for assmt in node.cf_state]
+            if not types:
+                node_type = py_object_type
+            else:
+                node_type = spanning_type(
+                    types, entry.might_overflow, entry.pos)
+            node.inferred_type = node_type
+
+        def infer_name_node_type_partial(node):
+            types = [assmt.inferred_type for assmt in node.cf_state
+                     if assmt.inferred_type is not None]
+            if not types:
+                return
+            return spanning_type(types, entry.might_overflow, entry.pos)
+
+        def resolve_assignments(assignments):
+            resolved = set()
+            for assmt in assignments:
+                deps = dependencies[assmt]
+                # All assignments are resolved
+                if assmts_resolved.issuperset(deps):
+                    for node in assmt_to_names[assmt]:
+                        infer_name_node_type(node)
+                    # Resolve assmt
+                    inferred_type = assmt.infer_type()
+                    done = False
+                    assmts_resolved.add(assmt)
+                    resolved.add(assmt)
+            assignments -= resolved
+            return resolved
+
+        def partial_infer(assmt):
+            partial_types = []
+            for node in assmt_to_names[assmt]:
+                partial_type = infer_name_node_type_partial(node)
+                if partial_type is None:
+                    return False
+                partial_types.append((node, partial_type))
+            for node, partial_type in partial_types:
+                node.inferred_type = partial_type
+            assmt.infer_type()
+            return True
+
+        partial_assmts = set()
+        def resolve_partial(assignments):
+            # try to handle circular references
+            partials = set()
+            for assmt in assignments:
+                partial_types = []
+                if assmt in partial_assmts:
                     continue
-                all = set()
-                for expr in entry.assignments:
-                    all.update(expr.type_dependencies(scope))
-                if all:
-                    dependancies_by_entry[entry] = all
-                    for dep in all:
-                        if dep not in entries_by_dependancy:
-                            entries_by_dependancy[dep] = set([entry])
-                        else:
-                            entries_by_dependancy[dep].add(entry)
-                else:
-                    ready_to_infer.append(entry)
+                for node in assmt_to_names[assmt]:
+                    if partial_infer(assmt):
+                        partials.add(assmt)
+                        assmts_resolved.add(assmt)
+            partial_assmts.update(partials)
+            return partials
 
-        def resolve_dependancy(dep):
-            if dep in entries_by_dependancy:
-                for entry in entries_by_dependancy[dep]:
-                    entry_deps = dependancies_by_entry[entry]
-                    entry_deps.remove(dep)
-                    if not entry_deps and entry != dep:
-                        del dependancies_by_entry[entry]
-                        ready_to_infer.append(entry)
-
-        # Try to infer things in order...
+        # Infer assignments
         while True:
-            while ready_to_infer:
-                entry = ready_to_infer.pop()
-                types = [expr.infer_type(scope) for expr in entry.assignments]
+            if not resolve_assignments(assignments):
+                if not resolve_partial(assignments):
+                    break
+        inferred = set()
+        # First pass
+        for entry in scope.entries.values():
+            if entry.type is not unspecified_type:
+                continue
+            entry_type = py_object_type
+            if assmts_resolved.issuperset(entry.cf_assignments):
+                types = [assmt.inferred_type for assmt in entry.cf_assignments]
                 if types and Utils.all(types):
-                    entry.type = spanning_type(types, entry.might_overflow)
-                else:
-                    # FIXME: raise a warning?
-                    # print "No assignments", entry.pos, entry
-                    entry.type = py_object_type
-                if verbose:
-                    message(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type))
-                resolve_dependancy(entry)
-            # Deal with simple circular dependancies...
-            for entry, deps in dependancies_by_entry.items():
-                if len(deps) == 1 and deps == set([entry]):
-                    types = [expr.infer_type(scope) for expr in entry.assignments if expr.type_dependencies(scope) == ()]
-                    if types:
-                        entry.type = spanning_type(types, entry.might_overflow)
-                        types = [expr.infer_type(scope) for expr in entry.assignments]
-                        entry.type = spanning_type(types, entry.might_overflow) # might be wider...
-                        resolve_dependancy(entry)
-                        del dependancies_by_entry[entry]
-                        if ready_to_infer:
-                            break
-            if not ready_to_infer:
-                break
+                    entry_type = spanning_type(
+                        types, entry.might_overflow, entry.pos)
+                    inferred.add(entry)
+            self.set_entry_type(entry, entry_type)
 
-        # We can't figure out the rest with this algorithm, let them be objects.
-        for entry in dependancies_by_entry:
-            entry.type = py_object_type
-            if verbose:
-                message(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type))
+        def reinfer():
+            dirty = False
+            for entry in inferred:
+                types = [assmt.infer_type()
+                         for assmt in entry.cf_assignments]
+                new_type = spanning_type(types, entry.might_overflow, entry.pos)
+                if new_type != entry.type:
+                    self.set_entry_type(entry, new_type)
+                    dirty = True
+            return dirty
+
+        # types propagation
+        while reinfer():
+            pass
+
+        if verbose:
+            for entry in inferred:
+                message(entry.pos, "inferred '%s' to be of type '%s'" % (
+                    entry.name, entry.type))
+
 
 def find_spanning_type(type1, type2):
     if type1 is type2:
@@ -416,16 +492,24 @@ def find_spanning_type(type1, type2):
         return PyrexTypes.c_double_type
     return result_type
 
-def aggressive_spanning_type(types, might_overflow):
+def aggressive_spanning_type(types, might_overflow, pos):
     result_type = reduce(find_spanning_type, types)
     if result_type.is_reference:
         result_type = result_type.ref_base_type
+    if result_type.is_const:
+        result_type = result_type.const_base_type
+    if result_type.is_cpp_class:
+        result_type.check_nullary_constructor(pos)
     return result_type
 
-def safe_spanning_type(types, might_overflow):
+def safe_spanning_type(types, might_overflow, pos):
     result_type = reduce(find_spanning_type, types)
+    if result_type.is_const:
+        result_type = result_type.const_base_type
     if result_type.is_reference:
         result_type = result_type.ref_base_type
+    if result_type.is_cpp_class:
+        result_type.check_nullary_constructor(pos)
     if result_type.is_pyobject:
         # In theory, any specific Python type is always safe to
         # infer. However, inferring str can cause some existing code
@@ -443,9 +527,9 @@ def safe_spanning_type(types, might_overflow):
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
         return result_type
-    elif result_type.is_ptr and not (result_type.is_int and result_type.rank == 0):
+    elif result_type.is_ptr:
         # Any pointer except (signed|unsigned|) char* can't implicitly
-        # become a PyObject.
+        # become a PyObject, and inferring char* is now accepted, too.
         return result_type
     elif result_type.is_cpp_class:
         # These can't implicitly become Python objects either.

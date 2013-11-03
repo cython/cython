@@ -22,7 +22,15 @@ class BaseType(object):
         return "((%s)%s)" % (self.declaration_code(""), expr_code)
 
     def specialization_name(self):
-        return self.declaration_code("").replace(" ", "__")
+        # This is not entirely robust.
+        safe = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789'
+        all = []
+        for c in self.declaration_code("").replace("unsigned ", "unsigned_").replace("long long", "long_long").replace(" ", "__"):
+            if c in safe:
+                all.append(c)
+            else:
+                all.append('_%x_' % ord(c))
+        return ''.join(all)
 
     def base_declaration_code(self, base_code, entity_code):
         if entity_code:
@@ -56,6 +64,12 @@ class BaseType(object):
             return result
 
         return None
+
+    def specialize_fused(self, env):
+        if env.fused_to_specific:
+            return self.specialize(env.fused_to_specific)
+
+        return self
 
     def _get_fused_types(self):
         """
@@ -124,13 +138,15 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_reference          boolean     Is a C reference type
+    #  is_const              boolean     Is a C const type.
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
-    #  is_unicode            boolean     Is a UTF-8 encoded C char * type
+    #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
+    #  is_cpp_string         boolean     Is a C++ std::string type
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
@@ -160,7 +176,7 @@ class PyrexType(BaseType):
     #    as other_type.
     #
     #  as_argument_type():
-    #    Coerces array type into pointer type for use as
+    #    Coerces array and C function types into pointer type for use as
     #    a formal argument type.
     #
 
@@ -178,14 +194,16 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_reference = 0
+    is_const = 0
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_cpp_string = 0
     is_struct = 0
     is_enum = 0
     is_typedef = 0
     is_string = 0
-    is_unicode = 0
+    is_pyunicode_ptr = 0
     is_unicode_char = 0
     is_returncode = 0
     is_error = 0
@@ -279,9 +297,9 @@ def create_typedef_type(name, base_type, cname, is_external=0):
 class CTypedefType(BaseType):
     #
     #  Pseudo-type defined with a ctypedef statement in a
-    #  'cdef extern from' block. Delegates most attribute
-    #  lookups to the base type. ANYTHING NOT DEFINED
-    #  HERE IS DELEGATED!
+    #  'cdef extern from' block.
+    #  Delegates most attribute lookups to the base type.
+    #  (Anything not defined here or in the BaseType is delegated.)
     #
     #  qualified_name      string
     #  typedef_name        string
@@ -350,11 +368,12 @@ class CTypedefType(BaseType):
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.to_py_utility_code, self.to_py_function = \
-                        self._create_utility_code(c_typedef_int_to_py_function,
-                                                  '__Pyx_PyInt_to_py_%s')
+                    self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntToPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "TO_PY_FUNCTION": self.to_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -371,11 +390,12 @@ class CTypedefType(BaseType):
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.from_py_utility_code, self.from_py_function = \
-                        self._create_utility_code(c_typedef_int_from_py_function,
-                                                  '__Pyx_PyInt_from_py_%s')
+                    self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntFromPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -385,6 +405,26 @@ class CTypedefType(BaseType):
                 return True
         # delegation
         return self.typedef_base_type.create_from_py_utility_code(env)
+
+    def overflow_check_binop(self, binop, env, const_rhs=False):
+        env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
+        type = self.declaration_code("")
+        name = self.specialization_name()
+        if binop == "lshift":
+            env.use_utility_code(TempitaUtilityCode.load(
+                "LeftShift", "Overflow.c",
+                context={'TYPE': type, 'NAME': name, 'SIGNED': self.signed}))
+        else:
+            if const_rhs:
+                binop += "_const"
+            _load_overflow_base(env)
+            env.use_utility_code(TempitaUtilityCode.load(
+                "SizeCheck", "Overflow.c",
+                context={'TYPE': type, 'NAME': name}))
+            env.use_utility_code(TempitaUtilityCode.load(
+                "Binop", "Overflow.c",
+                context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
+        return "__Pyx_%s_%s_checking_overflow" % (binop, name)
 
     def error_condition(self, result_code):
         if self.typedef_is_external:
@@ -403,6 +443,9 @@ class CTypedefType(BaseType):
     def py_type_name(self):
         return self.typedef_base_type.py_type_name()
 
+    def can_coerce_to_pyobject(self, env):
+        return self.typedef_base_type.can_coerce_to_pyobject(env)
+
 
 class MemoryViewSliceType(PyrexType):
 
@@ -411,7 +454,7 @@ class MemoryViewSliceType(PyrexType):
     has_attributes = 1
     scope = None
 
-    # These are specialcased in Defnode
+    # These are special cased in Defnode
     from_py_function = None
     to_py_function = None
 
@@ -421,7 +464,7 @@ class MemoryViewSliceType(PyrexType):
     subtypes = ['dtype']
 
     def __init__(self, base_dtype, axes):
-        '''
+        """
         MemoryViewSliceType(base, axes)
 
         Base is the C base type; axes is a list of (access, packing) strings,
@@ -453,7 +496,7 @@ class MemoryViewSliceType(PyrexType):
         Fortran-contiguous memory has 'direct' as the access spec, 'contig' as
         the *first* axis' packing spec and 'follow' for all other packing
         specs.
-        '''
+        """
         import MemoryView
 
         self.dtype = base_dtype
@@ -572,7 +615,7 @@ class MemoryViewSliceType(PyrexType):
                         MemoryView.get_is_contig_func_name(c_or_f, self.ndim)
 
                 cfunctype = CFuncType(
-                        return_type=c_int_type,
+                        return_type=c_bint_type,
                         args=[CFuncTypeArg("memviewslice", self, None)],
                         exception_value="-1",
                 )
@@ -645,11 +688,9 @@ class MemoryViewSliceType(PyrexType):
 
         tup = (obj.result(), self.ndim, to_py_func, from_py_func,
                self.dtype.is_pyobject)
-        return "__pyx_memoryview_fromslice(&%s, %s, %s, %s, %d);" % tup
+        return "__pyx_memoryview_fromslice(%s, %s, %s, %s, %d);" % tup
 
     def dtype_object_conversion_funcs(self, env):
-        import MemoryView, Code
-
         get_function = "__pyx_memview_get_%s" % self.dtype_name
         set_function = "__pyx_memview_set_%s" % self.dtype_name
 
@@ -688,13 +729,13 @@ class MemoryViewSliceType(PyrexType):
         return get_function, set_function
 
     def axes_to_code(self):
-        "Return a list of code constants for each axis"
+        """Return a list of code constants for each axis"""
         import MemoryView
         d = MemoryView._spec_to_const
         return ["(%s | %s)" % (d[a], d[p]) for a, p in self.axes]
 
     def axes_to_name(self):
-        "Return an abbreviated name for our axes"
+        """Return an abbreviated name for our axes"""
         import MemoryView
         d = MemoryView._spec_to_abbrev
         return "".join(["%s%s" % (d[a], d[p]) for a, p in self.axes])
@@ -727,10 +768,12 @@ class MemoryViewSliceType(PyrexType):
         return "%s[%s]" % (dtype_name, ", ".join(axes_code_list))
 
     def specialize(self, values):
-        "This does not validate the base type!!"
+        """This does not validate the base type!!"""
         dtype = self.dtype.specialize(values)
         if dtype is not self.dtype:
             return MemoryViewSliceType(dtype, self.axes)
+
+        return self
 
     def cast_code(self, expr_code):
         return expr_code
@@ -738,10 +781,9 @@ class MemoryViewSliceType(PyrexType):
 
 class BufferType(BaseType):
     #
-    #  Delegates most attribute
-    #  lookups to the base type. ANYTHING NOT DEFINED
-    #  HERE IS DELEGATED!
-
+    #  Delegates most attribute lookups to the base type.
+    #  (Anything not defined here or in the BaseType is delegated.)
+    #
     # dtype            PyrexType
     # ndim             int
     # mode             str
@@ -782,10 +824,9 @@ class BufferType(BaseType):
 
     def __str__(self):
         # avoid ', ', as fused functions split the signature string on ', '
+        cast_str = ''
         if self.cast:
             cast_str = ',cast=True'
-        else:
-            cast_str = ''
 
         return "%s[%s,ndim=%d%s]" % (self.base, self.dtype, self.ndim,
                                       cast_str)
@@ -820,6 +861,7 @@ class PyObjectType(PyrexType):
     buffer_defaults = None
     is_extern = False
     is_subclassed = False
+    is_gc_simple = False
 
     def __str__(self):
         return "Python object"
@@ -831,12 +873,12 @@ class PyObjectType(PyrexType):
         return True
 
     def default_coerced_ctype(self):
-        "The default C type that this Python type coerces to, or None."
+        """The default C type that this Python type coerces to, or None."""
         return None
 
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
-        return not src_type.is_ptr or src_type.is_string
+        return not src_type.is_ptr or src_type.is_string or src_type.is_pyunicode_ptr
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -870,6 +912,12 @@ class PyObjectType(PyrexType):
         return cname
 
 
+builtin_types_that_cannot_create_refcycles = set([
+    'bool', 'int', 'long', 'float', 'complex',
+    'bytearray', 'bytes', 'unicode', 'str', 'basestring'
+])
+
+
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
 
@@ -890,6 +938,7 @@ class BuiltinObjectType(PyObjectType):
         self.cname = cname
         self.typeptr_cname = "(&%s)" % cname
         self.objstruct_cname = objstruct_cname
+        self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
 
     def set_scope(self, scope):
         self.scope = scope
@@ -903,7 +952,7 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.cname
 
     def default_coerced_ctype(self):
-        if self.name == 'bytes':
+        if self.name in ('bytes', 'bytearray'):
             return c_char_ptr_type
         elif self.name == 'bool':
             return c_bint_type
@@ -913,7 +962,10 @@ class BuiltinObjectType(PyObjectType):
 
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
-            return src_type.name == self.name
+            if self.name == 'basestring':
+                return src_type.name in ('str', 'unicode', 'basestring')
+            else:
+                return src_type.name == self.name
         elif src_type.is_extension_type:
             # FIXME: This is an ugly special case that we currently
             # keep supporting.  It allows users to specify builtin
@@ -938,6 +990,10 @@ class BuiltinObjectType(PyObjectType):
         type_name = self.name
         if type_name == 'str':
             type_check = 'PyString_Check'
+        elif type_name == 'basestring':
+            type_check = '__Pyx_PyBaseString_Check'
+        elif type_name == 'bytearray':
+            type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:
@@ -949,12 +1005,20 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, arg, notnone=False):
-        type_check = self.type_check_function(exact=True)
+    def type_test_code(self, arg, notnone=False, exact=True):
+        type_check = self.type_check_function(exact=exact)
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
-            check = check + ('||((%s) == Py_None)' % arg)
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %s, got %%.200s", Py_TYPE(%s)->tp_name), 0)' % (self.name, arg)
+            check += '||((%s) == Py_None)' % arg
+        if self.name == 'basestring':
+            name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
+            space_for_name = 16
+        else:
+            name = '"%s"' % self.name
+            # avoid wasting too much space but limit number of different format strings
+            space_for_name = (len(self.name) // 16 + 1) * 16
+        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, Py_TYPE(%s)->tp_name), 0)' % (
+            space_for_name, name, arg)
         return check + '||' + error
 
     def declaration_code(self, entity_code,
@@ -998,9 +1062,6 @@ class PyExtensionType(PyObjectType):
     is_extension_type = 1
     has_attributes = 1
 
-    def needs_nonecheck(self):
-        return True
-
     objtypedef_cname = None
 
     def __init__(self, name, typedef_flag, base_type, is_external=0):
@@ -1024,6 +1085,9 @@ class PyExtensionType(PyObjectType):
         self.scope = scope
         if scope:
             scope.parent_type = self
+
+    def needs_nonecheck(self):
+        return True
 
     def subtype_of_resolved_type(self, other_type):
         if other_type.is_extension_type or other_type.is_builtin_type:
@@ -1124,7 +1188,7 @@ class CType(PyrexType):
 
     def error_condition(self, result_code):
         conds = []
-        if self.is_string:
+        if self.is_string or self.is_pyunicode_ptr:
             conds.append("(!%s)" % result_code)
         elif self.exception_value is not None:
             conds.append("(%s == (%s)%s)" % (result_code, self.sign_and_name(), self.exception_value))
@@ -1134,6 +1198,42 @@ class CType(PyrexType):
             return " && ".join(conds)
         else:
             return 0
+
+
+class CConstType(BaseType):
+
+    is_const = 1
+    
+    def __init__(self, const_base_type):
+        self.const_base_type = const_base_type
+        if const_base_type.has_attributes and const_base_type.scope is not None:
+            import Symtab
+            self.scope = Symtab.CConstScope(const_base_type.scope)
+
+    def __repr__(self):
+        return "<CConstType %s>" % repr(self.const_base_type)
+
+    def __str__(self):
+        return self.declaration_code("", for_display=1)
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        return self.const_base_type.declaration_code("const %s" % entity_code, for_display, dll_linkage, pyrex)
+
+    def specialize(self, values):
+        base_type = self.const_base_type.specialize(values)
+        if base_type == self.const_base_type:
+            return self
+        else:
+            return CConstType(base_type)
+
+    def create_to_py_utility_code(self, env):
+        if self.const_base_type.create_to_py_utility_code(env):
+            self.to_py_function = self.const_base_type.to_py_function
+            return True
+
+    def __getattr__(self, name):
+        return getattr(self.const_base_type, name)
 
 
 class FusedType(CType):
@@ -1198,6 +1298,19 @@ class CVoidType(CType):
     def is_complete(self):
         return 0
 
+class InvisibleVoidType(CVoidType):
+    #
+    #   For use with C++ constructors and destructors return types.
+    #   Acts like void, but does not print out a declaration.
+    #
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            base_code = "[void]"
+        else:
+            base_code = public_decl("", dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
+
 
 class CNumericType(CType):
     #
@@ -1244,7 +1357,7 @@ class CNumericType(CType):
                     visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            entry = scope.declare_cfunction(
+            scope.declare_cfunction(
                     "conjugate",
                     CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
@@ -1253,7 +1366,7 @@ class CNumericType(CType):
         return True
 
     def __lt__(self, other):
-        "Sort based on rank, preferring signed over unsigned"
+        """Sort based on rank, preferring signed over unsigned"""
         if other.is_numeric:
             return self.rank > other.rank and self.signed >= other.signed
 
@@ -1265,163 +1378,14 @@ class CNumericType(CType):
             return "(int, long)"
         return "float"
 
-type_conversion_predeclarations = ""
-type_conversion_functions = ""
 
-c_int_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
-    if (sizeof(%(type)s) < sizeof(long)) {
-        long val = __Pyx_PyInt_AsLong(x);
-        if (unlikely(val != (long)(%(type)s)val)) {
-            if (!unlikely(val == -1 && PyErr_Occurred())) {
-                PyErr_SetString(PyExc_OverflowError,
-                    (is_unsigned && unlikely(val < 0)) ?
-                    "can't convert negative value to %(type)s" :
-                    "value too large to convert to %(type)s");
-            }
-            return (%(type)s)-1;
-        }
-        return (%(type)s)val;
-    }
-    return (%(type)s)__Pyx_PyInt_As%(SignWord)sLong(x);
-}
-""") #fool emacs: '
+class ForbidUseClass:
+    def __repr__(self):
+        raise RuntimeError()
+    def __str__(self):
+        raise RuntimeError()
+ForbidUse = ForbidUseClass()
 
-c_long_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
-#if PY_VERSION_HEX < 0x03000000
-    if (likely(PyInt_Check(x))) {
-        long val = PyInt_AS_LONG(x);
-        if (is_unsigned && unlikely(val < 0)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "can't convert negative value to %(type)s");
-            return (%(type)s)-1;
-        }
-        return (%(type)s)val;
-    } else
-#endif
-    if (likely(PyLong_Check(x))) {
-        if (is_unsigned) {
-            if (unlikely(Py_SIZE(x) < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to %(type)s");
-                return (%(type)s)-1;
-            }
-            return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
-        } else {
-            return (%(type)s)PyLong_As%(TypeName)s(x);
-        }
-    } else {
-        %(type)s val;
-        PyObject *tmp = __Pyx_PyNumber_Int(x);
-        if (!tmp) return (%(type)s)-1;
-        val = __Pyx_PyInt_As%(SignWord)s%(TypeName)s(tmp);
-        Py_DECREF(tmp);
-        return val;
-    }
-}
-""")
-
-c_typedef_int_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
-    const int is_unsigned = const_zero < neg_one;
-    if (sizeof(%(type)s) == sizeof(char)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedChar(x);
-    } else if (sizeof(%(type)s) == sizeof(short)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedShort(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedShort(x);
-    } else if (sizeof(%(type)s) == sizeof(int)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedInt(x);
-    } else if (sizeof(%(type)s) == sizeof(long)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedLong(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedLong(x);
-    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedLongLong(x);
-    }  else {
-        %(type)s val;
-        PyObject *v = __Pyx_PyNumber_Int(x);
-        #if PY_VERSION_HEX < 0x03000000
-        if (likely(v) && !PyLong_Check(v)) {
-            PyObject *tmp = v;
-            v = PyNumber_Long(tmp);
-            Py_DECREF(tmp);
-        }
-        #endif
-        if (likely(v)) {
-            int one = 1; int is_little = (int)*(unsigned char *)&one;
-            unsigned char *bytes = (unsigned char *)&val;
-            int ret = _PyLong_AsByteArray((PyLongObject *)v,
-                                          bytes, sizeof(val),
-                                          is_little, !is_unsigned);
-            Py_DECREF(v);
-            if (likely(!ret))
-                return val;
-        }
-        return (%(type)s)-1;
-    }
-}
-""")
-
-c_typedef_int_to_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
-""",
-impl="""
-static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
-    const int is_unsigned = const_zero < neg_one;
-    if ((sizeof(%(type)s) == sizeof(char))  ||
-        (sizeof(%(type)s) == sizeof(short))) {
-        return PyInt_FromLong((long)val);
-    } else if ((sizeof(%(type)s) == sizeof(int)) ||
-               (sizeof(%(type)s) == sizeof(long))) {
-        if (is_unsigned)
-            return PyLong_FromUnsignedLong((unsigned long)val);
-        else
-            return PyInt_FromLong((long)val);
-    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
-        if (is_unsigned)
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
-        else
-            return PyLong_FromLongLong((PY_LONG_LONG)val);
-    } else {
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        unsigned char *bytes = (unsigned char *)&val;
-        return _PyLong_FromByteArray(bytes, sizeof(%(type)s),
-                                     little, !is_unsigned);
-    }
-}
-""")
 
 class CIntType(CNumericType):
 
@@ -1431,12 +1395,23 @@ class CIntType(CNumericType):
     from_py_function = None
     exception_value = -1
 
-    def __init__(self, rank, signed = 1):
-        CNumericType.__init__(self, rank, signed)
-        if self.to_py_function is None:
-            self.to_py_function = self.get_to_py_type_conversion()
-        if self.from_py_function is None:
-            self.from_py_function = self.get_from_py_type_conversion()
+    def create_to_py_utility_code(self, env):
+        if type(self).to_py_function is None:
+            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntToPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "TO_PY_FUNCTION": self.to_py_function}))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        if type(self).from_py_function is None:
+            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntFromPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "FROM_PY_FUNCTION": self.from_py_function}))
+        return True
 
     def get_to_py_type_conversion(self):
         if self.rank < list(rank_to_type_name).index('int'):
@@ -1480,7 +1455,51 @@ class CIntType(CNumericType):
             # We do not really know the size of the type, so return
             # a 32-bit literal and rely on casting to final type. It will
             # be negative for signed ints, which is good.
-            return "0xbad0bad0";
+            return "0xbad0bad0"
+
+    def overflow_check_binop(self, binop, env, const_rhs=False):
+        env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
+        type = self.declaration_code("")
+        name = self.specialization_name()
+        if binop == "lshift":
+            env.use_utility_code(TempitaUtilityCode.load(
+                "LeftShift", "Overflow.c",
+                context={'TYPE': type, 'NAME': name, 'SIGNED': self.signed}))
+        else:
+            if const_rhs:
+                binop += "_const"
+            if type in ('int', 'long', 'long long'):
+                env.use_utility_code(TempitaUtilityCode.load(
+                    "BaseCaseSigned", "Overflow.c",
+                    context={'INT': type, 'NAME': name}))
+            elif type in ('unsigned int', 'unsigned long', 'unsigned long long'):
+                env.use_utility_code(TempitaUtilityCode.load(
+                    "BaseCaseUnsigned", "Overflow.c",
+                    context={'UINT': type, 'NAME': name}))
+            elif self.rank <= 1:
+                # sizeof(short) < sizeof(int)
+                return "__Pyx_%s_%s_no_overflow" % (binop, name)
+            else:
+                _load_overflow_base(env)
+                env.use_utility_code(TempitaUtilityCode.load(
+                    "SizeCheck", "Overflow.c",
+                    context={'TYPE': type, 'NAME': name}))
+                env.use_utility_code(TempitaUtilityCode.load(
+                    "Binop", "Overflow.c",
+                    context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
+        return "__Pyx_%s_%s_checking_overflow" % (binop, name)
+
+def _load_overflow_base(env):
+    env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
+    for type in ('int', 'long', 'long long'):
+        env.use_utility_code(TempitaUtilityCode.load(
+            "BaseCaseSigned", "Overflow.c",
+            context={'INT': type, 'NAME': type.replace(' ', '_')}))
+    for type in ('unsigned int', 'unsigned long', 'unsigned long long'):
+        env.use_utility_code(TempitaUtilityCode.load(
+            "BaseCaseUnsigned", "Overflow.c",
+            context={'UINT': type, 'NAME': type.replace(' ', '_')}))
+
 
 class CAnonEnumType(CIntType):
 
@@ -1502,6 +1521,14 @@ class CBIntType(CIntType):
     to_py_function = "__Pyx_PyBool_FromLong"
     from_py_function = "__Pyx_PyObject_IsTrue"
     exception_check = 1 # for C++ bool
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            base_code = 'bool'
+        else:
+            base_code = public_decl('int', dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
 
     def __repr__(self):
         return "<CNumericType bint>"
@@ -1528,63 +1555,11 @@ class CPyUCS4IntType(CIntType):
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
     def create_from_py_utility_code(self, env):
-        env.use_utility_code(pyobject_as_py_ucs4_utility_code)
+        env.use_utility_code(UtilityCode.load_cached("ObjectAsUCS4", "TypeConversion.c"))
         return True
 
     def sign_and_name(self):
         return "Py_UCS4"
-
-
-pyobject_as_py_ucs4_utility_code = UtilityCode(
-proto='''
-static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject*);
-''',
-impl='''
-static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
-   long ival;
-   if (PyUnicode_Check(x)) {
-       Py_ssize_t length;
-       #if CYTHON_PEP393_ENABLED
-       length = PyUnicode_GET_LENGTH(x);
-       if (likely(length == 1)) {
-           return PyUnicode_READ_CHAR(x, 0);
-       }
-       #else
-       length = PyUnicode_GET_SIZE(x);
-       if (likely(length == 1)) {
-           return PyUnicode_AS_UNICODE(x)[0];
-       }
-       #if Py_UNICODE_SIZE == 2
-       else if (PyUnicode_GET_SIZE(x) == 2) {
-           Py_UCS4 high_val = PyUnicode_AS_UNICODE(x)[0];
-           if (high_val >= 0xD800 && high_val <= 0xDBFF) {
-               Py_UCS4 low_val = PyUnicode_AS_UNICODE(x)[1];
-               if (low_val >= 0xDC00 && low_val <= 0xDFFF) {
-                   return 0x10000 + (((high_val & ((1<<10)-1)) << 10) | (low_val & ((1<<10)-1)));
-               }
-           }
-       }
-       #endif
-       #endif
-       PyErr_Format(PyExc_ValueError,
-                    "only single character unicode strings can be converted to Py_UCS4, "
-                    "got length %" PY_FORMAT_SIZE_T "d", length);
-       return (Py_UCS4)-1;
-   }
-   ival = __Pyx_PyInt_AsLong(x);
-   if (unlikely(ival < 0)) {
-       if (!PyErr_Occurred())
-           PyErr_SetString(PyExc_OverflowError,
-                           "cannot convert negative value to Py_UCS4");
-       return (Py_UCS4)-1;
-   } else if (unlikely(ival > 1114111)) {
-       PyErr_SetString(PyExc_OverflowError,
-                       "value too large to convert to Py_UCS4");
-       return (Py_UCS4)-1;
-   }
-   return (Py_UCS4)ival;
-}
-''')
 
 
 class CPyUnicodeIntType(CIntType):
@@ -1601,56 +1576,11 @@ class CPyUnicodeIntType(CIntType):
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
 
     def create_from_py_utility_code(self, env):
-        env.use_utility_code(pyobject_as_py_unicode_utility_code)
+        env.use_utility_code(UtilityCode.load_cached("ObjectAsPyUnicode", "TypeConversion.c"))
         return True
 
     def sign_and_name(self):
         return "Py_UNICODE"
-
-pyobject_as_py_unicode_utility_code = UtilityCode(
-proto='''
-static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject*);
-''',
-impl='''
-static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
-    long ival;
-    #if CYTHON_PEP393_ENABLED
-    const long maxval = 1114111;
-    #else
-    static long maxval = 0;
-    #endif
-    if (PyUnicode_Check(x)) {
-        if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
-            PyErr_Format(PyExc_ValueError,
-                         "only single character unicode strings can be converted to Py_UNICODE, "
-                         "got length %" PY_FORMAT_SIZE_T "d", __Pyx_PyUnicode_GET_LENGTH(x));
-            return (Py_UNICODE)-1;
-        }
-        #if CYTHON_PEP393_ENABLED
-        ival = PyUnicode_READ_CHAR(x, 0);
-        #else
-        return PyUnicode_AS_UNICODE(x)[0];
-        #endif
-    } else {
-        #if !CYTHON_PEP393_ENABLED
-        if (unlikely(!maxval))
-            maxval = (long)PyUnicode_GetMax();
-        #endif
-        ival = __Pyx_PyInt_AsLong(x);
-    }
-    if (unlikely(ival < 0)) {
-        if (!PyErr_Occurred())
-            PyErr_SetString(PyExc_OverflowError,
-                            "cannot convert negative value to Py_UNICODE");
-        return (Py_UNICODE)-1;
-    } else if (unlikely(ival > maxval)) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "value too large to convert to Py_UNICODE");
-        return (Py_UNICODE)-1;
-    }
-    return (Py_UNICODE)ival;
-}
-''')
 
 
 class CPyHashTType(CIntType):
@@ -1680,10 +1610,14 @@ class CSSizeTType(CIntType):
 class CSizeTType(CIntType):
 
     to_py_function = "__Pyx_PyInt_FromSize_t"
-    from_py_function = "__Pyx_PyInt_AsSize_t"
 
     def sign_and_name(self):
         return "size_t"
+
+class CPtrdiffTType(CIntType):
+
+    def sign_and_name(self):
+        return "ptrdiff_t"
 
 
 class CFloatType(CNumericType):
@@ -1793,7 +1727,7 @@ class CComplexType(CNumericType):
             scope.directives = {}
             scope.declare_var("real", self.real_type, None, cname="real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, cname="imag", is_cdef=True)
-            entry = scope.declare_cfunction(
+            scope.declare_cfunction(
                     "conjugate",
                     CFuncType(self, [CFuncTypeArg("self", self, None)], nogil=True),
                     pos=None,
@@ -2130,19 +2064,73 @@ impl="""
 #endif
 """)
 
-class CArrayType(CType):
+class CPointerBaseType(CType):
+    # common base type for pointer/array types
+    #
+    #  base_type     CType              Reference type
+
+    subtypes = ['base_type']
+
+    def __init__(self, base_type):
+        self.base_type = base_type
+        for char_type in (c_char_type, c_uchar_type, c_schar_type):
+            if base_type.same_as(char_type):
+                self.is_string = 1
+                break
+        else:
+            if base_type.same_as(c_py_unicode_type):
+                self.is_pyunicode_ptr = 1
+
+        if self.is_string and not base_type.is_error:
+            if base_type.signed:
+                self.to_py_function = "__Pyx_PyObject_FromString"
+                if self.is_ptr:
+                    if base_type.signed == 2:
+                        self.from_py_function = "__Pyx_PyObject_AsSString"
+                    else:
+                        self.from_py_function = "__Pyx_PyObject_AsString"
+            else:
+                self.to_py_function = "__Pyx_PyObject_FromUString"
+                if self.is_ptr:
+                    self.from_py_function = "__Pyx_PyObject_AsUString"
+            self.exception_value = "NULL"
+        elif self.is_pyunicode_ptr and not base_type.is_error:
+            self.to_py_function = "__Pyx_PyUnicode_FromUnicode"
+            if self.is_ptr:
+                self.from_py_function = "__Pyx_PyUnicode_AsUnicode"
+            self.exception_value = "NULL"
+
+    def py_type_name(self):
+        if self.is_string:
+            return "bytes"
+        elif self.is_pyunicode_ptr:
+            return "unicode"
+        else:
+            return super(CPointerBaseType, self).py_type_name()
+
+    def literal_code(self, value):
+        if self.is_string:
+            assert isinstance(value, str)
+            return '"%s"' % StringEncoding.escape_byte_string(value)
+
+
+class CArrayType(CPointerBaseType):
     #  base_type     CType              Element type
     #  size          integer or None    Number of elements
 
     is_array = 1
 
-    subtypes = ['base_type']
-
     def __init__(self, base_type, size):
-        self.base_type = base_type
+        super(CArrayType, self).__init__(base_type)
         self.size = size
-        if base_type in (c_char_type, c_uchar_type, c_schar_type):
-            self.is_string = 1
+
+    def __eq__(self, other):
+        if isinstance(other, CType) and other.is_array and self.size == other.size:
+            return self.base_type.same_as(other.base_type)
+        return False
+
+    def __hash__(self):
+        return hash(self.base_type) + 28 # arbitrarily chosen offset
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
@@ -2178,16 +2166,22 @@ class CArrayType(CType):
         return self.size is not None
 
 
-class CPtrType(CType):
-    #  base_type     CType    Referenced type
+class CPtrType(CPointerBaseType):
+    #  base_type     CType              Reference type
 
     is_ptr = 1
     default_value = "0"
 
-    subtypes = ['base_type']
+    def __hash__(self):
+        return hash(self.base_type) + 27 # arbitrarily chosen offset
 
-    def __init__(self, base_type):
-        self.base_type = base_type
+    def __eq__(self, other):
+        if isinstance(other, CType) and other.is_ptr:
+            return self.base_type.same_as(other.base_type)
+        return False
+
+    def __ne__(self, other):
+        return not (self == other)
 
     def __repr__(self):
         return "<CPtrType %s>" % repr(self.base_type)
@@ -2209,6 +2203,8 @@ class CPtrType(CType):
             return 1
         if other_type.is_null_ptr:
             return 1
+        if self.base_type.is_const:
+            self = CPtrType(self.base_type.const_base_type)
         if self.base_type.is_cfunction:
             if other_type.is_ptr:
                 other_type = other_type.base_type.resolve()
@@ -2233,6 +2229,11 @@ class CPtrType(CType):
     def invalid_value(self):
         return "1"
 
+    def find_cpp_operation_type(self, operator, operand_type=None):
+        if self.base_type.is_cpp_class:
+            return self.base_type.find_cpp_operation_type(operator, operand_type)
+        return None
+
 class CNullPtrType(CPtrType):
 
     is_null_ptr = 1
@@ -2250,9 +2251,6 @@ class CReferenceType(BaseType):
 
     def __str__(self):
         return "%s &" % self.ref_base_type
-
-    def as_argument_type(self):
-        return self
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -2287,11 +2285,13 @@ class CFuncType(CType):
     #                              C function
     #  is_strict_signature boolean  function refuses to accept coerced arguments
     #                               (used for optimisation overrides)
+    #  is_const_method  boolean
 
     is_cfunction = 1
     original_sig = None
     cached_specialized_types = None
     from_fused = False
+    is_const_method = False
 
     subtypes = ['return_type', 'args']
 
@@ -2334,6 +2334,9 @@ class CFuncType(CType):
             return cc + " "
         else:
             return ""
+
+    def as_argument_type(self):
+        return c_ptr_type(self)
 
     def same_c_signature_as(self, other_type, as_cmethod = 0):
         return self.same_c_signature_as_resolved_type(
@@ -2498,13 +2501,19 @@ class CFuncType(CType):
             if (not entity_code and cc) or entity_code.startswith("*"):
                 entity_code = "(%s%s)" % (cc, entity_code)
                 cc = ""
+        if self.is_const_method:
+            trailer += " const"
         return self.return_type.declaration_code(
             "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, trailer),
             for_display, dll_linkage, pyrex)
 
     def function_header_code(self, func_name, arg_code):
-        return "%s%s(%s)" % (self.calling_convention_prefix(),
-            func_name, arg_code)
+        if self.is_const_method:
+            trailer = " const"
+        else:
+            trailer = ""
+        return "%s%s(%s)%s" % (self.calling_convention_prefix(),
+            func_name, arg_code, trailer)
 
     def signature_string(self):
         s = self.declaration_code("")
@@ -2522,7 +2531,7 @@ class CFuncType(CType):
 
         result = CFuncType(self.return_type.specialize(values),
                            [arg.specialize(values) for arg in self.args],
-                           has_varargs = 0,
+                           has_varargs = self.has_varargs,
                            exception_value = self.exception_value,
                            exception_check = self.exception_check,
                            calling_convention = self.calling_convention,
@@ -2596,7 +2605,7 @@ class CFuncType(CType):
         return result
 
     def get_fused_types(self, result=None, seen=None, subtypes=None):
-        "Return fused types in the order they appear as parameter types"
+        """Return fused types in the order they appear as parameter types"""
         return super(CFuncType, self).get_fused_types(result, seen,
                                                       subtypes=['args'])
 
@@ -2609,6 +2618,7 @@ def specialize_entry(entry, cname):
     """
     Specialize an entry of a copied fused function or method
     """
+    entry.is_fused_specialized = True
     entry.name = get_fused_cname(cname, entry.name)
 
     if entry.is_cmethod:
@@ -2926,6 +2936,9 @@ class CStructOrUnionType(CType):
             return expr_code
         return super(CStructOrUnionType, self).cast_code(expr_code)
 
+
+builtin_cpp_conversions = ("std::string", "std::vector", "std::list", "std::set", "std::map", "std::pair")
+
 class CppClassType(CType):
     #  name          string
     #  cname         string
@@ -2936,6 +2949,11 @@ class CppClassType(CType):
     has_attributes = 1
     exception_check = True
     namespace = None
+    
+    # For struct-like declaration.
+    kind = "struct"
+    packed = False
+    typedef_flag = False
 
     subtypes = ['templates']
 
@@ -2948,11 +2966,80 @@ class CppClassType(CType):
         self.templates = templates
         self.template_type = template_type
         self.specializations = {}
+        self.is_cpp_string = cname == 'std::string'
+
+    def use_conversion_utility(self, from_or_to):
+        pass
+    
+    def create_from_py_utility_code(self, env):
+        if self.from_py_function is not None:
+            return True
+        if self.cname in builtin_cpp_conversions:
+            X = "XYZABC"
+            tags = []
+            declarations = ["cdef extern from *:"]
+            for ix, T in enumerate(self.templates or []):
+                if T.is_pyobject or not T.create_from_py_utility_code(env):
+                    return False
+                tags.append(T.specialization_name())
+                if T.exception_value is not None:
+                    except_clause = T.exception_value
+                    if T.exception_check:
+                        except_clause = "? %s" % except_clause
+                    declarations.append(
+                        "    ctypedef %s %s '%s'" % (
+                             T.declaration_code("", for_display=True), X[ix], T.declaration_code("")))
+                else:
+                    except_clause = "*"
+                    declarations.append(
+                        "    ctypedef struct %s '%s':\n        pass" % (
+                             X[ix], T.declaration_code("")))
+                declarations.append(
+                    "    cdef %s %s_from_py '%s' (object) except %s" % (
+                         X[ix], X[ix], T.from_py_function, except_clause))
+            cls = self.cname[5:]
+            cname = '__pyx_convert_%s_from_py_%s' % (cls, '____'.join(tags))
+            context = {
+                'template_type_declarations': '\n'.join(declarations),
+                'cname': cname
+            }
+            from UtilityCode import CythonUtilityCode
+            env.use_utility_code(CythonUtilityCode.load(cls + ".from_py", "CppConvert.pyx", context=context))
+            self.from_py_function = cname
+            return True
+    
+    def create_to_py_utility_code(self, env):
+        if self.to_py_function is not None:
+            return True
+        if self.cname in builtin_cpp_conversions:
+            X = "XYZABC"
+            tags = []
+            declarations = ["cdef extern from *:"]
+            for ix, T in enumerate(self.templates or []):
+                if not T.create_to_py_utility_code(env):
+                    return False
+                tags.append(T.specialization_name())
+                declarations.append(
+                    "    ctypedef struct %s '%s':\n        pass" % (
+                         X[ix], T.declaration_code("")))
+                declarations.append(
+                    "    cdef object %s_to_py '%s' (%s)" % (
+                         X[ix], T.to_py_function, X[ix]))
+            cls = self.cname[5:]
+            cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
+            context = {
+                'template_type_declarations': '\n'.join(declarations),
+                'cname': cname
+            }
+            from UtilityCode import CythonUtilityCode
+            env.use_utility_code(CythonUtilityCode.load(cls + ".to_py", "CppConvert.pyx", context=context))
+            self.to_py_function = cname
+            return True
 
     def specialize_here(self, pos, template_values = None):
         if self.templates is None:
-            error(pos, "'%s' type is not a template" % self);
-            return PyrexTypes.error_type
+            error(pos, "'%s' type is not a template" % self)
+            return error_type
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
@@ -2983,7 +3070,11 @@ class CppClassType(CType):
         if self.templates:
             template_strings = [param.declaration_code('', for_display, None, pyrex)
                                 for param in self.templates]
-            templates = "<%s>" % ",".join(template_strings)
+            if for_display:
+                brackets = "[%s]"
+            else:
+                brackets = "<%s>"
+            templates = brackets % ",".join(template_strings)
             if templates[-2:] == ">>":
                 templates = templates[:-2] + "> >"
         else:
@@ -2998,7 +3089,6 @@ class CppClassType(CType):
         return self.base_declaration_code(base_code, entity_code)
 
     def is_subclass(self, other_type):
-        # TODO(danilo): Handle templates.
         if self.same_as_resolved_type(other_type):
             return 1
         for base_class in self.base_classes:
@@ -3010,7 +3100,8 @@ class CppClassType(CType):
         if other_type.is_cpp_class:
             if self == other_type:
                 return 1
-            elif self.template_type and other_type.template_type:
+            elif (self.cname == other_type.cname and
+                  self.template_type and other_type.template_type):
                 if self.templates == other_type.templates:
                     return 1
                 for t1, t2 in zip(self.templates, other_type.templates):
@@ -3027,6 +3118,24 @@ class CppClassType(CType):
 
     def attributes_known(self):
         return self.scope is not None
+
+    def find_cpp_operation_type(self, operator, operand_type=None):
+        operands = [self]
+        if operand_type is not None:
+            operands.append(operand_type)
+        # pos == None => no errors
+        operator_entry = self.scope.lookup_operator_for_types(None, operator, operands)
+        if not operator_entry:
+            return None
+        func_type = operator_entry.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        return func_type.return_type
+
+    def check_nullary_constructor(self, pos, msg="stack allocated"):
+        constructor = self.scope.lookup(u'<init>')
+        if constructor is not None and best_match([], constructor.all_alternatives()) is None:
+            error(pos, "C++ class must have a nullary constructor to be %s" % msg)
 
 
 class TemplatePlaceholderType(CType):
@@ -3104,63 +3213,6 @@ class CEnumType(CType):
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
-
-class CStringType(object):
-    #  Mixin class for C string types.
-
-    is_string = 1
-    is_unicode = 0
-
-    to_py_function = "PyBytes_FromString"
-    from_py_function = "PyBytes_AsString"
-    exception_value = "NULL"
-
-    def literal_code(self, value):
-        assert isinstance(value, str)
-        return '"%s"' % StringEncoding.escape_byte_string(value)
-
-    def py_type_name(self):
-        if self.is_unicode:
-            return "unicode"
-        return "bytes"
-
-class CUTF8CharArrayType(CStringType, CArrayType):
-    #  C 'char []' type.
-
-    is_unicode = 1
-
-    to_py_function = "PyUnicode_DecodeUTF8"
-    exception_value = "NULL"
-
-    def __init__(self, size):
-        CArrayType.__init__(self, c_char_type, size)
-
-class CCharArrayType(CStringType, CArrayType):
-    #  C 'char []' type.
-
-    from_py_function = None
-
-    def __init__(self, size):
-        CArrayType.__init__(self, c_char_type, size)
-
-
-class CCharPtrType(CStringType, CPtrType):
-    # C 'char *' type.
-
-    def __init__(self):
-        CPtrType.__init__(self, c_char_type)
-
-
-class CUCharPtrType(CStringType, CPtrType):
-    # C 'unsigned char *' type.
-
-    to_py_function = "__Pyx_PyBytes_FromUString"
-    from_py_function = "__Pyx_PyBytes_AsUString"
-
-    def __init__(self):
-        CPtrType.__init__(self, c_uchar_type)
-
-
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.
 
@@ -3218,6 +3270,8 @@ RANK_FLOAT = _rank_to_type_name.index('float')
 UNSIGNED = 0
 SIGNED = 2
 
+error_type =    ErrorType()
+unspecified_type = UnspecifiedType()
 
 py_object_type = PyObjectType()
 
@@ -3258,14 +3312,13 @@ c_py_hash_t_type =   CPyHashTType(RANK_LONG+0.5, SIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
+c_ptrdiff_t_type =   CPtrdiffTType(RANK_LONG+0.75, SIGNED)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_void_ptr_type =     CPtrType(c_void_type)
 c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
-c_char_array_type =   CCharArrayType(None)
-c_char_ptr_type =     CCharPtrType()
-c_uchar_ptr_type =    CUCharPtrType()
-c_utf8_char_array_type = CUTF8CharArrayType(None)
+c_char_ptr_type =     CPtrType(c_char_type)
+c_uchar_ptr_type =    CPtrType(c_uchar_type)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 c_py_unicode_ptr_type = CPtrType(c_py_unicode_type)
@@ -3273,6 +3326,10 @@ c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
+# GIL state
+c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
+c_threadstate_type = CStructOrUnionType("PyThreadState", "struct", None, 1, "PyThreadState")
+c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
@@ -3304,13 +3361,8 @@ c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
 cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
                                       None, 0, "__pyx_memoryview_obj")
 
-cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
-
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
-
-error_type =    ErrorType()
-unspecified_type = UnspecifiedType()
 
 modifiers_and_name_to_type = {
     #(signed, longness, name) : type
@@ -3352,6 +3404,7 @@ modifiers_and_name_to_type = {
     (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
     (2,  0, "ssize_t") :   c_ssize_t_type,
     (0,  0, "size_t") :    c_size_t_type,
+    (2,  0, "ptrdiff_t") : c_ptrdiff_t_type,
 
     (1,  0, "object"): py_object_type,
 }
@@ -3391,8 +3444,6 @@ def best_match(args, functions, pos=None, env=None):
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
     """
-    from Cython import Utils
-
     # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(args)
 
@@ -3477,7 +3528,7 @@ def best_match(args, functions, pos=None, env=None):
                 elif ((src_type.is_int and dst_type.is_int) or
                       (src_type.is_float and dst_type.is_float)):
                     score[2] += abs(dst_type.rank + (not dst_type.signed) -
-                                    (src_type.rank + (not src_type.signed)))
+                                    (src_type.rank + (not src_type.signed))) + 1
                 elif not src_type.is_pyobject:
                     score[1] += 1
                 else:
@@ -3492,10 +3543,13 @@ def best_match(args, functions, pos=None, env=None):
 
     if possibilities:
         possibilities.sort()
-        if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
-            if pos is not None:
-                error(pos, "ambiguous overloaded method")
-            return None
+        if len(possibilities) > 1:
+            score1 = possibilities[0][0]
+            score2 = possibilities[1][0]
+            if score1 == score2:
+                if pos is not None:
+                    error(pos, "ambiguous overloaded method")
+                return None
 
         function = possibilities[0][-1]
 
@@ -3668,20 +3722,14 @@ def parse_basic_type(name):
 
 def c_array_type(base_type, size):
     # Construct a C array type.
-    if base_type is c_char_type:
-        return CCharArrayType(size)
-    elif base_type is error_type:
+    if base_type is error_type:
         return error_type
     else:
         return CArrayType(base_type, size)
 
 def c_ptr_type(base_type):
     # Construct a C pointer type.
-    if base_type is c_char_type:
-        return c_char_ptr_type
-    elif base_type is c_uchar_type:
-        return c_uchar_ptr_type
-    elif base_type is error_type:
+    if base_type is error_type:
         return error_type
     else:
         return CPtrType(base_type)
@@ -3692,6 +3740,13 @@ def c_ref_type(base_type):
         return error_type
     else:
         return CReferenceType(base_type)
+
+def c_const_type(base_type):
+    # Construct a C const type.
+    if base_type is error_type:
+        return error_type
+    else:
+        return CConstType(base_type)
 
 def same_type(type1, type2):
     return type1.same_as(type2)
@@ -3709,117 +3764,3 @@ def typecast(to_type, from_type, expr_code):
     else:
         #print "typecast: to", to_type, "from", from_type ###
         return to_type.cast_code(expr_code)
-
-
-type_conversion_predeclarations = """
-/* Type Conversion Predeclarations */
-
-#define __Pyx_PyBytes_FromUString(s) PyBytes_FromString((char*)s)
-#define __Pyx_PyBytes_AsUString(s)   ((unsigned char*) PyBytes_AsString(s))
-
-#define __Pyx_Owned_Py_None(b) (Py_INCREF(Py_None), Py_None)
-#define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
-
-static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
-static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
-static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
-
-#define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
-#define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
-""" + type_conversion_predeclarations
-
-# Note: __Pyx_PyObject_IsTrue is written to minimize branching.
-type_conversion_functions = """
-/* Type Conversion Functions */
-
-static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
-   int is_true = x == Py_True;
-   if (is_true | (x == Py_False) | (x == Py_None)) return is_true;
-   else return PyObject_IsTrue(x);
-}
-
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
-  PyNumberMethods *m;
-  const char *name = NULL;
-  PyObject *res = NULL;
-#if PY_VERSION_HEX < 0x03000000
-  if (PyInt_Check(x) || PyLong_Check(x))
-#else
-  if (PyLong_Check(x))
-#endif
-    return Py_INCREF(x), x;
-  m = Py_TYPE(x)->tp_as_number;
-#if PY_VERSION_HEX < 0x03000000
-  if (m && m->nb_int) {
-    name = "int";
-    res = PyNumber_Int(x);
-  }
-  else if (m && m->nb_long) {
-    name = "long";
-    res = PyNumber_Long(x);
-  }
-#else
-  if (m && m->nb_int) {
-    name = "int";
-    res = PyNumber_Long(x);
-  }
-#endif
-  if (res) {
-#if PY_VERSION_HEX < 0x03000000
-    if (!PyInt_Check(res) && !PyLong_Check(res)) {
-#else
-    if (!PyLong_Check(res)) {
-#endif
-      PyErr_Format(PyExc_TypeError,
-                   "__%s__ returned non-%s (type %.200s)",
-                   name, name, Py_TYPE(res)->tp_name);
-      Py_DECREF(res);
-      return NULL;
-    }
-  }
-  else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_TypeError,
-                    "an integer is required");
-  }
-  return res;
-}
-
-static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
-  Py_ssize_t ival;
-  PyObject* x = PyNumber_Index(b);
-  if (!x) return -1;
-  ival = PyInt_AsSsize_t(x);
-  Py_DECREF(x);
-  return ival;
-}
-
-static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
-#if PY_VERSION_HEX < 0x02050000
-   if (ival <= LONG_MAX)
-       return PyInt_FromLong((long)ival);
-   else {
-       unsigned char *bytes = (unsigned char *) &ival;
-       int one = 1; int little = (int)*(unsigned char*)&one;
-       return _PyLong_FromByteArray(bytes, sizeof(size_t), little, 0);
-   }
-#else
-   return PyInt_FromSize_t(ival);
-#endif
-}
-
-static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
-   unsigned PY_LONG_LONG val = __Pyx_PyInt_AsUnsignedLongLong(x);
-   if (unlikely(val == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())) {
-       return (size_t)-1;
-   } else if (unlikely(val != (unsigned PY_LONG_LONG)(size_t)val)) {
-       PyErr_SetString(PyExc_OverflowError,
-                       "value too large to convert to size_t");
-       return (size_t)-1;
-   }
-   return (size_t)val;
-}
-
-""" + type_conversion_functions
-

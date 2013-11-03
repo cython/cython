@@ -1,0 +1,34 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("**/*.pyx"),
+    )
+
+######## a.pyx ########
+
+import sys
+import a
+assert a in sys.modules.values(), list(sys.modules)
+assert sys.modules['a'] is a, list(sys.modules)
+
+from atest.package import module
+
+######## atest/__init__.py ########
+
+######## atest/package/__init__.py ########
+
+######## atest/package/module.pyx ########
+
+import sys
+assert 'atest.package.module' in sys.modules
+
+import a
+import atest.package.module as module
+assert module in sys.modules.values(), list(sys.modules)
+assert sys.modules['atest.package.module'] is module, list(sys.modules)

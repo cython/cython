@@ -1,38 +1,19 @@
+
+cimport cython
+
 __doc__ = u"""
-    >>> c()
-    120
-    >>> i0() == -1
-    True
-    >>> i1() == 42
-    True
-    >>> i2() == 0x42
-    True
-    >>> i3() == -0x42
-    True
-    >>> l()
-    666
-    >>> f()
-    12.5
     >>> s()
     b'spam'
-    >>> two()
-    2
-    >>> five()
-    5
-    >>> true()
-    True
-    >>> false()
-    False
 """
 
 import sys
 if sys.version_info[0] < 3:
     __doc__ = __doc__.replace(u" b'", u" '")
-else:
-    __doc__ = __doc__.replace(u" 042", u" 0o42")
+
 
 DEF TUPLE = (1, 2, u"buckle my shoe")
 DEF TRUE_FALSE = (True, False)
+DEF NONE = None
 
 DEF CHAR = c'x'
 DEF INT0 = -1
@@ -48,75 +29,146 @@ DEF TRUE  = TRUE_FALSE[0]
 DEF FALSE = TRUE_FALSE[1]
 DEF INT_TUPLE1 = TUPLE[:2]
 DEF INT_TUPLE2 = TUPLE[1:4:2]
+DEF ELLIPSIS = ...
+DEF EXPRESSION = int(float(2*2)) + int(str(2)) + int(max(1,2,3)) + sum([TWO, FIVE])
+
 
 def c():
-    cdef char c
-    c = CHAR
+    """
+    >>> c()
+    120
+    """
+    cdef char c = CHAR
     return c
 
 def i0():
-    cdef int i
-    i = INT0
+    """
+    >>> i0() == -1
+    True
+    """
+    cdef int i = INT0
     return i
 
 def i1():
-    cdef int i
-    i = INT1
+    """
+    >>> i1() == 42
+    True
+    """
+    cdef int i = INT1
     return i
 
 def i2():
-    cdef int i
-    i = INT2
+    """
+    >>> i2() == 0x42
+    True
+    """
+    cdef int i = INT2
     return i
 
 def i3():
-    cdef int i
-    i = INT3
+    """
+    >>> i3() == -0x42
+    True
+    """
+    cdef int i = INT3
     return i
 
 def l():
-    cdef long l
-    l = LONG
+    """
+    >>> l()
+    666
+    """
+    cdef long l = LONG
     return l
 
 def f():
-    cdef float f
-    f = FLOAT
+    """
+    >>> f()
+    12.5
+    """
+    cdef float f = FLOAT
     return f
 
 def s():
-    cdef char *s
-    s = STR
+    """
+    see module docstring above
+    """
+    cdef char* s = STR
     return s
 
-# this does not work!
-#def t():
-#    cdef object t
-#    t = TUPLE
-#    return t
+@cython.test_assert_path_exists('//TupleNode')
+def constant_tuple():
+    """
+    >>> constant_tuple()[:-1]
+    (1, 2)
+    >>> print(constant_tuple()[-1])
+    buckle my shoe
+    """
+    cdef object t = TUPLE
+    return t
 
-def two():
-    cdef int two
-    two = TWO
+@cython.test_assert_path_exists('//IntNode')
+def tuple_indexing():
+    """
+    >>> tuple_indexing()
+    2
+    """
+    cdef int two = INT_TUPLE1[-1]
     return two
 
-# this doesn't currently work!
-#def two2():
-#    cdef int two
-#    two = INT_TUPLE1[-1]
-#    return two
+def two():
+    """
+    >>> two()
+    2
+    """
+    cdef int two = TWO
+    return two
 
 def five():
-    cdef int five
-    five = FIVE
+    """
+    >>> five()
+    5
+    """
+    cdef int five = FIVE
     return five
 
+@cython.test_assert_path_exists('//BoolNode')
 def true():
-    cdef bint true
-    true = TRUE
+    """
+    >>> true()
+    True
+    """
+    cdef bint true = TRUE
     return true
 
+@cython.test_assert_path_exists('//BoolNode')
 def false():
-    cdef bint false
-    false = FALSE
+    """
+    >>> false()
+    False
+    """
+    cdef bint false = FALSE
     return false
+
+def ellipsis():
+    """
+    >>> ellipsis()
+    Ellipsis
+    """
+    return ELLIPSIS
+
+@cython.test_assert_path_exists('//IntNode')
+@cython.test_fail_if_path_exists('//AddNode')
+def expression():
+    """
+    >>> expression()
+    16
+    """
+    cdef int i = EXPRESSION
+    return i
+
+def none():
+    """
+    >>> none()
+    """
+    return NONE

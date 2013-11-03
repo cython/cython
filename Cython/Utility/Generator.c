@@ -31,14 +31,14 @@ typedef struct {
     PyObject_HEAD
     __pyx_generator_body_t body;
     PyObject *closure;
-    int is_running;
-    int resume_label;
     PyObject *exc_type;
     PyObject *exc_value;
     PyObject *exc_traceback;
     PyObject *gi_weakreflist;
     PyObject *classobj;
     PyObject *yieldfrom;
+    int resume_label;
+    char is_running;  // using T_BOOL for property below requires char value
 } __pyx_GeneratorObject;
 
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
@@ -56,6 +56,8 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
+//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: CommonTypes.c::FetchCommonType
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
@@ -123,7 +125,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     Py_DECREF(ev);
 #else
     {
-        PyObject* args = PyObject_GetAttrString(ev, "args");
+        PyObject* args = PyObject_GetAttr(ev, PYIDENT("args"));
         Py_DECREF(ev);
         if (likely(args)) {
             value = PyObject_GetItem(args, 0);
@@ -285,7 +287,7 @@ static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
             if (value == Py_None)
                 ret = PyIter_Next(yf);
             else
-                ret = PyObject_CallMethod(yf, (char*)"send", (char*)"O", value);
+                ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
         gen->is_running = 0;
         //Py_DECREF(yf);
@@ -310,7 +312,7 @@ static int __Pyx_Generator_CloseIter(__pyx_GeneratorObject *gen, PyObject *yf) {
     } else {
         PyObject *meth;
         gen->is_running = 1;
-        meth = PyObject_GetAttrString(yf, "close");
+        meth = PyObject_GetAttr(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
             if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyErr_WriteUnraisable(yf);
@@ -402,7 +404,7 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
         if (__Pyx_Generator_CheckExact(yf)) {
             ret = __Pyx_Generator_Throw(yf, args);
         } else {
-            PyObject *meth = PyObject_GetAttrString(yf, "throw");
+            PyObject *meth = PyObject_GetAttr(yf, PYIDENT("throw"));
             if (unlikely(!meth)) {
                 Py_DECREF(yf);
                 if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
@@ -459,16 +461,20 @@ static void __Pyx_Generator_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(gen);
     if (gen->gi_weakreflist != NULL)
         PyObject_ClearWeakRefs(self);
-    PyObject_GC_Track(self);
 
     if (gen->resume_label > 0) {
         /* Generator is paused, so we need to close */
+        PyObject_GC_Track(self);
+#if PY_VERSION_HEX >= 0x030400a1
+        if (PyObject_CallFinalizerFromDealloc(self))
+#else
         Py_TYPE(gen)->tp_del(self);
         if (self->ob_refcnt > 0)
+#endif
             return;                     /* resurrected.  :( */
+        PyObject_GC_UnTrack(self);
     }
 
-    PyObject_GC_UnTrack(self);
     __Pyx_Generator_clear(self);
     PyObject_GC_Del(gen);
 }
@@ -481,9 +487,11 @@ static void __Pyx_Generator_del(PyObject *self) {
     if (gen->resume_label <= 0)
         return ;
 
+#if PY_VERSION_HEX < 0x030400a1
     /* Temporarily resurrect the object. */
     assert(self->ob_refcnt == 0);
     self->ob_refcnt = 1;
+#endif
 
     /* Save the current exception, if any. */
     __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
@@ -498,6 +506,7 @@ static void __Pyx_Generator_del(PyObject *self) {
     /* Restore the saved exception. */
     __Pyx_ErrRestore(error_type, error_value, error_traceback);
 
+#if PY_VERSION_HEX < 0x030400a1
     /* Undo the temporary resurrection; can't use DECREF here, it would
      * cause a recursive call.
      */
@@ -513,7 +522,7 @@ static void __Pyx_Generator_del(PyObject *self) {
         _Py_NewReference(self);
         self->ob_refcnt = refcnt;
     }
-#if CYTHON_COMPILING_FOR_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
     assert(PyType_IS_GC(self->ob_type) &&
            _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
 
@@ -531,6 +540,7 @@ static void __Pyx_Generator_del(PyObject *self) {
     --Py_TYPE(self)->tp_frees;
     --Py_TYPE(self)->tp_allocs;
 #endif
+#endif
 }
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
@@ -538,7 +548,7 @@ static PyMemberDef __pyx_Generator_memberlist[] = {
 #if PY_VERSION_HEX >= 0x02060000
      T_BOOL,
 #else
-     T_INT,
+     T_BYTE,
 #endif
      offsetof(__pyx_GeneratorObject, is_running),
      READONLY,
@@ -574,16 +584,16 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_hash*/
     0,                                  /*tp_call*/
     0,                                  /*tp_str*/
-    PyObject_GenericGetAttr,            /*tp_getattro*/
+    0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /* tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Generator_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
     offsetof(__pyx_GeneratorObject, gi_weakreflist), /* tp_weaklistoffse */
-    PyObject_SelfIter,                  /*tp_iter*/
+    0,                                  /*tp_iter*/
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
     __pyx_Generator_methods,            /*tp_methods*/
     __pyx_Generator_memberlist,         /*tp_members*/
@@ -603,9 +613,16 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_cache*/
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
+#if PY_VERSION_HEX >= 0x030400a1
+    0,                                  /*tp_del*/
+#else
     __Pyx_Generator_del,                /*tp_del*/
+#endif
 #if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
+#endif
+#if PY_VERSION_HEX >= 0x030400a1
+    __Pyx_Generator_del,                /*tp_finalize*/
 #endif
 };
 
@@ -634,9 +651,13 @@ static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
 }
 
 static int __pyx_Generator_init(void) {
-    if (PyType_Ready(&__pyx_GeneratorType_type)) {
+    /* on Windows, C-API functions can't be used in slots statically */
+    __pyx_GeneratorType_type.tp_getattro = PyObject_GenericGetAttr;
+    __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
+
+    __pyx_GeneratorType = __Pyx_FetchCommonType(&__pyx_GeneratorType_type);
+    if (__pyx_GeneratorType == NULL) {
         return -1;
     }
-    __pyx_GeneratorType = &__pyx_GeneratorType_type;
     return 0;
 }

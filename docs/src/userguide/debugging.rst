@@ -20,8 +20,8 @@ script by passing ``pyrex_gdb=True`` to your Cython Extenion class::
 
     from Cython.Distutils import extension
 
-    ext = extension.Extension('source', 'source.pyx', pyrex_gdb=True)
-    setup(..., ext_modules=[ext)]
+    ext = extension.Extension('source', ['source.pyx'], pyrex_gdb=True)
+    setup(..., ext_modules=[ext])
 
 With this approach debug information can be enabled on a per-module basis.
 Another (easier) way is to simply pass the ``--pyrex-gdb`` flag as a command
@@ -94,19 +94,20 @@ of these commands are analogous to their respective gdb command.
     given::
 
         (gdb) cy break cython_function_or_method
-        (gdb) cy break packagename.modulename.cythonfunction
-        (gdb) cy break packagename.modulename.ClassName.cythonmethod
+        (gdb) cy break packagename.cython_module.cython_function
+        (gdb) cy break packagename.cython_module.ClassName.cython_method
         (gdb) cy break c_function
 
     You can also break on Cython line numbers::
 
-        (gdb) cy break packagename.modulename:14
         (gdb) cy break :14
+        (gdb) cy break cython_module:14
+        (gdb) cy break packagename.cython_module:14
 
     Python breakpoints currently support names of the module (not the entire
     package path) and the function or method::
 
-        (gdb) cy break -p pythonmodule.python_function_or_method
+        (gdb) cy break -p python_module.python_function_or_method
         (gdb) cy break -p python_function_or_method
 
 .. note:: Python breakpoints only work in Python builds where the Python frame

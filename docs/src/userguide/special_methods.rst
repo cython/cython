@@ -65,7 +65,7 @@ subclassing your extension type in Python, you may find it useful to give the
 :meth:`__cinit__` method `*` and `**` arguments so that it can accept and
 ignore extra arguments. Otherwise, any Python subclass which has an
 :meth:`__init__` with a different signature will have to override
-:meth:`__new__`[#] as well as :meth:`__init__`, which the writer of a Python
+:meth:`__new__` [#]_ as well as :meth:`__init__`, which the writer of a Python
 class wouldn't expect to have to do.  Alternatively, as a convenience, if you declare
 your :meth:`__cinit__`` method to take no arguments (other than self) it 
 will simply ignore any extra arguments passed to the constructor without
@@ -99,7 +99,12 @@ You don't need to worry about deallocating Python attributes of your object,
 because that will be done for you by Cython after your :meth:`__dealloc__` method
 returns. 
 
-.. Note: There is no :meth:`__del__` method for extension types.
+When subclassing extension types, be aware that the :meth:`__dealloc__` method
+of the superclass will always be called, even if it is overridden.  This is in
+contrast to typical Python behavior where superclass methods will not be
+executed unless they are explicitly called by the subclass.
+
+.. Note:: There is no :meth:`__del__` method for extension types.
 
 Arithmetic methods
 -------------------
@@ -187,6 +192,8 @@ General
 | __iter__              |self 	                                | object      | Return iterator for sequence                        |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __getattr__           |self, name                             | object      | Get attribute                                       |
++-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
+| __getattribute__      |self, name                             | object      | Get attribute, unconditionally                      |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __setattr__           |self, name, val                        |             | Set attribute                                       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+

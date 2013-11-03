@@ -9,9 +9,16 @@ see <http://www.cosc.canterbury.ac.nz/greg.ewing/python/yield-from/YieldFrom-Pyt
 
 import sys
 
+try:
+    _next = next  # not in Py<=2.5
+except NameError:
+    def _next(it):
+        return it.next()
+
 def _lines(trace):
     for line in trace:
         print(line)
+
 
 def test_delegation_of_initial_next_to_subgenerator():
     """
@@ -259,6 +266,7 @@ def test_handing_exception_while_delegating_close():
     Yielded g2 spam
     Finishing g2
     Finishing g1
+    nybbles have exploded with delight
     """
     trace = []
     def g1():
@@ -283,8 +291,11 @@ def test_handing_exception_while_delegating_close():
             x = next(g)
             trace.append("Yielded %s" % (x,))
         g.close()
-    except ValueError:
-        pass
+    except ValueError as e:
+        trace.append(e.args[0])
+        # FIXME: __context__ is currently not set
+        #if sys.version_info[0] >= 3:
+        #    assert isinstance(e.__context__, GeneratorExit), 'exception context is %r' % e.__context__
     else:
         trace.append("subgenerator failed to raise ValueError")
     return trace
@@ -501,7 +512,7 @@ def test_attempting_to_send_to_non_generator():
         next(gi)
         for x in range(3):
             y = gi.send(42)
-            trace.append("Should not have yielded:", y)
+            trace.append("Should not have yielded: %s" % y)
     except AttributeError:
         pass
     else:
@@ -522,11 +533,6 @@ def test_broken_getattr_handling():
         def __getattr__(self, attr):
             1/0
 
-    if sys.version_info >= (3,3):
-        expected_exception = ZeroDivisionError
-    else:
-        expected_exception = AttributeError
-
     def g():
         yield from Broken()
 
@@ -535,7 +541,7 @@ def test_broken_getattr_handling():
         gi = g()
         assert next(gi) == 1
         gi.send(1)
-    except expected_exception:
+    except ZeroDivisionError:
         pass
     else:
         not_raised.append(1)
@@ -991,7 +997,7 @@ def test_delegating_generators_claim_to_be_running_close():
         def __next__(self):
             return 42
         next = __next__
-        def close(self_):
+        def close(self):
             assert g1.gi_running
             try:
                 next(g1)
@@ -1005,3 +1011,23 @@ def test_delegating_generators_claim_to_be_running_close():
     ret = next(g1)
     g1.close()
     return ret
+
+
+def yield_in_return(x):
+    """
+    >>> x = yield_in_return(range(3))
+    >>> for _ in range(10):
+    ...     try:
+    ...         print(_next(x))
+    ...     except StopIteration:
+    ...         if sys.version_info >= (3,3):
+    ...             print(sys.exc_info()[1].value is None)
+    ...         else:
+    ...             print(True)
+    ...         break
+    0
+    1
+    2
+    True
+    """
+    return (yield from x)

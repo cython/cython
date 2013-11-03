@@ -52,3 +52,14 @@ def test_vector_iterator(L):
         print deref(iter)
         inc(iter)
     del v
+
+cdef class VectorWrapper:
+    """
+    >>> VectorWrapper(1, .5, .25, .125)
+    [1.0, 0.5, 0.25, 0.125]
+    """
+    cdef vector[double] vector
+    def __init__(self, *args):
+        self.vector = args
+    def __repr__(self):
+        return repr(self.vector)

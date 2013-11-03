@@ -111,7 +111,7 @@ class Base(type):
 class Bar(metaclass=Base):
    """
    >>> Bar._order
-   ['__module__', '__doc__', 'bar']
+   ['__module__', '__qualname__', '__doc__', 'bar']
    """
    @property
    def bar(self):

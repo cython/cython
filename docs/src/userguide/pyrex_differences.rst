@@ -16,20 +16,20 @@ Differences between Cython and Pyrex
     and complete as Python as reasonable. 
 
 
-Python 3.0 Support
-==================
+Python 3 Support
+================
 
-Cython creates ``.c`` files that can be built and used with both 
-Python 2.x and Python 3.x. In fact, compiling your module with 
-Cython may very well be the easiest way to port code to Python 3.0. 
-We are also working to make the compiler run in both Python 2.x and 3.0. 
+Cython creates ``.c`` files that can be built and used with both
+Python 2.x and Python 3.x. In fact, compiling your module with
+Cython may very well be the easiest way to port code to Python 3.
+We are also working to make the compiler run in both Python 2.x and 3.x.
 
-Many Python 3 constructs are already supported by Cython. 
+Many Python 3 constructs are already supported by Cython.
 
 List/Set/Dict Comprehensions
 ----------------------------
 
-Cython supports the different comprehensions defined by Python 3.0 for
+Cython supports the different comprehensions defined by Python 3 for
 lists, sets and dicts::
 
        [expr(x) for x in A]             # list
@@ -43,7 +43,7 @@ generally preferred to use the usual :keyword:`for` ... :keyword:`in`
 
 .. note:: see :ref:`automatic-range-conversion`
 
-Note that Cython also supports set literals starting from Python 2.3.
+Note that Cython also supports set literals starting from Python 2.4.
 
 Keyword-only arguments
 ----------------------
@@ -68,15 +68,18 @@ takes exactly two positional parameters and has two required keyword parameters.
 
 
 
-Conditional expressions "x if b else y" (python 2.5)
-=====================================================
+Conditional expressions "x if b else y"
+=========================================
 
 Conditional expressions as described in
 http://www.python.org/dev/peps/pep-0308/::
 
     X if C else Y
        
-Only one of ``X`` and ``Y`` is evaluated, (depending on the value of C). 
+Only one of ``X`` and ``Y`` is evaluated (depending on the value of C).
+
+
+.. _inline:
 
 cdef inline
 =============
@@ -127,33 +130,34 @@ yields::
     6
     8
 
-.. note:: see :ref:`automatic-range-conversion`
-       
+.. note:: Usage of this syntax is discouraged as it is redundant with the
+          normal Python :keyword:`for` loop.
+          See :ref:`automatic-range-conversion`.
 
 Boolean int type (e.g. it acts like a c int, but coerces to/from python as a boolean)
 ======================================================================================
 
 In C, ints are used for truth values. In python, any object can be used as a
-truth value (using the :meth:`__nonzero__` method, but the canonical choices
-are the two boolean objects ``True`` and ``False``. The :keyword:`bint` of
-"boolean int" object is compiled to a C int, but get coerced to and from
-Cython as booleans. The return type of comparisons and several builtins is a
-:ctype:`bint` as well. This allows one to avoid having to wrap things in
+truth value (using the :meth:`__nonzero__` method), but the canonical choices
+are the two boolean objects ``True`` and ``False``. The :c:type:`bint` (for
+"boolean int") type is compiled to a C int, but coerces to and from
+Python as booleans. The return type of comparisons and several builtins is a
+:c:type:`bint` as well. This reduces the need for wrapping things in
 :func:`bool()`. For example, one can write::
 
     def is_equal(x):
         return x == y
 
 which would return ``1`` or ``0`` in Pyrex, but returns ``True`` or ``False`` in
-python. One can declare variables and return values for functions to be of the
-:ctype:`bint` type.  For example::
+Cython. One can declare variables and return values for functions to be of the
+:c:type:`bint` type.  For example::
 
     cdef int i = x
     cdef bint b = x
 
 The first conversion would happen via ``x.__int__()`` whereas the second would
-happen via ``x.__nonzero__()``. (Actually, if ``x`` is the python object
-``True`` or ``False`` then no method call is made.) 
+happen via ``x.__bool__()`` (a.k.a. ``__nonzero__()``), with appropriate
+optimisations for known builtin types.
 
 Executable class bodies
 =======================
@@ -166,7 +170,7 @@ Including a working :func:`classmethod`::
         some_method = classmethod(some_method)
         a = 2*3
         print "hi", a
-        
+
 cpdef functions
 =================
 
@@ -177,18 +181,18 @@ essentially think of a :keyword:`cpdef` method as a :keyword:`cdef` method +
 some extras. (That's how it's implemented at least.) First, it creates a
 :keyword:`def` method that does nothing but call the underlying
 :keyword:`cdef` method (and does argument unpacking/coercion if needed). At
-the top of the :keyword:`cdef` method a little bit of code is added to check
-to see if it's overridden.  Specifically, in pseudocode::
+the top of the :keyword:`cdef` method a little bit of code is added to see
+if it's overridden, similar to the following pseudocode::
 
-    if type(self) has a __dict__:
-        foo = self.getattr('foo')
+    if hasattr(type(self), '__dict__'):
+        foo = self.foo
         if foo is not wrapper_foo:
             return foo(args)
     [cdef method body]
 
 To detect whether or not a type has a dictionary, it just checks the
-tp_dictoffset slot, which is ``NULL`` (by default) for extension types, but
-non- null for instance classes. If the dictionary exists, it does a single
+``tp_dictoffset`` slot, which is ``NULL`` (by default) for extension types,
+but non- null for instance classes. If the dictionary exists, it does a single
 attribute lookup and can tell (by comparing pointers) whether or not the
 returned result is actually a new function. If, and only if, it is a new
 function, then the arguments packed into a tuple and the method called. This
@@ -236,10 +240,10 @@ In Cython ``<type>x`` will try and do a coercion (as would happen on assignment 
 It does not stop one from casting where there is no conversion (though it will
 emit a warning). If one really wants the address, cast to a ``void *`` first.
 
-As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type :ctype:`MyExtensionType` without any
-type checking. Cython supports the syntax ``<MyExtensionType?>`` to do the cast
-with type checking (i.e. it will throw an error if ``x`` is not a (subclass of)
-:ctype:`MyExtensionType`. 
+As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type :c:type:`MyExtensionType`
+without any type checking. Cython supports the syntax ``<MyExtensionType?>`` to do
+the cast with type checking (i.e. it will throw an error if ``x`` is not a
+(subclass of) :c:type:`MyExtensionType`.
 
 Optional arguments in cdef/cpdef functions
 ============================================
@@ -283,7 +287,7 @@ with corresponding ``.pyx`` file::
 Function pointers in structs
 =============================
 
-Functions declared in :keyword:`structs` are automatically converted to
+Functions declared in :keyword:`struct` are automatically converted to
 function pointers for convenience.
 
 C++ Exception handling
@@ -316,7 +320,7 @@ literals like ``u'abcd'`` to unicode objects.
 Automatic ``typecheck``
 ========================
 
-Rather than introducing a new keyword :keyword:`typecheck` as explained in the
+Rather than introducing a new keyword ``typecheck`` as explained in the
 `Pyrex docs
 <http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
 Cython emits a (non-spoofable and faster) typecheck whenever
@@ -325,7 +329,8 @@ Cython emits a (non-spoofable and faster) typecheck whenever
 From __future__ directives
 ==========================
 
-Cython supports several from __future__ directives, namely ``unicode_literals`` and ``division``. 
+Cython supports several ``from __future__ import ...`` directives, namely
+``absolute_import``, ``unicode_literals``, ``print_function`` and ``division``.
 
 With statements are always enabled. 
 
@@ -336,7 +341,4 @@ Cython has support for compiling ``.py`` files, and
 accepting type annotations using decorators and other
 valid Python syntax. This allows the same source to 
 be interpreted as straight Python, or compiled for 
-optimized results. 
-See http://wiki.cython.org/pure 
-for more details. 
-
+optimized results. See :ref:`pure-mode` for more details.

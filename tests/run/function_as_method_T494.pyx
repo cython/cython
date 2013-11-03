@@ -1,9 +1,10 @@
 # ticket: 494
+# cython: binding=True
 
 __doc__ = """
     >>> A.foo = foo
-    >>> print A().foo()
-
+    >>> A().foo()
+    True
 """
 
 class A:
@@ -11,5 +12,3 @@ class A:
 
 def foo(self):
     return self is not None
-
-

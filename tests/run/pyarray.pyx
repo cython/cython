@@ -10,23 +10,23 @@ def test_len(a):
     >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> len(a)
     3
-    >>> test_len(a)
-    3L
+    >>> int(test_len(a))
+    3
     >>> assert len(a) == test_len(a)
     """
     cdef array.array ca = a  # for C-fast array usage
-    return ca.length
+    return len(ca)
 
 def test_copy(a):
     """
     >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_copy(a)
     array('f', [1.0, 2.0, 3.0])
-    >>> assert a == test_copy(a)
     """
     cdef array.array ca = a
     cdef array.array b
-    b = array.copy(a)
+    b = array.copy(ca)
+    assert a == b
     a[2] = 3.5
     assert b[2] != a[2]
     return b
@@ -35,19 +35,39 @@ def test_copy(a):
 def test_fast_access(a):
     """
     >>> a = array.array('f', [1.0, 2.0, 3.0])
-    >>> a[2]
-    3.5
-
     >>> test_fast_access(a)
     """
     
     cdef array.array ca = a
-    assert ca._f[1] == 2.0, ca._f[1]
+    
+    cdef float value
+    with nogil:
+        value = ca.data.as_floats[1]
+    assert value == 2.0, value
 
-    assert ca._c[:5] == b'\x00\x00\x80?\x00', ca._c[:5]
+    #assert ca._c[:5] == b'\x00\x00\x80?\x00', repr(ca._c[:5])
 
-    ca._f[1] += 2.0
-    assert ca._f[1] == 4.0
+    with nogil:
+        ca.data.as_floats[1] += 2.0
+    assert ca.data.as_floats[1] == 4.0
+
+
+def test_fast_buffer_access(a):
+    """
+    >>> a = array.array('f', [1.0, 2.0, 3.0])
+    >>> test_fast_buffer_access(a)
+    """
+    
+    cdef array.array[float] ca = a
+    
+    cdef float value
+    with nogil:
+        value = ca[1]
+    assert value == 2.0, value
+
+    with nogil:
+        ca[1] += 2.0
+    assert ca[1] == 4.0
 
 
 def test_new_zero(a):
@@ -57,7 +77,7 @@ def test_new_zero(a):
     array('f', [0.0, 0.0, 0.0])
     """
     cdef array.array cb = array.clone(a, len(a), True)
-    assert cb.length == len(a)
+    assert len(cb) == len(a)
     return cb
 
 
@@ -81,29 +101,61 @@ def test_resize(a):
     cdef array.array cb = array.copy(a)
     array.resize(cb, 10)
     for i in range(10):
-        cb._f[i] = i
-    assert cb.length == 10
-    assert cb[9] == cb[-1] == cb._f[9] == 9
+        cb.data.as_floats[i] = i
+    assert len(cb) == 10
+    assert cb[9] == cb[-1] == cb.data.as_floats[9] == 9
+
+def test_buffer():
+    """
+    >>> test_buffer()
+    """
+    cdef object a = array.array('i', [1, 2, 3])
+    cdef object[int] ca = a
+    assert ca[0] == 1
+    assert ca[2] == 3
+
+def test_buffer_typed():
+    """
+    >>> test_buffer_typed()
+    """
+    cdef array.array a = array.array('i', [1, 2, 3])
+    cdef object[int] ca = a
+    assert ca[0] == 1
+    assert ca[2] == 3
 
 def test_view():
     """
-    >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_view()
     """
-    a = array.array('i', [1, 2, 3])
-    cdef object[int] ca = a
+    cdef object a = array.array('i', [1, 2, 3])
+    cdef int[:] ca = a
+    assert ca[0] == 1
+    assert ca[2] == 3
+
+def test_view_typed():
+    """
+    >>> test_view_typed()
+    """
+    cdef array.array a = array.array('i', [1, 2, 3])
+    cdef int[:] ca = a
     assert ca[0] == 1
     assert ca[2] == 3
 
 def test_extend():
     """
-    >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_extend()
     """
     cdef array.array ca = array.array('i', [1, 2, 3])
-    cdef array.array cb = array.array('i', range(4, 6))
+    cdef array.array cb = array.array('i', [4, 5])
+    cdef array.array cf = array.array('f', [1.0, 2.0, 3.0])
     array.extend(ca, cb)
-    assert list(ca) == range(1, 6), list(ca)
+    assert list(ca) == [1, 2, 3, 4, 5], list(ca)
+    try:
+        array.extend(ca, cf)
+    except TypeError:
+        pass
+    else:
+        assert False, 'extending incompatible array types did not raise'
 
 def test_likes(a):
     """
@@ -113,19 +165,20 @@ def test_likes(a):
     """
     cdef array.array z = array.clone(a, len(a), True)
     cdef array.array e = array.clone(a, len(a), False)
-    assert e.length == len(a)
+    assert len(e) == len(a)
     return z
 
 def test_extend_buffer():
     """
-    >>> a = array.array('f', [1.0, 2.0, 3.0])
     >>> test_extend_buffer()
-    array('c', 'abcdefghij')
+    array('l', [15, 37, 389, 5077])
     """
-    cdef array.array ca = array.array('c', "abcdef")
-    cdef char* s = "ghij"
-    array.extend_buffer(ca, s, len(s)) # or use stdlib.strlen
+    cdef array.array ca = array.array('l', [15, 37])
+    cdef long[2] s
+    s[0] = 389
+    s[1] = 5077
+    array.extend_buffer(ca, <char*> &s, 2)
 
-    assert ca._c[9] == 'j'
-    assert len(ca) == 10
+    assert ca.data.as_ulongs[3] == 5077
+    assert len(ca) == 4
     return ca

@@ -16,6 +16,7 @@ from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclaration
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Build.Dependencies import strip_string_literals, cythonize, cached_function
 from Cython.Compiler import Pipeline
+from Cython.Utils import get_cython_cache_dir
 import cython as cython_module
 
 # A utility function to convert user-supplied ASCII strings to unicode.
@@ -27,8 +28,6 @@ if sys.version_info[0] < 3:
             return s
 else:
     to_unicode = lambda x: x
-
-_code_cache = {}
 
 
 class AllSymbols(CythonTransform, SkipDeclarations):
@@ -93,9 +92,23 @@ def safe_type(arg, context=None):
                     return '%s.%s' % (base_type.__module__, base_type.__name__)
         return 'object'
 
+def _get_build_extension():
+    dist = Distribution()
+    # Ensure the build respects distutils configuration by parsing
+    # the configuration files
+    config_files = dist.find_config_files()
+    dist.parse_config_files(config_files)
+    build_extension = build_ext(dist)
+    build_extension.finalize_options()
+    return build_extension
+
+@cached_function
+def _create_context(cython_include_dirs):
+    return Context(list(cython_include_dirs), default_options)
+
 def cython_inline(code,
                   get_type=unsafe_type,
-                  lib_dir=os.path.expanduser('~/.cython/inline'),
+                  lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
                   cython_include_dirs=['.'],
                   force=False,
                   quiet=False,
@@ -108,7 +121,7 @@ def cython_inline(code,
     orig_code = code
     code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
-    ctx = Context(cython_include_dirs, default_options)
+    ctx = _create_context(tuple(cython_include_dirs))
     if locals is None:
         locals = inspect.currentframe().f_back.f_back.f_locals
     if globals is None:
@@ -137,57 +150,70 @@ def cython_inline(code,
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
+    
+    if module_name in sys.modules:
+        module = sys.modules[module_name]
+    
+    else:
+        build_extension = None
+        if cython_inline.so_ext is None:
+            # Figure out and cache current extension suffix
+            build_extension = _get_build_extension()
+            cython_inline.so_ext = build_extension.get_ext_filename('')
 
-    so_ext = [ ext for ext,_,mod_type in imp.get_suffixes() if mod_type == imp.C_EXTENSION ][0]
-    module_path = os.path.join(lib_dir, module_name+so_ext)
+        module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
 
-    if not os.path.exists(lib_dir):
-        os.makedirs(lib_dir)
-    if force or not os.path.isfile(module_path):
-        cflags = []
-        c_include_dirs = []
-        qualified = re.compile(r'([.\w]+)[.]')
-        for type, _ in arg_sigs:
-            m = qualified.match(type)
-            if m:
-                cimports.append('\ncimport %s' % m.groups()[0])
-                # one special case
-                if m.groups()[0] == 'numpy':
-                    import numpy
-                    c_include_dirs.append(numpy.get_include())
-                    # cflags.append('-Wno-unused')
-        module_body, func_body = extract_func_code(code)
-        params = ', '.join(['%s %s' % a for a in arg_sigs])
-        module_code = """
+        if not os.path.exists(lib_dir):
+            os.makedirs(lib_dir)
+        if force or not os.path.isfile(module_path):
+            cflags = []
+            c_include_dirs = []
+            qualified = re.compile(r'([.\w]+)[.]')
+            for type, _ in arg_sigs:
+                m = qualified.match(type)
+                if m:
+                    cimports.append('\ncimport %s' % m.groups()[0])
+                    # one special case
+                    if m.groups()[0] == 'numpy':
+                        import numpy
+                        c_include_dirs.append(numpy.get_include())
+                        # cflags.append('-Wno-unused')
+            module_body, func_body = extract_func_code(code)
+            params = ', '.join(['%s %s' % a for a in arg_sigs])
+            module_code = """
 %(module_body)s
 %(cimports)s
 def __invoke(%(params)s):
 %(func_body)s
-        """ % {'cimports': '\n'.join(cimports), 'module_body': module_body, 'params': params, 'func_body': func_body }
-        for key, value in literals.items():
-            module_code = module_code.replace(key, value)
-        pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-        fh = open(pyx_file, 'w')
-        try: 
-            fh.write(module_code)
-        finally:
-            fh.close()
-        extension = Extension(
-            name = module_name,
-            sources = [pyx_file],
-            include_dirs = c_include_dirs,
-            extra_compile_args = cflags)
-        build_extension = build_ext(Distribution())
-        build_extension.finalize_options()
-        build_extension.extensions = cythonize([extension], ctx=ctx, quiet=quiet)
-        build_extension.build_temp = os.path.dirname(pyx_file)
-        build_extension.build_lib  = lib_dir
-        build_extension.run()
-        _code_cache[key] = module_name
+            """ % {'cimports': '\n'.join(cimports), 'module_body': module_body, 'params': params, 'func_body': func_body }
+            for key, value in literals.items():
+                module_code = module_code.replace(key, value)
+            pyx_file = os.path.join(lib_dir, module_name + '.pyx')
+            fh = open(pyx_file, 'w')
+            try: 
+                fh.write(module_code)
+            finally:
+                fh.close()
+            extension = Extension(
+                name = module_name,
+                sources = [pyx_file],
+                include_dirs = c_include_dirs,
+                extra_compile_args = cflags)
+            if build_extension is None:
+                build_extension = _get_build_extension()
+            build_extension.extensions = cythonize([extension], include_path=cython_include_dirs, quiet=quiet)
+            build_extension.build_temp = os.path.dirname(pyx_file)
+            build_extension.build_lib  = lib_dir
+            build_extension.run()
 
-    module = imp.load_dynamic(module_name, module_path)
+        module = imp.load_dynamic(module_name, module_path)
+
     arg_list = [kwds[arg] for arg in arg_names]
     return module.__invoke(*arg_list)
+
+# Cached suffix used by cython_inline above.  None should get
+# overridden with actual value upon the first cython_inline invocation
+cython_inline.so_ext = None
 
 non_space = re.compile('[^ ]')
 def strip_common_indent(code):

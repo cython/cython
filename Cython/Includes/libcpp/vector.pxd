@@ -4,6 +4,8 @@ cdef extern from "<vector>" namespace "std":
             T& operator*() nogil
             iterator operator++() nogil
             iterator operator--() nogil
+            iterator operator+(size_t) nogil
+            iterator operator-(size_t) nogil
             bint operator==(iterator) nogil
             bint operator!=(iterator) nogil
             bint operator<(iterator) nogil
@@ -14,6 +16,8 @@ cdef extern from "<vector>" namespace "std":
             T& operator*() nogil
             iterator operator++() nogil
             iterator operator--() nogil
+            iterator operator+(size_t) nogil
+            iterator operator-(size_t) nogil
             bint operator==(reverse_iterator) nogil
             bint operator!=(reverse_iterator) nogil
             bint operator<(reverse_iterator) nogil
@@ -24,10 +28,10 @@ cdef extern from "<vector>" namespace "std":
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
-        vector()
-        vector(vector&) nogil
-        vector(size_t) nogil
-        vector(size_t, T&) nogil
+        vector() nogil except +
+        vector(vector&) nogil except +
+        vector(size_t) nogil except +
+        vector(size_t, T&) nogil except +
         #vector[input_iterator](input_iterator, input_iterator)
         T& operator[](size_t) nogil
         #vector& operator=(vector&)

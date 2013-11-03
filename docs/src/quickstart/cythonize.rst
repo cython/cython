@@ -94,13 +94,16 @@ object or if it is guaranteed that an exception will not be raised
 within the function call.
 
 A side-effect of cdef is that the function is no longer available from
-Python-space, as Python wouldn't know how to call it. Using the
-``cpdef`` keyword instead of cdef, a Python wrapper is also created,
-so that the function is available both from Cython (fast, passing
-typed values directly) and from Python (wrapping values in Python
-objects).
+Python-space, as Python wouldn't know how to call it. It is also no
+longer possible to change :func:`f` at runtime.
 
-Note also that it is no longer possible to change ``f`` at runtime.
+Using the ``cpdef`` keyword instead of ``cdef``, a Python wrapper is also
+created, so that the function is available both from Cython (fast, passing
+typed values directly) and from Python (wrapping values in Python
+objects). In fact, ``cpdef`` does not just provide a Python wrapper, it also
+installs logic to allow the method to be overridden by python methods, even
+when called from within cython. This does add a tiny overhead compared to ``cdef``
+methods.
 
 Speedup: 150 times over pure Python.
 
@@ -109,7 +112,9 @@ Determining where to add types
 
 Because static typing is often the key to large speed gains, beginners
 often have a tendency to type everything in sight. This cuts down on both
-readability and flexibility. On the other hand, it is easy to kill 
+readability and flexibility, and can even slow things down (e.g. by adding
+unnecessary type checks, conversions, or slow buffer unpacking).
+On the other hand, it is easy to kill 
 performance by forgetting to type a critical loop variable. Two essential 
 tools to help with this task are profiling and annotation. 
 Profiling should be the first step of any optimization effort, and can 

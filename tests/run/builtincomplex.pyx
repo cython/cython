@@ -44,3 +44,22 @@ def complex_arg(complex c):
     (1.0, 2.0)
     """
     return (c.real, c.imag)
+
+def complex_conjugate_nonsimple_float():
+    """
+    >>> complex_conjugate_nonsimple_float()
+    1.0
+    """
+    x = float(1.0).conjugate()
+    return x
+
+cdef double float_result():
+    return 1.0
+
+def complex_conjugate_nonsimple():
+    """
+    >>> complex_conjugate_nonsimple()
+    1.0
+    """
+    x = float_result().conjugate()
+    return x

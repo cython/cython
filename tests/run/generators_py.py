@@ -1,6 +1,8 @@
 # mode: run
 # tag: generators
 
+import cython
+
 try:
     from builtins import next # Py3k
 except ImportError:
@@ -350,3 +352,35 @@ def test_generator_cleanup():
         yield 1
     finally:
         print('cleanup')
+
+def test_del_in_generator():
+    """
+    >>> [ s for s in test_del_in_generator() ]
+    ['abcabcabc', 'abcabcabc']
+    """
+    x = len('abc') * 'abc'
+    a = x
+    yield x
+    del x
+    yield a
+    del a
+
+@cython.test_fail_if_path_exists("//IfStatNode", "//PrintStatNode")
+def test_yield_in_const_conditional_false():
+    """
+    >>> list(test_yield_in_const_conditional_false())
+    []
+    """
+    if False:
+        print((yield 1))
+
+@cython.test_fail_if_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//PrintStatNode")
+def test_yield_in_const_conditional_true():
+    """
+    >>> list(test_yield_in_const_conditional_true())
+    None
+    [1]
+    """
+    if True:
+        print((yield 1))

@@ -1,6 +1,6 @@
 #define UN_OP(op) const char* operator op () { return "unary "#op; }
-#define POST_UN_OP(op) const char* operator op (int x) { return "post "#op; }
-#define BIN_OP(op) const char* operator op (int x) { return "binary "#op; }
+#define POST_UN_OP(op) const char* operator op (int x) { x++; return "post "#op; }
+#define BIN_OP(op) const char* operator op (int x) { x++; return "binary "#op; }
 
 #define COMMA ,
 

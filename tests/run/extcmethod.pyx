@@ -1,9 +1,11 @@
+# mode: run
+
 cdef class Spam:
 
     cdef int tons
 
     cdef void add_tons(self, int x):
-        self.tons = self.tons + x
+        self.tons += x
 
     cdef void eat(self):
         self.tons = 0
@@ -11,10 +13,10 @@ cdef class Spam:
     def lift(self):
         print self.tons
 
-cdef class SuperSpam(Spam):
+cdef class SubSpam(Spam):
 
     cdef void add_tons(self, int x):
-        self.tons = self.tons + 2 * x
+        self.tons += 2 * x
 
 def test():
     """
@@ -25,13 +27,13 @@ def test():
     5
     """
     cdef Spam s
-    cdef SuperSpam ss
+    cdef SubSpam ss
     s = Spam()
     s.eat()
     s.add_tons(5)
     s.lift()
 
-    ss = SuperSpam()
+    ss = SubSpam()
     ss.eat()
     ss.lift()
 

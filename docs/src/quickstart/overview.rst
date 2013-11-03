@@ -1,14 +1,16 @@
 Cython - an overview
 ====================
 
-[Cython]_ is a programming language based on Python, with extra syntax
-allowing for optional static type declarations. It aims to become a superset
-of the [Python]_ language which gives it high-level, object-oriented,
-functional, and dynamic programming.  The source code gets translated
-into optimized C/C++ code and compiled as Python extension modules.
-This allows for both very fast program execution and tight integration
-with external C libraries, while keeping up the high programmer
-productivity for which the Python language is well known.
+[Cython] is a programming language that makes writing C extensions
+for the Python language as easy as Python itself.  It aims to become
+a superset of the [Python]_ language which gives it high-level,
+object-oriented, functional, and dynamic programming.  Its main feature
+on top of these is support for optional static type declarations as
+part of the language.  The source code gets translated into optimized
+C/C++ code and compiled as Python extension modules.  This allows for
+both very fast program execution and tight integration with external C
+libraries, while keeping up the high programmer productivity for
+which the Python language is well known.
 
 The primary Python execution environment is commonly referred to as
 CPython, as it is written in C.  Other major implementations use Java
@@ -19,8 +21,8 @@ has, however, remained non trivial to write the necessary glue code in
 C, especially for programmers who are more fluent in a high-level
 language like Python than in a close-to-the-metal language like C.
 
-Originally based on the well-known Pyrex [Pyrex]_, the Cython project has
-approached this problem by means of a source code compiler that
+Originally based on the well-known Pyrex [Pyrex]_, the Cython project
+has approached this problem by means of a source code compiler that
 translates Python code to equivalent C code.  This code is executed
 within the CPython runtime environment, but at the speed of compiled C
 and with the ability to call directly into C libraries. 
@@ -45,9 +47,9 @@ language.
    The Cython compiler, http://cython.org.
 .. [IronPython] Jim Hugunin et al., http://www.codeplex.com/IronPython.
 .. [Jython] J. Huginin, B. Warsaw, F. Bock, et al.,
-   Jython: Python for the Java platform, http://www.jython.org/
+   Jython: Python for the Java platform, http://www.jython.org.
 .. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python, 
-   http://codespeak.net/pypy.
+   http://pypy.org.
 .. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
    http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 .. [Python] G. van Rossum et al., The Python programming language,

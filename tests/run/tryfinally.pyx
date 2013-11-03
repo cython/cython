@@ -1,51 +1,35 @@
-__doc__ = u"""
->>> try:
-...     raise ValueError
-... finally:
-...     raise TypeError
-Traceback (most recent call last):
-TypeError
->>> finally_except()
-Traceback (most recent call last):
-TypeError
-
->>> call_try_return_with_exception()
-1
-
->>> def try_return_py():
-...    try:
-...        return 1
-...    finally:
-...        return 2
->>> try_return_py()
-2
->>> try_return_cy()
-2
->>> call_try_return_c()
-2
-
->>> i=1
->>> for i in range(3):
-...     try:
-...         continue
-...     finally:
-...         i+=1
->>> i
-3
->>> try_continue(3)
-3
->>> try_return_none_1()
->>> try_return_none_2()
->>> try_break()
-"""
+# mode: run
+# tag: tryfinally
 
 def finally_except():
+    """
+    >>> try:
+    ...     raise ValueError
+    ... finally:
+    ...     raise TypeError
+    Traceback (most recent call last):
+    TypeError
+    >>> finally_except()
+    Traceback (most recent call last):
+    TypeError
+    """
     try:
         raise ValueError
     finally:
         raise TypeError
 
 def try_return_cy():
+    """
+    >>> def try_return_py():
+    ...    try:
+    ...        return 1
+    ...    finally:
+    ...        return 2
+    >>> try_return_py()
+    2
+    >>> try_return_cy()
+    2
+    """
     try:
         return 1
     finally:
@@ -58,6 +42,10 @@ cdef int try_return_c():
         return 2
 
 def call_try_return_c():
+    """
+    >>> call_try_return_c()
+    2
+    """
     return try_return_c()
 
 cdef int try_return_with_exception():
@@ -67,6 +55,10 @@ cdef int try_return_with_exception():
         return 1
 
 def call_try_return_with_exception():
+    """
+    >>> call_try_return_with_exception()
+    1
+    """
     return try_return_with_exception()
 
 def try_return_temp(a):
@@ -78,6 +70,18 @@ def try_return_temp(a):
         print b-a
 
 def try_continue(a):
+    """
+    >>> i=1
+    >>> for i in range(3):
+    ...     try:
+    ...         continue
+    ...     finally:
+    ...         i+=1
+    >>> i
+    3
+    >>> try_continue(3)
+    3
+    """
     i=1
     for i in range(a):
         try:
@@ -88,6 +92,9 @@ def try_continue(a):
 
 
 def try_return_none_1():
+    """
+    >>> try_return_none_1()
+    """
     try:
         return
     finally:
@@ -103,12 +110,18 @@ cdef PyObject* _none():
     return <PyObject*> ret
 
 def try_return_none_2():
+    """
+    >>> try_return_none_2()
+    """
     try:
         return <object> _none()
     finally:
         return <object> _none()
 
 def try_break():
+    """
+    >>> try_break()
+    """
     for a in "abcd":
         try:
             if a == 'c':

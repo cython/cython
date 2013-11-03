@@ -47,9 +47,9 @@ def test_cdef_func_with_fused_args():
     4.2 8.6 bunny
     12.8
     """
-    print cdef_func_with_fused_args('spam', 'ham', 'eggs').decode('ascii')
-    print cdef_func_with_fused_args(10, 20, 'butter')
-    print cdef_func_with_fused_args(4.2, 8.6, 'bunny')
+    print cdef_func_with_fused_args(b'spam', b'ham', b'eggs').decode('ascii')
+    print cdef_func_with_fused_args(10, 20, b'butter')
+    print cdef_func_with_fused_args(4.2, 8.6, b'bunny')
 
 cdef fused_type1 fused_with_pointer(fused_type1 *array):
     for i in range(5):
@@ -222,6 +222,18 @@ def test_normal_class():
     """
     NormalClass().method[pure_cython.short](10)
 
+def test_normal_class_refcount():
+    """
+    >>> test_normal_class_refcount()
+    short 10
+    0
+    """
+    import sys
+    x = NormalClass()
+    c = sys.getrefcount(x)
+    x.method[pure_cython.short](10)
+    print sys.getrefcount(x) - c
+
 def test_fused_declarations(cython.integral i, cython.floating f):
     """
     >>> test_fused_declarations[pure_cython.short, pure_cython.float](5, 6.6)
@@ -272,3 +284,28 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
+
+def test_cython_numeric(cython.numeric arg):
+    """
+    Test to see whether complex numbers have their utility code declared
+    properly.
+
+    >>> test_cython_numeric(10.0 + 1j)
+    double complex (10+1j)
+    """
+    print cython.typeof(arg), arg
+
+cdef fused ints_t:
+    int
+    long
+
+cdef _test_index_fused_args(cython.floating f, ints_t i):
+    print cython.typeof(f), cython.typeof(i)
+
+def test_index_fused_args(cython.floating f, ints_t i):
+    """
+    >>> import cython
+    >>> test_index_fused_args[cython.double, cython.int](2.0, 3)
+    double int
+    """
+    _test_index_fused_args[cython.floating, ints_t](f, i)

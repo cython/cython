@@ -1,0 +1,35 @@
+'''
+PYTHON -m Cython.Build.Cythonize -i pkg -j1
+PYTHON package_test.py
+'''
+
+######## package_test.py ########
+
+import sys
+
+if sys.version_info[0] < 3 or sys.version_info >= (3,3):
+    # __init__.py compilation isn't supported in Py 3.[012]
+    import pkg.sub.test
+    assert pkg.sub.test.TEST == 'pkg.sub.test'
+    assert '.py' not in pkg.sub.test.__file__
+
+######## test.py ########
+
+TEST = 'test'
+
+######## pkg/__init__.py ########
+
+######## pkg/test.py ########
+
+TEST = 'pkg.test'
+
+######## pkg/sub/__init__.py ########
+
+######## pkg/sub/test.py ########
+# cython: language_level=3
+
+TEST = 'pkg.sub.test'
+
+ustring = 'abc'
+
+assert isinstance(ustring, unicode)

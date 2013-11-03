@@ -234,7 +234,7 @@ The array lookups are still slowed down by two factors:
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
 happen to access out of bounds you will in the best case crash your program
 and in the worst case corrupt data). It is possible to switch bounds-checking
-mode in many ways, see [:docs/compilerdirectives:compiler directives] for more
+mode in many ways, see [:reference/directives:compiler directives] for more
 information.
 
 Negative indices are dealt with by ensuring Cython that the indices will be
@@ -286,7 +286,7 @@ function call.)
 
     Speed comes with some cost. Especially it can be dangerous to set typed
     objects (like ``f``, ``g`` and ``h`` in our sample code) to
-    :keyword:`None`.  Setting such objects to :keyword:`None` is entirely
+    ``None``.  Setting such objects to ``None`` is entirely
     legal, but all you can do with them is check whether they are None. All
     other use (attribute lookup or indexing) can potentially segfault or
     corrupt data (rather than raising exceptions as they would in Python).
@@ -308,6 +308,6 @@ if someone is interested also under Python 2.x.
 
 There is some speed penalty to this though (as one makes more assumptions
 compile-time if the type is set to :obj:`np.ndarray`, specifically it is
-assumed that the data is stored in pure strided more and not in indirect
+assumed that the data is stored in pure strided mode and not in indirect
 mode).
 

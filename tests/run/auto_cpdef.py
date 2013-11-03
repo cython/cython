@@ -37,3 +37,40 @@ def starstararg_func(**kwargs):
     1
     """
     return kwargs['a']
+
+l = lambda x: 1
+
+def test_lambda():
+    """
+    >>> l(1)
+    1
+    """
+
+
+# test classical import fallbacks
+try:
+    from math import fabs
+except ImportError:
+    def fabs(x):
+        if x < 0:
+            return -x
+        else:
+            return x
+
+try:
+    from math import no_such_function
+except ImportError:
+    def no_such_function(x):
+        return x + 1.0
+
+
+def test_import_fallback():
+    """
+    >>> fabs(1.0)
+    1.0
+    >>> no_such_function(1.0)
+    2.0
+    >>> test_import_fallback()
+    (1.0, 2.0)
+    """
+    return fabs(1.0), no_such_function(1.0)

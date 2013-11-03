@@ -18,7 +18,7 @@ A custom distutils.core.Extension instance and setup() args
 (Distribution) for for the build can be defined by a <modulename>.pyxbld
 file like:
 
-# examplemod.pyxbdl
+# examplemod.pyxbld
 def make_ext(modname, pyxfilename):
     from distutils.extension import Extension
     return Extension(name = modname,
@@ -84,7 +84,7 @@ def _info(message, *args):
 def _load_pyrex(name, filename):
     "Load a pyrex file given a name and filename."
 
-def get_distutils_extension(modname, pyxfilename):
+def get_distutils_extension(modname, pyxfilename, language_level=None):
 #    try:
 #        import hashlib
 #    except ImportError:
@@ -93,8 +93,14 @@ def get_distutils_extension(modname, pyxfilename):
 #    modname = modname + extra
     extension_mod,setup_args = handle_special_build(modname, pyxfilename)
     if not extension_mod:
+        if not isinstance(pyxfilename, str):
+            # distutils is stupid in Py2 and requires exactly 'str'
+            # => encode accidentally coerced unicode strings back to str
+            pyxfilename = pyxfilename.encode(sys.getfilesystemencoding())
         from distutils.extension import Extension
         extension_mod = Extension(name = modname, sources=[pyxfilename])
+        if language_level is not None:
+            extension_mod.cython_directives = {'language_level': language_level}
     return extension_mod,setup_args
 
 def handle_special_build(modname, pyxfilename):
@@ -160,12 +166,12 @@ def handle_dependencies(pyxfilename):
                 if testing:
                     _test_files.append(file)
 
-def build_module(name, pyxfilename, pyxbuild_dir=None):
+def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_level=None):
     assert os.path.exists(pyxfilename), (
         "Path does not exist: %s" % pyxfilename)
     handle_dependencies(pyxfilename)
 
-    extension_mod,setup_args = get_distutils_extension(name, pyxfilename)
+    extension_mod,setup_args = get_distutils_extension(name, pyxfilename, language_level)
     build_in_temp=pyxargs.build_in_temp
     sargs=pyxargs.setup_args.copy()
     sargs.update(setup_args)
@@ -176,10 +182,11 @@ def build_module(name, pyxfilename, pyxbuild_dir=None):
                                   build_in_temp=build_in_temp,
                                   pyxbuild_dir=pyxbuild_dir,
                                   setup_args=sargs,
+                                  inplace=inplace,
                                   reload_support=pyxargs.reload_support)
     assert os.path.exists(so_path), "Cannot find: %s" % so_path
     
-    junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ?
+    junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
     for path in junkstuff:
         if path!=so_path:
@@ -190,14 +197,19 @@ def build_module(name, pyxfilename, pyxbuild_dir=None):
 
     return so_path
 
-def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False):
+def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
+                build_inplace=False, language_level=None, so_path=None):
     try:
-        if is_package:
-            module_name = name + '.__init__'
-        else:
-            module_name = name
-        so_path = build_module(module_name, pyxfilename, pyxbuild_dir)
+        if so_path is None:
+            if is_package:
+                module_name = name + '.__init__'
+            else:
+                module_name = name
+            so_path = build_module(module_name, pyxfilename, pyxbuild_dir,
+                                   inplace=build_inplace, language_level=language_level)
         mod = imp.load_dynamic(name, so_path)
+        if is_package and not hasattr(mod, '__path__'):
+            mod.__path__ = [os.path.dirname(so_path)]
         assert mod.__file__ == so_path, (mod.__file__, so_path)
     except Exception:
         if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
@@ -217,9 +229,12 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False):
 class PyxImporter(object):
     """A meta-path importer for .pyx files.
     """
-    def __init__(self, extension=PYX_EXT, pyxbuild_dir=None):
+    def __init__(self, extension=PYX_EXT, pyxbuild_dir=None, inplace=False,
+                 language_level=None):
         self.extension = extension
         self.pyxbuild_dir = pyxbuild_dir
+        self.inplace = inplace
+        self.language_level = language_level
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules  and  not pyxargs.reload_support:
@@ -232,10 +247,14 @@ class PyxImporter(object):
                 if os.path.isfile(pkg_file):
                     return PyxLoader(fullname, pathname,
                         init_path=pkg_file,
-                        pyxbuild_dir=self.pyxbuild_dir)
+                        pyxbuild_dir=self.pyxbuild_dir,
+                        inplace=self.inplace,
+                        language_level=self.language_level)
             if pathname and pathname.endswith(self.extension):
                 return PyxLoader(fullname, pathname,
-                                 pyxbuild_dir=self.pyxbuild_dir)
+                                 pyxbuild_dir=self.pyxbuild_dir,
+                                 inplace=self.inplace,
+                                 language_level=self.language_level)
             if ty != imp.C_EXTENSION: # only when an extension, check if we have a .pyx next!
                 return None
 
@@ -243,8 +262,10 @@ class PyxImporter(object):
             pyxpath = os.path.splitext(pathname)[0]+self.extension
             if os.path.isfile(pyxpath):
                 return PyxLoader(fullname, pyxpath,
-                                 pyxbuild_dir=self.pyxbuild_dir)
-            
+                                 pyxbuild_dir=self.pyxbuild_dir,
+                                 inplace=self.inplace,
+                                 language_level=self.language_level)
+
             # .so/.pyd's on PATH should not be remote from .pyx's
             # think no need to implement PyxArgs.importer_search_remote here?
 
@@ -270,15 +291,21 @@ class PyxImporter(object):
             paths = sys.path
         join_path = os.path.join
         is_file = os.path.isfile
+        is_abs = os.path.isabs
+        abspath = os.path.abspath
         #is_dir = os.path.isdir
         sep = os.path.sep
         for path in paths:
             if not path:
                 path = os.getcwd()
+            elif not is_abs(path):
+                path = abspath(path)
             if is_file(path+sep+pyx_module_name):
                 return PyxLoader(fullname, join_path(path, pyx_module_name),
-                                 pyxbuild_dir=self.pyxbuild_dir)
-                
+                                 pyxbuild_dir=self.pyxbuild_dir,
+                                 inplace=self.inplace,
+                                 language_level=self.language_level)
+
         # not found, normal package, not a .pyx file, none of our business
         _debug("%s not found" % fullname)
         return None
@@ -286,12 +313,15 @@ class PyxImporter(object):
 class PyImporter(PyxImporter):
     """A meta-path importer for normal .py files.
     """
-    def __init__(self, pyxbuild_dir=None):
+    def __init__(self, pyxbuild_dir=None, inplace=False, language_level=None):
+        if language_level is None:
+            language_level = sys.version_info[0]
         self.super = super(PyImporter, self)
-        self.super.__init__(extension='.py', pyxbuild_dir=pyxbuild_dir)
+        self.super.__init__(extension='.py', pyxbuild_dir=pyxbuild_dir, inplace=inplace,
+                            language_level=language_level)
         self.uncompilable_modules = {}
-        self.blocked_modules = ['Cython', 'distutils.extension',
-                                'distutils.sysconfig']
+        self.blocked_modules = ['Cython', 'pyxbuild', 'pyximport.pyxbuild',
+                                'distutils.extension', 'distutils.sysconfig']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
@@ -301,6 +331,8 @@ class PyImporter(PyxImporter):
         if fullname in self.blocked_modules:
             # prevent infinite recursion
             return None
+        if _lib_loader.knows(fullname):
+            return _lib_loader
         _debug("trying import of module '%s'", fullname)
         if fullname in self.uncompilable_modules:
             path, last_modified = self.uncompilable_modules[fullname]
@@ -317,17 +349,23 @@ class PyImporter(PyxImporter):
         try:
             importer = self.super.find_module(fullname, package_path)
             if importer is not None:
+                if importer.init_path:
+                    path = importer.init_path
+                    real_name = fullname + '.__init__'
+                else:
+                    path = importer.path
+                    real_name = fullname
+                _debug("importer found path %s for module %s", path, real_name)
                 try:
-                    if importer.init_path:
-                        path = importer.init_path
-                        real_name = fullname + '.__init__'
-                    else:
-                        path = importer.path
-                        real_name = fullname
-                    _debug("importer found path %s for module %s", path, real_name)
-                    build_module(real_name, path,
-                                 pyxbuild_dir=self.pyxbuild_dir)
-                except Exception, e:
+                    so_path = build_module(
+                        real_name, path,
+                        pyxbuild_dir=self.pyxbuild_dir,
+                        language_level=self.language_level,
+                        inplace=self.inplace)
+                    _lib_loader.add_lib(fullname, path, so_path,
+                                        is_package=bool(importer.init_path))
+                    return _lib_loader
+                except Exception:
                     if DEBUG_IMPORT:
                         import traceback
                         traceback.print_exc()
@@ -342,12 +380,36 @@ class PyImporter(PyxImporter):
             self.blocked_modules.pop()
         return importer
 
+class LibLoader(object):
+    def __init__(self):
+        self._libs = {}
+
+    def load_module(self, fullname):
+        try:
+            source_path, so_path, is_package = self._libs[fullname]
+        except KeyError:
+            raise ValueError("invalid module %s" % fullname)
+        _debug("Loading shared library module '%s' from %s", fullname, so_path)
+        return load_module(fullname, source_path, so_path=so_path, is_package=is_package)
+
+    def add_lib(self, fullname, path, so_path, is_package):
+        self._libs[fullname] = (path, so_path, is_package)
+
+    def knows(self, fullname):
+        return fullname in self._libs
+
+_lib_loader = LibLoader()
+
 class PyxLoader(object):
-    def __init__(self, fullname, path, init_path=None, pyxbuild_dir=None):
-        _debug("PyxLoader created for loading %s from %s (init path: %s)", fullname, path, init_path)
+    def __init__(self, fullname, path, init_path=None, pyxbuild_dir=None,
+                 inplace=False, language_level=None):
+        _debug("PyxLoader created for loading %s from %s (init path: %s)",
+               fullname, path, init_path)
         self.fullname = fullname
         self.path, self.init_path = path, init_path
         self.pyxbuild_dir = pyxbuild_dir
+        self.inplace = inplace
+        self.language_level = language_level
 
     def load_module(self, fullname):
         assert self.fullname == fullname, (
@@ -357,12 +419,16 @@ class PyxLoader(object):
             # package
             #print "PACKAGE", fullname
             module = load_module(fullname, self.init_path,
-                                 self.pyxbuild_dir, is_package=True)
+                                 self.pyxbuild_dir, is_package=True,
+                                 build_inplace=self.inplace,
+                                 language_level=self.language_level)
             module.__path__ = [self.path]
         else:
             #print "MODULE", fullname
             module = load_module(fullname, self.path,
-                                 self.pyxbuild_dir)
+                                 self.pyxbuild_dir,
+                                 build_inplace=self.inplace,
+                                 language_level=self.language_level)
         return module
 
 
@@ -373,10 +439,23 @@ class PyxArgs(object):
     setup_args={}   #None
 
 ##pyxargs=None   
-    
+
+def _have_importers():
+    has_py_importer = False
+    has_pyx_importer = False
+    for importer in sys.meta_path:
+        if isinstance(importer, PyxImporter):
+            if isinstance(importer, PyImporter):
+                has_py_importer = True
+            else:
+                has_pyx_importer = True
+
+    return has_py_importer, has_pyx_importer
+
 def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
             setup_args={}, reload_support=False,
-            load_py_module_on_import_failure=False):
+            load_py_module_on_import_failure=False, inplace=False,
+            language_level=None):
     """Main entry point. Call this to install the .pyx import hook in
     your meta-path for a single Python process.  If you want it to be
     installed whenever you use Python, add it to your sitecustomize
@@ -414,9 +493,15 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     the second import will rerun these modifications in whatever state
     the system was left after the import of the compiled module
     failed.
+
+    ``inplace``: Install the compiled module next to the source file.
+
+    ``language_level``: The source language level to use: 2 or 3.
+    The default is to use the language level of the current Python
+    runtime for .py files and Py2 for .pyx files.
     """
     if not build_dir:
-        build_dir = os.path.expanduser('~/.pyxbld')
+        build_dir = os.path.join(os.path.expanduser('~'), '.pyxbld')
         
     global pyxargs
     pyxargs = PyxArgs()  #$pycheck_no
@@ -426,23 +511,36 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     pyxargs.reload_support = reload_support
     pyxargs.load_py_module_on_import_failure = load_py_module_on_import_failure
 
-    has_py_importer = False
-    has_pyx_importer = False
-    for importer in sys.meta_path:
-        if isinstance(importer, PyxImporter):
-            if isinstance(importer, PyImporter):
-                has_py_importer = True
-            else:
-                has_pyx_importer = True
+    has_py_importer, has_pyx_importer = _have_importers()
+    py_importer, pyx_importer = None, None
 
     if pyimport and not has_py_importer:
-        importer = PyImporter(pyxbuild_dir=build_dir)
-        sys.meta_path.insert(0, importer)
+        py_importer = PyImporter(pyxbuild_dir=build_dir, inplace=inplace,
+                                 language_level=language_level)
+        # make sure we import Cython before we install the import hook
+        import Cython.Compiler.Main, Cython.Compiler.Pipeline, Cython.Compiler.Optimize
+        sys.meta_path.insert(0, py_importer)
 
     if pyximport and not has_pyx_importer:
-        importer = PyxImporter(pyxbuild_dir=build_dir)
-        sys.meta_path.append(importer)
+        pyx_importer = PyxImporter(pyxbuild_dir=build_dir, inplace=inplace,
+                                   language_level=language_level)
+        sys.meta_path.append(pyx_importer)
 
+    return py_importer, pyx_importer
+
+def uninstall(py_importer, pyx_importer):
+    """
+    Uninstall an import hook.
+    """
+    try:
+        sys.meta_path.remove(py_importer)
+    except ValueError:
+        pass
+
+    try:
+        sys.meta_path.remove(pyx_importer)
+    except ValueError:
+        pass
 
 # MAIN
 

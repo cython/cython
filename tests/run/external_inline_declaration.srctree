@@ -1,0 +1,24 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; assert a.test() == 1"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("a.py"),
+)
+
+######## a.py ########
+
+def inlined_func(x):
+    return x
+
+def test():
+    return inlined_func(1)
+
+######## a.pxd ########
+
+cdef inline int inlined_func(int x)

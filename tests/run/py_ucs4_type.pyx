@@ -29,6 +29,14 @@ def compare_klingon():
     print(char_KLINGON == u'B')
 
 
+def single_uchar_compare():
+    """
+    >>> single_uchar_compare()
+    """
+    assert u'\u0100' < u'\u0101'
+    assert u'\u0101' > u'\u0100'
+
+
 from cpython.unicode cimport PyUnicode_FromOrdinal
 import sys
 
@@ -201,14 +209,31 @@ def count_lower_case_characters_slice_reversed(unicode ustring):
              count += 1
     return count
 
-def loop_object_over_unicode_literal():
+def loop_object_over_latin1_unicode_literal():
     """
-    >>> print(loop_object_over_unicode_literal())
+    >>> result = loop_object_over_latin1_unicode_literal()
+    >>> print(result[:-1])
     abcdefg
+    >>> ord(result[-1]) == 0xD7
+    True
     """
     cdef object uchar
     chars = []
-    for uchar in u'abcdefg':
+    for uchar in u'abcdefg\xD7':
+        chars.append(uchar)
+    return u''.join(chars)
+
+def loop_object_over_unicode_literal():
+    """
+    >>> result = loop_object_over_unicode_literal()
+    >>> print(result[:-1])
+    abcdefg
+    >>> ord(result[-1]) == 0xF8FD
+    True
+    """
+    cdef object uchar
+    chars = []
+    for uchar in u'abcdefg\uF8FD':
         chars.append(uchar)
     return u''.join(chars)
 

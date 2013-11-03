@@ -1,13 +1,14 @@
-from Visitor import CythonTransform
-from ModuleNode import ModuleNode
-from ExprNodes import *
-from Errors import CompileError
-from UtilityCode import CythonUtilityCode
-from Code import UtilityCode, TempitaUtilityCode
-import Interpreter
-import PyrexTypes
-import Naming
-import Symtab
+from Cython.Compiler.Visitor import CythonTransform
+from Cython.Compiler.ModuleNode import ModuleNode
+from Cython.Compiler.Errors import CompileError
+from Cython.Compiler.UtilityCode import CythonUtilityCode
+from Cython.Compiler.Code import UtilityCode, TempitaUtilityCode
+
+from Cython.Compiler import Options
+from Cython.Compiler import Interpreter
+from Cython.Compiler import PyrexTypes
+from Cython.Compiler import Naming
+from Cython.Compiler import Symtab
 
 
 def dedent(text, reindent=0):
@@ -600,9 +601,13 @@ class GetAndReleaseBufferUtilityCode(object):
 
         find_buffer_types(env)
 
-        proto, impl = TempitaUtilityCode.load_as_string(
+        util_code = TempitaUtilityCode.load(
             "GetAndReleaseBuffer", from_file="Buffer.c",
             context=dict(types=types))
+
+        proto = util_code.format_code(util_code.proto)
+        impl = util_code.format_code(
+            util_code.inject_string_constants(util_code.impl, output)[1])
 
         proto_code.putln(proto)
         code.putln(impl)
@@ -680,32 +685,28 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         rep = str(dtype)
 
         flags = "0"
-
-        if dtype.is_int:
-            if dtype.signed == 0:
-                typegroup = 'U'
-            else:
-                typegroup = 'I'
+        is_unsigned = "0"
+        if dtype is PyrexTypes.c_char_type:
+            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            typegroup = "'H'"
+        elif dtype.is_int:
+            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            typegroup = "%s ? 'U' : 'I'" % is_unsigned
         elif complex_possible or dtype.is_complex:
-            typegroup = 'C'
+            typegroup = "'C'"
         elif dtype.is_float:
-            typegroup = 'R'
+            typegroup = "'R'"
         elif dtype.is_struct:
-            typegroup = 'S'
+            typegroup = "'S'"
             if dtype.packed:
                 flags = "__PYX_BUF_FLAGS_PACKED_STRUCT"
         elif dtype.is_pyobject:
-            typegroup = 'O'
+            typegroup = "'O'"
         else:
-            assert False
-
-        if dtype.is_int:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
-        else:
-            is_unsigned = "0"
+            assert False, dtype
 
         typeinfo = ('static __Pyx_TypeInfo %s = '
-                        '{ "%s", %s, sizeof(%s), { %s }, %s, \'%s\', %s, %s };')
+                        '{ "%s", %s, sizeof(%s), { %s }, %s, %s, %s, %s };')
         tup = (name, rep, structinfo_name, declcode,
                ', '.join([str(x) for x in arraysizes]) or '0', len(arraysizes),
                typegroup, is_unsigned, flags)
@@ -728,12 +729,6 @@ buffer_struct_declare_code = load_buffer_utility("BufferStructDeclare",
 # The caller should immediately goto_error
 raise_indexerror_code = load_buffer_utility("BufferIndexError")
 raise_indexerror_nogil = load_buffer_utility("BufferIndexErrorNogil")
-
-parse_typestring_repeat_code = UtilityCode(
-proto = """
-""",
-impl = """
-""")
 
 raise_buffer_fallback_code = load_buffer_utility("BufferFallbackError")
 buffer_structs_code = load_buffer_utility(

@@ -138,6 +138,7 @@ def test_nbody(iterations):
         times.append(t1 - t0)
     return times
 
+main = test_nbody
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(

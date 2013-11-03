@@ -1,0 +1,37 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import directive2; import directive3"
+PYTHON -c "import infile2; import infile3"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = (cythonize("infile*.py") +
+                   cythonize("directive2.py", compiler_directives={'language_level': 2}) +
+                   cythonize("directive3.py", compiler_directives={'language_level': 3})
+                   )
+)
+
+######## directive3.py ########
+
+import sys
+print("SUCCESS", file=sys.stdout)
+
+######## directive2.py ########
+
+print "SUCCESS"
+
+######## infile3.py ########
+
+# cython: language_level=3
+
+import sys
+print("SUCCESS", file=sys.stdout)
+
+######## infile2.py ########
+
+# cython: language_level=2
+
+print "SUCCESS"

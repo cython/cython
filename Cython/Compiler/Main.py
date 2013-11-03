@@ -3,8 +3,8 @@
 #
 
 import os, sys, re, codecs
-if sys.version_info[:2] < (2, 3):
-    sys.stderr.write("Sorry, Cython requires Python 2.3 or later\n")
+if sys.version_info[:2] < (2, 4):
+    sys.stderr.write("Sorry, Cython requires Python 2.4 or later\n")
     sys.exit(1)
 
 import Errors
@@ -81,9 +81,8 @@ class Context(object):
     def set_language_level(self, level):
         self.language_level = level
         if level >= 3:
-            from Future import print_function, unicode_literals
-            self.future_directives.add(print_function)
-            self.future_directives.add(unicode_literals)
+            from Future import print_function, unicode_literals, absolute_import
+            self.future_directives.update([print_function, unicode_literals, absolute_import])
             self.modules['builtins'] = self.modules['__builtin__']
 
     # pipeline creation functions can now be found in Pipeline.py
@@ -222,65 +221,14 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
-        # Search the list of include directories for the given
-        # file name. If a source file position is given, first
-        # searches the directory containing that file. Returns
-        # None if not found, but does not report an error.
-        # The 'include' option will disable package dereferencing.
-        # If 'sys_path' is True, also search sys.path.
-        dirs = self.include_directories
-        if sys_path:
-            dirs = dirs + sys.path
-        if pos:
-            file_desc = pos[0]
-            if not isinstance(file_desc, FileSourceDescriptor):
-                raise RuntimeError("Only file sources for code supported")
-            if include:
-                dirs = [os.path.dirname(file_desc.filename)] + dirs
-            else:
-                dirs = [self.find_root_package_dir(file_desc.filename)] + dirs
-
-        dotted_filename = qualified_name
-        if suffix:
-            dotted_filename += suffix
-        if not include:
-            names = qualified_name.split('.')
-            package_names = names[:-1]
-            module_name = names[-1]
-            module_filename = module_name + suffix
-            package_filename = "__init__" + suffix
-
-        for dir in dirs:
-            path = os.path.join(dir, dotted_filename)
-            if Utils.path_exists(path):
-                return path
-            if not include:
-                package_dir = self.check_package_dir(dir, package_names)
-                if package_dir is not None:
-                    path = os.path.join(package_dir, module_filename)
-                    if Utils.path_exists(path):
-                        return path
-                    path = os.path.join(dir, package_dir, module_name,
-                                        package_filename)
-                    if Utils.path_exists(path):
-                        return path
-        return None
+        return Utils.search_include_directories(
+            tuple(self.include_directories), qualified_name, suffix, pos, include, sys_path)
 
     def find_root_package_dir(self, file_path):
-        dir = os.path.dirname(file_path)
-        while self.is_package_dir(dir):
-            parent = os.path.dirname(dir)
-            if parent == dir:
-                break
-            dir = parent
-        return dir
+        return Utils.find_root_package_dir(file_path)
 
     def check_package_dir(self, dir, package_names):
-        for dirname in package_names:
-            dir = os.path.join(dir, dirname)
-            if not self.is_package_dir(dir):
-                return None
-        return dir
+        return Utils.check_package_dir(dir, tuple(package_names))
 
     def c_file_out_of_date(self, source_path):
         c_path = Utils.replace_suffix(source_path, ".c")
@@ -309,13 +257,7 @@ class Context(object):
                  if kind == "cimport" ]
 
     def is_package_dir(self, dir_path):
-        #  Return true if the given directory is a package directory.
-        for filename in ("__init__.py",
-                         "__init__.pyx",
-                         "__init__.pxd"):
-            path = os.path.join(dir_path, filename)
-            if Utils.path_exists(path):
-                return 1
+        return Utils.is_package_dir(dir_path)
 
     def read_dependency_file(self, source_path):
         dep_path = Utils.replace_suffix(source_path, ".dep")
@@ -348,6 +290,7 @@ class Context(object):
         source_filename = source_desc.filename
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
+        num_errors = Errors.num_errors
         try:
             f = Utils.open_source_file(source_filename, "rU")
             try:
@@ -379,8 +322,8 @@ class Context(object):
                   "Decoding error, missing or incorrect coding=<encoding-name> "
                   "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg))
 
-        if Errors.num_errors > 0:
-            raise CompileError
+        if Errors.num_errors > num_errors:
+            raise CompileError()
         return tree
 
     def extract_module_name(self, path, options):
@@ -390,8 +333,6 @@ class Context(object):
         module_name, _ = os.path.splitext(filename)
         if "." in module_name:
             return module_name
-        if module_name == "__init__":
-            dir, module_name = os.path.split(dir)
         names = [module_name]
         while self.is_package_dir(dir):
             parent, package_name = os.path.split(dir)
@@ -442,15 +383,17 @@ def create_default_resultobj(compilation_source, options):
         result.c_file = Utils.replace_suffix(source_desc.filename, c_suffix)
     return result
 
-def run_pipeline(source, options, full_module_name = None):
+def run_pipeline(source, options, full_module_name=None, context=None):
     import Pipeline
 
-    context = options.create_context()
+    source_ext = os.path.splitext(source)[1]
+    options.configure_language_defaults(source_ext[1:]) # py/pyx
+    if context is None:
+        context = options.create_context()
 
     # Set up source object
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
-    source_ext = os.path.splitext(source)[1]
     full_module_name = full_module_name or context.extract_module_name(source, options)
 
     if options.relative_path_in_code_position_comments:
@@ -511,11 +454,11 @@ class CompilationOptions(object):
     include_path      [string]  Directories to search for include files
     output_file       string    Name of generated .c file
     generate_pxi      boolean   Generate .pxi file for public declarations
-    recursive         boolean   Recursively find and compile dependencies
-    timestamps        boolean   Only compile changed source files. If None,
-                                defaults to true when recursive is true.
+    capi_reexport_cincludes  
+                      boolean   Add cincluded headers to any auto-generated 
+                                header files.
+    timestamps        boolean   Only compile changed source files.
     verbose           boolean   Always print source names being compiled
-    quiet             boolean   Don't print source names in recursive mode
     compiler_directives  dict      Overrides for pragma options (see Options.py)
     evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     language_level    integer   The Python language level: 2 or 3
@@ -530,8 +473,21 @@ class CompilationOptions(object):
                 defaults = defaults.__dict__
         else:
             defaults = default_options
-        self.__dict__.update(defaults)
-        self.__dict__.update(kw)
+
+        options = dict(defaults)
+        options.update(kw)
+
+        directives = dict(options['compiler_directives']) # copy mutable field
+        options['compiler_directives'] = directives
+        if 'language_level' in directives and 'language_level' not in kw:
+            options['language_level'] = int(directives['language_level'])
+
+        self.__dict__.update(options)
+
+    def configure_language_defaults(self, source_extension):
+        if source_extension == 'py':
+            if self.compiler_directives.get('binding') is None:
+                self.compiler_directives['binding'] = True
 
     def create_context(self):
         return Context(self.include_path, self.compiler_directives,
@@ -604,30 +560,23 @@ def compile_multiple(sources, options):
     sources = [os.path.abspath(source) for source in sources]
     processed = set()
     results = CompilationResultSet()
-    recursive = options.recursive
     timestamps = options.timestamps
-    if timestamps is None:
-        timestamps = recursive
-    verbose = options.verbose or ((recursive or timestamps) and not options.quiet)
+    verbose = options.verbose
+    context = None
     for source in sources:
         if source not in processed:
-            # Compiling multiple sources in one context doesn't quite
-            # work properly yet.
+            if context is None:
+                context = options.create_context()
             if not timestamps or context.c_file_out_of_date(source):
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
 
-                result = run_pipeline(source, options)
+                result = run_pipeline(source, options, context=context)
                 results.add(source, result)
+                # Compiling multiple sources in one context doesn't quite
+                # work properly yet.
+                context = None
             processed.add(source)
-            if recursive:
-                for module_name in context.find_cimported_module_names(source):
-                    path = context.find_pyx_file(module_name, [source])
-                    if path:
-                        sources.append(path)
-                    else:
-                        sys.stderr.write(
-                            "Cannot find .pyx file for cimported module '%s'\n" % module_name)
     return results
 
 def compile(source, options = None, full_module_name = None, **kwds):
@@ -641,8 +590,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, basestring) and not options.timestamps \
-            and not options.recursive:
+    if isinstance(source, basestring) and not options.timestamps:
         return compile_single(source, options, full_module_name)
     else:
         return compile_multiple(source, options)
@@ -695,8 +643,8 @@ default_options = dict(
     output_file = None,
     annotate = None,
     generate_pxi = 0,
+    capi_reexport_cincludes = 0,
     working_path = "",
-    recursive = 0,
     timestamps = None,
     verbose = 0,
     quiet = 0,
@@ -708,4 +656,5 @@ default_options = dict(
     language_level = 2,
     gdb_debug = False,
     compile_time_env = None,
+    common_utility_include_dir = None,
 )

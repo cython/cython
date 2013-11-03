@@ -105,15 +105,19 @@ class UseUtilityCodeDefinitions(CythonTransform):
         self.scope = node.scope
         return super(UseUtilityCodeDefinitions, self).__call__(node)
 
+    def process_entry(self, entry):
+        if entry:
+            for utility_code in (entry.utility_code, entry.utility_code_definition):
+                if utility_code:
+                    self.scope.use_utility_code(utility_code)
+
     def visit_AttributeNode(self, node):
-        if node.entry and node.entry.utility_code_definition:
-            self.scope.use_utility_code(node.entry.utility_code_definition)
+        self.process_entry(node.entry)
         return node
 
     def visit_NameNode(self, node):
-        for e in (node.entry, node.type_entry):
-            if e and e.utility_code_definition:
-                self.scope.use_utility_code(e.utility_code_definition)
+        self.process_entry(node.entry)
+        self.process_entry(node.type_entry)
         return node
                      
 #
@@ -129,7 +133,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
     from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-    from TypeInference import MarkAssignments, MarkOverflowingArithmetic
+    from TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
     from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
     from FlowControl import ControlFlowAnalysis
@@ -140,6 +144,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from Optimize import InlineDefNodeCalls
     from Optimize import ConstantFolding, FinalOptimizePhase
     from Optimize import DropRefcountingTransform
+    from Optimize import ConsolidateOverflowCheck
     from Buffer import IntroduceBufferAuxiliaryVars
     from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
@@ -179,10 +184,10 @@ def create_pipeline(context, mode, exclude_classes=()):
         EmbedSignature(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),  ## Necessary?
-        MarkAssignments(context),
+        MarkParallelAssignments(context),
         ControlFlowAnalysis(context),
         RemoveUnreachableCode(context),
-        # MarkAssignments(context),
+        # MarkParallelAssignments(context),
         MarkOverflowingArithmetic(context),
         IntroduceBufferAuxiliaryVars(context),
         _check_c_declarations,
@@ -192,7 +197,8 @@ def create_pipeline(context, mode, exclude_classes=()):
         CreateClosureClasses(context),  ## After all lookups and type inference
         ExpandInplaceOperators(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
-        IterationTransform(),
+        ConsolidateOverflowCheck(context),
+        IterationTransform(context),
         SwitchTransform(),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
@@ -216,7 +222,7 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         test_support.append(TreeAssertVisitor())
 
     if options.gdb_debug:
-        from Cython.Debugger import DebugWriter
+        from Cython.Debugger import DebugWriter # requires Py2.5+
         from ParseTreeTransforms import DebugTransform
         context.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
             options.output_dir)
@@ -269,7 +275,8 @@ def create_pyx_as_pxd_pipeline(context, result):
             break
     def fake_pxd(root):
         for entry in root.scope.entries.values():
-            entry.defined_in_pxd = 1
+            if not entry.in_cinclude:
+                entry.defined_in_pxd = 1
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline

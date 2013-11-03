@@ -132,9 +132,9 @@ __doc__ = ur"""
     >>> len(bytes_uescape)
     28
 
-    >>> (sys.version_info[0] >= 3 and sys.maxunicode == 1114111 and len(str_uescape) == 3 or
-    ...  sys.version_info[0] >= 3 and sys.maxunicode == 65535   and len(str_uescape) == 4 or
-    ...  sys.version_info[0] <  3 and len(str_uescape) == 17 or
+    >>> (sys.version_info[0] >= 3 and sys.maxunicode == 1114111 and len(str_uescape) == 4 or
+    ...  sys.version_info[0] >= 3 and sys.maxunicode == 65535   and len(str_uescape) == 5 or
+    ...  sys.version_info[0] <  3 and len(str_uescape) == 28 or
     ...  len(str_uescape))
     True
     >>> (sys.version_info[0] >= 3 and str_uescape[0] == 'c' or
@@ -143,10 +143,17 @@ __doc__ = ur"""
     True
     >>> print(str_uescape[-1])
     B
-
-    >>> newlines == "Aaa\n"
+    >>> (sys.version_info[0] >= 3 and ord(str_uescape[-2]) == 0x2603 or
+    ...  sys.version_info[0] <  3 and str_uescape[-12:-1]  == b'\\N{SNOWMAN}' or
+    ...  sys.version_info[0] >= 3 and ord(str_uescape[-2]) or str_uescape[-12:-1])
     True
-    
+
+    >>> same_cname
+    [b'abc\xf0_2', b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
+
+    >>> newlines
+    'Aaa\n'
+
     >>> len(long_escapes)
     3033
     >>> len(even_lots_of_slashes)
@@ -161,7 +168,7 @@ import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u" u'", u" '").replace(u" U'", u" '").replace(u" ur'", u" r'").replace(u" uR'", u" R'").replace(u" Ur'", u" r'").replace(u" UR'", u" R'")
 else:
-    __doc__ = __doc__.replace(u" b'", u" '").replace(u" B'", u" '").replace(u" br'", u" r'").replace(u" bR'", u" R'").replace(u" Br'", u" r'").replace(u" BR'", u" R'")
+    __doc__ = __doc__.replace(u" b'", u" '").replace(u" B'", u" '").replace(u" br'", u" r'").replace(u" bR'", u" R'").replace(u" Br'", u" r'").replace(u" BR'", u" R'").replace(u"[b'", u"['")
 
 s1 = "abc\x11"
 s2 = r"abc\x11"
@@ -172,6 +179,17 @@ s6 = br"abc\x11"
 s7 = Br"abc\x11"
 s8 = bR"abc\x11"
 s9 = BR"abc\x11"
+
+# and in reversed order: r+b
+s6_2 = rb"abc\x11"
+s7_2 = rB"abc\x11"
+s8_2 = Rb"abc\x11"
+s9_2 = RB"abc\x11"
+
+assert s6 == s6_2
+assert s7 == s7_2
+assert s8 == s8_2
+assert s9 == s9_2
 
 u1 = u"abc\x11"
 u2 = U"abc\x11"
@@ -185,7 +203,9 @@ bresc = br'\12\'\"\\'
 uresc = ur'\12\'\"\\'
 
 bytes_uescape = b'\u1234\U12345678\u\u1\u12\uX'
-str_uescape = '\u0063\U00012345\x42'
+str_uescape = '\u0063\U00012345\N{SNOWMAN}\x42'
+
+same_cname = [b'abc\xf0_2', b'abc\xf0', b'abc\xf1', b'abc\xf2', b'abc\xf3', b'abc_2', b'abc_3']
 
 newlines = "Aaa\n"
 

@@ -1,3 +1,5 @@
+# tag: cpp
+
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a; a.use_vector([1,2,3])"
 

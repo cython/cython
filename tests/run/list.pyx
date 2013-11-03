@@ -104,10 +104,43 @@ def test_list_pop_all():
     """
     cdef list l1
     l1 = [1,2]
+    i = 0
     try:
         l1.pop()
+        i = 1
         l1.pop(-1)
+        i = 2
         l1.pop(0)
+        i = 3
     except IndexError:
-        return True
+        return i == 2
     return False
+
+def test_list_extend():
+    """
+    >>> test_list_extend()
+    [1, 2, 3, 4, 5, 6]
+    """
+    cdef list l = [1,2,3]
+    l.extend([])
+    l.extend(())
+    l.extend(set())
+    assert l == [1,2,3]
+    assert len(l) == 3
+    l.extend([4,5,6])
+    return l
+
+def test_none_list_extend(list l):
+    """
+    >>> test_none_list_extend([])
+    [1, 2, 3]
+    >>> test_none_list_extend([0, 0, 0])
+    [0, 0, 0, 1, 2, 3]
+    >>> test_none_list_extend(None)
+    123
+    """
+    try:
+        l.extend([1,2,3])
+    except AttributeError:
+        return 123
+    return l

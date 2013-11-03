@@ -21,7 +21,18 @@ def test_non_optimised():
     return True
 
 @cython.test_assert_path_exists('//PythonCapiCallNode',
-                                '//PythonCapiCallNode//SimpleCallNode')
+                                '//PythonCapiCallNode//SimpleCallNode',
+                                '//PythonCapiFunctionNode[@cname = "PyType_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyInt_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyFloat_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyBytes_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyUnicode_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyTuple_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyList_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyDict_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PySet_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PySlice_Check"]',
+                                '//PythonCapiFunctionNode[@cname = "PyComplex_Check"]')
 @cython.test_fail_if_path_exists('//SimpleCallNode//SimpleCallNode',
                                  '//SimpleCallNode//PythonCapiCallNode')
 def test_optimised():
@@ -29,23 +40,63 @@ def test_optimised():
     >>> test_optimised()
     True
     """
-    new_type = type('a',(),{})
-
     # Optimized tests.
+    cdef object new_type = type('a',(),{})
+    assert isinstance(type('a',(),{}), type)
     assert isinstance(new_type, type)
+
+    cdef object boolval = True
+    assert isinstance(boolval, bool)
     assert isinstance(True, bool)
+
+    cdef object intval = int()
+    assert isinstance(intval, int)
     assert isinstance(int(), int)
+
+    cdef object longval = long()
+    assert isinstance(longval, long)
     assert isinstance(long(), long)
+
+    cdef object floatval = float()
+    assert isinstance(floatval, float)
     assert isinstance(float(), float)
+
+    cdef object bytesval = bytes()
+    assert isinstance(bytesval, bytes)
     assert isinstance(bytes(), bytes)
+
+    cdef object strval = str()
+    assert isinstance(strval, str)
     assert isinstance(str(), str)
+
+    cdef object unicodeval = unicode()
+    assert isinstance(unicodeval, unicode)
     assert isinstance(unicode(), unicode)
+
+    cdef object tupleval = tuple()
+    assert isinstance(tupleval, tuple)
     assert isinstance(tuple(), tuple)
+
+    cdef object listval = list()
+    assert isinstance(listval, list)
     assert isinstance(list(), list)
+
+    cdef object dictval = dict()
+    assert isinstance(dictval, dict)
     assert isinstance(dict(), dict)
+
+    cdef object setval = set()
+    assert isinstance(setval, set)
     assert isinstance(set(), set)
+
+    cdef object sliceval = slice(0)
+    assert isinstance(sliceval, slice)
     assert isinstance(slice(0), slice)
+
+    cdef object complexval = complex()
+    assert isinstance(complexval, complex)
     assert isinstance(complex(), complex)
+
     assert not isinstance(u"foo", int)
     assert isinstance(A, type)
     assert isinstance(A(), A)
@@ -64,9 +115,9 @@ def test_optimised_tuple():
     >>> test_optimised_tuple()
     True
     """
-    assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
-    assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
-    assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, A))
+    assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
+    assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
+    assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
     return True
 
 def test_custom():

@@ -34,10 +34,10 @@ cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs
 #class WithTransform(CythonTransform, SkipDeclarations):
 #class DecoratorTransform(CythonTransform, SkipDeclarations):
 
-#class AnalyseDeclarationsTransform(CythonTransform):
+#class AnalyseDeclarationsTransform(EnvTransform):
 
 cdef class AnalyseExpressionsTransform(CythonTransform):
-    cdef list env_stack
+    pass
 
 cdef class ExpandInplaceOperators(EnvTransform):
     pass
@@ -63,6 +63,7 @@ cdef class CreateClosureClasses(CythonTransform):
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack
     cdef bint nogil
+    cdef bint nogil_declarator_only
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef visit_cython_attribute(self, node)

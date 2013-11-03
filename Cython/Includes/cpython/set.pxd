@@ -66,12 +66,12 @@ cdef extern from "Python.h":
     # The following functions and macros are available for instances
     # of set or frozenset or instances of their subtypes.
 
-    int PySet_Size(object anyset) except -1
+    Py_ssize_t PySet_Size(object anyset) except -1
     # Return the length of a set or frozenset object. Equivalent to
     # "len(anyset)". Raises a PyExc_SystemError if anyset is not a
     # set, frozenset, or an instance of a subtype.
 
-    int PySet_GET_SIZE(object anyset)
+    Py_ssize_t PySet_GET_SIZE(object anyset)
     # Macro form of PySet_Size() without error checking.
 
     bint PySet_Contains(object anyset, object key) except -1

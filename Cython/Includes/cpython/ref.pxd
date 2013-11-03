@@ -3,6 +3,7 @@ cdef extern from "Python.h":
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
         PyTypeObject *ob_type
+    cdef PyTypeObject *Py_TYPE(object)
 
 
     #####################################################################

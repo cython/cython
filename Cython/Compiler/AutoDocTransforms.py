@@ -11,6 +11,40 @@ class EmbedSignature(CythonTransform):
         self.class_name = None
         self.class_node = None
 
+    unop_precedence = 11
+    binop_precedence = {
+        'or': 1,
+        'and': 2,
+        'not': 3,
+        'in': 4, 'not in': 4, 'is': 4, 'is not': 4, '<': 4, '<=': 4, '>': 4, '>=': 4, '!=': 4, '==': 4,
+        '|': 5,
+        '^': 6,
+        '&': 7,
+        '<<': 8, '>>': 8,
+        '+': 9, '-': 9,
+        '*': 10, '/': 10, '//': 10, '%': 10,
+        # unary: '+': 11, '-': 11, '~': 11
+        '**': 12}
+
+    def _fmt_expr_node(self, node, precedence=0):
+        if isinstance(node, ExprNodes.BinopNode) and not node.inplace:
+            new_prec = self.binop_precedence.get(node.operator, 0)
+            result = '%s %s %s' % (self._fmt_expr_node(node.operand1, new_prec),
+                                   node.operator,
+                                   self._fmt_expr_node(node.operand2, new_prec))
+            if precedence > new_prec:
+                result = '(%s)' % result
+        elif isinstance(node, ExprNodes.UnopNode):
+            result = '%s%s' % (node.operator,
+                               self._fmt_expr_node(node.operand, self.unop_precedence))
+            if precedence > self.unop_precedence:
+                result = '(%s)' % result
+        elif isinstance(node, ExprNodes.AttributeNode):
+            result = '%s.%s' % (self._fmt_expr_node(node.obj), node.attribute)
+        else:
+            result = node.name
+        return result
+
     def _fmt_arg_defv(self, arg):
         default_val = arg.default
         if not default_val:
@@ -31,8 +65,8 @@ class EmbedSignature(CythonTransform):
             return repr_val
         except Exception:
             try:
-                return default_val.name # XXX
-            except AttributeError:
+                return self._fmt_expr_node(default_val)
+            except AttributeError, e:
                 return '<???>'
 
     def _fmt_arg(self, arg):
@@ -92,7 +126,6 @@ class EmbedSignature(CythonTransform):
             return "%s\n%s" % (signature, node_doc)
         else:
             return signature
-
 
     def __call__(self, node):
         if not Options.docstrings:
@@ -172,8 +205,25 @@ class EmbedSignature(CythonTransform):
                 old_doc = node.py_func.entry.doc
             else:
                 old_doc = None
-            new_doc  = self._embed_signature(signature, old_doc)
+            new_doc = self._embed_signature(signature, old_doc)
             node.entry.doc = EncodedString(new_doc)
             if hasattr(node, 'py_func') and node.py_func is not None:
                 node.py_func.entry.doc = EncodedString(new_doc)
+        return node
+
+    def visit_PropertyNode(self, node):
+        if not self.current_directives['embedsignature']:
+            return node
+
+        entry = node.entry
+        if entry.visibility == 'public':
+            # property synthesised from a cdef public attribute
+            type_name = entry.type.declaration_code("", for_display=1)
+            if not entry.type.is_pyobject:
+                type_name = "'%s'" % type_name
+            elif entry.type.is_extension_type:
+                type_name = entry.type.module_name + '.' + type_name
+            signature = '%s: %s' % (entry.name, type_name)
+            new_doc = self._embed_signature(signature, entry.doc)
+            entry.doc = EncodedString(new_doc)
         return node

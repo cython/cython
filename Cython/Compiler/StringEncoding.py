@@ -126,9 +126,28 @@ class EncodedString(_unicode):
         assert self.encoding is None
         return self.encode("UTF-8")
 
+    @property
     def is_unicode(self):
         return self.encoding is None
-    is_unicode = property(is_unicode)
+
+    def contains_surrogates(self):
+        return string_contains_surrogates(self)
+
+
+def string_contains_surrogates(ustring):
+    """
+    Check if the unicode string contains surrogate code points
+    on a CPython platform with wide (UCS-4) or narrow (UTF-16)
+    Unicode, i.e. characters that would be spelled as two
+    separate code units on a narrow platform.
+    """
+    for c in map(ord, ustring):
+        if c > 65535:  # can only happen on wide platforms
+            return True
+        if 0xD800 <= c <= 0xDFFF:
+            return True
+    return False
+
 
 class BytesLiteral(_bytes):
     # bytes subclass that is compatible with EncodedString
@@ -155,6 +174,7 @@ class BytesLiteral(_bytes):
 
     is_unicode = False
 
+
 char_from_escape_sequence = {
     r'\a' : u'\a',
     r'\b' : u'\b',
@@ -164,6 +184,9 @@ char_from_escape_sequence = {
     r'\t' : u'\t',
     r'\v' : u'\v',
     }.get
+
+_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
+
 
 def _to_escape_sequence(s):
     if s in '\n\r\t':
@@ -176,19 +199,23 @@ def _to_escape_sequence(s):
         # within a character sequence, oct passes much better than hex
         return ''.join(['\\%03o' % ord(c) for c in s])
 
-_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
-_c_special_replacements = [(orig.encode('ASCII'),
-                            _to_escape_sequence(orig).encode('ASCII'))
-                           for orig in _c_special ]
 
-def _build_specials_test():
+def _build_specials_replacer():
     subexps = []
+    replacements = {}
     for special in _c_special:
         regexp = ''.join(['[%s]' % c.replace('\\', '\\\\') for c in special])
         subexps.append(regexp)
-    return re.compile('|'.join(subexps).encode('ASCII')).search
+        replacements[special.encode('ASCII')] = _to_escape_sequence(special).encode('ASCII')
+    sub = re.compile(('(%s)' % '|'.join(subexps)).encode('ASCII')).sub
+    def replace_specials(m):
+        return replacements[m.group(1)]
+    def replace(s):
+        return sub(replace_specials, s)
+    return replace
 
-_has_specials = _build_specials_test()
+_replace_specials = _build_specials_replacer()
+
 
 def escape_char(c):
     if IS_PYTHON3:
@@ -210,10 +237,7 @@ def escape_byte_string(s):
     encoded as ISO-8859-1, will result in the correct byte sequence
     being written.
     """
-    if _has_specials(s):
-        for special, replacement in _c_special_replacements:
-            if special in s:
-                s = s.replace(special, replacement)
+    s = _replace_specials(s)
     try:
         return s.decode("ASCII") # trial decoding: plain ASCII => done
     except UnicodeDecodeError:
@@ -258,3 +282,30 @@ def split_string_literal(s, limit=2000):
             chunks.append(s[start:end])
             start = end
         return '""'.join(chunks)
+
+def encode_pyunicode_string(s):
+    """Create Py_UNICODE[] representation of a given unicode string.
+    """
+    s = map(ord, s) + [0]
+
+    if sys.maxunicode >= 0x10000:  # Wide build or Py3.3
+        utf16, utf32 = [], s
+        for code_point in s:
+            if code_point >= 0x10000:  # outside of BMP
+                high, low = divmod(code_point - 0x10000, 1024)
+                utf16.append(high + 0xD800)
+                utf16.append(low + 0xDC00)
+            else:
+                utf16.append(code_point)
+    else:
+        utf16, utf32 = s, []
+        for code_unit in s:
+            if 0xDC00 <= code_unit <= 0xDFFF and utf32 and 0xD800 <= utf32[-1] <= 0xDBFF:
+                high, low = utf32[-1], code_unit
+                utf32[-1] = ((high & 0x3FF) << 10) + (low & 0x3FF) + 0x10000
+            else:
+                utf32.append(code_unit)
+
+    if utf16 == utf32:
+        utf16 = []
+    return ",".join(map(unicode, utf16)), ",".join(map(unicode, utf32))

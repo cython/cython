@@ -21,12 +21,13 @@ DEBUG = 0
 _reloads={}
 
 def pyx_to_dll(filename, ext = None, force_rebuild = 0,
-               build_in_temp=False, pyxbuild_dir=None, setup_args={}, reload_support=False):
+               build_in_temp=False, pyxbuild_dir=None, setup_args={},
+               reload_support=False, inplace=False):
     """Compile a PYX file to a DLL and return the name of the generated .so 
        or .dll ."""
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
 
-    path, name = os.path.split(filename)
+    path, name = os.path.split(os.path.abspath(filename))
 
     if not ext:
         modname, extension = os.path.splitext(name)
@@ -38,6 +39,14 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     if not pyxbuild_dir:
         pyxbuild_dir = os.path.join(path, "_pyxbld")
 
+    package_base_dir = path
+    for package_name in ext.name.split('.')[-2::-1]:
+        package_base_dir, pname = os.path.split(package_base_dir)
+        if pname != package_name:
+            # something is wrong - package path doesn't match file path
+            package_base_dir = None
+            break
+
     script_args=setup_args.get("script_args",[])
     if DEBUG or "--verbose" in script_args:
         quiet = "--verbose"
@@ -46,6 +55,15 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
+    if inplace and package_base_dir:
+        args.extend(['--build-lib', package_base_dir])
+        if ext.name == '__init__' or ext.name.endswith('.__init__'):
+            # package => provide __path__ early
+            if not hasattr(ext, 'cython_directives'):
+                ext.cython_directives = {'set_initial_path' : 'SOURCEFILE'}
+            elif 'set_initial_path' not in ext.cython_directives:
+                ext.cython_directives['set_initial_path'] = 'SOURCEFILE'
+
     if HAS_CYTHON and build_in_temp:
         args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
@@ -82,8 +100,8 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
 
 
     try:
-        dist.run_commands()
         obj_build_ext = dist.get_command_obj("build_ext")
+        dist.run_commands()
         so_path = obj_build_ext.get_outputs()[0]
         if obj_build_ext.inplace:
             # Python distutils get_outputs()[ returns a wrong so_path 
@@ -106,6 +124,17 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
                                           basename + '.reload%s'%count)
                     try:
                         import shutil # late import / reload_support is: debugging
+                        try:
+                            # Try to unlink first --- if the .so file
+                            # is mmapped by another process,
+                            # overwriting its contents corrupts the
+                            # loaded image (on Linux) and crashes the
+                            # other process. On Windows, unlinking an
+                            # open file just fails.
+                            if os.path.isfile(r_path):
+                                os.unlink(r_path)
+                        except OSError:
+                            continue
                         shutil.copy2(org_path, r_path)
                         so_path = r_path
                     except IOError:

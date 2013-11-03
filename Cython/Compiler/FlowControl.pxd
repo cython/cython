@@ -1,5 +1,7 @@
 cimport cython
 
+from Cython.Compiler.Visitor cimport CythonTransform, TreeVisitor
+
 cdef class ControlBlock:
      cdef public set children
      cdef public set parents
@@ -26,18 +28,24 @@ cdef class ExitBlock(ControlBlock):
 
 cdef class NameAssignment:
     cdef public bint is_arg
+    cdef public bint is_deletion
     cdef public object lhs
     cdef public object rhs
     cdef public object entry
     cdef public object pos
     cdef public set refs
     cdef public object bit
+    cdef public object inferred_type
 
 cdef class AssignmentList:
     cdef public object bit
     cdef public object mask
     cdef public list stats
 
+cdef class AssignmentCollector(TreeVisitor):
+    cdef list assignments
+
+@cython.final
 cdef class ControlFlow:
      cdef public set blocks
      cdef public set entries
@@ -50,17 +58,20 @@ cdef class ControlFlow:
 
      cdef public dict assmts
 
-     cpdef newblock(self, parent=*)
-     cpdef nextblock(self, parent=*)
+     cpdef newblock(self, ControlBlock parent=*)
+     cpdef nextblock(self, ControlBlock parent=*)
      cpdef bint is_tracked(self, entry)
+     cpdef bint is_statically_assigned(self, entry)
      cpdef mark_position(self, node)
      cpdef mark_assignment(self, lhs, rhs, entry)
      cpdef mark_argument(self, lhs, rhs, entry)
      cpdef mark_deletion(self, node, entry)
      cpdef mark_reference(self, node, entry)
+
+     @cython.locals(block=ControlBlock, parent=ControlBlock, unreachable=set)
      cpdef normalize(self)
 
-     @cython.locals(offset=object, assmts=AssignmentList,
+     @cython.locals(bit=object, assmts=AssignmentList,
                     block=ControlBlock)
      cpdef initialize(self)
 
@@ -73,5 +84,22 @@ cdef class ControlFlow:
 cdef class Uninitialized:
      pass
 
-@cython.locals(dirty=bint, block=ControlBlock, parent=ControlBlock)
+cdef class Unknown:
+    pass
+
+@cython.locals(dirty=bint, block=ControlBlock, parent=ControlBlock,
+               assmt=NameAssignment)
 cdef check_definitions(ControlFlow flow, dict compiler_directives)
+
+@cython.final
+cdef class ControlFlowAnalysis(CythonTransform):
+    cdef object gv_ctx
+    cdef set reductions
+    cdef list env_stack
+    cdef list stack
+    cdef object env
+    cdef ControlFlow flow
+    cdef bint in_inplace_assignment
+
+    cpdef mark_assignment(self, lhs, rhs=*)
+    cpdef mark_position(self, node)

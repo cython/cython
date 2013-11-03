@@ -2,6 +2,8 @@
 
 # function call arguments
 
+# not really a bug, Cython warns about it now -- C argument evaluation order is undefined
+
 arg_order = []
 
 cdef int f():

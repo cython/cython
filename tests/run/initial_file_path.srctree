@@ -1,0 +1,92 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import my_test_package as p; assert not p.__file__.rstrip('co').endswith('.py'), p.__file__; p.test()"
+PYTHON -c "import my_test_package.a as a; a.test()"
+PYTHON -c "import my_test_package.another as p; assert not p.__file__.rstrip('co').endswith('.py'), p.__file__; p.test()"
+PYTHON -c "import my_test_package.another.a as a; a.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize(["my_test_package/**/*.py"]),
+)
+
+######## my_test_package/__init__.py ########
+
+# cython: set_initial_path=SOURCEFILE
+
+initial_path = __path__
+initial_file = __file__
+
+try:
+    from . import a
+    import_error = None
+except ImportError as e:
+    import_error = e
+    import traceback
+    traceback.print_exc()
+
+def test():
+    print "FILE: ", initial_file
+    print "PATH: ", initial_path
+    assert initial_path[0].endswith('my_test_package'), initial_path
+    assert initial_file.endswith('__init__.py'), initial_file
+    assert import_error is None, import_error
+
+######## my_test_package/another/__init__.py ########
+
+# cython: set_initial_path=SOURCEFILE
+
+initial_path = __path__
+initial_file = __file__
+
+try:
+    from . import a
+    import_error = None
+except ImportError as e:
+    import_error = e
+    import traceback
+    traceback.print_exc()
+
+def test():
+    print "FILE: ", initial_file
+    print "PATH: ", initial_path
+    assert initial_path[0].endswith('another'), initial_path
+    assert initial_file.endswith('__init__.py'), initial_file
+    assert import_error is None, import_error
+
+######## my_test_package/a.py ########
+
+# cython: set_initial_path=SOURCEFILE
+
+initial_file = __file__
+
+try:
+    initial_path = __path__
+except NameError:
+    got_name_error = True
+else:
+    got_name_error = False
+
+def test():
+    assert initial_file.endswith('a.py'), initial_file
+    assert got_name_error, "looks like __path__ was set at module init time: " + initial_path
+
+######## my_test_package/another/a.py ########
+
+# cython: set_initial_path=SOURCEFILE
+
+initial_file = __file__
+
+try:
+    initial_path = __path__
+except NameError:
+    got_name_error = True
+else:
+    got_name_error = False
+
+def test():
+    assert initial_file.endswith('a.py'), initial_file
+    assert got_name_error, "looks like __path__ was set at module init time: " + initial_path

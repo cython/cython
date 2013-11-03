@@ -1,0 +1,18 @@
+
+PYTHON -c "import basic_test; basic_test.test()"
+
+######## basic_test.py ########
+
+import os.path
+import pyximport
+
+pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "BUILD"))
+
+def test():
+    import mymodule
+    assert mymodule.test_string == "TEST"
+    assert not mymodule.__file__.rstrip('oc').endswith('.py'), mymodule.__file__
+
+######## mymodule.pyx ########
+
+test_string = "TEST"
