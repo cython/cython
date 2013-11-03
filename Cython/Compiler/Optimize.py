@@ -2888,7 +2888,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
     def _find_special_codec_name(self, encoding):
         try:
             requested_codec = codecs.getencoder(encoding)
-        except:
+        except LookupError:
             return None
         for name, codec in self._special_codecs:
             if codec == requested_codec:
