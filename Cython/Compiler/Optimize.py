@@ -2765,7 +2765,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("decode_func", PyUnicode_DecodeXyz_func_ptr_type, None),
             ])
 
-    _decode_cpp_string_func_type = None # lazy init
+    _decode_cpp_string_func_type = None  # lazy init
 
     def _handle_simple_method_bytes_decode(self, node, function, args, is_unbound_method):
         """Replace char*.decode() by a direct C-API call to the
@@ -2792,12 +2792,12 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             if is_unbound_method:
                 string_node = string_node.as_none_safe_node(
                     "descriptor '%s' requires a '%s' object but received a 'NoneType'",
-                    format_args = ['decode', string_type.name])
+                    format_args=['decode', string_type.name])
             else:
                 string_node = string_node.as_none_safe_node(
                     "'NoneType' object has no attribute '%s'",
-                    error = "PyExc_AttributeError",
-                    format_args = ['decode'])
+                    error="PyExc_AttributeError",
+                    format_args=['decode'])
         elif not string_type.is_string and not string_type.is_cpp_string:
             # nothing to optimise here
             return node
@@ -2837,10 +2837,10 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                     temps.append(string_node)
                 stop = ExprNodes.PythonCapiCallNode(
                     string_node.pos, "strlen", self.Pyx_strlen_func_type,
-                    args = [string_node],
-                    is_temp = False,
-                    utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
-                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+                    args=[string_node],
+                    is_temp=False,
+                    utility_code=UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
+                ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
             helper_func_type = self._decode_c_string_func_type
             utility_code_name = 'decode_c_string'
         elif string_type.is_cpp_string:
@@ -2858,7 +2858,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                         PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
                         PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
                         PyrexTypes.CFuncTypeArg("decode_func", self.PyUnicode_DecodeXyz_func_ptr_type, None),
-                        ])
+                    ])
             helper_func_type = self._decode_cpp_string_func_type
             utility_code_name = 'decode_cpp_string'
         else:
@@ -2874,10 +2874,10 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
 
         node = ExprNodes.PythonCapiCallNode(
             node.pos, '__Pyx_%s' % utility_code_name, helper_func_type,
-            args = [string_node, start, stop, encoding_node, error_handling_node, decode_function],
-            is_temp = node.is_temp,
+            args=[string_node, start, stop, encoding_node, error_handling_node, decode_function],
+            is_temp=node.is_temp,
             utility_code=UtilityCode.load_cached(utility_code_name, 'StringTools.c'),
-            )
+        )
 
         for temp in temps[::-1]:
             node = UtilNodes.EvalWithTempExprNode(temp, node)
@@ -2893,8 +2893,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         for name, codec in self._special_codecs:
             if codec == requested_codec:
                 if '_' in name:
-                    name = ''.join([ s.capitalize()
-                                     for s in name.split('_')])
+                    name = ''.join([s.capitalize()
+                                    for s in name.split('_')])
                 return name
         return None
 
