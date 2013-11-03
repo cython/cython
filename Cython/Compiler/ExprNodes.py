@@ -3372,6 +3372,9 @@ class IndexNode(ExprNode):
                         self.extra_index_params(code),
                         self.result(),
                         code.error_goto(self.pos)))
+            else:
+                assert False, "unexpected type %s and base type %s for indexing" % (
+                    self.type, self.base.type)
 
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
