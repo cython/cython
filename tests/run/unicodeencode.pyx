@@ -20,6 +20,15 @@ def default():
     """
     return u'abcdefg'.encode()
 
+def encode_non_constant(encoding):
+    """
+    >>> isinstance(encode_non_constant('utf8'), _bytes)
+    True
+    >>> encode_non_constant('utf8') == u.encode('UTF-8')
+    True
+    """
+    return text.encode(encoding)
+
 @cython.test_assert_path_exists('//PythonCapiFunctionNode[@cname = "PyUnicode_AsUTF8String"]')
 def utf8():
     """
