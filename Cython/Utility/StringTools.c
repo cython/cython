@@ -227,6 +227,49 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 #endif
 }
 
+//////////////////// GetItemIntByteArray.proto ////////////////////
+
+#define __Pyx_GetItemInt_ByteArray(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
+    (((size) <= sizeof(Py_ssize_t)) ? \
+    __Pyx_GetItemInt_ByteArray_Fast(o, i, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_ByteArray_Generic(o, to_py_func(i)))
+
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
+                                                         int wraparound, int boundscheck);
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Generic(PyObject* string, PyObject* j);
+
+//////////////////// GetItemIntByteArray ////////////////////
+
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
+                                                         int wraparound, int boundscheck) {
+    Py_ssize_t length;
+    if (wraparound | boundscheck) {
+        length = PyByteArray_GET_SIZE(string);
+        if (wraparound & unlikely(i < 0)) i += length;
+        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+            return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+        } else {
+            PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
+            return -1;
+        }
+    } else {
+        return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+    }
+}
+
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Generic(PyObject* string, PyObject* j) {
+    unsigned char bchar;
+    PyObject *bchar_string;
+    if (!j) return -1;
+    bchar_string = PyObject_GetItem(string, j);
+    Py_DECREF(j);
+    if (!bchar_string) return -1;
+    bchar = (unsigned char) (PyByteArray_AS_STRING(bchar_string)[0]);
+    Py_DECREF(bchar_string);
+    return bchar;
+}
+
+
 //////////////////// GetItemIntUnicode.proto ////////////////////
 
 #define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func, is_list, wraparound, boundscheck) \

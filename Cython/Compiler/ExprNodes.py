@@ -2723,7 +2723,8 @@ class IndexNode(ExprNode):
             elif base_type.is_pyunicode_ptr:
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
-            elif base_type in (unicode_type, bytes_type, str_type, list_type, tuple_type):
+            elif base_type in (unicode_type, bytes_type, str_type,
+                               bytearray_type, list_type, tuple_type):
                 # slicing these returns the same type
                 return base_type
             else:
@@ -2745,6 +2746,8 @@ class IndexNode(ExprNode):
             elif base_type is str_type:
                 # always returns str - Py2: bytes, Py3: unicode
                 return base_type
+            elif base_type is bytearray_type:
+                return PyrexTypes.c_uchar_type
             elif isinstance(self.base, BytesNode):
                 #if env.global_scope().context.language_level >= 3:
                 #    # inferring 'char' can be made to work in Python 3 mode
@@ -3014,7 +3017,7 @@ class IndexNode(ExprNode):
             if base_type.is_pyobject:
                 if self.index.type.is_int:
                     if (not setting
-                        and (base_type in (list_type, tuple_type))
+                        and (base_type in (list_type, tuple_type, bytearray_type))
                         and (not self.index.type.signed
                              or not env.directives['wraparound']
                              or (isinstance(self.index, IntNode) and
@@ -3032,6 +3035,9 @@ class IndexNode(ExprNode):
                     # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
                     # if required, so this is fast and safe
                     self.type = PyrexTypes.c_py_ucs4_type
+                elif self.index.type.is_int and base_type is bytearray_type:
+                    # not using uchar here to enable error reporting as '-1'
+                    self.type = PyrexTypes.c_int_type
                 elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
                     self.type = base_type
                 else:
@@ -3230,15 +3236,21 @@ class IndexNode(ExprNode):
             return "(*%s)" % self.buffer_ptr_code
         elif self.is_memslice_copy:
             return self.base.result()
-        elif self.base.type is list_type:
-            return "PyList_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
-        elif self.base.type is tuple_type:
-            return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
-        elif (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
-            error(self.pos, "Invalid use of pointer slice")
+        elif self.base.type in (list_type, tuple_type, bytearray_type):
+            if self.base.type is list_type:
+                index_code = "PyList_GET_ITEM(%s, %s)"
+            elif self.base.type is tuple_type:
+                index_code = "PyTuple_GET_ITEM(%s, %s)"
+            elif self.base.type is bytearray_type:
+                index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
+            else:
+                assert False, "unexpected base type in indexing: %s" % self.base.type
         else:
-            return "(%s[%s])" % (
-                self.base.result(), self.index.result())
+            if (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
+                error(self.pos, "Invalid use of pointer slice")
+                return
+            index_code = "(%s[%s])"
+        return index_code % (self.base.result(), self.index.result())
 
     def extra_index_params(self, code):
         if self.index.type.is_int:
@@ -3337,6 +3349,22 @@ class IndexNode(ExprNode):
                     UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c"))
                 code.putln(
                     "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UCS4)-1)) %s;" % (
+                        self.result(),
+                        function,
+                        self.base.py_result(),
+                        index_code,
+                        self.extra_index_params(code),
+                        self.result(),
+                        code.error_goto(self.pos)))
+            elif self.base.type is bytearray_type:
+                assert self.index.type.is_int
+                assert self.type.is_int
+                index_code = self.index.result()
+                function = "__Pyx_GetItemInt_ByteArray"
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c"))
+                code.putln(
+                    "%s = %s(%s, %s%s); if (unlikely(%s == -1)) %s;" % (
                         self.result(),
                         function,
                         self.base.py_result(),
