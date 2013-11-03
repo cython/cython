@@ -2668,7 +2668,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             return node
         encoding, encoding_node, error_handling, error_handling_node = parameters
 
-        if isinstance(string_node, ExprNodes.UnicodeNode):
+        if encoding and isinstance(string_node, ExprNodes.UnicodeNode):
             # constant, so try to do the encoding at compile time
             try:
                 value = string_node.value.encode(encoding, error_handling)
@@ -2681,7 +2681,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 return ExprNodes.BytesNode(
                     string_node.pos, value=value, type=Builtin.bytes_type)
 
-        if error_handling == 'strict':
+        if encoding and error_handling == 'strict':
             # try to find a specific encoder function
             codec_name = self._find_special_codec_name(encoding)
             if codec_name is not None:
