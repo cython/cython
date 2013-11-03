@@ -235,7 +235,8 @@ VER_DEP_MODULES = {
                                           'run.pure_py', # decorators, with statement
                                           'run.purecdef',
                                           'run.struct_conversion',
-                                          'run.bytearray',
+                                          'run.bytearray_coercion',
+                                          'run.bytearraymethods',
                                           # memory views require buffer protocol
                                           'memoryview.relaxed_strides',
                                           'memoryview.cythonarray',
