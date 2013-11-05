@@ -63,3 +63,52 @@ def infer_slice_types(bytearray b):
     with cython.boundscheck(False), cython.wraparound(False):
         e = b[1:]
     return c, d, e, cython.typeof(c), cython.typeof(d), cython.typeof(e), cython.typeof(b[1:])
+
+def assign_to_index(bytearray b, value):
+    """
+    >>> b = bytearray(b'0abcdefg')
+    >>> assign_to_index(b, 1)
+    bytearray(b'xyzee\\x01h')
+    >>> b
+    bytearray(b'xyzee\\x01h')
+
+    >>> assign_to_index(bytearray(b'0ABCDEFG'), 40)
+    bytearray(b'xyzEE(o')
+
+    >>> assign_to_index(bytearray(b'0abcdefg'), -1)
+    Traceback (most recent call last):
+    OverflowError: can't convert negative value to unsigned char
+
+    >>> assign_to_index(bytearray(b'0abcdef\\x00'), 255)
+    bytearray(b'xyzee\\xff\\xff')
+    >>> assign_to_index(bytearray(b'0abcdef\\x01'), 255)
+    Traceback (most recent call last):
+    OverflowError: value too large to convert to unsigned char
+    >>> assign_to_index(bytearray(b'0abcdef\\x00'), 256)
+    Traceback (most recent call last):
+    OverflowError: value too large to convert to unsigned char
+    """
+    b[1] = 'x'
+    b[2] = b'y'
+    b[3] = c'z'
+    b[4] += 1
+    b[5] |= 1
+    b[6] = value
+    b[7] += value
+    del b[0]
+
+    try:
+        b[7] = 1
+    except IndexError:
+        pass
+    else:
+        assert False, "IndexError not raised"
+
+    try:
+        b[int(str(len(b)))] = 1   # test non-int-index assignment
+    except IndexError:
+        pass
+    else:
+        assert False, "IndexError not raised"
+
+    return b

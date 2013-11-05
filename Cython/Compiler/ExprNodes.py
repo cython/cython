@@ -259,6 +259,7 @@ class ExprNode(Node):
     is_sequence_constructor = 0
     is_string_literal = 0
     is_attribute = 0
+    is_subscript = 0
 
     saved_subexpr_nodes = None
     is_temp = 0
@@ -2645,6 +2646,7 @@ class IndexNode(ExprNode):
     subexprs = ['base', 'index', 'indices']
     indices = None
 
+    is_subscript = True
     is_fused_index = False
 
     # Whether we're assigning to a buffer (in that case it needs to be
@@ -3036,8 +3038,11 @@ class IndexNode(ExprNode):
                     # if required, so this is fast and safe
                     self.type = PyrexTypes.c_py_ucs4_type
                 elif self.index.type.is_int and base_type is bytearray_type:
-                    # not using uchar here to enable error reporting as '-1'
-                    self.type = PyrexTypes.c_int_type
+                    if setting:
+                        self.type = PyrexTypes.c_uchar_type
+                    else:
+                        # not using 'uchar' to enable fast and safe error reporting as '-1'
+                        self.type = PyrexTypes.c_int_type
                 elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
                     self.type = base_type
                 else:
@@ -3378,10 +3383,15 @@ class IndexNode(ExprNode):
 
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
-            function = "__Pyx_SetItemInt"
+            if self.base.type is bytearray_type:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("SetItemIntByteArray", "StringTools.c"))
+                function = "__Pyx_SetItemInt_ByteArray"
+            else:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("SetItemInt", "ObjectHandling.c"))
+                function = "__Pyx_SetItemInt"
             index_code = self.index.result()
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("SetItemInt", "ObjectHandling.c"))
         else:
             index_code = self.index.py_result()
             if self.base.type is dict_type:
@@ -3396,7 +3406,7 @@ class IndexNode(ExprNode):
             else:
                 function = "PyObject_SetItem"
         code.putln(
-            "if (%s(%s, %s, %s%s) < 0) %s" % (
+            "if (unlikely(%s(%s, %s, %s%s) < 0)) %s" % (
                 function,
                 self.base.py_result(),
                 index_code,
@@ -3441,6 +3451,8 @@ class IndexNode(ExprNode):
             self.generate_memoryviewslice_setslice_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
+        elif self.base.type is bytearray_type:
+            self.generate_setitem_code(rhs.result(), code)
         else:
             code.putln(
                 "%s = %s;" % (

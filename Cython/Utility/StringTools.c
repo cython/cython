@@ -270,6 +270,51 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Generic(PyObject* string, Py
 }
 
 
+//////////////////// SetItemIntByteArray.proto ////////////////////
+
+#define __Pyx_SetItemInt_ByteArray(o, i, v, size, to_py_func, is_list, wraparound, boundscheck) \
+    (((size) <= sizeof(Py_ssize_t)) ? \
+    __Pyx_SetItemInt_ByteArray_Fast(o, i, v, wraparound, boundscheck) : \
+    __Pyx_SetItemInt_ByteArray_Generic(o, to_py_func(i), v))
+
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
+                                                         int wraparound, int boundscheck);
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Generic(PyObject* string, PyObject* j, unsigned char v);
+
+//////////////////// SetItemIntByteArray ////////////////////
+
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
+                                                         int wraparound, int boundscheck) {
+    Py_ssize_t length;
+    if (wraparound | boundscheck) {
+        length = PyByteArray_GET_SIZE(string);
+        if (wraparound & unlikely(i < 0)) i += length;
+        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+            PyByteArray_AS_STRING(string)[i] = (char) v;
+            return 0;
+        } else {
+            PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
+            return -1;
+        }
+    } else {
+        PyByteArray_AS_STRING(string)[i] = (char) v;
+        return 0;
+    }
+}
+
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Generic(PyObject* string, PyObject* j, unsigned char v) {
+    unsigned char bchar;
+    PyObject *bchar_string;
+    if (!j) return -1;
+    bchar_string = PyObject_GetItem(string, j);
+    Py_DECREF(j);
+    if (!bchar_string) return -1;
+    bchar = (unsigned char) (PyByteArray_AS_STRING(bchar_string)[0]);
+    Py_DECREF(bchar_string);
+    return bchar;
+}
+
+
 //////////////////// GetItemIntUnicode.proto ////////////////////
 
 #define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func, is_list, wraparound, boundscheck) \

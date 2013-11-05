@@ -4860,6 +4860,8 @@ class DelStatNode(StatNode):
                 self.cpp_check(env)
             elif arg.type.is_cpp_class:
                 error(arg.pos, "Deletion of non-heap C++ object")
+            elif arg.is_subscript and arg.base.type is Builtin.bytearray_type:
+                pass  # del ba[i]
             else:
                 error(arg.pos, "Deletion of non-Python, non-C++ object")
             #arg.release_target_temp(env)
@@ -4874,7 +4876,9 @@ class DelStatNode(StatNode):
 
     def generate_execution_code(self, code):
         for arg in self.args:
-            if arg.type.is_pyobject or arg.type.is_memoryviewslice:
+            if (arg.type.is_pyobject or
+                    arg.type.is_memoryviewslice or
+                    arg.is_subscript and arg.base.type is Builtin.bytearray_type):
                 arg.generate_deletion_code(
                     code, ignore_nonexisting=self.ignore_nonexisting)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
