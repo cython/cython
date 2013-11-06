@@ -6,10 +6,20 @@ auto_string_type = unicode
 from libc.string cimport strcmp
 
 
+def _as_string(x):
+    try:
+        return x.decode('latin1')
+    except AttributeError:
+        return x
+
+
 def as_objects(char* ascii_data):
     """
-    >>> print(as_objects('abc'))
-    abc
+    >>> x = as_objects('abc')
+    >>> isinstance(x, auto_string_type) or type(x)
+    True
+    >>> _as_string(x) == 'abc' or repr(x)
+    True
     """
     assert isinstance(<object>ascii_data, auto_string_type)
     assert isinstance(<bytes>ascii_data, bytes)
@@ -30,8 +40,11 @@ def from_object():
 
 def slice_as_objects(char* ascii_data, int start, int end):
     """
-    >>> print(slice_as_objects('grok', 1, 3))
-    ro
+    >>> x = slice_as_objects('grok', 1, 3)
+    >>> isinstance(x, auto_string_type) or type(x)
+    True
+    >>> _as_string(x) == 'ro' or repr(x)
+    True
     """
     assert isinstance(<object>ascii_data[start:end], auto_string_type)
     assert isinstance(<bytes>ascii_data[start:end], bytes)

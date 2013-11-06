@@ -99,6 +99,7 @@ def find_coercion_error(type_tuple, default, env):
 def default_str_type(env):
     return {
         'bytes': bytes_type,
+        'bytearray': bytearray_type,
         'str': str_type,
         'unicode': unicode_type
     }.get(env.directives['c_string_type'])

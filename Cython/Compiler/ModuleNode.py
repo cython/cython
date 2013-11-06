@@ -580,16 +580,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         c_string_type = env.directives['c_string_type']
         c_string_encoding = env.directives['c_string_encoding']
-        if c_string_type != 'bytes' and not c_string_encoding:
-            error(self.pos, "a default encoding must be provided if c_string_type != bytes")
+        if c_string_type not in ('bytes', 'bytearray') and not c_string_encoding:
+            error(self.pos, "a default encoding must be provided if c_string_type is not a byte type")
         code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_ASCII %s' % int(c_string_encoding == 'ascii'))
         if c_string_encoding == 'default':
             code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT 1')
         else:
             code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT 0')
             code.putln('#define __PYX_DEFAULT_STRING_ENCODING "%s"' % c_string_encoding)
-        code.putln('#define __Pyx_PyObject_FromString __Pyx_Py%s_FromString' % c_string_type.title())
-        code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_type.title())
+        if c_string_type == 'bytearray':
+            c_string_func_name = 'ByteArray'
+        else:
+            c_string_func_name = c_string_type.title()
+        code.putln('#define __Pyx_PyObject_FromString __Pyx_Py%s_FromString' % c_string_func_name)
+        code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_func_name)
         code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])
         
         # These utility functions are assumed to exist and used elsewhere.

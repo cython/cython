@@ -237,6 +237,8 @@ VER_DEP_MODULES = {
                                           'run.struct_conversion',
                                           'run.bytearray_coercion',
                                           'run.bytearraymethods',
+                                          'run.bytearray_ascii_auto_encoding',
+                                          'run.bytearray_default_auto_encoding',
                                           # memory views require buffer protocol
                                           'memoryview.relaxed_strides',
                                           'memoryview.cythonarray',

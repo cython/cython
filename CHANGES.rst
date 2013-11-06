@@ -9,7 +9,8 @@ Features added
 --------------
 
 * ``bytearray`` has become a known type and supports coercion from and
-  to C strings.  Indexing, slicing and decoding is optimised.
+  to C strings.  Indexing, slicing and decoding is optimised. Note that
+  this may have an impact on existing code due to type inference.
 
 * Using ``cdef basestring stringvar`` and function arguments typed as
   ``basestring`` is now meaningful and allows assigning exactly

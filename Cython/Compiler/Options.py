@@ -208,7 +208,7 @@ directive_types = {
     'returns' : type,
     'set_initial_path': str,
     'freelist': int,
-    'c_string_type': one_of('bytes', 'str', 'unicode'),
+    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
 }
 
@@ -254,11 +254,13 @@ def parse_directive_value(name, value, relaxed_bool=False):
     'str'
     >>> parse_directive_value('c_string_type', 'bytes')
     'bytes'
+    >>> parse_directive_value('c_string_type', 'bytearray')
+    'bytearray'
     >>> parse_directive_value('c_string_type', 'unicode')
     'unicode'
     >>> parse_directive_value('c_string_type', 'unnicode')
     Traceback (most recent call last):
-    ValueError: c_string_type directive must be one of ('bytes', 'str', 'unicode'), got 'unnicode'
+    ValueError: c_string_type directive must be one of ('bytes', 'bytearray', 'str', 'unicode'), got 'unnicode'
     """
     type = directive_types.get(name)
     if not type: return None
