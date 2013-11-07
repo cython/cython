@@ -53,15 +53,10 @@ def test_nested_qualname():
     'test_nested_qualname.<locals>.outer.<locals>.Test'
     >>> func().test.__qualname__
     'test_nested_qualname.<locals>.outer.<locals>.Test.test'
-
-    >>> func()().__qualname__
-    'test_nested_qualname.<locals>.outer.<locals>.Test'
     >>> func()().test.__qualname__
     'test_nested_qualname.<locals>.outer.<locals>.Test.test'
 
     >>> func()().test().__qualname__
-    'XYZinner'
-    >>> func()().test()().__qualname__
     'XYZinner'
 
     >>> lambda_func.__qualname__
