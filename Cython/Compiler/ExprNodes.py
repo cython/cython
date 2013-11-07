@@ -6679,11 +6679,13 @@ class ModuleNameMixin(object):
     def set_qualified_name(self, env, self_name):
         self.module_name = env.global_scope().qualified_name
         qualified_name = [self_name]
-        while env and not env.is_module_scope:
-            if env.is_closure_scope:
-                qualified_name.append('<locals>')
-            qualified_name.append(env.name)
-            env = env.parent_scope
+        entry = env.lookup(self_name)
+        if not entry or not (entry.is_pyglobal and not entry.is_pyclass_attr):
+            while env and not env.is_module_scope:
+                if env.is_closure_scope:
+                    qualified_name.append('<locals>')
+                qualified_name.append(env.name)
+                env = env.parent_scope
         self.qualname = StringEncoding.EncodedString('.'.join(qualified_name[::-1]))
 
     def get_py_mod_name(self, code):
