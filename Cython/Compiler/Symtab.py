@@ -1741,6 +1741,14 @@ class PyClassScope(ClassScope):
                 # right thing to do
                 self.entries[name] = entry
 
+    def declare_global(self, name, pos):
+        # Pull entry from global scope into local scope.
+        if self.lookup_here(name):
+            warning(pos, "'%s' redeclared  ", 0)
+        else:
+            entry = self.global_scope().lookup_target(name)
+            self.entries[name] = entry
+
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
 
