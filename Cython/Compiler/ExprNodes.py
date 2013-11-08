@@ -3319,8 +3319,8 @@ class IndexNode(ExprNode):
 
         elif self.is_temp:
             if self.type.is_pyobject:
+                error_value = 'NULL'
                 if self.index.type.is_int:
-                    index_code = self.index.result()
                     if self.base.type is list_type:
                         function = "__Pyx_GetItemInt_List"
                     elif self.base.type is tuple_type:
@@ -3330,57 +3330,46 @@ class IndexNode(ExprNode):
                     code.globalstate.use_utility_code(
                         TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c"))
                 else:
-                    index_code = self.index.py_result()
                     if self.base.type is dict_type:
                         function = "__Pyx_PyDict_GetItem"
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("DictGetItem", "ObjectHandling.c"))
                     else:
                         function = "PyObject_GetItem"
-                code.putln(
-                    "%s = %s(%s, %s%s); if (!%s) %s" % (
-                        self.result(),
-                        function,
-                        self.base.py_result(),
-                        index_code,
-                        self.extra_index_params(code),
-                        self.result(),
-                        code.error_goto(self.pos)))
-                code.put_gotref(self.py_result())
             elif self.type.is_unicode_char and self.base.type is unicode_type:
                 assert self.index.type.is_int
-                index_code = self.index.result()
                 function = "__Pyx_GetItemInt_Unicode"
+                error_value = '(Py_UCS4)-1'
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c"))
-                code.putln(
-                    "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UCS4)-1)) %s;" % (
-                        self.result(),
-                        function,
-                        self.base.py_result(),
-                        index_code,
-                        self.extra_index_params(code),
-                        self.result(),
-                        code.error_goto(self.pos)))
             elif self.base.type is bytearray_type:
                 assert self.index.type.is_int
                 assert self.type.is_int
-                index_code = self.index.result()
                 function = "__Pyx_GetItemInt_ByteArray"
+                error_value = '-1'
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c"))
-                code.putln(
-                    "%s = %s(%s, %s%s); if (unlikely(%s == -1)) %s;" % (
-                        self.result(),
-                        function,
-                        self.base.py_result(),
-                        index_code,
-                        self.extra_index_params(code),
-                        self.result(),
-                        code.error_goto(self.pos)))
             else:
                 assert False, "unexpected type %s and base type %s for indexing" % (
                     self.type, self.base.type)
+
+            if self.index.type.is_int:
+                index_code = self.index.result()
+            else:
+                index_code = self.index.py_result()
+
+            code.putln(
+                "%s = %s(%s, %s%s); if (unlikely(%s == %s)) %s;" % (
+                    self.result(),
+                    function,
+                    self.base.py_result(),
+                    index_code,
+                    self.extra_index_params(code),
+                    self.result(),
+                    error_value,
+                    code.error_goto(self.pos)))
+            if self.type.is_pyobject:
+                code.put_gotref(self.py_result())
 
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
