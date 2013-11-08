@@ -303,15 +303,18 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Generic(PyObject* string, PyObject* j, unsigned char v) {
-    unsigned char bchar;
-    PyObject *bchar_string;
+    int ret;
+    PyObject *py_value;
     if (!j) return -1;
-    bchar_string = PyObject_GetItem(string, j);
+    py_value = PyInt_FromLong(v);
+    if (!py_value) {
+        ret = -1;
+    } else {
+        ret = PyObject_SetItem(string, j, py_value);
+        Py_DECREF(py_value);
+    }
     Py_DECREF(j);
-    if (!bchar_string) return -1;
-    bchar = (unsigned char) (PyByteArray_AS_STRING(bchar_string)[0]);
-    Py_DECREF(bchar_string);
-    return bchar;
+    return ret;
 }
 
 
