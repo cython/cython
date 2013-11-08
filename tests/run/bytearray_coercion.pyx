@@ -112,3 +112,48 @@ def assign_to_index(bytearray b, value):
         assert False, "IndexError not raised"
 
     return b
+
+
+def check_bounds(int cvalue):
+    """
+    >>> check_bounds(0)
+    0
+    >>> check_bounds(255)
+    255
+    >>> check_bounds(256)
+    Traceback (most recent call last):
+    ValueError: byte must be in range(0, 256)
+    >>> check_bounds(-1)
+    Traceback (most recent call last):
+    ValueError: byte must be in range(0, 256)
+    """
+    b = bytearray(b'x')
+
+    try:
+        b[0] = 256
+    except ValueError:
+        pass
+    else:
+        assert False, "ValueError not raised"
+
+    try:
+        b[0] = -1
+    except ValueError:
+        pass
+    else:
+        assert False, "ValueError not raised"
+
+    b[0] = cvalue
+    return b[0]
+
+
+def nogil_assignment(bytearray x, int value):
+    """
+    >>> b = bytearray(b'abc')
+    >>> nogil_assignment(b, ord('y'))
+    >>> b
+    bytearray(b'xyc')
+    """
+    with nogil:
+        x[0] = 'x'
+        x[1] = value

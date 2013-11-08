@@ -3453,7 +3453,8 @@ class IndexNode(ExprNode):
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         elif self.base.type is bytearray_type:
-            self.generate_setitem_code(rhs.result(), code)
+            value_code = self._check_byte_value(code, rhs)
+            self.generate_setitem_code(value_code, code)
         else:
             code.putln(
                 "%s = %s;" % (
@@ -3467,6 +3468,42 @@ class IndexNode(ExprNode):
 
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
+
+    def _check_byte_value(self, code, rhs):
+        # TODO: should we do this generally on downcasts, or just here?
+        assert rhs.type.is_int, repr(rhs.type)
+        value_code = rhs.result()
+        if rhs.has_constant_result():
+            if 0 <= rhs.constant_result < 256:
+                return value_code
+            needs_cast = True  # make at least the C compiler happy
+            warning(rhs.pos,
+                    "value outside of range(0, 256)"
+                    " when assigning to byte: %s" % rhs.constant_result,
+                    level=1)
+        else:
+            needs_cast = rhs.type != PyrexTypes.c_uchar_type
+
+        if not self.nogil:
+            conditions = []
+            if rhs.is_literal or rhs.type.signed:
+                conditions.append('%s < 0' % value_code)
+            if (rhs.is_literal or not
+                    (rhs.is_temp and rhs.type in (
+                        PyrexTypes.c_uchar_type, PyrexTypes.c_char_type,
+                        PyrexTypes.c_schar_type))):
+                conditions.append('%s > 255' % value_code)
+            if conditions:
+                code.putln("if (unlikely(%s)) {" % ' || '.join(conditions))
+                code.putln(
+                    'PyErr_SetString(PyExc_ValueError,'
+                    ' "byte must be in range(0, 256)"); %s' %
+                    code.error_goto(self.pos))
+                code.putln("}")
+
+        if needs_cast:
+            value_code = '((unsigned char)%s)' % value_code
+        return value_code
 
     def generate_deletion_code(self, code, ignore_nonexisting=False):
         self.generate_subexpr_evaluation_code(code)
