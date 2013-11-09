@@ -3011,15 +3011,16 @@ class IndexNode(ExprNode):
             if base_type.is_unicode_char:
                 # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
                 # cases, but indexing must still work for them
-                if self.index.constant_result in (0, -1):
-                    # FIXME: we know that this node is redundant -
-                    # currently, this needs to get handled in Optimize.py
-                    pass
+                if setting:
+                    warning(self.pos, "cannot assign to Unicode string index", level=1)
+                elif self.index.constant_result in (0, -1):
+                    # uchar[0] => uchar
+                    return self.base
                 self.base = self.base.coerce_to_pyobject(env)
                 base_type = self.base.type
             if base_type.is_pyobject:
                 if self.index.type.is_int:
-                    if (not setting
+                    if (getting
                         and (base_type in (list_type, tuple_type, bytearray_type))
                         and (not self.index.type.signed
                              or not env.directives['wraparound']
