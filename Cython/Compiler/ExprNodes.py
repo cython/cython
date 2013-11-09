@@ -3260,10 +3260,6 @@ class IndexNode(ExprNode):
 
     def extra_index_params(self, code):
         if self.index.type.is_int:
-            if self.original_index_type.signed:
-                size_adjustment = ""
-            else:
-                size_adjustment = "+1"
             is_list = self.base.type is list_type
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
@@ -3271,9 +3267,9 @@ class IndexNode(ExprNode):
                 not (isinstance(self.index.constant_result, (int, long))
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
-            return ", sizeof(%s)%s, %s, %d, %d, %d" % (
+            return ", %s, %d, %s, %d, %d, %d" % (
                 self.original_index_type.declaration_code(""),
-                size_adjustment,
+                self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
                 is_list, wraparound, boundscheck)
         else:

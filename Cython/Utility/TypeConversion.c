@@ -2,6 +2,14 @@
 
 /* Type Conversion Predeclarations */
 
+#define __Pyx_fits_Py_ssize_t(v, type, is_signed)  (               \
+    (sizeof(type) < sizeof(Py_ssize_t))  ||                        \
+    (sizeof(type) > sizeof(Py_ssize_t) &&                          \
+          likely(v <= (type)PY_SSIZE_T_MAX)  &&                    \
+          (!is_signed || likely(v >= (type)PY_SSIZE_T_MIN)))  ||   \
+    (sizeof(type) == sizeof(Py_ssize_t) &&                         \
+          (is_signed || likely(v <= (type)PY_SSIZE_T_MAX)))  )
+
 static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject*);
 static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject*, Py_ssize_t* length);
 

@@ -247,15 +247,15 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 
 /////////////// GetItemInt.proto ///////////////
 
-#define __Pyx_GetItemInt(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_Fast(o, i, is_list, wraparound, boundscheck) : \
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) : \
     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 {{for type in ['List', 'Tuple']}}
-#define __Pyx_GetItemInt_{{type}}(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_{{type}}_Fast(o, i, wraparound, boundscheck) : \
+#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
@@ -340,9 +340,9 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 
 /////////////// SetItemInt.proto ///////////////
 
-#define __Pyx_SetItemInt(o, i, v, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_SetItemInt_Fast(o, i, v, is_list, wraparound, boundscheck) : \
+#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck) : \
     __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
@@ -405,9 +405,9 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 
 /////////////// DelItemInt.proto ///////////////
 
-#define __Pyx_DelItemInt(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_DelItemInt_Fast(o, i, is_list, wraparound) : \
+#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_DelItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound) : \
     __Pyx_DelItem_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);

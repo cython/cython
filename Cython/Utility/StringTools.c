@@ -229,9 +229,9 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 
 //////////////////// GetItemIntByteArray.proto ////////////////////
 
-#define __Pyx_GetItemInt_ByteArray(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_ByteArray_Fast(o, i, wraparound, boundscheck) : \
+#define __Pyx_GetItemInt_ByteArray(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
     __Pyx_GetItemInt_ByteArray_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
@@ -272,9 +272,9 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Generic(PyObject* string, Py
 
 //////////////////// SetItemIntByteArray.proto ////////////////////
 
-#define __Pyx_SetItemInt_ByteArray(o, i, v, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_SetItemInt_ByteArray_Fast(o, i, v, wraparound, boundscheck) : \
+#define __Pyx_SetItemInt_ByteArray(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_SetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, v, wraparound, boundscheck) : \
     __Pyx_SetItemInt_ByteArray_Generic(o, to_py_func(i), v))
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
@@ -320,9 +320,9 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Generic(PyObject* string, Py
 
 //////////////////// GetItemIntUnicode.proto ////////////////////
 
-#define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_Unicode_Fast(o, i, wraparound, boundscheck) : \
+#define __Pyx_GetItemInt_Unicode(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_Unicode_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
     __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i,
