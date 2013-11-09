@@ -232,11 +232,10 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 #define __Pyx_GetItemInt_ByteArray(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
-    __Pyx_GetItemInt_ByteArray_Generic(o, to_py_func(i)))
+    (PyErr_SetString(PyExc_IndexError, "bytearray index out of range"), -1))
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
                                                          int wraparound, int boundscheck);
-static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Generic(PyObject* string, PyObject* j);
 
 //////////////////// GetItemIntByteArray ////////////////////
 
@@ -257,29 +256,16 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     }
 }
 
-static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Generic(PyObject* string, PyObject* j) {
-    unsigned char bchar;
-    PyObject *bchar_string;
-    if (!j) return -1;
-    bchar_string = PyObject_GetItem(string, j);
-    Py_DECREF(j);
-    if (!bchar_string) return -1;
-    bchar = (unsigned char) (PyByteArray_AS_STRING(bchar_string)[0]);
-    Py_DECREF(bchar_string);
-    return bchar;
-}
-
 
 //////////////////// SetItemIntByteArray.proto ////////////////////
 
 #define __Pyx_SetItemInt_ByteArray(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_SetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, v, wraparound, boundscheck) : \
-    __Pyx_SetItemInt_ByteArray_Generic(o, to_py_func(i), v))
+    (PyErr_SetString(PyExc_IndexError, "bytearray index out of range"), -1))
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
                                                          int wraparound, int boundscheck);
-static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Generic(PyObject* string, PyObject* j, unsigned char v);
 
 //////////////////// SetItemIntByteArray ////////////////////
 
@@ -302,32 +288,16 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     }
 }
 
-static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Generic(PyObject* string, PyObject* j, unsigned char v) {
-    int ret;
-    PyObject *py_value;
-    if (!j) return -1;
-    py_value = PyInt_FromLong(v);
-    if (!py_value) {
-        ret = -1;
-    } else {
-        ret = PyObject_SetItem(string, j, py_value);
-        Py_DECREF(py_value);
-    }
-    Py_DECREF(j);
-    return ret;
-}
-
 
 //////////////////// GetItemIntUnicode.proto ////////////////////
 
 #define __Pyx_GetItemInt_Unicode(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_Unicode_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
-    __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
+    (PyErr_SetString(PyExc_IndexError, "string index out of range"), (Py_UCS4)-1))
 
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i,
                                                            int wraparound, int boundscheck);
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j);
 
 //////////////////// GetItemIntUnicode ////////////////////
 
@@ -351,23 +321,6 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
     }
 }
 
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
-    Py_UCS4 uchar;
-    PyObject *uchar_string;
-    if (!j) return (Py_UCS4)-1;
-    uchar_string = PyObject_GetItem(ustring, j);
-    Py_DECREF(j);
-    if (!uchar_string) return (Py_UCS4)-1;
-#if CYTHON_PEP393_ENABLED
-    if (unlikely(__Pyx_PyUnicode_READY(uchar_string) < 0)) {
-        Py_DECREF(uchar_string);
-        return (Py_UCS4)-1;
-    }
-#endif
-    uchar = __Pyx_PyUnicode_READ_CHAR(uchar_string, 0);
-    Py_DECREF(uchar_string);
-    return uchar;
-}
 
 /////////////// decode_cpp_string.proto ///////////////
 //@requires: IncludeCppStringH
