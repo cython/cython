@@ -161,7 +161,57 @@ def test_long_long():
         ix = (<long long>1) << i
         assert D[ix] is True
         del D[ix]
+
+    L = [1, 2, 3]
+    try:
+        ix = py_maxsize + 1
+    except OverflowError:
+        pass  # can't test this here
+    else:
+        try: L[ix] = 5
+        except IndexError: pass
+        else: assert False, "setting large index failed to raise IndexError"
+
+        try: del L[ix]
+        except IndexError: pass
+        else: assert False, "deleting large index failed to raise IndexError"
+
+    try:
+        ix = -py_maxsize - 2
+    except OverflowError:
+        pass  # can't test this here
+    else:
+        try: L[ix] = 5
+        except IndexError: pass
+        else: assert False, "setting large index failed to raise IndexError"
+
+        try: del L[ix]
+        except IndexError: pass
+        else: assert False, "deleting large index failed to raise IndexError"
+
     assert len(D) == 0
+
+
+def test_ulong_long():
+    """
+    >>> test_ulong_long()
+    """
+    cdef unsigned long long ix
+
+    L = [1, 2, 3]
+    try:
+        ix = py_maxsize + 1
+    except OverflowError:
+        pass  # can't test this here
+    else:
+        try: L[ix] = 5
+        except IndexError: pass
+        else: assert False, "setting large index failed to raise IndexError"
+
+        try: del L[ix]
+        except IndexError: pass
+        else: assert False, "deleting large index failed to raise IndexError"
+
 
 @cython.boundscheck(False)
 def test_boundscheck_unsigned(list L, tuple t, object o, unsigned long ix):
