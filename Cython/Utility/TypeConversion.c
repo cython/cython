@@ -70,7 +70,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
-static int __Pyx_init_sys_getdefaultencoding_params() {
+static int __Pyx_init_sys_getdefaultencoding_params(void) {
     PyObject* sys = NULL;
     PyObject* default_encoding = NULL;
     PyObject* ascii_chars_u = NULL;
@@ -124,7 +124,7 @@ bad:
 #if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
 static char* __PYX_DEFAULT_STRING_ENCODING;
 
-static int __Pyx_init_sys_getdefaultencoding_params() {
+static int __Pyx_init_sys_getdefaultencoding_params(void) {
     PyObject* sys = NULL;
     PyObject* default_encoding = NULL;
     char* default_encoding_c;
