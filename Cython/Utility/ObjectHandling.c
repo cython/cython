@@ -905,8 +905,9 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
         result = PyObject_Call(metaclass, margs, mkw);
         Py_DECREF(margs);
     }
-    if (calculate_metaclass)
+    if (calculate_metaclass) {
         Py_DECREF(metaclass);
+    }
     return result;
 }
 
