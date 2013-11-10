@@ -142,26 +142,19 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
+        Py_ssize_t length;
         #if CYTHON_PEP393_ENABLED
-        if ((PyUnicode_READY(s1) < 0) || (PyUnicode_READY(s2) < 0))
+        if (unlikely(PyUnicode_READY(s1) < 0) || unlikely(PyUnicode_READY(s2) < 0))
             return -1;
-        if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
-            return (equals == Py_NE);
-        } else if (PyUnicode_GET_LENGTH(s1) == 1) {
-            Py_UCS4 ch1 = PyUnicode_READ_CHAR(s1, 0);
-            Py_UCS4 ch2 = PyUnicode_READ_CHAR(s2, 0);
-            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
-//// currently disabled: may not be safe depending on who created the string
-//        } else if (PyUnicode_MAX_CHAR_VALUE(s1) != PyUnicode_MAX_CHAR_VALUE(s2)) {
-//            return (equals == Py_NE);
-        #else
-        if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
-            return (equals == Py_NE);
-        } else if (PyUnicode_GET_SIZE(s1) == 1) {
-            Py_UNICODE ch1 = PyUnicode_AS_UNICODE(s1)[0];
-            Py_UNICODE ch2 = PyUnicode_AS_UNICODE(s2)[0];
-            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
         #endif
+        length = __Pyx_PyUnicode_GET_LENGTH(s1);
+        if (length != __Pyx_PyUnicode_GET_LENGTH(s2))
+            return (equals == Py_NE);
+        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+        if (__Pyx_PyUnicode_READ_CHAR(s1, 0) != __Pyx_PyUnicode_READ_CHAR(s2, 0)) {
+            return (equals == Py_NE);
+        } else if (length == 1) {
+            return (equals == Py_EQ);
         } else {
             int result = PyUnicode_Compare(s1, s2);
             if ((result == -1) && unlikely(PyErr_Occurred()))
@@ -200,15 +193,19 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
-        if (PyBytes_GET_SIZE(s1) != PyBytes_GET_SIZE(s2)) {
+        const char *ps1, *ps2;
+        Py_ssize_t length = PyBytes_GET_SIZE(s1);
+        if (length != PyBytes_GET_SIZE(s2))
             return (equals == Py_NE);
-        } else if (PyBytes_GET_SIZE(s1) == 1) {
-            if (equals == Py_EQ)
-                return (PyBytes_AS_STRING(s1)[0] == PyBytes_AS_STRING(s2)[0]);
-            else
-                return (PyBytes_AS_STRING(s1)[0] != PyBytes_AS_STRING(s2)[0]);
+        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+        ps1 = PyBytes_AS_STRING(s1);
+        ps2 = PyBytes_AS_STRING(s2);
+        if (ps1[0] != ps2[0]) {
+            return (equals == Py_NE);
+        } else if (length == 1) {
+            return (equals == Py_EQ);
         } else {
-            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), (size_t)PyBytes_GET_SIZE(s1));
+            int result = memcmp(ps1, ps2, (size_t)length);
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
     } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
