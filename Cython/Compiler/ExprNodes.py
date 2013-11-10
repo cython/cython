@@ -3019,7 +3019,7 @@ class IndexNode(ExprNode):
                 self.base = self.base.coerce_to_pyobject(env)
                 base_type = self.base.type
             if base_type.is_pyobject:
-                if self.index.type.is_int:
+                if self.index.type.is_int and base_type is not dict_type:
                     if (getting
                         and (base_type in (list_type, tuple_type, bytearray_type))
                         and (not self.index.type.signed
