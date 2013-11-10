@@ -143,6 +143,8 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         return (equals == Py_EQ);
     } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
         Py_ssize_t length;
+        int kind;
+        void *data1, *data2;
         #if CYTHON_PEP393_ENABLED
         if (unlikely(PyUnicode_READY(s1) < 0) || unlikely(PyUnicode_READY(s2) < 0))
             return -1;
@@ -151,14 +153,17 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         if (length != __Pyx_PyUnicode_GET_LENGTH(s2))
             return (equals == Py_NE);
         // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
-        if (__Pyx_PyUnicode_READ_CHAR(s1, 0) != __Pyx_PyUnicode_READ_CHAR(s2, 0)) {
+        kind = __Pyx_PyUnicode_KIND(s1);
+        if (kind != __Pyx_PyUnicode_KIND(s2))
+            return (equals == Py_NE);
+        data1 = __Pyx_PyUnicode_DATA(s1);
+        data2 = __Pyx_PyUnicode_DATA(s2);
+        if (__Pyx_PyUnicode_READ(kind, data1, 0) != __Pyx_PyUnicode_READ(kind, data2, 0)) {
             return (equals == Py_NE);
         } else if (length == 1) {
             return (equals == Py_EQ);
         } else {
-            int result = PyUnicode_Compare(s1, s2);
-            if ((result == -1) && unlikely(PyErr_Occurred()))
-                return -1;
+            int result = memcmp(data1, data2, length * kind);
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
     } else if ((s1 == Py_None) & PyUnicode_CheckExact(s2)) {
