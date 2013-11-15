@@ -1819,6 +1819,64 @@ if VALUE is not None:
         return property
 
 
+class CalculateQualifiedNamesTransform(EnvTransform):
+    """
+    Calculate and store the '__qualname__' and the global
+    module name on some nodes.
+    """
+    def visit_ModuleNode(self, node):
+        self.module_name = self.global_scope().qualified_name
+        self.qualified_name = []
+        self._super = super(CalculateQualifiedNamesTransform, self)
+        self.visitchildren(node)
+        return node
+
+    def _set_qualname(self, node, name=None):
+        if name:
+            qualname = self.qualified_name[:]
+            qualname.append(name)
+        else:
+            qualname = self.qualified_name
+        node.qualname = EncodedString('.'.join(qualname))
+        node.module_name = self.module_name
+        self.visitchildren(node)
+        return node
+
+    def _append_name(self, name):
+        if name == '<lambda>':
+            self.qualified_name.append('<lambda>')
+        else:
+            entry = self.current_env().lookup_here(name)
+            if entry.is_pyglobal and not entry.is_pyclass_attr:
+                self.qualified_name = [name]
+            else:
+                self.qualified_name.append(name)
+
+    def visit_ClassNode(self, node):
+        return self._set_qualname(node, node.name)
+
+    def visit_PyClassNamespaceNode(self, node):
+        return self._set_qualname(node)
+
+    def visit_PyCFunctionNode(self, node):
+        return self._set_qualname(node, node.def_node.name)
+
+    def visit_FuncDefNode(self, node):
+        orig_qualified_name = self.qualified_name[:]
+        self._append_name(node.name)
+        self.qualified_name.append('<locals>')
+        self._super.visit_FuncDefNode(node)
+        self.qualified_name = orig_qualified_name
+        return node
+
+    def visit_ClassDefNode(self, node):
+        orig_qualified_name = self.qualified_name[:]
+        self._append_name(node.name)
+        self._super.visit_ClassDefNode(node)
+        self.qualified_name = orig_qualified_name
+        return node
+
+
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):

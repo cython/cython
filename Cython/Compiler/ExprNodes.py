@@ -6699,21 +6699,9 @@ class SortedDictKeysNode(ExprNode):
 
 
 class ModuleNameMixin(object):
-    def set_qualified_name(self, env, self_name):
-        self.module_name = env.global_scope().qualified_name
-        qualified_name = [self_name]
-        entry = env.lookup(self_name)
-        if not entry or not (entry.is_pyglobal and not entry.is_pyclass_attr):
-            while env and not env.is_module_scope:
-                if env.is_closure_scope:
-                    qualified_name.append('<locals>')
-                qualified_name.append(env.name)
-                env = env.parent_scope
-        self.qualname = StringEncoding.EncodedString('.'.join(qualified_name[::-1]))
-
     def get_py_mod_name(self, code):
         return code.get_py_string_const(
-                 self.module_name, identifier=True)
+            self.module_name, identifier=True)
 
     def get_py_qualified_name(self, code):
         return code.get_py_string_const(
@@ -6741,8 +6729,6 @@ class ClassNode(ExprNode, ModuleNameMixin):
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
-        #TODO(craig,haoyu) This should be moved to a better place
-        self.set_qualified_name(env, self.name)
         return self
 
     def may_be_none(self):
@@ -6984,8 +6970,6 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
             self.doc = self.doc.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
-        #TODO(craig,haoyu) This should be moved to a better place
-        self.set_qualified_name(env, self.name)
         return self
 
     def may_be_none(self):
@@ -7175,8 +7159,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     def analyse_types(self, env):
         if self.binding:
             self.analyse_default_args(env)
-        #TODO(craig,haoyu) This should be moved to a better place
-        self.set_qualified_name(env, self.def_node.name)
         return self
 
     def analyse_default_args(self, env):

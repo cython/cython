@@ -52,6 +52,9 @@ Features added
 Bugs fixed
 ----------
 
+* The PEP 3155 ``__qualname__`` was incorrect for nested classes and
+  inner classes/functions declared as ``global``.
+
 * The metaclass of a Python class was not inherited from its parent
   class(es).  It is now extracted from the list of base classes if not
   provided explicitly using the Py3 ``metaclass`` keyword argument.

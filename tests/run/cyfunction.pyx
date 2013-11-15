@@ -47,35 +47,49 @@ def test_qualname():
 
 def test_nested_qualname():
     """
-    >>> func, lambda_func, XYZ = test_nested_qualname()
+    >>> outer, lambda_func, XYZ = test_nested_qualname()
 
-    >>> func().__qualname__
+    >>> outer().__qualname__
     'test_nested_qualname.<locals>.outer.<locals>.Test'
-    >>> func().test.__qualname__
+    >>> outer().test.__qualname__
     'test_nested_qualname.<locals>.outer.<locals>.Test.test'
-    >>> func()().test.__qualname__
+    >>> outer()().test.__qualname__
     'test_nested_qualname.<locals>.outer.<locals>.Test.test'
 
-    >>> func()().test().__qualname__
+    >>> outer()().test().__qualname__
     'XYZinner'
+    >>> outer()().test().Inner.__qualname__
+    'XYZinner.Inner'
+    >>> outer()().test().Inner.inner.__qualname__
+    'XYZinner.Inner.inner'
 
     >>> lambda_func.__qualname__
     'test_nested_qualname.<locals>.<lambda>'
 
     >>> XYZ.__qualname__
     'XYZ'
+    >>> XYZ.Inner.__qualname__
+    'XYZ.Inner'
+    >>> XYZ.Inner.inner.__qualname__
+    'XYZ.Inner.inner'
     """
     def outer():
         class Test(object):
             def test(self):
                 global XYZinner
-                class XYZinner(object): pass
+                class XYZinner:
+                    class Inner:
+                        def inner(self):
+                            pass
 
                 return XYZinner
         return Test
 
     global XYZ
-    class XYZ(object): pass
+    class XYZ(object):
+        class Inner(object):
+            def inner(self):
+                pass
 
     return outer, lambda:None, XYZ
 

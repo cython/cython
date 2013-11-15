@@ -1468,6 +1468,7 @@ class ModuleScope(Scope):
         from TypeInference import PyObjectTypeInferer
         PyObjectTypeInferer().infer_types(self)
 
+
 class LocalScope(Scope):
 
     # Does the function have a 'with gil:' block?
@@ -1561,6 +1562,7 @@ class LocalScope(Scope):
             elif entry.in_closure:
                 entry.original_cname = entry.cname
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+
 
 class GeneratorExpressionScope(Scope):
     """Scope for generator expressions and comprehensions.  As opposed
@@ -1659,6 +1661,7 @@ class StructOrUnionScope(Scope):
                           defining = 0, modifiers = ()): # currently no utility code ...
         return self.declare_var(name, type, pos,
                                 cname=cname, visibility=visibility)
+
 
 class ClassScope(Scope):
     #  Abstract base class for namespace of
@@ -2213,6 +2216,7 @@ class PropertyScope(Scope):
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
                 "in a property declaration")
             return None
+
 
 class CConstScope(Scope):
 
