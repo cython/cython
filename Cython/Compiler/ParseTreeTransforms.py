@@ -1827,7 +1827,9 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     def visit_ModuleNode(self, node):
         self.module_name = self.global_scope().qualified_name
         self.qualified_name = []
-        self._super = super(CalculateQualifiedNamesTransform, self)
+        _super = super(CalculateQualifiedNamesTransform, self)
+        self._super_visit_FuncDefNode = _super.visit_FuncDefNode
+        self._super_visit_ClassDefNode = _super.visit_ClassDefNode
         self.visitchildren(node)
         return node
 
@@ -1842,20 +1844,17 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.visitchildren(node)
         return node
 
-    def _append_name(self, name):
-        if name == '<lambda>':
-            self.qualified_name.append('<lambda>')
+    def _append_entry(self, entry):
+        if entry.is_pyglobal and not entry.is_pyclass_attr:
+            self.qualified_name = [entry.name]
         else:
-            entry = self.current_env().lookup_here(name)
-            if entry.is_pyglobal and not entry.is_pyclass_attr:
-                self.qualified_name = [name]
-            else:
-                self.qualified_name.append(name)
+            self.qualified_name.append(entry.name)
 
     def visit_ClassNode(self, node):
         return self._set_qualname(node, node.name)
 
     def visit_PyClassNamespaceNode(self, node):
+        # class name was already added by parent node
         return self._set_qualname(node)
 
     def visit_PyCFunctionNode(self, node):
@@ -1863,16 +1862,21 @@ class CalculateQualifiedNamesTransform(EnvTransform):
 
     def visit_FuncDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]
-        self._append_name(node.name)
+        if getattr(node, 'name', None) == '<lambda>':
+            self.qualified_name.append('<lambda>')
+        else:
+            self._append_entry(node.entry)
         self.qualified_name.append('<locals>')
-        self._super.visit_FuncDefNode(node)
+        self._super_visit_FuncDefNode(node)
         self.qualified_name = orig_qualified_name
         return node
 
     def visit_ClassDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]
-        self._append_name(node.name)
-        self._super.visit_ClassDefNode(node)
+        entry = (getattr(node, 'entry', None) or             # PyClass
+                 self.current_env().lookup_here(node.name))  # CClass
+        self._append_entry(entry)
+        self._super_visit_ClassDefNode(node)
         self.qualified_name = orig_qualified_name
         return node
 
