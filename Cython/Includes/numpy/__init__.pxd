@@ -293,7 +293,7 @@ cdef extern from "numpy/arrayobject.h":
                 # info.shape was stored after info.strides in the same block
 
 
-    ctypedef signed char      npy_bool
+    ctypedef unsigned char      npy_bool
 
     ctypedef signed char      npy_byte
     ctypedef signed short     npy_short
