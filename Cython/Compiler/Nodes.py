@@ -3665,9 +3665,9 @@ class DefNodeWrapper(FuncDefNode):
 
 
 class GeneratorDefNode(DefNode):
-    # Generator DefNode.
+    # Generator function node that creates a new generator instance when called.
     #
-    # gbody          GeneratorBodyDefNode
+    # gbody          GeneratorBodyDefNode   the function implementing the generator
     #
 
     is_generator = True
@@ -3713,7 +3713,7 @@ class GeneratorDefNode(DefNode):
 
 
 class GeneratorBodyDefNode(DefNode):
-    # Generator body DefNode.
+    # Main code body of a generator implemented as a DefNode.
     #
 
     is_generator_body = True
