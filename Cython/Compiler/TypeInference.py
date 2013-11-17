@@ -28,7 +28,7 @@ class MarkParallelAssignments(EnvTransform):
     def __init__(self, context):
         # Track the parallel block scopes (with parallel, for i in prange())
         self.parallel_block_stack = []
-        return super(MarkParallelAssignments, self).__init__(context)
+        super(MarkParallelAssignments, self).__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
