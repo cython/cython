@@ -77,6 +77,16 @@ def test_list_append():
     l1.append(4)
     return l1
 
+def test_list_append_insert():
+    """
+    >>> test_list_append_insert()
+    ['first', 'second']
+    """
+    cdef list l = []
+    l.append("second")
+    l.insert(0, "first")
+    return l
+
 def test_list_pop():
     """
     >>> test_list_pop()
