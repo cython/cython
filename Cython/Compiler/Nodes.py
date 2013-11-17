@@ -20,7 +20,7 @@ import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type
 from Symtab import ModuleScope, LocalScope, ClosureScope, \
-    StructOrUnionScope, PyClassScope, CppClassScope
+    StructOrUnionScope, PyClassScope, CppClassScope, NonLocalScopeWrapper
 from Code import UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
@@ -5560,11 +5560,13 @@ class DictIterationNextNode(Node):
             target.generate_assignment_code(result, code)
             var.release(code)
 
+
 def ForStatNode(pos, **kw):
     if 'iterator' in kw:
         return ForInStatNode(pos, **kw)
     else:
         return ForFromStatNode(pos, **kw)
+
 
 class ForInStatNode(LoopNode, StatNode):
     #  for statement
@@ -5574,9 +5576,11 @@ class ForInStatNode(LoopNode, StatNode):
     #  body          StatNode
     #  else_clause   StatNode
     #  item          NextNode       used internally
+    #  first_in_genexp  bool    True for outer loop of a scoped genexp/comprehension
 
     child_attrs = ["target", "iterator", "body", "else_clause"]
     item = None
+    first_in_genexp = False
 
     def analyse_declarations(self, env):
         import ExprNodes
@@ -5584,18 +5588,25 @@ class ForInStatNode(LoopNode, StatNode):
         self.body.analyse_declarations(env)
         if self.else_clause:
             self.else_clause.analyse_declarations(env)
-        self.item = ExprNodes.NextNode(self.iterator)
+        self.item = ExprNodes.NextNode(
+            self.iterator, lives_in_outer_scope=self.first_in_genexp)
 
     def analyse_expressions(self, env):
         self.target = self.target.analyse_target_types(env)
-        self.iterator = self.iterator.analyse_expressions(env)
+        iterator_env = env
+        if self.first_in_genexp:
+            # outermost iterator in a genexpr or scoped comprehension is
+            # looked up in the outer scope
+            iterator_env = NonLocalScopeWrapper(iterator_env)
+        self.iterator = self.iterator.analyse_expressions(iterator_env)
         if self.item is None:
             # Hack. Sometimes analyse_declarations not called.
             import ExprNodes
-            self.item = ExprNodes.NextNode(self.iterator)
+            self.item = ExprNodes.NextNode(
+                self.iterator, lives_in_outer_scope=self.first_in_genexp)
         self.item = self.item.analyse_expressions(env)
-        if (self.iterator.type.is_ptr or self.iterator.type.is_array) and \
-            self.target.type.assignable_from(self.iterator.type):
+        if ((self.iterator.type.is_ptr or self.iterator.type.is_array) and
+                self.target.type.assignable_from(self.iterator.type)):
             # C array slice optimization.
             pass
         else:

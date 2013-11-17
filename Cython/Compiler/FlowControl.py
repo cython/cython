@@ -10,6 +10,7 @@ import Builtin
 import ExprNodes
 import Nodes
 import Options
+import Symtab
 from PyrexTypes import py_object_type, unspecified_type
 import PyrexTypes
 
@@ -984,13 +985,20 @@ class ControlFlowAnalysis(CythonTransform):
         next_block = self.flow.newblock()
         # Condition with iterator
         self.flow.loops.append(LoopDescr(next_block, condition_block))
+
+        is_normal_for_loop = isinstance(node, Nodes.ForInStatNode)
+        if is_normal_for_loop and node.first_in_genexp:
+            self.env_stack.append(self.env)
+            self.env = Symtab.NonLocalScopeWrapper(self.env)
         self._visit(node.iterator)
+        if is_normal_for_loop and node.first_in_genexp:
+            self.env = self.env_stack.pop()
+
         # Target assignment
         self.flow.nextblock()
-
-        if isinstance(node, Nodes.ForInStatNode):
+        if is_normal_for_loop:
             self.mark_forloop_target(node)
-        else: # Parallel
+        else:  # Parallel
             self.mark_assignment(node.target)
 
         # Body block

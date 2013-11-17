@@ -43,3 +43,13 @@ def genexpr_in_listcomp(L):
     [[1, 2, 3], [1, 2, 3]]
     """
     return [list(d for d in z) for z in L]
+
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def genexpr_range_in_listcomp(L):
+    """
+    >>> genexpr_range_in_listcomp( [1,2,3] )
+    [[0], [0, 1], [0, 1, 2]]
+    """
+    cdef int z,d
+    return [list(d for d in range(z)) for z in L]

@@ -2397,20 +2397,26 @@ class NextNode(AtomicExprNode):
     #
     #  iterator   IteratorNode
 
-    def __init__(self, iterator):
+    def __init__(self, iterator, lives_in_outer_scope=False):
         AtomicExprNode.__init__(self, iterator.pos)
+        self.lives_in_outer_scope = lives_in_outer_scope
         self.iterator = iterator
 
     def type_dependencies(self, env):
+        if self.lives_in_outer_scope:
+            env = Symtab.NonLocalScopeWrapper(env)
         return self.iterator.type_dependencies(env)
 
-    def infer_type(self, env, iterator_type = None):
+    def infer_type(self, env, iterator_type=None):
+        if self.lives_in_outer_scope:
+            env = Symtab.NonLocalScopeWrapper(env)
         if iterator_type is None:
             iterator_type = self.iterator.infer_type(env)
         if iterator_type.is_ptr or iterator_type.is_array:
             return iterator_type.base_type
         elif iterator_type.is_cpp_class:
-            item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
+            item_type = env.lookup_operator_for_types(
+                self.pos, "*", [iterator_type]).type.return_type
             if item_type.is_reference:
                 item_type = item_type.ref_base_type
             if item_type.is_const:
@@ -2418,9 +2424,10 @@ class NextNode(AtomicExprNode):
             return item_type
         else:
             # Avoid duplication of complicated logic.
-            fake_index_node = IndexNode(self.pos,
-                                        base=self.iterator.sequence,
-                                        index=IntNode(self.pos, value='0'))
+            fake_index_node = IndexNode(
+                self.pos,
+                base=self.iterator.sequence,
+                index=IntNode(self.pos, value='0'))
             return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
