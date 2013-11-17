@@ -50,6 +50,4 @@ pyregr.test_tuple
 all
 any
 builtin_sorted
-dictcomp
 inlined_generator_expressions
-setcomp

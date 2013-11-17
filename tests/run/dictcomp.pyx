@@ -15,12 +15,13 @@ def dictcomp():
     assert x == 'abc' # do not leak!
     return result
 
-@cython.test_fail_if_path_exists(
-    "//GeneratorExpressionNode",
-    "//SimpleCallNode")
-@cython.test_assert_path_exists(
-    "//ComprehensionNode",
-    "//ComprehensionNode//DictComprehensionAppendNode")
+# enable when inlined:
+#@cython.test_fail_if_path_exists(
+#    "//GeneratorExpressionNode",
+#    "//SimpleCallNode")
+#@cython.test_assert_path_exists(
+#    "//ComprehensionNode",
+#    "//ComprehensionNode//DictComprehensionAppendNode")
 def genexpr():
     """
     >>> type(genexpr()) is dict
@@ -37,7 +38,7 @@ def genexpr():
 
 cdef class A:
     def __repr__(self): return u"A"
-    def __richcmp__(one, other, op): return one is other
+    def __richcmp__(one, other, int op): return one is other
     def __hash__(self): return id(self) % 65536
 
 def typed_dictcomp():
