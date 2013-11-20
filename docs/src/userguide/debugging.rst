@@ -16,22 +16,18 @@ installation).
 
 The debugger will need debug information that the Cython compiler can export.
 This can be achieved from within the setup
-script by passing ``pyrex_gdb=True`` to your Cython Extenion class::
+script by passing ``gdb_debug=True`` to ``cythonize()``::
 
-    from Cython.Distutils import extension
+    from distutils.code import setup
+    from distutils.extension import Extension
 
-    ext = extension.Extension('source', ['source.pyx'], pyrex_gdb=True)
-    setup(..., ext_modules=[ext])
+    extensions = [Extension('source', ['source.pyx'])]
 
-With this approach debug information can be enabled on a per-module basis.
-Another (easier) way is to simply pass the ``--pyrex-gdb`` flag as a command
-line argument::
+    setup(..., ext_modules=cythonize(extensions, gdb_debug=True))
 
-    python setup.py build_ext --pyrex-gdb
-
-For development it's often easy to use the ``--inplace`` flag also, which makes
-distutils build your project "in place", i.e., not in a separate `build`
-directory.
+For development it's often helpful to pass the ``--inplace`` flag to
+the ``setup.py`` script, which makes distutils build your project
+"in place", i.e., not in a separate `build` directory.
 
 When invoking Cython from the command line directly you can have it write
 debug information using the ``--gdb`` flag::
@@ -45,7 +41,7 @@ Running the Debugger
 To run the Cython debugger and have it import the debug information exported
 by Cython, run ``cygdb`` in the build directory::
 
-    $ python setup.py build_ext --pyrex-gdb --inplace
+    $ python setup.py build_ext --inplace
     $ cygdb
     GNU gdb (GDB) 7.2
     ...
@@ -58,7 +54,7 @@ installed and managed by your package manager you probably need to install debug
 support separately, e.g. for ubuntu::
 
     $ sudo apt-get install python-dbg
-    $ python-dbg setup.py build_ext --pyrex-gdb --inplace
+    $ python-dbg setup.py build_ext --inplace
 
 Then you need to run your script with ``python-dbg`` also.
 
