@@ -909,14 +909,13 @@ def p_list_maker(s):
         return ExprNodes.ListNode(pos, args = [])
     expr = p_test(s)
     if s.sy == 'for':
-        has_local_scope = s.context.language_level >= 3
         append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
-        loop = p_comp_for(s, append, first_in_genexp=has_local_scope)
+        loop = p_comp_for(s, append)
         s.expect(']')
         return ExprNodes.ComprehensionNode(
-            pos, loop=loop, append=append, type=Builtin.list_type,
+            pos, loop=loop, append=append, type = Builtin.list_type,
             # list comprehensions leak their loop variable in Py2
-            has_local_scope=has_local_scope)
+            has_local_scope = s.context.language_level >= 3)
     else:
         if s.sy == ',':
             s.next()
@@ -924,24 +923,23 @@ def p_list_maker(s):
         else:
             exprs = [expr]
         s.expect(']')
-        return ExprNodes.ListNode(pos, args=exprs)
+        return ExprNodes.ListNode(pos, args = exprs)
 
 def p_comp_iter(s, body):
     if s.sy == 'for':
-        return p_comp_for(s, body, first_in_genexp=False)
+        return p_comp_for(s, body)
     elif s.sy == 'if':
         return p_comp_if(s, body)
     else:
         # insert the 'append' operation into the loop
         return body
 
-def p_comp_for(s, body, first_in_genexp):
+def p_comp_for(s, body):
     # s.sy == 'for'
     pos = s.position()
     s.next()
     kw = p_for_bounds(s, allow_testlist=False)
-    kw.update(else_clause=None, body=p_comp_iter(s, body),
-              first_in_genexp=first_in_genexp)
+    kw.update(else_clause = None, body = p_comp_iter(s, body))
     return Nodes.ForStatNode(pos, **kw)
 
 def p_comp_if(s, body):
@@ -978,7 +976,7 @@ def p_dict_or_set_maker(s):
         # set comprehension
         append = ExprNodes.ComprehensionAppendNode(
             item.pos, expr=item)
-        loop = p_comp_for(s, append, first_in_genexp=True)
+        loop = p_comp_for(s, append)
         s.expect('}')
         return ExprNodes.ComprehensionNode(
             pos, loop=loop, append=append, type=Builtin.set_type)
@@ -991,7 +989,7 @@ def p_dict_or_set_maker(s):
             # dict comprehension
             append = ExprNodes.DictComprehensionAppendNode(
                 item.pos, key_expr=key, value_expr=value)
-            loop = p_comp_for(s, append, first_in_genexp=True)
+            loop = p_comp_for(s, append)
             s.expect('}')
             return ExprNodes.ComprehensionNode(
                 pos, loop=loop, append=append, type=Builtin.dict_type)
@@ -1089,9 +1087,8 @@ def p_testlist_comp(s):
 
 def p_genexp(s, expr):
     # s.sy == 'for'
-    yield_node = Nodes.ExprStatNode(
-        expr.pos, expr=ExprNodes.YieldExprNode(expr.pos, arg=expr))
-    loop = p_comp_for(s, yield_node, first_in_genexp=True)
+    loop = p_comp_for(s, Nodes.ExprStatNode(
+        expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
 
 expr_terminators = cython.declare(set, set([

@@ -1564,47 +1564,6 @@ class LocalScope(Scope):
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
 
 
-class ForeignName(str):
-    """
-    String wrapper to store unnamed entries in Scope.entries dict.
-    """
-    def __hash__(self):
-        return str.__hash__(self) + 1
-
-    def __eq__(self, other):
-        if self is other:
-            return True
-        return type(self) is type(other) and str.__eq__(self, other)
-
-
-class NonLocalScopeWrapper(object):
-    """
-    Wrapper around a local scope that inherits all names from the outer scope.
-    Used in generator expressions to analyse the outermost iterable.
-    """
-    def __init__(self, scope):
-        self._scope = scope
-        self._lookup_outer = scope.outer_scope.lookup
-
-    def lookup(self, name):
-        foreign_name = ForeignName(name)
-        entry = self._scope.entries.get(foreign_name)
-        if entry is not None:
-            return entry
-        entry = self._lookup_outer(name)
-        if entry and entry.scope.is_closure_scope:
-            entry.in_closure = True
-            inner_entry = InnerEntry(entry, self._scope)
-            inner_entry.is_variable = True
-            # do not overwrite locally declared names
-            self._scope.entries[foreign_name] = inner_entry
-            return inner_entry
-        return entry
-
-    def __getattr__(self, name):
-        return getattr(self._scope, name)
-
-
 class GeneratorExpressionScope(Scope):
     """Scope for generator expressions and comprehensions.  As opposed
     to generators, these can be easily inlined in some cases, so all
