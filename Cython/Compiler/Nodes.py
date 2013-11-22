@@ -5599,11 +5599,10 @@ class ForInStatNode(LoopNode, StatNode):
             # looked up in the outer scope
             iterator_env = NonLocalScopeWrapper(iterator_env)
         self.iterator = self.iterator.analyse_expressions(iterator_env)
-        if self.item is None:
-            # Hack. Sometimes analyse_declarations not called.
-            import ExprNodes
-            self.item = ExprNodes.NextNode(
-                self.iterator, lives_in_outer_scope=self.first_in_genexp)
+        # rewrap in NextNode
+        import ExprNodes
+        self.item = ExprNodes.NextNode(
+            self.iterator, lives_in_outer_scope=self.first_in_genexp)
         self.item = self.item.analyse_expressions(env)
         if ((self.iterator.type.is_ptr or self.iterator.type.is_array) and
                 self.target.type.assignable_from(self.iterator.type)):
