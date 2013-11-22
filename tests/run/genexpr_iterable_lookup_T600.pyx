@@ -42,7 +42,7 @@ def genexpr_in_listcomp(L):
     >>> genexpr_in_listcomp( [[1,2,3]]*2 )
     [[1, 2, 3], [1, 2, 3]]
     """
-    return [list(d for d in z) for z in L]
+    return list(d for d in [list(d for d in d) for d in L])
 
 
 @cython.test_assert_path_exists('//ForFromStatNode')
@@ -53,3 +53,13 @@ def genexpr_range_in_listcomp(L):
     """
     cdef int z,d
     return [list(d for d in range(z)) for z in L]
+
+
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def genexpr_in_dictcomp_dictiter():
+    """
+    >>> sorted(genexpr_in_dictcomp_dictiter())
+    [1, 5]
+    """
+    d = {1:2, 3:4, 5:6}
+    return {k:d for k,d in d.iteritems() if d != 4}
