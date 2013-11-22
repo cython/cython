@@ -1587,13 +1587,17 @@ class NonLocalScopeWrapper(object):
         self._lookup_outer = scope.outer_scope.lookup
 
     def lookup(self, name):
+        foreign_name = ForeignName(name)
+        entry = self._scope.entries.get(foreign_name)
+        if entry is not None:
+            return entry
         entry = self._lookup_outer(name)
         if entry and entry.scope.is_closure_scope:
             entry.in_closure = True
             inner_entry = InnerEntry(entry, self._scope)
             inner_entry.is_variable = True
             # do not overwrite locally declared names
-            self._scope.entries[ForeignName(name)] = inner_entry
+            self._scope.entries[foreign_name] = inner_entry
             return inner_entry
         return entry
 
