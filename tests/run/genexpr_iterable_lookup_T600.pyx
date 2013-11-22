@@ -1,6 +1,7 @@
 # mode: run
 # ticket: 600
 # tag: genexpr
+# cython: language_level=3
 
 cimport cython
 
@@ -35,6 +36,26 @@ def genexpr_iterable_in_closure():
     assert x == 'abc' # don't leak in Py3 code
     assert f() == 'abc' # don't leak in Py3 code
     return result
+
+
+def genexpr_over_complex_arg(func, L):
+    """
+    >>> class wrapper(object):
+    ...     value = 5
+    >>> genexpr_over_complex_arg(list, wrapper())
+    [5]
+    """
+    return func(d for d in set([type(L).value, L.__class__.value, L.value]))
+
+
+def listcomp():
+    """
+    >>> listcomp()
+    """
+    data = [('red', 5), ('blue', 1), ('yellow', 8), ('black', 0)]
+    data.sort(key=lambda r: r[1])
+    keys = [r[1] for r in data]
+    return keys
 
 
 def genexpr_in_listcomp(L):
