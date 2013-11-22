@@ -4991,6 +4991,7 @@ class AttributeNode(ExprNode):
     is_called = 0
     needs_none_check = True
     is_memslice_transpose = False
+    is_special_lookup = False
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -5359,11 +5360,18 @@ class AttributeNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_py_attr:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
+            if self.is_special_lookup:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObjectLookupSpecial", "ObjectHandling.c"))
+                lookup_func_name = '__Pyx_PyObject_LookupSpecial'
+            else:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
+                lookup_func_name = '__Pyx_PyObject_GetAttrStr'
             code.putln(
-                '%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s' % (
+                '%s = %s(%s, %s); %s' % (
                     self.result(),
+                    lookup_func_name,
                     self.obj.py_result(),
                     code.intern_identifier(self.attribute),
                     code.error_goto_if_null(self.result(), self.pos)))

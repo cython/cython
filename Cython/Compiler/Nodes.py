@@ -5919,8 +5919,8 @@ class WithStatNode(StatNode):
         self.manager.generate_evaluation_code(code)
         self.exit_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached("PyObjectGetAttrStr", "ObjectHandling.c"))
-        code.putln("%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s" % (
+            UtilityCode.load_cached("PyObjectLookupSpecial", "ObjectHandling.c"))
+        code.putln("%s = __Pyx_PyObject_LookupSpecial(%s, %s); %s" % (
             self.exit_var,
             self.manager.py_result(),
             code.intern_identifier(EncodedString('__exit__')),

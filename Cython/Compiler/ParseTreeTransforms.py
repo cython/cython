@@ -1212,11 +1212,12 @@ class WithTransform(CythonTransform, SkipDeclarations):
         pos = node.pos
         body, target, manager = node.body, node.target, node.manager
         node.enter_call = ExprNodes.SimpleCallNode(
-            pos, function = ExprNodes.AttributeNode(
-                pos, obj = ExprNodes.CloneNode(manager),
-                attribute = EncodedString('__enter__')),
-            args = [],
-            is_temp = True)
+            pos, function=ExprNodes.AttributeNode(
+                pos, obj=ExprNodes.CloneNode(manager),
+                attribute=EncodedString('__enter__'),
+                is_special_lookup=True),
+            args=[],
+            is_temp=True)
         if target is not None:
             body = Nodes.StatListNode(
                 pos, stats = [
