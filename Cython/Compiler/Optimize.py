@@ -1795,7 +1795,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
                     return arg.arg.coerce_to(node.type, self.current_env())
-        if isinstance(arg, ExprNodes.SimpleCallNode):
+        elif isinstance(arg, ExprNodes.SimpleCallNode):
             if node.type.is_int or node.type.is_float:
                 return self._optimise_numeric_cast_call(node, arg)
         elif isinstance(arg, ExprNodes.IndexNode) and not arg.is_buffer_access:
