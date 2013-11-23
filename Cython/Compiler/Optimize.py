@@ -2000,7 +2000,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         """
         if len(pos_args) == 0:
             return ExprNodes.IntNode(node, value="0", constant_result=0,
-                                     type=PyrexTypes.c_int_type)
+                                     type=PyrexTypes.py_object_type)
         elif len(pos_args) != 1:
             return node  # int(x, base)
         func_arg = pos_args[0]
