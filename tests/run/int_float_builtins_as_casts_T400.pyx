@@ -137,3 +137,47 @@ def double_to_double_int(double x):
     """
     cdef double r = int(x)
     return r
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+def object_float(x):
+    """
+    >>> 4.05 < object_float(4.1) < 4.15
+    True
+    >>> object_float(2**100) == float(2**100)
+    True
+    >>> object_float(2.5**100) == float(2.5**100)
+    True
+    >>> object_float(4)
+    4.0
+    >>> object_float('4')
+    4.0
+    >>> object_float('4.0')
+    4.0
+    >>> object_float('4'.encode('ascii'))
+    4.0
+    >>> object_float('4.0'.encode('ascii'))
+    4.0
+    """
+    return float(x)
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+def object_int(x):
+    """
+    >>> object_int(4)
+    4
+    >>> object_int(2**100) == 2**100 or object_int(2**100)
+    True
+    >>> object_int(-(2**100)) == -(2**100) or object_int(-(2**100))
+    True
+    >>> object_int(4.1)
+    4
+    >>> object_int(4.0)
+    4
+    >>> object_int('4')
+    4
+    >>> object_int('4'.encode('ascii'))
+    4
+    """
+    return int(x)

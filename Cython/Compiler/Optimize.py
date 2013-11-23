@@ -1990,6 +1990,28 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             utility_code = load_c_utility('pyobject_as_double'),
             py_name = "float")
 
+    PyNumber_Int_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_int(self, node, function, pos_args):
+        """Transform int() into a faster C function call.
+        """
+        if len(pos_args) == 0:
+            return ExprNodes.IntNode(node, value="0", constant_result=0,
+                                     type=PyrexTypes.c_int_type)
+        elif len(pos_args) != 1:
+            return node  # int(x, base)
+        func_arg = pos_args[0]
+        if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
+            return node  # handled in visit_CoerceFromPyTypeNode()
+        if func_arg.type.is_pyobject and node.type.is_pyobject:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyNumber_Int", self.PyNumber_Int_func_type,
+                args=pos_args, is_temp=True)
+        return node
+
     def _handle_simple_function_bool(self, node, function, pos_args):
         """Transform bool(x) into a type coercion to a boolean.
         """
