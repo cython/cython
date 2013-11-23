@@ -135,7 +135,6 @@ raise_error:
 #else /* Python 3+ */
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
-    PyObject* owned_instance = NULL;
     if (tb == Py_None) {
         tb = 0;
     } else if (tb && !PyTraceBack_Check(tb)) {
@@ -143,11 +142,9 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
             "raise: arg 3 must be a traceback or None");
         goto bad;
     }
-    if (value == Py_None)
-        value = 0;
 
     if (PyExceptionInstance_Check(type)) {
-        if (value) {
+        if (value && value != Py_None) {
             PyErr_SetString(PyExc_TypeError,
                 "instance exception may not have a separate value");
             goto bad;
@@ -156,21 +153,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         type = (PyObject*) Py_TYPE(value);
     } else if (PyExceptionClass_Check(type)) {
         // instantiate the type now (we don't know when and how it will be caught)
-        PyObject *args;
-        if (!value)
-            args = PyTuple_New(0);
-        else if (PyTuple_Check(value)) {
-            Py_INCREF(value);
-            args = value;
-        } else
-            args = PyTuple_Pack(1, value);
-        if (!args)
-            goto bad;
-        owned_instance = PyEval_CallObject(type, args);
-        Py_DECREF(args);
-        if (!owned_instance)
-            goto bad;
-        value = owned_instance;
+        PyErr_NormalizeException(&type, &value, &tb);
         if (!PyExceptionInstance_Check(value)) {
             PyErr_Format(PyExc_TypeError,
                          "calling %R should have returned an instance of "
@@ -222,7 +205,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     }
 
 bad:
-    Py_XDECREF(owned_instance);
     return;
 }
 #endif
