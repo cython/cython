@@ -4716,6 +4716,9 @@ class InPlaceAssignmentNode(AssignmentNode):
         if (self.lhs.is_subscript and
                 (self.lhs.memslice_index or self.lhs.is_buffer_access)):
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
+        elif self.lhs.type.is_string and self.operator in '+-':
+            # use pointer arithmetic for char* LHS instead of string concat
+            self.rhs = self.rhs.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
         return self
 
     def generate_execution_code(self, code):

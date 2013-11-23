@@ -152,3 +152,17 @@ def coerce_uint_bytes_assign(unsigned int c):
     """
     cdef bytes s = c
     return s
+
+
+def inplace_ops_use_arithmetic():
+    """
+    >>> print(inplace_ops_use_arithmetic().decode('ascii'))
+    bc
+    """
+    cdef char* s = 'abc'
+    cdef object x = 1
+    s += 1
+    s += 2*x
+    s -= 1
+    s -= x
+    return s

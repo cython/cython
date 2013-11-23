@@ -16,4 +16,4 @@ def test():
     a |= b
     p += 42
     p -= 42
-    #p += a     # FIXME: should use pointer arithmetic, not string concat
+    p += a
