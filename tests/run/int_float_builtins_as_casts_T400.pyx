@@ -181,3 +181,24 @@ def object_int(x):
     4
     """
     return int(x)
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def no_args_int_cint():
+    """
+    >>> no_args_int_cint()
+    0
+    """
+    cdef int x = int()
+    return x
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def no_args_float_cdouble():
+    """
+    >>> no_args_float_cdouble()
+    (0.0, 0.0)
+    """
+    cdef double xd = float()
+    cdef float xf = float()
+    return xd, xf
