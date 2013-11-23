@@ -1790,7 +1790,11 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 return arg.coerce_to(node.type, self.current_env())
         if isinstance(arg, ExprNodes.PyTypeTestNode):
             arg = arg.arg
-        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+        if arg.is_literal:
+            if (node.type.is_int and isinstance(arg, ExprNodes.IntNode) or
+                    node.type.is_float and isinstance(arg, ExprNodes.FloatNode)):
+                return arg.coerce_to(node.type, self.current_env())
+        elif isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type is PyrexTypes.py_object_type:
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
