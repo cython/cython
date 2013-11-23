@@ -259,14 +259,19 @@ def iter_doublearray_for_loop_c():
 cdef struct MyStruct:
     int i
 
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
 def struct_ptr_iter():
     """
     >>> struct_ptr_iter()
-    ([0, 1, 2, 3, 4], [0, 1, 2, 3, 4])
+    ([0, 1, 2, 3, 4], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4])
     """
     cdef MyStruct my_structs[5]
     for i in range(5):
         my_structs[i].i = i
     cdef MyStruct value
     cdef MyStruct *ptr
-    return [ value.i for value in my_structs[:5] ], [ ptr.i for ptr in my_structs[:5] ]
+    return ([ value.i for value in my_structs[:5] ],
+            [ ptr.i for ptr in my_structs[:5] ],
+            [ inferred.i for inferred in my_structs[:5] ])
