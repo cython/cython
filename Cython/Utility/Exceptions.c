@@ -155,28 +155,45 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         value = type;
         type = (PyObject*) Py_TYPE(value);
     } else if (PyExceptionClass_Check(type)) {
-        // instantiate the type now (we don't know when and how it will be caught)
-        PyObject *args;
-        if (!value)
-            args = PyTuple_New(0);
-        else if (PyTuple_Check(value)) {
-            Py_INCREF(value);
-            args = value;
-        } else
-            args = PyTuple_Pack(1, value);
-        if (!args)
-            goto bad;
-        owned_instance = PyEval_CallObject(type, args);
-        Py_DECREF(args);
-        if (!owned_instance)
-            goto bad;
-        value = owned_instance;
-        if (!PyExceptionInstance_Check(value)) {
-            PyErr_Format(PyExc_TypeError,
-                         "calling %R should have returned an instance of "
-                         "BaseException, not %R",
-                         type, Py_TYPE(value));
-            goto bad;
+        // make sure value is an exception instance of type
+        PyObject *instance_class = NULL;
+        if (value && PyExceptionInstance_Check(value)) {
+            instance_class = (PyObject*) Py_TYPE(value);
+            if (instance_class != type) {
+                if (PyObject_IsSubclass(instance_class, type)) {
+                    // believe the instance
+                    type = instance_class;
+                } else {
+                    instance_class = NULL;
+                }
+            }
+        }
+        if (!instance_class) {
+            // instantiate the type now (we don't know when and how it will be caught)
+            // assuming that 'value' is an argument to the type's constructor
+            // not using PyErr_NormalizeException() to avoid ref-counting problems
+            PyObject *args;
+            if (!value)
+                args = PyTuple_New(0);
+            else if (PyTuple_Check(value)) {
+                Py_INCREF(value);
+                args = value;
+            } else
+                args = PyTuple_Pack(1, value);
+            if (!args)
+                goto bad;
+            owned_instance = PyObject_Call(type, args, NULL);
+            Py_DECREF(args);
+            if (!owned_instance)
+                goto bad;
+            value = owned_instance;
+            if (!PyExceptionInstance_Check(value)) {
+                PyErr_Format(PyExc_TypeError,
+                             "calling %R should have returned an instance of "
+                             "BaseException, not %R",
+                             type, Py_TYPE(value));
+                goto bad;
+            }
         }
     } else {
         PyErr_SetString(PyExc_TypeError,
