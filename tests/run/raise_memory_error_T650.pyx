@@ -2,6 +2,7 @@
 
 cimport cython
 
+
 @cython.test_assert_path_exists(
     '//RaiseStatNode',
     '//RaiseStatNode[@builtin_exc_name = "MemoryError"]')
@@ -12,6 +13,7 @@ def raise_me_type():
     ... else: print('NOT RAISED!')
     """
     raise MemoryError
+
 
 @cython.test_assert_path_exists(
     '//RaiseStatNode',
@@ -24,6 +26,7 @@ def raise_me_instance():
     """
     raise MemoryError()
 
+
 def raise_me_instance_value():
     """
     >>> raise_me_instance_value()
@@ -32,3 +35,13 @@ def raise_me_instance_value():
     MemoryError: oom
     """
     raise MemoryError("oom")
+
+
+def raise_me_instance_value_separate():
+    """
+    >>> raise_me_instance_value_separate()
+    Traceback (most recent call last):
+        ...
+    MemoryError: oom
+    """
+    raise MemoryError, "oom"
