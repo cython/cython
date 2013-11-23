@@ -135,6 +135,7 @@ raise_error:
 #else /* Python 3+ */
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
+    PyObject *owned_type = NULL, *owned_value = NULL, *owned_tb = NULL;
     if (tb == Py_None) {
         tb = 0;
     } else if (tb && !PyTraceBack_Check(tb)) {
@@ -153,7 +154,11 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         type = (PyObject*) Py_TYPE(value);
     } else if (PyExceptionClass_Check(type)) {
         // instantiate the type now (we don't know when and how it will be caught)
-        PyErr_NormalizeException(&type, &value, &tb);
+        PyErr_NormalizeException(&type, &value, &owned_tb);
+        if (!tb && owned_tb)
+            tb = owned_tb;
+        owned_type = type;
+        owned_value = value;
         if (!PyExceptionInstance_Check(value)) {
             PyErr_Format(PyExc_TypeError,
                          "calling %R should have returned an instance of "
@@ -205,6 +210,10 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     }
 
 bad:
+    Py_XDECREF(owned_type);
+    Py_XDECREF(owned_value);
+    Py_XDECREF(owned_tb);
+
     return;
 }
 #endif
