@@ -4709,19 +4709,16 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env):
-        import ExprNodes
-
         self.rhs = self.rhs.analyse_types(env)
         self.lhs = self.lhs.analyse_target_types(env)
 
         # When assigning to a fully indexed buffer or memoryview, coerce the rhs
-        if (isinstance(self.lhs, ExprNodes.IndexNode) and
+        if (self.lhs.is_subscript and
                 (self.lhs.memslice_index or self.lhs.is_buffer_access)):
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         return self
 
     def generate_execution_code(self, code):
-        import ExprNodes
         self.rhs.generate_evaluation_code(code)
         self.lhs.generate_subexpr_evaluation_code(code)
         c_op = self.operator
@@ -4729,7 +4726,7 @@ class InPlaceAssignmentNode(AssignmentNode):
             c_op = "/"
         elif c_op == "**":
             error(self.pos, "No C inplace power operator")
-        if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+        if self.lhs.is_subscript and self.lhs.is_buffer_access:
             if self.lhs.type.is_pyobject:
                 error(self.pos, "In-place operators not allowed on object buffers in this release.")
             if (c_op in ('/', '%') and self.lhs.type.is_int
