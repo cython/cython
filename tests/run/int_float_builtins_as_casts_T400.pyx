@@ -183,7 +183,8 @@ def object_int(x):
     return int(x)
 
 
-@cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode",
+                                 "//CoerceFromPyTypeNode")
 def no_args_int_cint():
     """
     >>> no_args_int_cint()
@@ -193,7 +194,8 @@ def no_args_int_cint():
     return x
 
 
-@cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode",
+                                 "//CoerceFromPyTypeNode")
 def no_args_float_cdouble():
     """
     >>> no_args_float_cdouble()
