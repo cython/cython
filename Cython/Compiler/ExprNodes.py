@@ -1053,7 +1053,7 @@ class IntNode(ConstNode):
         if self.type.is_pyobject:
             # pre-allocate a Python version of the number
             plain_integer_string = self.value_as_c_integer_string(plain_digits=True)
-            self.result_code = code.get_py_num(plain_integer_string, self.longness)
+            self.result_code = code.get_py_int(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()
 
@@ -1094,7 +1094,18 @@ class FloatNode(ConstNode):
     def compile_time_value(self, denv):
         return float(self.value)
 
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_pyobject and self.type.is_float:
+            return FloatNode(
+                self.pos, value=self.value,
+                constant_result=self.constant_result,
+                type=Builtin.float_type)
+        return ConstNode.coerce_to(self, dst_type, env)
+
     def calculate_result_code(self):
+        return self.result_code
+
+    def as_c_constant(self):
         strval = self.value
         assert isinstance(strval, (str, unicode))
         cmpval = repr(float(strval))
@@ -1106,6 +1117,13 @@ class FloatNode(ConstNode):
             return "(-Py_HUGE_VAL)"
         else:
             return strval
+
+    def generate_evaluation_code(self, code):
+        if self.type.is_pyobject:
+            self.result_code = code.get_py_float(
+                self.value, self.as_c_constant())
+        else:
+            self.result_code = self.as_c_constant()
 
 
 class BytesNode(ConstNode):

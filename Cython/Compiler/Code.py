@@ -703,17 +703,21 @@ class FunctionState(object):
         self.closure_temps = ClosureTempAllocator(scope)
 
 
-class IntConst(object):
-    """Global info about a Python integer constant held by GlobalState.
-    """
-    # cname     string
-    # value     int
-    # is_long   boolean
+class NumConst(object):
+    """Global info about a Python number constant held by GlobalState.
 
-    def __init__(self, cname, value, is_long):
+    cname       string
+    value       string
+    py_type     string     int, long, float
+    value_code  string     evaluation code if different from value
+    """
+
+    def __init__(self, cname, value, py_type, value_code=None):
         self.cname = cname
         self.value = value
-        self.is_long = is_long
+        self.py_type = py_type
+        self.value_code = value_code or value
+
 
 class PyObjectConst(object):
     """Global info about a generic constant held by GlobalState.
@@ -724,6 +728,7 @@ class PyObjectConst(object):
     def __init__(self, cname, type):
         self.cname = cname
         self.type = type
+
 
 cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
                replace_identifier=object, find_alphanums=object)
@@ -908,7 +913,7 @@ class GlobalState(object):
         self.const_cnames_used = {}
         self.string_const_index = {}
         self.pyunicode_ptr_const_index = {}
-        self.int_const_index = {}
+        self.num_const_index = {}
         self.py_constants = []
 
         assert writer.globalstate is None
@@ -1022,11 +1027,18 @@ class GlobalState(object):
         return self.parts['cached_constants']
 
     def get_int_const(self, str_value, longness=False):
-        longness = bool(longness)
+        py_type = longness and 'long' or 'int'
         try:
-            c = self.int_const_index[(str_value, longness)]
+            c = self.num_const_index[(str_value, py_type)]
         except KeyError:
-            c = self.new_int_const(str_value, longness)
+            c = self.new_num_const(str_value, py_type)
+        return c
+
+    def get_float_const(self, str_value, value_code):
+        try:
+            c = self.num_const_index[(str_value, 'float')]
+        except KeyError:
+            c = self.new_num_const(str_value, 'float', value_code)
         return c
 
     def get_py_const(self, type, prefix='', cleanup_level=None):
@@ -1083,10 +1095,10 @@ class GlobalState(object):
         self.string_const_index[byte_string] = c
         return c
 
-    def new_int_const(self, value, longness):
-        cname = self.new_int_const_cname(value, longness)
-        c = IntConst(cname, value, longness)
-        self.int_const_index[(value, longness)] = c
+    def new_num_const(self, value, py_type, value_code=None):
+        cname = self.new_num_const_cname(value, py_type)
+        c = NumConst(cname, value, py_type, value_code)
+        self.num_const_index[(value, py_type)] = c
         return c
 
     def new_py_const(self, type, prefix=''):
@@ -1100,11 +1112,14 @@ class GlobalState(object):
         value = bytes_value.decode('ASCII', 'ignore')
         return self.new_const_cname(value=value)
 
-    def new_int_const_cname(self, value, longness):
-        if longness:
+    def new_num_const_cname(self, value, py_type):
+        prefix = Naming.interned_int_prefix
+        if py_type == 'long':
             value += 'L'
-        cname = "%s%s" % (Naming.interned_num_prefix, value)
-        cname = cname.replace('-', 'neg_').replace('.','_')
+        elif py_type == 'float':
+            prefix = Naming.interned_float_prefix
+        cname = "%s%s" % (prefix, value)
+        cname = cname.replace('-', 'neg_').replace('.', '_')
         return cname
 
     def new_const_cname(self, prefix='', value=''):
@@ -1149,7 +1164,7 @@ class GlobalState(object):
 
     def generate_const_declarations(self):
         self.generate_string_constants()
-        self.generate_int_constants()
+        self.generate_num_constants()
         self.generate_object_constant_decls()
 
     def generate_object_constant_decls(self):
@@ -1242,24 +1257,25 @@ class GlobalState(object):
                     Naming.stringtab_cname,
                     init_globals.error_goto(self.module_pos)))
 
-    def generate_int_constants(self):
-        consts = [ (len(c.value), c.value, c.is_long, c)
-                   for c in self.int_const_index.values() ]
+    def generate_num_constants(self):
+        consts = [(c.py_type, len(c.value), c.value, c.value_code, c)
+                  for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
-        for _, value, longness, c in consts:
+        init_globals = self.parts['init_globals']
+        for py_type, _, value, value_code, c in consts:
             cname = c.cname
             decls_writer.putln("static PyObject *%s;" % cname)
-            if longness:
+            if py_type == 'float':
+                function = '%s = PyFloat_FromDouble(%s); %s;'
+            elif py_type == 'long':
                 function = '%s = PyLong_FromString((char *)"%s", 0, 0); %s;'
             elif Utils.long_literal(value):
                 function = '%s = PyInt_FromString((char *)"%s", 0, 0); %s;'
             else:
                 function = "%s = PyInt_FromLong(%s); %s;"
-            init_globals = self.parts['init_globals']
             init_globals.putln(function % (
-                cname,
-                value,
+                cname, value_code,
                 init_globals.error_goto_if_null(cname, self.module_pos)))
 
     # The functions below are there in a transition phase only
@@ -1478,8 +1494,11 @@ class CCodeWriter(object):
 
     # constant handling
 
-    def get_py_num(self, str_value, longness):
+    def get_py_int(self, str_value, longness):
         return self.globalstate.get_int_const(str_value, longness).cname
+
+    def get_py_float(self, str_value, value_code):
+        return self.globalstate.get_float_const(str_value, value_code).cname
 
     def get_py_const(self, type, prefix='', cleanup_level=None):
         return self.globalstate.get_py_const(type, prefix, cleanup_level).cname
