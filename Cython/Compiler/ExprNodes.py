@@ -958,6 +958,11 @@ class BoolNode(ConstNode):
                 self.pos, value=self.value,
                 constant_result=self.constant_result,
                 type=Builtin.bool_type)
+        if dst_type.is_int and self.type.is_pyobject:
+            return BoolNode(
+                self.pos, value=self.value,
+                constant_result=self.constant_result,
+                type=PyrexTypes.c_bint_type)
         return ConstNode.coerce_to(self, dst_type, env)
 
 
@@ -1111,12 +1116,17 @@ class FloatNode(ConstNode):
                 self.pos, value=self.value,
                 constant_result=self.constant_result,
                 type=Builtin.float_type)
+        if dst_type.is_float and self.type.is_pyobject:
+            return FloatNode(
+                self.pos, value=self.value,
+                constant_result=self.constant_result,
+                type=dst_type)
         return ConstNode.coerce_to(self, dst_type, env)
 
     def calculate_result_code(self):
         return self.result_code
 
-    def as_c_constant(self):
+    def get_constant_c_result_code(self):
         strval = self.value
         assert isinstance(strval, (str, unicode))
         cmpval = repr(float(strval))
@@ -1130,11 +1140,11 @@ class FloatNode(ConstNode):
             return strval
 
     def generate_evaluation_code(self, code):
+        c_value = self.get_constant_c_result_code()
         if self.type.is_pyobject:
-            self.result_code = code.get_py_float(
-                self.value, self.as_c_constant())
+            self.result_code = code.get_py_float(self.value, c_value)
         else:
-            self.result_code = self.as_c_constant()
+            self.result_code = c_value
 
 
 class BytesNode(ConstNode):

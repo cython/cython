@@ -1792,7 +1792,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             arg = arg.arg
         if arg.is_literal:
             if (node.type.is_int and isinstance(arg, ExprNodes.IntNode) or
-                    node.type.is_float and isinstance(arg, ExprNodes.FloatNode)):
+                    node.type.is_float and isinstance(arg, ExprNodes.FloatNode) or
+                    node.type.is_int and isinstance(arg, ExprNodes.BoolNode)):
                 return arg.coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type is PyrexTypes.py_object_type:
