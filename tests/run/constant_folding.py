@@ -28,6 +28,25 @@ def unop_floats():
     "//UnaryMinusNode",
     "//UnaryPlusNode",
 )
+def unop_py_floats_tuple():
+    """
+    >>> unop_floats()
+    (False, 2.0, -2.0, False, 2.0, -2.0, -2.0)
+    """
+    return (
+        not 2.0,
+        + 2.0,
+        - 2.0,
+        not not not 2.0,
+        +++ 2.0,
+        --- 2.0,
+        +-++-- 2.0)
+
+
+@cython.test_fail_if_path_exists(
+    "//UnaryMinusNode",
+    "//UnaryPlusNode",
+)
 def unop_ints():
     """
     >>> unop_ints()
