@@ -3171,11 +3171,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 value = '-' + value
             return value
 
+        node_type = node.operand.type
         if isinstance(node.operand, ExprNodes.FloatNode):
             # this is a safe operation
             return ExprNodes.FloatNode(node.pos, value=_negate(node.operand.value),
+                                       type=node_type,
                                        constant_result=node.constant_result)
-        node_type = node.operand.type
         if node_type.is_int and node_type.signed or \
                 isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
             return ExprNodes.IntNode(node.pos, value=_negate(node.operand.value),
@@ -3185,7 +3186,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return node
 
     def _handle_UnaryPlusNode(self, node):
-        if node.constant_result == node.operand.constant_result:
+        if (node.operand.has_constant_result() and
+                    node.constant_result == node.operand.constant_result):
             return node.operand
         return node
 
