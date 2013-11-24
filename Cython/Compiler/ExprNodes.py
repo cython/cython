@@ -2369,8 +2369,10 @@ class IteratorNode(ExprNode):
                 self.iter_func_ptr,
                 self.py_result()))
         code.putln("if (unlikely(!%s)) {" % result_name)
-        code.putln("if (PyErr_Occurred()) {")
-        code.putln("if (likely(PyErr_ExceptionMatches(PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("PyObject* exc_type = PyErr_Occurred();")
+        code.putln("if (exc_type) {")
+        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
+                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
         code.putln("else %s" % code.error_goto(self.pos))
         code.putln("}")
         code.putln("break;")
@@ -7714,15 +7716,15 @@ class YieldFromExprNode(YieldExprNode):
         # either error or sub-generator has normally terminated: return value => node result
         if self.result_is_used:
             # YieldExprNode has allocated the result temp for us
-            code.putln("if (__Pyx_PyGen_FetchStopIterationValue(&%s) < 0) %s" % (
+            code.putln("if (unlikely(__Pyx_PyGen_FetchStopIterationValue(&%s) < 0)) %s" % (
                 self.result(),
                 code.error_goto(self.pos)))
         else:
             code.putln("PyObject* exc_type = PyErr_Occurred();")
             code.putln("if (exc_type) {")
-            code.putln("if (!PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)) %s" %
-                code.error_goto(self.pos))
-            code.putln("PyErr_Clear();")
+            code.putln("if (likely(exc_type == PyExc_StopIteration ||"
+                       " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+            code.putln("else %s" % code.error_goto(self.pos))
             code.putln("}")
         code.putln("}")
 
