@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* Constant Python float values are cached.
+
 * ``bytearray`` has become a known type and supports coercion from and
   to C strings.  Indexing, slicing and decoding is optimised. Note that
   this may have an impact on existing code due to type inference.
