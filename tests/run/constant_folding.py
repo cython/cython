@@ -27,6 +27,7 @@ def unop_floats():
 @cython.test_fail_if_path_exists(
     "//UnaryMinusNode",
     "//UnaryPlusNode",
+    "//CoerceToPyTypeNode",
 )
 def unop_py_floats_tuple():
     """

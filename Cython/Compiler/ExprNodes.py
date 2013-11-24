@@ -947,7 +947,18 @@ class BoolNode(ConstNode):
         return self.value
 
     def calculate_result_code(self):
-        return str(int(self.value))
+        if self.type.is_pyobject:
+            return self.value and 'Py_True' or 'Py_False'
+        else:
+            return str(int(self.value))
+
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_pyobject and self.type.is_int:
+            return BoolNode(
+                self.pos, value=self.value,
+                constant_result=self.constant_result,
+                type=Builtin.bool_type)
+        return ConstNode.coerce_to(self, dst_type, env)
 
 
 class NullNode(ConstNode):
