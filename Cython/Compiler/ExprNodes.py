@@ -1034,7 +1034,7 @@ class IntNode(ConstNode):
         if self.type is dst_type:
             return self
         elif dst_type.is_float:
-            if self.constant_result is not not_a_constant:
+            if self.has_constant_result():
                 return FloatNode(self.pos, value='%d.0' % int(self.constant_result), type=dst_type,
                                  constant_result=float(self.constant_result))
             else:
@@ -1062,7 +1062,8 @@ class IntNode(ConstNode):
     def coerce_to_boolean(self, env):
         return IntNode(
             self.pos, value=self.value,
-            type = PyrexTypes.c_bint_type,
+            constant_result=self.constant_result,
+            type=PyrexTypes.c_bint_type,
             unsigned=self.unsigned, longness=self.longness)
 
     def generate_evaluation_code(self, code):
