@@ -1119,7 +1119,7 @@ class GlobalState(object):
         elif py_type == 'float':
             prefix = Naming.interned_float_prefix
         cname = "%s%s" % (prefix, value)
-        cname = cname.replace('-', 'neg_').replace('.', '_')
+        cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
         return cname
 
     def new_const_cname(self, prefix='', value=''):

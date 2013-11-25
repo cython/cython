@@ -1,5 +1,6 @@
 DEF FLOAT = 12.5
-DEF EFLOAT = 5e-1
+DEF EMFLOAT = 5e-1
+DEF EPFLOAT = 5e+1
 DEF FLOAT_NAN = float('nan')
 DEF FLOAT_INFP = float('+inf')
 DEF FLOAT_INFN = float('-inf')
@@ -17,16 +18,33 @@ def f():
     >>> f()
     12.5
     """
-    cdef float f
-    f = FLOAT
+    cdef float f = FLOAT
+    cdef object o = FLOAT
+    assert f == o
     return f
 
-def efloat():
+def emfloat():
     """
-    >>> efloat()
+    >>> emfloat()
     0.5
     """
-    cdef float f = EFLOAT
+    cdef float f = EMFLOAT
+    assert f == 5e-1
+    cdef object o = EMFLOAT
+    assert o == 5e-1
+    assert f == o
+    return f
+
+def epfloat():
+    """
+    >>> epfloat()
+    50.0
+    """
+    cdef float f = EPFLOAT
+    assert f == 5e+1
+    cdef object o = EPFLOAT
+    assert o == 5e+1
+    assert f == o
     return f
 
 def nan1():
@@ -34,8 +52,9 @@ def nan1():
     >>> nan1()
     nan
     """
-    cdef double f
-    f = FLOAT_NAN
+    cdef double f = FLOAT_NAN
+    cdef object o = FLOAT_NAN
+    assert str(f) == str(o)
     return f
 
 def nan2():
@@ -43,8 +62,9 @@ def nan2():
     >>> nan2()
     nan
     """
-    cdef double f
-    f = float('nan')
+    cdef double f = float('nan')
+    cdef object o = float('nan')
+    assert str(f) == str(o)
     return f
 
 def nan3():
@@ -54,8 +74,9 @@ def nan3():
     >>> float_nan
     nan
     """
-    cdef float f
-    f = FLOAT_NAN
+    cdef float f = FLOAT_NAN
+    cdef object o = FLOAT_NAN
+    assert str(f) == str(o)
     return f
 
 def infp1():
@@ -65,8 +86,9 @@ def infp1():
     >>> infp1() == float('inf')
     True
     """
-    cdef double f
-    f = FLOAT_INFP
+    cdef double f = FLOAT_INFP
+    cdef object o = FLOAT_INFP
+    assert f == o
     return f
 
 def infp2():
@@ -76,8 +98,9 @@ def infp2():
     >>> infp2() == float('inf')
     True
     """
-    cdef double f
-    f = float('+inf')
+    cdef double f = float('+inf')
+    cdef object o = float('+inf')
+    assert f == o
     return f
 
 def infp3():
@@ -91,8 +114,9 @@ def infp3():
     >>> float_infp == float('inf')
     True
     """
-    cdef float f
-    f = FLOAT_INFP
+    cdef float f = FLOAT_INFP
+    cdef object o = FLOAT_INFP
+    assert f == o
     return f
 
 def infn1():
@@ -102,8 +126,9 @@ def infn1():
     >>> infn1() == float('-inf')
     True
     """
-    cdef double f
-    f = FLOAT_INFN
+    cdef double f = FLOAT_INFN
+    cdef object o = FLOAT_INFN
+    assert f == o
     return f
 
 def infn2():
@@ -113,8 +138,9 @@ def infn2():
     >>> infn2() == float('-inf')
     True
     """
-    cdef double f
-    f = float('-inf')
+    cdef double f = float('-inf')
+    cdef object o = float('-inf')
+    assert f == o
     return f
 
 def infn3():
@@ -128,8 +154,9 @@ def infn3():
     >>> float_infn == float('-inf')
     True
     """
-    cdef float f
-    f = FLOAT_INFN
+    cdef float f = FLOAT_INFN
+    cdef object o = FLOAT_INFN
+    assert f == o
     return f
 
 def global_floats():
