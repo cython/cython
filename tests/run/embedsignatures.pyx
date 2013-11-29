@@ -1,5 +1,23 @@
 #cython: embedsignature=True
 
+import sys
+
+if sys.version_info >= (3, 4):
+    def funcdoc(f):
+        doc = '%s%s' % (f.__name__, f.__text_signature__)
+        if f.__doc__:
+            if '\n' in f.__doc__:
+                # preceding line endings get stripped
+                doc = '%s\n\n%s' % (doc, f.__doc__)
+            else:
+                doc = '%s\n%s' % (doc, f.__doc__)
+        return doc
+
+else:
+    def funcdoc(f):
+        return f.__doc__
+
+
 # note the r, we use \n below
 __doc__ = ur"""
     >>> print (Ext.__doc__)
@@ -73,111 +91,111 @@ __doc__ = ur"""
     >>> print (Ext.clone.__doc__)
     Ext.clone(self) -> Ext
 
-    >>> print (foo.__doc__)
+    >>> print (funcdoc(foo))
     foo()
 
-    >>> with_doc_1.__doc__
+    >>> funcdoc(with_doc_1)
     'with_doc_1(a, b, c)\nExisting string'
 
-    >>> with_doc_2.__doc__
+    >>> funcdoc(with_doc_2)
     'with_doc_2(a, b, c)\n\n    Existing string\n    '
 
-    >>> with_doc_3.__doc__
+    >>> funcdoc(with_doc_3)
     'with_doc_3(a, b, c)\nExisting string'
 
-    >>> with_doc_4.__doc__
+    >>> funcdoc(with_doc_4)
     'with_doc_4(int a, str b, list c) -> str\n\n    Existing string\n    '
 
-    >>> f_sd.__doc__
+    >>> funcdoc(f_sd)
     "f_sd(str s='spam')"
 
-    >>> cf_sd.__doc__
+    >>> funcdoc(cf_sd)
     "cf_sd(str s='spam') -> str"
 
-    >>> types.__doc__
+    >>> funcdoc(types)
     'types(Ext a, int b, unsigned short c, float d, e)'
 
-    >>> print (f_c.__doc__)
+    >>> print(funcdoc(f_c))
     f_c(char c) -> char
 
-    >>> print (f_uc.__doc__)
+    >>> print(funcdoc(f_uc))
     f_uc(unsigned char c) -> unsigned char
 
-    >>> print (f_sc.__doc__)
+    >>> print(funcdoc(f_sc))
     f_sc(signed char c) -> signed char
 
 
-    >>> print (f_s.__doc__)
+    >>> print(funcdoc(f_s))
     f_s(short s) -> short
 
-    >>> print (f_us.__doc__)
+    >>> print(funcdoc(f_us))
     f_us(unsigned short s) -> unsigned short
 
-    >>> print (f_ss.__doc__)
+    >>> print(funcdoc(f_ss))
     f_ss(signed short s) -> signed short
 
 
-    >>> print (f_i.__doc__)
+    >>> print(funcdoc(f_i))
     f_i(int i) -> int
 
-    >>> print (f_ui.__doc__)
+    >>> print(funcdoc(f_ui))
     f_ui(unsigned int i) -> unsigned int
 
-    >>> print (f_si.__doc__)
+    >>> print(funcdoc(f_si))
     f_si(signed int i) -> signed int
 
-    >>> print (f_bint.__doc__)
+    >>> print(funcdoc(f_bint))
     f_bint(bool i) -> bool
 
 
-    >>> print (f_l.__doc__)
+    >>> print(funcdoc(f_l))
     f_l(long l) -> long
 
-    >>> print (f_ul.__doc__)
+    >>> print(funcdoc(f_ul))
     f_ul(unsigned long l) -> unsigned long
 
-    >>> print (f_sl.__doc__)
+    >>> print(funcdoc(f_sl))
     f_sl(signed long l) -> signed long
 
 
-    >>> print (f_L.__doc__)
+    >>> print(funcdoc(f_L))
     f_L(long long L) -> long long
 
-    >>> print (f_uL.__doc__)
+    >>> print(funcdoc(f_uL))
     f_uL(unsigned long long L) -> unsigned long long
 
-    >>> print (f_sL.__doc__)
+    >>> print(funcdoc(f_sL))
     f_sL(signed long long L) -> signed long long
 
 
-    >>> print (f_f.__doc__)
+    >>> print(funcdoc(f_f))
     f_f(float f) -> float
 
-    >>> print (f_d.__doc__)
+    >>> print(funcdoc(f_d))
     f_d(double d) -> double
 
-    >>> print (f_D.__doc__)
+    >>> print(funcdoc(f_D))
     f_D(long double D) -> long double
 
-    >>> print (f_my_i.__doc__)
+    >>> print(funcdoc(f_my_i))
     f_my_i(MyInt i) -> MyInt
 
-    >>> print (f_my_f.__doc__)
+    >>> print(funcdoc(f_my_f))
     f_my_f(MyFloat f) -> MyFloat
 
-    >>> print (f_defexpr1.__doc__)
+    >>> print(funcdoc(f_defexpr1))
     f_defexpr1(int x=FLAG1, int y=FLAG2)
 
-    >>> print (f_defexpr2.__doc__)
+    >>> print(funcdoc(f_defexpr2))
     f_defexpr2(int x=FLAG1 | FLAG2, y=FLAG1 & FLAG2)
 
-    >>> print (f_defexpr3.__doc__)
+    >>> print(funcdoc(f_defexpr3))
     f_defexpr3(int x=Ext.CONST1, f=__builtins__.abs)
 
-    >>> print (f_defexpr4.__doc__)
+    >>> print(funcdoc(f_defexpr4))
     f_defexpr4(int x=(Ext.CONST1 + FLAG1) * Ext.CONST2)
 
-    >>> print (f_defexpr5.__doc__)
+    >>> print(funcdoc(f_defexpr5))
     f_defexpr5(int x=4)
 """
 
