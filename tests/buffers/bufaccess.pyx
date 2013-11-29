@@ -28,11 +28,7 @@ def testcase(func):
     for e in exclude:
         if e(func.__name__):
             return func
-    doctest = func.__doc__
-    if sys.version_info >= (3,1,1):
-        doctest = doctest.replace('does not have the buffer interface',
-                                  'does not support the buffer interface')
-    __test__[func.__name__] = doctest
+    __test__[func.__name__] = func.__doc__
     return func
 
 
@@ -179,18 +175,15 @@ def acquire_failure5():
 @testcase
 def acquire_nonbuffer1(first, second=None):
     """
-    >>> acquire_nonbuffer1(3)
+    >>> acquire_nonbuffer1(3)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-      ...
-    TypeError: 'int' does not have the buffer interface
-    >>> acquire_nonbuffer1(type)
+    TypeError: 'int' does not ... the buffer interface
+    >>> acquire_nonbuffer1(type)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-      ...
-    TypeError: 'type' does not have the buffer interface
-    >>> acquire_nonbuffer1(None, 2)
+    TypeError: 'type' does not ... the buffer interface
+    >>> acquire_nonbuffer1(None, 2)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-      ...
-    TypeError: 'int' does not have the buffer interface
+    TypeError: 'int' does not ... the buffer interface
     """
     cdef object[int] buf
     buf = first
