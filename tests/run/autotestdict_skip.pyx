@@ -10,10 +10,11 @@ If this doesn't work, then the function doctest should fail.
 True
 """
 
+import sys
 
 def func():
     """
-    >>> True
+    >>> sys.version_info < (3, 4)
     False
     """
 

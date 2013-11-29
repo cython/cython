@@ -551,6 +551,8 @@ class CythonCompileTestCase(unittest.TestCase):
                                              'error_on_uninitialized') ]
         self._saved_default_directives = Options.directive_defaults.items()
         Options.warning_errors = self.warning_errors
+        if sys.version_info >= (3, 4):
+            Options.directive_defaults['autotestdict'] = False
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
