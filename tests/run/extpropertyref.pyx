@@ -1,3 +1,5 @@
+# cython: autotestdict=True
+
 cdef class Spam:
 
     property eggs:
@@ -19,9 +21,9 @@ def tomato():
     >>> lines = __test__.keys()
     >>> len(lines)
     3
-    >>> 'Spam.eggs.__get__ (line 5)' in lines or lines
+    >>> 'Spam.eggs.__get__ (line 7)' in lines or lines
     True
-    >>> 'tomato (line 14)' in lines or lines
+    >>> 'tomato (line 16)' in lines or lines
     True
     """
     cdef Spam spam
