@@ -140,7 +140,7 @@ function toggleDiv(id) {
         error_goto = re.compile(ur'((; *if .*)? \{__pyx_filename = .*goto __pyx_L\w+;\})')
         refnanny = re.compile(u'(__Pyx_X?(GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)')
 
-        code_source_file = self.code[source_filename]
+        code_source_file = self.code.get(source_filename, {})
         for line in lines:
 
             k += 1
