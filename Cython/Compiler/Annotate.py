@@ -2,8 +2,8 @@
 
 import os
 import re
-import time
 import codecs
+from xml.sax.saxutils import escape as html_escape
 from StringIO import StringIO
 
 import Version
@@ -150,8 +150,7 @@ function toggleDiv(id) {
             except KeyError:
                 code = ''
             else:
-                for c, cc, html in special_chars:
-                    code = code.replace(c, html)
+                code = html_escape(code)
 
             code = _parse_code(annotate, code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
@@ -181,15 +180,6 @@ _parse_code = re.compile(
     ur')(?=\()|'       # look-ahead to exclude subsequent '(' from replacement
     ur'(?P<error_goto>(?:(?<=;) *if .* +)?\{__pyx_filename = .*goto __pyx_L\w+;\})'
 ).sub
-
-
-# TODO: make this cleaner
-def escape(raw_string):
-    raw_string = raw_string.replace(u"\'", ur"&#146;")
-    raw_string = raw_string.replace(u'\"', ur'&quot;')
-    raw_string = raw_string.replace(u'\n', ur'<br>\n')
-    raw_string = raw_string.replace(u'\t', ur'\t')
-    return raw_string
 
 
 class AnnotationItem(object):
