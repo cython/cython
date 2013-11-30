@@ -133,12 +133,12 @@ function toggleDiv(id) {
         f.write(u'<p>Raw output: <a href="%s">%s</a>\n' % (c_file, c_file))
         k = 0
 
-        py_c_api = re.compile(u'(Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)\(')
-        py_marco_api = re.compile(u'(Py[A-Z][a-z]+_[A-Z][A-Z_]+)\(')
-        pyx_c_api = re.compile(u'(__Pyx_[A-Z][a-z_][A-Za-z_]+)\(')
-        pyx_macro_api = re.compile(u'(__Pyx_[A-Z][A-Z_]+)\(')
-        error_goto = re.compile(ur'((; *if .*)? \{__pyx_filename = .*goto __pyx_L\w+;\})')
-        refnanny = re.compile(u'(__Pyx_X?(GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)')
+        replace_py_c_api = re.compile(u'(Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)\(').subn
+        replace_py_marco_api = re.compile(u'(Py[A-Z][a-z]+_[A-Z][A-Z_]+)\(').subn
+        replace_pyx_c_api = re.compile(u'(__Pyx_[A-Z][a-z_][A-Za-z_]+)\(').subn
+        replace_pyx_macro_api = re.compile(u'(__Pyx_[A-Z][A-Z_]+)\(').subn
+        replace_error_goto = re.compile(ur'((; *if .*)? \{__pyx_filename = .*goto __pyx_L\w+;\})').subn
+        replace_refnanny = re.compile(u'(__Pyx_X?(GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)').subn
 
         code_source_file = self.code.get(source_filename, {})
         for line in lines:
@@ -152,12 +152,12 @@ function toggleDiv(id) {
                 for c, cc, html in special_chars:
                     code = code.replace(c, html)
 
-            code, py_c_api_calls = py_c_api.subn(ur"<span class='py_c_api'>\1</span>(", code)
-            code, pyx_c_api_calls = pyx_c_api.subn(ur"<span class='pyx_c_api'>\1</span>(", code)
-            code, py_macro_api_calls = py_marco_api.subn(ur"<span class='py_macro_api'>\1</span>(", code)
-            code, pyx_macro_api_calls = pyx_macro_api.subn(ur"<span class='pyx_macro_api'>\1</span>(", code)
-            code, refnanny_calls = refnanny.subn(ur"<span class='refnanny'>\1</span>", code)
-            code, error_goto_calls = error_goto.subn(ur"<span class='error_goto'>\1</span>", code)
+            code, py_c_api_calls = replace_py_c_api(ur"<span class='py_c_api'>\1</span>(", code)
+            code, pyx_c_api_calls = replace_pyx_c_api(ur"<span class='pyx_c_api'>\1</span>(", code)
+            code, py_macro_api_calls = replace_py_marco_api(ur"<span class='py_macro_api'>\1</span>(", code)
+            code, pyx_macro_api_calls = replace_pyx_macro_api(ur"<span class='pyx_macro_api'>\1</span>(", code)
+            code, refnanny_calls = replace_refnanny(ur"<span class='refnanny'>\1</span>", code)
+            code, error_goto_calls = replace_error_goto(ur"<span class='error_goto'>\1</span>", code)
 
             code = code.replace(u"<span class='error_goto'>;", u";<span class='error_goto'>")
 
