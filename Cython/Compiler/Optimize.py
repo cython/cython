@@ -3269,7 +3269,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             sequence_node = node.operand1
             factor = node.operand2
             self._calculate_const(factor)
-            if factor.constant_result != 1:
+            if factor.constant_result != 1 and sequence_node.args:
                 sequence_node.mult_factor = factor
             self.visitchildren(sequence_node)
             return sequence_node
@@ -3278,7 +3278,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             sequence_node = node.operand2
             factor = node.operand1
             self._calculate_const(factor)
-            if factor.constant_result != 1:
+            if factor.constant_result != 1 and sequence_node.args:
                 sequence_node.mult_factor = factor
             self.visitchildren(sequence_node)
             return sequence_node

@@ -278,3 +278,14 @@ def for_in_nested_listcomp():
     []
     """
     return [x for x in [1, 2, 3] for _ in []]
+
+
+@cython.test_fail_if_path_exists(
+    "//ListNode//IntNode",
+)
+def mult_empty_list():
+    """
+    >>> mult_empty_list()
+    []
+    """
+    return 5 * [] * 100
