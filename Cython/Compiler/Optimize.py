@@ -3306,17 +3306,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # eliminate dead code based on constant condition results
         if_clauses = []
         for if_clause in node.if_clauses:
-            condition_result = if_clause.get_constant_condition_result()
-            if condition_result is None:
+            condition = if_clause.condition
+            if condition.has_constant_result():
+                if condition.constant_result:
+                    # always true => subsequent clauses can safely be dropped
+                    node.else_clause = if_clause.body
+                    break
+                # else: false => drop clause
+            else:
                 # unknown result => normal runtime evaluation
                 if_clauses.append(if_clause)
-            elif condition_result == True:
-                # subsequent clauses can safely be dropped
-                node.else_clause = if_clause.body
-                break
-            else:
-                # False clauses can safely be deleted
-                assert condition_result == False
         if if_clauses:
             node.if_clauses = if_clauses
             return node

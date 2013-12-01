@@ -5328,12 +5328,6 @@ class IfClauseNode(Node):
         self.body = self.body.analyse_expressions(env)
         return self
 
-    def get_constant_condition_result(self):
-        if self.condition.has_constant_result():
-            return bool(self.condition.constant_result)
-        else:
-            return None
-
     def generate_execution_code(self, code, end_label):
         self.condition.generate_evaluation_code(code)
         code.putln(
