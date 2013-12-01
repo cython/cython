@@ -3339,7 +3339,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # cut down sliced constant sequences
         if node.constant_result is not not_a_constant:
             base = node.base
-            if base.is_sequence_constructor:
+            if base.is_sequence_constructor and base.mult_factor is None:
                 base.args = base.args[start:stop]
                 return base
             elif base.is_string_literal:
