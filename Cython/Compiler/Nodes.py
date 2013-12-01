@@ -1749,8 +1749,11 @@ class FuncDefNode(StatNode, BlockNode):
         # -------------------------
         self.generate_function_body(env, code)
 
-        # ----- Default return value
+        code.mark_pos(self.pos)
         code.putln("")
+        code.putln("/* function exit code */")
+
+        # ----- Default return value
         if self.return_type.is_pyobject:
             #if self.return_type.is_extension_type:
             #    lhs = "(PyObject *)%s" % Naming.retval_cname
@@ -2975,6 +2978,10 @@ class DefNodeWrapper(FuncDefNode):
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
 
+        code.mark_pos(self.pos)
+        code.putln("")
+        code.putln("/* function exit code */")
+
         # ----- Error cleanup
         if code.error_label in code.labels_used:
             code.put_goto(code.return_label)
@@ -3788,6 +3795,11 @@ class GeneratorBodyDefNode(DefNode):
                 lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
                 lenv.scope_class.type.cast_code('%s->closure' %
                                                 Naming.generator_cname)))
+
+        code.mark_pos(self.pos)
+        code.putln("")
+        code.putln("/* function exit code */")
+
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
         code.putln('PyErr_SetNone(PyExc_StopIteration);')
