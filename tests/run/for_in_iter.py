@@ -49,6 +49,18 @@ def for_in_literal_list():
         l.append(i)
     return l
 
+@cython.test_assert_path_exists('//TupleNode//IntNode')
+@cython.test_fail_if_path_exists('//ListNode//IntNode')
+def for_in_literal_mult_list():
+    """
+    >>> for_in_literal_mult_list()
+    [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4]
+    """
+    l = []
+    for i in [1,2,3,4] * 3:
+        l.append(i)
+    return l
+
 class Iterable(object):
     """
     >>> for_in_pyiter(Iterable(5))

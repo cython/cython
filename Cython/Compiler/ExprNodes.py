@@ -2337,11 +2337,14 @@ class IteratorNode(ExprNode):
 
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
-        code.putln(
-            "if (%s >= Py%s_GET_SIZE(%s)) break;" % (
-                self.counter_cname,
-                test_name,
-                self.py_result()))
+        final_size = 'Py%s_GET_SIZE(%s)' % (test_name, self.py_result())
+        if self.sequence.is_sequence_constructor:
+            item_count = len(self.sequence.args)
+            if self.sequence.mult_factor is None:
+                final_size = item_count
+            elif isinstance(self.sequence.mult_factor.constant_result, (int, long)):
+                final_size = item_count * self.sequence.mult_factor.constant_result
+        code.putln("if (%s >= %s) break;" % (self.counter_cname, final_size))
         if self.reversed:
             inc_dec = '--'
         else:
