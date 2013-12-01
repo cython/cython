@@ -2941,6 +2941,7 @@ class DefNodeWrapper(FuncDefNode):
     def generate_function_definitions(self, env, code):
         lenv = self.target.local_scope
         # Generate C code for header and body of function
+        code.mark_pos(self.pos)
         code.putln("")
         code.putln("/* Python wrapper */")
         preprocessor_guard = self.target.get_preprocessor_guard()
