@@ -3127,7 +3127,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_UnopNode(self, node):
         self._calculate_const(node)
-        if node.constant_result is ExprNodes.not_a_constant:
+        if not node.has_constant_result():
             if node.operator == '!':
                 return self._handle_NotNode(node)
             return node
@@ -3193,9 +3193,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_BoolBinopNode(self, node):
         self._calculate_const(node)
-        if node.operand1.constant_result is ExprNodes.not_a_constant:
+        if not node.operand1.has_constant_result():
             return node
-        elif node.operand1.constant_result:
+        if node.operand1.constant_result:
             if node.operator == 'and':
                 return node.operand2
             else:
