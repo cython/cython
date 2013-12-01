@@ -3382,6 +3382,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         if node.condition.has_constant_result():
             if node.condition.constant_result:
+                node.condition = None
                 node.else_clause = None
             else:
                 return node.else_clause

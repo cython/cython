@@ -904,7 +904,8 @@ class ControlFlowAnalysis(CythonTransform):
         next_block = self.flow.newblock()
         # Condition block
         self.flow.loops.append(LoopDescr(next_block, condition_block))
-        self._visit(node.condition)
+        if node.condition:
+            self._visit(node.condition)
         # Body block
         self.flow.nextblock()
         self._visit(node.body)

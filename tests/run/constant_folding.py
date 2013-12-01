@@ -192,6 +192,9 @@ def while_false_else():
 
 @cython.test_fail_if_path_exists(
     "//WhileStatNode//PrintStatNode",
+    "//WhileStatNode//PrimaryCmpNode",
+    "//WhileStatNode/BoolNode",
+    "//WhileStatNode/IntNode",
 )
 @cython.test_assert_path_exists(
     "//WhileStatNode",
