@@ -3121,6 +3121,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         except ValueError:
             return None
 
+    def _bool_node(self, node, value):
+        value = bool(value)
+        return ExprNodes.BoolNode(node.pos, value=value, constant_result=value)
+
     def visit_ExprNode(self, node):
         self._calculate_const(node)
         return node
@@ -3134,8 +3138,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if not node.operand.is_literal:
             return node
         if node.operator == '!':
-            return ExprNodes.BoolNode(node.pos, value=bool(node.constant_result),
-                                      constant_result=bool(node.constant_result))
+            return self._bool_node(node, node.constant_result)
         elif isinstance(node.operand, ExprNodes.BoolNode):
             return ExprNodes.IntNode(node.pos, value=str(int(node.constant_result)),
                                      type=PyrexTypes.c_int_type,
@@ -3283,18 +3286,23 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_PrimaryCmpNode(self, node):
         self._calculate_const(node)
-        if node.constant_result is not ExprNodes.not_a_constant:
-            bool_result = bool(node.constant_result)
-            return ExprNodes.BoolNode(node.pos, value=bool_result,
-                                      constant_result=bool_result)
+        if node.has_constant_result():
+            return self._bool_node(node, node.constant_result)
         if node.operator in ('in', 'not_in') and not node.cascade:
-            if isinstance(node.operand2, ExprNodes.ListNode):
-                node.operand2 = node.operand2.as_tuple()
+            if isinstance(node.operand2, (ExprNodes.ListNode, ExprNodes.TupleNode,
+                                          ExprNodes.SetNode)):
+                if not node.operand2.args:
+                    return self._bool_node(node, node.operator == 'not_in')
+                if isinstance(node.operand2, ExprNodes.ListNode):
+                    node.operand2 = node.operand2.as_tuple()
+            elif isinstance(node.operand2, ExprNodes.DictNode):
+                if not node.operand2.key_value_pairs:
+                    return self._bool_node(node, node.operator == 'not_in')
         return node
 
     def visit_CondExprNode(self, node):
         self._calculate_const(node)
-        if node.test.constant_result is ExprNodes.not_a_constant:
+        if not node.test.has_constant_result():
             return node
         if node.test.constant_result:
             return node.true_val

@@ -313,3 +313,51 @@ def zero_mult_list():
     []
     """
     return 0 * [1, 2] * 0
+
+
+@cython.test_assert_path_exists(
+    "//BoolNode",
+)
+@cython.test_fail_if_path_exists(
+    "//PrimaryCmpNode",
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def in_mult_list():
+    """
+    >>> in_mult_list()
+    False
+    """
+    return 5 in 100 * [1, 2] * 0
+
+
+@cython.test_assert_path_exists(
+    "//BoolNode",
+)
+@cython.test_fail_if_path_exists(
+    "//PrimaryCmpNode",
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def not_in_mult_list():
+    """
+    >>> not_in_mult_list()
+    True
+    """
+    return 5 not in 100 * [1, 2] * 0
+
+
+@cython.test_assert_path_exists(
+    "//BoolNode",
+)
+@cython.test_fail_if_path_exists(
+    "//PrimaryCmpNode",
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def combined():
+    """
+    >>> combined()
+    True
+    """
+    return 5 in 100 * [1, 2] * 0  or  5 not in 100 * [] * 10
