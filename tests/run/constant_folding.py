@@ -281,7 +281,7 @@ def for_in_nested_listcomp():
 
 
 @cython.test_fail_if_path_exists(
-    "//ListNode//IntNode",
+    "//MulNode",
 )
 def mult_empty_list():
     """
@@ -289,3 +289,27 @@ def mult_empty_list():
     []
     """
     return 5 * [] * 100
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def neg_mult_list():
+    """
+    >>> neg_mult_list()
+    []
+    """
+    return -5 * [1, 2] * -100
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def zero_mult_list():
+    """
+    >>> zero_mult_list()
+    []
+    """
+    return 0 * [1, 2] * 0

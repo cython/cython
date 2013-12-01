@@ -3265,24 +3265,21 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return new_node
 
     def visit_MulNode(self, node):
+        self._calculate_const(node)
         if isinstance(node.operand1, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            sequence_node = node.operand1
-            factor = node.operand2
-            self._calculate_const(factor)
-            if factor.constant_result != 1 and sequence_node.args:
-                sequence_node.mult_factor = factor
-            self.visitchildren(sequence_node)
-            return sequence_node
+            return self._calculate_constant_seq(node.operand1, node.operand2)
         if isinstance(node.operand1, ExprNodes.IntNode) and \
-               isinstance(node.operand2, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            sequence_node = node.operand2
-            factor = node.operand1
-            self._calculate_const(factor)
-            if factor.constant_result != 1 and sequence_node.args:
-                sequence_node.mult_factor = factor
-            self.visitchildren(sequence_node)
-            return sequence_node
+                isinstance(node.operand2, (ExprNodes.ListNode, ExprNodes.TupleNode)):
+            return self._calculate_constant_seq(node.operand2, node.operand1)
         return self.visit_BinopNode(node)
+
+    def _calculate_constant_seq(self, sequence_node, factor):
+        if factor.constant_result != 1 and sequence_node.args:
+            if isinstance(factor.constant_result, (int, long)) and factor.constant_result <= 0:
+                del sequence_node.args[:]
+            else:
+                sequence_node.mult_factor = factor
+        return sequence_node
 
     def visit_PrimaryCmpNode(self, node):
         self._calculate_const(node)
