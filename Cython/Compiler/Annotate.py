@@ -132,8 +132,8 @@ function toggleDiv(id) {
         c_file = Utils.decode_filename(os.path.basename(target_filename))
         f.write(u'<p>Raw output: <a href="%s">%s</a>\n' % (c_file, c_file))
 
-        calls = dict((name, 0) for name in
-                     'refnanny py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split())
+        zero_calls = dict((name, 0) for name in
+                          'refnanny py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split())
 
         def annotate(match):
             group_name = match.lastgroup
@@ -152,9 +152,10 @@ function toggleDiv(id) {
             else:
                 code = html_escape(code)
 
+            calls = zero_calls.copy()
             code = _parse_code(annotate, code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
-                     calls['py_macro_api'] + calls['pyx_macro_api'] - calls['refnanny'])
+                     calls['py_macro_api'] + calls['pyx_macro_api'])
             color = u"FFFF%02x" % int(255/(1+score/10.0))
             f.write(u"<pre class='line' style='background-color: #%s' onclick='toggleDiv(\"line%s\")'>" % (color, k))
 
