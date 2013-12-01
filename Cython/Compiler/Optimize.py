@@ -3277,8 +3277,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if factor.constant_result != 1 and sequence_node.args:
             if isinstance(factor.constant_result, (int, long)) and factor.constant_result <= 0:
                 del sequence_node.args[:]
-            else:
-                sequence_node.mult_factor = factor
+                factor = None
+            sequence_node.mult_factor = factor
         return sequence_node
 
     def visit_PrimaryCmpNode(self, node):
