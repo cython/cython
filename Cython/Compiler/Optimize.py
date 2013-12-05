@@ -3384,7 +3384,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_WhileStatNode(self, node):
         self.visitchildren(node)
-        if node.condition.has_constant_result():
+        if node.condition and node.condition.has_constant_result():
             if node.condition.constant_result:
                 node.condition = None
                 node.else_clause = None
