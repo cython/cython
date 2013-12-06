@@ -28,8 +28,8 @@ import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 import TypeSlots
-from Builtin import list_type, tuple_type, set_type, dict_type, \
-     unicode_type, str_type, bytes_type, bytearray_type, type_type
+from Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
+     unicode_type, str_type, bytes_type, bytearray_type, basestring_type
 import Builtin
 import Symtab
 from Cython import Utils
@@ -8792,29 +8792,19 @@ class BinopNode(ExprNode):
                 type1 = Builtin.bytes_type
             elif type1.is_pyunicode_ptr:
                 type1 = Builtin.unicode_type
-            elif self.operator == '%' \
-                     and type1 in (Builtin.str_type, Builtin.unicode_type):
-                # note that  b'%s' % b'abc'  doesn't work in Py3
-                return type1
-            if type1.is_builtin_type:
-                if type1 is type2:
-                    if self.operator in '**%+|&^':
-                        # FIXME: at least these operators should be safe - others?
-                        return type1
-                elif self.operator == '*':
-                    if type1 in (Builtin.bytes_type, Builtin.str_type, Builtin.unicode_type):
-                        return type1
-                    # multiplication of containers/numbers with an
-                    # integer value always (?) returns the same type
-                    if type2.is_int:
-                        return type1
-            elif type2.is_builtin_type and type1.is_int and self.operator == '*':
-                # multiplication of containers/numbers with an
-                # integer value always (?) returns the same type
-                return type2
+            if type1.is_builtin_type or type2.is_builtin_type:
+                if type1 is type2 and self.operator in '**%+|&^':
+                    # FIXME: at least these operators should be safe - others?
+                    return type1
+                result_type = self.infer_builtin_types_operation(type1, type2)
+                if result_type is not None:
+                    return result_type
             return py_object_type
         else:
             return self.compute_c_result_type(type1, type2)
+
+    def infer_builtin_types_operation(self, type1, type2):
+        return None
 
     def nogil_check(self, env):
         if self.is_py_operation():
@@ -9019,13 +9009,14 @@ class NumBinopNode(BinopNode):
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
-    
+
     overflow_op_names = {
-       "+":  "add",
-       "-":  "sub",
-       "*":  "mul",
-       "<<":  "lshift",
+        "+":  "add",
+        "-":  "sub",
+        "*":  "mul",
+        "<<":  "lshift",
     }
+
 
 class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
@@ -9045,6 +9036,15 @@ class AddNode(NumBinopNode):
         else:
             return NumBinopNode.is_py_operation_types(self, type1, type2)
 
+    def infer_builtin_types_operation(self, type1, type2):
+        # b'abc' + 'abc' raises an exception in Py3,
+        # so we can safely infer the Py2 type for bytes here
+        string_types = [bytes_type, str_type, basestring_type, unicode_type]  # Py2.4 lacks tuple.index()
+        if type1 in string_types and type2 in string_types:
+            return string_types[max(string_types.index(type1),
+                                    string_types.index(type2))]
+        return None
+
     def compute_c_result_type(self, type1, type2):
         #print "AddNode.compute_c_result_type:", type1, self.operator, type2 ###
         if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
@@ -9054,6 +9054,16 @@ class AddNode(NumBinopNode):
         else:
             return NumBinopNode.compute_c_result_type(
                 self, type1, type2)
+
+    def py_operation_function(self):
+        type1, type2 = self.operand1.type, self.operand2.type
+        if type1 is unicode_type or type2 is unicode_type:
+            if type1.is_builtin_type and type2.is_builtin_type:
+                if self.operand1.may_be_none() or self.operand2.may_be_none():
+                    return '__Pyx_PyUnicode_Concat'
+                else:
+                    return 'PyUnicode_Concat'
+        return super(AddNode, self).py_operation_function()
 
 
 class SubNode(NumBinopNode):
@@ -9073,11 +9083,27 @@ class MulNode(NumBinopNode):
     #  '*' operator.
 
     def is_py_operation_types(self, type1, type2):
-        if (type1.is_string and type2.is_int) \
-            or (type2.is_string and type1.is_int):
-                return 1
+        if ((type1.is_string and type2.is_int) or
+                (type2.is_string and type1.is_int)):
+            return 1
         else:
             return NumBinopNode.is_py_operation_types(self, type1, type2)
+
+    def infer_builtin_types_operation(self, type1, type2):
+        # let's assume that whatever builtin type you multiply a string with
+        # will either return a string of the same type or fail with an exception
+        string_types = (bytes_type, str_type, basestring_type, unicode_type)
+        if type1 in string_types and type2.is_builtin_type:
+            return type1
+        if type2 in string_types and type1.is_builtin_type:
+            return type2
+        # multiplication of containers/numbers with an integer value
+        # always (?) returns the same type
+        if type1.is_int:
+            return type2
+        if type2.is_int:
+            return type1
+        return None
 
 
 class DivNode(NumBinopNode):
@@ -9218,9 +9244,9 @@ class DivNode(NumBinopNode):
             return "(%s / %s)" % (op1, op2)
         else:
             return "__Pyx_div_%s(%s, %s)" % (
-                    self.type.specialization_name(),
-                    self.operand1.result(),
-                    self.operand2.result())
+                self.type.specialization_name(),
+                self.operand1.result(),
+                self.operand2.result())
 
 
 class ModNode(DivNode):
@@ -9228,8 +9254,25 @@ class ModNode(DivNode):
 
     def is_py_operation_types(self, type1, type2):
         return (type1.is_string
-            or type2.is_string
-            or NumBinopNode.is_py_operation_types(self, type1, type2))
+                or type2.is_string
+                or NumBinopNode.is_py_operation_types(self, type1, type2))
+
+    def infer_builtin_types_operation(self, type1, type2):
+        # b'%s' % xyz  raises an exception in Py3, so it's safe to infer the type for Py2
+        if type1 is unicode_type:
+            # None + xyz  may be implemented by RHS
+            if type2.is_builtin_type or not self.operand1.may_be_none():
+                return type1
+        elif type1 in (bytes_type, str_type, basestring_type):
+            if type2 is unicode_type:
+                return type2
+            elif type2.is_numeric:
+                return type1
+            elif type1 is bytes_type and not type2.is_builtin_type:
+                return None   # RHS might implement '% operator differently in Py3
+            else:
+                return basestring_type  # either str or unicode, can't tell
+        return None
 
     def zero_division_message(self):
         if self.type.is_int:
@@ -9274,6 +9317,15 @@ class ModNode(DivNode):
                     self.type.specialization_name(),
                     self.operand1.result(),
                     self.operand2.result())
+
+    def py_operation_function(self):
+        if self.operand1.type is unicode_type and self.operand2.type.is_builtin_type:
+            if self.operand1.may_be_none():
+                return '__Pyx_PyUnicode_Format'
+            else:
+                return 'PyUnicode_Format'
+        return super(ModNode, self).py_operation_function()
+
 
 class PowNode(NumBinopNode):
     #  '**' operator.
