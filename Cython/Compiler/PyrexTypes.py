@@ -2838,11 +2838,12 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_to_py_code is False: return None # tri-state-ish
+        if self._convert_to_py_code is False: return None  # tri-state-ish
 
         if self._convert_to_py_code is None:
             for member in self.scope.var_entries:
-                if not member.type.to_py_function and not member.type.create_to_py_utility_code(env):
+                if (not member.type.to_py_function and
+                        not member.type.create_to_py_utility_code(env)):
                     self.to_py_function = None
                     self._convert_to_py_code = False
                     return False
@@ -2856,33 +2857,34 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_from_py_code is False: return None # tri-state-ish
+        if self._convert_from_py_code is False: return None  # tri-state-ish
 
         if self._convert_from_py_code is None:
             for member in self.scope.var_entries:
-                if (not member.type.from_py_function and not
-                        member.type.create_from_py_utility_code(env)):
+                if (not member.type.from_py_function and
+                        not member.type.create_from_py_utility_code(env)):
                     self.from_py_function = None
                     self._convert_from_py_code = False
                     return False
 
             context = dict(
-                struct_type_decl = self.declaration_code(""),
-                var_entries = self.scope.var_entries,
-                funcname = self.from_py_function,
+                struct_type_decl=self.declaration_code(""),
+                var_entries=self.scope.var_entries,
+                funcname=self.from_py_function,
             )
             self._convert_from_py_code = TempitaUtilityCode.load(
-                      "FromPyStructUtility", "TypeConversion.c", context=context)
+                "FromPyStructUtility", "TypeConversion.c", context=context)
 
         env.use_utility_code(self._convert_from_py_code)
         return True
 
     def __repr__(self):
-        return "<CStructOrUnionType %s %s%s>" % (self.name, self.cname,
+        return "<CStructOrUnionType %s %s%s>" % (
+            self.name, self.cname,
             ("", " typedef")[self.typedef_flag])
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+                         for_display=0, dll_linkage=None, pyrex=0):
         if pyrex or for_display:
             base_code = self.name
         else:
