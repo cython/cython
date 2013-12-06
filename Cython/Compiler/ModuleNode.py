@@ -1496,7 +1496,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "Subscript assignment not supported by %s", Py_TYPE(o)->tp_name);')
+                    '  "Subscript assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(
@@ -1513,7 +1513,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "Subscript deletion not supported by %s", Py_TYPE(o)->tp_name);')
+                    '  "Subscript deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(
@@ -1563,7 +1563,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "2-element slice assignment not supported by %s", Py_TYPE(o)->tp_name);')
+                    '  "2-element slice assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(
@@ -1580,7 +1580,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "2-element slice deletion not supported by %s", Py_TYPE(o)->tp_name);')
+                    '  "2-element slice deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(

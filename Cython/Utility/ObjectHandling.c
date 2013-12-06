@@ -36,7 +36,7 @@ static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
 
 static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
     PyErr_Format(PyExc_ValueError,
-                 "need more than %" CYTHON_FORMAT_SSIZE_T "d value%s to unpack",
+                 "need more than %" CYTHON_FORMAT_SSIZE_T "d value%.1s to unpack",
                  index, (index == 1) ? "" : "s");
 }
 
@@ -593,7 +593,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 {{if access == 'Get'}}
         "'%.200s' object is unsliceable", Py_TYPE(obj)->tp_name);
 {{else}}
-        "'%.200s' object does not support slice %s",
+        "'%.200s' object does not support slice %.10s",
         Py_TYPE(obj)->tp_name, value ? "assignment" : "deletion");
 {{endif}}
 
@@ -919,7 +919,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*pr
 
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (unlikely(!type)) {
-        PyErr_Format(PyExc_SystemError, "Missing type object");
+        PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
     if (likely(PyObject_TypeCheck(obj, type)))
@@ -972,7 +972,7 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 #if PY_MAJOR_VERSION >= 3
             "name '%U' is not defined", name);
 #else
-            "name '%s' is not defined", PyString_AS_STRING(name));
+            "name '%.200s' is not defined", PyString_AS_STRING(name));
 #endif
     }
     return result;

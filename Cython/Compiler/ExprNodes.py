@@ -8998,7 +8998,7 @@ class NumBinopNode(BinopNode):
         super(NumBinopNode, self).generate_evaluation_code(code)
         if self.overflow_check:
             code.putln("if (unlikely(%s)) {" % self.overflow_bit)
-            code.putln('PyErr_Format(PyExc_OverflowError, "value too large");')
+            code.putln('PyErr_SetString(PyExc_OverflowError, "value too large");')
             code.putln(code.error_goto(self.pos))
             code.putln("}")
             code.funcstate.release_temp(self.overflow_bit)
@@ -9233,7 +9233,7 @@ class DivNode(NumBinopNode):
                     zero_test = "%s == 0" % self.operand2.result()
                 code.putln("if (unlikely(%s)) {" % zero_test)
                 code.put_ensure_gil()
-                code.putln('PyErr_Format(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
+                code.putln('PyErr_SetString(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
                 code.put_release_ensured_gil()
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
@@ -9248,7 +9248,7 @@ class DivNode(NumBinopNode):
                                self.operand2.result(), type_of_op2,
                                self.operand1.result()))
                     code.put_ensure_gil()
-                    code.putln('PyErr_Format(PyExc_OverflowError, "value too large to perform division");')
+                    code.putln('PyErr_SetString(PyExc_OverflowError, "value too large to perform division");')
                     code.put_release_ensured_gil()
                     code.putln(code.error_goto(self.pos))
                     code.putln("}")
@@ -10599,7 +10599,7 @@ class CoerceIntToBytesNode(CoerceToPyTypeNode):
                     arg_result, arg_result))
             else:
                 code.putln("if (%s > 255) {" % arg_result)
-            code.putln('PyErr_Format(PyExc_OverflowError, '
+            code.putln('PyErr_SetString(PyExc_OverflowError, '
                        '"value too large to pack into a byte"); %s' % (
                            code.error_goto(self.pos)))
             code.putln('}')

@@ -267,7 +267,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         goto bad;
     if (!PyType_Check(result)) {
         PyErr_Format(PyExc_TypeError,
-            "%s.%s is not a type object",
+            "%.200s.%.200s is not a type object",
             module_name, class_name);
         goto bad;
     }
@@ -295,7 +295,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     }
     else if ((size_t)basicsize != size) {
         PyErr_Format(PyExc_ValueError,
-            "%s.%s has the wrong size, try recompiling",
+            "%.200s.%.200s has the wrong size, try recompiling",
             module_name, class_name);
         goto bad;
     }
@@ -330,14 +330,14 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
     cobj = PyDict_GetItemString(d, funcname);
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
-            "%s does not export expected C function %s",
+            "%.200s does not export expected C function %.200s",
                 PyModule_GetName(module), funcname);
         goto bad;
     }
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
-            "C function %s.%s has wrong signature (expected %s, got %s)",
+            "C function %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
@@ -351,7 +351,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
     while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
     if (*s1 != *s2) {
         PyErr_Format(PyExc_TypeError,
-            "C function %s.%s has wrong signature (expected %s, got %s)",
+            "C function %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), funcname, sig, desc);
         goto bad;
     }
@@ -431,14 +431,14 @@ static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, con
     cobj = PyDict_GetItemString(d, name);
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
-            "%s does not export expected C variable %s",
+            "%.200s does not export expected C variable %.200s",
                 PyModule_GetName(module), name);
         goto bad;
     }
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
-            "C variable %s.%s has wrong signature (expected %s, got %s)",
+            "C variable %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), name, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
@@ -452,7 +452,7 @@ static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, con
     while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
     if (*s1 != *s2) {
         PyErr_Format(PyExc_TypeError,
-            "C variable %s.%s has wrong signature (expected %s, got %s)",
+            "C variable %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), name, sig, desc);
         goto bad;
     }

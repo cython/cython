@@ -238,7 +238,7 @@ __pyx_check_suboffsets(Py_buffer *buf, int dim, CYTHON_UNUSED int ndim, int spec
     if (spec & __Pyx_MEMVIEW_PTR) {
         if (!buf->suboffsets || (buf->suboffsets && buf->suboffsets[dim] < 0)) {
             PyErr_Format(PyExc_ValueError,
-                         "Buffer is not indirectly accessisble "
+                         "Buffer is not indirectly accessible "
                          "in dimension %d.", dim);
             goto fail;
         }

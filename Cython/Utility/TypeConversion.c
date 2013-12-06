@@ -95,7 +95,7 @@ static int __Pyx_init_sys_getdefaultencoding_params(void) {
         if (ascii_chars_b == NULL || strncmp(ascii_chars, PyBytes_AS_STRING(ascii_chars_b), 128) != 0) {
             PyErr_Format(
                 PyExc_ValueError,
-                "This module compiled with c_string_encoding=ascii, but default encoding '%s' is not a superset of ascii.",
+                "This module compiled with c_string_encoding=ascii, but default encoding '%.200s' is not a superset of ascii.",
                 default_encoding_c);
             goto bad;
         }
@@ -263,7 +263,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
     if (!PyLong_Check(res)) {
 #endif
       PyErr_Format(PyExc_TypeError,
-                   "__%s__ returned non-%s (type %.200s)",
+                   "__%.4s__ returned non-%.4s (type %.200s)",
                    name, name, Py_TYPE(res)->tp_name);
       Py_DECREF(res);
       return NULL;
@@ -319,8 +319,8 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
 
         value = PyObject_GetItem(o, PYIDENT("{{member.name}}"));
         if (!value) {
-            PyErr_SetString(PyExc_ValueError, "No value specified for struct "
-                                              "attribute '{{member.name}}'");
+            PyErr_Format(PyExc_ValueError, \
+                "No value specified for struct attribute '%.{{max(200, len(member.name))}}s'", "{{member.name}}");
             goto bad;
         }
         {{attr}} = {{member.type.from_py_function}}(value);

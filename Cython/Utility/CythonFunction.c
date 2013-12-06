@@ -973,7 +973,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     } else if (binding_func->type) {
         /* Unbound method call */
         if (argc < 1) {
-            PyErr_Format(PyExc_TypeError, "Need at least one argument, 0 given.");
+            PyErr_SetString(PyExc_TypeError, "Need at least one argument, 0 given.");
             return NULL;
         }
         self = PyTuple_GET_ITEM(args, 0);
@@ -982,7 +982,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     if (self && !is_classmethod && !is_staticmethod &&
             !PyObject_IsInstance(self, binding_func->type)) {
         PyErr_Format(PyExc_TypeError,
-                     "First argument should be of type %s, got %s.",
+                     "First argument should be of type %.200s, got %.200s.",
                      ((PyTypeObject *) binding_func->type)->tp_name,
                      self->ob_type->tp_name);
         goto __pyx_err;
@@ -1141,8 +1141,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyClassMethod_New(method);
     }
 #endif
-    PyErr_Format(PyExc_TypeError,
-                 "Class-level classmethod() can only be called on "
-                 "a method_descriptor or instance method.");
+    PyErr_SetString(PyExc_TypeError,
+                   "Class-level classmethod() can only be called on "
+                   "a method_descriptor or instance method.");
     return NULL;
 }

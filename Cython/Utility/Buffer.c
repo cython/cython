@@ -47,7 +47,7 @@ static void __Pyx_RaiseBufferFallbackError(void); /*proto*/
 
 /////////////// BufferFallbackError ///////////////
 static void __Pyx_RaiseBufferFallbackError(void) {
-  PyErr_Format(PyExc_ValueError,
+  PyErr_SetString(PyExc_ValueError,
      "Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!");
 }
 
@@ -134,7 +134,7 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
     }
   #endif
 
-    PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
+    PyErr_Format(PyExc_TypeError, "'%.200s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
 
 #if PY_VERSION_HEX < 0x02060000
 fail:
