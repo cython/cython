@@ -39,6 +39,13 @@ def typed():
     cdef A obj
     print [obj for obj in [A(), A(), A()]]
 
+def inferred_type():
+    """
+    >>> inferred_type()
+    ['A', 'A', 'A']
+    """
+    print [cython.typeof(obj) for obj in [A(), A(), A()]]
+
 def iterdict():
     """
     >>> iterdict()
