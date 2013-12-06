@@ -136,8 +136,9 @@ class MarkParallelAssignments(EnvTransform):
             # object type when the base type cannot be handled.
             self.mark_assignment(target, ExprNodes.IndexNode(
                 node.pos,
-                base = sequence,
-                index = ExprNodes.IntNode(node.pos, value = '0')))
+                base=sequence,
+                index=ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
+                                        type=PyrexTypes.c_py_ssize_t_type)))
 
         self.visitchildren(node)
         return node

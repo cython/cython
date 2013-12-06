@@ -2489,9 +2489,11 @@ class NextNode(AtomicExprNode):
             return item_type
         else:
             # Avoid duplication of complicated logic.
-            fake_index_node = IndexNode(self.pos,
-                                        base=self.iterator.sequence,
-                                        index=IntNode(self.pos, value='0'))
+            fake_index_node = IndexNode(
+                self.pos,
+                base=self.iterator.sequence,
+                index=IntNode(self.pos, value='PY_SSIZE_T_MAX',
+                              type=PyrexTypes.c_py_ssize_t_type))
             return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
