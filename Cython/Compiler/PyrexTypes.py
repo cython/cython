@@ -3760,9 +3760,13 @@ def typecast(to_type, from_type, expr_code):
     #  Return expr_code cast to a C type which can be
     #  assigned to to_type, assuming its existing C type
     #  is from_type.
-    if to_type is from_type or \
-        (not to_type.is_pyobject and assignable_from(to_type, from_type)):
-            return expr_code
+    if (to_type is from_type or
+            (not to_type.is_pyobject and assignable_from(to_type, from_type))):
+        return expr_code
+    elif (to_type is py_object_type and from_type and
+            from_type.is_builtin_type and from_type.name != 'type'):
+        # no cast needed, builtins are PyObject* already
+        return expr_code
     else:
         #print "typecast: to", to_type, "from", from_type ###
         return to_type.cast_code(expr_code)
