@@ -1965,8 +1965,8 @@ class FuncDefNode(StatNode, BlockNode):
             cname = arg.entry.cname
 
         code.putln('if (unlikely(((PyObject *)%s) == Py_None)) {' % cname)
-        code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%%s' must not be None", "%s"); %s''' % (
-            arg.name,
+        code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%%.%ds' must not be None", "%s"); %s''' % (
+            max(200, len(arg.name)), arg.name,
             code.error_goto(arg.pos)))
         code.putln('}')
 
