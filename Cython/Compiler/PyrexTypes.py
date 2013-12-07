@@ -2842,7 +2842,7 @@ class CStructOrUnionType(CType):
 
         if self._convert_to_py_code is None:
             for member in self.scope.var_entries:
-                if (not member.type.to_py_function and
+                if (not member.type.to_py_function or
                         not member.type.create_to_py_utility_code(env)):
                     self.to_py_function = None
                     self._convert_to_py_code = False
@@ -2861,7 +2861,7 @@ class CStructOrUnionType(CType):
 
         if self._convert_from_py_code is None:
             for member in self.scope.var_entries:
-                if (not member.type.from_py_function and
+                if (not member.type.from_py_function or
                         not member.type.create_from_py_utility_code(env)):
                     self.from_py_function = None
                     self._convert_from_py_code = False
