@@ -83,6 +83,15 @@ class _BuiltinOverride(object):
         self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
 
+    def build_func_type(self, sig=None, self_arg=None):
+        if sig is None:
+            sig = Signature(self.args, self.ret_type)
+        func_type = sig.function_type(self_arg)
+        if self.is_strict_signature:
+            func_type.is_strict_signature = True
+        return func_type
+
+
 class BuiltinAttribute(object):
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
@@ -99,33 +108,27 @@ class BuiltinAttribute(object):
         entry = self_type.scope.declare(self.py_name, self.cname, field_type, None, 'private')
         entry.is_variable = True
 
+
 class BuiltinFunction(_BuiltinOverride):
     def declare_in_scope(self, scope):
         func_type, sig = self.func_type, self.sig
         if func_type is None:
-            if sig is None:
-                sig = Signature(self.args, self.ret_type)
-            func_type = sig.function_type()
-            if self.is_strict_signature:
-                func_type.is_strict_signature = True
+            func_type = self.build_func_type(sig)
         scope.declare_builtin_cfunction(self.py_name, func_type, self.cname,
                                         self.py_equiv, self.utility_code)
+
 
 class BuiltinMethod(_BuiltinOverride):
     def declare_in_type(self, self_type):
         method_type, sig = self.func_type, self.sig
         if method_type is None:
-            if sig is None:
-                sig = Signature(self.args, self.ret_type)
             # override 'self' type (first argument)
             self_arg = PyrexTypes.CFuncTypeArg("", self_type, None)
             self_arg.not_none = True
             self_arg.accept_builtin_subtypes = True
-            method_type = sig.function_type(self_arg)
-            if self.is_strict_signature:
-                method_type.is_strict_signature = True
+            method_type = self.build_func_type(sig, self_arg)
         self_type.scope.declare_builtin_cfunction(
-            self.py_name, method_type, self.cname, utility_code = self.utility_code)
+            self.py_name, method_type, self.cname, utility_code=self.utility_code)
 
 
 builtin_function_table = [
