@@ -3434,7 +3434,7 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         """
         self.visitchildren(node)
         if node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
-            if node.function.name == 'isinstance':
+            if node.function.name == 'isinstance' and len(node.args) == 2:
                 type_arg = node.args[1]
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
                     cython_scope = self.context.cython_scope
