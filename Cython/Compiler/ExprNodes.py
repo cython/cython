@@ -9239,13 +9239,17 @@ class DivNode(NumBinopNode):
                 code.putln("}")
                 if self.type.is_int and self.type.signed and self.operator != '%':
                     code.globalstate.use_utility_code(division_overflow_test_code)
-                    type_of_op2 = self.operand2.type.declaration_code('')
-                    code.putln("else if (sizeof(%s) == sizeof(long)"
-                               " && (!(((%s)-1) > 0)) && unlikely(%s == (%s)-1)"
+                    if self.operand2.type.signed == 2:
+                        # explicitly signed, no runtime check needed
+                        minus1_check = 'unlikely(%s == -1)' % self.operand2.result()
+                    else:
+                        type_of_op2 = self.operand2.type.declaration_code('')
+                        minus1_check = '(!(((%s)-1) > 0)) && unlikely(%s == (%s)-1)' % (
+                            type_of_op2, self.operand2.result(), type_of_op2)
+                    code.putln("else if (sizeof(%s) == sizeof(long) && %s "
                                " && unlikely(UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
                                self.type.declaration_code(''),
-                               type_of_op2,
-                               self.operand2.result(), type_of_op2,
+                               minus1_check,
                                self.operand1.result()))
                     code.put_ensure_gil()
                     code.putln('PyErr_SetString(PyExc_OverflowError, "value too large to perform division");')
