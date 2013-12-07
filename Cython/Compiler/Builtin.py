@@ -276,7 +276,10 @@ builtin_types_table = [
                                     BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
                                     ]),
 
-    ("basestring",   "PyBaseString_Type",      []),
+    ("basestring", "PyBaseString_Type", [
+                                    BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBaseString_Join",
+                                                  utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
+                                    ]),
     ("bytearray", "PyByteArray_Type", []),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
                                     BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
