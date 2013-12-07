@@ -2,6 +2,8 @@
 
 cdef int f() except -1:
     cdef object x, y = 0, z = 0, w = 0
+    cdef str sstring
+    cdef basestring sustring
     cdef int i
     x = abs(y)
     delattr(x, 'spam')
@@ -20,6 +22,8 @@ cdef int f() except -1:
     x = pow(y, z)
     x = reload(y)
     x = repr(y)
+    sstring = repr(x)
+    sustring = repr(x)
     setattr(x, y, z)
     #i = typecheck(x, y)
     #i = issubtype(x, y)
