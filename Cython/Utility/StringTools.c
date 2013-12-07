@@ -648,3 +648,27 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
         index += PyBytes_GET_SIZE(bytes);
     return PyBytes_AS_STRING(bytes)[index];
 }
+
+
+//////////////////// StringJoin.proto ////////////////////
+
+#if PY_MAJOR_VERSION < 3
+#define __Pyx_PyString_Join __Pyx_PyBytes_Join
+#else
+#define __Pyx_PyString_Join PyUnicode_Join
+#endif
+
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_PyBytes_Join _PyBytes_Join
+#else
+static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values); /*proto*/
+#endif
+
+
+//////////////////// StringJoin ////////////////////
+
+#if !CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values) {
+    return PyObject_CallMethodObjArgs(sep, PYIDENT("join"), values, NULL)
+}
+#endif

@@ -218,7 +218,9 @@ def join_sep(l):
     >>> print( join_sep(l) )
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
-    return u'|'.join(l)
+    result = u'|'.join(l)
+    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    return result
 
 @cython.test_assert_path_exists(
     "//SimpleCallNode",

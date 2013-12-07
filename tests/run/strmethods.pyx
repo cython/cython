@@ -53,3 +53,33 @@ def str_endswith(str s, sub, start=None, stop=None):
       return s.endswith(sub, start)
     else:
       return s.endswith(sub, start, stop)
+
+
+@cython.test_assert_path_exists(
+    "//SimpleCallNode",
+    "//SimpleCallNode//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+def str_join(str s, args):
+    """
+    >>> print(str_join('a', list('bbb')))
+    babab
+    """
+    result = s.join(args)
+    assert cython.typeof(result) == 'basestring object', cython.typeof(result)
+    return result
+
+
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode//NoneCheckNode",
+)
+@cython.test_assert_path_exists(
+    "//SimpleCallNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+def literal_join(args):
+    """
+    >>> print(literal_join(list('abcdefg')))
+    a|b|c|d|e|f|g
+    """
+    result = '|'.join(args)
+    assert cython.typeof(result) == 'basestring object', cython.typeof(result)
+    return result

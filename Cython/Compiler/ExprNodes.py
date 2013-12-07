@@ -4163,9 +4163,14 @@ class CallNode(ExprNode):
 
     def infer_type(self, env):
         function = self.function
+        if isinstance(function, NewExprNode):
+            return PyrexTypes.CPtrType(function.class_type)
         func_type = function.infer_type(env)
-        if isinstance(self.function, NewExprNode):
-            return PyrexTypes.CPtrType(self.function.class_type)
+        if func_type is py_object_type:
+            # function might have lied for safety => try to find better type
+            entry = getattr(function, 'entry', None)
+            if entry is not None:
+                func_type = entry.type or func_type
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:

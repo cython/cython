@@ -74,12 +74,13 @@ builtin_utility_code = {
 # mapping from builtins to their C-level equivalents
 
 class _BuiltinOverride(object):
-    def __init__(self, py_name, args, ret_type, cname, py_equiv = "*",
-                 utility_code = None, sig = None, func_type = None,
-                 is_strict_signature = False):
+    def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
+                 utility_code=None, sig=None, func_type=None,
+                 is_strict_signature=False, builtin_return_type=None):
         self.py_name, self.cname, self.py_equiv = py_name, cname, py_equiv
         self.args, self.ret_type = args, ret_type
         self.func_type, self.sig = func_type, sig
+        self.builtin_return_type = builtin_return_type
         self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
 
@@ -89,6 +90,8 @@ class _BuiltinOverride(object):
         func_type = sig.function_type(self_arg)
         if self.is_strict_signature:
             func_type.is_strict_signature = True
+        if self.builtin_return_type:
+            func_type.return_type = builtin_types[self.builtin_return_type]
         return func_type
 
 
@@ -212,7 +215,7 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr"),
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='basestring'),
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
@@ -276,8 +279,13 @@ builtin_types_table = [
     ("basestring",   "PyBaseString_Type",      []),
     ("bytearray", "PyByteArray_Type", []),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
+                                                  utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
     ("str",     "PyString_Type",   [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
+                                    BuiltinMethod("join",  "TO",   "O", "__Pyx_PyString_Join",
+                                                  builtin_return_type='basestring',
+                                                  utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
     ("unicode", "PyUnicode_Type",  [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
@@ -404,10 +412,11 @@ def init_builtin_structs():
         builtin_scope.declare_struct_or_union(
             name, "struct", scope, 1, None, cname = cname)
 
+
 def init_builtins():
     init_builtin_structs()
-    init_builtin_funcs()
     init_builtin_types()
+    init_builtin_funcs()
     builtin_scope.declare_var(
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
@@ -428,5 +437,6 @@ def init_builtins():
     float_type = builtin_scope.lookup('float').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+
 
 init_builtins()
