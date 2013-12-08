@@ -7,9 +7,8 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     PyObject* fake_module;
     PyTypeObject* cached_type = NULL;
-    const char* cython_module = "_cython_" CYTHON_ABI;
 
-    fake_module = PyImport_AddModule(cython_module);
+    fake_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
     if (!fake_module) return NULL;
     Py_INCREF(fake_module);
 
