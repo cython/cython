@@ -3402,6 +3402,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 return node
         return None
 
+    def visit_ExprStatNode(self, node):
+        self.visitchildren(node)
+        # drop unused constant expressions
+        if node.expr.has_constant_result():
+            return None
+        return node
+
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
 
