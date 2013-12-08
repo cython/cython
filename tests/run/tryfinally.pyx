@@ -1,6 +1,8 @@
 # mode: run
 # tag: tryfinally
 
+cimport cython
+
 def finally_except():
     """
     >>> try:
@@ -128,3 +130,34 @@ def try_break():
                 break
         except:
             break
+
+
+def empty_try():
+    """
+    >>> empty_try()
+    1
+    """
+    try:
+        pass
+    finally:
+        return 1
+
+
+def empty_try_in_except_raise(raise_in_finally):
+    """
+    >>> empty_try_in_except_raise(False)
+    Traceback (most recent call last):
+    ValueError: HUHU
+    >>> empty_try_in_except_raise(True)
+    Traceback (most recent call last):
+    TypeError: OLA
+    """
+    try:
+        raise ValueError("HUHU")
+    except ValueError:
+        try:
+            pass
+        finally:
+            if raise_in_finally:
+                raise TypeError('OLA')
+        raise
