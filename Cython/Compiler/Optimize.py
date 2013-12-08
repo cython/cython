@@ -3394,6 +3394,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_ExprStatNode(self, node):
         self.visitchildren(node)
+        if not isinstance(node.expr, ExprNodes.ExprNode):
+            # ParallelRangeTransform does this ...
+            return node
         # drop unused constant expressions
         if node.expr.has_constant_result():
             return None
