@@ -3392,16 +3392,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 return node.else_clause
         return node
 
-    def _find_genexpr_yield_stat(self, node):
-        body_node_types = (Nodes.ForInStatNode, Nodes.IfStatNode)
-        while isinstance(node, body_node_types):
-            node = node.body
-        if isinstance(node, Nodes.ExprStatNode):
-            expr = node.expr
-            if isinstance(expr, ExprNodes.YieldExprNode):
-                return node
-        return None
-
     def visit_ExprStatNode(self, node):
         self.visitchildren(node)
         # drop unused constant expressions
