@@ -1,4 +1,9 @@
 
+cimport cython
+
+import sys
+IS_PY3 = sys.version_info[0] >= 3
+
 bstring1 = b"abcdefg"
 bstring2 = b"1234567"
 
@@ -211,3 +216,18 @@ def bytes_cascade_untyped_end(bytes s1, bytes s2):
     False
     """
     return s1 == s2 == b"abcdefg" == (<object>bstring1) == bstring1
+
+
+@cython.test_assert_path_exists(
+    '//CondExprNode',
+    '//CondExprNode//PrimaryCmpNode',
+    '//CondExprNode//PrimaryCmpNode[@operator = "=="]',
+    '//CondExprNode//PrimaryCmpNode[@operator = "!="]',
+)
+def literal_compare_bytes_str():
+    """
+    >>> literal_compare_bytes_str()
+    True
+    """
+    # we must not constant fold the subexpressions as the result is Py2/3 sensitive
+    return b'abc' != 'abc' if IS_PY3 else b'abc' == 'abc'

@@ -44,6 +44,12 @@ try:
 except ImportError:
     basestring = str # Python 3
 
+try:
+    from builtins import bytes
+except ImportError:
+    bytes = str # Python 2
+
+
 class NotConstant(object):
     _obj = None
 
@@ -1384,7 +1390,9 @@ class StringNode(PyConstNode):
     unicode_value = None
 
     def calculate_constant_result(self):
-        self.constant_result = self.value
+        if self.unicode_value is not None:
+            # only the Unicode value is portable across Py2/3
+            self.constant_result = self.unicode_value
 
     def as_sliced_node(self, start, stop, step=None):
         value = type(self.value)(self.value[start:stop:step])
@@ -9635,6 +9643,11 @@ class CmpNode(object):
     def calculate_cascaded_constant_result(self, operand1_result):
         func = compile_time_binary_operators[self.operator]
         operand2_result = self.operand2.constant_result
+        if (isinstance(operand1_result, (bytes, unicode)) and
+                isinstance(operand2_result, (bytes, unicode)) and
+                type(operand1_result) != type(operand2_result)):
+            # string comparison of different types isn't portable
+            return
         result = func(operand1_result, operand2_result)
         if self.cascade:
             self.cascade.calculate_cascaded_constant_result(operand2_result)
