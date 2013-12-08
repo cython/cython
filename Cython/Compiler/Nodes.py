@@ -6068,10 +6068,7 @@ class TryExceptStatNode(StatNode):
         exc_save_vars = [code.funcstate.allocate_temp(py_object_type, False)
                          for _ in xrange(3)]
         code.putln("{")
-        code.putln("__Pyx_ExceptionSave(%s);" %
-                   ', '.join(['&%s' % var for var in exc_save_vars]))
-        for var in exc_save_vars:
-            code.put_xgotref(var)
+        save_exc = code.insertion_point()
         code.putln(
             "/*try:*/ {")
         code.return_label = try_return_label
@@ -6081,6 +6078,28 @@ class TryExceptStatNode(StatNode):
         code.putln(
             "}")
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
+        can_raise = code.label_used(our_error_label)
+
+        if can_raise:
+            # inject code before the try block to save away the exception state
+            save_exc.putln("__Pyx_ExceptionSave(%s);" %
+                           ', '.join(['&%s' % var for var in exc_save_vars]))
+            for var in exc_save_vars:
+                save_exc.put_xgotref(var)
+
+            def restore_saved_exception():
+                for name in exc_save_vars:
+                    code.put_xgiveref(name)
+                code.putln("__Pyx_ExceptionReset(%s);" %
+                           ', '.join(exc_save_vars))
+        else:
+            # try block cannot raise exceptions, but we had to allocate the temps above,
+            # so just keep the C compiler from complaining about them being unused
+            save_exc.putln("if (%s); else {/*mark used*/};" % '||'.join(exc_save_vars))
+
+            def restore_saved_exception():
+                pass
+
         code.error_label = except_error_label
         code.return_label = except_return_label
         if self.else_clause:
@@ -6089,51 +6108,38 @@ class TryExceptStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln(
                 "}")
-        for var in exc_save_vars:
-            code.put_xdecref_clear(var, py_object_type)
-        code.put_goto(try_end_label)
-        if code.label_used(try_return_label):
-            code.put_label(try_return_label)
+
+        if can_raise:
             for var in exc_save_vars:
-                code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(exc_save_vars))
-            code.put_goto(old_return_label)
-        code.put_label(our_error_label)
-        for temp_name, type in temps_to_clean_up:
-            code.put_xdecref_clear(temp_name, type)
-        for except_clause in self.except_clauses:
-            except_clause.generate_handling_code(code, except_end_label)
+                code.put_xdecref_clear(var, py_object_type)
+            code.put_goto(try_end_label)
+            code.put_label(our_error_label)
+            for temp_name, temp_type in temps_to_clean_up:
+                code.put_xdecref_clear(temp_name, temp_type)
+            for except_clause in self.except_clauses:
+                except_clause.generate_handling_code(code, except_end_label)
+            if not self.has_default_clause:
+                code.put_goto(except_error_label)
 
-        error_label_used = code.label_used(except_error_label)
-        if error_label_used or not self.has_default_clause:
-            if error_label_used:
-                code.put_label(except_error_label)
-            for var in exc_save_vars:
-                code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(exc_save_vars))
-            code.put_goto(old_error_label)
-
-        for exit_label, old_label in zip(
-            [try_break_label, try_continue_label, except_return_label],
-            [old_break_label, old_continue_label, old_return_label]):
-
+        for exit_label, old_label in [(except_error_label, old_error_label),
+                                      (try_break_label, old_break_label),
+                                      (try_continue_label, old_continue_label),
+                                      (try_return_label, old_return_label),
+                                      (except_return_label, old_return_label)]:
             if code.label_used(exit_label):
+                if not code.label_used(try_end_label):
+                    code.put_goto(try_end_label)
                 code.put_label(exit_label)
-                for var in exc_save_vars:
-                    code.put_xgiveref(var)
-                code.putln("__Pyx_ExceptionReset(%s);" %
-                           ', '.join(exc_save_vars))
+                restore_saved_exception()
                 code.put_goto(old_label)
 
         if code.label_used(except_end_label):
+            if not code.label_used(try_end_label):
+                code.put_goto(try_end_label)
             code.put_label(except_end_label)
-            for var in exc_save_vars:
-                code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(exc_save_vars))
-        code.put_label(try_end_label)
+            restore_saved_exception()
+        if code.label_used(try_end_label):
+            code.put_label(try_end_label)
         code.putln("}")
 
         for cname in exc_save_vars:
