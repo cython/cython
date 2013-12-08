@@ -9651,7 +9651,7 @@ class CmpNode(object):
         result = func(operand1_result, operand2_result)
         if self.cascade:
             self.cascade.calculate_cascaded_constant_result(operand2_result)
-            if self.cascade.constant_result:
+            if self.cascade.has_constant_result():
                 self.constant_result = result and self.cascade.constant_result
         else:
             self.constant_result = result
