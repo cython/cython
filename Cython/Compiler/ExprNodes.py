@@ -9667,7 +9667,6 @@ class CmpNode(object):
         if result:
             cascade = self.cascade
             if cascade:
-                # FIXME: I bet this must call cascaded_compile_time_value()
                 result = result and cascade.cascaded_compile_time_value(operand2, denv)
         return result
 
