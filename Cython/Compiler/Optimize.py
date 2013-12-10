@@ -3284,12 +3284,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return sequence_node
 
     def visit_PrimaryCmpNode(self, node):
-        if not node.cascade:
-            self._calculate_const(node)
-            if node.has_constant_result():
-                return self._bool_node(node, node.constant_result)
-            return node
-
         # calculate constant partial results in the comparison cascade
         left_node = node.operand1
         self._calculate_const(left_node)
@@ -3305,6 +3299,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     pass  # ignore all 'normal' errors here => no constant result
             left_node = right_node
             cmp_node = cmp_node.cascade
+
+        if not node.cascade:
+            if node.has_constant_result():
+                return self._bool_node(node, node.constant_result)
+            return node
 
         # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
         cascades = [[node.operand1]]
