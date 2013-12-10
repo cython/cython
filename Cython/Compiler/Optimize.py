@@ -1054,9 +1054,8 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
 
         args = node.operand2.args
         if len(args) == 0:
-            constant_result = node.operator == 'not_in'
-            return ExprNodes.BoolNode(pos = node.pos, value = constant_result,
-                                      constant_result = constant_result)
+            # note: lhs may have side effects
+            return node
 
         lhs = UtilNodes.ResultRefNode(node.operand1)
 
@@ -3285,19 +3284,89 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return sequence_node
 
     def visit_PrimaryCmpNode(self, node):
-        self._calculate_const(node)
-        if node.has_constant_result():
-            return self._bool_node(node, node.constant_result)
-        if node.operator in ('in', 'not_in') and not node.cascade:
-            if isinstance(node.operand2, (ExprNodes.ListNode, ExprNodes.TupleNode,
-                                          ExprNodes.SetNode)):
-                if not node.operand2.args:
-                    return self._bool_node(node, node.operator == 'not_in')
-                if isinstance(node.operand2, ExprNodes.ListNode):
-                    node.operand2 = node.operand2.as_tuple()
-            elif isinstance(node.operand2, ExprNodes.DictNode):
-                if not node.operand2.key_value_pairs:
-                    return self._bool_node(node, node.operator == 'not_in')
+        if not node.cascade:
+            self._calculate_const(node)
+            if node.has_constant_result():
+                return self._bool_node(node, node.constant_result)
+            return node
+
+        # calculate constant partial results in the comparison cascade
+        left_node = node.operand1
+        self._calculate_const(left_node)
+        cmp_node = node
+        while cmp_node is not None:
+            right_node = cmp_node.operand2
+            self._calculate_const(right_node)
+            cmp_node.constant_result = not_a_constant
+            if left_node.has_constant_result() and right_node.has_constant_result():
+                try:
+                    cmp_node.calculate_cascaded_constant_result(left_node.constant_result)
+                except (ValueError, TypeError, KeyError, IndexError, AttributeError, ArithmeticError):
+                    pass  # ignore all 'normal' errors here => no constant result
+            left_node = right_node
+            cmp_node = cmp_node.cascade
+
+        # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
+        cascades = [[node.operand1]]
+
+        def split_cascades(cmp_node):
+            if cmp_node.has_constant_result():
+                if not cmp_node.constant_result:
+                    # False => short-circuit
+                    cascades.append([
+                        self._bool_node(cmp_node, True),
+                        ExprNodes.CascadedCmpNode(
+                            cmp_node.pos,
+                            operator='==',
+                            operand2=self._bool_node(cmp_node, False),
+                            constant_result=False)
+                    ])
+                    return
+                else:
+                    # True => discard and start new cascade
+                    cascades.append([cmp_node.operand2])
+            else:
+                # not constant => append to current cascade
+                cascades[-1].append(cmp_node)
+            if cmp_node.cascade:
+                split_cascades(cmp_node.cascade)
+
+        split_cascades(node)
+
+        cmp_nodes = []
+        for cascade in cascades:
+            if len(cascade) < 2:
+                continue
+            cmp_node = cascade[1]
+            pcmp_node = ExprNodes.PrimaryCmpNode(
+                cmp_node.pos,
+                operand1=cascade[0],
+                operator=cmp_node.operator,
+                operand2=cmp_node.operand2,
+                constant_result=not_a_constant)
+            cmp_nodes.append(pcmp_node)
+
+            last_cmp_node = pcmp_node
+            for cmp_node in cascade[2:]:
+                last_cmp_node.cascade = cmp_node
+                last_cmp_node = cmp_node
+            last_cmp_node.cascade = None
+
+        if not cmp_nodes:
+            # only constants, but no False result
+            return self._bool_node(node, True)
+        node = cmp_nodes[0]
+        if len(cmp_nodes) == 1:
+            if node.has_constant_result():
+                return self._bool_node(node, node.constant_result)
+        else:
+            for cmp_node in cmp_nodes[1:]:
+                node = ExprNodes.BoolBinopNode(
+                    node.pos,
+                    operand1=node,
+                    operator='and',
+                    operand2=cmp_node,
+                    constant_result=not_a_constant)
         return node
 
     def visit_CondExprNode(self, node):

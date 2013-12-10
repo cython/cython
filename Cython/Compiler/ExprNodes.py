@@ -9648,13 +9648,21 @@ class CmpNode(object):
                 type(operand1_result) != type(operand2_result)):
             # string comparison of different types isn't portable
             return
-        result = func(operand1_result, operand2_result)
-        if self.cascade:
-            self.cascade.calculate_cascaded_constant_result(operand2_result)
-            if self.cascade.has_constant_result():
-                self.constant_result = result and self.cascade.constant_result
-        else:
-            self.constant_result = result
+
+        if self.operator in ('in', 'not_in'):
+            if isinstance(self.operand2, (ListNode, TupleNode, SetNode)):
+                if not self.operand2.args:
+                    self.constant_result = self.operator == 'not_in'
+                    return
+                elif isinstance(self.operand2, ListNode) and not self.cascade:
+                    # tuples are more efficient to store than lists
+                    self.operand2 = self.operand2.as_tuple()
+            elif isinstance(self.operand2, DictNode):
+                if not self.operand2.key_value_pairs:
+                    self.constant_result = self.operator == 'not_in'
+                    return
+
+        self.constant_result = func(operand1_result, operand2_result)
 
     def cascaded_compile_time_value(self, operand1, denv):
         func = get_compile_time_binop(self)
@@ -9966,6 +9974,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return ()
 
     def calculate_constant_result(self):
+        assert not self.cascade
         self.calculate_cascaded_constant_result(self.operand1.constant_result)
 
     def compile_time_value(self, denv):

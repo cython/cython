@@ -339,8 +339,8 @@ def s(a):
     cdef int result = a in [1,2,3,4] in [[1,2,3],[2,3,4],[1,2,3,4]]
     return result
 
-@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
-@cython.test_fail_if_path_exists("//SwitchStatNode")
+#@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
+#@cython.test_fail_if_path_exists("//SwitchStatNode")
 def constant_empty_sequence(a):
     """
     >>> constant_empty_sequence(1)
@@ -349,6 +349,22 @@ def constant_empty_sequence(a):
     False
     """
     return a in ()
+
+@cython.test_fail_if_path_exists("//ReturnStatNode//BoolNode")
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+def constant_empty_sequence_side_effect(a):
+    """
+    >>> l =[]
+    >>> def a():
+    ...     l.append(1)
+    ...     return 1
+
+    >>> constant_empty_sequence_side_effect(a)
+    False
+    >>> l
+    [1]
+    """
+    return a() in ()
 
 def test_error_non_iterable(x):
     """
