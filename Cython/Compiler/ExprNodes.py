@@ -1101,7 +1101,7 @@ class IntNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             # pre-allocate a Python version of the number
-            plain_integer_string = self.value_as_c_integer_string(plain_digits=True)
+            plain_integer_string = str(Utils.str_to_number(self.value))
             self.result_code = code.get_py_int(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()
