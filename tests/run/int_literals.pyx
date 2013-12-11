@@ -11,7 +11,7 @@ import sys
 @cython.test_fail_if_path_exists('//IntNode[@longness = ""]')
 def c_longs():
     """
-    >>> c_longs() == (1, 1L, -1, 18446744073709551615L)  or  c_longs()
+    >>> c_longs() == (1, 1, -1, 18446744073709551615)  or  c_longs()
     True
     """
     cdef long a = 1L
@@ -68,7 +68,7 @@ def py_huge_computation_small_result():
 def py_huge_computation_small_result_neg():
     """
     >>> py_huge_computation_small_result_neg() == (
-    ...    -2535301200456458802993406410752L, -2535301200456458802993406410752L
+    ...    -2535301200456458802993406410752, -2535301200456458802993406410752
     ...    )  or  py_huge_computation_small_result_neg()
     True
     """
