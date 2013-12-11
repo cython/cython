@@ -3234,10 +3234,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         target_class = self._widest_node_class(operand1, operand2)
         if target_class is None:
             return node
-        if target_class is ExprNodes.BoolNode and node.operator in '+-//<<%**>>':
+        elif target_class is ExprNodes.BoolNode and node.operator in '+-//<<%**>>':
             # C arithmetic results in at least an int type
             target_class = ExprNodes.IntNode
-        if target_class is ExprNodes.CharNode and node.operator in '+-//<<%**>>&|^':
+        elif target_class is ExprNodes.CharNode and node.operator in '+-//<<%**>>&|^':
             # C arithmetic results in at least an int type
             target_class = ExprNodes.IntNode
 
