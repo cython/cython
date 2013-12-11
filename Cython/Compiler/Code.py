@@ -1258,12 +1258,12 @@ class GlobalState(object):
                     init_globals.error_goto(self.module_pos)))
 
     def generate_num_constants(self):
-        consts = [(c.py_type, len(c.value), c.value, c.value_code, c)
+        consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
         init_globals = self.parts['init_globals']
-        for py_type, _, value, value_code, c in consts:
+        for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             decls_writer.putln("static PyObject *%s;" % cname)
             if py_type == 'float':
