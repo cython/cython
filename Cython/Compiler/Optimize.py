@@ -301,7 +301,7 @@ class IterationTransform(Visitor.EnvTransform):
                             PyrexTypes.c_uchar_ptr_type, self.current_env()),
                     start=None,
                     stop=ExprNodes.IntNode(
-                        slice_node.pos, value=len(bytes_value),
+                        slice_node.pos, value=str(len(bytes_value)),
                         constant_result=len(bytes_value),
                         type=PyrexTypes.c_py_ssize_t_type),
                     type=Builtin.unicode_type,  # hint for Python conversion
@@ -2205,15 +2205,15 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         elif isinstance(arg, ExprNodes.UnicodeNode):
             if len(arg.value) == 1:
                 return ExprNodes.IntNode(
-                    ord(arg.value), type=PyrexTypes.c_int_type,
+                    arg.pos, type=PyrexTypes.c_int_type,
                     value=str(ord(arg.value)),
                     constant_result=ord(arg.value)
                     ).coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.StringNode):
             if arg.unicode_value and len(arg.unicode_value) == 1 \
-                   and ord(arg.unicode_value) <= 255: # Py2/3 portability
+                    and ord(arg.unicode_value) <= 255:  # Py2/3 portability
                 return ExprNodes.IntNode(
-                    ord(arg.unicode_value), type=PyrexTypes.c_int_type,
+                    arg.pos, type=PyrexTypes.c_int_type,
                     value=str(ord(arg.unicode_value)),
                     constant_result=ord(arg.unicode_value)
                     ).coerce_to(node.type, self.current_env())
@@ -2441,7 +2441,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         else:
             is_safe_type = 0   # definitely not
         args.append(ExprNodes.IntNode(
-            node.pos, value=is_safe_type, constant_result=is_safe_type))
+            node.pos, value=str(is_safe_type), constant_result=is_safe_type))
 
         return self._substitute_method_call(
             node, function,

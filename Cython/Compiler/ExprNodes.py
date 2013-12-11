@@ -8463,7 +8463,7 @@ class CythonArrayNode(ExprNode):
             if axis.stop.is_none:
                 if array_dimension_sizes:
                     dimsize = array_dimension_sizes[axis_no]
-                    axis.stop = IntNode(self.pos, value=dimsize,
+                    axis.stop = IntNode(self.pos, value=str(dimsize),
                                         constant_result=dimsize,
                                         type=PyrexTypes.c_int_type)
                 else:
