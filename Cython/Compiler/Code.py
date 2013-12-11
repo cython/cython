@@ -1272,6 +1272,8 @@ class GlobalState(object):
                 function = 'PyLong_FromString((char *)"%s", 0, 0)'
             elif Utils.long_literal(value):
                 function = 'PyInt_FromString((char *)"%s", 0, 0)'
+            elif len(value.lstrip('-')) > 4:
+                function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
             init_globals.putln('%s = %s; %s' % (
