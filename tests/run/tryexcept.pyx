@@ -63,6 +63,8 @@ def double_except_no_raise(a,b):
     >>> double_except_no_raise(TypeError, ValueError)
     1
     """
+    d = a or b  # mark used
+
     cdef int i
     try:
         i = 1
@@ -99,6 +101,8 @@ def target_except_no_raise(a):
     >>> target_except_no_raise(TypeError)
     1
     """
+    d = a  # mark used
+
     cdef int i
     try:
         i = 1
@@ -156,6 +160,8 @@ def normal_and_bare_except_no_raise(a):
     >>> normal_and_bare_except_no_raise(TypeError)
     1
     """
+    d = a  # mark used
+
     cdef int i
     try:
         i = 1
@@ -195,6 +201,8 @@ def tuple_except_index_target_no_raise(a, b, c):
     >>> l
     [None, None]
     """
+    d = a or b or c  # mark used
+
     cdef int i
     try:
         i = 1
@@ -275,6 +283,8 @@ def bare_except_reraise_no_raise(l):
     >>> l
     [None]
     """
+    d = l  # mark used
+
     cdef int i
     try:
         i = 1
@@ -316,6 +326,8 @@ def except_as_no_raise(a):
     >>> except_as_no_raise(TypeError)
     1
     """
+    d = a  # mark used
+
     try:
         i = 1
     except a as b:
@@ -351,6 +363,8 @@ def except_as_no_raise_does_not_touch_target(a):
     >>> b
     1
     """
+    d = a  # mark used
+
     b = 1
     try:
         i = 1
@@ -411,6 +425,8 @@ def complete_except_as_no_raise(a, b):
     >>> complete_except_as_no_raise(TypeError, ValueError)
     5
     """
+    d = a or b  # mark used
+
     try:
         i = 1
     except (a, b) as c:

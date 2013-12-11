@@ -67,6 +67,8 @@ def except_as_no_raise_does_not_touch_target(a):
     >>> except_as_no_raise_does_not_touch_target(TypeError)
     (1, 1)
     """
+    d = a  # mark used
+
     b = 1
     try:
         i = 1
