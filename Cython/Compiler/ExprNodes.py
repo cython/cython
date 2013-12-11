@@ -1109,19 +1109,14 @@ class IntNode(ConstNode):
     def get_constant_c_result_code(self):
         return self.value_as_c_integer_string() + self.unsigned + self.longness
 
-    def value_as_c_integer_string(self, plain_digits=False):
+    def value_as_c_integer_string(self):
         value = self.value
-        if isinstance(value, basestring) and len(value) > 2:
-            # must convert C-incompatible Py3 oct/bin notations
+        if len(value) > 2:
+            # convert C-incompatible Py3 oct/bin notations
             if value[1] in 'oO':
-                if plain_digits:
-                    value = int(value[2:], 8)
-                else:
-                    value = value[0] + value[2:] # '0o123' => '0123'
+                value = value[0] + value[2:] # '0o123' => '0123'
             elif value[1] in 'bB':
                 value = int(value[2:], 2)
-            elif plain_digits and value[1] in 'xX':
-                value = int(value[2:], 16)
         return str(value)
 
     def calculate_result_code(self):
