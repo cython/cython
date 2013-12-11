@@ -1267,15 +1267,15 @@ class GlobalState(object):
             cname = c.cname
             decls_writer.putln("static PyObject *%s;" % cname)
             if py_type == 'float':
-                function = '%s = PyFloat_FromDouble(%s); %s;'
+                function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
-                function = '%s = PyLong_FromString((char *)"%s", 0, 0); %s;'
+                function = 'PyLong_FromString((char *)"%s", 0, 0)'
             elif Utils.long_literal(value):
-                function = '%s = PyInt_FromString((char *)"%s", 0, 0); %s;'
+                function = 'PyInt_FromString((char *)"%s", 0, 0)'
             else:
-                function = "%s = PyInt_FromLong(%s); %s;"
-            init_globals.putln(function % (
-                cname, value_code,
+                function = "PyInt_FromLong(%s)"
+            init_globals.putln('%s = %s; %s' % (
+                cname, function % value_code,
                 init_globals.error_goto_if_null(cname, self.module_pos)))
 
     # The functions below are there in a transition phase only
