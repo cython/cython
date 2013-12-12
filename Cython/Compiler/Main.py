@@ -481,6 +481,11 @@ class CompilationOptions(object):
         options['compiler_directives'] = directives
         if 'language_level' in directives and 'language_level' not in kw:
             options['language_level'] = int(directives['language_level'])
+        if 'cache' in options:
+            if options['cache'] is True:
+                options['cache'] = os.path.expanduser("~/.cycache")
+            elif options['cache'] in (False, None):
+                del options['cache']
 
         self.__dict__.update(options)
 

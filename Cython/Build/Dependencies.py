@@ -670,7 +670,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:
-        if 'cache' in options:
+        if options.get('cache'):
             raise NotImplementedError, "common_utility_include_dir does not yet work with caching"
         if not os.path.exists(options['common_utility_include_dir']):
             os.makedirs(options['common_utility_include_dir'])
