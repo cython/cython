@@ -6032,7 +6032,6 @@ class TryExceptStatNode(StatNode):
             except_clause.analyse_declarations(env)
         if self.else_clause:
             self.else_clause.analyse_declarations(env)
-        env.use_utility_code(reset_exception_utility_code)
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
@@ -6082,6 +6081,7 @@ class TryExceptStatNode(StatNode):
 
         if can_raise:
             # inject code before the try block to save away the exception state
+            code.globalstate.use_utility_code(reset_exception_utility_code)
             save_exc.putln("__Pyx_ExceptionSave(%s);" %
                            ', '.join(['&%s' % var for var in exc_save_vars]))
             for var in exc_save_vars:
