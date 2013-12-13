@@ -361,3 +361,70 @@ def combined():
     True
     """
     return 5 in 100 * [1, 2] * 0  or  5 not in 100 * [] * 10
+
+
+@cython.test_assert_path_exists(
+    '//IntNode[@value = "2"]',
+    '//IntNode[@value = "4"]',
+    '//IntNode[@value = "5"]',
+    '//IntNode[@value = "7"]',
+    '//BoolBinopNode//PrimaryCmpNode',
+    '//BoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "2"] and .//IntNode[@value = "4"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "5"] and .//IntNode[@value = "7"]]',
+)
+@cython.test_fail_if_path_exists(
+    '//IntNode[@value = "1"]',
+    '//IntNode[@value = "8"]',
+    '//PrimaryCmpNode[.//IntNode[@value = "4"] and .//IntNode[@value = "5"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "2"] and .//IntNode[@value = "7"]]',
+    '//BoolNode',
+)
+def cascaded_cmp_with_partial_constants(a, b):
+    """
+    >>> cascaded_cmp_with_partial_constants(3, 6)
+    True
+    >>> cascaded_cmp_with_partial_constants(1, 6)
+    False
+    >>> cascaded_cmp_with_partial_constants(4, 6)
+    False
+    >>> cascaded_cmp_with_partial_constants(3, 7)
+    False
+    >>> cascaded_cmp_with_partial_constants(3, 6)
+    True
+    """
+    return 1 < 2 < a < 4 < 5 < b < 7 < 8
+
+
+@cython.test_assert_path_exists(
+    '//IntNode[@value = "2"]',
+    '//IntNode[@value = "4"]',
+    '//IntNode[@value = "5"]',
+    '//IntNode[@value = "7"]',
+    '//BoolBinopNode',
+    '//SingleAssignmentNode//BoolBinopNode',
+    '//SingleAssignmentNode//BoolBinopNode//NameNode[@name = "a"]',
+    '//SingleAssignmentNode//BoolBinopNode//NameNode[@name = "b"]',
+    '//BoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
+    '//BoolNode[@value = False]',
+)
+@cython.test_fail_if_path_exists(
+    '//SingleAssignmentNode//NameNode[@name = "c"]',
+    '//IntNode[@value = "1"]',
+    '//PrimaryCmpNode[.//IntNode[@value = "4"] and .//IntNode[@value = "5"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "2"] and .//IntNode[@value = "7"]]',
+    '//BoolNode[@value = True]',
+)
+def cascaded_cmp_with_partial_constants_and_false_end(a, b, c):
+    """
+    >>> cascaded_cmp_with_partial_constants_and_false_end(3, 6, 8)
+    False
+    >>> cascaded_cmp_with_partial_constants_and_false_end(1, 6, 8)
+    False
+    >>> cascaded_cmp_with_partial_constants_and_false_end(4, 6, 8)
+    False
+    >>> cascaded_cmp_with_partial_constants_and_false_end(3, 7, 8)
+    False
+    """
+    x = 1 < 2 < a < 4 < 5 < b < 7 < 7 < c
+    return x
