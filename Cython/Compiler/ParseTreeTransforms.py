@@ -2148,10 +2148,6 @@ class RemoveUnreachableCode(CythonTransform):
                 break
         return node
 
-    def visit_PassStatNode(self, _):
-        # just in case
-        return None
-
     def visit_IfClauseNode(self, node):
         self.visitchildren(node)
         if node.body.is_terminator:
