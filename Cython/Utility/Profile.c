@@ -112,13 +112,14 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    const char *srcfile,
                                    int firstlineno) {
     int retval;
+    PyThreadState* tstate = PyThreadState_GET();
     if (*frame == NULL || !CYTHON_PROFILE_REUSE_FRAME) {
         if (*code == NULL) {
             *code = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno);
             if (*code == NULL) return 0;
         }
         *frame = PyFrame_New(
-            PyThreadState_GET(),             /*PyThreadState *tstate*/
+            tstate,                          /*PyThreadState *tstate*/
             *code,                           /*PyCodeObject *code*/
             $moddict_cname,                  /*PyObject *globals*/
             0                                /*PyObject *locals*/
@@ -131,7 +132,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
         }
 #if PY_VERSION_HEX < 0x030400B1
     } else {
-        (*frame)->f_tstate = PyThreadState_GET();
+        (*frame)->f_tstate = tstate;
 #endif
     }
     (*frame)->f_lineno = firstlineno;
