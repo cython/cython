@@ -2129,10 +2129,6 @@ class AlignFunctionDefinitions(CythonTransform):
 
 
 class RemoveUnreachableCode(CythonTransform):
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
-
     def visit_StatListNode(self, node):
         if not self.current_directives['remove_unreachable']:
             return node
