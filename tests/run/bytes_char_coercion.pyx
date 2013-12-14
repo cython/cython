@@ -166,3 +166,15 @@ def inplace_ops_use_arithmetic():
     s -= 1
     s -= x
     return s
+
+
+@cython.test_fail_if_path_exists('//CoerceFromPyTypeNode')
+def indexing_to_char(bytes s):
+    """
+    >>> ord('b')
+    98
+    >>> indexing_to_char('abc'.encode('ascii'))
+    98
+    """
+    cdef unsigned char c = s[1]
+    return c
