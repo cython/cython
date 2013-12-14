@@ -6389,10 +6389,18 @@ class TryFinallyStatNode(StatNode):
         code.mark_pos(self.finally_clause.pos)
         code.putln("/*finally:*/ {")
 
-        finally_clause = copy.deepcopy(self.finally_clause)
+        def fresh_finally_clause(_next=[self.finally_clause]):
+            # generate the original subtree once and always keep a fresh copy
+            node = _next[0]
+            node_copy = copy.deepcopy(node)
+            if node is self.finally_clause:
+                _next[0] = node_copy
+            else:
+                node = node_copy
+            return node
 
         preserve_error = self.preserve_exception and code.label_used(new_error_label)
-        needs_success_cleanup = not finally_clause.is_terminator
+        needs_success_cleanup = not self.finally_clause.is_terminator
         if preserve_error:
             if self.is_try_finally_in_nogil:
                 code.declare_gilstate()
@@ -6411,8 +6419,8 @@ class TryFinallyStatNode(StatNode):
             code.putln('/*normal exit:*/{')
             if exc_var_init_zero:
                 code.putln(exc_var_init_zero)
-            self.finally_clause.generate_execution_code(code)
-            if not finally_clause.is_terminator:
+            fresh_finally_clause().generate_execution_code(code)
+            if not self.finally_clause.is_terminator:
                 code.put_goto(catch_label)
             code.putln('}')
 
@@ -6425,7 +6433,7 @@ class TryFinallyStatNode(StatNode):
             finally_old_labels = code.all_new_labels()
 
             code.putln('{')
-            copy.deepcopy(finally_clause).generate_execution_code(code)
+            fresh_finally_clause().generate_execution_code(code)
             code.putln('}')
 
             if needs_success_cleanup:
@@ -6451,8 +6459,8 @@ class TryFinallyStatNode(StatNode):
             if exc_var_init_zero:
                 code.putln(exc_var_init_zero)
             code.putln('{')
-            copy.deepcopy(finally_clause).generate_execution_code(code)
-            if not finally_clause.is_terminator:
+            fresh_finally_clause().generate_execution_code(code)
+            if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)
             code.putln('}')
 
