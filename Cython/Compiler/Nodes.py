@@ -6392,15 +6392,18 @@ class TryFinallyStatNode(StatNode):
         finally_clause = copy.deepcopy(self.finally_clause)
 
         preserve_error = self.preserve_exception and code.label_used(new_error_label)
+        needs_success_cleanup = not finally_clause.is_terminator
         if preserve_error:
             if self.is_try_finally_in_nogil:
                 code.declare_gilstate()
 
             code.putln("PyObject *%s, *%s, *%s;" % Naming.exc_vars)
-            code.putln("int %s;" % Naming.exc_lineno_name)
+            if needs_success_cleanup:
+                code.putln("int %s;" % Naming.exc_lineno_name)
             exc_var_init_zero = ''.join(
                 ["%s = 0; " % var for var in Naming.exc_vars])
-            exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
+            if needs_success_cleanup:
+                exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
         else:
             exc_var_init_zero = None
 
@@ -6409,21 +6412,23 @@ class TryFinallyStatNode(StatNode):
             if exc_var_init_zero:
                 code.putln(exc_var_init_zero)
             self.finally_clause.generate_execution_code(code)
-            code.put_goto(catch_label)
+            if not finally_clause.is_terminator:
+                code.put_goto(catch_label)
             code.putln('}')
 
         if preserve_error:
             code.putln('/*exception exit:*/{')
             code.put('%s: ' % new_error_label)
             code.putln(exc_var_init_zero)
-            self.put_error_catcher(code, temps_to_clean_up)
+            self.put_error_catcher(
+                code, temps_to_clean_up, include_lineno=needs_success_cleanup)
             finally_old_labels = code.all_new_labels()
 
             code.putln('{')
             copy.deepcopy(finally_clause).generate_execution_code(code)
             code.putln('}')
 
-            if not finally_clause.is_terminator:
+            if needs_success_cleanup:
                 self.put_error_uncatcher(code)
                 code.put_goto(old_error_label)
 
@@ -6460,7 +6465,7 @@ class TryFinallyStatNode(StatNode):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
 
-    def put_error_catcher(self, code, temps_to_clean_up):
+    def put_error_catcher(self, code, temps_to_clean_up, include_lineno):
         code.globalstate.use_utility_code(restore_exception_utility_code)
 
         if self.is_try_finally_in_nogil:
@@ -6470,7 +6475,8 @@ class TryFinallyStatNode(StatNode):
             code.put_xdecref_clear(temp_name, type)
 
         code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % Naming.exc_vars)
-        code.putln("%s = %s;" % (Naming.exc_lineno_name, Naming.lineno_cname))
+        if include_lineno:
+            code.putln("%s = %s;" % (Naming.exc_lineno_name, Naming.lineno_cname))
 
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
