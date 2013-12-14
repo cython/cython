@@ -3353,13 +3353,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
         # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
         cascades = [[node.operand1]]
-        final_result = [True]
+        final_false_result = []
 
         def split_cascades(cmp_node):
             if cmp_node.has_constant_result():
                 if not cmp_node.constant_result:
                     # False => short-circuit
-                    final_result[0] = False
+                    final_false_result.append(self._bool_node(cmp_node, False))
                     return
                 else:
                     # True => discard and start new cascade
@@ -3391,9 +3391,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 last_cmp_node = cmp_node
             last_cmp_node.cascade = None
 
-        if not final_result[0]:
+        if final_false_result:
             # last cascade was constant False
-            cmp_nodes.append(self._bool_node(cmp_node, False))
+            cmp_nodes.append(final_false_result[0])
         elif not cmp_nodes:
             # only constants, but no False result
             return self._bool_node(node, True)
