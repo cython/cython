@@ -6383,94 +6383,76 @@ class TryFinallyStatNode(StatNode):
             code.funcstate.in_try_finally = was_in_try_finally
 
         code.putln("}")
+        code.set_all_labels(old_labels)
 
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
         code.mark_pos(self.finally_clause.pos)
         code.putln("/*finally:*/ {")
 
-        cases_used = []
-        error_label_used = False
-        for i, new_label in enumerate(new_labels):
-            if code.label_used(new_label):
-                cases_used.append(i)
-                if new_label == new_error_label:
-                    error_label_used = True
-                    error_label_case = i
+        finally_clause = copy.deepcopy(self.finally_clause)
 
-        if cases_used:
-            code.putln("int __pyx_why;")
+        preserve_error = self.preserve_exception and code.label_used(new_error_label)
+        if preserve_error:
+            if self.is_try_finally_in_nogil:
+                code.declare_gilstate()
 
-            if error_label_used and self.preserve_exception:
-                if self.is_try_finally_in_nogil:
-                    code.declare_gilstate()
+            code.putln("PyObject *%s, *%s, *%s;" % Naming.exc_vars)
+            code.putln("int %s;" % Naming.exc_lineno_name)
+            exc_var_init_zero = ''.join(
+                ["%s = 0; " % var for var in Naming.exc_vars])
+            exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
+        else:
+            exc_var_init_zero = None
 
-                code.putln("PyObject *%s, *%s, *%s;" % Naming.exc_vars)
-                code.putln("int %s;" % Naming.exc_lineno_name)
-                exc_var_init_zero = ''.join(
-                                ["%s = 0; " % var for var in Naming.exc_vars])
-                exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
+        if not self.body.is_terminator:
+            code.putln('/*normal exit:*/{')
+            if exc_var_init_zero:
                 code.putln(exc_var_init_zero)
-            else:
-                exc_var_init_zero = None
+            self.finally_clause.generate_execution_code(code)
+            code.put_goto(catch_label)
+            code.putln('}')
 
-            code.use_label(catch_label)
-            code.putln("__pyx_why = 0; goto %s;" % catch_label)
-            for i in cases_used:
-                new_label = new_labels[i]
-                #if new_label and new_label != "<try>":
-                if new_label == new_error_label and self.preserve_exception:
-                    self.put_error_catcher(code,
-                        new_error_label, i+1, catch_label, temps_to_clean_up)
-                else:
-                    code.put('%s: ' % new_label)
-                    if exc_var_init_zero:
-                        code.putln(exc_var_init_zero)
-                    code.putln("__pyx_why = %s; goto %s;" % (i+1, catch_label))
-            code.put_label(catch_label)
+        if preserve_error:
+            code.putln('/*exception exit:*/{')
+            code.put('%s: ' % new_error_label)
+            code.putln(exc_var_init_zero)
+            self.put_error_catcher(code, temps_to_clean_up)
+            finally_old_labels = code.all_new_labels()
+
+            code.putln('{')
+            copy.deepcopy(finally_clause).generate_execution_code(code)
+            code.putln('}')
+
+            if not finally_clause.is_terminator:
+                self.put_error_uncatcher(code)
+                code.put_goto(old_error_label)
+
+            for new_label, old_label in zip(code.get_all_labels(), finally_old_labels):
+                if not code.label_used(new_label):
+                    continue
+                code.put_label(new_label)
+                self.put_error_cleaner(code)
+                code.put_goto(old_label)
+            code.putln('}')
 
         code.set_all_labels(old_labels)
-        if error_label_used:
-            code.new_error_label()
-            finally_error_label = code.error_label
+        for i, (new_label, old_label) in enumerate(zip(new_labels, old_labels)):
+            if not code.label_used(new_label):
+                continue
+            if new_label == new_error_label and preserve_error:
+                continue  # handled above
 
-        self.finally_clause.generate_execution_code(code)
-
-        if error_label_used:
-            if code.label_used(finally_error_label) and self.preserve_exception:
-                over_label = code.new_label()
-                code.put_goto(over_label)
-                code.put_label(finally_error_label)
-
-                code.putln("if (__pyx_why == %d) {" % (error_label_case + 1))
-                if self.is_try_finally_in_nogil:
-                    code.put_ensure_gil(declare_gilstate=False)
-                for var in Naming.exc_vars:
-                    code.putln("Py_XDECREF(%s);" % var)
-                if self.is_try_finally_in_nogil:
-                    code.put_release_ensured_gil()
-                code.putln("}")
-
-                code.put_goto(old_error_label)
-                code.put_label(over_label)
-
-            code.error_label = old_error_label
-
-        if cases_used:
-            code.putln(
-                "switch (__pyx_why) {")
-            for i in cases_used:
-                old_label = old_labels[i]
-                if old_label == old_error_label and self.preserve_exception:
-                    self.put_error_uncatcher(code, i+1, old_error_label)
-                else:
-                    code.use_label(old_label)
-                    code.putln("case %s: goto %s;" % (i+1, old_label))
-
-            # End the switch
-            code.putln(
-                "}")
+            code.put('%s: ' % new_label)
+            if exc_var_init_zero:
+                code.putln(exc_var_init_zero)
+            code.putln('{')
+            copy.deepcopy(finally_clause).generate_execution_code(code)
+            if not finally_clause.is_terminator:
+                code.put_goto(old_label)
+            code.putln('}')
 
         # End finally
+        code.put_label(catch_label)
         code.putln(
             "}")
 
@@ -6478,11 +6460,8 @@ class TryFinallyStatNode(StatNode):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
 
-    def put_error_catcher(self, code, error_label, i, catch_label,
-                          temps_to_clean_up):
+    def put_error_catcher(self, code, temps_to_clean_up):
         code.globalstate.use_utility_code(restore_exception_utility_code)
-        code.putln("%s: {" % error_label)
-        code.putln("__pyx_why = %s;" % i)
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
@@ -6496,13 +6475,8 @@ class TryFinallyStatNode(StatNode):
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
 
-        code.put_goto(catch_label)
-        code.putln("}")
-
-    def put_error_uncatcher(self, code, i, error_label):
+    def put_error_uncatcher(self, code):
         code.globalstate.use_utility_code(restore_exception_utility_code)
-        code.putln(
-            "case %s: {" % i)
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
@@ -6514,12 +6488,15 @@ class TryFinallyStatNode(StatNode):
             code.put_release_ensured_gil()
 
         for var in Naming.exc_vars:
-            code.putln(
-                   "%s = 0;" % var)
+            code.putln("%s = 0;" % var)
 
-        code.put_goto(error_label)
-        code.putln(
-            "}")
+    def put_error_cleaner(self, code):
+        if self.is_try_finally_in_nogil:
+            code.put_ensure_gil(declare_gilstate=False)
+        for var in Naming.exc_vars:
+            code.putln("Py_XDECREF(%s);" % var)
+        if self.is_try_finally_in_nogil:
+            code.put_release_ensured_gil()
 
     def annotate(self, code):
         self.body.annotate(code)
