@@ -1891,6 +1891,52 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         error(node.pos, "%s(%s) called with wrong number of args, %sfound %d" % (
             function_name, arg_str, expected_str, len(args)))
 
+    ### generic fallbacks
+
+    def _handle_function(self, node, function_name, function, arg_list, kwargs):
+        return node
+
+    def _handle_method(self, node, type_name, attr_name, function,
+                       arg_list, is_unbound_method, kwargs):
+        """
+        Try to inject C-API calls for unbound method calls to builtin types.
+        While the method declarations in Builtin.py already handle this, we
+        can additionally resolve bound and unbound methods here that were
+        assigned to variables ahead of time.
+        """
+        if kwargs:
+            return node
+        if not function or not function.is_attribute or not function.obj.is_name:
+            # cannot track unbound method calls over more than one indirection as
+            # the names might have been reassigned in the meantime
+            return node
+        type_entry = self.current_env().lookup(type_name)
+        if not type_entry:
+            return node
+        method = ExprNodes.AttributeNode(
+            node.function.pos,
+            obj=ExprNodes.NameNode(
+                function.pos,
+                name=type_name,
+                entry=type_entry,
+                type=type_entry.type),
+            attribute=attr_name,
+            is_called=True).analyse_as_unbound_cmethod_node(self.current_env())
+        if method is None:
+            return node
+        args = node.args
+        if args is None and node.arg_tuple:
+            args = node.arg_tuple.args
+        call_node = ExprNodes.SimpleCallNode(
+            node.pos,
+            function=method,
+            args=args)
+        if not is_unbound_method:
+            call_node.self = function.obj
+        call_node.analyse_c_function_call(self.current_env())
+        call_node.analysed = True
+        return call_node.coerce_to(node.type, self.current_env())
+
     ### builtin types
 
     PyDict_Copy_func_type = PyrexTypes.CFuncType(
