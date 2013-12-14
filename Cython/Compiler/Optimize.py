@@ -3471,11 +3471,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if isinstance(node.loop, Nodes.StatListNode) and not node.loop.stats:
             # loop was pruned already => transform into literal
             if node.type is Builtin.list_type:
-                return ExprNodes.ListNode(node.pos, args=[])
+                return ExprNodes.ListNode(
+                    node.pos, args=[], constant_result=[])
             elif node.type is Builtin.set_type:
-                return ExprNodes.SetNode(node.pos, args=[])
+                return ExprNodes.SetNode(
+                    node.pos, args=[], constant_result=set())
             elif node.type is Builtin.dict_type:
-                return ExprNodes.DictNode(node.pos, key_value_pairs=[])
+                return ExprNodes.DictNode(
+                    node.pos, key_value_pairs=[], constant_result={})
         return node
 
     def visit_ForInStatNode(self, node):
