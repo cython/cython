@@ -8,6 +8,13 @@ Cython Changelog
 Features added
 --------------
 
+* The C code generated for finally blocks is duplicated for each exit
+  case in allow for better optimisations by the C compiler.
+
+* Cython tries to undo the Python optimisationism of assigning a bound
+  method to a local variable when it can generate better code for the
+  direct call.
+
 * Constant Python float values are cached.
 
 * ``bytearray`` has become a known type and supports coercion from and
