@@ -583,13 +583,12 @@ class ExprNode(Node):
                                             have_gil=self.in_nogil_context)
 
     def generate_evaluation_code(self, code):
-        code.mark_pos(self.pos)
-
         #  Generate code to evaluate this node and
         #  its sub-expressions, and dispose of any
         #  temporary results of its sub-expressions.
         self.generate_subexpr_evaluation_code(code)
 
+        code.mark_pos(self.pos)
         if self.is_temp:
             self.allocate_temp_result(code)
 
