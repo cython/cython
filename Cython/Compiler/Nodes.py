@@ -6389,12 +6389,12 @@ class TryFinallyStatNode(StatNode):
         code.putln("/*finally:*/ {")
 
         cases_used = []
-        error_label_used = 0
+        error_label_used = False
         for i, new_label in enumerate(new_labels):
-            if new_label in code.labels_used:
+            if code.label_used(new_label):
                 cases_used.append(i)
                 if new_label == new_error_label:
-                    error_label_used = 1
+                    error_label_used = True
                     error_label_case = i
 
         if cases_used:
@@ -6436,7 +6436,7 @@ class TryFinallyStatNode(StatNode):
         self.finally_clause.generate_execution_code(code)
 
         if error_label_used:
-            if finally_error_label in code.labels_used and self.preserve_exception:
+            if code.label_used(finally_error_label) and self.preserve_exception:
                 over_label = code.new_label()
                 code.put_goto(over_label)
                 code.put_label(finally_error_label)
