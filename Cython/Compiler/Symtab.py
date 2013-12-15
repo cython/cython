@@ -241,6 +241,9 @@ class InnerEntry(Entry):
         self.inner_entries.append(self)
 
     def __getattr__(self, name):
+        if name.startswith('__'):
+            # we wouldn't have been called if it was there
+            raise AttributeError(name)
         return getattr(self.defining_entry, name)
 
     def all_entries(self):
