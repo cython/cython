@@ -1230,35 +1230,37 @@ class WithTransform(CythonTransform, SkipDeclarations):
         excinfo_target = ExprNodes.TupleNode(pos, slow=True, args=[
             ExprNodes.ExcValueNode(pos) for _ in range(3)])
         except_clause = Nodes.ExceptClauseNode(
-            pos, body = Nodes.IfStatNode(
-                pos, if_clauses = [
+            pos, body=Nodes.IfStatNode(
+                pos, if_clauses=[
                     Nodes.IfClauseNode(
-                        pos, condition = ExprNodes.NotNode(
-                            pos, operand = ExprNodes.WithExitCallNode(
-                                pos, with_stat = node,
-                                args = excinfo_target)),
-                        body = Nodes.ReraiseStatNode(pos),
+                        pos, condition=ExprNodes.NotNode(
+                            pos, operand=ExprNodes.WithExitCallNode(
+                                pos, with_stat=node,
+                                test_if_run=False,
+                                args=excinfo_target)),
+                        body=Nodes.ReraiseStatNode(pos),
                         ),
                     ],
-                else_clause = None),
-            pattern = None,
-            target = None,
-            excinfo_target = excinfo_target,
+                else_clause=None),
+            pattern=None,
+            target=None,
+            excinfo_target=excinfo_target,
             )
 
         node.body = Nodes.TryFinallyStatNode(
-            pos, body = Nodes.TryExceptStatNode(
-                pos, body = body,
-                except_clauses = [except_clause],
-                else_clause = None,
+            pos, body=Nodes.TryExceptStatNode(
+                pos, body=body,
+                except_clauses=[except_clause],
+                else_clause=None,
                 ),
-            finally_clause = Nodes.ExprStatNode(
-                pos, expr = ExprNodes.WithExitCallNode(
-                    pos, with_stat = node,
-                    args = ExprNodes.TupleNode(
-                        pos, args = [ExprNodes.NoneNode(pos) for _ in range(3)]
+            finally_clause=Nodes.ExprStatNode(
+                pos, expr=ExprNodes.WithExitCallNode(
+                    pos, with_stat=node,
+                    test_if_run=True,
+                    args=ExprNodes.TupleNode(
+                        pos, args=[ExprNodes.NoneNode(pos) for _ in range(3)]
                         ))),
-            handle_error_case = False,
+            handle_error_case=False,
             )
         return node
 
