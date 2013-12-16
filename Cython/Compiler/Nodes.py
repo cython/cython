@@ -5336,7 +5336,8 @@ class IfClauseNode(Node):
         self.condition.generate_disposal_code(code)
         self.condition.free_temps(code)
         self.body.generate_execution_code(code)
-        code.put_goto(end_label)
+        if not self.body.is_terminator:
+            code.put_goto(end_label)
         code.putln("}")
 
     def generate_function_definitions(self, env, code):
