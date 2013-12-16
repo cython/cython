@@ -574,9 +574,9 @@ class FunctionState(object):
     def all_new_labels(self):
         old_labels = self.get_all_labels()
         new_labels = []
-        for old_label in old_labels:
+        for old_label, name in zip(old_labels, ['continue', 'break', 'return', 'error']):
             if old_label:
-                new_labels.append(self.new_label())
+                new_labels.append(self.new_label(name))
             else:
                 new_labels.append(old_label)
         self.set_all_labels(new_labels)
