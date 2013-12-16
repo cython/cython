@@ -5673,6 +5673,7 @@ class SequenceNode(ExprNode):
     is_sequence_constructor = 1
     unpacked_items = None
     mult_factor = None
+    slow = False  # trade speed for code size (e.g. use PyTuple_Pack())
 
     def compile_time_value_list(self, denv):
         return [arg.compile_time_value(denv) for arg in self.args]
@@ -5754,7 +5755,7 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * ((%s<0) ? 0:%s)' % (c_mult, c_mult)
 
-        if self.type is Builtin.tuple_type and self.is_literal and not c_mult:
+        if self.type is Builtin.tuple_type and (self.is_literal or self.slow) and not c_mult:
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
             code.putln('%s = PyTuple_Pack(%d, %s); %s' % (
                 target,

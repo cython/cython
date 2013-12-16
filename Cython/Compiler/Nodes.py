@@ -5222,7 +5222,13 @@ class AssertStatNode(StatNode):
         self.cond = self.cond.analyse_boolean_expression(env)
         if self.value:
             value = self.value.analyse_types(env)
-            self.value = value.coerce_to_pyobject(env)
+            if value.type is Builtin.tuple_type or not value.type.is_builtin_type:
+                # prevent tuple values from being interpreted as argument value tuples
+                from ExprNodes import TupleNode
+                value = TupleNode(value.pos, args=[value], slow=True)
+                self.value = value.analyse_types(env, skip_children=True)
+            else:
+                self.value = value.coerce_to_pyobject(env)
         return self
 
     nogil_check = Node.gil_error
