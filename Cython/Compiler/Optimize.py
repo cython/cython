@@ -2388,41 +2388,53 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_long_type, None),
             ])
 
-    def _handle_simple_method_object_pop(self, node, function, args, is_unbound_method):
+    def _handle_simple_method_list_pop(self, node, function, args, is_unbound_method):
+        return self._handle_simple_method_object_pop(
+            node, function, args, is_unbound_method, is_list=True)
+
+    def _handle_simple_method_object_pop(self, node, function, args, is_unbound_method, is_list=False):
         """Optimistic optimisation as X.pop([n]) is almost always
         referring to a list.
         """
+        if not args:
+            return node
+        args = args[:]
+        if is_list:
+            type_name = 'List'
+            args[0] = args[0].as_none_safe_node(
+                "'NoneType' object has no attribute '%s'",
+                error="PyExc_AttributeError",
+                format_args=['pop'])
+        else:
+            type_name = 'Object'
         if len(args) == 1:
             return ExprNodes.PythonCapiCallNode(
-                node.pos, "__Pyx_PyObject_Pop", self.PyObject_Pop_func_type,
-                args = args,
-                may_return_none = True,
-                is_temp = node.is_temp,
-                utility_code = load_c_utility('pop')
-                )
+                node.pos, "__Pyx_Py%s_Pop" % type_name,
+                self.PyObject_Pop_func_type,
+                args=args,
+                may_return_none=True,
+                is_temp=node.is_temp,
+                utility_code=load_c_utility('pop'),
+            )
         elif len(args) == 2:
-            index = args[1]
-            if isinstance(index, ExprNodes.CoerceToPyTypeNode):
-                index = index.arg
-            if isinstance(index, ExprNodes.IntNode):
-                index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, None)
+            index = unwrap_coerced_node(args[1])
+            if is_list or isinstance(index, ExprNodes.IntNode):
+                index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
             if index.type.is_int:
                 widest = PyrexTypes.widest_numeric_type(
                     index.type, PyrexTypes.c_py_ssize_t_type)
                 if widest == PyrexTypes.c_py_ssize_t_type:
                     args[1] = index
                     return ExprNodes.PythonCapiCallNode(
-                        node.pos, "__Pyx_PyObject_PopIndex",
+                        node.pos, "__Pyx_Py%s_PopIndex" % type_name,
                         self.PyObject_PopIndex_func_type,
-                        args = args,
-                        may_return_none = True,
-                        is_temp = node.is_temp,
-                        utility_code = load_c_utility("pop_index")
-                        )
+                        args=args,
+                        may_return_none=True,
+                        is_temp=node.is_temp,
+                        utility_code=load_c_utility("pop_index"),
+                    )
 
         return node
-
-    _handle_simple_method_list_pop = _handle_simple_method_object_pop
 
     single_param_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_returncode_type, [

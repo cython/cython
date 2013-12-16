@@ -108,6 +108,10 @@ def index_pop_typed(list L, int i):
     Traceback (most recent call last):
     IndexError: pop index out of range
 
+    >>> index_pop_typed(None, 0)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'pop'
+
     >>> while L:
     ...    _ = index_pop_typed(L, 0)
 
@@ -119,6 +123,48 @@ def index_pop_typed(list L, int i):
     IndexError: pop from empty list
     """
     return L.pop(i)
+
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
+def index_pop_list_object_index(list L, i):
+    """
+    >>> L = list(range(10))
+    >>> index_pop_list_object_index(L, 2)
+    2
+    >>> index_pop_list_object_index(L, -2)
+    8
+    >>> L
+    [0, 1, 3, 4, 5, 6, 7, 9]
+    >>> index_pop_list_object_index(L, 100)
+    Traceback (most recent call last):
+    IndexError: pop index out of range
+    >>> index_pop_list_object_index(L, -100)
+    Traceback (most recent call last):
+    IndexError: pop index out of range
+
+    >>> index_pop_list_object_index(None, 0)
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'pop'
+    >>> index_pop_list_object_index([1], None)    # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> index_pop_list_object_index([1], 'abc')   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+
+    >>> while L:
+    ...    _ = index_pop_list_object_index(L, 0)
+
+    >>> L
+    []
+
+    >>> index_pop_list_object_index(L, 0)
+    Traceback (most recent call last):
+    IndexError: pop from empty list
+    """
+    return L.pop(i)
+
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
