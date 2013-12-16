@@ -2542,10 +2542,12 @@ class WithExitCallNode(ExprNode):
 
         code.putln(code.error_goto_if_null(result_var, self.pos))
         code.put_gotref(result_var)
-        self.allocate_temp_result(code)
-        code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
+        if self.result_is_used:
+            self.allocate_temp_result(code)
+            code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
         code.put_decref_clear(result_var, type=py_object_type)
-        code.put_error_if_neg(self.pos, self.result())
+        if self.result_is_used:
+            code.put_error_if_neg(self.pos, self.result())
         code.funcstate.release_temp(result_var)
         if self.test_if_run:
             code.putln("}")
