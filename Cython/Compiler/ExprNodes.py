@@ -7205,7 +7205,7 @@ class BoundMethodNode(ExprNode):
         self.is_temp = 1
         return self
 
-    gil_message = "Constructing an bound method"
+    gil_message = "Constructing a bound method"
 
     def generate_result_code(self, code):
         code.putln(
