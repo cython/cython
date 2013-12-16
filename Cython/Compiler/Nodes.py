@@ -6179,7 +6179,7 @@ class ExceptClauseNode(Node):
     #  pattern        [ExprNode]
     #  target         ExprNode or None
     #  body           StatNode
-    #  excinfo_target ResultRefNode or None   optional target for exception info
+    #  excinfo_target TupleNode(3*ResultRefNode) or None   optional target for exception info (not owned here!)
     #  match_flag     string             result of exception match
     #  exc_value      ExcValueNode       used internally
     #  function_name  string             qualified name of enclosing function
@@ -6190,7 +6190,7 @@ class ExceptClauseNode(Node):
     # in order to extract more extensive information about the exception as a
     # sys.exc_info()-style tuple into a target variable
 
-    child_attrs = ["pattern", "target", "body", "exc_value", "excinfo_target"]
+    child_attrs = ["pattern", "target", "body", "exc_value"]
 
     exc_value = None
     excinfo_target = None
@@ -6211,13 +6211,8 @@ class ExceptClauseNode(Node):
 
         if self.target:
             import ExprNodes
-            self.exc_value = ExprNodes.ExcValueNode(self.pos, env)
+            self.exc_value = ExprNodes.ExcValueNode(self.pos)
             self.target = self.target.analyse_target_expression(env, self.exc_value)
-        if self.excinfo_target is not None:
-            import ExprNodes
-            excinfo_tuple = ExprNodes.TupleNode(pos=self.pos, slow=True, args=[
-                ExprNodes.ExcValueNode(pos=self.pos, env=env) for _ in range(3)])
-            self.excinfo_tuple = excinfo_tuple.analyse_expressions(env)
 
         self.body = self.body.analyse_expressions(env)
         return self
@@ -6271,10 +6266,8 @@ class ExceptClauseNode(Node):
             self.exc_value.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.exc_value, code)
         if self.excinfo_target is not None:
-            for tempvar, node in zip(exc_vars, self.excinfo_tuple.args):
+            for tempvar, node in zip(exc_vars, self.excinfo_target.args):
                 node.set_var(tempvar)
-            self.excinfo_tuple.generate_evaluation_code(code)
-            self.excinfo_target.result_code = self.excinfo_tuple.result()
 
         old_break_label, old_continue_label = code.break_label, code.continue_label
         code.break_label = code.new_label('except_break')
@@ -6284,8 +6277,6 @@ class ExceptClauseNode(Node):
         code.funcstate.exc_vars = exc_vars
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
-        if self.excinfo_target is not None:
-            self.excinfo_tuple.generate_disposal_code(code)
         for var in exc_vars:
             code.put_decref_clear(var, py_object_type)
         code.put_goto(end_label)
@@ -6294,16 +6285,12 @@ class ExceptClauseNode(Node):
                                      (code.continue_label, old_continue_label)]:
             if code.label_used(new_label):
                 code.put_label(new_label)
-                if self.excinfo_target is not None:
-                    self.excinfo_tuple.generate_disposal_code(code)
                 for var in exc_vars:
                     code.put_decref_clear(var, py_object_type)
                 code.put_goto(old_label)
         code.break_label = old_break_label
         code.continue_label = old_continue_label
 
-        if self.excinfo_target is not None:
-            self.excinfo_tuple.free_temps(code)
         for temp in exc_vars:
             code.funcstate.release_temp(temp)
 

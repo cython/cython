@@ -1227,8 +1227,8 @@ class WithTransform(CythonTransform, SkipDeclarations):
                         orig_rhs = node.enter_call),
                     body])
 
-        excinfo_target = ResultRefNode(
-            pos=pos, type=Builtin.tuple_type, may_hold_none=False)
+        excinfo_target = ExprNodes.TupleNode(pos, slow=True, args=[
+            ExprNodes.ExcValueNode(pos) for _ in range(3)])
         except_clause = Nodes.ExceptClauseNode(
             pos, body = Nodes.IfStatNode(
                 pos, if_clauses = [

@@ -2549,7 +2549,7 @@ class ExcValueNode(AtomicExprNode):
 
     type = py_object_type
 
-    def __init__(self, pos, env):
+    def __init__(self, pos):
         ExprNode.__init__(self, pos)
 
     def set_var(self, var):
