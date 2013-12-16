@@ -11,7 +11,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
-               bytearray_type=object)
+               bytearray_type=object, slice_type=object)
 
 import sys
 import copy
@@ -29,7 +29,7 @@ from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 import TypeSlots
 from Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
-     unicode_type, str_type, bytes_type, bytearray_type, basestring_type
+     unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
 import Builtin
 import Symtab
 from Cython import Utils
@@ -4114,7 +4114,7 @@ class SliceNode(ExprNode):
 
     subexprs = ['start', 'stop', 'step']
 
-    type = py_object_type
+    type = slice_type
     is_temp = 1
 
     def calculate_constant_result(self):
@@ -4131,6 +4131,9 @@ class SliceNode(ExprNode):
             return slice(start, stop, step)
         except Exception, e:
             self.compile_time_value_error(e)
+
+    def may_be_none(self):
+        return False
 
     def analyse_types(self, env):
         start = self.start.analyse_types(env)

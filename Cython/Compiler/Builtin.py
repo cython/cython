@@ -424,7 +424,7 @@ def init_builtins():
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
     global list_type, tuple_type, dict_type, set_type, frozenset_type
-    global bytes_type, str_type, unicode_type, basestring_type
+    global bytes_type, str_type, unicode_type, basestring_type, slice_type
     global float_type, bool_type, type_type, complex_type, bytearray_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
@@ -432,6 +432,7 @@ def init_builtins():
     dict_type  = builtin_scope.lookup('dict').type
     set_type   = builtin_scope.lookup('set').type
     frozenset_type = builtin_scope.lookup('frozenset').type
+    slice_type   = builtin_scope.lookup('slice').type
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
