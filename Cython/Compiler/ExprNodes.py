@@ -4230,6 +4230,14 @@ class CallNode(ExprNode):
     def may_be_none(self):
         if self.may_return_none is not None:
             return self.may_return_none
+        func_type = self.function.type
+        if func_type is type_type and self.function.is_name:
+            entry = self.function.entry
+            if entry.type.is_extension_type:
+                return False
+            if (entry.type.is_builtin_type and
+                    entry.name in Builtin.types_that_construct_their_instance):
+                return False
         return ExprNode.may_be_none(self)
 
     def analyse_as_type_constructor(self, env):
