@@ -5457,6 +5457,7 @@ class WhileStatNode(LoopNode, StatNode):
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
         if self.else_clause:
+            code.mark_pos(self.else_clause.pos)
             code.putln("/*else*/ {")
             self.else_clause.generate_execution_code(code)
             code.putln("}")
