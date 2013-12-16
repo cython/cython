@@ -839,7 +839,7 @@ class ExprNode(Node):
         if self.type and not (self.type.is_pyobject or
                               self.type.is_memoryviewslice):
             return False
-        if self.constant_result not in (not_a_constant, constant_value_not_set):
+        if self.has_constant_result():
             return self.constant_result is not None
         return True
 
@@ -2767,6 +2767,18 @@ class IndexNode(ExprNode):
         return (base.is_simple() and self.index.is_simple()
                 and base.type and (base.type.is_ptr or base.type.is_array))
 
+    def may_be_none(self):
+        base_type = self.base.type
+        if base_type:
+            if base_type.is_string:
+                return False
+            if isinstance(self.index, SliceNode):
+                # slicing!
+                if base_type in (bytes_type, str_type, unicode_type,
+                                 basestring_type, list_type, tuple_type):
+                    return False
+        return ExprNode.may_be_none(self)
+
     def analyse_target_declaration(self, env):
         pass
 
@@ -3714,11 +3726,21 @@ class SliceIndexNode(ExprNode):
         elif base_type.is_pyunicode_ptr:
             return unicode_type
         elif base_type in (bytes_type, str_type, unicode_type,
-                           list_type, tuple_type):
+                           basestring_type, list_type, tuple_type):
             return base_type
         elif base_type.is_ptr or base_type.is_array:
             return PyrexTypes.c_array_type(base_type.base_type, None)
         return py_object_type
+
+    def may_be_none(self):
+        base_type = self.base.type
+        if base_type:
+            if base_type.is_string:
+                return False
+            if base_type in (bytes_type, str_type, unicode_type,
+                             basestring_type, list_type, tuple_type):
+                return False
+        return ExprNode.may_be_none(self)
 
     def calculate_constant_result(self):
         if self.start is None:
