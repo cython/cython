@@ -6215,7 +6215,7 @@ class ExceptClauseNode(Node):
             self.target = self.target.analyse_target_expression(env, self.exc_value)
         if self.excinfo_target is not None:
             import ExprNodes
-            excinfo_tuple = ExprNodes.TupleNode(pos=self.pos, args=[
+            excinfo_tuple = ExprNodes.TupleNode(pos=self.pos, slow=True, args=[
                 ExprNodes.ExcValueNode(pos=self.pos, env=env) for _ in range(3)])
             self.excinfo_tuple = excinfo_tuple.analyse_expressions(env)
 
