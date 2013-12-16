@@ -7553,6 +7553,9 @@ class CodeObjectNode(ExprNode):
             is_temp = 0,
             is_literal = 1)
 
+    def may_be_none(self):
+        return False
+
     def calculate_result_code(self):
         return self.result_code
 
@@ -7987,6 +7990,12 @@ class UnopNode(ExprNode):
             return py_object_type
         else:
             return operand_type
+
+    def may_be_none(self):
+        if self.operand.type and self.operand.type.is_builtin_type:
+            if self.operand.type is not type_type:
+                return False
+        return ExprNode.may_be_none(self)
 
     def analyse_types(self, env):
         self.operand = self.operand.analyse_types(env)
@@ -9009,6 +9018,9 @@ class NumBinopNode(BinopNode):
             return None
 
     def may_be_none(self):
+        if self.type and self.type.is_builtin_type:
+            # if we know the result type, we know the operation, so it can't be None
+            return False
         type1 = self.operand1.type
         type2 = self.operand2.type
         if type1 and type1.is_builtin_type and type2 and type2.is_builtin_type:
