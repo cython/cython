@@ -7750,7 +7750,6 @@ class YieldExprNode(ExprNode):
     # Yield expression node
     #
     # arg         ExprNode   the value to return from the generator
-    # label_name  string     name of the C label used for this yield
     # label_num   integer    yield label number
     # is_yield_from  boolean is a YieldFromExprNode to delegate to another generator
 
@@ -7791,8 +7790,8 @@ class YieldExprNode(ExprNode):
         Generate the code to return the argument in 'Naming.retval_cname'
         and to continue at the yield label.
         """
-        self.label_name = code.new_label('resume_from_yield')
-        code.use_label(self.label_name)
+        label_num, label_name = code.new_yield_label()
+        code.use_label(label_name)
 
         saved = []
         code.funcstate.closure_temps.reset()
@@ -7807,10 +7806,10 @@ class YieldExprNode(ExprNode):
         code.put_finish_refcount_context()
         code.putln("/* return from generator, yielding value */")
         code.putln("%s->resume_label = %d;" % (
-            Naming.generator_cname, self.label_num))
+            Naming.generator_cname, label_num))
         code.putln("return %s;" % Naming.retval_cname)
 
-        code.put_label(self.label_name)
+        code.put_label(label_name)
         for cname, save_cname, type in saved:
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
             if type.is_pyobject:

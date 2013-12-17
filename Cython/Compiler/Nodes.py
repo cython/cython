@@ -3828,12 +3828,8 @@ class GeneratorBodyDefNode(DefNode):
                        Naming.generator_cname))
         resume_code.putln("case 0: goto %s;" % first_run_label)
 
-        from ParseTreeTransforms import YieldNodeCollector
-        collector = YieldNodeCollector()
-        collector.visitchildren(self)
-        for yield_expr in collector.yields:
-            resume_code.putln("case %d: goto %s;" % (
-                yield_expr.label_num, yield_expr.label_name))
+        for i, label in code.yield_labels:
+            resume_code.putln("case %d: goto %s;" % (i, label))
         resume_code.putln("default: /* CPython raises the right error here */")
         resume_code.put_finish_refcount_context()
         resume_code.putln("return NULL;")
