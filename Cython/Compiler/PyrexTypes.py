@@ -3046,6 +3046,14 @@ class CppClassType(CType):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
             return error_type
+        has_object_template_param = False
+        for value in template_values:
+            if value.is_pyobject:
+                has_object_template_param = True
+                error(pos,
+                      "Python object type '%s' cannot be used as a template argument" % value)
+        if has_object_template_param:
+            return error_type
         return self.specialize(dict(zip(self.templates, template_values)))
 
     def specialize(self, values):
