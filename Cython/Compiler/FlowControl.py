@@ -584,7 +584,8 @@ def check_definitions(flow, compiler_directives):
             node.cf_maybe_null = True
             if not entry.from_closure and len(node.cf_state) == 1:
                 node.cf_is_null = True
-            if node.allow_null or entry.from_closure or entry.is_pyclass_attr:
+            if (node.allow_null or entry.from_closure
+                or entry.is_pyclass_attr or entry.type.is_error):
                 pass # Can be uninitialized here
             elif node.cf_is_null:
                 if entry.error_on_uninitialized or (
