@@ -6328,6 +6328,7 @@ class TryFinallyStatNode(StatNode):
 
     # handle exception case, in addition to return/break/continue
     handle_error_case = True
+    func_return_type = None
 
     disallow_continue_in_try_finally = 0
     # There doesn't seem to be any point in disallowing
@@ -6349,6 +6350,8 @@ class TryFinallyStatNode(StatNode):
         self.body = self.body.analyse_expressions(env)
         self.finally_clause = self.finally_clause.analyse_expressions(env)
         self.func_return_type = env.return_type
+        if self.func_return_type and self.func_return_type.is_void:
+            self.func_return_type = None
         return self
 
     nogil_check = Node.gil_error
@@ -6462,8 +6465,6 @@ class TryFinallyStatNode(StatNode):
             if old_label == return_label and not self.finally_clause.is_terminator:
                 # store away return value for later reuse
                 if self.func_return_type:
-                    # pure safety check, func_return_type should
-                    # always be set when return label is used
                     ret_temp = code.funcstate.allocate_temp(
                         self.func_return_type, manage_ref=False)
                     code.putln("%s = %s;" % (ret_temp, Naming.retval_cname))
