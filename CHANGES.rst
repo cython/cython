@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* ``yield`` is supported in ``finally`` clauses.
+
 * The C code generated for finally blocks is duplicated for each exit
   case to allow for better optimisations by the C compiler.
 
