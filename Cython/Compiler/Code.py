@@ -505,6 +505,7 @@ class FunctionState(object):
         self.new_error_label()
         self.continue_label = None
         self.break_label = None
+        self.yield_labels = []
 
         self.in_try_finally = 0
         self.exc_vars = None
@@ -536,6 +537,12 @@ class FunctionState(object):
         if name is not None:
             label += '_' + name
         return label
+
+    def new_yield_label(self):
+        label = self.new_label('resume_from_yield')
+        num_and_label = (len(self.yield_labels) + 1, label)
+        self.yield_labels.append(num_and_label)
+        return num_and_label
 
     def new_error_label(self):
         old_err_lbl = self.error_label
@@ -1474,10 +1481,12 @@ class CCodeWriter(object):
     continue_label = funccontext_property("continue_label")
     break_label = funccontext_property("break_label")
     return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
+    yield_labels = funccontext_property("yield_labels")
 
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
     def new_error_label(self):         return self.funcstate.new_error_label()
+    def new_yield_label(self):         return self.funcstate.new_yield_label()
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
     def new_loop_labels(self):         return self.funcstate.new_loop_labels()
