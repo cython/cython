@@ -6349,9 +6349,8 @@ class TryFinallyStatNode(StatNode):
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
         self.finally_clause = self.finally_clause.analyse_expressions(env)
-        self.func_return_type = env.return_type
-        if self.func_return_type and self.func_return_type.is_void:
-            self.func_return_type = None
+        if env.return_type and not env.return_type.is_void:
+            self.func_return_type = env.return_type
         return self
 
     nogil_check = Node.gil_error
