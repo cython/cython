@@ -159,7 +159,8 @@ cdef void FinishContext(PyObject** ctx):
             context = <Context>ctx[0]
             errors = context.end()
             if errors:
-                print u"%s: %s()" % (context.filename, context.name)
+                print u"%s: %s()" % (context.filename.decode('latin1'),
+                                     context.name.decode('latin1'))
                 print errors
             context = None
         except:
