@@ -6463,7 +6463,9 @@ class TryFinallyStatNode(StatNode):
             ret_temp = None
             if old_label == return_label and not self.finally_clause.is_terminator:
                 # store away return value for later reuse
-                if self.func_return_type:
+                if (self.func_return_type and
+                        not self.is_try_finally_in_nogil and
+                        not isinstance(self.finally_clause, GILExitNode)):
                     ret_temp = code.funcstate.allocate_temp(
                         self.func_return_type, manage_ref=False)
                     code.putln("%s = %s;" % (ret_temp, Naming.retval_cname))
