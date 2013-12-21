@@ -1124,7 +1124,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
-                code.putln("PyObject_INIT(o, t);")
+                code.putln("(void) PyObject_INIT(o, t);")
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else {")
