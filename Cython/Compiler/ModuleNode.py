@@ -1074,8 +1074,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = type.base_type
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
-                        scope.get_refcounted_entries(include_weakref=True)
-        cpp_class_attrs = [entry for entry in scope.var_entries if entry.type.is_cpp_class]
+                        scope.get_refcounted_entries()
+        if scope.is_internal:
+            # internal classes (should) never need None inits, normal zeroing will do
+            py_attrs = []
+        cpp_class_attrs = [entry for entry in scope.var_entries
+                           if entry.type.is_cpp_class]
 
         new_func_entry = scope.lookup_here("__new__")
         if base_type or (new_func_entry and new_func_entry.is_special
@@ -1105,7 +1109,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {"
                 % (slot_func, unused_marker, unused_marker))
 
-        need_self_cast = type.vtabslot_cname or have_entries or cpp_class_attrs
+        need_self_cast = (type.vtabslot_cname or
+                          (py_buffers or memoryview_slices or py_attrs) or
+                          cpp_class_attrs)
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
@@ -1153,11 +1159,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                        (entry.cname, entry.type.declaration_code("")))
 
         for entry in py_attrs:
-            if scope.is_internal or entry.name == "__weakref__":
-                # internal classes do not need None inits
-                code.putln("p->%s = 0;" % entry.cname)
-            else:
-                code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+            code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
 
         for entry in memoryview_slices:
             code.putln("p->%s.data = NULL;" % entry.cname)
