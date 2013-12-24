@@ -3343,12 +3343,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_PrimaryCmpNode(self, node):
         # calculate constant partial results in the comparison cascade
+        self.visitchildren(node, ['operand1'])
         left_node = node.operand1
-        self._calculate_const(left_node)
         cmp_node = node
         while cmp_node is not None:
+            self.visitchildren(cmp_node, ['operand2'])
             right_node = cmp_node.operand2
-            self._calculate_const(right_node)
             cmp_node.constant_result = not_a_constant
             if left_node.has_constant_result() and right_node.has_constant_result():
                 try:

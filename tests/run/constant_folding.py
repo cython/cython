@@ -428,3 +428,31 @@ def cascaded_cmp_with_partial_constants_and_false_end(a, b, c):
     """
     x = 1 < 2 < a < 4 < 5 < b < 7 < 7 < c
     return x
+
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode//IntNode',
+    '//PrimaryCmpNode//IntNode[@value = "0"]',
+    '//PrimaryCmpNode//IntNode[@value = "4294967296"]',
+)
+@cython.test_fail_if_path_exists(
+    '//PrimaryCmpNode//IntBinopNode',
+    '//PrimaryCmpNode//IntNode[@value = "1"]',
+    '//PrimaryCmpNode//IntNode[@value = "32"]',
+)
+def const_in_binop(v):
+    """
+    >>> const_in_binop(-1)
+    1
+    >>> const_in_binop(0)
+    0
+    >>> const_in_binop(1 << 32)
+    1
+    >>> const_in_binop(1 << 32 - 1)
+    0
+    """
+    if v < 0 or v >= (1L << 32):
+        return 1
+    else:
+        return 0
