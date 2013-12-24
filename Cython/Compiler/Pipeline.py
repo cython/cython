@@ -195,9 +195,9 @@ def create_pipeline(context, mode, exclude_classes=()):
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
         FindInvalidUseOfFusedTypes(context),
-        CreateClosureClasses(context),  ## After all lookups and type inference
         ExpandInplaceOperators(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
+        CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),
         IterationTransform(context),
