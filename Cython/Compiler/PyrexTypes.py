@@ -1513,7 +1513,8 @@ class CReturnCodeType(CIntType):
 
     to_py_function = "__Pyx_Owned_Py_None"
 
-    is_returncode = 1
+    is_returncode = True
+    exception_check = False
 
 
 class CBIntType(CIntType):

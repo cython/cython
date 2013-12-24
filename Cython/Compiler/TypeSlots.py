@@ -93,7 +93,7 @@ class Signature(object):
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
-        self.exception_check = self.error_value is not None
+        self.exception_check = ret_format != 'r' and self.error_value is not None
         self.is_staticmethod = False
 
     def num_fixed_args(self):
