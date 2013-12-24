@@ -8,20 +8,22 @@
 
 /////////////// append.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*proto*/
+static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*proto*/
 
 /////////////// append ///////////////
 //@requires: ListAppend
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
-        if (unlikely(__Pyx_PyList_Append(L, x) < 0)) return NULL;
-        Py_INCREF(Py_None);
-        return Py_None; /* this is just to have an accurate signature */
+        if (unlikely(__Pyx_PyList_Append(L, x) < 0)) return -1;
     } else {
-        return __Pyx_PyObject_CallMethod1(L, PYIDENT("append"), x);
+        PyObject* retval = __Pyx_PyObject_CallMethod1(L, PYIDENT("append"), x);
+        if (unlikely(!retval))
+            return -1;
+        Py_DECREF(retval);
     }
+    return 0;
 }
 
 /////////////// ListAppend.proto ///////////////
