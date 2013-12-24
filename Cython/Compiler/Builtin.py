@@ -280,7 +280,10 @@ builtin_types_table = [
                                     BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBaseString_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
-    ("bytearray", "PyByteArray_Type", []),
+    ("bytearray", "PyByteArray_Type", [
+                                    BuiltinMethod("append",  "Tz",   "r", "__Pyx_PyByteArray_Append",
+                                                  utility_code=UtilityCode.load("ByteArrayAppend", "StringTools.c")),
+                                    ]),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
                                     BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),

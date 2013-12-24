@@ -193,3 +193,52 @@ def bytearray_decode_unbound_method(bytearray s, start=None, stop=None):
         return bytearray.decode(s[start:], 'utf8')
     else:
         return bytearray.decode(s[start:stop], 'utf8')
+
+
+def bytearray_append(bytearray b, char c, int i, object o):
+    """
+    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z'))
+    >>> print(b.decode('ascii'))
+    abcXxyz
+
+    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray_append(b, -1, ord('y'), ord('z'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...
+    >>> print(b.decode('ascii'))
+    abcX
+
+    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray_append(b, ord('x'), -1, ord('z'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...
+    >>> print(b.decode('ascii'))
+    abcXx
+
+    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray_append(b, ord('x'), 256, ord('z'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...
+    >>> print(b.decode('ascii'))
+    abcXx
+
+    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray_append(b, ord('x'), ord('y'), -1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...
+    >>> print(b.decode('ascii'))
+    abcXxy
+
+    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray_append(b, ord('x'), ord('y'), 256)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...
+    >>> print(b.decode('ascii'))
+    abcXxy
+    """
+    b.append('X')
+    b.append(c)
+    b.append(i)
+    b.append(o)
+    return b

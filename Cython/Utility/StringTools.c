@@ -678,3 +678,36 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
     return PyObject_CallMethodObjArgs(sep, PYIDENT("join"), values, NULL)
 }
 #endif
+
+
+//////////////////// ByteArrayAppend.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, Py_ssize_t value);
+
+//////////////////// ByteArrayAppend ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
+
+// signature uses Py_ssize_t to make coercions use PyNumber_Index(), as CPython does
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, Py_ssize_t value) {
+    PyObject *pyval, *retval;
+#if CYTHON_COMPILING_IN_CPYTHON
+    Py_ssize_t n = Py_SIZE(bytearray);
+    if (likely((value >= 0) & (value <= 255))) {
+        if (likely(n < PY_SSIZE_T_MAX)) {
+            if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
+                return -1;
+            PyByteArray_AS_STRING(bytearray)[n] = value;
+            return 0;
+        }
+    }
+#endif
+    pyval = PyInt_FromLong(value);
+    if (unlikely(!pyval))
+        return -1;
+    retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("append"), pyval);
+    Py_DECREF(pyval);
+    if (unlikely(!retval))
+        return -1;
+    Py_DECREF(retval);
+    return 0;
+}
