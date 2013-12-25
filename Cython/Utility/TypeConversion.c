@@ -278,9 +278,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;
+  PyObject *x;
   if (likely(PyInt_CheckExact(b)))
       return PyInt_AsSsize_t(b);
-  PyObject* x = PyNumber_Index(b);
+  x = PyNumber_Index(b);
   if (!x) return -1;
   ival = PyInt_AsSsize_t(x);
   Py_DECREF(x);
