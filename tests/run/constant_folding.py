@@ -452,7 +452,7 @@ def const_in_binop(v):
     >>> const_in_binop(1 << 32 - 1)
     0
     """
-    if v < 0 or v >= (1L << 32):
+    if v < 0 or v >= (1 << 32):
         return 1
     else:
         return 0
