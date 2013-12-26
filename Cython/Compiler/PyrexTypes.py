@@ -1203,7 +1203,7 @@ class CType(PyrexType):
 class CConstType(BaseType):
 
     is_const = 1
-    
+
     def __init__(self, const_base_type):
         self.const_base_type = const_base_type
         if const_base_type.has_attributes and const_base_type.scope is not None:
@@ -1848,7 +1848,7 @@ proto="""
     #define __Pyx_CIMAG(z) ((z).imag)
 #endif
 
-#if defined(_WIN32) && defined(__cplusplus) && CYTHON_CCOMPLEX
+#if (defined(_WIN32) || defined(__clang__)) && defined(__cplusplus) && CYTHON_CCOMPLEX
     #define __Pyx_SET_CREAL(z,x) ((z).real(x))
     #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
 #else
@@ -2952,7 +2952,7 @@ class CppClassType(CType):
     has_attributes = 1
     exception_check = True
     namespace = None
-    
+
     # For struct-like declaration.
     kind = "struct"
     packed = False
@@ -2973,7 +2973,7 @@ class CppClassType(CType):
 
     def use_conversion_utility(self, from_or_to):
         pass
-    
+
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
             return True
@@ -3010,7 +3010,7 @@ class CppClassType(CType):
             env.use_utility_code(CythonUtilityCode.load(cls + ".from_py", "CppConvert.pyx", context=context))
             self.from_py_function = cname
             return True
-    
+
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
