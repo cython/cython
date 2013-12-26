@@ -8,13 +8,13 @@ cdef extern from "complex_int_T446_fix.h":
 def test_arith(int complex a, int complex b):
     """
     >>> test_arith(4, 2)
-    ((-4+0j), (6+0j), (2+0j), (8+0j), (2+0j))
+    ((-4+0j), (6+0j), (2+0j), (8+0j))
     >>> test_arith(6+9j, 3j)
-    ((-6-9j), (6+12j), (6+6j), (-27+18j), (3-2j))
+    ((-6-9j), (6+12j), (6+6j), (-27+18j))
     >>> test_arith(29+11j, 5+7j)
-    ((-29-11j), (34+18j), (24+4j), (68+258j), (3-2j))
+    ((-29-11j), (34+18j), (24+4j), (68+258j))
     """
-    return -a, a+b, a-b, a*b, a/b
+    return -a, a+b, a-b, a*b
 
 @cython.cdivision(False)
 def test_div_by_zero(long complex z):
