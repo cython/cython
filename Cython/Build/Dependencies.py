@@ -568,7 +568,7 @@ def create_dependency_tree(ctx=None, quiet=False):
 
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, exclude_failures=False):
-    if not isinstance(patterns, list):
+    if not isinstance(patterns, (list, tuple)):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
