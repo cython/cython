@@ -2257,7 +2257,7 @@ class IteratorNode(ExprNode):
         elif sequence_type.is_pyobject:
             return sequence_type
         return py_object_type
-    
+
     def analyse_cpp_types(self, env):
         sequence_type = self.sequence.type
         if sequence_type.is_ptr:
@@ -2721,6 +2721,7 @@ class IndexNode(ExprNode):
     #  base     ExprNode
     #  index    ExprNode
     #  indices  [ExprNode]
+    #  type_indices  [PyrexType]
     #  is_buffer_access boolean Whether this is a buffer access.
     #
     #  indices is used on buffer access, index on non-buffer access.
@@ -2732,6 +2733,7 @@ class IndexNode(ExprNode):
 
     subexprs = ['base', 'index', 'indices']
     indices = None
+    type_indices = None
 
     is_subscript = True
     is_fused_index = False
@@ -3103,8 +3105,7 @@ class IndexNode(ExprNode):
         else:
             base_type = self.base.type
 
-            fused_index_operation = base_type.is_cfunction and base_type.is_fused
-            if not fused_index_operation:
+            if not base_type.is_cfunction:
                 if isinstance(self.index, TupleNode):
                     self.index = self.index.analyse_types(
                         env, skip_children=skip_child_analysis)
@@ -3188,8 +3189,17 @@ class IndexNode(ExprNode):
                     self.type = func_type.return_type
                     if setting and not func_type.return_type.is_reference:
                         error(self.pos, "Can't set non-reference result '%s'" % self.type)
-                elif fused_index_operation:
-                    self.parse_indexed_fused_cdef(env)
+                elif base_type.is_cfunction:
+                    if base_type.is_fused:
+                        self.parse_indexed_fused_cdef(env)
+                    else:
+                        self.type_indices = self.parse_index_as_types(env)
+                        if base_type.templates is None:
+                            error(self.pos, "Can only parameterize template functions.")
+                        elif len(base_type.templates) != len(self.type_indices):
+                            error(self.pos, "Wrong number of template arguments: expected %s, got %s" % (
+                                    (len(base_type.templates), len(self.type_indices))))
+                        self.type = base_type.specialize(dict(zip(base_type.templates, self.type_indices)))
                 else:
                     error(self.pos,
                           "Attempting to index non-array type '%s'" %
@@ -3215,6 +3225,20 @@ class IndexNode(ExprNode):
 
         self.base = self.base.as_none_safe_node(msg)
 
+    def parse_index_as_types(self, env, required=True):
+        if isinstance(self.index, TupleNode):
+            indices = self.index.args
+        else:
+            indices = [self.index]
+        type_indices = []
+        for index in indices:
+            type_indices.append(index.analyse_as_type(env))
+            if type_indices[-1] is None:
+                if required:
+                    error(index.pos, "not parsable as a type")
+                return None
+        return type_indices
+
     def parse_indexed_fused_cdef(self, env):
         """
         Interpret fused_cdef_func[specific_type1, ...]
@@ -3234,16 +3258,12 @@ class IndexNode(ExprNode):
 
         if self.index.is_name or self.index.is_attribute:
             positions.append(self.index.pos)
-            specific_types.append(self.index.analyse_as_type(env))
         elif isinstance(self.index, TupleNode):
             for arg in self.index.args:
                 positions.append(arg.pos)
-                specific_type = arg.analyse_as_type(env)
-                specific_types.append(specific_type)
-        else:
-            specific_types = [False]
+        specific_types = self.parse_index_as_types(env, required=False)
 
-        if not Utils.all(specific_types):
+        if specific_types is None:
             self.index = self.index.analyse_types(env)
 
             if not self.base.entry.as_variable:
@@ -3362,6 +3382,10 @@ class IndexNode(ExprNode):
                 index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
+        elif self.base.type.is_cfunction:
+            return "%s<%s>" % (
+                self.base.result(),
+                ",".join([param.declaration_code("") for param in self.type_indices]))
         else:
             if (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
                 error(self.pos, "Invalid use of pointer slice")
@@ -3388,7 +3412,9 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
-        if self.indices is None:
+        if self.type_indices is not None:
+            pass
+        elif self.indices is None:
             self.index.generate_evaluation_code(code)
         else:
             for i in self.indices:
@@ -3396,7 +3422,9 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
-        if self.indices is None:
+        if self.type_indices is not None:
+            pass
+        elif self.indices is None:
             self.index.generate_disposal_code(code)
         else:
             for i in self.indices:
@@ -3866,7 +3894,7 @@ class SliceIndexNode(ExprNode):
             if (dst_type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):
                 error(self.pos,
-                    "default encoding required for conversion from '%s' to '%s'" % 
+                    "default encoding required for conversion from '%s' to '%s'" %
                     (self.base.type, dst_type))
             self.type = dst_type
         return super(SliceIndexNode, self).coerce_to(dst_type, env)
@@ -3876,7 +3904,7 @@ class SliceIndexNode(ExprNode):
             error(self.pos,
                   "Slicing is not currently supported for '%s'." % self.type)
             return
-            
+
         base_result = self.base.result()
         result = self.result()
         start_code = self.start_code()
@@ -3929,8 +3957,8 @@ class SliceIndexNode(ExprNode):
                         code.error_goto_if_null(result, self.pos)))
 
         elif self.base.type is unicode_type:
-            code.globalstate.use_utility_code( 
-                          UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c")) 
+            code.globalstate.use_utility_code(
+                          UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c"))
             code.putln(
                 "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
                     result,
@@ -10599,7 +10627,7 @@ class CoerceToPyTypeNode(CoercionNode):
             if (type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):
                 error(arg.pos,
-                    "default encoding required for conversion from '%s' to '%s'" % 
+                    "default encoding required for conversion from '%s' to '%s'" %
                     (arg.type, type))
             self.type = type
         else:

@@ -2525,11 +2525,6 @@ class CFuncType(CType):
         return '(%s)' % s
 
     def specialize(self, values):
-        if self.templates is None:
-            new_templates = None
-        else:
-            new_templates = [v.specialize(values) for v in self.templates]
-
         result = CFuncType(self.return_type.specialize(values),
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
@@ -2540,7 +2535,7 @@ class CFuncType(CType):
                            with_gil = self.with_gil,
                            is_overridable = self.is_overridable,
                            optional_arg_count = self.optional_arg_count,
-                           templates = new_templates)
+                           templates = self.templates)
 
         result.from_fused = self.is_fused
         return result

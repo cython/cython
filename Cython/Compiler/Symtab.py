@@ -276,7 +276,7 @@ class Scope(object):
     # qualified_name    string             "modname" or "modname.classname"
     #                                        Python strings in this scope
     # nogil             boolean            In a nogil section
-    # directives       dict                Helper variable for the recursive
+    # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
     # is_internal       boolean            Is only used internally (simpler setup)
 
@@ -2195,7 +2195,7 @@ class CppClassScope(Scope):
                                   entry.pos,
                                   entry.cname,
                                   entry.visibility)
-                
+
         return scope
 
 
@@ -2237,3 +2237,8 @@ class CConstScope(Scope):
             entry = copy.copy(entry)
             entry.type = PyrexTypes.c_const_type(entry.type)
             return entry
+
+class TemplateScope(Scope):
+    def __init__(self, name, outer_scope):
+        Scope.__init__(self, name, outer_scope, None)
+        self.directives = outer_scope.directives

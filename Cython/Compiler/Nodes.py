@@ -19,8 +19,8 @@ import Naming
 import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type
-from Symtab import ModuleScope, LocalScope, ClosureScope, \
-    StructOrUnionScope, PyClassScope, CppClassScope
+from Symtab import (ModuleScope, LocalScope, ClosureScope,
+    StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope)
 from Code import UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
@@ -465,6 +465,9 @@ class CDeclaratorNode(Node):
 
     calling_convention = ""
 
+    def analyse_templates(self):
+        # Only C++ functions have templates.
+        return None
 
 class CNameDeclaratorNode(CDeclaratorNode):
     #  name    string             The Cython name being declared
@@ -523,7 +526,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base", "dimension"]
 
     def analyse(self, base_type, env, nonempty = 0):
-        if base_type.is_cpp_class:
+        if base_type.is_cpp_class or base_type.is_cfunction:
             from ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
@@ -565,6 +568,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
 class CFuncDeclaratorNode(CDeclaratorNode):
     # base             CDeclaratorNode
     # args             [CArgDeclNode]
+    # templates        [TemplatePlaceholderType]
     # has_varargs      boolean
     # exception_value  ConstNode
     # exception_check  boolean    True if PyErr_Occurred check needed
@@ -575,6 +579,28 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
     overridable = 0
     optional_arg_count = 0
+    templates = None
+
+    def analyse_templates(self):
+        if isinstance(self.base, CArrayDeclaratorNode):
+            from ExprNodes import TupleNode, NameNode
+            template_node = self.base.dimension
+            if isinstance(template_node, TupleNode):
+                template_nodes = template_node.args
+            elif isinstance(template_node, NameNode):
+                template_nodes = [template_node]
+            else:
+                error(template_node.pos, "Template arguments must be a list of names")
+            self.templates = []
+            for template in template_nodes:
+                if isinstance(template, NameNode):
+                    self.templates.append(PyrexTypes.TemplatePlaceholderType(template.name))
+                else:
+                    error(template.pos, "Template arguments must be a list of names")
+            self.base = self.base.base
+            return self.templates
+        else:
+            return None
 
     def analyse(self, return_type, env, nonempty = 0, directive_locals = {}):
         if nonempty:
@@ -659,7 +685,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             optional_arg_count = self.optional_arg_count,
             exception_value = exc_val, exception_check = exc_check,
             calling_convention = self.base.calling_convention,
-            nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
+            nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable,
+            templates = self.templates)
 
         if self.optional_arg_count:
             if func_type.is_fused:
@@ -892,7 +919,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     else:
                         scope = None
                         break
-                
+
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
@@ -1164,6 +1191,21 @@ class CVarDefNode(StatNode):
         if not dest_scope:
             dest_scope = env
         self.dest_scope = dest_scope
+
+        if self.declarators:
+            templates = self.declarators[0].analyse_templates()
+        else:
+            templates = None
+        if templates is not None:
+            if self.visibility != 'extern':
+                error(self.pos, "Only extern functions allowed")
+            if len(self.declarators) > 1:
+                error(self.declarators[1].pos, "Can't multiply declare template types")
+            env = TemplateScope('func_template', env)
+            env.directives = env.outer_scope.directives
+            for template_param in templates:
+                env.declare_type(template_param.name, template_param, self.pos)
+
         base_type = self.base_type.analyse(env)
 
         if base_type.is_fused and not self.in_pxd and (env.is_c_class_scope or
@@ -1175,12 +1217,12 @@ class CVarDefNode(StatNode):
         visibility = self.visibility
 
         for declarator in self.declarators:
-            
+
             if (len(self.declarators) > 1
                 and not isinstance(declarator, CNameDeclaratorNode)
                 and env.directives['warn.multiple_declarators']):
                 warning(declarator.pos, "Non-trivial type declarators in shared declaration.", 1)
-            
+
             if isinstance(declarator, CFuncDeclaratorNode):
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
             else:

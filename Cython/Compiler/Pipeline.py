@@ -119,7 +119,7 @@ class UseUtilityCodeDefinitions(CythonTransform):
         self.process_entry(node.entry)
         self.process_entry(node.type_entry)
         return node
-                     
+
 #
 # Pipeline factories
 #
