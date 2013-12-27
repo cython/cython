@@ -8,6 +8,8 @@ cdef extern from "cpp_template_functions_helper.h":
     cdef pair[T, U] two_params[T, U](T, U)
     cdef cppclass A[T]:
         pair[T, U] method[U](T, U)
+    cdef T nested_deduction[T](const T*)
+    pair[T, U] pair_arg[T, U](pair[T, U] a)
 
 def test_no_arg():
     """
@@ -46,3 +48,18 @@ def test_simple_deduction(int x, double y):
     (1, 2.0)
     """
     return one_param(x), one_param(y)
+
+def test_more_deductions(int x, double y):
+    """
+    >>> test_more_deductions(1, 2)
+    (1, 2.0)
+    """
+    return nested_deduction(&x), nested_deduction(&y)
+
+def test_class_deductions(pair[long, double] x):
+    """
+    >>> test_class_deductions((1, 1.5))
+    (1, 1.5)
+    """
+    return pair_arg(x)
+

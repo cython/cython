@@ -21,3 +21,13 @@ class A {
             return std::pair<T, U>(a, b);
         }
 };
+
+template <typename T>
+T nested_deduction(const T *a) {
+    return *a;
+}
+
+template <typename T, typename U>
+std::pair<T, U> pair_arg(std::pair<T, U> a) {
+    return a;
+}

@@ -1239,6 +1239,9 @@ class CConstType(BaseType):
         else:
             return CConstType(base_type)
 
+    def deduce_template_params(self, actual):
+        return self.const_base_type.deduce_template_params(actual)
+
     def create_to_py_utility_code(self, env):
         if self.const_base_type.create_to_py_utility_code(env):
             self.to_py_function = self.const_base_type.to_py_function
@@ -2178,6 +2181,19 @@ class CArrayType(CPointerBaseType):
     def is_complete(self):
         return self.size is not None
 
+    def specialize(self, values):
+        base_type = self.base_type.specialize(values)
+        if base_type == self.base_type:
+            return self
+        else:
+            return CArrayType(base_type)
+
+    def deduce_template_params(self, actual):
+        if isinstance(actual, CArrayType):
+            return self.base_type.deduce_template_params(actual.base_type)
+        else:
+            return None
+
 
 class CPtrType(CPointerBaseType):
     #  base_type     CType              Reference type
@@ -2239,6 +2255,12 @@ class CPtrType(CPointerBaseType):
         else:
             return CPtrType(base_type)
 
+    def deduce_template_params(self, actual):
+        if isinstance(actual, CPtrType):
+            return self.base_type.deduce_template_params(actual.base_type)
+        else:
+            return None
+
     def invalid_value(self):
         return "1"
 
@@ -2278,6 +2300,9 @@ class CReferenceType(BaseType):
             return self
         else:
             return CReferenceType(base_type)
+
+    def deduce_template_params(self, actual):
+        return self.ref_base_type.deduce_template_params(actual)
 
     def __getattr__(self, name):
         return getattr(self.ref_base_type, name)
@@ -3083,6 +3108,18 @@ class CppClassType(CType):
             specialized.namespace = self.namespace.specialize(values)
         return specialized
 
+    def deduce_template_params(self, actual):
+        if self == actual:
+            return {}
+        # TODO(robertwb): Actual type equality.
+        elif self.declaration_code("") == actual.template_type.declaration_code(""):
+            return reduce(
+                merge_template_deductions,
+                [formal_param.deduce_template_params(actual_param) for (formal_param, actual_param) in zip(self.templates, actual.templates)],
+                {})
+        else:
+            return None
+
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if self.templates:
@@ -3502,19 +3539,20 @@ def best_match(args, functions, pos=None, env=None):
                 merge_template_deductions,
                 [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types)],
                 {})
-            if deductions is not None:
-                if len(deductions) < len(func_type.templates):
-                    errors.append((func, "Unable to deduce type parameter %s" % (
-                        ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
-                else:
-                    type_list = [deductions[param] for param in func_type.templates]
-                    from Symtab import Entry
-                    specialization = Entry(
-                        name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
-                        cname = func.cname + "<%s>" % ",".join([t.declaration_code("") for t in type_list]),
-                        type = func_type.specialize(deductions),
-                        pos = func.pos)
-                    candidates.append((specialization, specialization.type))
+            if deductions is None:
+                errors.append((func, "Unable to deduce type parameters"))
+            elif len(deductions) < len(func_type.templates):
+                errors.append((func, "Unable to deduce type parameter %s" % (
+                    ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
+            else:
+                type_list = [deductions[param] for param in func_type.templates]
+                from Symtab import Entry
+                specialization = Entry(
+                    name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
+                    cname = func.cname + "<%s>" % ",".join([t.declaration_code("") for t in type_list]),
+                    type = func_type.specialize(deductions),
+                    pos = func.pos)
+                candidates.append((specialization, specialization.type))
         else:
             candidates.append((func, func_type))
 
