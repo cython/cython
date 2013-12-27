@@ -1,4 +1,9 @@
 template <typename T>
+T no_arg() {
+    return T();
+}
+
+template <typename T>
 T one_param(T value) {
     return value;
 }

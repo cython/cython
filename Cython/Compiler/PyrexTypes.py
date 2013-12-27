@@ -81,6 +81,18 @@ class BaseType(object):
     is_fused = property(_get_fused_types, doc="Whether this type or any of its "
                                              "subtypes is a fused type")
 
+    def deduce_template_params(self, actual):
+        """
+        Deduce any template params in this (argument) type given the actual
+        argument type.
+
+        http://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
+        """
+        if self == actual:
+            return {}
+        else:
+            return None
+
     def __lt__(self, other):
         """
         For sorting. The sorting order should correspond to the preference of
@@ -3162,6 +3174,9 @@ class TemplatePlaceholderType(CType):
         else:
             return self
 
+    def deduce_template_params(self, actual):
+        return {self: actual}
+
     def same_as_resolved_type(self, other_type):
         if isinstance(other_type, TemplatePlaceholderType):
             return self.name == other_type.name
@@ -3481,7 +3496,27 @@ def best_match(args, functions, pos=None, env=None):
                          % (expectation, actual_nargs)
             errors.append((func, error_mesg))
             continue
-        candidates.append((func, func_type))
+        if func_type.templates:
+            arg_types = [arg.type for arg in args]
+            deductions = reduce(
+                merge_template_deductions,
+                [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types)],
+                {})
+            if deductions is not None:
+                if len(deductions) < len(func_type.templates):
+                    errors.append((func, "Unable to deduce type parameter %s" % (
+                        ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
+                else:
+                    type_list = [deductions[param] for param in func_type.templates]
+                    from Symtab import Entry
+                    specialization = Entry(
+                        name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
+                        cname = func.cname + "<%s>" % ",".join([t.declaration_code("") for t in type_list]),
+                        type = func_type.specialize(deductions),
+                        pos = func.pos)
+                    candidates.append((specialization, specialization.type))
+        else:
+            candidates.append((func, func_type))
 
     # Optimize the most common case of no overloading...
     if len(candidates) == 1:
@@ -3572,6 +3607,18 @@ def best_match(args, functions, pos=None, env=None):
             error(pos, "no suitable method found")
 
     return None
+
+def merge_template_deductions(a, b):
+    if a is None or b is None:
+        return None
+    all = a
+    for param, value in b.iteritems():
+        if param in all:
+            if a[param] != b[param]:
+                return None
+        else:
+            all[param] = value
+    return all
 
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type

@@ -3,10 +3,18 @@
 from libcpp.pair cimport pair
 
 cdef extern from "cpp_template_functions_helper.h":
+    cdef T no_arg[T]()
     cdef T one_param[T](T)
     cdef pair[T, U] two_params[T, U](T, U)
     cdef cppclass A[T]:
         pair[T, U] method[U](T, U)
+
+def test_no_arg():
+    """
+    >>> test_no_arg()
+    0
+    """
+    return no_arg[int]()
 
 def test_one_param(int x):
     """
@@ -31,3 +39,10 @@ def test_method(int x, int y):
     cdef A[double] a_double
     return a_int.method[float](x, y), a_double.method[int](x, y)
 #    return a_int.method[double](x, y), a_double.method[int](x, y)
+
+def test_simple_deduction(int x, double y):
+    """
+    >>> test_simple_deduction(1, 2)
+    (1, 2.0)
+    """
+    return one_param(x), one_param(y)
