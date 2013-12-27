@@ -281,8 +281,6 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     ]),
     ("bytearray", "PyByteArray_Type", [
-                                    BuiltinMethod("append",  "Tz",   "r", "__Pyx_PyByteArray_Append",
-                                                  utility_code=UtilityCode.load("ByteArrayAppend", "StringTools.c")),
                                     ]),
     ("bytes",   "PyBytes_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
                                     BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",

@@ -680,25 +680,54 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 #endif
 
 
+//////////////////// ByteArrayAppendObject.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value);
+
+//////////////////// ByteArrayAppendObject ////////////////////
+//@requires: ByteArrayAppend
+
+static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value) {
+    Py_ssize_t ival;
+#if PY_MAJOR_VERSION < 3
+    if (unlikely(PyString_Check(value))) {
+        if (unlikely(PyString_GET_SIZE(value) != 1)) {
+            PyErr_SetString(PyExc_ValueError, "string must be of size 1");
+            return -1;
+        }
+        ival = PyString_AS_STRING(value)[0];
+    } else
+#endif
+    {
+        ival = __Pyx_PyIndex_AsSsize_t(value);
+        if (unlikely(ival == -1 && PyErr_Occurred()))
+            return -1;
+    }
+    return __Pyx_PyByteArray_Append(bytearray, ival);
+}
+
 //////////////////// ByteArrayAppend.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, Py_ssize_t value);
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value);
 
 //////////////////// ByteArrayAppend ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
 // signature uses Py_ssize_t to make coercions use PyNumber_Index(), as CPython does
-static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, Py_ssize_t value) {
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
 #if CYTHON_COMPILING_IN_CPYTHON
-    Py_ssize_t n = Py_SIZE(bytearray);
     if (likely((value >= 0) & (value <= 255))) {
-        if (likely(n < PY_SSIZE_T_MAX)) {
+        Py_ssize_t n = Py_SIZE(bytearray);
+        if (likely(n != PY_SSIZE_T_MAX)) {
             if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
                 return -1;
             PyByteArray_AS_STRING(bytearray)[n] = value;
             return 0;
         }
+    } else {
+        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+        return -1;
     }
 #endif
     pyval = PyInt_FromLong(value);

@@ -1,3 +1,7 @@
+
+import sys
+IS_PY3 = sys.version_info[0] >= 3
+
 cimport cython
 
 b_a = bytearray(b'a')
@@ -197,47 +201,52 @@ def bytearray_decode_unbound_method(bytearray s, start=None, stop=None):
 
 def bytearray_append(bytearray b, char c, int i, object o):
     """
-    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z'))
     >>> print(b.decode('ascii'))
     abcXxyz
 
-    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray(b'abc')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z') if IS_PY3 else b'z')
+    >>> print(b.decode('ascii'))
+    abcXxyz
+
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, -1, ord('y'), ord('z'))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
     >>> print(b.decode('ascii'))
     abcX
 
-    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), -1, ord('z'))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
     >>> print(b.decode('ascii'))
     abcXx
 
-    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), 256, ord('z'))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
     >>> print(b.decode('ascii'))
     abcXx
 
-    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), ord('y'), -1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
     >>> print(b.decode('ascii'))
     abcXxy
 
-    >>> b = bytearray('abc'.encode('ascii'))
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), ord('y'), 256)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...
     >>> print(b.decode('ascii'))
     abcXxy
     """
-    b.append('X')
+    assert b.append('X') is None
     b.append(c)
     b.append(i)
     b.append(o)
