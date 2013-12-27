@@ -12,7 +12,8 @@ cdef void f():
 
 
 _ERRORS = u"""
-3:19: Array element cannot be a function
+3:20: Template arguments must be a list of names
+3:20: Template parameter not a type
 5:18: Function cannot return a function
 10:10: Function cannot return a function
 10:5: Cannot cast to a function type

@@ -535,9 +535,10 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             values = [v.analyse_as_type(env) for v in args]
             if None in values:
                 ix = values.index(None)
-                error(args[ix].pos, "Template parameter not a type.")
-                return error_type
-            base_type = base_type.specialize_here(self.pos, values)
+                error(args[ix].pos, "Template parameter not a type")
+                base_type = error_type
+            else:
+                base_type = base_type.specialize_here(self.pos, values)
             return self.base.analyse(base_type, env, nonempty = nonempty)
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
@@ -591,6 +592,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 template_nodes = [template_node]
             else:
                 error(template_node.pos, "Template arguments must be a list of names")
+                return None
             self.templates = []
             for template in template_nodes:
                 if isinstance(template, NameNode):
