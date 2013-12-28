@@ -87,6 +87,7 @@ class _BuiltinOverride(object):
     def build_func_type(self, sig=None, self_arg=None):
         if sig is None:
             sig = Signature(self.args, self.ret_type)
+            sig.exception_check = False  # not needed for the current builtins
         func_type = sig.function_type(self_arg)
         if self.is_strict_signature:
             func_type.is_strict_signature = True
