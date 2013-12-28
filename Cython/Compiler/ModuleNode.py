@@ -532,7 +532,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("    #error Cython requires Python 2.4+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
-        
+
         from Cython import __version__
         code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
 
@@ -595,12 +595,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#define __Pyx_PyObject_FromString __Pyx_Py%s_FromString' % c_string_func_name)
         code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_func_name)
         code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])
-        
+
         # These utility functions are assumed to exist and used elsewhere.
         PyrexTypes.c_long_type.create_to_py_utility_code(env)
         PyrexTypes.c_long_type.create_from_py_utility_code(env)
         PyrexTypes.c_int_type.create_from_py_utility_code(env)
-        
+
         code.put(Nodes.branch_prediction_macros)
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
@@ -1155,7 +1155,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast, type.vtabptr_cname))
 
         for entry in cpp_class_attrs:
-            code.putln("new((void*)&(p->%s)) %s();" % 
+            code.putln("new((void*)&(p->%s)) %s();" %
                        (entry.cname, entry.type.declaration_code("")))
 
         for entry in py_attrs:
