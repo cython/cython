@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* Support for calling C++ template functions.
+
 * ``yield`` is supported in ``finally`` clauses.
 
 * The C code generated for finally blocks is duplicated for each exit
@@ -81,6 +83,8 @@ Bugs fixed
   a slightly wider application and reducing corner cases.  It now always
   generates a 'default' clause to avoid C compiler warnings about
   unmatched enum values.
+
+* Fixed a bug which prevented overriding const methods of C++ classes.
 
 Other changes
 -------------
