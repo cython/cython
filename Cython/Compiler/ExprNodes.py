@@ -9459,7 +9459,7 @@ class ModNode(DivNode):
                     self.operand2.result())
 
     def py_operation_function(self):
-        if self.operand1.type is unicode_type and self.operand2.type.is_builtin_type:
+        if self.operand1.type is unicode_type:
             if self.operand1.may_be_none():
                 return '__Pyx_PyUnicode_Format'
             else:
