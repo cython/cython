@@ -2135,7 +2135,7 @@ def p_buffer_or_template(s, base_type_node, templates):
         p_positional_and_keyword_args(s, (']',), templates)
     )
     s.expect(']')
-    
+
     if s.sy == '[':
         base_type_node = p_buffer_or_template(s, base_type_node, templates)
 
@@ -2827,6 +2827,8 @@ def p_c_func_or_var_declaration(s, pos, ctx):
     else:
         #if api:
         #    s.error("'api' not allowed with variable declaration")
+        if is_const_method:
+            declarator.is_const_method = is_const_method
         declarators = [declarator]
         while s.sy == ',':
             s.next()

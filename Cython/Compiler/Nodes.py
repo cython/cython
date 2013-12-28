@@ -575,11 +575,13 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # exception_check  boolean    True if PyErr_Occurred check needed
     # nogil            boolean    Can be called without gil
     # with_gil         boolean    Acquire gil around function body
+    # is_const_method  boolean    Whether this is a const method
 
     child_attrs = ["base", "args", "exception_value"]
 
     overridable = 0
     optional_arg_count = 0
+    is_const_method = 0
     templates = None
 
     def analyse_templates(self):
@@ -688,6 +690,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             exception_value = exc_val, exception_check = exc_check,
             calling_convention = self.base.calling_convention,
             nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable,
+            is_const_method = self.is_const_method,
             templates = self.templates)
 
         if self.optional_arg_count:
