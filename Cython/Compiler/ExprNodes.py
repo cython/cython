@@ -5863,6 +5863,8 @@ class SequenceNode(ExprNode):
     def generate_subexpr_disposal_code(self, code):
         if self.mult_factor and self.mult_factor.type.is_int:
             super(SequenceNode, self).generate_subexpr_disposal_code(code)
+        elif self.type is Builtin.tuple_type and (self.is_literal or self.slow):
+            super(SequenceNode, self).generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead
             # of generate_disposal_code, because values were stored
