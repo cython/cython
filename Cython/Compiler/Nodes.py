@@ -1320,8 +1320,6 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
     #  templates     [string] or None
 
     def declare(self, env):
-        if self.visibility != 'extern' and not env.directives['experimental_cpp_class_def']:
-            error(self.pos, "C++ classes need to be declared extern unless experimental_cpp_class_def enabled")
         if self.templates is None:
             template_types = None
         else:

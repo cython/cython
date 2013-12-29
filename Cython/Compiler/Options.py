@@ -141,7 +141,6 @@ directive_defaults = {
 
 # experimental, subject to change
     'binding': None,
-    'experimental_cpp_class_def': False,
     'freelist': 0,
 }
 
