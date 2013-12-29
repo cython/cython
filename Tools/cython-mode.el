@@ -1,4 +1,4 @@
-;;; cython-mode.el -- Major mode for editing Cython files
+;;; cython-mode.el --- Major mode for editing Cython files
 
 ;;; Commentary:
 
