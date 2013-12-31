@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* Support for CPython 3.4.
+
 * Support for calling C++ template functions.
 
 * ``yield`` is supported in ``finally`` clauses.
