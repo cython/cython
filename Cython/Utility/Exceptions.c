@@ -288,8 +288,8 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
     tstate->exc_type = local_type;
     tstate->exc_value = local_value;
     tstate->exc_traceback = local_tb;
-    /* Make sure tstate is in a consistent state when we XDECREF
-       these objects (DECREF may run arbitrary code). */
+    // Make sure tstate is in a consistent state when we XDECREF
+    // these objects (DECREF may run arbitrary code).
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
