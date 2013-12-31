@@ -7544,7 +7544,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         pos_info = chain(*zip(self.parallel_pos_info, self.pos_info))
         code.funcstate.uses_error_indicator = True
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
-        code.putln('__Pyx_GOTREF(%s);' % Naming.parallel_exc_type)
+        code.put_gotref(Naming.parallel_exc_type)
 
         code.putln(
             "}")
@@ -7557,10 +7557,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
 
+        code.put_giveref(Naming.parallel_exc_type)
         code.putln("__Pyx_ErrRestore(%s, %s, %s);" % self.parallel_exc)
         pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
-        code.putln("__Pyx_GIVEREF(%s);" % Naming.parallel_exc_type)
 
         code.put_release_ensured_gil()
         code.end_block()
