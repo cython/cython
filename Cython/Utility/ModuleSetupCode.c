@@ -157,9 +157,16 @@
   #define __Pyx_PyUnicode_READ(k, d, i)   ((k=k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
 #endif
 
-#define __Pyx_PyUnicode_Format(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
+#define __Pyx_PyString_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
+#define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 #define __Pyx_PyUnicode_Concat(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_Add(a, b) : PyUnicode_Concat(a, b))
+
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyString_Format(a, b)  PyUnicode_Format(a, b)
+#else
+  #define __Pyx_PyString_Format(a, b)  PyString_Format(a, b)
+#endif
 
 #if PY_MAJOR_VERSION >= 3
   #define PyBaseString_Type            PyUnicode_Type

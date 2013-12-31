@@ -83,3 +83,52 @@ def literal_join(args):
     result = '|'.join(args)
     assert cython.typeof(result) == 'basestring object', cython.typeof(result)
     return result
+
+
+# unicode.__mod__(format, values)
+
+format1 = 'abc%sdef'
+format2 = 'abc%sdef%sghi'
+
+def mod_format(str s, values):
+    """
+    >>> mod_format(format1, 'sa') == 'abcsadef'  or  mod_format(format1, 'sa')
+    True
+    >>> mod_format(format2, ('XYZ', 'ABC')) == 'abcXYZdefABCghi'  or  mod_format(format2, ('XYZ', 'ABC'))
+    True
+    >>> mod_format(None, 'sa')
+    Traceback (most recent call last):
+    TypeError: unsupported operand type(s) for %: 'NoneType' and 'str'
+    >>> class RMod(object):
+    ...     def __rmod__(self, other):
+    ...         return 123
+    >>> mod_format(None, RMod())
+    123
+    """
+    assert cython.typeof(s % values) == 'basestring object', cython.typeof(s % values)
+    return s % values
+
+
+def mod_format_literal(values):
+    """
+    >>> mod_format_literal('sa') == 'abcsadef'  or  mod_format(format1, 'sa')
+    True
+    >>> mod_format_literal(('sa',)) == 'abcsadef'  or  mod_format(format1, ('sa',))
+    True
+    >>> mod_format_literal(['sa']) == "abc['sa']def"  or  mod_format(format1, ['sa'])
+    True
+    """
+    assert cython.typeof('abc%sdef' % values) == 'basestring object', cython.typeof('abc%sdef' % values)
+    return 'abc%sdef' % values
+
+
+def mod_format_tuple(*values):
+    """
+    >>> mod_format_tuple('sa') == 'abcsadef'  or  mod_format(format1, 'sa')
+    True
+    >>> mod_format_tuple()
+    Traceback (most recent call last):
+    TypeError: not enough arguments for format string
+    """
+    assert cython.typeof('abc%sdef' % values) == 'basestring object', cython.typeof('abc%sdef' % values)
+    return 'abc%sdef' % values

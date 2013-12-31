@@ -9463,9 +9463,14 @@ class ModNode(DivNode):
     def py_operation_function(self):
         if self.operand1.type is unicode_type:
             if self.operand1.may_be_none():
-                return '__Pyx_PyUnicode_Format'
+                return '__Pyx_PyUnicode_FormatSafe'
             else:
                 return 'PyUnicode_Format'
+        elif self.operand1.type is str_type:
+            if self.operand1.may_be_none():
+                return '__Pyx_PyString_FormatSafe'
+            else:
+                return '__Pyx_PyString_Format'
         return super(ModNode, self).py_operation_function()
 
 
