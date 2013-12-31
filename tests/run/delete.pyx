@@ -29,7 +29,7 @@ def del_item(L, o):
     del L[o]
     return L
 
-@cython.test_assert_path_exists('//NoneCheckNode')
+@cython.test_assert_path_exists('//DelStatNode//IndexNode//NoneCheckNode')
 def del_dict(dict D, o):
     """
     >>> del_dict({1: 'a', 2: 'b'}, 1)
