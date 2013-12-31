@@ -25,6 +25,7 @@ from Code import UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
 import DebugFlags
+from Cython.Utils import cached_function
 
 absolute_path_length = 0
 
@@ -378,7 +379,25 @@ class StatListNode(Node):
 
     def analyse_declarations(self, env):
         #print "StatListNode.analyse_declarations" ###
+        base_classes = {}
         for stat in self.stats:
+            if isinstance(stat, CClassDefNode) and not stat.base_class_module:
+                base_classes[stat.class_name] = stat.base_class_name
+        @cached_function
+        def depth(class_name):
+            base_class = base_classes.get(class_name)
+            if class_name is None:
+                return 0
+            else:
+                return depth(base_class) + 1
+        keyed_stats = []
+        for ix, stat in enumerate(self.stats):
+            if isinstance(stat, CClassDefNode):
+                key = 20, depth(stat.class_name), ix
+            else:
+                key = 10, ix
+            keyed_stats.append((key, stat))
+        for key, stat in sorted(keyed_stats):
             stat.analyse_declarations(env)
 
     def analyse_expressions(self, env):
