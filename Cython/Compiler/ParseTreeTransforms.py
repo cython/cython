@@ -2162,6 +2162,12 @@ class RemoveUnreachableCode(CythonTransform):
                 node.is_terminator = True
         return node
 
+    def visit_WhileStatNode(self, node):
+        self.visitchildren(node)
+        if not node.condition:
+            node.is_terminator = True
+        return node
+
     def visit_TryExceptStatNode(self, node):
         self.visitchildren(node)
         if node.body.is_terminator and node.else_clause:
