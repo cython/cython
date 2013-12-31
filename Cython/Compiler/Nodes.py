@@ -2972,6 +2972,9 @@ class DefNodeWrapper(FuncDefNode):
             if not arg.type.is_pyobject:
                 if not arg.type.create_from_py_utility_code(env):
                     pass # will fail later
+            elif not arg.hdr_type.is_pyobject:
+                if not arg.hdr_type.create_to_py_utility_code(env):
+                    pass # will fail later
 
     def signature_has_nongeneric_args(self):
         argcount = len(self.args)
