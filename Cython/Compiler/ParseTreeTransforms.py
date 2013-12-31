@@ -2164,7 +2164,9 @@ class RemoveUnreachableCode(CythonTransform):
 
     def visit_TryExceptStatNode(self, node):
         self.visitchildren(node)
-        if node.body.is_terminator:
+        if node.body.is_terminator and node.else_clause:
+            if self.current_directives['warn.unreachable']:
+                warning(node.else_clause.pos, "Unreachable code", 2)
             node.else_clause = None
         return node
 
