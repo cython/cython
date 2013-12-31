@@ -1893,7 +1893,7 @@ def p_statement(s, ctx, first_statement = 0):
         elif s.sy == 'pass' and ctx.level != 'property':
             return p_pass_statement(s, with_newline=True)
         else:
-            if ctx.level in ('c_class_pxd', 'property'):
+            if ctx.level in ('c_class_pxd', 'property') and s.sy != 'BEGIN_STRING':
                 s.error("Executable statement not allowed here")
             if s.sy == 'if':
                 return p_if_statement(s)
