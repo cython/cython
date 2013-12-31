@@ -2972,7 +2972,7 @@ class DefNodeWrapper(FuncDefNode):
             if not arg.type.is_pyobject:
                 if not arg.type.create_from_py_utility_code(env):
                     pass # will fail later
-            elif not arg.hdr_type.is_pyobject:
+            elif arg.hdr_type and not arg.hdr_type.is_pyobject:
                 if not arg.hdr_type.create_to_py_utility_code(env):
                     pass # will fail later
 
