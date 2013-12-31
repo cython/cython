@@ -277,9 +277,11 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
             goto bad;
     }
     #endif
+    // traceback may be NULL for freshly raised exceptions
     Py_XINCREF(local_tb);
-    Py_INCREF(local_type);
-    Py_INCREF(local_value);
+    // exception state may be temporarily empty in parallel loops (race condition)
+    Py_XINCREF(local_type);
+    Py_XINCREF(local_value);
     *type = local_type;
     *value = local_value;
     *tb = local_tb;
