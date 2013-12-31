@@ -309,6 +309,7 @@ builtin_types_table = [
                                     ]),
 
     ("dict",    "PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
+                                    BuiltinMethod("has_key",       "TO",   "b", "PyDict_Contains"),
                                     BuiltinMethod("items",  "T",   "O", "__Pyx_PyDict_Items",
                                                   utility_code=UtilityCode.load("py_dict_items", "Builtins.c")),
                                     BuiltinMethod("keys",   "T",   "O", "__Pyx_PyDict_Keys",
