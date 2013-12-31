@@ -6464,9 +6464,8 @@ class TryFinallyStatNode(StatNode):
                 exc_lineno_cnames = exc_filename_cname = None
             exc_vars = tuple([
                 code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-                for _ in range(3)])
+                for _ in range(6)])
             code.put_label(new_error_label)
-            code.putln("%s = 0; %s = 0; %s = 0;" % exc_vars)
             self.put_error_catcher(
                 code, temps_to_clean_up, exc_vars, exc_lineno_cnames, exc_filename_cname)
             finally_old_labels = code.all_new_labels()
@@ -6539,14 +6538,25 @@ class TryFinallyStatNode(StatNode):
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
                           exc_lineno_cnames, exc_filename_cname):
         code.globalstate.use_utility_code(restore_exception_utility_code)
+        code.globalstate.use_utility_code(get_exception_utility_code)
+        code.globalstate.use_utility_code(swap_exception_utility_code)
 
+        code.putln(' '.join(["%s = 0;"]*len(exc_vars)) % exc_vars)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
 
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
 
-        code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % exc_vars)
+        # not using preprocessor here to avoid warnings about
+        # unused utility functions and/or temps
+        code.putln("if (PY_MAJOR_VERSION >= 3)"
+                   " __Pyx_ExceptionSwap(&%s, &%s, &%s);" % exc_vars[3:])
+        code.putln("if ((PY_MAJOR_VERSION < 3) ||"
+                   # if __Pyx_GetException() fails in Py3,
+                   # store the newly raised exception instead
+                   " unlikely(__Pyx_GetException(&%s, &%s, &%s) < 0)) "
+                   "__Pyx_ErrFetch(&%s, &%s, &%s);" % (exc_vars[:3] * 2))
         for var in exc_vars:
             code.put_xgotref(var)
         if exc_lineno_cnames:
@@ -6560,18 +6570,24 @@ class TryFinallyStatNode(StatNode):
 
     def put_error_uncatcher(self, code, exc_vars, exc_lineno_cnames, exc_filename_cname):
         code.globalstate.use_utility_code(restore_exception_utility_code)
+        code.globalstate.use_utility_code(reset_exception_utility_code)
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
 
-        for var in exc_vars:
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        for var in exc_vars[3:]:
             code.put_xgiveref(var)
-        code.putln("__Pyx_ErrRestore(%s, %s, %s);" % exc_vars)
+        code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
+        code.putln("#endif")
+        for var in exc_vars[:3]:
+            code.put_xgiveref(var)
+        code.putln("__Pyx_ErrRestore(%s, %s, %s);" % exc_vars[:3])
 
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
 
-        code.putln("%s = 0; %s = 0; %s = 0;" % exc_vars)
+        code.putln(' '.join(["%s = 0;"]*len(exc_vars)) % exc_vars)
         if exc_lineno_cnames:
             code.putln("%s = %s; %s = %s; %s = %s;" % (
                 Naming.lineno_cname, exc_lineno_cnames[0],
@@ -6579,12 +6595,19 @@ class TryFinallyStatNode(StatNode):
                 Naming.filename_cname, exc_filename_cname))
 
     def put_error_cleaner(self, code, exc_vars):
+        code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        for var in exc_vars:
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        for var in exc_vars[3:]:
+            code.put_xgiveref(var)
+        code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
+        code.putln("#endif")
+        for var in exc_vars[:3]:
             code.put_xdecref_clear(var, py_object_type)
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
+        code.putln(' '.join(["%s = 0;"]*3) % exc_vars[3:])
 
     def annotate(self, code):
         self.body.annotate(code)

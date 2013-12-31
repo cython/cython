@@ -272,12 +272,14 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
 #endif
         goto bad;
     #if PY_MAJOR_VERSION >= 3
-    if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
-        goto bad;
+    if (local_tb) {
+        if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
+            goto bad;
+    }
     #endif
+    Py_XINCREF(local_tb);
     Py_INCREF(local_type);
     Py_INCREF(local_value);
-    Py_INCREF(local_tb);
     *type = local_type;
     *value = local_value;
     *tb = local_tb;
