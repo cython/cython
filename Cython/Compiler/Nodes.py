@@ -6442,9 +6442,6 @@ class TryFinallyStatNode(StatNode):
 
         preserve_error = self.preserve_exception and code.label_used(new_error_label)
         needs_success_cleanup = not self.finally_clause.is_terminator
-        if preserve_error:
-            if self.is_try_finally_in_nogil:
-                code.declare_gilstate()
 
         if not self.body.is_terminator:
             code.putln('/*normal exit:*/{')
@@ -6455,6 +6452,8 @@ class TryFinallyStatNode(StatNode):
 
         if preserve_error:
             code.putln('/*exception exit:*/{')
+            if self.is_try_finally_in_nogil:
+                code.declare_gilstate()
             if needs_success_cleanup:
                 exc_lineno_cnames = tuple([
                     code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
