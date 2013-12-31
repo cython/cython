@@ -31,10 +31,6 @@ def try_except():
     else:
         print 'unreachable'
 
-def infinite_loops():
-    while True:
-        pass
-    print 'Never be here'
 
 _ERRORS = """
 6:4: Unreachable code
@@ -42,5 +38,4 @@ _ERRORS = """
 15:8: Unreachable code
 24:4: Unreachable code
 32:8: Unreachable code
-37:4: Unreachable code
 """
