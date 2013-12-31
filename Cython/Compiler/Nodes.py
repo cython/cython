@@ -3849,10 +3849,12 @@ class GeneratorBodyDefNode(DefNode):
 
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
-        code.putln('PyErr_SetNone(PyExc_StopIteration);')
+        if not self.body.is_terminator:
+            code.putln('PyErr_SetNone(PyExc_StopIteration);')
         # ----- Error cleanup
         if code.error_label in code.labels_used:
-            code.put_goto(code.return_label)
+            if not self.body.is_terminator:
+                code.put_goto(code.return_label)
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
