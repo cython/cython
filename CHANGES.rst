@@ -84,6 +84,9 @@ Bugs fixed
   generates a 'default' clause to avoid C compiler warnings about
   unmatched enum values.
 
+* Fixed a bug where class hierarchies declared out-of-order could result
+  in broken generated code.
+
 * Fixed a bug which prevented overriding const methods of C++ classes.
 
 Other changes
