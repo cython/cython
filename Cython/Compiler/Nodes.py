@@ -6577,11 +6577,13 @@ class TryFinallyStatNode(StatNode):
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
 
-        code.putln("#if PY_MAJOR_VERSION >= 3")
+        # not using preprocessor here to avoid warnings about
+        # unused utility functions and/or temps
+        code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
-        code.putln("#endif")
+        code.putln("}")
         for var in exc_vars[:3]:
             code.put_xgiveref(var)
         code.putln("__Pyx_ErrRestore(%s, %s, %s);" % exc_vars[:3])
@@ -6600,11 +6602,13 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        code.putln("#if PY_MAJOR_VERSION >= 3")
+        # not using preprocessor here to avoid warnings about
+        # unused utility functions and/or temps
+        code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
-        code.putln("#endif")
+        code.putln("}")
         for var in exc_vars[:3]:
             code.put_xdecref_clear(var, py_object_type)
         if self.is_try_finally_in_nogil:
