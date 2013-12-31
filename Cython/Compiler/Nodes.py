@@ -1799,19 +1799,21 @@ class FuncDefNode(StatNode, BlockNode):
         code.putln("/* function exit code */")
 
         # ----- Default return value
-        if self.return_type.is_pyobject:
-            #if self.return_type.is_extension_type:
-            #    lhs = "(PyObject *)%s" % Naming.retval_cname
-            #else:
-            lhs = Naming.retval_cname
-            code.put_init_to_py_none(lhs, self.return_type)
-        else:
-            val = self.return_type.default_value
-            if val:
-                code.putln("%s = %s;" % (Naming.retval_cname, val))
+        if not self.body.is_terminator:
+            if self.return_type.is_pyobject:
+                #if self.return_type.is_extension_type:
+                #    lhs = "(PyObject *)%s" % Naming.retval_cname
+                #else:
+                lhs = Naming.retval_cname
+                code.put_init_to_py_none(lhs, self.return_type)
+            else:
+                val = self.return_type.default_value
+                if val:
+                    code.putln("%s = %s;" % (Naming.retval_cname, val))
         # ----- Error cleanup
         if code.error_label in code.labels_used:
-            code.put_goto(code.return_label)
+            if not self.body.is_terminator:
+                code.put_goto(code.return_label)
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type, have_gil=not lenv.nogil)
