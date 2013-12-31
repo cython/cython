@@ -1344,7 +1344,7 @@ class UnicodeNode(ConstNode):
             if self.contains_surrogates():
                 # surrogates are not really portable and cannot be
                 # decoded by the UTF-8 codec in Py3.3
-                self.result_code = code.get_py_const(py_object_type, 'ustring_')
+                self.result_code = code.get_py_const(py_object_type, 'ustring')
                 data_cname = code.get_pyunicode_ptr_const(self.value)
                 code = code.get_cached_constants_writer()
                 code.mark_pos(self.pos)
@@ -4193,7 +4193,7 @@ class SliceNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_literal:
-            self.result_code = code.get_py_const(py_object_type, 'slice_', cleanup_level=2)
+            self.result_code = code.get_py_const(py_object_type, 'slice', cleanup_level=2)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
 
@@ -6217,7 +6217,7 @@ class TupleNode(SequenceNode):
             return
         if self.is_partly_literal:
             # underlying tuple is const, but factor is not
-            tuple_target = code.get_py_const(py_object_type, 'tuple_', cleanup_level=2)
+            tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2)
             const_code = code.get_cached_constants_writer()
             const_code.mark_pos(self.pos)
             self.generate_sequence_packing_code(const_code, tuple_target, plain=True)
@@ -6230,7 +6230,7 @@ class TupleNode(SequenceNode):
         elif self.is_literal:
             # non-empty cached tuple => result is global constant,
             # creation code goes into separate code writer
-            self.result_code = code.get_py_const(py_object_type, 'tuple_', cleanup_level=2)
+            self.result_code = code.get_py_const(py_object_type, 'tuple', cleanup_level=2)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
             self.generate_sequence_packing_code(code)
@@ -7602,7 +7602,7 @@ class CodeObjectNode(ExprNode):
         return self.result_code
 
     def generate_result_code(self, code):
-        self.result_code = code.get_py_const(py_object_type, 'codeobj_', cleanup_level=2)
+        self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
 
         code = code.get_cached_constants_writer()
         code.mark_pos(self.pos)

@@ -803,7 +803,7 @@ class StringConst(object):
         else:
             intern = False
         if intern:
-            prefix = Naming.interned_str_prefix
+            prefix = Naming.interned_prefixes['str']
         else:
             prefix = Naming.py_const_prefix
 
@@ -1120,11 +1120,10 @@ class GlobalState(object):
         return self.new_const_cname(value=value)
 
     def new_num_const_cname(self, value, py_type):
-        prefix = Naming.interned_int_prefix
         if py_type == 'long':
             value += 'L'
-        elif py_type == 'float':
-            prefix = Naming.interned_float_prefix
+            py_type = 'int'
+        prefix = Naming.interned_prefixes[py_type]
         cname = "%s%s" % (prefix, value)
         cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
         return cname
@@ -1137,7 +1136,11 @@ class GlobalState(object):
             counter = used[value] = used[value] + 1
             name_suffix = '%s_%d' % (value, counter)
         used[name_suffix] = 1
-        return "%s%s%s" % (Naming.const_prefix, prefix, name_suffix)
+        if prefix:
+            prefix = Naming.interned_prefixes[prefix]
+        else:
+            prefix = Naming.const_prefix
+        return "%s%s" % (prefix, name_suffix)
 
     def add_cached_builtin_decl(self, entry):
         if entry.is_builtin and entry.is_const:

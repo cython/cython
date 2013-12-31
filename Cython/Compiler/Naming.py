@@ -29,9 +29,6 @@ label_prefix      = pyrex_prefix + "L"
 pymethdef_prefix  = pyrex_prefix + "mdef_"
 methtab_prefix    = pyrex_prefix + "methods_"
 memtab_prefix     = pyrex_prefix + "members_"
-interned_str_prefix = pyrex_prefix + "n_"
-interned_int_prefix = pyrex_prefix + "int_"
-interned_float_prefix = pyrex_prefix + "float_"
 objstruct_prefix  = pyrex_prefix + "obj_"
 typeptr_prefix    = pyrex_prefix + "ptype_"
 prop_set_prefix   = pyrex_prefix + "setprop_"
@@ -53,6 +50,16 @@ lambda_func_prefix = pyrex_prefix + "lambda_"
 module_is_main   = pyrex_prefix + "module_is_main_"
 defaults_struct_prefix = pyrex_prefix + "defaults"
 dynamic_args_cname = pyrex_prefix + "dynamic_args"
+
+interned_prefixes = {
+    'str': pyrex_prefix + "n_",
+    'int': pyrex_prefix + "int_",
+    'float': pyrex_prefix + "float_",
+    'tuple': pyrex_prefix + "tuple_",
+    'codeobj': pyrex_prefix + "codeobj_",
+    'slice': pyrex_prefix + "slice_",
+    'ustring': pyrex_prefix + "ustring_",
+}
 
 args_cname       = pyrex_prefix + "args"
 generator_cname  = pyrex_prefix + "generator"
