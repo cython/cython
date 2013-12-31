@@ -838,6 +838,8 @@ class ControlFlowAnalysis(CythonTransform):
                 # Mark reference
                 self._visit(arg)
                 self.flow.mark_deletion(arg, entry)
+            else:
+                self._visit(arg)
         return node
 
     def visit_CArgDeclNode(self, node):

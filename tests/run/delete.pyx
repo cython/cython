@@ -1,4 +1,6 @@
 
+cimport cython
+
 class A(object):
     """
     >>> a = A()
@@ -27,11 +29,22 @@ def del_item(L, o):
     del L[o]
     return L
 
+@cython.test_assert_path_exists('//NoneCheckNode')
 def del_dict(dict D, o):
     """
     >>> del_dict({1: 'a', 2: 'b'}, 1)
     {2: 'b'}
     """
+    del D[o]
+    return D
+
+@cython.test_fail_if_path_exists('//NoneCheckNode')
+def del_dict_from_literal(o):
+    """
+    >>> del_dict_from_literal(1)
+    {2: 'b'}
+    """
+    D = {1: 'a', 2: 'b'}
     del D[o]
     return D
 
