@@ -7884,9 +7884,11 @@ class YieldFromExprNode(YieldExprNode):
         # either error or sub-generator has normally terminated: return value => node result
         if self.result_is_used:
             # YieldExprNode has allocated the result temp for us
+            code.putln("%s = NULL;" % self.result())
             code.putln("if (unlikely(__Pyx_PyGen_FetchStopIterationValue(&%s) < 0)) %s" % (
                 self.result(),
                 code.error_goto(self.pos)))
+            code.put_gotref(self.result())
         else:
             code.putln("PyObject* exc_type = PyErr_Occurred();")
             code.putln("if (exc_type) {")
