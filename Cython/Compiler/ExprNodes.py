@@ -6966,10 +6966,14 @@ class Py3ClassNode(ExprNode):
             mkw = self.mkw.py_result()
         else:
             mkw = 'NULL'
+        if self.metaclass:
+            metaclass = self.metaclass.result()
+        else:
+            metaclass = "((PyObject*)&__Pyx_DefaultClassType)"
         code.putln(
             '%s = __Pyx_Py3ClassCreate(%s, %s, %s, %s, %s, %d, %d); %s' % (
                 self.result(),
-                self.metaclass.result(),
+                metaclass,
                 cname,
                 self.bases.py_result(),
                 self.dict.py_result(),
@@ -7163,10 +7167,14 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
             mkw = self.mkw.py_result()
         else:
             mkw = '(PyObject *) NULL'
+        if self.metaclass:
+            metaclass = self.metaclass.result()
+        else:
+            metaclass = "(PyObject *) NULL"
         code.putln(
             "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s, %s); %s" % (
                 self.result(),
-                self.metaclass.result(),
+                metaclass,
                 self.bases.result(),
                 cname,
                 qualname,

@@ -4044,8 +4044,13 @@ class PyClassDefNode(ClassDefNode):
                     mkdict = self.mkw
                 else:
                     mkdict = None
-                self.metaclass = ExprNodes.PyClassMetaclassNode(
-                    pos, mkw=mkdict, bases=self.bases)
+                if (not mkdict and
+                        self.bases.is_sequence_constructor and
+                        not self.bases.args):
+                    pass  # no base classes => no inherited metaclass
+                else:
+                    self.metaclass = ExprNodes.PyClassMetaclassNode(
+                        pos, mkw=mkdict, bases=self.bases)
                 needs_metaclass_calculation = False
             else:
                 needs_metaclass_calculation = True

@@ -830,25 +830,26 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
-    PyObject *prep;
-    PyObject *pargs;
     PyObject *ns;
-
-    prep = __Pyx_PyObject_GetAttrStr(metaclass, PYIDENT("__prepare__"));
-    if (!prep) {
-        if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError)))
-            return NULL;
-        PyErr_Clear();
-        ns = PyDict_New();
-    } else {
-        pargs = PyTuple_Pack(2, name, bases);
-        if (unlikely(!pargs)) {
+    if (metaclass) {
+        PyObject *prep = __Pyx_PyObject_GetAttrStr(metaclass, PYIDENT("__prepare__"));
+        if (prep) {
+            PyObject *pargs = PyTuple_Pack(2, name, bases);
+            if (unlikely(!pargs)) {
+                Py_DECREF(prep);
+                return NULL;
+            }
+            ns = PyObject_Call(prep, pargs, mkw);
             Py_DECREF(prep);
-            return NULL;
+            Py_DECREF(pargs);
+        } else {
+            if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError)))
+                return NULL;
+            PyErr_Clear();
+            ns = PyDict_New();
         }
-        ns = PyObject_Call(prep, pargs, mkw);
-        Py_DECREF(prep);
-        Py_DECREF(pargs);
+    } else {
+        ns = PyDict_New();
     }
 
     if (unlikely(!ns))
