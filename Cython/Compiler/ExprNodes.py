@@ -7844,16 +7844,12 @@ class YieldExprNode(ExprNode):
             code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
-            if type.is_pyobject:
                 code.put_xgotref(cname)
+        code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
         if self.result_is_used:
             self.allocate_temp_result(code)
-            code.putln('%s = %s; %s' %
-                       (self.result(), Naming.sent_value_cname,
-                        code.error_goto_if_null(self.result(), self.pos)))
+            code.put('%s = %s; ' % (self.result(), Naming.sent_value_cname))
             code.put_incref(self.result(), py_object_type)
-        else:
-            code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
 
 
 class YieldFromExprNode(YieldExprNode):
