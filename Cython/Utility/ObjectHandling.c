@@ -868,35 +868,24 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *dict, PyObject *mkw,
                                       int calculate_metaclass, int allow_py2_metaclass) {
     PyObject *result, *margs;
-    PyObject *py2_metaclass = NULL;
+    PyObject *owned_metaclass = NULL;
     if (allow_py2_metaclass) {
         /* honour Python2 __metaclass__ for backward compatibility */
-        py2_metaclass = PyObject_GetItem(dict, PYIDENT("__metaclass__"));
-        if (py2_metaclass) {
-            if (likely(PyType_Check(py2_metaclass))) {
-                metaclass = py2_metaclass;
-                calculate_metaclass = 1;
-            } else {
-                /* py2_metaclass != NULL => calculate_metaclass != 0 */
-                Py_DECREF(py2_metaclass);
-                py2_metaclass = NULL;
-            }
+        owned_metaclass = PyObject_GetItem(dict, PYIDENT("__metaclass__"));
+        if (owned_metaclass) {
+            metaclass = owned_metaclass;
         } else if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) {
             PyErr_Clear();
         } else {
             return NULL;
         }
     }
-    if (calculate_metaclass) {
-        if (py2_metaclass || PyType_Check(metaclass)) {
-            metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
-            Py_XDECREF(py2_metaclass);
-            if (unlikely(!metaclass))
-                return NULL;
-        } else {
-            Py_XDECREF(py2_metaclass);
-            calculate_metaclass = 0;
-        }
+    if (calculate_metaclass && (!metaclass || PyType_Check(metaclass))) {
+        metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
+        Py_XDECREF(owned_metaclass);
+        if (unlikely(!metaclass))
+            return NULL;
+        owned_metaclass = metaclass;
     }
     margs = PyTuple_Pack(3, name, bases, dict);
     if (unlikely(!margs)) {
@@ -905,9 +894,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
         result = PyObject_Call(metaclass, margs, mkw);
         Py_DECREF(margs);
     }
-    if (calculate_metaclass) {
-        Py_DECREF(metaclass);
-    }
+    Py_XDECREF(owned_metaclass);
     return result;
 }
 

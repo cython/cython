@@ -15,6 +15,26 @@ class Foo(object):
     """
     __metaclass__ = Base
 
+
+def non_type_metaclass(name, bases, namespace):
+    namespace['BASES'] = [b.__name__ for b in bases]
+    namespace['NAME'] = name
+    return type(name, bases, namespace)
+
+class FunctionAsPy2Metaclass(object):
+    """
+    >>> obj = FunctionAsPy2Metaclass()
+    >>> obj.NAME
+    'FunctionAsPy2Metaclass'
+    >>> obj.BASES
+    ['object']
+    >>> obj.x
+    1
+    """
+    __metaclass__ = non_type_metaclass
+    x = 1
+
+
 class ODict(dict):
     def __init__(self):
         dict.__init__(self)
