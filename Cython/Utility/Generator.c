@@ -38,7 +38,8 @@ typedef struct {
     PyObject *classobj;
     PyObject *yieldfrom;
     int resume_label;
-    char is_running;  // using T_BOOL for property below requires char value
+    // using T_BOOL for property below requires char value
+    char is_running;
 } __pyx_GeneratorObject;
 
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
