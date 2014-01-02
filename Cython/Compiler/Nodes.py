@@ -4640,7 +4640,7 @@ class SingleAssignmentNode(AssignmentNode):
             dtype = self.lhs.type
 
         self.rhs = self.rhs.coerce_to(dtype, env)
-        if use_temp or self.rhs.is_attribute:
+        if use_temp or (self.rhs.is_attribute and not self.lhs.is_name):
             # (cdef) attribute access is not safe as it traverses pointers
             self.rhs = self.rhs.coerce_to_temp(env)
         elif self.rhs.type.is_pyobject:
