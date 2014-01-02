@@ -859,7 +859,7 @@ class ExprNode(Node):
         """Instantiate this node class from another node, properly
         copying over all attributes that one would forget otherwise.
         """
-        attributes = "cf_state cf_maybe_null cf_is_null".split()
+        attributes = "cf_state cf_maybe_null cf_is_null constant_result".split()
         for attr_name in attributes:
             if attr_name in kwargs:
                 continue
