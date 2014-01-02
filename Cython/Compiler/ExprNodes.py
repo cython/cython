@@ -9650,8 +9650,9 @@ class CondExprNode(ExprNode):
         return self.true_val.type_dependencies(env) + self.false_val.type_dependencies(env)
 
     def infer_type(self, env):
-        return PyrexTypes.independent_spanning_type(self.true_val.infer_type(env),
-                                                    self.false_val.infer_type(env))
+        return PyrexTypes.independent_spanning_type(
+            self.true_val.infer_type(env),
+            self.false_val.infer_type(env))
 
     def calculate_constant_result(self):
         if self.test.constant_result:
@@ -9663,16 +9664,26 @@ class CondExprNode(ExprNode):
         self.test = self.test.analyse_types(env).coerce_to_boolean(env)
         self.true_val = self.true_val.analyse_types(env)
         self.false_val = self.false_val.analyse_types(env)
-        self.type = PyrexTypes.independent_spanning_type(self.true_val.type, self.false_val.type)
+        self.is_temp = 1
+        return self.analyse_result_type(env)
+
+    def analyse_result_type(self, env):
+        self.type = PyrexTypes.independent_spanning_type(
+            self.true_val.type, self.false_val.type)
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
-        self.is_temp = 1
         if self.type == PyrexTypes.error_type:
             self.type_error()
         return self
+
+    def coerce_to(self, dst_type, env):
+        self.true_val = self.true_val.coerce_to(dst_type, env)
+        self.false_val = self.false_val.coerce_to(dst_type, env)
+        self.result_ctype = None
+        return self.analyse_result_type(env)
 
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
