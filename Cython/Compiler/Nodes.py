@@ -4640,8 +4640,8 @@ class SingleAssignmentNode(AssignmentNode):
             dtype = self.lhs.type
 
         self.rhs = self.rhs.coerce_to(dtype, env)
-        if use_temp or (self.rhs.is_attribute and not self.lhs.is_name):
-            # (cdef) attribute access is not safe as it traverses pointers
+        if use_temp or not self.rhs.is_name:
+            # things like (cdef) attribute access are not safe (traverses pointers)
             self.rhs = self.rhs.coerce_to_temp(env)
         elif self.rhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to_simple(env)
@@ -4683,15 +4683,13 @@ class CascadedAssignmentNode(AssignmentNode):
     def analyse_types(self, env, use_temp = 0):
         from ExprNodes import CloneNode, ProxyNode
 
-        self.rhs = self.rhs.analyse_types(env)
-        # (cdef) attribute access is not safe as it traverses pointers
-        if self.rhs.is_attribute or not self.rhs.is_simple():
-            if use_temp:
-                self.rhs = self.rhs.coerce_to_temp(env)
-            else:
-                self.rhs = self.rhs.coerce_to_simple(env)
+        rhs = self.rhs.analyse_types(env)
+        if rhs.is_name:
+            rhs = rhs.coerce_to_simple(env)
+        else:
+            rhs = rhs.coerce_to_temp(env)
+        self.rhs = ProxyNode(rhs)
 
-        self.rhs = ProxyNode(self.rhs)
         self.coerced_rhs_list = []
         for lhs in self.lhs_list:
             lhs.analyse_target_types(env)
