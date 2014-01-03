@@ -58,6 +58,8 @@ except ImportError:
             self._dict[key] = value
         def __repr__(self):
             return repr(self._dict)
+        def __nonzero__(self):
+            return bool(self._dict)
 
 try:
     basestring
