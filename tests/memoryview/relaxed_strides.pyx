@@ -26,6 +26,7 @@ See also:
 
 import numpy as np
 
+
 def test_one_sized(array):
     """
     >>> contig = np.ascontiguousarray(np.arange(10, dtype=np.double)[::100])
@@ -38,6 +39,7 @@ def test_one_sized(array):
     cdef double[::1] a = array
     a[0] += 1.
     return array
+
 
 def test_zero_sized(array):
     """
