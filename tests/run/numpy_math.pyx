@@ -1,6 +1,6 @@
 # tag: numpy
-# Numpy <= 1.7.1 doesn't have a C++ guard in the header file.
 # tag: no-cpp
+# Numpy <= 1.7.1 doesn't have a C++ guard in the header file.
 
 cimport numpy.math as npmath
 
