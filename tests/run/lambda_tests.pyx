@@ -1,6 +1,6 @@
-#
-# lambda_tests.pyx
-#
+# mode: run
+# tag: closures, lambda
+
 # Battery of tests for closures in Cython. Based on the collection of
 # compiler tests from P423/B629 at Indiana University, Spring 1999 and
 # Fall 2000. Special thanks to R. Kent Dybvig, Dan Friedman, Kevin
