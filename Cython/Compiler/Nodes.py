@@ -4639,14 +4639,15 @@ class SingleAssignmentNode(AssignmentNode):
         else:
             dtype = self.lhs.type
 
-        self.rhs = self.rhs.coerce_to(dtype, env)
-        if use_temp or self.rhs.is_attribute or (
-                not self.rhs.is_name and not self.rhs.is_literal and
-                self.rhs.type.is_pyobject):
+        rhs = self.rhs.coerce_to(dtype, env)
+        if use_temp or rhs.is_attribute or (
+                not rhs.is_name and not rhs.is_literal and
+                rhs.type.is_pyobject):
             # things like (cdef) attribute access are not safe (traverses pointers)
-            self.rhs = self.rhs.coerce_to_temp(env)
-        elif self.rhs.type.is_pyobject:
-            self.rhs = self.rhs.coerce_to_simple(env)
+            rhs = rhs.coerce_to_temp(env)
+        elif rhs.type.is_pyobject:
+            rhs = rhs.coerce_to_simple(env)
+        self.rhs = rhs
         return self
 
     def generate_rhs_evaluation_code(self, code):
@@ -4686,9 +4687,9 @@ class CascadedAssignmentNode(AssignmentNode):
         from ExprNodes import CloneNode, ProxyNode
 
         rhs = self.rhs.analyse_types(env)
-        if use_temp or self.rhs.is_attribute or (
-                not self.rhs.is_name and not self.rhs.is_literal and
-                self.rhs.type.is_pyobject):
+        if use_temp or rhs.is_attribute or (
+                not rhs.is_name and not rhs.is_literal and
+                rhs.type.is_pyobject):
             rhs = rhs.coerce_to_temp(env)
         else:
             rhs = rhs.coerce_to_simple(env)
