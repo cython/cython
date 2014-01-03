@@ -299,20 +299,33 @@ def memoize(f):
 @memoize
 def parse_tags(filepath):
     tags = defaultdict(list)
+    parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
     f = io_open(filepath, encoding='ISO-8859-1', errors='ignore')
     try:
         for line in f:
             # ignore BOM-like bytes and whitespace
             line = line.lstrip(UTF8_BOM_BYTES).strip()
             if not line:
-                continue
+                if tags:
+                    break  # assume all tags are in one block
+                else:
+                    continue
             if line[0] != '#':
                 break
-            ix = line.find(':')
-            if ix != -1:
-                tag = line[1:ix].strip()
-                values = line[ix+1:].split(',')
-                tags[tag].extend([value.strip() for value in values])
+            parsed = parse_tag(line)
+            if parsed:
+                tag, values = parsed.groups()
+                if tag in ('coding', 'encoding'):
+                    continue
+                if tag == 'tags':
+                    tag = 'tag'
+                    print("WARNING: test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
+                if tag not in ('mode', 'tag', 'ticket', 'cython'):
+                    print("WARNING: unknown test directive '%s' found (%s)" % (tag, filepath))
+                values = values.split(',')
+                tags[tag].extend(filter(None, [value.strip() for value in values]))
+            elif tags:
+                break  # assume all tags are in one block
     finally:
         f.close()
     return tags
