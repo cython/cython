@@ -1,5 +1,5 @@
-# tag: numpy
 # mode: run
+# tag: numpy
 
 """
 Test accepting NumPy arrays with arbitrary strides for zero- or one-sized
@@ -28,8 +28,8 @@ import numpy as np
 
 def test_one_sized(array):
     """
-    >>> a = np.ascontiguousarray(np.arange(10, dtype=np.double)[::100])
-    >>> test_one_sized(a)[0]
+    >>> contig = np.ascontiguousarray(np.arange(10, dtype=np.double)[::100])
+    >>> test_one_sized(contig)[0]
     1.0
     >>> a = np.arange(10, dtype=np.double)[::100]
     >>> test_one_sized(a)[0]
@@ -41,10 +41,11 @@ def test_one_sized(array):
 
 def test_zero_sized(array):
     """
-    >>> a = np.ascontiguousarray(np.arange(10, dtype=np.double)[100:200:10])
-    >>> a = test_zero_sized(a)
+    >>> contig = np.ascontiguousarray(np.arange(10, dtype=np.double)[100:200:10])
+    >>> _ = test_zero_sized(contig)
+
     >>> a = np.arange(10, dtype=np.double)[100:200:10]
-    >>> a = test_zero_sized(a)
+    >>> _ = test_zero_sized(a)
     """
     cdef double[::1] a = array
     return a
