@@ -4641,7 +4641,8 @@ class SingleAssignmentNode(AssignmentNode):
 
         self.rhs = self.rhs.coerce_to(dtype, env)
         if use_temp or self.rhs.is_attribute or (
-                not self.rhs.is_name and self.rhs.type.is_pyobject):
+                not self.rhs.is_name and not self.rhs.is_literal and
+                self.rhs.type.is_pyobject):
             # things like (cdef) attribute access are not safe (traverses pointers)
             self.rhs = self.rhs.coerce_to_temp(env)
         elif self.rhs.type.is_pyobject:
@@ -4685,9 +4686,11 @@ class CascadedAssignmentNode(AssignmentNode):
         from ExprNodes import CloneNode, ProxyNode
 
         rhs = self.rhs.analyse_types(env)
-        if use_temp or self.rhs.is_attribute or self.rhs.type.is_pyobject:
+        if use_temp or self.rhs.is_attribute or (
+                not self.rhs.is_name and not self.rhs.is_literal and
+                self.rhs.type.is_pyobject):
             rhs = rhs.coerce_to_temp(env)
-        elif rhs.is_name:
+        else:
             rhs = rhs.coerce_to_simple(env)
         self.rhs = ProxyNode(rhs)
 
