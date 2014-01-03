@@ -1,5 +1,5 @@
 # mode: run
-# tags: eval
+# tag: eval
 
 GLOBAL = 123
 

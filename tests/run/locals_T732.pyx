@@ -1,6 +1,6 @@
 # mode: run
 # ticket: 731
-# tags: locals, vars, dir
+# tag: locals, vars, dir
 
 cimport cython
 

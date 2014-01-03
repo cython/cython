@@ -1,5 +1,5 @@
 # mode: run
-# tags: lambda, attribute, regression
+# tag: lambda, attribute, regression
 
 class TestClass(object):
     bar = 123

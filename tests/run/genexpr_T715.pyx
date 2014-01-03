@@ -1,6 +1,6 @@
 # mode: run
 # ticket: 715
-# tags: genexpr, comprehension
+# tag: genexpr, comprehension
 
 def t715(*items):
     """

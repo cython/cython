@@ -1,5 +1,5 @@
 # mode: run
-# tags: py3k_super
+# tag: py3k_super
 
 class A(object):
     def method(self):
