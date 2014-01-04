@@ -713,7 +713,6 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 //////////////////// ByteArrayAppend ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-// signature uses Py_ssize_t to make coercions use PyNumber_Index(), as CPython does
 static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
 #if CYTHON_COMPILING_IN_CPYTHON
