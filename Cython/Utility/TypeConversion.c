@@ -276,11 +276,30 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   return res;
 }
 
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+ #if CYTHON_USE_PYLONG_INTERNALS
+  #include "longintrepr.h"
+ #endif
+#endif
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;
   PyObject *x;
+#if PY_MAJOR_VERSION < 3
   if (likely(PyInt_CheckExact(b)))
-      return PyInt_AsSsize_t(b);
+      return PyInt_AS_LONG(b);
+#endif
+  if (likely(PyLong_CheckExact(b))) {
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+     #if CYTHON_USE_PYLONG_INTERNALS
+       switch (Py_SIZE(b)) {
+       case -1: return -(sdigit)((PyLongObject*)b)->ob_digit[0];
+       case  0: return 0;
+       case  1: return ((PyLongObject*)b)->ob_digit[0];
+       }
+     #endif
+    #endif
+    return PyLong_AsSsize_t(b);
+  }
   x = PyNumber_Index(b);
   if (!x) return -1;
   ival = PyInt_AsSsize_t(x);
