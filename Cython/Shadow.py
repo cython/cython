@@ -1,5 +1,5 @@
 # cython.* namespace for pure mode.
-__version__ = "0.20dev"
+__version__ = "0.20b1"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
