@@ -212,6 +212,21 @@ def bytearray_append(bytearray b, char c, int i, object o):
     abcXxyz
 
     >>> b = bytearray(b'abc')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), ord('\\xc3') if IS_PY3 else b'\\xc3')
+    >>> print(b[:-1].decode('ascii'))
+    abcXxy
+    >>> print('%x' % b[-1])
+    c3
+
+    >>> b = bytearray(b'abc')
+    >>> try:
+    ...     b = bytearray_append(b, ord('x'), ord('y'), b'zz')
+    ... except (TypeError, ValueError): pass  # (Py3, Py2)
+    ... else: print("FAIL")
+    >>> print(b.decode('ascii'))
+    abcXxy
+
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, -1, ord('y'), ord('z'))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...

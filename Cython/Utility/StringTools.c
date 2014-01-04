@@ -695,7 +695,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
             PyErr_SetString(PyExc_ValueError, "string must be of size 1");
             return -1;
         }
-        ival = PyString_AS_STRING(value)[0];
+        ival = (unsigned char) (PyString_AS_STRING(value)[0]);
     } else
 #endif
     {
