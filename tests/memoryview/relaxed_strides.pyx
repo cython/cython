@@ -26,8 +26,15 @@ See also:
 
 import numpy as np
 
-NUMPY_HAS_RELAXED_STRIDES = np.ones((10, 1), order="C").flags.f_contiguous
+numpy_version = np.__version__.split('.')[:2]
+try:
+    numpy_version = tuple(map(int, numpy_version))
+except ValueError:
+    numpy_version = (20, 0)
 
+NUMPY_HAS_RELAXED_STRIDES = (
+    numpy_version < (1, 8) or
+    np.ones((10, 1), order="C").flags.f_contiguous)
 
 
 def test_one_sized(array):
