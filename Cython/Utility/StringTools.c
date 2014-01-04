@@ -699,9 +699,14 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
     } else
 #endif
     {
+        // CPython calls PyNumber_Index() internally
         ival = __Pyx_PyIndex_AsSsize_t(value);
-        if (unlikely(ival == -1 && PyErr_Occurred()))
+        if (unlikely((ival < 0) | (ival > 255))) {
+            if (ival == -1 && PyErr_Occurred())
+                return -1;
+            PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
             return -1;
+        }
     }
     return __Pyx_PyByteArray_Append(bytearray, ival);
 }
