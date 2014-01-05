@@ -298,7 +298,11 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
        }
      #endif
     #endif
+  #if PY_VERSION_HEX < 0x02060000
+    return PyInt_AsSsize_t(b);
+  #else
     return PyLong_AsSsize_t(b);
+  #endif
   }
   x = PyNumber_Index(b);
   if (!x) return -1;
