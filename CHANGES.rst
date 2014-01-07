@@ -64,6 +64,9 @@ Features added
   oft-used utility code once in a separate directory rather than as
   part of each generated file.
 
+* ``unraisable_tracebacks`` directive added to control printing of
+  tracebacks of unraisable exceptions.
+
 Bugs fixed
 ----------
 
