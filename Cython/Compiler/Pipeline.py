@@ -6,6 +6,7 @@ import DebugFlags
 import Options
 from Visitor import CythonTransform
 from Errors import CompileError, InternalError, AbortError
+import Naming
 
 #
 # Really small pipeline stages
@@ -279,6 +280,9 @@ def create_pyx_as_pxd_pipeline(context, result):
         for entry in root.scope.entries.values():
             if not entry.in_cinclude:
                 entry.defined_in_pxd = 1
+                if entry.name == entry.cname and entry.visibility != 'extern':
+                    # Always mangle non-extern cimported entries.
+                    entry.cname = entry.scope.mangle(Naming.func_prefix, entry.name)
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline
