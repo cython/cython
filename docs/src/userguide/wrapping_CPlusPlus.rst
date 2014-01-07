@@ -391,7 +391,7 @@ Multiple template parameters can be defined as a list, such as [T, U, V]
 or [int, bool, char].  Template functions are defined similarly, with
 the template parameter list following the function name::
 
-    cdef extern from “<algorithm>” namespace “std”:
+    cdef extern from "<algorithm>" namespace "std":
         T max[T](T a, T b)
 
     print max[long](3, 4)
