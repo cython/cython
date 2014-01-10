@@ -18,52 +18,7 @@ pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 
-py_set_utility_code = UtilityCode(
-proto = """
-#if PY_VERSION_HEX < 0x02050000
-#ifndef PyAnySet_CheckExact
-
-#define PyAnySet_CheckExact(ob) \\
-    ((ob)->ob_type == &PySet_Type || \\
-     (ob)->ob_type == &PyFrozenSet_Type)
-
-#define PySet_New(iterable) \\
-    PyObject_CallFunctionObjArgs((PyObject *)&PySet_Type, (iterable), NULL)
-
-#define Pyx_PyFrozenSet_New(iterable) \\
-    PyObject_CallFunctionObjArgs((PyObject *)&PyFrozenSet_Type, (iterable), NULL)
-
-#define PySet_Size(anyset) \\
-    PyObject_Size((anyset))
-
-#define PySet_Contains(anyset, key) \\
-    PySequence_Contains((anyset), (key))
-
-#define PySet_Pop(set) \\
-    PyObject_CallMethod(set, (char *)"pop", NULL)
-
-static CYTHON_INLINE int PySet_Clear(PyObject *set) {
-    PyObject *ret = PyObject_CallMethod(set, (char *)"clear", NULL);
-    if (!ret) return -1;
-    Py_DECREF(ret); return 0;
-}
-
-static CYTHON_INLINE int PySet_Discard(PyObject *set, PyObject *key) {
-    PyObject *ret = PyObject_CallMethod(set, (char *)"discard", (char *)"O", key);
-    if (!ret) return -1;
-    Py_DECREF(ret); return 0;
-}
-
-static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
-    PyObject *ret = PyObject_CallMethod(set, (char *)"add", (char *)"O", key);
-    if (!ret) return -1;
-    Py_DECREF(ret); return 0;
-}
-
-#endif /* PyAnySet_CheckExact (<= Py2.4) */
-#endif /* < Py2.5  */
-""",
-)
+py_set_utility_code = UtilityCode.load("pyset_compat", "Builtins.c")
 
 builtin_utility_code = {
     'set'       : py_set_utility_code,
