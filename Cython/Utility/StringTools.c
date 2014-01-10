@@ -695,13 +695,18 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
             PyErr_SetString(PyExc_ValueError, "string must be of size 1");
             return -1;
         }
-        ival = PyString_AS_STRING(value)[0];
+        ival = (unsigned char) (PyString_AS_STRING(value)[0]);
     } else
 #endif
     {
+        // CPython calls PyNumber_Index() internally
         ival = __Pyx_PyIndex_AsSsize_t(value);
-        if (unlikely(ival == -1 && PyErr_Occurred()))
+        if (unlikely((ival < 0) | (ival > 255))) {
+            if (ival == -1 && PyErr_Occurred())
+                return -1;
+            PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
             return -1;
+        }
     }
     return __Pyx_PyByteArray_Append(bytearray, ival);
 }
@@ -713,7 +718,6 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 //////////////////// ByteArrayAppend ////////////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-// signature uses Py_ssize_t to make coercions use PyNumber_Index(), as CPython does
 static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
 #if CYTHON_COMPILING_IN_CPYTHON

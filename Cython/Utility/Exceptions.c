@@ -417,16 +417,22 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 /////////////// WriteUnraisableException.proto ///////////////
 
 static void __Pyx_WriteUnraisable(const char *name, int clineno,
-                                  int lineno, const char *filename); /*proto*/
+                                  int lineno, const char *filename,
+                                  int full_traceback); /*proto*/
 
 /////////////// WriteUnraisableException ///////////////
 //@requires: PyErrFetchRestore
 
 static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
-                                  CYTHON_UNUSED int lineno, CYTHON_UNUSED const char *filename) {
+                                  CYTHON_UNUSED int lineno, CYTHON_UNUSED const char *filename,
+                                  int full_traceback) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
+    if (full_traceback) {
+        __Pyx_ErrRestore(old_exc, old_val, old_tb);
+        PyErr_PrintEx(1);
+    }
     #if PY_MAJOR_VERSION < 3
     ctx = PyString_FromString(name);
     #else

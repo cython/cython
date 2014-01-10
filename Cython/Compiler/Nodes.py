@@ -1245,7 +1245,9 @@ class CVarDefNode(StatNode):
             if (len(self.declarators) > 1
                 and not isinstance(declarator, CNameDeclaratorNode)
                 and env.directives['warn.multiple_declarators']):
-                warning(declarator.pos, "Non-trivial type declarators in shared declaration.", 1)
+                warning(declarator.pos,
+                    "Non-trivial type declarators in shared declaration (e.g. mix of pointers and values). " +
+                    "Each pointer declaration should be on its own line.", 1)
 
             if isinstance(declarator, CFuncDeclaratorNode):
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)

@@ -363,6 +363,9 @@ Cython code.  Here is the list of currently supported directives:
     internally without paying attention to cache consistency, this option can
     be set to False.
 
+``unraisable_tracebacks`` (True / False)
+    Whether to print tracebacks when suppressing unraisable exceptions.
+
 
 How to set directives
 ---------------------

@@ -2538,6 +2538,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                                '__releasebuffer__')
                     if (func.is_special and Options.docstrings and
                             func.wrapperbase_cname and not is_buffer):
+                        slot = TypeSlots.method_name_to_slot[func.name]
+                        preprocessor_guard = slot.preprocessor_guard_code()
+                        if preprocessor_guard:
+                            code.putln(preprocessor_guard)
                         code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                         code.putln("{")
                         code.putln(
@@ -2558,6 +2562,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln("}")
                         code.putln("}")
                         code.putln('#endif')
+                        if preprocessor_guard:
+                            code.putln('#endif')
                 if type.vtable_cname:
                     code.putln(
                         "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (

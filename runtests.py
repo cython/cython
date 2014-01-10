@@ -448,7 +448,10 @@ class TestBuilder(object):
                 continue
             if filename.startswith('.'):
                 continue # certain emacs backup files
-            tags = parse_tags(filepath)
+            if context == 'pyregr':
+                tags = defaultdict(list)
+            else:
+                tags = parse_tags(filepath)
             fqmodule = "%s.%s" % (context, module)
             if not [ 1 for match in self.selectors
                      if match(fqmodule, tags) ]:

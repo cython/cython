@@ -23,6 +23,9 @@ Features added
 
 * Constant Python float values are cached.
 
+* String/Unicode formatting using the '%' operator uses a faster
+  C-API call.
+
 * ``bytearray`` has become a known type and supports coercion from and
   to C strings.  Indexing, slicing and decoding is optimised. Note that
   this may have an impact on existing code due to type inference.
@@ -63,6 +66,9 @@ Features added
 * An option common_utility_include_dir was added to cythonize() to save
   oft-used utility code once in a separate directory rather than as
   part of each generated file.
+
+* ``unraisable_tracebacks`` directive added to control printing of
+  tracebacks of unraisable exceptions.
 
 Bugs fixed
 ----------
