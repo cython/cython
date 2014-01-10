@@ -401,13 +401,13 @@ static CYTHON_INLINE int PySet_Clear(PyObject *set) {
 }
 
 static CYTHON_INLINE int PySet_Discard(PyObject *set, PyObject *key) {
-    PyObject *ret = PyObject_CallMethod(set, (char*)"discard", (char*)"O", key);
+    PyObject *ret = PyObject_CallMethod(set, (char*)"discard", (char*)"(O)", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
 
 static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
-    PyObject *ret = PyObject_CallMethod(set, (char*)"add", (char*)"O", key);
+    PyObject *ret = PyObject_CallMethod(set, (char*)"add", (char*)"(O)", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
