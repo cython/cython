@@ -9943,6 +9943,10 @@ class CmpNode(object):
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
                     return True
+                elif type1 is Builtin.basestring_type or type2 is Builtin.basestring_type:
+                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
+                    self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
+                    return True
                 elif type1 is Builtin.str_type or type2 is Builtin.str_type:
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("StrEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyString_Equals"
