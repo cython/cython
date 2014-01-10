@@ -133,6 +133,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Contains(PyObject* substring, PyObject*
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
 
 //////////////////// UnicodeEquals ////////////////////
+//@requires: BytesEquals
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
 #if CYTHON_COMPILING_IN_PYPY
@@ -161,6 +162,8 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
             return -1;
         s1 = owned_ref;
         s1_is_unicode = 1;
+    } else if (((!s2_is_unicode) & (!s1_is_unicode))) {
+        return __Pyx_PyBytes_Equals(s1, s2, equals);
     }
 #endif
     if (s1_is_unicode & s2_is_unicode) {
