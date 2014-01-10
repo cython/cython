@@ -73,6 +73,9 @@ Features added
 Bugs fixed
 ----------
 
+* ``set.add(a_tuple)`` and ``set.discard(a_tuple)`` failed with a
+  TypeError in Py2.4.
+
 * The PEP 3155 ``__qualname__`` was incorrect for nested classes and
   inner classes/functions declared as ``global``.
 
