@@ -73,6 +73,10 @@ Features added
 Bugs fixed
 ----------
 
+* Abstract Python classes that subtyped a Cython extension type
+  failed to raise an exception on instantiation, and thus ended
+  up being instantiated.
+
 * ``set.add(a_tuple)`` and ``set.discard(a_tuple)`` failed with a
   TypeError in Py2.4.
 
