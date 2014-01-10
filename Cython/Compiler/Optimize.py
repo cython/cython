@@ -2312,7 +2312,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             if (ext_type.is_extension_type and ext_type.typeobj_cname and
                     ext_type.scope.global_scope() == self.current_env().global_scope()):
                 # known type in current module
-                tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+                tp_slot = TypeSlots.ConstructorSlot("tp_new")
                 slot_func_cname = TypeSlots.get_slot_function(ext_type.scope, tp_slot)
                 if slot_func_cname:
                     cython_scope = self.context.cython_scope

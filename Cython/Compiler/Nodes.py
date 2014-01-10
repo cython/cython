@@ -1725,7 +1725,7 @@ class FuncDefNode(StatNode, BlockNode):
             self.getbuffer_init(code)
         # ----- Create closure scope object
         if self.needs_closure:
-            tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+            tp_slot = TypeSlots.ConstructorSlot("tp_new")
             slot_func_cname = TypeSlots.get_slot_function(lenv.scope_class.type.scope, tp_slot)
             if not slot_func_cname:
                 slot_func_cname = '%s->tp_new' % lenv.scope_class.type.typeptr_cname
