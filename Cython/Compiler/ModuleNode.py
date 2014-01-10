@@ -1068,8 +1068,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.declaration_code("")))
 
     def generate_new_function(self, scope, code, cclass_entry):
-        # keep this function in sync with ConstructorSlot.can_reuse_baseobject_tp_new()
-        tp_slot = TypeSlots.ConstructorSlot("tp_new")
+        tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
         slot_func = scope.mangle_internal("tp_new")
         type = scope.parent_type
         base_type = type.base_type
@@ -1189,7 +1188,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
 
     def generate_dealloc_function(self, scope, code):
-        tp_slot = TypeSlots.DestructorSlot("tp_dealloc", '__dealloc__')
+        tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
         slot_func = scope.mangle_internal("tp_dealloc")
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:

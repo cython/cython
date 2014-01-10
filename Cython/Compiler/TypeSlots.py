@@ -343,44 +343,15 @@ class GCClearReferencesSlot(GCDependentSlot):
 
 
 class ConstructorSlot(InternalMethodSlot):
-    #  Descriptor for tp_new.
-
-    def __init__(self, slot_name):
-        assert slot_name == 'tp_new'
-        InternalMethodSlot.__init__(self, slot_name)
-
-    def can_reuse_baseobject_tp_new(self, scope):
-        # keep in sync with generate_new_function() in ModuleNode.py
-        type = scope.parent_type
-        if type.base_type or type.vtabslot_cname:
-            return False
-        if scope.lookup_here("__new__") or scope.directives.get('freelist', 0):
-            return False
-        for entry in scope.var_entries:
-            if not entry.type.is_pyobject or entry.name != '__weakref__':
-                return False
-        return True
-
-    def generate_dynamic_init_code(self, scope, code):
-        if not self.can_reuse_baseobject_tp_new(scope):
-            return
-        # Looks like we don't need our own tp_new(), and our object size didn't
-        # change from our base class PyObject.  If we inherit tp_new() from
-        # plain object, CPython will be less picky on multiple inheritance.
-        code.putln("%s.tp_new = PyBaseObject_Type.tp_new;" %
-                   scope.parent_type.typeobj_cname)
-
-
-class DestructorSlot(InternalMethodSlot):
-    #  Descriptor for tp_dealloc.
+    #  Descriptor for tp_new and tp_dealloc.
 
     def __init__(self, slot_name, method, **kargs):
-        assert slot_name == 'tp_dealloc'
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
 
     def slot_code(self, scope):
-        if (scope.parent_type.base_type
+        if (self.slot_name != 'tp_new'
+                and scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.lookup_here(self.method)):
             # if the type does not have object attributes, it can
@@ -772,7 +743,7 @@ PyBufferProcs = (
 #------------------------------------------------------------------------------------------
 
 slot_table = (
-    DestructorSlot("tp_dealloc", '__dealloc__'),
+    ConstructorSlot("tp_dealloc", '__dealloc__'),
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
@@ -820,7 +791,7 @@ slot_table = (
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
-    ConstructorSlot("tp_new"),
+    InternalMethodSlot("tp_new"),
     EmptySlot("tp_free"),
 
     EmptySlot("tp_is_gc"),
