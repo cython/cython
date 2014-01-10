@@ -73,6 +73,9 @@ Features added
 Bugs fixed
 ----------
 
+* Simple extension types without methods or attributes could fail
+  to support multiple inheritance for Python subtypes in some cases.
+
 * Abstract Python classes that subtyped a Cython extension type
   failed to raise an exception on instantiation, and thus ended
   up being instantiated.
