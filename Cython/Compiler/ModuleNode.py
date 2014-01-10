@@ -1125,7 +1125,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                 obj_struct = type.declaration_code("", deref=True)
-                code.putln("if (likely((%s > 0) & (t->tp_basicsize == sizeof(%s)))) {" % (
+                code.putln("if (likely((%s > 0) & (t->tp_basicsize == sizeof(%s)) & ((t->tp_flags & Py_TPFLAGS_IS_ABSTRACT) == 0))) {" % (
                     freecount_name, obj_struct))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -1134,7 +1134,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else {")
-            code.putln("o = (*t->tp_alloc)(t, 0);")
+            code.putln("o = (PyObject *) PyBaseObject_Type.tp_new(t, %s, 0);" % Naming.empty_tuple)
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
