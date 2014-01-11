@@ -23,6 +23,9 @@ Features added
 
 * Constant Python float values are cached.
 
+* String equality comparisons can use faster type specific code in
+  more cases than before.
+
 * String/Unicode formatting using the '%' operator uses a faster
   C-API call.
 
