@@ -430,6 +430,9 @@ static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
     PyObject *ctx;
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
     if (full_traceback) {
+        Py_XINCREF(old_exc);
+        Py_XINCREF(old_val);
+        Py_XINCREF(old_tb);
         __Pyx_ErrRestore(old_exc, old_val, old_tb);
         PyErr_PrintEx(1);
     }

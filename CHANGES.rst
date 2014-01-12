@@ -23,6 +23,9 @@ Features added
 
 * Constant Python float values are cached.
 
+* String equality comparisons can use faster type specific code in
+  more cases than before.
+
 * String/Unicode formatting using the '%' operator uses a faster
   C-API call.
 
@@ -73,8 +76,17 @@ Features added
 Bugs fixed
 ----------
 
+* Abstract Python classes that subtyped a Cython extension type
+  failed to raise an exception on instantiation, and thus ended
+  up being instantiated.
+
+* ``set.add(a_tuple)`` and ``set.discard(a_tuple)`` failed with a
+  TypeError in Py2.4.
+
 * The PEP 3155 ``__qualname__`` was incorrect for nested classes and
   inner classes/functions declared as ``global``.
+
+* Several corner cases in the try-finally statement were fixed.
 
 * The metaclass of a Python class was not inherited from its parent
   class(es).  It is now extracted from the list of base classes if not

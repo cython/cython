@@ -73,6 +73,31 @@ def except_finally_reraise():
         raise
 
 
+def except_finally_reraise_new():
+    """
+    >>> def py_check():
+    ...     try: raise ValueError
+    ...     except ValueError:
+    ...         try: raise TypeError
+    ...         finally:
+    ...             raise
+    >>> try: py_check()
+    ... except ValueError: assert not IS_PY3
+    ... except TypeError: assert IS_PY3
+    ... else: assert False
+    >>> try: except_finally_reraise_new()
+    ... except TypeError: pass  # currently only Py3 semantics implemented
+    ... else: assert False
+    """
+    try:
+        raise ValueError
+    except ValueError:
+        try:
+            raise TypeError
+        finally:
+            raise
+
+
 def finally_exception_check_return():
     """
     >>> if not IS_PY3:

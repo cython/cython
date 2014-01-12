@@ -5275,8 +5275,10 @@ class ReraiseStatNode(StatNode):
         vars = code.funcstate.exc_vars
         if vars:
             code.globalstate.use_utility_code(restore_exception_utility_code)
-            for varname in vars:
-                code.put_giveref(varname)
+            code.put_giveref(vars[0])
+            code.put_giveref(vars[1])
+            # fresh exceptions may not have a traceback yet (-> finally!)
+            code.put_xgiveref(vars[2])
             code.putln("__Pyx_ErrRestore(%s, %s, %s);" % tuple(vars))
             for varname in vars:
                 code.put("%s = 0; " % varname)
@@ -6506,7 +6508,10 @@ class TryFinallyStatNode(StatNode):
             finally_old_labels = code.all_new_labels()
 
             code.putln('{')
+            old_exc_vars = code.funcstate.exc_vars
+            code.funcstate.exc_vars = exc_vars[:3]
             fresh_finally_clause().generate_execution_code(code)
+            code.funcstate.exc_vars = old_exc_vars
             code.putln('}')
 
             if needs_success_cleanup:
