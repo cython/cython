@@ -193,6 +193,28 @@ of the extension module sources::
         ext_modules = extensions
     )
 
+If you have many extensions and want to avoid the additional complexity in the
+declarations, you can declare them with their normal Cython sources and then
+call the following function instead of ``cythonize()`` to adapt the sources
+list in the Extensions when not using Cython::
+
+    import os.path
+
+    def no_cythonize(extensions, **_ignore):
+        for extension in extensions:
+            sources = []
+            for sfile in extension.sources:
+                path, ext = os.path.splitext(sfile)
+                if ext in ('.pyx', '.py'):
+                    if extension.language == 'c++':
+                        ext = '.cpp'
+                    else:
+                        ext = '.c'
+                    sfile = path + ext
+                sources.append(sfile)
+            extension.sources[:] = sources
+        return extensions
+
 
 Compiling with ``pyximport``
 =============================
