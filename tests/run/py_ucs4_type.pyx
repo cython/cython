@@ -252,6 +252,23 @@ def iter_and_in():
         if c in u'abCDefGh':
             print c
 
+
+#@cython.test_fail_if_path_exists('//ForInStatNode')
+def iter_inferred():
+    """
+    >>> iter_inferred()
+    a
+    b
+    c
+    d
+    e
+    """
+    uchars = list(u"abcde")
+    uchars = u''.join(uchars)
+    for c in uchars:
+        print c
+
+
 @cython.test_assert_path_exists('//SwitchStatNode',
                                 '//ForFromStatNode')
 @cython.test_fail_if_path_exists('//ForInStatNode')
