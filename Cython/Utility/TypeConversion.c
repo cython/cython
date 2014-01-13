@@ -478,13 +478,13 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
             return PyLong_FromUnsignedLong((unsigned long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
-            return PyLong_FromUnsignedLongLong(value);
+            return PyLong_FromUnsignedLongLong((unsigned long long) value);
         }
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
             return PyInt_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
-            return PyLong_FromLongLong(value);
+            return PyLong_FromLongLong((long long) value);
         }
     }
     {
