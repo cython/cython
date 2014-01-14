@@ -253,7 +253,7 @@ def iter_and_in():
             print c
 
 
-#@cython.test_fail_if_path_exists('//ForInStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
 def iter_inferred():
     """
     >>> iter_inferred()
