@@ -2,12 +2,14 @@ PYTHON setup.py build_ext --inplace
 PYTHON -c "import runner"
 
 # Verify some files were created.
-ls common/AddTraceback_impl*.h common/RaiseException_impl_*.h
+# ls common/AddTraceback_impl*.h common/RaiseException_impl_*.h
+PYTHON -c "import glob; assert glob.glob('common/AddTraceback_impl*.h')"
+PYTHON -c "import glob; assert glob.glob('common/RaiseException_impl_*.h')"
 
 # Verify that they're used.
-grep -c '#include "common/AddTraceback_impl_.*h"' a.c
-grep -c '#include "common/AddTraceback_impl_.*h"' b.c
-grep -c '#include "common/AddTraceback_impl_.*h"' c.c
+PYTHON fake_grep.py -c '#include "common/AddTraceback_impl_.*h"' a.c
+PYTHON fake_grep.py -c '#include "common/AddTraceback_impl_.*h"' b.c
+PYTHON fake_grep.py -c '#include "common/AddTraceback_impl_.*h"' c.c
 
 
 ######## setup.py ########
@@ -56,3 +58,23 @@ if __name__ == "__main__":
 ######## runner.py ########
 
 import a, b, c
+
+######## fake_grep.py ########
+
+import platform
+import re
+import sys
+
+if platform == 'Windows':
+    opt, pattern, file = sys.argv[1:]
+    assert opt == '-c'
+    count = 0
+    regex = re.compile(pattern)
+    for line in open(file):
+        if regex.search(line):
+            count += 1
+    print count
+    sys.exit(count == 0)
+else:
+    import subprocess
+    sys.exit(subprocess.call(['grep'] + sys.argv[1:]))
