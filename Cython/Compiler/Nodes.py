@@ -380,7 +380,20 @@ class StatListNode(Node):
     def analyse_declarations(self, env):
         #print "StatListNode.analyse_declarations" ###
         base_classes = {}
-        for stat in self.stats:
+        def flatten(stats):
+            # Common case is trivial flatten.
+            if not [stat for stat in stats if isinstance(stat, StatListNode)]:
+                return stats
+            else:
+                all = []
+                for stat in stats:
+                    if isinstance(stat, StatListNode):
+                        all.extend(flatten(stat.stats))
+                    else:
+                        all.append(stat)
+                return all
+        flattened = flatten(self.stats)
+        for stat in flattened:
             if isinstance(stat, CClassDefNode) and not stat.base_class_module:
                 base_classes[stat.class_name] = stat.base_class_name
         @cached_function
@@ -391,7 +404,7 @@ class StatListNode(Node):
             else:
                 return depth(base_class) + 1
         keyed_stats = []
-        for ix, stat in enumerate(self.stats):
+        for ix, stat in enumerate(flattened):
             if isinstance(stat, CClassDefNode):
                 key = 20, depth(stat.class_name), ix
             else:
