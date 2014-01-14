@@ -48,12 +48,12 @@ def generator(n):
 assert list(generator(10)) == list(range(10))
 
 if __name__ == "__main__":
-    print "here", "b"
+    print("here b")
 
 ######## c.pyx ########
 
 if __name__ == "__main__":
-    print "here", "c"
+    print("here c")
 
 ######## runner.py ########
 
@@ -73,7 +73,7 @@ if platform == 'Windows':
     for line in open(file):
         if regex.search(line):
             count += 1
-    print count
+    print(count)
     sys.exit(count == 0)
 else:
     import subprocess
