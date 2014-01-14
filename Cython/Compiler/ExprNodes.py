@@ -1755,6 +1755,12 @@ class NameNode(AtomicExprNode):
         self.check_identifier_kind()
         entry = self.entry
         type = entry.type
+        if (type.is_pyobject and self.inferred_type and
+                self.inferred_type.is_builtin_type):
+            # assume that type inference is smarter than the static entry
+            type = self.inferred_type
+            if entry.type != self.inferred_type:
+                print self.pos, entry.type, self.inferred_type
         self.type = type
 
     def check_identifier_kind(self):

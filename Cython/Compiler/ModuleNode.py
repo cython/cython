@@ -1075,6 +1075,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
                         scope.get_refcounted_entries()
+        is_final_type = scope.parent_type.is_final_type
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
@@ -1124,9 +1125,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if freelist_size:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+                if is_final_type:
+                    abstract_check = ''
+                else:
+                    abstract_check = ' & ((t->tp_flags & Py_TPFLAGS_IS_ABSTRACT) == 0)'
                 obj_struct = type.declaration_code("", deref=True)
-                code.putln("if (likely((%s > 0) & (t->tp_basicsize == sizeof(%s)) & ((t->tp_flags & Py_TPFLAGS_IS_ABSTRACT) == 0))) {" % (
-                    freecount_name, obj_struct))
+                code.putln("if (likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
+                    freecount_name, obj_struct, abstract_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
@@ -1134,7 +1139,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else {")
-            code.putln("o = (PyObject *) PyBaseObject_Type.tp_new(t, %s, 0);" % Naming.empty_tuple)
+            if not is_final_type:
+                code.putln("if (likely((t->tp_flags & Py_TPFLAGS_IS_ABSTRACT) == 0)) {")
+            code.putln("o = (*t->tp_alloc)(t, 0);")
+            if not is_final_type:
+                code.putln("} else {")
+                code.putln("o = (PyObject *) PyBaseObject_Type.tp_new(t, %s, 0);" % Naming.empty_tuple)
+                code.putln("}")
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')

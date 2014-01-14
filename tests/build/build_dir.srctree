@@ -1,8 +1,19 @@
-PYTHON -c "import os; os.symlink('subdir', 'fake')"
+PYTHON symlink_or_copy.py subdir fake
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a"
 PYTHON -c "import pkg.b"
 PYTHON check_paths.py
+
+######## symlink_or_copy.py ########
+
+import platform
+import sys
+if platform.system() == "Windows":
+    import shutil
+    shutil.copytree(sys.argv[1], sys.argv[2])
+else:
+    import os
+    os.symlink(sys.argv[1], sys.argv[2])
 
 ######## setup.py ########
 
@@ -21,7 +32,7 @@ setup(
 
 cdef extern from "helper.h":
     int value1
-    
+
 cdef extern from "subdir/helper.h":
     int value2
 

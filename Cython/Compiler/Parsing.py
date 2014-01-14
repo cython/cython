@@ -1894,6 +1894,9 @@ def p_statement(s, ctx, first_statement = 0):
             return p_pass_statement(s, with_newline=True)
         else:
             if ctx.level in ('c_class_pxd', 'property'):
+                node = p_ignorable_statement(s)
+                if node is not None:
+                    return node
                 s.error("Executable statement not allowed here")
             if s.sy == 'if':
                 return p_if_statement(s)
@@ -3077,6 +3080,19 @@ def p_property_decl(s):
     doc, body = p_suite_with_docstring(
         s, Ctx(level='property'), with_doc_only=True)
     return Nodes.PropertyNode(pos, name=name, doc=doc, body=body)
+
+
+def p_ignorable_statement(s):
+    """
+    Parses any kind of ignorable statement that is allowed in .pxd files.
+    """
+    if s.sy == 'BEGIN_STRING':
+        pos = s.position()
+        string_node = p_atom(s)
+        if s.sy != 'EOF':
+            s.expect_newline("Syntax error in string")
+        return Nodes.ExprStatNode(pos, expr=string_node)
+    return None
 
 
 def p_doc_string(s):

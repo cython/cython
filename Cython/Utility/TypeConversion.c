@@ -473,18 +473,18 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
-        if (sizeof({{TYPE}}) < sizeof(unsigned long)) {
-            return PyInt_FromLong(value);
+        if (sizeof({{TYPE}}) < sizeof(long)) {
+            return PyInt_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
-            return PyLong_FromUnsignedLong(value);
+            return PyLong_FromUnsignedLong((unsigned long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
-            return PyLong_FromUnsignedLongLong(value);
+            return PyLong_FromUnsignedLongLong((unsigned long long) value);
         }
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
-            return PyInt_FromLong(value);
+            return PyInt_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
-            return PyLong_FromLongLong(value);
+            return PyLong_FromLongLong((long long) value);
         }
     }
     {
