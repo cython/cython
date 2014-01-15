@@ -8,6 +8,17 @@ b_asdf = b'asdf'
 b_asdg = b'asdg'
 b_s = b's'
 
+def test_conversion(py_obj):
+    """
+    >>> test_conversion(b_asdf) == b_asdf or test_conversion(b_asdf)
+    True
+    >>> test_conversion(123)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: expected ..., int found
+    """
+    cdef string s = py_obj
+    return s
+
 def test_indexing(char *py_str):
     """
     >>> test_indexing(b_asdf)

@@ -109,6 +109,8 @@ Bugs fixed
 
 * Fixed a bug which prevented overriding const methods of C++ classes.
 
+* Fixed a crash when converting Python objects to C++ strings fails.
+
 Other changes
 -------------
 
