@@ -5909,10 +5909,11 @@ class SequenceNode(ExprNode):
         if special_unpack:
             self.generate_special_parallel_unpacking_code(
                 code, rhs, use_loop=long_enough_for_a_loop)
-        code.putln("{")
-        self.generate_generic_parallel_unpacking_code(
-            code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
-        code.putln("}")
+        else:
+            code.putln("{")
+            self.generate_generic_parallel_unpacking_code(
+                code, rhs, self.unpacked_items, use_loop=long_enough_for_a_loop)
+            code.putln("}")
 
         for value_node in self.coerced_unpacked_items:
             value_node.generate_evaluation_code(code)
@@ -5921,19 +5922,20 @@ class SequenceNode(ExprNode):
                 self.coerced_unpacked_items[i], code)
 
     def generate_special_parallel_unpacking_code(self, code, rhs, use_loop):
-        tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
-        list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
         sequence_type_test = '1'
+        none_check = "likely(%s != Py_None)" % rhs.py_result()
         if rhs.type is list_type:
             sequence_types = ['List']
             if rhs.may_be_none():
-                sequence_type_test = list_check
+                sequence_type_test = none_check
         elif rhs.type is tuple_type:
             sequence_types = ['Tuple']
             if rhs.may_be_none():
-                sequence_type_test = tuple_check
+                sequence_type_test = none_check
         else:
             sequence_types = ['Tuple', 'List']
+            tuple_check = 'likely(PyTuple_CheckExact(%s))' % rhs.py_result()
+            list_check  = 'PyList_CheckExact(%s)' % rhs.py_result()
             sequence_type_test = "(%s) || (%s)" % (tuple_check, list_check)
 
         code.putln("if (%s) {" % sequence_type_test)
@@ -5993,13 +5995,20 @@ class SequenceNode(ExprNode):
         code.putln("#endif")
         rhs.generate_disposal_code(code)
 
-        if rhs.type is tuple_type:
-            # if not a tuple: None => save some code by generating the error directly
-            code.putln("} else if (1) {")
+        if sequence_type_test == '1':
+            code.putln("}")  # all done
+        elif rhs.type is tuple_type:
+            # either tuple or None => save some code by generating the error directly
+            code.putln("} else {")
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseNoneIterError", "ObjectHandling.c"))
             code.putln("__Pyx_RaiseNoneNotIterableError(); %s" % code.error_goto(self.pos))
-        code.putln("} else")
+            code.putln("}")  # all done
+        else:
+            code.putln("} else {")  # needs iteration fallback code
+            self.generate_generic_parallel_unpacking_code(
+                code, rhs, self.unpacked_items, use_loop=use_loop)
+            code.putln("}")
 
     def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
