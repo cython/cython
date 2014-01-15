@@ -5997,8 +5997,8 @@ class SequenceNode(ExprNode):
 
         if sequence_type_test == '1':
             code.putln("}")  # all done
-        elif rhs.type is tuple_type:
-            # either tuple or None => save some code by generating the error directly
+        elif sequence_type_test == none_check:
+            # either tuple/list or None => save some code by generating the error directly
             code.putln("} else {")
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseNoneIterError", "ObjectHandling.c"))
