@@ -5981,6 +5981,7 @@ class SequenceNode(ExprNode):
                     code.error_goto_if_null(item.result(), self.pos)))
                 code.put_gotref(item.result())
         else:
+            code.putln("{")
             code.putln("Py_ssize_t i;")
             code.putln("PyObject** temps[%s] = {%s};" % (
                 len(self.unpacked_items),
@@ -5990,6 +5991,7 @@ class SequenceNode(ExprNode):
                 code.error_goto_if_null('item', self.pos)))
             code.put_gotref('item')
             code.putln("*(temps[i]) = item;")
+            code.putln("}")
             code.putln("}")
 
         code.putln("#endif")
