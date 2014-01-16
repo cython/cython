@@ -891,9 +891,10 @@ def run_forked_test(result, run_func, test_name, fork=True):
     child_id = os.fork()
     if not child_id:
         result_code = 0
+        output = None
         try:
             try:
-                tests = None
+                tests = partial_result = None
                 try:
                     partial_result = PartialTestResult(result)
                     run_func(partial_result)
@@ -901,21 +902,29 @@ def run_forked_test(result, run_func, test_name, fork=True):
                     sys.stderr.flush()
                     gc.collect()
                 except Exception:
-                    if tests is None:
-                        # importing failed, try to fake a test class
-                        tests = _FakeClass(
-                            failureException=sys.exc_info()[1],
-                            _shortDescription=test_name,
-                            module_name=None)
-                    partial_result.addError(tests, sys.exc_info())
                     result_code = 1
+                    if partial_result is not None:
+                        if tests is None:
+                            # importing failed, try to fake a test class
+                            tests = _FakeClass(
+                                failureException=sys.exc_info()[1],
+                                _shortDescription=test_name,
+                                module_name=None)
+                        partial_result.addError(tests, sys.exc_info())
                 output = open(result_file, 'wb')
                 pickle.dump(partial_result.data(), output)
             except:
                 traceback.print_exc()
         finally:
-            try: output.close()
+            try: sys.stderr.flush()
             except: pass
+            try: sys.stdout.flush()
+            except: pass
+            try:
+                if output is not None:
+                    output.close()
+            except:
+                pass
             os._exit(result_code)
 
     try:
