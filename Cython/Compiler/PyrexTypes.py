@@ -1070,6 +1070,7 @@ class PyExtensionType(PyObjectType):
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
+    #  defered_declarations [thunk]      Used to declare class hierarchies in order
 
     is_extension_type = 1
     has_attributes = 1
@@ -1092,6 +1093,7 @@ class PyExtensionType(PyObjectType):
         self.vtabptr_cname = None
         self.vtable_cname = None
         self.is_external = is_external
+        self.defered_declarations = []
 
     def set_scope(self, scope):
         self.scope = scope

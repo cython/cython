@@ -379,38 +379,7 @@ class StatListNode(Node):
 
     def analyse_declarations(self, env):
         #print "StatListNode.analyse_declarations" ###
-        base_classes = {}
-        def flatten(stats):
-            # Common case is trivial flatten.
-            if not [stat for stat in stats if isinstance(stat, StatListNode)]:
-                return stats
-            else:
-                all = []
-                for stat in stats:
-                    if isinstance(stat, StatListNode):
-                        all.extend(flatten(stat.stats))
-                    else:
-                        all.append(stat)
-                return all
-        flattened = flatten(self.stats)
-        for stat in flattened:
-            if isinstance(stat, CClassDefNode) and not stat.base_class_module:
-                base_classes[stat.class_name] = stat.base_class_name
-        @cached_function
-        def depth(class_name):
-            base_class = base_classes.get(class_name)
-            if class_name is None:
-                return 0
-            else:
-                return depth(base_class) + 1
-        keyed_stats = []
-        for ix, stat in enumerate(flattened):
-            if isinstance(stat, CClassDefNode):
-                key = 20, depth(stat.class_name), ix
-            else:
-                key = 10, ix
-            keyed_stats.append((key, stat))
-        for key, stat in sorted(keyed_stats):
+        for stat in self.stats:
             stat.analyse_declarations(env)
 
     def analyse_expressions(self, env):
@@ -4337,6 +4306,12 @@ class CClassDefNode(ClassDefNode):
                     warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
 
         has_body = self.body is not None
+        if has_body and self.base_type and not self.base_type.scope:
+            # To properly initialize inherited attributes, the base type must
+            # be analysed before this type.
+            self.base_type.defered_declarations.append(lambda : self.analyse_declarations(env))
+            return
+
         if self.module_name and self.visibility != 'extern':
             module_path = self.module_name.split(".")
             home_scope = env.find_imported_module(module_path, self.pos)
@@ -4384,6 +4359,9 @@ class CClassDefNode(ClassDefNode):
             else:
                 scope.implemented = 1
         env.allocate_vtable_names(self.entry)
+
+        for thunk in self.entry.type.defered_declarations:
+            thunk()
 
     def analyse_expressions(self, env):
         if self.body:
