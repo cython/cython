@@ -35,35 +35,40 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
 
     fd, tempfilename = tempfile.mkstemp()
     f = os.fdopen(fd, 'w')
-    f.write(prefix_code)
-    f.write('set breakpoint pending on\n')
-    f.write("set print pretty on\n")
-    f.write('python from Cython.Debugger import libcython, libpython\n')
+    try:
+        f.write(prefix_code)
+        f.write('set breakpoint pending on\n')
+        f.write("set print pretty on\n")
+        f.write('python from Cython.Debugger import libcython, libpython\n')
 
-    if no_import:
-        # don't do this, this overrides file command in .gdbinit
-        # f.write("file %s\n" % sys.executable)
-        pass
-    else:
-        path = os.path.join(path_to_debug_info, "cython_debug", "interpreter")
-        interpreter = open(path).read()
-        f.write("file %s\n" % interpreter)
-        f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
-        f.write(textwrap.dedent('''\
-            python
-            import sys
+        if no_import:
+            # don't do this, this overrides file command in .gdbinit
+            # f.write("file %s\n" % sys.executable)
+            pass
+        else:
+            path = os.path.join(path_to_debug_info, "cython_debug", "interpreter")
+            interpreter_file = open(path)
             try:
-                gdb.lookup_type('PyModuleObject')
-            except RuntimeError:
-                sys.stderr.write(
-                    'Python was not compiled with debug symbols (or it was '
-                    'stripped). Some functionality may not work (properly).\\n')
-            end
+                interpreter = interpreter_file.read()
+            finally:
+                interpreter_file.close()
+            f.write("file %s\n" % interpreter)
+            f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
+            f.write(textwrap.dedent('''\
+                python
+                import sys
+                try:
+                    gdb.lookup_type('PyModuleObject')
+                except RuntimeError:
+                    sys.stderr.write(
+                        'Python was not compiled with debug symbols (or it was '
+                        'stripped). Some functionality may not work (properly).\\n')
+                end
 
-            source .cygdbinit
-        '''))
-
-    f.close()
+                source .cygdbinit
+            '''))
+    finally:
+        f.close()
 
     return tempfilename
 

@@ -91,7 +91,14 @@ def file_hash(filename):
     path = os.path.normpath(filename.encode("UTF-8"))
     m = hashlib.md5(str(len(path)) + ":")
     m.update(path)
-    m.update(open(filename).read())
+    f = open(filename, 'rb')
+    try:
+        data = f.read(65000)
+        while data:
+            m.update(data)
+            data = f.read(65000)
+    finally:
+        f.close()
     return m.hexdigest()
 
 def parse_list(s):
