@@ -1542,7 +1542,7 @@ class LocalScope(Scope):
         if entry is not None:
             if entry.scope is not self and entry.scope.is_closure_scope:
                 if hasattr(entry.scope, "scope_class"):
-                    raise InternalError, "lookup() after scope class created."
+                    raise InternalError("lookup() after scope class created.")
                 # The actual c fragment for the different scopes differs
                 # on the outside and inside, so we make a new entry
                 entry.in_closure = True

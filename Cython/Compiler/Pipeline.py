@@ -19,7 +19,7 @@ def dumptree(t):
 def abort_on_errors(node):
     # Stop the pipeline if there are any errors.
     if Errors.num_errors != 0:
-        raise AbortError, "pipeline break"
+        raise AbortError("pipeline break")
     return node
 
 def parse_stage_factory(context):

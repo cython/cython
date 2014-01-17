@@ -798,7 +798,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_AssignmentNode(self, node):
-        raise InternalError, "Unhandled assignment node"
+        raise InternalError("Unhandled assignment node")
 
     def visit_SingleAssignmentNode(self, node):
         self._visit(node.rhs)
@@ -1097,7 +1097,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_LoopNode(self, node):
-        raise InternalError, "Generic loops are not supported"
+        raise InternalError("Generic loops are not supported")
 
     def visit_WithTargetAssignmentStatNode(self, node):
         self.mark_assignment(node.lhs, node.rhs)
