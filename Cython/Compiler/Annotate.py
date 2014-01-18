@@ -17,7 +17,6 @@ special_chars = [
     (u'>', u'\xF1', u'&gt;'),
 ]
 
-line_pos_comment = re.compile(r'/\*.*?<<<<<<<<<<<<<<.*?\*/\n*', re.DOTALL)
 
 class AnnotationCCodeWriter(CCodeWriter):
 
@@ -169,7 +168,6 @@ function toggleDiv(id) {
             f.write(line.rstrip())
 
             f.write(u'</pre>\n')
-            code = re.sub(line_pos_comment, '', code) # inline annotations are redundant
             f.write(u"<pre id='line%s' class='code' style='background-color: #%s'>%s</pre>" % (k, color, code))
         f.write(u'</body></html>\n')
         f.close()
