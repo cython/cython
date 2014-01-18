@@ -354,8 +354,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if options.gdb_debug:
             self._serialize_lineno_map(env, rootwriter)
         if Options.annotate or options.annotate:
-            self.annotate(rootwriter)
-            rootwriter.save_annotation(result.main_source_file, result.c_file)
+            self._generate_annotations(rootwriter, result)
+
+    def _generate_annotations(self, rootwriter, result):
+        self.annotate(rootwriter)
+        rootwriter.save_annotation(result.main_source_file, result.c_file)
+
+        # if we included files, additionally generate one annotation file for each
+        search_include_file = self.scope.context.search_include_directories
+        target_dir = os.path.dirname(result.c_file)
+        for included_file in self.scope.included_files:
+            source_file = search_include_file(included_file, "", self.pos, include=True)
+            if not source_file:
+                continue
+            target_file = os.path.join(target_dir, included_file)
+            target_file_dir = os.path.dirname(target_file)
+            if target_file_dir != target_dir and not os.path.exists(target_file_dir):
+                try:
+                    os.makedirs(target_file_dir)
+                except OSError, e:
+                    import errno
+                    if e.errno != errno.EEXIST:
+                        raise
+            rootwriter.save_annotation(source_file, target_file)
 
     def _serialize_lineno_map(self, env, ccodewriter):
         tb = env.context.gdb_debug_outputwriter
