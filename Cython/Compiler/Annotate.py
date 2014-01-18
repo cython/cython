@@ -141,6 +141,7 @@ function toggleDiv(id) {
             return ur"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
+        pos_comment_marker = u'/* \u2026 */\n'
         k = 0
         code_source_file = self.code.get(source_filename, {})
         for line in lines:
@@ -150,7 +151,10 @@ function toggleDiv(id) {
             except KeyError:
                 code = ''
             else:
-                code = html_escape(_replace_pos_comment('', code))
+                code = _replace_pos_comment(pos_comment_marker, code)
+                if code.startswith(pos_comment_marker):
+                    code = code[len(pos_comment_marker):]
+                code = html_escape(code)
 
             calls = zero_calls.copy()
             code = _parse_code(annotate, code)
