@@ -150,7 +150,7 @@ function toggleDiv(id) {
             except KeyError:
                 code = ''
             else:
-                code = html_escape(code)
+                code = html_escape(_replace_pos_comment('', code))
 
             calls = zero_calls.copy()
             code = _parse_code(annotate, code)
@@ -180,6 +180,13 @@ _parse_code = re.compile(
     ur'(?P<py_c_api>Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)'
     ur')(?=\()|'       # look-ahead to exclude subsequent '(' from replacement
     ur'(?P<error_goto>(?:(?<=;) *if .* +)?\{__pyx_filename = .*goto __pyx_L\w+;\})'
+).sub
+
+
+_replace_pos_comment = re.compile(
+    # this matches what Cython generates as code line marker comment
+    ur'^\s*/\*(?:(?:[^*]|\*[^/])*\n)+\s*\*/\s*\n',
+    re.M
 ).sub
 
 
