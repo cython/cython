@@ -35,50 +35,52 @@ build_ext = sys.modules['Cython.Distutils.build_ext']
 have_gdb = None
 def test_gdb():
     global have_gdb
-    if have_gdb is None:
-        try:
-            p = subprocess.Popen(['gdb', '-v'], stdout=subprocess.PIPE)
-            have_gdb = True
-        except OSError:
-            # gdb was not installed
-            have_gdb = False
-        else:
-            gdb_version = p.stdout.read().decode('ascii', 'ignore')
-            p.wait()
-            p.stdout.close()
+    if have_gdb is not None:
+        return have_gdb
 
-        if have_gdb:
-            # Based on Lib/test/test_gdb.py
-            regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
-            gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
+    try:
+        p = subprocess.Popen(['gdb', '-v'], stdout=subprocess.PIPE)
+        have_gdb = True
+    except OSError:
+        # gdb was not installed
+        have_gdb = False
+    else:
+        gdb_version = p.stdout.read().decode('ascii', 'ignore')
+        p.wait()
+        p.stdout.close()
 
-            if gdb_version_number >= [7, 2]:
-                python_version_script = tempfile.NamedTemporaryFile(mode='w+')
+    if have_gdb:
+        # Based on Lib/test/test_gdb.py
+        regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
+        gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
+
+        if gdb_version_number >= [7, 2]:
+            python_version_script = tempfile.NamedTemporaryFile(mode='w+')
+            try:
+                python_version_script.write(
+                    'python import sys; print("%s %s" % sys.version_info[:2])')
+                python_version_script.flush()
+                p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
+                                     stdout=subprocess.PIPE)
                 try:
-                    python_version_script.write(
-                        'python import sys; print("%s %s" % sys.version_info[:2])')
-                    python_version_script.flush()
-                    p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
-                                         stdout=subprocess.PIPE)
-                    try:
-                        python_version = p.stdout.read().decode('ascii')
-                        p.wait()
-                    finally:
-                        p.stdout.close()
-                    try:
-                        python_version_number = list(map(int, python_version.split()))
-                    except ValueError:
-                        have_gdb = False
+                    python_version = p.stdout.read().decode('ascii')
+                    p.wait()
                 finally:
-                    python_version_script.close()
+                    p.stdout.close()
+                try:
+                    python_version_number = list(map(int, python_version.split()))
+                except ValueError:
+                    have_gdb = False
+            finally:
+                python_version_script.close()
 
-        # Be Python 3 compatible
-        if (not have_gdb
-            or gdb_version_number < [7, 2]
-            or python_version_number < [2, 6]):
-            warnings.warn(
-                'Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
-            have_gdb = False
+    # Be Python 3 compatible
+    if (not have_gdb
+        or gdb_version_number < [7, 2]
+        or python_version_number < [2, 6]):
+        warnings.warn(
+            'Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
+        have_gdb = False
 
     return have_gdb
 
