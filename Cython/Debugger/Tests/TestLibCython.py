@@ -234,63 +234,26 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             os.path.abspath(Cython.__file__))))
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(paths))
 
-        try:
-            p = subprocess.Popen(['gdb', '-v'], stdout=subprocess.PIPE)
-            have_gdb = True
-        except OSError:
-            # gdb was not installed
-            have_gdb = False
-        else:
-            gdb_version = p.stdout.read().decode('ascii')
-            p.wait()
-            p.stdout.close()
-
-        if have_gdb:
-            # Based on Lib/test/test_gdb.py
-            regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
-            gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
-
-            if gdb_version_number >= [7, 2]:
-                python_version_script = tempfile.NamedTemporaryFile(mode='w+')
-                python_version_script.write(
-                    'python import sys; print("%s %s" % sys.version_info[:2])')
-                python_version_script.flush()
-                p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
-                                     stdout=subprocess.PIPE)
-                try:
-                    python_version = p.stdout.read().decode('ascii')
-                    p.wait()
-                finally:
-                    p.stdout.close()
-                try:
-                    python_version_number = list(map(int, python_version.split()))
-                except ValueError:
-                    have_gdb = False
-
-
-        # Be Python 3 compatible
-        if (not have_gdb
-            or gdb_version_number < [7, 2]
-            or python_version_number < [2, 6]):
-            self.p = None
-            warnings.warn(
-                'Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
-        else:
-            self.p = subprocess.Popen(
-                args,
-                stdout=open(os.devnull, 'w'),
-                stderr=subprocess.PIPE,
-                env=env)
+        self.p = subprocess.Popen(
+            args,
+            stdout=open(os.devnull, 'w'),
+            stderr=subprocess.PIPE,
+            env=env)
 
     def tearDown(self):
         if not test_gdb():
             return
 
-        super(GdbDebuggerTestCase, self).tearDown()
-        if self.p:
-            self.p.stderr.close()
-            self.p.wait()
-        os.remove(self.gdb_command_file)
+        try:
+            super(GdbDebuggerTestCase, self).tearDown()
+            if self.p:
+                try: self.p.stdout.close()
+                except: pass
+                try: self.p.stderr.close()
+                except: pass
+                self.p.wait()
+        finally:
+            os.remove(self.gdb_command_file)
 
 
 class TestAll(GdbDebuggerTestCase):
@@ -302,15 +265,15 @@ class TestAll(GdbDebuggerTestCase):
         out, err = self.p.communicate()
         err = err.decode('UTF-8')
 
-        exit_status = self.p.wait()
+        exit_status = self.p.returncode
 
         if exit_status == 1:
             sys.stderr.write(err)
         elif exit_status >= 2:
-            border = '*' * 30
-            start = '%s   v INSIDE GDB v   %s' % (border, border)
-            end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
-            errmsg = '\n%s\n%s%s' % (start, err, end)
+            border = u'*' * 30
+            start  = u'%s   v INSIDE GDB v   %s' % (border, border)
+            end    = u'%s   ^ INSIDE GDB ^   %s' % (border, border)
+            errmsg = u'\n%s\n%s%s' % (start, err, end)
 
             sys.stderr.write(errmsg)
 
