@@ -141,7 +141,7 @@ function toggleDiv(id) {
             return ur"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
-        pos_comment_marker = u'/* \u2026 */\n'
+        pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         k = 0
         code_source_file = self.code.get(source_filename, {})
         for line in lines:
