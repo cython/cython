@@ -348,11 +348,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         f = open_new_file(result.c_file)
         try:
             rootwriter.copyto(f)
-            if options.gdb_debug:
-                self._serialize_lineno_map(env, rootwriter)
         finally:
             f.close()
         result.c_file_generated = 1
+        if options.gdb_debug:
+            self._serialize_lineno_map(env, rootwriter)
         if Options.annotate or options.annotate:
             self.annotate(rootwriter)
             rootwriter.save_annotation(result.main_source_file, result.c_file)
