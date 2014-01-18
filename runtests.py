@@ -1686,13 +1686,13 @@ def main():
         _, return_code = runtests(options, cmd_args, coverage)
     print("ALL DONE")
 
-
     try:
         check_thread_termination(ignore_seen=False)
-        sys.exit(return_code)
     except PendingThreadsError:
         # normal program exit won't kill the threads, do it the hard way here
         flush_and_terminate(return_code)
+    else:
+        sys.exit(return_code)
 
 
 def runtests_callback(args):
