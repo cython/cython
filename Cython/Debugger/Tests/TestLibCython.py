@@ -43,7 +43,7 @@ def test_gdb():
             # gdb was not installed
             have_gdb = False
         else:
-            gdb_version = p.stdout.read().decode('ascii')
+            gdb_version = p.stdout.read().decode('ascii', 'ignore')
             p.wait()
             p.stdout.close()
 
@@ -54,17 +54,23 @@ def test_gdb():
 
             if gdb_version_number >= [7, 2]:
                 python_version_script = tempfile.NamedTemporaryFile(mode='w+')
-                python_version_script.write(
-                    'python import sys; print("%s %s" % sys.version_info[:2])')
-                python_version_script.flush()
-                p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
-                                     stdout=subprocess.PIPE)
-                python_version = p.stdout.read().decode('ascii')
-                p.wait()
                 try:
-                    python_version_number = list(map(int, python_version.split()))
-                except ValueError:
-                    have_gdb = False
+                    python_version_script.write(
+                        'python import sys; print("%s %s" % sys.version_info[:2])')
+                    python_version_script.flush()
+                    p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
+                                         stdout=subprocess.PIPE)
+                    try:
+                        python_version = p.stdout.read().decode('ascii')
+                        p.wait()
+                    finally:
+                        p.stdout.close()
+                    try:
+                        python_version_number = list(map(int, python_version.split()))
+                    except ValueError:
+                        have_gdb = False
+                finally:
+                    python_version_script.close()
 
         # Be Python 3 compatible
         if (not have_gdb
@@ -146,6 +152,7 @@ class DebuggerTestCase(unittest.TestCase):
             finally:
                 optimization_disabler.restore_state()
                 sys.stderr = stderr
+                new_stderr.close()
 
             # ext = Cython.Distutils.extension.Extension(
                 # 'codefile',
@@ -250,8 +257,11 @@ class GdbDebuggerTestCase(DebuggerTestCase):
                 python_version_script.flush()
                 p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
                                      stdout=subprocess.PIPE)
-                python_version = p.stdout.read().decode('ascii')
-                p.wait()
+                try:
+                    python_version = p.stdout.read().decode('ascii')
+                    p.wait()
+                finally:
+                    p.stdout.close()
                 try:
                     python_version_number = list(map(int, python_version.split()))
                 except ValueError:
