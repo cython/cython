@@ -361,14 +361,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         rootwriter.save_annotation(result.main_source_file, result.c_file)
 
         # if we included files, additionally generate one annotation file for each
+        if not self.scope.included_files:
+            return
+
         search_include_file = self.scope.context.search_include_directories
-        target_dir = os.path.dirname(result.c_file)
+        target_dir = os.path.abspath(os.path.dirname(result.c_file))
         for included_file in self.scope.included_files:
+            target_file = os.path.abspath(os.path.join(target_dir, included_file))
+            target_file_dir = os.path.dirname(target_file)
+            if not target_file_dir.startswith(target_dir):
+                # any other directories may not be writable => avoid trying
+                continue
             source_file = search_include_file(included_file, "", self.pos, include=True)
             if not source_file:
                 continue
-            target_file = os.path.join(target_dir, included_file)
-            target_file_dir = os.path.dirname(target_file)
             if target_file_dir != target_dir and not os.path.exists(target_file_dir):
                 try:
                     os.makedirs(target_file_dir)
