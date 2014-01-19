@@ -2187,7 +2187,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         temp = None
         if isinstance(types, ExprNodes.TupleNode):
             types = types.args
-            arg = temp = UtilNodes.ResultRefNode(arg)
+            if arg.is_attribute or not arg.is_simple():
+                arg = temp = UtilNodes.ResultRefNode(arg)
         elif types.type is Builtin.type_type:
             types = [types]
         else:
