@@ -541,7 +541,7 @@ def safe_spanning_type(types, might_overflow, pos):
         return result_type
     # TODO: double complex should be OK as well, but we need
     # to make sure everything is supported.
-    elif result_type.is_int and not might_overflow:
+    elif (result_type.is_int or result_type.is_enum) and not might_overflow:
         return result_type
     return py_object_type
 
