@@ -1554,8 +1554,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         """Replace min(a,b,...) and max(a,b,...) by explicit comparison code.
         """
         if len(args) <= 1:
-            # leave this to Python
-            return node
+            if len(args) == 1 and args[0].is_sequence_constructor:
+                args = args[0].args
+            else:
+                # leave this to Python
+                return node
 
         cascaded_nodes = list(map(UtilNodes.ResultRefNode, args[1:]))
 
