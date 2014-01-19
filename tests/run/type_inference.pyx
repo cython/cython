@@ -657,7 +657,7 @@ cdef enum MyEnum:
 cdef class InferInProperties:
     """
     >>> InferInProperties().x
-    ('double', 'unicode object', 'MyEnum')
+    ('double', 'unicode object', 'MyEnum', 'MyEnum')
     """
     cdef MyEnum attr
     def __cinit__(self):
@@ -668,4 +668,6 @@ cdef class InferInProperties:
             a = 1.0
             b = u'abc'
             c = self.attr
-            return typeof(a), typeof(b), typeof(c)
+            d = enum_y
+            c = d
+            return typeof(a), typeof(b), typeof(c), typeof(d)
