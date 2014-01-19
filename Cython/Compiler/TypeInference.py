@@ -383,6 +383,7 @@ class SimpleAssignmentTypeInferer(object):
             if not types:
                 node_type = py_object_type
             else:
+                entry = node.entry
                 node_type = spanning_type(
                     types, entry.might_overflow, entry.pos)
             node.inferred_type = node_type
@@ -392,6 +393,7 @@ class SimpleAssignmentTypeInferer(object):
                      if assmt.inferred_type is not None]
             if not types:
                 return
+            entry = node.entry
             return spanning_type(types, entry.might_overflow, entry.pos)
 
         def resolve_assignments(assignments):
@@ -407,7 +409,7 @@ class SimpleAssignmentTypeInferer(object):
                     done = False
                     assmts_resolved.add(assmt)
                     resolved.add(assmt)
-            assignments -= resolved
+            assignments.difference_update(resolved)
             return resolved
 
         def partial_infer(assmt):
