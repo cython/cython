@@ -286,6 +286,11 @@ def conditional_none(int a):
     """
     return None if a in {1,2,3,4} else 1
 
+@cython.test_assert_path_exists(
+    "//BoolBinopNode",
+    "//BoolBinopNode//PrimaryCmpNode"
+)
+@cython.test_fail_if_path_exists("//ListNode")
 def n(a):
     """
     >>> n('d *')
