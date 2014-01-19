@@ -11,6 +11,9 @@ Features added
 Bugs fixed
 ----------
 
+* The C code generation order of cdef classes, closures, etc. was not
+  deterministic, thus leading to high code churn.
+
 * Type inference could fail to deduce C enum types.
 
 * Type inference could deduce unsafe or inefficient types from integer
