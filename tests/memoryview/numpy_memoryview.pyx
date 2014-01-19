@@ -406,7 +406,7 @@ cdef class DeallocateMe(object):
 # Disabled! References cycles don't seem to be supported by NumPy
 # @testcase
 def acquire_release_cycle(obj):
-    """
+    DISABLED_DOCSTRING = """
     >>> a = np.arange(20, dtype=np.object)
     >>> a[10] = DeallocateMe()
     >>> acquire_release_cycle(a)
