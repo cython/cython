@@ -2,6 +2,24 @@
 Cython Changelog
 ================
 
+Latest
+=================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* Type inference could fail to deduce C enum types.
+
+* Type inference could deduce unsafe or inefficient types from integer
+  assignments within a mix of inferred Python variables and integer
+  variables.
+
+Other changes
+-------------
+
 
 0.20 (2014-01-18)
 =================
