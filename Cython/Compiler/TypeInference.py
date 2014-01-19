@@ -406,7 +406,6 @@ class SimpleAssignmentTypeInferer(object):
                         infer_name_node_type(node)
                     # Resolve assmt
                     inferred_type = assmt.infer_type()
-                    done = False
                     assmts_resolved.add(assmt)
                     resolved.add(assmt)
             assignments.difference_update(resolved)
