@@ -2536,7 +2536,9 @@ class WithExitCallNode(ExprNode):
         result_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
 
         code.mark_pos(self.pos)
-        code.putln("%s = PyObject_Call(%s, %s, NULL);" % (
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            "PyObjectCall", "ObjectHandling.c"))
+        code.putln("%s = __Pyx_PyObject_Call(%s, %s, NULL);" % (
             result_var,
             self.with_stat.exit_var,
             self.args.result()))
@@ -4657,8 +4659,10 @@ class SimpleCallNode(CallNode):
                 code.globalstate.use_utility_code(self.function.entry.utility_code)
         if func_type.is_pyobject:
             arg_code = self.arg_tuple.py_result()
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectCall", "ObjectHandling.c"))
             code.putln(
-                "%s = PyObject_Call(%s, %s, NULL); %s" % (
+                "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
                     self.result(),
                     self.function.py_result(),
                     arg_code,
@@ -5087,8 +5091,10 @@ class GeneralCallNode(CallNode):
             kwargs = self.keyword_args.py_result()
         else:
             kwargs = 'NULL'
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            "PyObjectCall", "ObjectHandling.c"))
         code.putln(
-            "%s = PyObject_Call(%s, %s, %s); %s" % (
+            "%s = __Pyx_PyObject_Call(%s, %s, %s); %s" % (
                 self.result(),
                 self.function.py_result(),
                 self.positional_args.py_result(),
