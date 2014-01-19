@@ -1144,7 +1144,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg
     if (unlikely(!call))
         return PyObject_Call(func, arg, kw);
 #if PY_VERSION_HEX >= 0x02060000
-    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object")))
+    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
         return NULL;
 #endif
     result = (*call)(func, arg, kw);
