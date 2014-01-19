@@ -429,13 +429,11 @@ class SimpleAssignmentTypeInferer(object):
             # try to handle circular references
             partials = set()
             for assmt in assignments:
-                partial_types = []
                 if assmt in partial_assmts:
                     continue
-                for node in assmt_to_names[assmt]:
-                    if partial_infer(assmt):
-                        partials.add(assmt)
-                        assmts_resolved.add(assmt)
+                if partial_infer(assmt):
+                    partials.add(assmt)
+                    assmts_resolved.add(assmt)
             partial_assmts.update(partials)
             return partials
 
