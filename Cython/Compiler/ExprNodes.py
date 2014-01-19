@@ -8373,6 +8373,9 @@ class TypecastNode(ExprNode):
                 "Cannot cast to a function type")
             self.type = PyrexTypes.error_type
         self.operand = self.operand.analyse_types(env)
+        if self.type is PyrexTypes.c_bint_type:
+            # short circuit this to a coercion
+            return self.operand.coerce_to_boolean(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject
         if from_py and not to_py and self.operand.is_ephemeral():
@@ -8380,10 +8383,7 @@ class TypecastNode(ExprNode):
                 error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
             if self.type is bytes_type and self.operand.type.is_int:
-                # FIXME: the type cast node isn't needed in this case
-                # and can be dropped once analyse_types() can return a
-                # different node
-                self.operand = CoerceIntToBytesNode(self.operand, env)
+                return CoerceIntToBytesNode(self.operand, env)
             elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
                 base_type = self.base_type.analyse(env)
@@ -8405,7 +8405,7 @@ class TypecastNode(ExprNode):
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
-            if self.typecheck and self.type.is_pyobject:
+            if self.typecheck:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
             elif isinstance(self.operand, SliceIndexNode):
                 # This cast can influence the created type of string slices.
