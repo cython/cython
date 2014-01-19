@@ -61,11 +61,10 @@ import a, b, c
 
 ######## fake_grep.py ########
 
-import platform
 import re
 import sys
 
-if platform == 'Windows':
+if sys.platform == 'win32':
     opt, pattern, file = sys.argv[1:]
     assert opt == '-c'
     count = 0
