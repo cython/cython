@@ -647,3 +647,25 @@ def self_lookup(a):
 def bar(foo):
     qux = foo
     quux = foo[qux.baz]
+
+
+cdef enum MyEnum:
+    enum_x = 1
+    enum_y = 2
+
+
+cdef class InferInProperties:
+    """
+    >>> InferInProperties().x
+    ('double', 'unicode object', 'MyEnum')
+    """
+    cdef MyEnum attr
+    def __cinit__(self):
+        self.attr = enum_x
+
+    property x:
+        def __get__(self):
+            a = 1.0
+            b = u'abc'
+            c = self.attr
+            return typeof(a), typeof(b), typeof(c)
