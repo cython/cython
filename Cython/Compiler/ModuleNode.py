@@ -411,13 +411,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.find_referenced_modules(imported_module, module_list, modules_seen)
             module_list.append(env)
 
-    def sort_types_by_inheritance(self, type_dict, getkey):
+    def sort_types_by_inheritance(self, type_dict, type_order, getkey):
         # copy the types into a list moving each parent type before
         # its first child
-        type_items = type_dict.items()
         type_list = []
-        for i, item in enumerate(type_items):
-            key, new_entry = item
+        for i, key in enumerate(type_order):
+            new_entry = type_dict[key]
 
             # collect all base classes to check for children
             hierarchy = set()
@@ -442,43 +441,52 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return type_list
 
     def sort_type_hierarchy(self, module_list, env):
-        vtab_dict = {}
-        vtabslot_dict = {}
+        # poor developer's OrderedDict
+        vtab_dict, vtab_dict_order = {}, []
+        vtabslot_dict, vtabslot_dict_order = {}, []
         for module in module_list:
             for entry in module.c_class_entries:
-                if not entry.in_cinclude:
+                if entry.used and not entry.in_cinclude:
                     type = entry.type
-                    if type.vtabstruct_cname:
-                        vtab_dict[type.vtabstruct_cname] = entry
+                    key = type.vtabstruct_cname
+                    if not key:
+                        continue
+                    assert key not in vtab_dict, key
+                    vtab_dict[key] = entry
+                    vtab_dict_order.append(key)
             all_defined_here = module is env
             for entry in module.type_entries:
-                if all_defined_here or entry.defined_in_pxd:
+                if entry.used and (all_defined_here or entry.defined_in_pxd):
                     type = entry.type
                     if type.is_extension_type and not entry.in_cinclude:
                         type = entry.type
-                        vtabslot_dict[type.objstruct_cname] = entry
+                        key = type.objstruct_cname
+                        assert key not in vtabslot_dict, key
+                        vtabslot_dict[key] = entry
+                        vtabslot_dict_order.append(key)
 
         def vtabstruct_cname(entry_type):
             return entry_type.vtabstruct_cname
         vtab_list = self.sort_types_by_inheritance(
-            vtab_dict, vtabstruct_cname)
+            vtab_dict, vtab_dict_order, vtabstruct_cname)
 
         def objstruct_cname(entry_type):
             return entry_type.objstruct_cname
         vtabslot_list = self.sort_types_by_inheritance(
-            vtabslot_dict, objstruct_cname)
+            vtabslot_dict, vtabslot_dict_order, objstruct_cname)
 
         return (vtab_list, vtabslot_list)
 
     def sort_cdef_classes(self, env):
         key_func = operator.attrgetter('objstruct_cname')
-        entry_dict = {}
+        entry_dict, entry_order = {}, []
         for entry in env.c_class_entries:
             key = key_func(entry.type)
-            assert key not in entry_dict
+            assert key not in entry_dict, key
             entry_dict[key] = entry
+            entry_order.append(key)
         env.c_class_entries[:] = self.sort_types_by_inheritance(
-            entry_dict, key_func)
+            entry_dict, entry_order, key_func)
 
     def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
         # TODO: Why are these separated out?
