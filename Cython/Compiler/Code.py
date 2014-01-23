@@ -249,7 +249,7 @@ class UtilityCodeBase(object):
                     continue
                 # only pass lists when we have to: most argument expect one value or None
                 if name == 'requires':
-                    values = [ cls.load(dep, from_file, **orig_kwargs) for dep in values ]
+                    values = [ cls.load(dep, from_file, **orig_kwargs) for dep in sorted(values) ]
                 elif not values:
                     values = None
                 elif len(values) == 1:
