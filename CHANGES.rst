@@ -11,8 +11,8 @@ Features added
 Bugs fixed
 ----------
 
-* The C code generation order of cdef classes, closures, etc. was not
-  deterministic, thus leading to high code churn.
+* The C code generation order of cdef classes, closures, helper code,
+  etc. was not deterministic, thus leading to high code churn.
 
 * Type inference could fail to deduce C enum types.
 
