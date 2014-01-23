@@ -1936,7 +1936,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(streq_utility_code)
         code.putln()
         code.putln("static char* %s_type_names[] = {" % Naming.import_star)
-        for name, entry in env.entries.items():
+        for name, entry in sorted(env.entries.items()):
             if entry.is_type:
                 code.putln('"%s",' % name)
         code.putln("0")
