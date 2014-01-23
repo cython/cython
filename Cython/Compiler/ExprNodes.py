@@ -7956,8 +7956,8 @@ class LocalsDictItemNode(DictItemNode):
 
 class FuncLocalsExprNode(DictNode):
     def __init__(self, pos, env):
-        local_vars = [entry.name for entry in env.entries.values()
-                      if entry.name]
+        local_vars = sorted([
+            entry.name for entry in env.entries.values() if entry.name])
         items = [LocalsDictItemNode(
             pos, key=IdentifierStringNode(pos, value=var),
             value=NameNode(pos, name=var, allow_null=True))
