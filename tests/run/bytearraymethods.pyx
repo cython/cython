@@ -199,7 +199,7 @@ def bytearray_decode_unbound_method(bytearray s, start=None, stop=None):
         return bytearray.decode(s[start:stop], 'utf8')
 
 
-def bytearray_append(bytearray b, char c, int i, object o):
+def bytearray_append(bytearray b, signed char c, int i, object o):
     """
     >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z'))
