@@ -444,6 +444,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # poor developer's OrderedDict
         vtab_dict, vtab_dict_order = {}, []
         vtabslot_dict, vtabslot_dict_order = {}, []
+
         for module in module_list:
             for entry in module.c_class_entries:
                 if entry.used and not entry.in_cinclude:
@@ -451,9 +452,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     key = type.vtabstruct_cname
                     if not key:
                         continue
-                    assert key not in vtab_dict, key
-                    vtab_dict[key] = entry
-                    vtab_dict_order.append(key)
+                    if key in vtab_dict:
+                        # FIXME: this should *never* happen, but apparently it does
+                        # for Cython generated utility code
+                        from Cython.Compiler.UtilityCode import NonManglingModuleScope
+                        assert isinstance(entry.scope, NonManglingModuleScope), str(entry.scope)
+                        assert isinstance(vtab_dict[key].scope, NonManglingModuleScope), str(vtab_dict[key].scope)
+                    else:
+                        vtab_dict[key] = entry
+                        vtab_dict_order.append(key)
             all_defined_here = module is env
             for entry in module.type_entries:
                 if entry.used and (all_defined_here or entry.defined_in_pxd):
