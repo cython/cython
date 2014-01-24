@@ -163,3 +163,17 @@ def test_try_finally_regression(c):
         return a
     finally:
         return a
+
+
+def test_expression_calculation_order_bug(a):
+    """
+    >>> test_expression_calculation_order_bug(False)
+    []
+    >>> test_expression_calculation_order_bug(True)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: local variable 'b' referenced before assignment
+    """
+    if not a:
+        b = []
+    return (a or b) and (b or a)
