@@ -332,7 +332,16 @@ def parse_tags(filepath):
         f.close()
     return tags
 
+
 list_unchanging_dir = memoize(lambda x: os.listdir(x))
+
+
+@memoize
+def _list_pyregr_data_files(test_directory):
+    splitext = os.path.splitext
+    data_file_extensions = ('.txt', '.pem', '.db', '.html')
+    return [filename for filename in list_unchanging_dir(test_directory)
+            if splitext(filename)[1] in data_file_extensions] + ['__init__.py']
 
 
 def import_ext(module_name, file_path=None):
@@ -634,16 +643,17 @@ class CythonCompileTestCase(unittest.TestCase):
     def build_target_filename(self, module_name):
         target = '%s.%s' % (module_name, self.language)
         return target
-    
+
     def related_files(self, test_directory, module_name):
         is_related = re.compile('%s_.*[.].*' % module_name).match
         return [filename for filename in list_unchanging_dir(test_directory)
-            if is_related(filename)]
+                if is_related(filename)]
 
     def copy_files(self, test_directory, target_directory, file_list):
         for filename in file_list:
-            shutil.copy(os.path.join(test_directory, filename),
-                        target_directory)
+            file_path = os.path.join(test_directory, filename)
+            if os.path.exists(file_path):
+                shutil.copy(file_path, target_directory)
 
     def source_files(self, workdir, module_name, file_list):
         return ([self.build_target_filename(module_name)] +
@@ -1056,6 +1066,9 @@ class CythonPyregrTestCase(CythonRunTestCase):
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
         patch_inspect_isfunction()
+
+    def related_files(self, test_directory, module_name):
+        return _list_pyregr_data_files(test_directory)
 
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
