@@ -249,8 +249,13 @@ class UtilityCodeBase(object):
                     continue
                 # only pass lists when we have to: most argument expect one value or None
                 if name == 'requires':
-                    values = [cls.load_cached(dep, from_file, **orig_kwargs)
-                              for dep in sorted(values)]
+                    if orig_kwargs:
+                        values = [cls.load(dep, from_file, **orig_kwargs)
+                                  for dep in sorted(values)]
+                    else:
+                        # dependencies are rarely unique, so use load_cached() when we can
+                        values = [cls.load_cached(dep, from_file)
+                                  for dep in sorted(values)]
                 elif not values:
                     values = None
                 elif len(values) == 1:
@@ -270,7 +275,7 @@ class UtilityCodeBase(object):
         return cls(**kwargs)
 
     @classmethod
-    def load_cached(cls, utility_code_name, from_file=None, __cache={}, **kwargs):
+    def load_cached(cls, utility_code_name, from_file=None, __cache={}):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
@@ -279,7 +284,7 @@ class UtilityCodeBase(object):
             return __cache[key]
         except KeyError:
             pass
-        code = __cache[key] = cls.load(utility_code_name, from_file, **kwargs)
+        code = __cache[key] = cls.load(utility_code_name, from_file)
         return code
 
     @classmethod
