@@ -188,6 +188,8 @@ of byte containers, e.g. :obj:`bytearray` objects or memory views.
 Depending on how (and where) the data is being processed, it may be a
 good idea to instead receive a 1-dimensional memory view, e.g.
 
+::
+
     def process_byte_data(unsigned char[:] data):
         length = data.shape[0]
         first_byte = data[0]
