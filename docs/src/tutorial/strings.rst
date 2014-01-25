@@ -194,7 +194,8 @@ good idea to instead receive a 1-dimensional memory view, e.g.
         byte_slice = data[1:-1]
         ...
 
-Cython's memory views are described in more detail in :doc:`memoryviews`,
+Cython's memory views are described in more detail in
+:doc:`../userguide/memoryviews`,
 but the above example already shows most of the relevant functionality
 for 1-dimensional byte views.  They allow for efficient processing of
 arrays and accept anything that can unpack itself into a byte buffer,
