@@ -17,7 +17,7 @@
 #
 # Author: Lars Buitinck
 
-cdef extern from "numpy/npy_math.h":
+cdef extern from "numpy/npy_math.h" nogil:
     # Floating-point classification
     long double NAN "NPY_NAN"
     long double INFINITY "NPY_INFINITY"
