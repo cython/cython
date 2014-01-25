@@ -1121,6 +1121,7 @@ class ControlFlowAnalysis(CythonTransform):
         ## XXX: links to exception handling point should be added by
         ## XXX: children nodes
         self.flow.block.add_child(entry_point)
+        self.flow.nextblock()
         self._visit(node.body)
         self.flow.exceptions.pop()
 
@@ -1181,6 +1182,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.block = body_block
         ## XXX: Is it still required
         body_block.add_child(entry_point)
+        self.flow.nextblock()
         self._visit(node.body)
         self.flow.exceptions.pop()
         if self.flow.loops:
