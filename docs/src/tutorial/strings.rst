@@ -170,6 +170,104 @@ object buffer after converting it to a C string pointer.  These
 modifications can change the internal buffer address, which will make
 the pointer invalid.
 
+
+Accepting strings from Python code
+----------------------------------
+
+The other side, receiving input from Python code, may appear simple
+at first sight, as it only deals with objects.  However, getting this
+right without making the API too narrow or too unsafe may not be
+entirely obvious.
+
+In the case that the API only deals with byte strings, i.e. binary
+data or encoded text, it is best not to type the input argument as
+something like :obj:`bytes`, because that would restrict the allowed
+input to exactly that type and exclude both subtypes and other kinds
+of byte containers, e.g. :obj:`bytearray` objects or memory views.
+
+Depending on how (and where) the data is being processed, it may be a
+good idea to instead receive a 1-dimensional memory view, e.g.
+
+    def process_byte_data(unsigned char[:] data):
+        length = data.shape[0]
+        first_byte = data[0]
+        byte_slice = data[1:-1]
+        ...
+
+Cython's memory views are described in more detail in :doc:`memoryviews`,
+but the above example already shows most of the relevant functionality
+for 1-dimensional byte views.  They allow for efficient processing of
+arrays and accept anything that can unpack itself into a byte buffer,
+without intermediate copying.  The processed content can finally be
+returned in the memory view itself (or a slice of it), but it is
+often better to copy the data back into a :obj:`bytes` or :obj:`bytearray`
+object, especially when only a small slice is returned (as the memoryview
+would otherwise keep the entire original buffer alive).  This can simply
+be done as follows::
+
+    def process_byte_data(unsigned char[:] data):
+        # ... process the data
+        if return_all:
+            return bytes(data)
+        else:
+            # example for returning a slice
+            return bytes(data[5:35])
+
+If the byte input is actually encoded text, and the further processing
+should happen at the Unicode level, then the right thing to do is to
+decode the input straight away.  This is almost only a problem in Python
+2.x, where Python code expects that it can pass a byte string (:obj:`str`)
+with encoded text into a text API.  Since this usually happens in more
+than one place in the module's API, a helper function is almost always the
+way to go, since it allows for easy adaptation of the input normalisation
+process later.
+
+This kind of input normalisation function will commonly look similar to
+the following::
+
+    from cpython.version cimport PY_MAJOR_VERSION
+
+    cdef unicode _ustring(s):
+        if type(s) is unicode:
+            # fast path for most common case(s)
+            return <unicode>s
+        elif PY_MAJOR_VERSION < 3 and isinstance(s, bytes):
+            # only accept byte strings in Python 2.x, not in Py3
+            return (<bytes>s).decode('ascii')
+        elif isinstance(s, unicode):
+            # an evil cast to <unicode> might work here in some(!) cases,
+            # depending on what the further processing does.  to be safe,
+            # we can always create a copy instead
+            return unicode(s)
+        else:
+            raise TypeError(...)
+
+And should then be used like this::
+
+    def api_func(s):
+        text = _ustring(s)
+        ...
+
+Similarly, if the further processing happens at the byte level, but Unicode
+string input should be accepted, then the following might work, if you are
+using memory views::
+
+    # define a global name for whatever char type is used in the module
+    ctypedef unsigned char char_type
+
+    cdef char_type[:] _chars(s):
+        if isinstance(s, unicode):
+            # encode to the specific encoding used inside of the module
+            s = (<unicode>s).encode('utf8')
+        return s
+
+In this case, you might want to additionally ensure that byte string
+input really uses the correct encoding, e.g. if you require pure ASCII
+input data, you can run over the buffer in a loop and check the highest
+bit of each byte.  This should then also be done in the input normalisation
+function.
+
+
 Dealing with "const"
 --------------------
 
