@@ -193,20 +193,22 @@ good idea to instead receive a 1-dimensional memory view, e.g.
     def process_byte_data(unsigned char[:] data):
         length = data.shape[0]
         first_byte = data[0]
-        byte_slice = data[1:-1]
+        slice_view = data[1:-1]
         ...
 
 Cython's memory views are described in more detail in
-:doc:`../userguide/memoryviews`,
-but the above example already shows most of the relevant functionality
-for 1-dimensional byte views.  They allow for efficient processing of
-arrays and accept anything that can unpack itself into a byte buffer,
-without intermediate copying.  The processed content can finally be
-returned in the memory view itself (or a slice of it), but it is
-often better to copy the data back into a :obj:`bytes` or :obj:`bytearray`
-object, especially when only a small slice is returned (as the memoryview
-would otherwise keep the entire original buffer alive).  This can simply
-be done as follows::
+:doc:`../userguide/memoryviews`, but the above example already shows
+most of the relevant functionality for 1-dimensional byte views.  They
+allow for efficient processing of arrays and accept anything that can
+unpack itself into a byte buffer, without intermediate copying.  The
+processed content can finally be returned in the memory view itself
+(or a slice of it), but it is often better to copy the data back into
+a flat and simple :obj:`bytes` or :obj:`bytearray` object, especially
+when only a small slice is returned.  Since memoryviews do not copy the
+data, they would otherwise keep the entire original buffer alive.  The
+general idea here is to be liberal with input by accepting any kind of
+byte buffer, but strict with output by returning a simple, well adapted
+object.  This can simply be done as follows::
 
     def process_byte_data(unsigned char[:] data):
         # ... process the data
