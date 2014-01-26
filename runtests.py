@@ -650,15 +650,22 @@ class CythonCompileTestCase(unittest.TestCase):
                 if is_related(filename)]
 
     def copy_files(self, test_directory, target_directory, file_list):
+        # use symlink on Unix, copy on Windows
+        try:
+            copy = os.symlink
+        except AttributeError:
+            copy = shutil.copy
+
+        join = os.path.join
         for filename in file_list:
-            file_path = os.path.join(test_directory, filename)
+            file_path = join(test_directory, filename)
             if os.path.exists(file_path):
-                shutil.copy(file_path, target_directory)
+                copy(file_path, join(target_directory, filename))
 
     def source_files(self, workdir, module_name, file_list):
         return ([self.build_target_filename(module_name)] +
             [filename for filename in file_list
-                if not os.path.isfile(os.path.join(workdir, filename))])
+             if not os.path.isfile(os.path.join(workdir, filename))])
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
