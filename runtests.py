@@ -338,10 +338,10 @@ list_unchanging_dir = memoize(lambda x: os.listdir(x))
 
 @memoize
 def _list_pyregr_data_files(test_directory):
-    splitext = os.path.splitext
-    data_file_extensions = ('.txt', '.pem', '.db', '.html')
-    return [filename for filename in list_unchanging_dir(test_directory)
-            if splitext(filename)[1] in data_file_extensions] + ['__init__.py']
+    is_data_file = re.compile('(?:[.](txt|pem|db|html)|^bad.*[.]py)$').search
+    return ['__init__.py'] + [
+        filename for filename in list_unchanging_dir(test_directory)
+        if is_data_file(filename)]
 
 
 def import_ext(module_name, file_path=None):
