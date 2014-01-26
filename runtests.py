@@ -523,18 +523,18 @@ class TestBuilder(object):
         elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
             languages = list(languages)
             languages.remove('cpp')
-        tests = [ self.build_test(test_class, path, workdir, module,
+        tests = [ self.build_test(test_class, path, workdir, module, tags,
                                   language, expect_errors, warning_errors)
                   for language in languages ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module,
+    def build_test(self, test_class, path, workdir, module, tags,
                    language, expect_errors, warning_errors):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
         workdir = os.path.join(language_workdir, module)
-        return test_class(path, workdir, module,
+        return test_class(path, workdir, module, tags,
                           language=language,
                           expect_errors=expect_errors,
                           annotate=self.annotate,
@@ -547,11 +547,12 @@ class TestBuilder(object):
                           warning_errors=warning_errors)
 
 class CythonCompileTestCase(unittest.TestCase):
-    def __init__(self, test_directory, workdir, module, language='c',
+    def __init__(self, test_directory, workdir, module, tags, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False):
         self.test_directory = test_directory
+        self.tags = tags
         self.workdir = workdir
         self.module = module
         self.language = language
@@ -725,12 +726,6 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def run_distutils(self, test_directory, module, workdir, incdir,
                       extra_extension_args=None):
-        original_source = self.find_module_source_file(
-            os.path.join(test_directory, module + '.pyx'))
-        try:
-            tags = parse_tags(original_source)
-        except IOError:
-            tags = {}
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
@@ -770,7 +765,7 @@ class CythonCompileTestCase(unittest.TestCase):
                     del EXT_EXTRAS[matcher]
                     matcher = string_selector(matcher)
                     EXT_EXTRAS[matcher] = fixer
-                if matcher(module, tags):
+                if matcher(module, self.tags):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
                         return
