@@ -760,8 +760,9 @@ class CythonCompileTestCase(unittest.TestCase):
                 # Set the language now as the fixer might need it
                 extension.language = 'c++'
 
-            for matcher, fixer in EXT_EXTRAS.items():
+            for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
+                    # lazy init
                     del EXT_EXTRAS[matcher]
                     matcher = string_selector(matcher)
                     EXT_EXTRAS[matcher] = fixer
