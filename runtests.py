@@ -611,8 +611,8 @@ class CythonCompileTestCase(unittest.TestCase):
                 for rmfile in os.listdir(self.workdir):
                     if not cleanup_c_files:
                         if (rmfile[-2:] in (".c", ".h") or
-                            rmfile[-4:] == ".cpp" or
-                            rmfile.endswith(".html")):
+                                rmfile[-4:] == ".cpp" or
+                                rmfile.endswith(".html") and rmfile.startswith(self.module)):
                             continue
                     if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
                         continue
