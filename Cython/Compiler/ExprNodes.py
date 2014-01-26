@@ -1690,7 +1690,7 @@ class NameNode(AtomicExprNode):
         return self
 
     def analyse_target_types(self, env):
-        self.analyse_entry(env)
+        self.analyse_entry(env, is_target=True)
 
         if (not self.is_lvalue() and self.entry.is_cfunction and
                 self.entry.fused_cfunction and self.entry.as_variable):
@@ -1750,12 +1750,12 @@ class NameNode(AtomicExprNode):
 
     gil_message = "Accessing Python global or builtin"
 
-    def analyse_entry(self, env):
+    def analyse_entry(self, env, is_target=False):
         #print "NameNode.analyse_entry:", self.name ###
         self.check_identifier_kind()
         entry = self.entry
         type = entry.type
-        if (type.is_pyobject and self.inferred_type and
+        if (not is_target and type.is_pyobject and self.inferred_type and
                 self.inferred_type.is_builtin_type):
             # assume that type inference is smarter than the static entry
             type = self.inferred_type

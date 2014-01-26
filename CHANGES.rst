@@ -11,6 +11,10 @@ Features added
 Bugs fixed
 ----------
 
+* In-place assignments to variables with inferred Python builtin/extension
+  types could fail with type errors if the result value type was incompatible
+  with the type of the previous value.
+
 * The C code generation order of cdef classes, closures, helper code,
   etc. was not deterministic, thus leading to high code churn.
 
