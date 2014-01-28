@@ -193,9 +193,11 @@ class ControlFlow(object):
     def mark_reference(self, node, entry):
         if self.block and self.is_tracked(entry):
             self.block.stats.append(NameReference(node, entry))
-            # Local variable is definitely bound after this reference
-            if not node.allow_null:
-                self.block.bounded.add(entry)
+            ## XXX: We don't track expression evaluation order so we can't use
+            ## XXX: successful reference as initialization sign.
+            ## # Local variable is definitely bound after this reference
+            ## if not node.allow_null:
+            ##     self.block.bounded.add(entry)
             self.entries.add(entry)
 
     def normalize(self):
@@ -548,9 +550,9 @@ def check_definitions(flow, compiler_directives):
                 references[stat.node] = stat.entry
                 stat.entry.cf_references.append(stat)
                 stat.node.cf_state.update(state)
-                if not stat.node.allow_null:
-                    i_state &= ~i_assmts.bit
-                # after successful read, the state is known to be initialised
+                ## if not stat.node.allow_null:
+                ##     i_state &= ~i_assmts.bit
+                ## # after successful read, the state is known to be initialised
                 state.discard(Uninitialized)
                 state.discard(Unknown)
                 for assmt in state:
@@ -1121,6 +1123,7 @@ class ControlFlowAnalysis(CythonTransform):
         ## XXX: links to exception handling point should be added by
         ## XXX: children nodes
         self.flow.block.add_child(entry_point)
+        self.flow.nextblock()
         self._visit(node.body)
         self.flow.exceptions.pop()
 
@@ -1181,6 +1184,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.block = body_block
         ## XXX: Is it still required
         body_block.add_child(entry_point)
+        self.flow.nextblock()
         self._visit(node.body)
         self.flow.exceptions.pop()
         if self.flow.loops:
