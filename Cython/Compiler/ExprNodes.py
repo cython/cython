@@ -9220,9 +9220,9 @@ class AddNode(NumBinopNode):
         if type1 is unicode_type or type2 is unicode_type:
             if type1.is_builtin_type and type2.is_builtin_type:
                 if self.operand1.may_be_none() or self.operand2.may_be_none():
-                    return '__Pyx_PyUnicode_Concat'
+                    return '__Pyx_PyUnicode_ConcatSafe'
                 else:
-                    return 'PyUnicode_Concat'
+                    return '__Pyx_PyUnicode_Concat'
         return super(AddNode, self).py_operation_function()
 
 

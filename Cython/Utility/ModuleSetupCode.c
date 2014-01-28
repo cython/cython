@@ -161,10 +161,17 @@
   #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY
+  #define __Pyx_PyUnicode_Concat(a, b)      PyNumber_Add(a, b)
+  #define __Pyx_PyUnicode_ConcatSafe(a, b)  PyNumber_Add(a, b)
+#else
+  #define __Pyx_PyUnicode_Concat(a, b)      PyUnicode_Concat(a, b)
+  #define __Pyx_PyUnicode_ConcatSafe(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+      PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
+#endif
+
 #define __Pyx_PyString_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
-#define __Pyx_PyUnicode_Concat(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_Add(a, b) : PyUnicode_Concat(a, b))
 
 #if PY_MAJOR_VERSION >= 3
   #define __Pyx_PyString_Format(a, b)  PyUnicode_Format(a, b)
