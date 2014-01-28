@@ -206,11 +206,13 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
     } else
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII  || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT */
 
+#if !CYTHON_COMPILING_IN_PYPY
 #if PY_VERSION_HEX >= 0x02060000
     if (PyByteArray_Check(o)) {
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
     } else
+#endif
 #endif
     {
         char* result;
