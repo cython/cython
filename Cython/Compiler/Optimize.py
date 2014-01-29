@@ -3375,19 +3375,30 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_MulNode(self, node):
         self._calculate_const(node)
-        if isinstance(node.operand1, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            return self._calculate_constant_seq(node.operand1, node.operand2)
+        if node.operand1.is_sequence_constructor:
+            return self._calculate_constant_seq(node, node.operand1, node.operand2)
         if isinstance(node.operand1, ExprNodes.IntNode) and \
-                isinstance(node.operand2, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            return self._calculate_constant_seq(node.operand2, node.operand1)
+                node.operand2.is_sequence_constructor:
+            return self._calculate_constant_seq(node, node.operand2, node.operand1)
         return self.visit_BinopNode(node)
 
-    def _calculate_constant_seq(self, sequence_node, factor):
+    def _calculate_constant_seq(self, node, sequence_node, factor):
         if factor.constant_result != 1 and sequence_node.args:
             if isinstance(factor.constant_result, (int, long)) and factor.constant_result <= 0:
                 del sequence_node.args[:]
-                factor = None
-            sequence_node.mult_factor = factor
+                sequence_node.mult_factor = None
+            elif sequence_node.mult_factor is not None:
+                if (isinstance(factor.constant_result, (int, long)) and
+                        isinstance(sequence_node.mult_factor.constant_result, (int, long))):
+                    value = sequence_node.mult_factor.constant_result * factor.constant_result
+                    sequence_node.mult_factor = ExprNodes.IntNode(
+                        sequence_node.mult_factor.pos,
+                        value=str(value), constant_result=value)
+                else:
+                    # don't know if we can combine the factors, so don't
+                    return self.visit_BinopNode(node)
+            else:
+                sequence_node.mult_factor = factor
         return sequence_node
 
     def visit_PrimaryCmpNode(self, node):
