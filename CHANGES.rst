@@ -11,6 +11,9 @@ Features added
 Bugs fixed
 ----------
 
+* List/Tuple literals multiplied by more than one factor were only multiplied
+  by the last factor instead of all.
+
 * In-place assignments to variables with inferred Python builtin/extension
   types could fail with type errors if the result value type was incompatible
   with the type of the previous value.

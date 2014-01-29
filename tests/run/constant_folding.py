@@ -293,6 +293,28 @@ def mult_empty_list():
 
 @cython.test_fail_if_path_exists(
     "//MulNode",
+)
+def mult_list_int_int():
+    """
+    >>> mult_list_int_int()
+    [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
+    """
+    return [1, 2] * 2 * 3
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+)
+def mult_int_list_int():
+    """
+    >>> mult_int_list_int()
+    [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
+    """
+    return 3 * [1, 2] * 2
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
     "//ListNode//IntNode",
 )
 def neg_mult_list():
