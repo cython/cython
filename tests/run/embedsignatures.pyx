@@ -4,6 +4,8 @@ import sys
 
 if sys.version_info >= (3, 4):
     def funcdoc(f):
+        if not f.__text_signature__:
+            return f.__doc__
         doc = '%s%s' % (f.__name__, f.__text_signature__)
         if f.__doc__:
             if '\n' in f.__doc__:
