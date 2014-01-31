@@ -427,7 +427,7 @@ statement, like this::
     def f():
         ...
         # turn it temporarily on again for this block
-    	with cython.boundscheck(True):
+        with cython.boundscheck(True):
             ...
 
 .. Warning:: These two methods of setting directives are **not**
