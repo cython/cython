@@ -266,6 +266,8 @@ VER_DEP_MODULES = {
                                         'run.special_methods_T561_py2']),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           ]),
+    (3,4,0,'beta',3) : (operator.le, lambda x: x in ['run.py34_signature',
+                                          ]),
 }
 
 # files that should not be converted to Python 3 code with 2to3
