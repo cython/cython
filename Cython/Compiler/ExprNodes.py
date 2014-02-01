@@ -7643,7 +7643,7 @@ class CodeObjectNode(ExprNode):
 
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, 0, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
-            len(func.args),            # argcount
+            len(func.args) - func.num_kwonly_args,  # argcount
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
             Naming.empty_bytes,        # code
