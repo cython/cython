@@ -4,6 +4,56 @@
 
 import sys
 IS_PY3 = sys.version_info[0] >= 3
+IS_PY34 = sys.version_info > (3, 4, 0, 'beta', 3)
+
+
+def inspect_isroutine():
+    """
+    >>> inspect_isroutine()
+    True
+    """
+    import inspect
+    return inspect.isroutine(inspect_isroutine)
+
+
+def inspect_isfunction():
+    """
+    >>> inspect_isfunction()
+    False
+    False
+    """
+    import inspect, types
+    print isinstance(inspect_isfunction, types.FunctionType)
+    return inspect.isfunction(inspect_isfunction)
+
+
+def inspect_isbuiltin():
+    """
+    >>> inspect_isbuiltin()
+    False
+    False
+    """
+    import inspect, types
+    print isinstance(inspect_isfunction, types.BuiltinFunctionType)
+    return inspect.isbuiltin(inspect_isbuiltin)
+
+
+def inspect_signature(a, b, c=123, *, d=234):
+    """
+    >>> sig = inspect_signature(1, 2)
+    >>> if IS_PY34: list(sig.parameters)
+    ... else: ['a', 'b', 'c', 'd']
+    ['a', 'b', 'c', 'd']
+    >>> if IS_PY34: sig.parameters['c'].default == 123
+    ... else: True
+    True
+    >>> if IS_PY34: sig.parameters['d'].default == 234
+    ... else: True
+    True
+    """
+    import inspect
+    return inspect.signature(inspect_signature) if IS_PY34 else None
+
 
 def test_dict():
     """
