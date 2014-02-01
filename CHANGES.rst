@@ -12,7 +12,7 @@ Bugs fixed
 ----------
 
 * Local variables were erroneously appended to the signature introspection
-  of Cython implemented functions with keyword-only arguments.
+  of Cython implemented functions with keyword-only arguments under Python 3.
 
 * List/Tuple literals multiplied by more than one factor were only multiplied
   by the last factor instead of all.
