@@ -7610,18 +7610,14 @@ class CodeObjectNode(ExprNode):
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
         args = list(def_node.args)
-        if def_node.star_arg:
-            args.append(def_node.star_arg)
-        if def_node.starstar_arg:
-            args.append(def_node.starstar_arg)
-        local_vars = [ arg for arg in def_node.local_scope.var_entries
-                       if arg.name ]
+        # if we have args/kwargs, then the first two in var_entries are those
+        local_vars = [arg for arg in def_node.local_scope.var_entries if arg.name]
         self.varnames = TupleNode(
             def_node.pos,
-            args = [ IdentifierStringNode(arg.pos, value=arg.name)
-                     for arg in args + local_vars ],
-            is_temp = 0,
-            is_literal = 1)
+            args=[IdentifierStringNode(arg.pos, value=arg.name)
+                  for arg in args + local_vars],
+            is_temp=0,
+            is_literal=1)
 
     def may_be_none(self):
         return False
@@ -7641,11 +7637,18 @@ class CodeObjectNode(ExprNode):
         file_path = StringEncoding.BytesLiteral(func.pos[0].get_filenametable_entry().encode('utf8'))
         file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, 0, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
+        flags = []
+        if self.def_node.star_arg:
+            flags.append('CO_VARARGS')
+        if self.def_node.starstar_arg:
+            flags.append('CO_VARKEYWORDS')
+
+        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
             len(func.args) - func.num_kwonly_args,  # argcount
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
+            '|'.join(flags) or '0',    # flags
             Naming.empty_bytes,        # code
             Naming.empty_tuple,        # consts
             Naming.empty_tuple,        # names (FIXME)
