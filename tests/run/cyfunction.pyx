@@ -42,6 +42,19 @@ def test_doc():
     'docstring'
     """
 
+
+def test_hash():
+    """
+    >>> d = {test_hash: 123}
+    >>> test_hash in d
+    True
+    >>> d[test_hash]
+    123
+    >>> hash(test_hash) == hash(test_hash)
+    True
+    """
+
+
 def test_closure():
     """
     >>> test_closure.func_closure is None
