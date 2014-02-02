@@ -1029,7 +1029,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
 /////////////// PyObjectLookupSpecial.proto ///////////////
 //@requires: PyObjectGetAttrStr
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && (PY_VERSION_HEX >= 0x03020000 || PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000)
+// looks like calling _PyType_Lookup() isn't safe in Py<=2.6/3.1
 static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObject* attr_name) {
     PyObject *res;
     PyTypeObject *tp = Py_TYPE(obj);
@@ -1052,7 +1053,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObj
     return res;
 }
 #else
-#define __Pyx_PyObject_LookupSpecial(o,n) PyObject_GetAttr(o,n)
+#define __Pyx_PyObject_LookupSpecial(o,n) __Pyx_PyObject_GetAttrStr(o,n)
 #endif
 
 /////////////// PyObjectGetAttrStr.proto ///////////////

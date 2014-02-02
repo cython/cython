@@ -11,6 +11,9 @@ Features added
 Bugs fixed
 ----------
 
+* Lookups of special methods (specifically for context managers) could fail
+  in Python <= 2.6/3.1.
+
 * Local variables were erroneously appended to the signature introspection
   of Cython implemented functions with keyword-only arguments under Python 3.
 

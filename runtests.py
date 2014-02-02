@@ -207,6 +207,11 @@ EXT_EXTRAS = {
     'tag:trace':  update_linetrace_extension,
 }
 
+
+def _is_py3_before_32(excluded, version):
+    return version[0] >= 3 and version < (3,2)
+
+
 # TODO: use tags
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
@@ -252,6 +257,7 @@ VER_DEP_MODULES = {
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
                                           'run.yield_inside_lambda',
                                           'run.test_dictviews',
+                                          'run.pyclass_special_methods',
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
@@ -263,7 +269,10 @@ VER_DEP_MODULES = {
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice',
-                                        'run.special_methods_T561_py2']),
+                                        'run.special_methods_T561_py2'
+                                        ]),
+    (3,1): (_is_py3_before_32, lambda x: x in ['run.pyclass_special_methods',
+                                               ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           ]),
     (3,4,0,'beta',3) : (operator.le, lambda x: x in ['run.py34_signature',
