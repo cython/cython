@@ -645,10 +645,6 @@ static int __Pyx_CyFunction_init(void) {
     // avoid a useless level of call indirection
     __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON
-    // make inheritance from Python's builtin function type official
-    __pyx_CyFunctionType_type.tp_base = &PyCFunction_Type;
-#endif
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
     if (__pyx_CyFunctionType == NULL) {
         return -1;
