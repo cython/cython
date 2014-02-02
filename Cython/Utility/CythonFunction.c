@@ -21,7 +21,6 @@
 
 typedef struct {
     PyCFunctionObject func;
-    int flags;
     PyObject *func_dict;
     PyObject *func_weakreflist;
     PyObject *func_name;
@@ -35,6 +34,7 @@ typedef struct {
     /* Dynamic default args and annotations */
     void *defaults;
     int defaults_pyobjects;
+    int flags;
 
     /* Defaults info */
     PyObject *defaults_tuple;   /* Const defaults tuple */
