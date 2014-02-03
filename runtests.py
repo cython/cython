@@ -253,8 +253,9 @@ VER_DEP_MODULES = {
                                           'memoryview.numpy_memoryview',
                                           'memoryview.memoryviewattrs',
                                           'memoryview.memoryview',
+                                          'run.withstat_py',
                                           ]),
-    (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
+    (2,7) : (operator.lt, lambda x: x in ['run.withstat_py27', # multi context with statement
                                           'run.yield_inside_lambda',
                                           'run.test_dictviews',
                                           'run.pyclass_special_methods',
