@@ -124,6 +124,24 @@ def with_exception(exit_ret):
         print("outer except")
 
 
+def with_real_lock():
+    """
+    >>> with_real_lock()
+    about to acquire lock
+    holding lock
+    lock no longer held
+    """
+    from threading import Lock
+    lock = Lock()
+
+    print("about to acquire lock")
+
+    with lock:
+        print("holding lock")
+
+    print("lock no longer held")
+
+
 def functions_in_with():
     """
     >>> f = functions_in_with()
