@@ -158,7 +158,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                 for module in already_imported:
                     keep_alive(sys.modules[module])
                     del sys.modules[module]
-                sys.path.insert(0, os.path.join(source_root, self.build_lib))
+                sys.path.insert(0, self.build_lib)
 
                 if profile:
                     from Cython.Compiler.Options import directive_defaults
