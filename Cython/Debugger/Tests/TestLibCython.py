@@ -279,6 +279,8 @@ class TestAll(GdbDebuggerTestCase):
 
             sys.stderr.write(errmsg)
 
+        self.assertEqual(exit_status, 0)
+
 
 if __name__ == '__main__':
     unittest.main()
