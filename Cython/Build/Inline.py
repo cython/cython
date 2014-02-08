@@ -267,12 +267,12 @@ except ImportError:
         for name, value in kwd_values.items():
             if name in args:
                 if name in all:
-                    raise TypeError, "Duplicate argument %s" % name
+                    raise TypeError("Duplicate argument %s" % name)
                 all[name] = kwd_values.pop(name)
         if kwds is not None:
             all[kwds] = kwd_values
         elif kwd_values:
-            raise TypeError, "Unexpected keyword arguments: %s" % kwd_values.keys()
+            raise TypeError("Unexpected keyword arguments: %s" % kwd_values.keys())
         if defaults is None:
             defaults = ()
         first_default = len(args) - len(defaults)
@@ -281,7 +281,7 @@ except ImportError:
                 if ix >= first_default:
                     all[name] = defaults[ix - first_default]
                 else:
-                    raise TypeError, "Missing argument: %s" % name
+                    raise TypeError("Missing argument: %s" % name)
         return all
 
 def get_body(source):

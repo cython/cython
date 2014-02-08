@@ -222,14 +222,14 @@ class _XMLTestResult(_TextTestResult):
         testsuite.setAttribute('name', str(suite_name))
         testsuite.setAttribute('tests', str(len(tests)))
 
-        testsuite.setAttribute('time', '%.3f' % \
-            sum(map(lambda e: e.get_elapsed_time(), tests)))
+        testsuite.setAttribute('time', '%.3f' %
+            sum([e.get_elapsed_time() for e in tests]))
 
-        failures = filter(lambda e: e.outcome==_TestInfo.FAILURE, tests)
-        testsuite.setAttribute('failures', str(len(failures)))
+        failures = len([1 for e in tests if e.outcome == _TestInfo.FAILURE])
+        testsuite.setAttribute('failures', str(failures))
 
-        errors = filter(lambda e: e.outcome==_TestInfo.ERROR, tests)
-        testsuite.setAttribute('errors', str(len(errors)))
+        errors = len([1 for e in tests if e.outcome == _TestInfo.ERROR])
+        testsuite.setAttribute('errors', str(errors))
 
         return testsuite
 

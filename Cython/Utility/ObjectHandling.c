@@ -1029,7 +1029,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
 /////////////// PyObjectLookupSpecial.proto ///////////////
 //@requires: PyObjectGetAttrStr
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && (PY_VERSION_HEX >= 0x03020000 || PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000)
+// looks like calling _PyType_Lookup() isn't safe in Py<=2.6/3.1
 static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObject* attr_name) {
     PyObject *res;
     PyTypeObject *tp = Py_TYPE(obj);
@@ -1052,7 +1053,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObj
     return res;
 }
 #else
-#define __Pyx_PyObject_LookupSpecial(o,n) PyObject_GetAttr(o,n)
+#define __Pyx_PyObject_LookupSpecial(o,n) __Pyx_PyObject_GetAttrStr(o,n)
 #endif
 
 /////////////// PyObjectGetAttrStr.proto ///////////////
@@ -1093,6 +1094,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 
 /////////////// PyObjectCallMethod.proto ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: PyObjectCall
 //@substitute: naming
 
 static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_name, PyObject* args) {
@@ -1100,7 +1102,7 @@ static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_
     if (unlikely(!args)) return NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
     if (unlikely(!method)) goto bad;
-    result = PyObject_Call(method, args, NULL);
+    result = __Pyx_PyObject_Call(method, args, NULL);
     Py_DECREF(method);
 bad:
     Py_DECREF(args);
@@ -1123,3 +1125,38 @@ bad:
 static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
     return (PyObject*) (((PyTypeObject*)type_obj)->tp_new((PyTypeObject*)type_obj, args, kwargs));
 }
+
+
+/////////////// PyObjectCall.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw); /*proto*/
+#else
+#define __Pyx_PyObject_Call(func, arg, kw) PyObject_Call(func, arg, kw)
+#endif
+
+/////////////// PyObjectCall ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+    PyObject *result;
+    ternaryfunc call = func->ob_type->tp_call;
+
+    if (unlikely(!call))
+        return PyObject_Call(func, arg, kw);
+#if PY_VERSION_HEX >= 0x02060000
+    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+        return NULL;
+#endif
+    result = (*call)(func, arg, kw);
+#if PY_VERSION_HEX >= 0x02060000
+    Py_LeaveRecursiveCall();
+#endif
+    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
+        PyErr_SetString(
+            PyExc_SystemError,
+            "NULL result without error in PyObject_Call");
+    }
+    return result;
+}
+#endif

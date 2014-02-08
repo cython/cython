@@ -16,46 +16,46 @@ implicitly insert these encoding/decoding steps.
 Python string types in Cython code
 ----------------------------------
 
-Cython supports four Python string types: ``bytes``, ``str``,
-``unicode`` and ``basestring``.  The ``bytes`` and ``unicode`` types
-are the specific types known from normal Python 2.x (named ``bytes``
-and ``str`` in Python 3).  Additionally, Cython also supports the
-``bytearray`` type starting with Python 2.6.  It behaves like the
-``bytes`` type, except that it is mutable.
+Cython supports four Python string types: :obj:`bytes`, :obj:`str`,
+:obj:`unicode` and :obj:`basestring`.  The :obj:`bytes` and :obj:`unicode` types
+are the specific types known from normal Python 2.x (named :obj:`bytes`
+and :obj:`str` in Python 3).  Additionally, Cython also supports the
+:obj:`bytearray` type starting with Python 2.6.  It behaves like the
+:obj:`bytes` type, except that it is mutable.
 
-The ``str`` type is special in that it is the byte string in Python 2
+The :obj:`str` type is special in that it is the byte string in Python 2
 and the Unicode string in Python 3 (for Cython code compiled with
 language level 2, i.e. the default).  Meaning, it always corresponds
-exactly with the type that the Python runtime itself calls ``str``.
-Thus, in Python 2, both ``bytes`` and ``str`` represent the byte string
-type, whereas in Python 3, both ``str`` and ``unicode`` represent the
+exactly with the type that the Python runtime itself calls :obj:`str`.
+Thus, in Python 2, both :obj:`bytes` and :obj:`str` represent the byte string
+type, whereas in Python 3, both :obj:`str` and :obj:`unicode` represent the
 Python Unicode string type.  The switch is made at C compile time, the
 Python version that is used to run Cython is not relevant.
 
-When compiling Cython code with language level 3, the ``str`` type is
+When compiling Cython code with language level 3, the :obj:`str` type is
 identified with exactly the Unicode string type at Cython compile time,
-i.e. it does not identify with ``bytes`` when running in Python 2.
+i.e. it does not identify with :obj:`bytes` when running in Python 2.
 
-Note that the ``str`` type is not compatible with the ``unicode``
+Note that the :obj:`str` type is not compatible with the :obj:`unicode`
 type in Python 2, i.e. you cannot assign a Unicode string to a variable
-or argument that is typed ``str``.  The attempt will result in either
-a compile time error (if detectable) or a ``TypeError`` exception at
+or argument that is typed :obj:`str`.  The attempt will result in either
+a compile time error (if detectable) or a :obj:`TypeError` exception at
 runtime.  You should therefore be careful when you statically type a
 string variable in code that must be compatible with Python 2, as this
 Python version allows a mix of byte strings and unicode strings for data
 and users normally expect code to be able to work with both.  Code that
 only targets Python 3 can safely type variables and arguments as either
-``bytes`` or ``unicode``.
+:obj:`bytes` or :obj:`unicode`.
 
-The ``basestring`` type represents both the types ``str`` and ``unicode``,
+The :obj:`basestring` type represents both the types :obj:`str` and :obj:`unicode`,
 i.e. all Python text string types in Python 2 and Python 3.  This can be
 used for typing text variables that normally contain Unicode text (at
-least in Python 3) but must additionally accept the ``str`` type in
+least in Python 3) but must additionally accept the :obj:`str` type in
 Python 2 for backwards compatibility reasons.  It is not compatible with
-the ``bytes`` type.  Its usage should be rare in normal Cython code as
-the generic ``object`` type (i.e. untyped code) will normally be good
+the :obj:`bytes` type.  Its usage should be rare in normal Cython code as
+the generic :obj:`object` type (i.e. untyped code) will normally be good
 enough and has the additional advantage of supporting the assignment of
-string subtypes.  Support for the ``basestring`` type is new in Cython
+string subtypes.  Support for the :obj:`basestring` type is new in Cython
 0.20.
 
 
@@ -100,7 +100,7 @@ Python variable::
     cdef char* c_string = c_call_returning_a_c_string()
     cdef bytes py_string = c_string
 
-A type cast to ``object`` or ``bytes`` will do the same thing::
+A type cast to :obj:`object` or :obj:`bytes` will do the same thing::
 
     py_string = <bytes> c_string
 
@@ -163,12 +163,115 @@ however, when the C function stores the pointer for later use.  Apart
 from keeping a Python reference to the string object, no manual memory
 management is required.
 
-Starting with Cython 0.20, the ``bytearray`` type is supported and
-coerces in the same way as the ``bytes`` type.  However, when using it
+Starting with Cython 0.20, the :obj:`bytearray` type is supported and
+coerces in the same way as the :obj:`bytes` type.  However, when using it
 in a C context, special care must be taken not to grow or shrink the
 object buffer after converting it to a C string pointer.  These
 modifications can change the internal buffer address, which will make
 the pointer invalid.
+
+
+Accepting strings from Python code
+----------------------------------
+
+The other side, receiving input from Python code, may appear simple
+at first sight, as it only deals with objects.  However, getting this
+right without making the API too narrow or too unsafe may not be
+entirely obvious.
+
+In the case that the API only deals with byte strings, i.e. binary
+data or encoded text, it is best not to type the input argument as
+something like :obj:`bytes`, because that would restrict the allowed
+input to exactly that type and exclude both subtypes and other kinds
+of byte containers, e.g. :obj:`bytearray` objects or memory views.
+
+Depending on how (and where) the data is being processed, it may be a
+good idea to instead receive a 1-dimensional memory view, e.g.
+
+::
+
+    def process_byte_data(unsigned char[:] data):
+        length = data.shape[0]
+        first_byte = data[0]
+        slice_view = data[1:-1]
+        ...
+
+Cython's memory views are described in more detail in
+:doc:`../userguide/memoryviews`, but the above example already shows
+most of the relevant functionality for 1-dimensional byte views.  They
+allow for efficient processing of arrays and accept anything that can
+unpack itself into a byte buffer, without intermediate copying.  The
+processed content can finally be returned in the memory view itself
+(or a slice of it), but it is often better to copy the data back into
+a flat and simple :obj:`bytes` or :obj:`bytearray` object, especially
+when only a small slice is returned.  Since memoryviews do not copy the
+data, they would otherwise keep the entire original buffer alive.  The
+general idea here is to be liberal with input by accepting any kind of
+byte buffer, but strict with output by returning a simple, well adapted
+object.  This can simply be done as follows::
+
+    def process_byte_data(unsigned char[:] data):
+        # ... process the data
+        if return_all:
+            return bytes(data)
+        else:
+            # example for returning a slice
+            return bytes(data[5:35])
+
+If the byte input is actually encoded text, and the further processing
+should happen at the Unicode level, then the right thing to do is to
+decode the input straight away.  This is almost only a problem in Python
+2.x, where Python code expects that it can pass a byte string (:obj:`str`)
+with encoded text into a text API.  Since this usually happens in more
+than one place in the module's API, a helper function is almost always the
+way to go, since it allows for easy adaptation of the input normalisation
+process later.
+
+This kind of input normalisation function will commonly look similar to
+the following::
+
+    from cpython.version cimport PY_MAJOR_VERSION
+
+    cdef unicode _ustring(s):
+        if type(s) is unicode:
+            # fast path for most common case(s)
+            return <unicode>s
+        elif PY_MAJOR_VERSION < 3 and isinstance(s, bytes):
+            # only accept byte strings in Python 2.x, not in Py3
+            return (<bytes>s).decode('ascii')
+        elif isinstance(s, unicode):
+            # an evil cast to <unicode> might work here in some(!) cases,
+            # depending on what the further processing does.  to be safe,
+            # we can always create a copy instead
+            return unicode(s)
+        else:
+            raise TypeError(...)
+
+And should then be used like this::
+
+    def api_func(s):
+        text = _ustring(s)
+        ...
+
+Similarly, if the further processing happens at the byte level, but Unicode
+string input should be accepted, then the following might work, if you are
+using memory views::
+
+    # define a global name for whatever char type is used in the module
+    ctypedef unsigned char char_type
+
+    cdef char_type[:] _chars(s):
+        if isinstance(s, unicode):
+            # encode to the specific encoding used inside of the module
+            s = (<unicode>s).encode('utf8')
+        return s
+
+In this case, you might want to additionally ensure that byte string
+input really uses the correct encoding, e.g. if you require pure ASCII
+input data, you can run over the buffer in a loop and check the highest
+bit of each byte.  This should then also be done in the input normalisation
+function.
+
 
 Dealing with "const"
 --------------------
@@ -224,6 +327,7 @@ In Cython 0.18, these standard declarations have been changed to
 use the correct ``const`` modifier, so your code will automatically
 benefit from the new ``const`` support if it uses them.
 
+
 Decoding bytes to text
 ----------------------
 
@@ -234,7 +338,7 @@ the C byte strings to Python Unicode strings on reception, and to
 encode Python Unicode strings to C byte strings on the way out.
 
 With a Python byte string object, you would normally just call the
-``.decode()`` method to decode it into a Unicode string::
+``bytes.decode()`` method to decode it into a Unicode string::
 
     ustring = byte_string.decode('UTF-8')
 
@@ -318,6 +422,7 @@ assignment.  Later access to the invalidated pointer will read invalid
 memory and likely result in a segfault.  Cython will therefore refuse
 to compile this code.
 
+
 C++ strings
 -----------
 
@@ -375,7 +480,7 @@ There are two use cases where this is inconvenient.  First, if all
 C strings that are being processed (or the large majority) contain
 text, automatic encoding and decoding from and to Python unicode
 objects can reduce the code overhead a little.  In this case, you
-can set the ``c_string_type`` directive in your module to ``unicode``
+can set the ``c_string_type`` directive in your module to :obj:`unicode`
 and the ``c_string_encoding`` to the encoding that your C code uses,
 for example::
 
@@ -393,7 +498,7 @@ The second use case is when all C strings that are being processed
 only contain ASCII encodable characters (e.g. numbers) and you want
 your code to use the native legacy string type in Python 2 for them,
 instead of always using Unicode. In this case, you can set the
-string type to ``str``::
+string type to :obj:`str`::
 
     # cython: c_string_type=str, c_string_encoding=ascii
 
@@ -472,15 +577,15 @@ whereas the following ``ISO-8859-15`` encoded source file will print
 
 Note that the unicode literal ``u'abcö'`` is a correctly decoded four
 character Unicode string in both cases, whereas the unprefixed Python
-``str`` literal ``'abcö'`` will become a byte string in Python 2 (thus
+:obj:`str` literal ``'abcö'`` will become a byte string in Python 2 (thus
 having length 4 or 5 in the examples above), and a 4 character Unicode
 string in Python 3.  If you are not familiar with encodings, this may
 not appear obvious at first read.  See `CEP 108`_ for details.
 
-As a rule of thumb, it is best to avoid unprefixed non-ASCII ``str``
+As a rule of thumb, it is best to avoid unprefixed non-ASCII :obj:`str`
 literals and to use unicode string literals for all text.  Cython also
 supports the ``__future__`` import ``unicode_literals`` that instructs
-the parser to read all unprefixed ``str`` literals in a source file as
+the parser to read all unprefixed :obj:`str` literals in a source file as
 unicode string literals, just like Python 3.
 
 .. _`CEP 108`: http://wiki.cython.org/enhancements/stringliterals
@@ -522,7 +627,7 @@ explicitly, and the following will print ``A`` (or ``b'A'`` in Python
 
 The explicit coercion works for any C integer type.  Values outside of
 the range of a :c:type:`char` or :c:type:`unsigned char` will raise an
-``OverflowError`` at runtime.  Coercion will also happen automatically
+:obj:`OverflowError` at runtime.  Coercion will also happen automatically
 when assigning to a typed variable, e.g.::
 
     cdef bytes py_byte_string
@@ -544,10 +649,10 @@ The following will print 65::
     cdef Py_UCS4 uchar_val = u'A'
     print( <long>uchar_val )
 
-Note that casting to a C ``long`` (or ``unsigned long``) will work
+Note that casting to a C :c:type:`long` (or :c:type:`unsigned long`) will work
 just fine, as the maximum code point value that a Unicode character
 can have is 1114111 (``0x10FFFF``).  On platforms with 32bit or more,
-``int`` is just as good.
+:c:type:`int` is just as good.
 
 
 Narrow Unicode builds
@@ -682,15 +787,15 @@ zero-terminated UTF-16 encoded :c:type:`wchar_t*` strings, so called
 "wide strings".
 
 By default, Windows builds of CPython define :c:type:`Py_UNICODE` as
-a synonym for :c:type:`wchar_t`. This makes internal ``unicode``
+a synonym for :c:type:`wchar_t`. This makes internal :obj:`unicode`
 representation compatible with UTF-16 and allows for efficient zero-copy
 conversions. This also means that Windows builds are always
 `Narrow Unicode builds`_ with all the caveats.
 
 To aid interoperation with Windows APIs, Cython 0.19 supports wide
 strings (in the form of :c:type:`Py_UNICODE*`) and implicitly converts
-them to and from ``unicode`` string objects.  These conversions behave the
-same way as they do for :c:type:`char*` and ``bytes`` as described in
+them to and from :obj:`unicode` string objects.  These conversions behave the
+same way as they do for :c:type:`char*` and :obj:`bytes` as described in
 `Passing byte strings`_.
 
 In addition to automatic conversion, unicode literals that appear
@@ -722,7 +827,7 @@ Here is an example of how one would call a Unicode API on Windows::
     APIs deprecated and inefficient.
 
 One consequence of CPython 3.3 changes is that :py:func:`len` of
-``unicode`` strings is always measured in *code points* ("characters"),
+:obj:`unicode` strings is always measured in *code points* ("characters"),
 while Windows API expect the number of UTF-16 *code units*
 (where each surrogate is counted individually). To always get the number
 of code units, call :c:func:`PyUnicode_GetSize` directly.

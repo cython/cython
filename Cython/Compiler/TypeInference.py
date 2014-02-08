@@ -383,6 +383,7 @@ class SimpleAssignmentTypeInferer(object):
             if not types:
                 node_type = py_object_type
             else:
+                entry = node.entry
                 node_type = spanning_type(
                     types, entry.might_overflow, entry.pos)
             node.inferred_type = node_type
@@ -392,6 +393,7 @@ class SimpleAssignmentTypeInferer(object):
                      if assmt.inferred_type is not None]
             if not types:
                 return
+            entry = node.entry
             return spanning_type(types, entry.might_overflow, entry.pos)
 
         def resolve_assignments(assignments):
@@ -404,10 +406,9 @@ class SimpleAssignmentTypeInferer(object):
                         infer_name_node_type(node)
                     # Resolve assmt
                     inferred_type = assmt.infer_type()
-                    done = False
                     assmts_resolved.add(assmt)
                     resolved.add(assmt)
-            assignments -= resolved
+            assignments.difference_update(resolved)
             return resolved
 
         def partial_infer(assmt):
@@ -427,13 +428,11 @@ class SimpleAssignmentTypeInferer(object):
             # try to handle circular references
             partials = set()
             for assmt in assignments:
-                partial_types = []
                 if assmt in partial_assmts:
                     continue
-                for node in assmt_to_names[assmt]:
-                    if partial_infer(assmt):
-                        partials.add(assmt)
-                        assmts_resolved.add(assmt)
+                if partial_infer(assmt):
+                    partials.add(assmt)
+                    assmts_resolved.add(assmt)
             partial_assmts.update(partials)
             return partials
 
@@ -542,7 +541,7 @@ def safe_spanning_type(types, might_overflow, pos):
         return result_type
     # TODO: double complex should be OK as well, but we need
     # to make sure everything is supported.
-    elif result_type.is_int and not might_overflow:
+    elif (result_type.is_int or result_type.is_enum) and not might_overflow:
         return result_type
     return py_object_type
 

@@ -1970,7 +1970,7 @@ class ExpandInplaceOperators(EnvTransform):
                 return node, [node]
             elif isinstance(node, ExprNodes.IndexNode):
                 if node.is_buffer_access:
-                    raise ValueError, "Buffer access"
+                    raise ValueError("Buffer access")
                 base, temps = side_effect_free_reference(node.base)
                 index = LetRefNode(node.index)
                 return ExprNodes.IndexNode(node.pos, base=base, index=index), temps + [index]
@@ -2304,7 +2304,7 @@ class CreateClosureClasses(CythonTransform):
         if not from_closure and (self.path or inner_node):
             if not inner_node:
                 if not node.py_cfunc_node:
-                    raise InternalError, "DefNode does not have assignment node"
+                    raise InternalError("DefNode does not have assignment node")
                 inner_node = node.py_cfunc_node
             inner_node.needs_self_code = False
             node.needs_outer_scope = False

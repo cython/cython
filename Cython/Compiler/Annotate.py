@@ -17,7 +17,6 @@ special_chars = [
     (u'>', u'\xF1', u'&gt;'),
 ]
 
-line_pos_comment = re.compile(r'/\*.*?<<<<<<<<<<<<<<.*?\*/\n*', re.DOTALL)
 
 class AnnotationCCodeWriter(CCodeWriter):
 
@@ -141,6 +140,7 @@ function toggleDiv(id) {
             return ur"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
+        pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         k = 0
         code_source_file = self.code.get(source_filename, {})
         for line in lines:
@@ -150,6 +150,9 @@ function toggleDiv(id) {
             except KeyError:
                 code = ''
             else:
+                code = _replace_pos_comment(pos_comment_marker, code)
+                if code.startswith(pos_comment_marker):
+                    code = code[len(pos_comment_marker):]
                 code = html_escape(code)
 
             calls = zero_calls.copy()
@@ -165,7 +168,6 @@ function toggleDiv(id) {
             f.write(line.rstrip())
 
             f.write(u'</pre>\n')
-            code = re.sub(line_pos_comment, '', code) # inline annotations are redundant
             f.write(u"<pre id='line%s' class='code' style='background-color: #%s'>%s</pre>" % (k, color, code))
         f.write(u'</body></html>\n')
         f.close()
@@ -180,6 +182,13 @@ _parse_code = re.compile(
     ur'(?P<py_c_api>Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)'
     ur')(?=\()|'       # look-ahead to exclude subsequent '(' from replacement
     ur'(?P<error_goto>(?:(?<=;) *if .* +)?\{__pyx_filename = .*goto __pyx_L\w+;\})'
+).sub
+
+
+_replace_pos_comment = re.compile(
+    # this matches what Cython generates as code line marker comment
+    ur'^\s*/\*(?:(?:[^*]|\*[^/])*\n)+\s*\*/\s*\n',
+    re.M
 ).sub
 
 

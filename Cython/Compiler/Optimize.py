@@ -1554,8 +1554,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         """Replace min(a,b,...) and max(a,b,...) by explicit comparison code.
         """
         if len(args) <= 1:
-            # leave this to Python
-            return node
+            if len(args) == 1 and args[0].is_sequence_constructor:
+                args = args[0].args
+            else:
+                # leave this to Python
+                return node
 
         cascaded_nodes = list(map(UtilNodes.ResultRefNode, args[1:]))
 
@@ -2187,7 +2190,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         temp = None
         if isinstance(types, ExprNodes.TupleNode):
             types = types.args
-            arg = temp = UtilNodes.ResultRefNode(arg)
+            if arg.is_attribute or not arg.is_simple():
+                arg = temp = UtilNodes.ResultRefNode(arg)
         elif types.type is Builtin.type_type:
             types = [types]
         else:

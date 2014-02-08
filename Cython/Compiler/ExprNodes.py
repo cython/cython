@@ -1690,7 +1690,7 @@ class NameNode(AtomicExprNode):
         return self
 
     def analyse_target_types(self, env):
-        self.analyse_entry(env)
+        self.analyse_entry(env, is_target=True)
 
         if (not self.is_lvalue() and self.entry.is_cfunction and
                 self.entry.fused_cfunction and self.entry.as_variable):
@@ -1750,12 +1750,12 @@ class NameNode(AtomicExprNode):
 
     gil_message = "Accessing Python global or builtin"
 
-    def analyse_entry(self, env):
+    def analyse_entry(self, env, is_target=False):
         #print "NameNode.analyse_entry:", self.name ###
         self.check_identifier_kind()
         entry = self.entry
         type = entry.type
-        if (type.is_pyobject and self.inferred_type and
+        if (not is_target and type.is_pyobject and self.inferred_type and
                 self.inferred_type.is_builtin_type):
             # assume that type inference is smarter than the static entry
             type = self.inferred_type
@@ -2536,7 +2536,9 @@ class WithExitCallNode(ExprNode):
         result_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
 
         code.mark_pos(self.pos)
-        code.putln("%s = PyObject_Call(%s, %s, NULL);" % (
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            "PyObjectCall", "ObjectHandling.c"))
+        code.putln("%s = __Pyx_PyObject_Call(%s, %s, NULL);" % (
             result_var,
             self.with_stat.exit_var,
             self.args.result()))
@@ -4657,8 +4659,10 @@ class SimpleCallNode(CallNode):
                 code.globalstate.use_utility_code(self.function.entry.utility_code)
         if func_type.is_pyobject:
             arg_code = self.arg_tuple.py_result()
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectCall", "ObjectHandling.c"))
             code.putln(
-                "%s = PyObject_Call(%s, %s, NULL); %s" % (
+                "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
                     self.result(),
                     self.function.py_result(),
                     arg_code,
@@ -5087,8 +5091,10 @@ class GeneralCallNode(CallNode):
             kwargs = self.keyword_args.py_result()
         else:
             kwargs = 'NULL'
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            "PyObjectCall", "ObjectHandling.c"))
         code.putln(
-            "%s = PyObject_Call(%s, %s, %s); %s" % (
+            "%s = __Pyx_PyObject_Call(%s, %s, %s); %s" % (
                 self.result(),
                 self.function.py_result(),
                 self.positional_args.py_result(),
@@ -7604,18 +7610,14 @@ class CodeObjectNode(ExprNode):
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
         args = list(def_node.args)
-        if def_node.star_arg:
-            args.append(def_node.star_arg)
-        if def_node.starstar_arg:
-            args.append(def_node.starstar_arg)
-        local_vars = [ arg for arg in def_node.local_scope.var_entries
-                       if arg.name ]
+        # if we have args/kwargs, then the first two in var_entries are those
+        local_vars = [arg for arg in def_node.local_scope.var_entries if arg.name]
         self.varnames = TupleNode(
             def_node.pos,
-            args = [ IdentifierStringNode(arg.pos, value=arg.name)
-                     for arg in args + local_vars ],
-            is_temp = 0,
-            is_literal = 1)
+            args=[IdentifierStringNode(arg.pos, value=arg.name)
+                  for arg in args + local_vars],
+            is_temp=0,
+            is_literal=1)
 
     def may_be_none(self):
         return False
@@ -7635,11 +7637,18 @@ class CodeObjectNode(ExprNode):
         file_path = StringEncoding.BytesLiteral(func.pos[0].get_filenametable_entry().encode('utf8'))
         file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, 0, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
+        flags = []
+        if self.def_node.star_arg:
+            flags.append('CO_VARARGS')
+        if self.def_node.starstar_arg:
+            flags.append('CO_VARKEYWORDS')
+
+        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
-            len(func.args),            # argcount
+            len(func.args) - func.num_kwonly_args,  # argcount
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
+            '|'.join(flags) or '0',    # flags
             Naming.empty_bytes,        # code
             Naming.empty_tuple,        # consts
             Naming.empty_tuple,        # names (FIXME)
@@ -7950,8 +7959,8 @@ class LocalsDictItemNode(DictItemNode):
 
 class FuncLocalsExprNode(DictNode):
     def __init__(self, pos, env):
-        local_vars = [entry.name for entry in env.entries.values()
-                      if entry.name]
+        local_vars = sorted([
+            entry.name for entry in env.entries.values() if entry.name])
         items = [LocalsDictItemNode(
             pos, key=IdentifierStringNode(pos, value=var),
             value=NameNode(pos, name=var, allow_null=True))
@@ -8373,6 +8382,9 @@ class TypecastNode(ExprNode):
                 "Cannot cast to a function type")
             self.type = PyrexTypes.error_type
         self.operand = self.operand.analyse_types(env)
+        if self.type is PyrexTypes.c_bint_type:
+            # short circuit this to a coercion
+            return self.operand.coerce_to_boolean(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject
         if from_py and not to_py and self.operand.is_ephemeral():
@@ -8380,10 +8392,7 @@ class TypecastNode(ExprNode):
                 error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
             if self.type is bytes_type and self.operand.type.is_int:
-                # FIXME: the type cast node isn't needed in this case
-                # and can be dropped once analyse_types() can return a
-                # different node
-                self.operand = CoerceIntToBytesNode(self.operand, env)
+                return CoerceIntToBytesNode(self.operand, env)
             elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
                 base_type = self.base_type.analyse(env)
@@ -8405,7 +8414,7 @@ class TypecastNode(ExprNode):
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
-            if self.typecheck and self.type.is_pyobject:
+            if self.typecheck:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
             elif isinstance(self.operand, SliceIndexNode):
                 # This cast can influence the created type of string slices.
@@ -9214,9 +9223,9 @@ class AddNode(NumBinopNode):
         if type1 is unicode_type or type2 is unicode_type:
             if type1.is_builtin_type and type2.is_builtin_type:
                 if self.operand1.may_be_none() or self.operand2.may_be_none():
-                    return '__Pyx_PyUnicode_Concat'
+                    return '__Pyx_PyUnicode_ConcatSafe'
                 else:
-                    return 'PyUnicode_Concat'
+                    return '__Pyx_PyUnicode_Concat'
         return super(AddNode, self).py_operation_function()
 
 

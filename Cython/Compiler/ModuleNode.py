@@ -346,14 +346,43 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.finalize_main_c_code()
 
         f = open_new_file(result.c_file)
-        rootwriter.copyto(f)
+        try:
+            rootwriter.copyto(f)
+        finally:
+            f.close()
+        result.c_file_generated = 1
         if options.gdb_debug:
             self._serialize_lineno_map(env, rootwriter)
-        f.close()
-        result.c_file_generated = 1
         if Options.annotate or options.annotate:
-            self.annotate(rootwriter)
-            rootwriter.save_annotation(result.main_source_file, result.c_file)
+            self._generate_annotations(rootwriter, result)
+
+    def _generate_annotations(self, rootwriter, result):
+        self.annotate(rootwriter)
+        rootwriter.save_annotation(result.main_source_file, result.c_file)
+
+        # if we included files, additionally generate one annotation file for each
+        if not self.scope.included_files:
+            return
+
+        search_include_file = self.scope.context.search_include_directories
+        target_dir = os.path.abspath(os.path.dirname(result.c_file))
+        for included_file in self.scope.included_files:
+            target_file = os.path.abspath(os.path.join(target_dir, included_file))
+            target_file_dir = os.path.dirname(target_file)
+            if not target_file_dir.startswith(target_dir):
+                # any other directories may not be writable => avoid trying
+                continue
+            source_file = search_include_file(included_file, "", self.pos, include=True)
+            if not source_file:
+                continue
+            if target_file_dir != target_dir and not os.path.exists(target_file_dir):
+                try:
+                    os.makedirs(target_file_dir)
+                except OSError, e:
+                    import errno
+                    if e.errno != errno.EEXIST:
+                        raise
+            rootwriter.save_annotation(source_file, target_file)
 
     def _serialize_lineno_map(self, env, ccodewriter):
         tb = env.context.gdb_debug_outputwriter
@@ -382,13 +411,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.find_referenced_modules(imported_module, module_list, modules_seen)
             module_list.append(env)
 
-    def sort_types_by_inheritance(self, type_dict, getkey):
+    def sort_types_by_inheritance(self, type_dict, type_order, getkey):
         # copy the types into a list moving each parent type before
         # its first child
-        type_items = type_dict.items()
         type_list = []
-        for i, item in enumerate(type_items):
-            key, new_entry = item
+        for i, key in enumerate(type_order):
+            new_entry = type_dict[key]
 
             # collect all base classes to check for children
             hierarchy = set()
@@ -413,43 +441,59 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return type_list
 
     def sort_type_hierarchy(self, module_list, env):
-        vtab_dict = {}
-        vtabslot_dict = {}
+        # poor developer's OrderedDict
+        vtab_dict, vtab_dict_order = {}, []
+        vtabslot_dict, vtabslot_dict_order = {}, []
+
         for module in module_list:
             for entry in module.c_class_entries:
-                if not entry.in_cinclude:
+                if entry.used and not entry.in_cinclude:
                     type = entry.type
-                    if type.vtabstruct_cname:
-                        vtab_dict[type.vtabstruct_cname] = entry
+                    key = type.vtabstruct_cname
+                    if not key:
+                        continue
+                    if key in vtab_dict:
+                        # FIXME: this should *never* happen, but apparently it does
+                        # for Cython generated utility code
+                        from Cython.Compiler.UtilityCode import NonManglingModuleScope
+                        assert isinstance(entry.scope, NonManglingModuleScope), str(entry.scope)
+                        assert isinstance(vtab_dict[key].scope, NonManglingModuleScope), str(vtab_dict[key].scope)
+                    else:
+                        vtab_dict[key] = entry
+                        vtab_dict_order.append(key)
             all_defined_here = module is env
             for entry in module.type_entries:
-                if all_defined_here or entry.defined_in_pxd:
+                if entry.used and (all_defined_here or entry.defined_in_pxd):
                     type = entry.type
                     if type.is_extension_type and not entry.in_cinclude:
                         type = entry.type
-                        vtabslot_dict[type.objstruct_cname] = entry
+                        key = type.objstruct_cname
+                        assert key not in vtabslot_dict, key
+                        vtabslot_dict[key] = entry
+                        vtabslot_dict_order.append(key)
 
         def vtabstruct_cname(entry_type):
             return entry_type.vtabstruct_cname
         vtab_list = self.sort_types_by_inheritance(
-            vtab_dict, vtabstruct_cname)
+            vtab_dict, vtab_dict_order, vtabstruct_cname)
 
         def objstruct_cname(entry_type):
             return entry_type.objstruct_cname
         vtabslot_list = self.sort_types_by_inheritance(
-            vtabslot_dict, objstruct_cname)
+            vtabslot_dict, vtabslot_dict_order, objstruct_cname)
 
         return (vtab_list, vtabslot_list)
 
     def sort_cdef_classes(self, env):
         key_func = operator.attrgetter('objstruct_cname')
-        entry_dict = {}
+        entry_dict, entry_order = {}, []
         for entry in env.c_class_entries:
             key = key_func(entry.type)
-            assert key not in entry_dict
+            assert key not in entry_dict, key
             entry_dict[key] = entry
+            entry_order.append(key)
         env.c_class_entries[:] = self.sort_types_by_inheritance(
-            entry_dict, key_func)
+            entry_dict, entry_order, key_func)
 
     def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
         # TODO: Why are these separated out?
@@ -1892,7 +1936,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(streq_utility_code)
         code.putln()
         code.putln("static char* %s_type_names[] = {" % Naming.import_star)
-        for name, entry in env.entries.items():
+        for name, entry in sorted(env.entries.items()):
             if entry.is_type:
                 code.putln('"%s",' % name)
         code.putln("0")

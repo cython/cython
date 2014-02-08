@@ -593,8 +593,11 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 
     /* Parse all numbers in the format string */
     while (*ts && *ts != ')') {
-        if (isspace(*ts))
-            continue;
+        // ignore space characters (not using isspace() due to C/C++ problem on MacOS-X)
+        switch (*ts) {
+            case ' ': case '\f': case '\r': case '\n': case '\t': case '\v':  continue;
+            default:  break;  /* not a 'break' in the loop */
+        }
 
         number = __Pyx_BufFmt_ExpectNumber(&ts);
         if (number == -1) return NULL;

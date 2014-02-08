@@ -309,7 +309,14 @@ class Context(object):
             position = e.args[2]
             encoding = e.args[0]
 
-            for idx, c in enumerate(open(source_filename, "rb").read()):
+            f = open(source_filename, "rb")
+            try:
+                byte_data = f.read()
+            finally:
+                f.close()
+
+            # FIXME: make this at least a little less inefficient
+            for idx, c in enumerate(byte_data):
                 if c in (ord('\n'), '\n'):
                     line += 1
                     column = 0

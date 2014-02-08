@@ -398,7 +398,7 @@ Globally
 One can set compiler directives through a special header comment at the top of the file, like this::
 
     #!python
-    #cython: boundscheck=False
+    #cython: language_level=3, boundscheck=False
 
 The comment must appear before any code (but can appear after other
 comments or whitespace).
@@ -426,7 +426,8 @@ statement, like this::
     @cython.boundscheck(False) # turn off boundscheck for this function
     def f():
         ...
-    	with cython.boundscheck(True): # turn it temporarily on again for this block
+        # turn it temporarily on again for this block
+        with cython.boundscheck(True):
             ...
 
 .. Warning:: These two methods of setting directives are **not**
