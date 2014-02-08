@@ -382,7 +382,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 #define PySet_New(iterable) \
     PyObject_CallFunctionObjArgs((PyObject *)&PySet_Type, (iterable), NULL)
 
-#define Pyx_PyFrozenSet_New(iterable) \
+#define PyFrozenSet_New(iterable) \
     PyObject_CallFunctionObjArgs((PyObject *)&PyFrozenSet_Type, (iterable), NULL)
 
 #define PySet_Size(anyset) \
