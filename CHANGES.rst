@@ -6,8 +6,10 @@ Cython Changelog
 Latest
 =======
 
-Features added
---------------
+
+=================
+0.20.1 ()
+=================
 
 Bugs fixed
 ----------
@@ -34,8 +36,6 @@ Bugs fixed
   assignments within a mix of inferred Python variables and integer
   variables.
 
-Other changes
--------------
 
 
 0.20 (2014-01-18)
