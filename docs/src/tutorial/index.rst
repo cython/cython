@@ -15,6 +15,7 @@ Tutorials
    memory_allocation
    pure
    numpy
+   array
    readings
    related_work
    appendix
