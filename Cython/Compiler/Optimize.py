@@ -1986,16 +1986,15 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             is_temp = node.is_temp
             )
 
-    PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_double_type, [
-            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
-            ],
-        exception_value = "((double)-1)",
-        exception_check = True)
+    PySet_New_func_type = PyrexTypes.CFuncType(
+        Builtin.set_type, [
+            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
+        ])
 
     def _handle_simple_function_set(self, node, function, pos_args):
-        if len(pos_args) == 1 and isinstance(pos_args[0], (ExprNodes.ListNode,
-                                                           ExprNodes.TupleNode)):
+        if len(pos_args) != 1:
+            return node
+        if pos_args[0].is_sequence_constructor:
             # We can optimise set([x,y,z]) safely into a set literal,
             # but only if we create all items before adding them -
             # adding an item may raise an exception if it is not
@@ -2012,7 +2011,39 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             for temp in temps[::-1]:
                 result = UtilNodes.EvalWithTempExprNode(temp, result)
             return result
-        return node
+        else:
+            # PySet_New(it) is better than a generic Python call to set(it)
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PySet_New",
+                self.PySet_New_func_type,
+                args=pos_args,
+                is_temp=node.is_temp,
+                utility_code=UtilityCode.load_cached('pyset_compat', 'Builtins.c'),
+                py_name="set")
+
+    PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
+        Builtin.frozenset_type, [
+            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
+        ])
+
+    def _handle_simple_function_frozenset(self, node, function, pos_args):
+        if len(pos_args) != 1:
+            return node
+        # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyFrozenSet_New",
+            self.PyFrozenSet_New_func_type,
+            args=pos_args,
+            is_temp=node.is_temp,
+            utility_code=UtilityCode.load_cached('pyset_compat', 'Builtins.c'),
+            py_name="frozenset")
+
+    PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "((double)-1)",
+        exception_check = True)
 
     def _handle_simple_function_float(self, node, function, pos_args):
         """Transform float() into either a C type cast or a faster C
