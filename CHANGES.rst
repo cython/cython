@@ -14,6 +14,9 @@ Latest
 Bugs fixed
 ----------
 
+* Build error under recent MacOS-X versions where ``isspace()`` could not be
+  resolved by clang.
+
 * List/Tuple literals multiplied by more than one factor were only multiplied
   by the last factor instead of all.
 
