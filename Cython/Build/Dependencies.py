@@ -64,6 +64,7 @@ if sys.version_info[0] < 3:
 else:
     def encode_filename_in_py2(filename):
         return filename
+    basestring = str
 
 def extended_iglob(pattern):
     if '**/' in pattern:
@@ -148,10 +149,7 @@ distutils_settings = {
 
 @cython.locals(start=long, end=long)
 def line_iter(source):
-    if isinstance(source, file):
-        for line in source:
-            yield line
-    else:
+    if isinstance(source, basestring):
         start = 0
         while True:
             end = source.find('\n', start)
@@ -160,6 +158,9 @@ def line_iter(source):
                 return
             yield source[start:end]
             start = end+1
+    else:
+        for line in source:
+            yield line
 
 class DistutilsInfo(object):
 
