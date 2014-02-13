@@ -715,7 +715,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 
 #if !CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values) {
-    return PyObject_CallMethodObjArgs(sep, PYIDENT("join"), values, NULL)
+    return PyObject_CallMethodObjArgs(sep, PYIDENT("join"), values, NULL);
 }
 #endif
 
