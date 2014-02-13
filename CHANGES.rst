@@ -7,7 +7,13 @@ Latest
 =======
 
 
-===================
+Features added
+--------------
+
+* Support for C++ unordered_set and unordered_map.
+
+
+
 0.20.1 (2014-02-11)
 ===================
 

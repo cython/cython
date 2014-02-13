@@ -109,7 +109,7 @@ cdef object {{cname}}(const_cpp_list[X]& v):
 {{template_type_declarations}}
 
 cdef extern from *:
-    cdef cppclass set "std::set" [T]:
+    cdef cppclass set "std::{{maybe_unordered}}set" [T]:
         void insert(T&)
 
 @cname("{{cname}}")
@@ -127,14 +127,14 @@ cimport cython
 {{template_type_declarations}}
 
 cdef extern from *:
-    cdef cppclass cpp_set "std::set" [T]:
+    cdef cppclass cpp_set "std::{{maybe_unordered}}set" [T]:
         cppclass const_iterator:
             T& operator*()
             const_iterator operator++()
             bint operator!=(const_iterator)
         const_iterator begin()
         const_iterator end()
-    cdef cppclass const_cpp_set "const std::set" [T](cpp_set):
+    cdef cppclass const_cpp_set "const std::{{maybe_unordered}}set" [T](cpp_set):
         pass
 
 @cname("{{cname}}")
@@ -182,7 +182,7 @@ cdef object {{cname}}(pair[X,Y]& p):
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         pair(T&, U&)
-    cdef cppclass map "std::map" [T, U]:
+    cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
         void insert(pair[T, U]&)
 
     cdef cppclass pair "std::pair" [T, U]:
@@ -209,7 +209,7 @@ cimport cython
 {{template_type_declarations}}
 
 cdef extern from *:
-    cdef cppclass map "std::map" [T, U]:
+    cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
         cppclass value_type:
             T first
             U second

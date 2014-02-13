@@ -2976,7 +2976,11 @@ class CStructOrUnionType(CType):
         return super(CStructOrUnionType, self).cast_code(expr_code)
 
 
-builtin_cpp_conversions = ("std::string", "std::vector", "std::list", "std::set", "std::map", "std::pair")
+builtin_cpp_conversions = ("std::string",
+                           "std::pair",
+                           "std::vector", "std::list",
+                           "std::set", "std::unordered_set",
+                           "std::map", "std::unordered_map")
 
 class CppClassType(CType):
     #  name          string
@@ -3010,6 +3014,12 @@ class CppClassType(CType):
     def use_conversion_utility(self, from_or_to):
         pass
 
+    def maybe_unordered(self):
+        if 'unordered' in self.cname:
+            return 'unordered_'
+        else:
+            return ''
+
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
             return True
@@ -3040,10 +3050,11 @@ class CppClassType(CType):
             cname = '__pyx_convert_%s_from_py_%s' % (cls, '____'.join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
-                'cname': cname
+                'cname': cname,
+                'maybe_unordered': self.maybe_unordered(),
             }
             from UtilityCode import CythonUtilityCode
-            env.use_utility_code(CythonUtilityCode.load(cls + ".from_py", "CppConvert.pyx", context=context))
+            env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
             self.from_py_function = cname
             return True
 
@@ -3068,10 +3079,11 @@ class CppClassType(CType):
             cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
-                'cname': cname
+                'cname': cname,
+                'maybe_unordered': self.maybe_unordered(),
             }
             from UtilityCode import CythonUtilityCode
-            env.use_utility_code(CythonUtilityCode.load(cls + ".to_py", "CppConvert.pyx", context=context))
+            env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx", context=context))
             self.to_py_function = cname
             return True
 
