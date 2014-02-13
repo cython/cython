@@ -1,4 +1,5 @@
 # tag: cpp
+# distutils: extra_compile_args=-std=c++0x
 
 import sys
 from libcpp.map cimport map
