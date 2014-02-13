@@ -148,14 +148,18 @@ distutils_settings = {
 
 @cython.locals(start=long, end=long)
 def line_iter(source):
-    start = 0
-    while True:
-        end = source.find('\n', start)
-        if end == -1:
-            yield source[start:]
-            return
-        yield source[start:end]
-        start = end+1
+    if isinstance(source, file):
+        for line in source:
+            yield line
+    else:
+        start = 0
+        while True:
+            end = source.find('\n', start)
+            if end == -1:
+                yield source[start:]
+                return
+            yield source[start:end]
+            start = end+1
 
 class DistutilsInfo(object):
 
@@ -224,6 +228,14 @@ class DistutilsInfo(object):
                     value = aliases[value]
             resolved.values[key] = value
         return resolved
+
+    def apply(self, extension):
+        for key, value in self.values.items():
+            type = distutils_settings[key]
+            if type in [list, transitive_list]:
+                getattr(extension, key).extend(value)
+            else:
+                setattr(extension, key, value)
 
 @cython.locals(start=long, q=long, single_q=long, double_q=long, hash_mark=long,
                end=long, k=long, counter=long, quote_len=long)
