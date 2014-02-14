@@ -70,7 +70,6 @@ static int __Pyx_CyFunction_init(void);
 //////////////////// CythonFunction ////////////////////
 //@substitute: naming
 //@requires: CommonTypes.c::FetchCommonType
-//@requires: ObjectHandling.c::PyObjectCallMethod
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 static PyObject *
@@ -362,7 +361,7 @@ __Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op) {
     if (unlikely(!signature_class))
         goto bad;
     // return Signature.from_function(op)
-    signature = __Pyx_PyObject_CallMethod1(signature_class, PYIDENT("from_function"), op);
+    signature = PyObject_CallMethodObjectArgs(signature_class, PYIDENT("from_function"), op, NULL);
     Py_DECREF(signature_class);
     if (likely(signature))
         return signature;
