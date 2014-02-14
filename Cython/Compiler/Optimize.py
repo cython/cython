@@ -1603,7 +1603,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         """
         if len(pos_args) != 1:
             return node
-        if isinstance(pos_args[0], ExprNodes.ListNode):
+        if pos_args[0].is_sequence_constructor and not pos_args[0].args:
+            del pos_args[0]
+        elif isinstance(pos_args[0], ExprNodes.ListNode):
             pos_args[0] = pos_args[0].as_tuple()
         return node
 
