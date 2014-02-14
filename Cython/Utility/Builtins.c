@@ -424,7 +424,12 @@ static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     if (it) {
-        PyObject* result = PyFrozenSet_New(it);
+        PyObject* result;
+        if (PyFrozenSet_CheckExact(it)) {
+            Py_INCREF(it);
+            return it;
+        }
+        result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
         if (likely(PySet_GET_SIZE(result)))
