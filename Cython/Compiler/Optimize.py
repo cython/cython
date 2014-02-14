@@ -1972,13 +1972,13 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         """
         if len(pos_args) != 1:
             return node
-        list_arg = pos_args[0]
-        if list_arg.type is not Builtin.list_type:
+        arg = pos_args[0]
+        if arg.type is Builtin.tuple_type and not arg.may_be_none():
+            return arg
+        if arg.type is not Builtin.list_type:
             return node
-        if not isinstance(list_arg, (ExprNodes.ComprehensionNode,
-                                     ExprNodes.ListNode)):
-            pos_args[0] = list_arg.as_none_safe_node(
-                "'NoneType' object is not iterable")
+        pos_args[0] = arg.as_none_safe_node(
+            "'NoneType' object is not iterable")
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
@@ -2031,6 +2031,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             pos_args = [ExprNodes.NullNode(node.pos)]
         elif len(pos_args) > 1:
             return node
+        elif pos_args[0].type is Builtin.frozenset_type and not pos_args[0].may_be_none():
+            return pos_args[0]
         # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
         return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_PyFrozenSet_New",
