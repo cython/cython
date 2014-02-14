@@ -115,6 +115,7 @@ class DebuggerTestCase(unittest.TestCase):
             opts = dict(
                 test_directory=self.tempdir,
                 module='codefile',
+                tags=runtests.parse_tags(codefile),
             )
 
             optimization_disabler = build_ext.Optimization()
