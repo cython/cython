@@ -1598,6 +1598,15 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.AsTupleNode(node.pos, arg=result)
         return node
 
+    def _handle_simple_function_frozenset(self, node, pos_args):
+        """Replace frozenset([...]) by frozenset((...)) as tuples are more efficient.
+        """
+        if len(pos_args) != 1:
+            return node
+        if isinstance(pos_args[0], ExprNodes.ListNode):
+            pos_args[0] = pos_args[0].as_tuple()
+        return node
+
     def _handle_simple_function_list(self, node, pos_args):
         if not pos_args:
             return ExprNodes.ListNode(node.pos, args=[], constant_result=[])
