@@ -56,6 +56,8 @@ except ImportError:
             return self._dict[key]
         def __setitem__(self, key, value):
             self._dict[key] = value
+        def __contains__(self, key):
+            return key in self._dict
         def __repr__(self):
             return repr(self._dict)
         def __nonzero__(self):
