@@ -2027,15 +2027,17 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         ])
 
     def _handle_simple_function_frozenset(self, node, function, pos_args):
-        if len(pos_args) != 1:
+        if not pos_args:
+            pos_args = [ExprNodes.NullNode(node.pos)]
+        elif len(pos_args) > 1:
             return node
         # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
         return ExprNodes.PythonCapiCallNode(
-            node.pos, "PyFrozenSet_New",
+            node.pos, "__Pyx_PyFrozenSet_New",
             self.PyFrozenSet_New_func_type,
             args=pos_args,
             is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyset_compat', 'Builtins.c'),
+            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
             py_name="frozenset")
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(

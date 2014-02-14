@@ -388,6 +388,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 #define PySet_Size(anyset) \
     PyObject_Size((anyset))
 
+#define PySet_GET_SIZE(anyset) \
+    PyObject_Size((anyset))
+
 #define PySet_Contains(anyset, key) \
     PySequence_Contains((anyset), (key))
 
@@ -414,3 +417,25 @@ static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
 
 #endif /* PyAnySet_CheckExact (<= Py2.4) */
 #endif /* < Py2.5  */
+
+//////////////////// pyfrozenset_new.proto ////////////////////
+//@substitute: naming
+//@requires: pyset_compat
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
+    if (it) {
+        PyObject* result = PyFrozenSet_New(it);
+        if (unlikely(!result))
+            return NULL;
+        if (likely(PySet_GET_SIZE(result)))
+            return result;
+        // empty frozenset is a singleton
+        // seems wasteful, but CPython does the same
+        Py_DECREF(result);
+    }
+    #if CYTHON_COMPILING_IN_CPYTHON
+    return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
+    #else
+    return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
+    #endif
+}

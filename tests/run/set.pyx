@@ -5,6 +5,8 @@ _frozenset = frozenset
 
 cimport cython
 
+import sys
+
 
 def cython_set():
     """
@@ -282,6 +284,37 @@ def test_frozenset_of_iterable(x):
     [1, 2, 3]
     """
     return frozenset(x)
+
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode",
+    "//SetNode"
+)
+def test_empty_frozenset():
+    """
+    >>> s = test_empty_frozenset()
+    >>> isinstance(s, _frozenset)
+    True
+    >>> len(s)
+    0
+    >>> sys.version_info < (2,5) or s is frozenset()   # singleton!
+    True
+    """
+    return frozenset()
+
+
+def test_singleton_empty_frozenset():
+    """
+    >>> test_singleton_empty_frozenset()  # from CPython's test_set.py
+    1
+    """
+    f = frozenset()
+    efs = [frozenset(), frozenset([]), frozenset(()), frozenset(''),
+           frozenset(), frozenset([]), frozenset(()), frozenset(''),
+           frozenset(range(0)), frozenset(frozenset()),
+           frozenset(f), f]
+    return len(set(map(id, efs))) if sys.version_info >= (2,5) else 1
 
 
 def sorted(it):
