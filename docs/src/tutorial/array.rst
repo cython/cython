@@ -16,7 +16,7 @@ module is built into both Python and Cython.
 Safe usage with memory views
 ----------------------------
 
-.. code-block:: python
+::
 
     from cpython cimport array
     from array import array
@@ -32,9 +32,7 @@ documentation for the `array module <http://docs.python.org/library/array.html>`
 Notice that when a Python array is assigned to a variable typed as
 memory view, there will be a slight overhead to construct the memory
 view. However, from that point on the variable can be passed to other
-functions without overhead, so long as it is typed:
-
-.. code-block:: python
+functions without overhead, so long as it is typed::
 
     from cpython cimport array
     from array import array
@@ -58,15 +56,17 @@ functions, it is possible to access the underlying contiguous array as a
 pointer. There is no type or bounds checking, so be careful to use the
 right type and signedness.
 
-.. code-block:: python
+::
 
     from cpython cimport array
-    from libc.string cimport memset
     from array import array
+
     cdef array.array a = array('i', [1, 2, 3])
 
     # access underlying pointer:
     print a.data.as_ints[0]
+
+    from libc.string cimport memset
     memset(a.data.as_voidptr, 0, len(a) * sizeof(int))
 
 Cloning, extending arrays
@@ -76,24 +76,26 @@ it is possible to create a new array with the same type as a template,
 and preallocate a given number of elements. The array is initialized to
 zero when requested.
 
-.. code-block:: python
+::
 
     from cpython cimport array
     from array import array
+
     cdef array.array int_array_template = array('i', [])
     cdef array.array newarray
 
     # create an array with 3 elements with same type as template
-    newarray = array.clone(int_array_template, 3, False)
+    newarray = array.clone(int_array_template, 3, zero=False)
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
 one by one.
 
-.. code-block:: python
+::
 
     from cpython cimport array
     from array import array
+
     cdef array.array a = array('i', [1, 2, 3])
     cdef array.array b = array('i', [4, 5, 6])
 
@@ -101,4 +103,3 @@ one by one.
     array.extend(a, b)
     # resize a, leaving just original three elements
     array.resize(a, len(a) - len(b))
-
