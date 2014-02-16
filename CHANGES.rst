@@ -6,12 +6,15 @@ Cython Changelog
 Latest
 =======
 
-
 Features added
 --------------
 
-* Support for C++ unordered_set and unordered_map.
+* Some optimisations for set/frozenset instantiation.
 
+* Cython implemented Python functions export a ``__signature__`` attribute
+  in Python 3.4.
+
+* Support for C++ unordered_set and unordered_map.
 
 
 0.20.1 (2014-02-11)
