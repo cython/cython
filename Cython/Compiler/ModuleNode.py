@@ -1296,14 +1296,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
         for entry in cpp_class_attrs:
-            split_cname = entry.type.cname.split('::')
-            destructor_name = split_cname.pop()
-            # Make sure the namespace delimiter was not in a template arg.
-            while destructor_name.count('<') != destructor_name.count('>'):
-                destructor_name = split_cname.pop() + '::' + destructor_name
-            destructor_name = destructor_name.split('<', 1)[0]
-            code.putln("p->%s.%s::~%s();" % (
-                entry.cname, entry.type.declaration_code(""), destructor_name))
+            code.putln("__Pyx_call_destructor(&p->%s);" % entry.cname)
 
         for entry in py_attrs:
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,

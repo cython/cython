@@ -336,6 +336,14 @@ static CYTHON_INLINE float __PYX_NAN() {
 }
 #endif
 
+// Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
+#ifdef __cplusplus
+template<typename T>
+void __Pyx_call_destructor(T* x) {
+    x->~T();
+}
+#endif
+
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
 
 /* unused attribute */
