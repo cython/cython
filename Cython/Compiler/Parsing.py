@@ -2842,7 +2842,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             declarators.append(declarator)
         doc_line = s.start_line + 1
         s.expect_newline("Syntax error in C variable declaration")
-        if ctx.level in ('c_class', 'c_class_pxd') and s.start_line == doc_line
+        if ctx.level in ('c_class', 'c_class_pxd') and s.start_line == doc_line:
             doc = p_doc_string(s)
         else:
             doc = None
