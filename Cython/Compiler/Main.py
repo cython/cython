@@ -3,8 +3,8 @@
 #
 
 import os, sys, re, codecs
-if sys.version_info[:2] < (2, 4):
-    sys.stderr.write("Sorry, Cython requires Python 2.4 or later\n")
+if sys.version_info[:2] < (2, 6):
+    sys.stderr.write("Sorry, Cython requires Python 2.6 or later\n")
     sys.exit(1)
 
 import Errors
@@ -461,8 +461,8 @@ class CompilationOptions(object):
     include_path      [string]  Directories to search for include files
     output_file       string    Name of generated .c file
     generate_pxi      boolean   Generate .pxi file for public declarations
-    capi_reexport_cincludes  
-                      boolean   Add cincluded headers to any auto-generated 
+    capi_reexport_cincludes
+                      boolean   Add cincluded headers to any auto-generated
                                 header files.
     timestamps        boolean   Only compile changed source files.
     verbose           boolean   Always print source names being compiled
