@@ -348,30 +348,30 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op) {
     return result;
 }
 
-#if PY_VERSION_HEX >= 0x030400C1
-static PyObject *
-__Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op) {
-    PyObject *inspect_module, *signature_class, *signature;
-    // from inspect import Signature
-    inspect_module = PyImport_ImportModuleLevelObject(PYIDENT("inspect"), NULL, NULL, NULL, 0);
-    if (unlikely(!inspect_module))
-        goto bad;
-    signature_class = __Pyx_PyObject_GetAttrStr(inspect_module, PYIDENT("Signature"));
-    Py_DECREF(inspect_module);
-    if (unlikely(!signature_class))
-        goto bad;
-    // return Signature.from_function(op)
-    signature = PyObject_CallMethodObjArgs(signature_class, PYIDENT("from_function"), op, NULL);
-    Py_DECREF(signature_class);
-    if (likely(signature))
-        return signature;
-bad:
-    // make sure we raise an AttributeError from this property on any errors
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-        PyErr_SetString(PyExc_AttributeError, "failed to calculate __signature__");
-    return NULL;
-}
-#endif
+//#if PY_VERSION_HEX >= 0x030400C1
+//static PyObject *
+//__Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op) {
+//    PyObject *inspect_module, *signature_class, *signature;
+//    // from inspect import Signature
+//    inspect_module = PyImport_ImportModuleLevelObject(PYIDENT("inspect"), NULL, NULL, NULL, 0);
+//    if (unlikely(!inspect_module))
+//        goto bad;
+//    signature_class = __Pyx_PyObject_GetAttrStr(inspect_module, PYIDENT("Signature"));
+//    Py_DECREF(inspect_module);
+//    if (unlikely(!signature_class))
+//        goto bad;
+//    // return Signature.from_function(op)
+//    signature = PyObject_CallMethodObjArgs(signature_class, PYIDENT("from_function"), op, NULL);
+//    Py_DECREF(signature_class);
+//    if (likely(signature))
+//        return signature;
+//bad:
+//    // make sure we raise an AttributeError from this property on any errors
+//    if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+//        PyErr_SetString(PyExc_AttributeError, "failed to calculate __signature__");
+//    return NULL;
+//}
+//#endif
 
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "func_doc", (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
@@ -392,9 +392,9 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {(char *) "__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {(char *) "__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
-#if PY_VERSION_HEX >= 0x030400C1
-    {(char *) "__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
-#endif
+//#if PY_VERSION_HEX >= 0x030400C1
+//    {(char *) "__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
+//#endif
     {0, 0, 0, 0, 0}
 };
 

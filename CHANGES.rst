@@ -11,9 +11,6 @@ Features added
 
 * Some optimisations for set/frozenset instantiation.
 
-* Cython implemented Python functions export a ``__signature__`` attribute
-  in Python 3.4.
-
 * Support for C++ unordered_set and unordered_map.
 
 Bugs fixed

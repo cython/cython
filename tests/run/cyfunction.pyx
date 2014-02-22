@@ -55,20 +55,20 @@ def inspect_signature(a, b, c=123, *, d=234):
     return inspect.signature(inspect_signature) if IS_PY34 else None
 
 
-def test___signature__(a, b, c=123, *, d=234):
-    """
-    >>> sig = test___signature__(1, 2)
-    >>> if IS_PY34: list(sig.parameters)
-    ... else: ['a', 'b', 'c', 'd']
-    ['a', 'b', 'c', 'd']
-    >>> if IS_PY34: sig.parameters['c'].default == 123
-    ... else: True
-    True
-    >>> if IS_PY34: sig.parameters['d'].default == 234
-    ... else: True
-    True
-    """
-    return inspect_signature.__signature__ if IS_PY34 else None
+# def test___signature__(a, b, c=123, *, d=234):
+#     """
+#     >>> sig = test___signature__(1, 2)
+#     >>> if IS_PY34: list(sig.parameters)
+#     ... else: ['a', 'b', 'c', 'd']
+#     ['a', 'b', 'c', 'd']
+#     >>> if IS_PY34: sig.parameters['c'].default == 123
+#     ... else: True
+#     True
+#     >>> if IS_PY34: sig.parameters['d'].default == 234
+#     ... else: True
+#     True
+#     """
+#     return inspect_signature.__signature__ if IS_PY34 else None
 
 
 def test_dict():
