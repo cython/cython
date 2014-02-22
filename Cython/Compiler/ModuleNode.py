@@ -572,8 +572,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('#include "%s"' % filename)
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, please install development version of Python.")
-        code.putln("#elif PY_VERSION_HEX < 0x02040000")
-        code.putln("    #error Cython requires Python 2.4+.")
+        code.putln("#elif PY_VERSION_HEX < 0x02060000 || (0x03000000 <= PY_VERSION_HEX && PY_VERSION_HEX < 0x03020000)")
+        code.putln("    #error Cython requires Python 2.6+ or Python 3.2+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
