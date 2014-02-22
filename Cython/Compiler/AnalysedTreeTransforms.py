@@ -2,7 +2,6 @@ from Visitor import ScopeTrackingTransform
 from Nodes import StatListNode, SingleAssignmentNode, CFuncDefNode, DefNode
 from ExprNodes import DictNode, DictItemNode, NameNode, UnicodeNode
 from PyrexTypes import py_object_type
-from Builtin import dict_type
 from StringEncoding import EncodedString
 import Symtab
 
