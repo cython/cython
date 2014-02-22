@@ -347,11 +347,7 @@ static PyObject *__Pyx_Generator_Close(PyObject *self) {
         Py_DECREF(yf);
     }
     if (err == 0)
-#if PY_VERSION_HEX < 0x02050000
-        PyErr_SetNone(PyExc_StopIteration);
-#else
         PyErr_SetNone(PyExc_GeneratorExit);
-#endif
     retval = __Pyx_Generator_SendEx(gen, NULL);
     if (retval) {
         Py_DECREF(retval);
@@ -362,10 +358,8 @@ static PyObject *__Pyx_Generator_Close(PyObject *self) {
     raised_exception = PyErr_Occurred();
     if (!raised_exception
         || raised_exception == PyExc_StopIteration
-#if PY_VERSION_HEX >= 0x02050000
         || raised_exception == PyExc_GeneratorExit
         || PyErr_GivenExceptionMatches(raised_exception, PyExc_GeneratorExit)
-#endif
         || PyErr_GivenExceptionMatches(raised_exception, PyExc_StopIteration))
     {
         if (raised_exception) PyErr_Clear();      /* ignore these errors */
@@ -391,7 +385,6 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
     if (yf) {
         PyObject *ret;
         Py_INCREF(yf);
-#if PY_VERSION_HEX >= 0x02050000
         if (PyErr_GivenExceptionMatches(typ, PyExc_GeneratorExit)) {
             int err = __Pyx_Generator_CloseIter(gen, yf);
             Py_DECREF(yf);
@@ -400,7 +393,6 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
                 return __Pyx_Generator_SendEx(gen, NULL);
             goto throw_here;
         }
-#endif
         gen->is_running = 1;
         if (__Pyx_Generator_CheckExact(yf)) {
             ret = __Pyx_Generator_Throw(yf, args);
@@ -546,11 +538,7 @@ static void __Pyx_Generator_del(PyObject *self) {
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
     {(char *) "gi_running",
-#if PY_VERSION_HEX >= 0x02060000
      T_BOOL,
-#else
-     T_BYTE,
-#endif
      offsetof(__pyx_GeneratorObject, is_running),
      READONLY,
      NULL},
@@ -619,9 +607,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #else
     __Pyx_Generator_del,                /*tp_del*/
 #endif
-#if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
-#endif
 #if PY_VERSION_HEX >= 0x030400a1
     __Pyx_Generator_del,                /*tp_finalize*/
 #endif

@@ -44,66 +44,9 @@
 #define Py_OptimizeFlag 0
 #endif
 
-#if PY_VERSION_HEX < 0x02050000
-  typedef int Py_ssize_t;
-  #define PY_SSIZE_T_MAX INT_MAX
-  #define PY_SSIZE_T_MIN INT_MIN
-  #define PY_FORMAT_SIZE_T ""
-  #define CYTHON_FORMAT_SSIZE_T ""
-  #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
-  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_As_int(o)
-  #define PyNumber_Index(o)    ((PyNumber_Check(o) && !PyFloat_Check(o)) ? PyNumber_Int(o) : \
-                                (PyErr_Format(PyExc_TypeError, \
-                                              "expected index value, got %.200s", Py_TYPE(o)->tp_name), \
-                                 (PyObject*)0))
-  #define __Pyx_PyIndex_Check(o) (PyNumber_Check(o) && !PyFloat_Check(o) && \
-                                  !PyComplex_Check(o))
-  #define PyIndex_Check __Pyx_PyIndex_Check
-  #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)
-  #define __PYX_BUILD_PY_SSIZE_T "i"
-#else
-  #define __PYX_BUILD_PY_SSIZE_T "n"
-  #define CYTHON_FORMAT_SSIZE_T "z"
-  #define __Pyx_PyIndex_Check PyIndex_Check
-#endif
-
-#if PY_VERSION_HEX < 0x02060000
-  #define Py_REFCNT(ob) (((PyObject*)(ob))->ob_refcnt)
-  #define Py_TYPE(ob)   (((PyObject*)(ob))->ob_type)
-  #define Py_SIZE(ob)   (((PyVarObject*)(ob))->ob_size)
-  #define PyVarObject_HEAD_INIT(type, size) \
-          PyObject_HEAD_INIT(type) size,
-  #define PyType_Modified(t)
-
-  typedef struct {
-     void *buf;
-     PyObject *obj;
-     Py_ssize_t len;
-     Py_ssize_t itemsize;
-     int readonly;
-     int ndim;
-     char *format;
-     Py_ssize_t *shape;
-     Py_ssize_t *strides;
-     Py_ssize_t *suboffsets;
-     void *internal;
-  } Py_buffer;
-
-  #define PyBUF_SIMPLE 0
-  #define PyBUF_WRITABLE 0x0001
-  #define PyBUF_FORMAT 0x0004
-  #define PyBUF_ND 0x0008
-  #define PyBUF_STRIDES (0x0010 | PyBUF_ND)
-  #define PyBUF_C_CONTIGUOUS (0x0020 | PyBUF_STRIDES)
-  #define PyBUF_F_CONTIGUOUS (0x0040 | PyBUF_STRIDES)
-  #define PyBUF_ANY_CONTIGUOUS (0x0080 | PyBUF_STRIDES)
-  #define PyBUF_INDIRECT (0x0100 | PyBUF_STRIDES)
-  #define PyBUF_RECORDS (PyBUF_STRIDES | PyBUF_FORMAT | PyBUF_WRITABLE)
-  #define PyBUF_FULL (PyBUF_INDIRECT | PyBUF_FORMAT | PyBUF_WRITABLE)
-
-  typedef int (*getbufferproc)(PyObject *, Py_buffer *, int);
-  typedef void (*releasebufferproc)(PyObject *, Py_buffer *);
-#endif
+#define __PYX_BUILD_PY_SSIZE_T "n"
+#define CYTHON_FORMAT_SSIZE_T "z"
+#define __Pyx_PyIndex_Check PyIndex_Check
 
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
@@ -117,25 +60,15 @@
   #define __Pyx_DefaultClassType PyType_Type
 #endif
 
-#if PY_VERSION_HEX < 0x02060000
-  #define PyUnicode_FromString(s) PyUnicode_Decode(s, strlen(s), "UTF-8", "strict")
-#endif
-
 #if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_CHECKTYPES 0
   #define Py_TPFLAGS_HAVE_INDEX 0
 #endif
 
-#if (PY_VERSION_HEX < 0x02060000) || (PY_MAJOR_VERSION >= 3)
+#if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
 
-#if PY_VERSION_HEX < 0x02060000
-  #define Py_TPFLAGS_HAVE_VERSION_TAG 0
-#endif
-#if PY_VERSION_HEX < 0x02060000 && !defined(Py_TPFLAGS_IS_ABSTRACT)
-  #define Py_TPFLAGS_IS_ABSTRACT 0
-#endif
 #if PY_VERSION_HEX < 0x030400a1 && !defined(Py_TPFLAGS_HAVE_FINALIZE)
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
@@ -187,25 +120,6 @@
   #define PyString_CheckExact          PyUnicode_CheckExact
 #endif
 
-#if PY_VERSION_HEX < 0x02060000
-  #define PyBytesObject                PyStringObject
-  #define PyBytes_Type                 PyString_Type
-  #define PyBytes_Check                PyString_Check
-  #define PyBytes_CheckExact           PyString_CheckExact
-  #define PyBytes_FromString           PyString_FromString
-  #define PyBytes_FromStringAndSize    PyString_FromStringAndSize
-  #define PyBytes_FromFormat           PyString_FromFormat
-  #define PyBytes_DecodeEscape         PyString_DecodeEscape
-  #define PyBytes_AsString             PyString_AsString
-  #define PyBytes_AsStringAndSize      PyString_AsStringAndSize
-  #define PyBytes_Size                 PyString_Size
-  #define PyBytes_AS_STRING            PyString_AS_STRING
-  #define PyBytes_GET_SIZE             PyString_GET_SIZE
-  #define PyBytes_Repr                 PyString_Repr
-  #define PyBytes_Concat               PyString_Concat
-  #define PyBytes_ConcatAndDel         PyString_ConcatAndDel
-#endif
-
 #if PY_MAJOR_VERSION >= 3
   #define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
   #define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
@@ -215,10 +129,6 @@
   #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
 #endif
 
-#if PY_VERSION_HEX < 0x02060000
-  #define PySet_Check(obj)             PyObject_TypeCheck(obj, &PySet_Type)
-  #define PyFrozenSet_Check(obj)       PyObject_TypeCheck(obj, &PyFrozenSet_Type)
-#endif
 #ifndef PySet_CheckExact
   #define PySet_CheckExact(obj)        (Py_TYPE(obj) == &PySet_Type)
 #endif
@@ -279,15 +189,9 @@
   #define PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
 #endif
 
-#if PY_VERSION_HEX < 0x02050000
-  #define __Pyx_GetAttrString(o,n)   PyObject_GetAttrString((o),((char *)(n)))
-  #define __Pyx_SetAttrString(o,n,a) PyObject_SetAttrString((o),((char *)(n)),(a))
-  #define __Pyx_DelAttrString(o,n)   PyObject_DelAttrString((o),((char *)(n)))
-#else
-  #define __Pyx_GetAttrString(o,n)   PyObject_GetAttrString((o),(n))
-  #define __Pyx_SetAttrString(o,n,a) PyObject_SetAttrString((o),(n),(a))
-  #define __Pyx_DelAttrString(o,n)   PyObject_DelAttrString((o),(n))
-#endif
+#define __Pyx_GetAttrString(o,n)   PyObject_GetAttrString((o),(n))
+#define __Pyx_SetAttrString(o,n,a) PyObject_SetAttrString((o),(n),(a))
+#define __Pyx_DelAttrString(o,n)   PyObject_DelAttrString((o),(n))
 
 #if PY_VERSION_HEX < 0x02050000
   #define __Pyx_NAMESTR(n) ((char *)(n))
@@ -510,11 +414,7 @@ static int __Pyx_check_binary_version(void) {
                       "compiletime version %s of module '%.100s' "
                       "does not match runtime version %s",
                       ctversion, __Pyx_MODULE_NAME, rtversion);
-        #if PY_VERSION_HEX < 0x02050000
-        return PyErr_Warn(NULL, message);
-        #else
         return PyErr_WarnEx(NULL, message, 1);
-        #endif
     }
     return 0;
 }

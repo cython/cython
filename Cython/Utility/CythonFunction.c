@@ -660,9 +660,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
     0,                                  /*tp_del*/
-#if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
-#endif
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
@@ -1112,9 +1110,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
     0,                                  /*tp_del*/
-#if PY_VERSION_HEX >= 0x02060000
     0,                                  /*tp_version_tag*/
-#endif
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif

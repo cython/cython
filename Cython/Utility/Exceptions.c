@@ -78,11 +78,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb,
         }
     }
 
-    #if PY_VERSION_HEX < 0x02050000
-    if (PyClass_Check(type)) {
-    #else
     if (PyType_Check(type)) {
-    #endif
         /* instantiate the type now (we don't know when and how it will be caught) */
 #if CYTHON_COMPILING_IN_PYPY
         /* PyPy can't handle value == NULL */
@@ -102,17 +98,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb,
         }
         /* Normalize to raise <class>, <instance> */
         value = type;
-        #if PY_VERSION_HEX < 0x02050000
-        if (PyInstance_Check(type)) {
-            type = (PyObject*) ((PyInstanceObject*)type)->in_class;
-            Py_INCREF(type);
-        } else {
-            type = 0;
-            PyErr_SetString(PyExc_TypeError,
-                "raise: exception must be an old-style class or instance");
-            goto raise_error;
-        }
-        #else
         type = (PyObject*) Py_TYPE(type);
         Py_INCREF(type);
         if (!PyType_IsSubtype((PyTypeObject *)type, (PyTypeObject *)PyExc_BaseException)) {
@@ -120,7 +105,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb,
                 "raise: exception class must be a subclass of BaseException");
             goto raise_error;
         }
-        #endif
     }
 
     __Pyx_ErrRestore(type, value, tb);

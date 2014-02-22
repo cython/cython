@@ -207,12 +207,10 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII  || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT */
 
 #if !CYTHON_COMPILING_IN_PYPY
-#if PY_VERSION_HEX >= 0x02060000
     if (PyByteArray_Check(o)) {
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
     } else
-#endif
 #endif
     {
         char* result;
@@ -300,11 +298,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
        }
      #endif
     #endif
-  #if PY_VERSION_HEX < 0x02060000
-    return PyInt_AsSsize_t(b);
-  #else
     return PyLong_AsSsize_t(b);
-  #endif
   }
   x = PyNumber_Index(b);
   if (!x) return -1;
@@ -314,17 +308,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 }
 
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
-#if PY_VERSION_HEX < 0x02050000
-   if (ival <= LONG_MAX)
-       return PyInt_FromLong((long)ival);
-   else {
-       unsigned char *bytes = (unsigned char *) &ival;
-       int one = 1; int little = (int)*(unsigned char*)&one;
-       return _PyLong_FromByteArray(bytes, sizeof(size_t), little, 0);
-   }
-#else
-   return PyInt_FromSize_t(ival);
-#endif
+    return PyInt_FromSize_t(ival);
 }
 
 

@@ -43,7 +43,6 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     empty_dict = PyDict_New();
     if (!empty_dict)
         goto bad;
-    #if PY_VERSION_HEX >= 0x02050000
     {
         #if PY_MAJOR_VERSION >= 3
         if (level == -1) {
@@ -83,14 +82,6 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
             #endif
         }
     }
-    #else
-    if (level>0) {
-        PyErr_SetString(PyExc_RuntimeError, "Relative import is not supported for Python <=2.4.");
-        goto bad;
-    }
-    module = PyObject_CallFunctionObjArgs(py_import,
-        name, global_dict, empty_dict, list, NULL);
-    #endif
 bad:
     #if PY_VERSION_HEX < 0x03030000
     Py_XDECREF(py_import);
@@ -287,11 +278,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
-        #if PY_VERSION_HEX < 0x02050000
-        if (PyErr_Warn(NULL, warning) < 0) goto bad;
-        #else
         if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
-        #endif
     }
     else if ((size_t)basicsize != size) {
         PyErr_Format(PyExc_ValueError,
