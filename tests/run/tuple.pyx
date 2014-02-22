@@ -1,4 +1,7 @@
 
+cimport cython
+
+
 def f(obj1, obj2, obj3, obj4, obj5):
     """
     >>> f(1,2,3,4,5)
@@ -6,6 +9,7 @@ def f(obj1, obj2, obj3, obj4, obj5):
     """
     obj1 = ()
     return obj1
+
 
 def g(obj1, obj2, obj3, obj4, obj5):
     """
@@ -16,6 +20,7 @@ def g(obj1, obj2, obj3, obj4, obj5):
     obj1 = (obj2,)
     return obj1
 
+
 def h(obj1, obj2, obj3, obj4, obj5):
     """
     >>> h(1,2,3,4,5)
@@ -25,6 +30,7 @@ def h(obj1, obj2, obj3, obj4, obj5):
     obj1 = (obj2,)
     obj1 = obj2, obj3
     return obj1
+
 
 def j(obj1, obj2, obj3, obj4, obj5):
     """
@@ -37,6 +43,7 @@ def j(obj1, obj2, obj3, obj4, obj5):
     obj1 = (obj2, obj3, obj4)
     return obj1
 
+
 def k(obj1, obj2, obj3, obj4, obj5):
     """
     >>> k(1,2,3,4,5)
@@ -48,6 +55,7 @@ def k(obj1, obj2, obj3, obj4, obj5):
     obj1 = (obj2, obj3, obj4)
     obj1 = (obj2, obj3, obj4,)
     return obj1
+
 
 def l(obj1, obj2, obj3, obj4, obj5):
     """
@@ -62,6 +70,7 @@ def l(obj1, obj2, obj3, obj4, obj5):
     obj1 = 17, 42, 88
     return obj1
 
+
 def tuple_none():
     """
     >>> tuple_none()   # doctest: +ELLIPSIS
@@ -69,6 +78,7 @@ def tuple_none():
     TypeError: ...itera...
     """
     return tuple(None)
+
 
 def tuple_none_list():
     """
@@ -78,3 +88,42 @@ def tuple_none_list():
     """
     cdef list none = None
     return tuple(none)
+
+
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode',
+    '//PythonCapiCallNode'
+)
+def tuple_of_tuple_literal():
+    """
+    >>> tuple_of_tuple_literal()
+    (1, 2, 3)
+    """
+    return tuple(tuple(tuple((1,2,3))))
+
+
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode',
+    '//PythonCapiCallNode'
+)
+def tuple_of_args_tuple(*args):
+    """
+    >>> tuple_of_args_tuple(1,2,3)
+    (1, 2, 3)
+    """
+    return tuple(tuple(tuple(args)))
+
+
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode//SimpleCallNode',
+    '//PythonCapiCallNode'
+)
+def tuple_of_tuple_or_none(tuple x):
+    """
+    >>> tuple_of_tuple_or_none((1,2,3))
+    (1, 2, 3)
+    >>> tuple_of_tuple_or_none(None)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...iterable...
+    """
+    return tuple(tuple(tuple(x)))
