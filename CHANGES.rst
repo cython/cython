@@ -16,6 +16,13 @@ Features added
 
 * Support for C++ unordered_set and unordered_map.
 
+Bugs fixed
+----------
+
+* C++ destructor calls in extension types could fail to compile in clang.
+
+* Docstrings on extension type attributes in .pxd files were rejected.
+
 
 0.20.1 (2014-02-11)
 ===================
