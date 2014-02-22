@@ -282,6 +282,12 @@ def test_frozenset_of_iterable(x):
     True
     >>> sorted(s)
     [1, 2, 3]
+
+    >>> s = test_frozenset_of_iterable(_frozenset([1, 2, 3]))
+    >>> isinstance(s, _frozenset)
+    True
+    >>> sorted(s)
+    [1, 2, 3]
     """
     return frozenset(x)
 
