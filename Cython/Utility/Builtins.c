@@ -130,11 +130,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
                 "code object passed to exec() may not contain free variables");
             goto bad;
         }
-        #if PY_VERSION_HEX < 0x030200B1
-        result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
-        #else
         result = PyEval_EvalCode(o, globals, locals);
-        #endif
     } else {
         PyCompilerFlags cf;
         cf.cf_flags = 0;
