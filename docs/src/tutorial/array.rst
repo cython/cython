@@ -1,3 +1,5 @@
+.. _array-array:
+
 ============================
 Working with Python arrays
 ============================

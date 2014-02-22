@@ -1,23 +1,32 @@
-.. highlight:: cython
-
 .. _memory_allocation:
 
 *****************
 Memory Allocation
 *****************
 
-Dynamic memory allocation is mostly a non-issue in Python.
-Everything is an object, and the reference counting system and garbage collector
-automatically return memory to the system when it is no longer being used.
+Dynamic memory allocation is mostly a non-issue in Python.  Everything is an
+object, and the reference counting system and garbage collector automatically
+return memory to the system when it is no longer being used.
 
-Objects can be used in Cython as well, but sometimes this incurs a certain
-amount of overhead.  In C, simple values and structs
-(such as a local variable ``cdef double x``) are allocated on the stack and
-passed by value, but for larger more complicated objects
-(e.g. a dynamically-sized list of doubles) memory must be
-manually requested and released.
-C provides the functions ``malloc``, ``realloc``, and ``free`` for this purpose,
-which can be imported in cython from ``clibc.stdlib``. Their signatures are::
+When it comes to more low-level data buffers, Cython has special support for
+(multi-dimensional) arrays of simple types via NumPy, memory views or Python's
+stdlib array type.  They are full featured, garbage collected and much easier
+to work with than bare pointers in C, while still retaining the speed and static
+typing benefits.
+See :ref:`array-array` and :ref:`memoryviews`.
+
+In some situations, however, these objects can still incur an unacceptable
+amount of overhead, which can then makes a case for doing manual memory
+management in C.
+
+Simple C values and structs (such as a local variable ``cdef double x``) are
+usually allocated on the stack and passed by value, but for larger and more
+complicated objects (e.g. a dynamically-sized list of doubles), the memory must
+be manually requested and released.  C provides the functions :c:func`malloc`,
+:c:func:`realloc`, and :c:func:`free` for this purpose, which can be imported
+in cython from ``clibc.stdlib``. Their signatures are:
+
+.. code-block:: c
 
     void* malloc(size_t size)
     void* realloc(void* ptr, size_t size)
@@ -95,8 +104,3 @@ e.g.::
 
       def __dealloc__(self, number):
           PyMem_Free(self.data)     # no-op if self.data is NULL
-
-It should be noted that Cython has special support for (multi-dimensional)
-arrays of simple types via NumPy and memory views which are more full featured
-and easier to work with than pointers while still retaining the speed/static
-typing benefits.
