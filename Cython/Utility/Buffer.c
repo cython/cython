@@ -649,8 +649,8 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         }
                 return ts;
       case ' ':
-      case 10:
-      case 13:
+      case '\r':
+      case '\n':
         ++ts;
         break;
       case '<':
