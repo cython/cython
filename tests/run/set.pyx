@@ -304,6 +304,11 @@ def test_empty_frozenset():
     return frozenset()
 
 
+@cython.test_fail_if_path_exists(
+    '//ListNode//ListNode',
+    '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
+    '//ListNode//SimpleCallNode//SimpleCallNode',
+)
 def test_singleton_empty_frozenset():
     """
     >>> test_singleton_empty_frozenset()  # from CPython's test_set.py
