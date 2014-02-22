@@ -199,7 +199,10 @@ nofail:
     Buffer type checking. Utility code for checking that acquired
     buffers match our assumptions. We only need to check ndim and
     the format string; the access mode/flags is checked by the
-    exporter.
+    exporter. See:
+
+    http://docs.python.org/3/library/struct.html
+    http://legacy.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
 
     The alignment code is copied from _struct.c in Python.
 }}
