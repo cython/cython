@@ -638,8 +638,8 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
   int got_Z = 0;
 
   while (1) {
+    /* puts(ts); */
     switch(*ts) {
-      /* puts(ts); */
       case 0:
         if (ctx->enc_type != 0 && ctx->head == NULL) {
           __Pyx_BufFmt_RaiseExpected(ctx);
@@ -650,7 +650,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           __Pyx_BufFmt_RaiseExpected(ctx);
           return NULL;
         }
-                return ts;
+        return ts;
       case ' ':
       case '\r':
       case '\n':
@@ -730,23 +730,29 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         if (*ts != 'f' && *ts != 'd' && *ts != 'g') {
           __Pyx_BufFmt_RaiseUnexpectedChar('Z');
           return NULL;
-        }        /* fall through */
+        }
+        /* fall through */
       case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
       case 'l': case 'L': case 'q': case 'Q':
       case 'f': case 'd': case 'g':
-      case 'O': case 's': case 'p':
+      case 'O': case 'p':
         if (ctx->enc_type == *ts && got_Z == ctx->is_complex &&
             ctx->enc_packmode == ctx->new_packmode) {
           /* Continue pooling same type */
           ctx->enc_count += ctx->new_count;
-        } else {
-          /* New type */
-          if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
-          ctx->enc_count = ctx->new_count;
-          ctx->enc_packmode = ctx->new_packmode;
-          ctx->enc_type = *ts;
-          ctx->is_complex = got_Z;
+          ctx->new_count = 1;
+          got_Z = 0;
+          ++ts;
+          break;
         }
+        /* fall through */
+      case 's':
+        /* 's' or new type (cannot be added to current pool) */
+        if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+        ctx->enc_count = ctx->new_count;
+        ctx->enc_packmode = ctx->new_packmode;
+        ctx->enc_type = *ts;
+        ctx->is_complex = got_Z;
         ++ts;
         ctx->new_count = 1;
         got_Z = 0;

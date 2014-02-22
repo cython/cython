@@ -377,6 +377,22 @@ def partially_packed_struct_2(fmt):
         fmt, sizeof(PartiallyPackedStruct2))
 
 
+cdef packed struct PackedStructWithCharArrays:
+    float a
+    int b
+    char[5] c
+    char[3] d
+
+
+@testcase
+def packed_struct_with_strings(fmt):
+    """
+    >>> packed_struct_with_strings("T{f:a:i:b:5s:c:3s:d:}")
+    """
+    cdef object[PackedStructWithCharArrays] buf = MockBuffer(
+        fmt, sizeof(PackedStructWithCharArrays))
+
+
 # TODO: empty struct
 # TODO: Incomplete structs
 # TODO: mixed structs

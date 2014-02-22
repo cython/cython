@@ -18,6 +18,8 @@ Bugs fixed
 
 * C++ destructor calls in extension types could fail to compile in clang.
 
+* Buffer format validation failed for sequences of strings in structs.
+
 * Docstrings on extension type attributes in .pxd files were rejected.
 
 
