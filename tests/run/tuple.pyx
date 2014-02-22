@@ -124,6 +124,6 @@ def tuple_of_tuple_or_none(tuple x):
     (1, 2, 3)
     >>> tuple_of_tuple_or_none(None)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...iterable...
+    TypeError: ...itera...
     """
     return tuple(tuple(tuple(x)))
