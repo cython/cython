@@ -226,12 +226,11 @@ Here is the most basic script for compiling a Cython module::
 
     from distutils.core import setup
     from distutils.extension import Extension
-    from Cython.Distutils import build_ext
+    from Cython.Build import cythonize
 
     setup(
-        cmdclass = {'build_ext': build_ext},
-        ext_modules = [Extension("queue", ["queue.pyx"])]
-    ) 
+        ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
+    )
 
 To build against the external C library, we must extend this script to
 include the necessary setup.  Assuming the library is installed in the
@@ -240,16 +239,16 @@ Unix-like system), we could simply change the extension setup from
 
 ::
 
-    ext_modules = [Extension("queue", ["queue.pyx"])]
+    ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
 
 to
 
 ::
 
-    ext_modules = [
+    ext_modules = cythonize([
         Extension("queue", ["queue.pyx"],
                   libraries=["calg"])
-        ]
+        ])
 
 If it is not installed in a 'normal' location, users can provide the
 required parameters externally by passing appropriate C compiler
