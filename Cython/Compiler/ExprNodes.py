@@ -6683,7 +6683,6 @@ class SetNode(ExprNode):
             self.compile_time_value_error(e)
 
     def generate_evaluation_code(self, code):
-        code.globalstate.use_utility_code(Builtin.py_set_utility_code)
         self.allocate_temp_result(code)
         code.putln(
             "%s = PySet_New(0); %s" % (
