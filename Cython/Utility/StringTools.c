@@ -515,7 +515,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 // Py_UNICODE_ISTITLE() doesn't match unicode.istitle() as the latter
 // additionally allows character that comply with Py_UNICODE_ISUPPER()
 
-static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
+#if PY_VERSION_HEX < 0x030200A2
+static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UNICODE uchar)
+#else
+static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar)
+#endif
+{
     return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
 }
 

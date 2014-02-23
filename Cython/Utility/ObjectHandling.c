@@ -158,7 +158,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     if (likely(next))
         return next;
 #if CYTHON_COMPILING_IN_CPYTHON
-#if PY_MAJOR_VERSION >= 3 || (PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000)
+#if PY_VERSION_HEX >= 0x02070000
     if (unlikely(iternext == &_PyObject_NextNotImplemented))
         return NULL;
 #endif
@@ -1029,7 +1029,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
 /////////////// PyObjectLookupSpecial.proto ///////////////
 //@requires: PyObjectGetAttrStr
 
-#if CYTHON_COMPILING_IN_CPYTHON && (PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000)
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070000
 // looks like calling _PyType_Lookup() isn't safe in Py<=2.6/3.1
 static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObject* attr_name) {
     PyObject *res;

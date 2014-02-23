@@ -1147,7 +1147,11 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     }
     if (PyObject_TypeCheck(method, methoddescr_type)) { /* cdef classes */
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+        #if PY_VERSION_HEX < 0x03020000
+        PyTypeObject *d_type = descr->d_type;
+        #else
         PyTypeObject *d_type = descr->d_common.d_type;
+        #endif
         return PyDescr_NewClassMethod(d_type, descr->d_method);
     }
 #endif

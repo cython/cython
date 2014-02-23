@@ -134,9 +134,6 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
       {{endif}}
     {{endfor}}
 
-    goto nofail;
-
-nofail:
     Py_DECREF(obj);
     view->obj = NULL;
 }

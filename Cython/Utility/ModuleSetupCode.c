@@ -157,12 +157,14 @@
   #define PyBoolObject                 PyLongObject
 #endif
 
-#define __Pyx_PyInt_FromHash_t PyInt_FromSsize_t
-#define __Pyx_PyInt_AsHash_t   PyInt_AsSsize_t
-
-#define __Pyx_PySequence_GetSlice(obj, a, b) PySequence_GetSlice(obj, a, b)
-#define __Pyx_PySequence_SetSlice(obj, a, b, value) PySequence_SetSlice(obj, a, b, value)
-#define __Pyx_PySequence_DelSlice(obj, a, b) PySequence_DelSlice(obj, a, b)
+#if PY_VERSION_HEX < 0x030200A4
+  typedef long Py_hash_t;
+  #define __Pyx_PyInt_FromHash_t PyInt_FromLong
+  #define __Pyx_PyInt_AsHash_t   PyInt_AsLong
+#else
+  #define __Pyx_PyInt_FromHash_t PyInt_FromSsize_t
+  #define __Pyx_PyInt_AsHash_t   PyInt_AsSsize_t
+#endif
 
 #if PY_MAJOR_VERSION >= 3
   #define PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
