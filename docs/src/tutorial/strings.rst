@@ -390,7 +390,7 @@ could look as follows::
         try:
             return s[:length].decode('UTF-8', 'strict')
         finally:
-            stdlib.free(s)
+            free(s)
 
 Most likely, you will prefer shorter function names in your code based
 on the kind of string being handled.  Different types of content often
