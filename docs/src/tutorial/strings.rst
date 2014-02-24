@@ -139,13 +139,13 @@ exception, e.g. due to insufficient memory.  If you need to
 :c:func:`free()` the string after the conversion, you should wrap
 the assignment in a try-finally construct::
 
-    cimport stdlib
+    from libc.stdlib cimport free
     cdef bytes py_string
     cdef char* c_string = c_call_creating_a_new_c_string()
     try:
         py_string = c_string
     finally:
-        stdlib.free(c_string)
+        free(c_string)
 
 To convert the byte string back into a C :c:type:`char*`, use the
 opposite assignment::
@@ -376,8 +376,7 @@ conversions in general) in dedicated functions, as this needs to be
 done in exactly the same way whenever receiving text from C.  This
 could look as follows::
 
-    cimport python_unicode
-    cimport stdlib
+    from libc.stdlib cimport free
 
     cdef unicode tounicode(char* s):
         return s.decode('UTF-8', 'strict')
@@ -811,7 +810,7 @@ Here is an example of how one would call a Unicode API on Windows::
         ctypedef const WCHAR* LPCWSTR
         ctypedef void* HWND
 
-        int MessageBoxW(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, int uType) 
+        int MessageBoxW(HWND hWnd, LPCWSTR lpText, LPCWSTR lpCaption, int uType)
 
     title = u"Windows Interop Demo - Python %d.%d.%d" % sys.version_info[:3]
     MessageBoxW(NULL, u"Hello Cython \u263a", title, 0)
