@@ -2214,9 +2214,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("__Pyx_CleanupGlobals();")
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
-            for type in env.types_imported:
+            for ext_type in sorted(env.types_imported, key=operator.attrgetter('typeptr_cname')):
                 code.put_xdecref_clear(
-                    type.typeptr_cname, type,
+                    ext_type.typeptr_cname, ext_type,
                     clear_before_decref=True,
                     nanny=False)
         if Options.cache_builtins:
