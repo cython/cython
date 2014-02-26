@@ -132,6 +132,7 @@ The ``cdef`` statement is used to make C level declarations for:
     cdef struct Grail:
         int age
         float volume
+..note Struct can be ``packed``, which have same effect as C directive ``#pragma pack(1)``.
 
 :Unions:
 
