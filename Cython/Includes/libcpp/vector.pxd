@@ -70,3 +70,7 @@ cdef extern from "<vector>" namespace "std":
         void resize(size_t, T&) nogil
         size_t size() nogil
         void swap(vector&) nogil
+        
+        #C++0x methods
+        T* data() nogil
+        void shrink_to_fit()
