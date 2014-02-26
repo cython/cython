@@ -2510,7 +2510,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabstruct_cname,
                 type.typeptr_cname,
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
-        env.types_imported[type] = 1
+        env.types_imported.add(type)
 
     py3_type_name_map = {'str' : 'bytes', 'unicode' : 'str'}
 

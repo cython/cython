@@ -983,7 +983,7 @@ class ModuleScope(Scope):
     # included_files       [string]           Cython sources included with 'include'
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
-    # types_imported       {PyrexType : 1}    Set of types for which import code generated
+    # types_imported       {PyrexType}        Set of types for which import code generated
     # has_import_star      boolean            Module contains import *
     # cpp                  boolean            Compiling a C++ file
     # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
@@ -1020,7 +1020,7 @@ class ModuleScope(Scope):
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
-        self.types_imported = {}
+        self.types_imported = set()
         self.included_files = []
         self.has_extern_class = 0
         self.cached_builtins = []
