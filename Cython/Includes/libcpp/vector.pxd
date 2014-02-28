@@ -42,7 +42,7 @@ cdef extern from "<vector>" namespace "std":
         bint operator<=(vector&, vector&) nogil
         bint operator>=(vector&, vector&) nogil
         void assign(size_t, T&) nogil
-        #void assign[input_iterator](input_iterator, input_iterator)
+        void assign[input_iterator](input_iterator, input_iterator)
         T& at(size_t) nogil
         T& back() nogil
         iterator begin() nogil
