@@ -77,4 +77,4 @@ cdef extern from "stdio.h" nogil:
     int fputc   (int c, FILE *stream)
     int putc    (int c, FILE *stream)
 
-
+    size_t getline(char **lineptr, size_t *n, FILE *stream)

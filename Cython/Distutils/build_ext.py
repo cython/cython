@@ -291,6 +291,8 @@ class build_ext(_build_ext.build_ext):
         for source in cython_sources:
             target = cython_targets[source]
             depends = [source] + list(extension.depends or ())
+            if(source[-4:].lower()==".pyx" and os.path.isfile(source[:-3]+"pxd")):
+                depends += [source[:-3]+"pxd"]
             rebuild = self.force or newer_group(depends, target, 'newer')
             if not rebuild and newest_dependency is not None:
                 rebuild = newer(newest_dependency, target)
