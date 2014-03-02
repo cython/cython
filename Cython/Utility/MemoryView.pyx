@@ -150,16 +150,15 @@ cdef class array:
             self._shape[idx] = dim
             idx += 1
 
-        if mode not in ("fortran", "c"):
-            raise ValueError("Invalid mode, expected 'c' or 'fortran', got %s" % mode)
-
         cdef char order
         if mode == 'fortran':
-            order = 'F'
+            order = b'F'
             self.mode = u'fortran'
-        else:
-            order = 'C'
+        elif mode == 'c':
+            order = b'C'
             self.mode = u'c'
+        else:
+            raise ValueError("Invalid mode, expected 'c' or 'fortran', got %s" % mode)
 
         self.len = fill_contig_strides_array(self._shape, self._strides,
                                              itemsize, self.ndim, order)
@@ -180,9 +179,9 @@ cdef class array:
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
         cdef int bufmode = -1
-        if self.mode == b"c":
+        if self.mode == u"c":
             bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-        elif self.mode == b"fortran":
+        elif self.mode == u"fortran":
             bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
         if not (flags & bufmode):
             raise ValueError("Can only create a buffer that is contiguous in memory.")

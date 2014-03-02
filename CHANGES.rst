@@ -16,6 +16,9 @@ Features added
 Bugs fixed
 ----------
 
+* Format checking when requesting non-contiguous buffers from
+  ``cython.array`` objects was disabled in Py3.
+
 * C++ destructor calls in extension types could fail to compile in clang.
 
 * Buffer format validation failed for sequences of strings in structs.
