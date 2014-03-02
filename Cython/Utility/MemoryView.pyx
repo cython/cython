@@ -29,6 +29,9 @@ cdef extern from *:
     void Py_INCREF(PyObject *)
     void Py_DECREF(PyObject *)
 
+    void* PyMem_Malloc(size_t n)
+    void PyMem_Free(void *p)
+
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
         PyObject *obj
@@ -132,7 +135,7 @@ cdef class array:
         self.format = self._format
 
         # use single malloc() for both shape and strides
-        self._shape = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim*2)
+        self._shape = <Py_ssize_t *> PyMem_Malloc(sizeof(Py_ssize_t)*self.ndim*2)
         self._strides = self._shape + self.ndim
 
         if not self._shape:
@@ -164,7 +167,7 @@ cdef class array:
         self.free_data = allocate_buffer
         self.dtype_is_object = format == b'O'
         if allocate_buffer:
-            self.data = <char *>malloc(self.len)
+            self.data = <char *>PyMem_Malloc(self.len)
             if not self.data:
                 raise MemoryError("unable to allocate array data.")
 
@@ -208,8 +211,8 @@ cdef class array:
             if self.dtype_is_object:
                 refcount_objects_in_slice(self.data, self._shape,
                                           self._strides, self.ndim, False)
-            free(self.data)
-        free(self._shape)
+            PyMem_Free(self.data)
+        PyMem_Free(self._shape)
 
     property memview:
         @cname('get_memview')
@@ -405,7 +408,7 @@ cdef class memoryview(object):
         dst_slice = get_slice_from_memview(dst, &tmp_slice)
 
         if <size_t>self.view.itemsize > sizeof(array):
-            tmp = malloc(self.view.itemsize)
+            tmp = PyMem_Malloc(self.view.itemsize)
             if tmp == NULL:
                 raise MemoryError
             item = tmp
@@ -425,7 +428,7 @@ cdef class memoryview(object):
             slice_assign_scalar(dst_slice, dst.view.ndim, self.view.itemsize,
                                 item, self.dtype_is_object)
         finally:
-            free(tmp)
+            PyMem_Free(tmp)
 
     cdef setitem_indexed(self, index, value):
         cdef char *itemp = self.get_item_pointer(index)
