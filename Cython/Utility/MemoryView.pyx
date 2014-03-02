@@ -111,7 +111,7 @@ cdef class array:
         cdef bint dtype_is_object
 
     def __cinit__(array self, tuple shape, Py_ssize_t itemsize, format not None,
-                  mode=u"c", bint allocate_buffer=True):
+                  mode="c", bint allocate_buffer=True):
 
         cdef int idx
         cdef Py_ssize_t i
@@ -126,10 +126,9 @@ cdef class array:
         if self.itemsize <= 0:
             raise ValueError("itemsize <= 0 for cython.array")
 
-        encode = getattr(format, 'encode', None)
-        if encode:
-            format = encode('ASCII')
-        self._format = format
+        if isinstance(format, unicode):
+            format = (<unicode>format).encode('ASCII')
+        self._format = format  # keep a reference to the byte string
         self.format = self._format
 
         # use single malloc() for both shape and strides
@@ -154,16 +153,13 @@ cdef class array:
         cdef char order
         if mode == 'fortran':
             order = 'F'
+            self.mode =u'fortran'
         else:
             order = 'C'
+            self.mode = u'c'
 
         self.len = fill_contig_strides_array(self._shape, self._strides,
                                              itemsize, self.ndim, order)
-
-        decode = getattr(mode, 'decode', None)
-        if decode:
-            mode = decode('ASCII')
-        self.mode = mode
 
         self.free_data = allocate_buffer
         self.dtype_is_object = format == b'O'
