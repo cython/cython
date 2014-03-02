@@ -156,7 +156,7 @@ cdef class array:
         cdef char order
         if mode == 'fortran':
             order = 'F'
-            self.mode =u'fortran'
+            self.mode = u'fortran'
         else:
             order = 'C'
             self.mode = u'c'
