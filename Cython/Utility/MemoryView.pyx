@@ -132,13 +132,12 @@ cdef class array:
         self._format = format
         self.format = self._format
 
-        self._shape = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
-        self._strides = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim)
+        # use single malloc() for both shape and strides
+        self._shape = <Py_ssize_t *> malloc(sizeof(Py_ssize_t)*self.ndim*2)
+        self._strides = self._shape + self.ndim
 
-        if not self._shape or not self._strides:
-            free(self._shape)
-            free(self._strides)
-            raise MemoryError("unable to allocate shape or strides.")
+        if not self._shape:
+            raise MemoryError("unable to allocate shape and strides.")
 
         # cdef Py_ssize_t dim, stride
         idx = 0
@@ -214,8 +213,6 @@ cdef class array:
                 refcount_objects_in_slice(self.data, self._shape,
                                           self._strides, self.ndim, False)
             free(self.data)
-
-        free(self._strides)
         free(self._shape)
 
     property memview:
