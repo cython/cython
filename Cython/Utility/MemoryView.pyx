@@ -126,7 +126,7 @@ cdef class array:
         if not self.ndim:
             raise ValueError("Empty shape tuple for cython.array")
 
-        if self.itemsize <= 0:
+        if itemsize <= 0:
             raise ValueError("itemsize <= 0 for cython.array")
 
         if isinstance(format, unicode):
