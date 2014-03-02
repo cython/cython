@@ -106,7 +106,7 @@ cdef class array:
         Py_ssize_t *_shape
         Py_ssize_t *_strides
         Py_ssize_t itemsize
-        unicode mode
+        unicode mode  # FIXME: this should have been a simple 'char'
         bytes _format
         void (*callback_free_data)(void *data)
         # cdef object _memview
