@@ -163,7 +163,9 @@ cdef class array:
         self.free_data = allocate_buffer
         self.dtype_is_object = format == b'O'
         if allocate_buffer:
-            self.data = <char *>PyMem_Malloc(self.len)
+            # use malloc() for backwards compatibility
+            # in case external code wants to change the data pointer
+            self.data = <char *>malloc(self.len)
             if not self.data:
                 raise MemoryError("unable to allocate array data.")
 
@@ -207,7 +209,7 @@ cdef class array:
             if self.dtype_is_object:
                 refcount_objects_in_slice(self.data, self._shape,
                                           self._strides, self.ndim, False)
-            PyMem_Free(self.data)
+            free(self.data)
         PyMem_Free(self._shape)
 
     property memview:
