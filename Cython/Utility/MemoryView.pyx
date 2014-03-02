@@ -412,22 +412,20 @@ cdef class memoryview(object):
         else:
             item = <void *> array
 
-        if self.dtype_is_object:
-            (<PyObject **> item)[0] = <PyObject *> value
-        else:
-            try:
+        try:
+            if self.dtype_is_object:
+                (<PyObject **> item)[0] = <PyObject *> value
+            else:
                 self.assign_item_from_object(<char *> item, value)
-            except:
-                free(tmp)
-                raise
 
-        # It would be easy to support indirect dimensions, but it's easier
-        # to disallow :)
-        if self.view.suboffsets != NULL:
-            assert_direct_dimensions(self.view.suboffsets, self.view.ndim)
-        slice_assign_scalar(dst_slice, dst.view.ndim, self.view.itemsize,
-                            item, self.dtype_is_object)
-        free(tmp)
+            # It would be easy to support indirect dimensions, but it's easier
+            # to disallow :)
+            if self.view.suboffsets != NULL:
+                assert_direct_dimensions(self.view.suboffsets, self.view.ndim)
+            slice_assign_scalar(dst_slice, dst.view.ndim, self.view.itemsize,
+                                item, self.dtype_is_object)
+        finally:
+            free(tmp)
 
     cdef setitem_indexed(self, index, value):
         cdef char *itemp = self.get_item_pointer(index)
