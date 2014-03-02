@@ -1,60 +1,60 @@
 from pair cimport pair
 
-cdef extern from "<unordered_set>" namespace "std":
+cdef extern from "<unordered_set>" namespace "std" nogil:
     cdef cppclass unordered_set[T]:
         cppclass iterator:
             T& operator*()
-            iterator operator++() nogil
-            iterator operator--() nogil
-            bint operator==(iterator) nogil
-            bint operator!=(iterator) nogil
+            iterator operator++()
+            iterator operator--()
+            bint operator==(iterator)
+            bint operator!=(iterator)
         cppclass reverse_iterator:
-            T& operator*() nogil
-            iterator operator++() nogil
-            iterator operator--() nogil
-            bint operator==(reverse_iterator) nogil
-            bint operator!=(reverse_iterator) nogil
+            T& operator*()
+            iterator operator++()
+            iterator operator--()
+            bint operator==(reverse_iterator)
+            bint operator!=(reverse_iterator)
         #cppclass const_iterator(iterator):
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
-        unordered_set() nogil except +
-        unordered_set(unordered_set&) nogil except +
+        unordered_set() except +
+        unordered_set(unordered_set&) except +
         #unordered_set(key_compare&)
         #unordered_set& operator=(unordered_set&)
-        bint operator==(unordered_set&, unordered_set&) nogil
-        bint operator!=(unordered_set&, unordered_set&) nogil
-        bint operator<(unordered_set&, unordered_set&) nogil
-        bint operator>(unordered_set&, unordered_set&) nogil
-        bint operator<=(unordered_set&, unordered_set&) nogil
-        bint operator>=(unordered_set&, unordered_set&) nogil
-        iterator begin() nogil
+        bint operator==(unordered_set&, unordered_set&)
+        bint operator!=(unordered_set&, unordered_set&)
+        bint operator<(unordered_set&, unordered_set&)
+        bint operator>(unordered_set&, unordered_set&)
+        bint operator<=(unordered_set&, unordered_set&)
+        bint operator>=(unordered_set&, unordered_set&)
+        iterator begin()
         #const_iterator begin()
-        void clear() nogil
-        size_t count(T&) nogil
-        bint empty() nogil
-        iterator end() nogil
+        void clear()
+        size_t count(T&)
+        bint empty()
+        iterator end()
         #const_iterator end()
-        pair[iterator, iterator] equal_range(T&) nogil
+        pair[iterator, iterator] equal_range(T&)
         #pair[const_iterator, const_iterator] equal_range(T&)
-        void erase(iterator) nogil
-        void erase(iterator, iterator) nogil
-        size_t erase(T&) nogil
-        iterator find(T&) nogil
+        void erase(iterator)
+        void erase(iterator, iterator)
+        size_t erase(T&)
+        iterator find(T&)
         #const_iterator find(T&)
-        pair[iterator, bint] insert(T&) nogil
-        iterator insert(iterator, T&) nogil
+        pair[iterator, bint] insert(T&)
+        iterator insert(iterator, T&)
         #void insert(input_iterator, input_iterator)
         #key_compare key_comp()
-        iterator lower_bound(T&) nogil
+        iterator lower_bound(T&)
         #const_iterator lower_bound(T&)
-        size_t max_size() nogil
-        reverse_iterator rbegin() nogil
+        size_t max_size()
+        reverse_iterator rbegin()
         #const_reverse_iterator rbegin()
-        reverse_iterator rend() nogil
+        reverse_iterator rend()
         #const_reverse_iterator rend()
-        size_t size() nogil
-        void swap(unordered_set&) nogil
-        iterator upper_bound(T&) nogil
+        size_t size()
+        void swap(unordered_set&)
+        iterator upper_bound(T&)
         #const_iterator upper_bound(T&)
         #value_compare value_comp()
