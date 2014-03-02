@@ -117,7 +117,7 @@ cdef class array:
                   mode="c", bint allocate_buffer=True):
 
         cdef int idx
-        cdef Py_ssize_t i
+        cdef Py_ssize_t i, dim
         cdef PyObject **p
 
         self.ndim = <int> len(shape)
@@ -142,13 +142,10 @@ cdef class array:
             raise MemoryError("unable to allocate shape and strides.")
 
         # cdef Py_ssize_t dim, stride
-        idx = 0
         for idx, dim in enumerate(shape):
             if dim <= 0:
                 raise ValueError("Invalid shape in axis %d: %d." % (idx, dim))
-
             self._shape[idx] = dim
-            idx += 1
 
         cdef char order
         if mode == 'fortran':
