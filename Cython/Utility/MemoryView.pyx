@@ -1274,6 +1274,7 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
             refcount_copying(&dst, dtype_is_object, ndim, False)
             memcpy(dst.data, src.data, slice_get_size(&src, ndim))
             refcount_copying(&dst, dtype_is_object, ndim, True)
+            free(tmpdata)
             return 0
 
     if order == 'F' == get_best_order(&dst, ndim):

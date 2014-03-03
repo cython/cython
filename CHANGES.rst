@@ -16,6 +16,8 @@ Features added
 Bugs fixed
 ----------
 
+* Memory leak in memory views when copying overlapping, contiguous slices.
+
 * Format checking when requesting non-contiguous buffers from
   ``cython.array`` objects was disabled in Py3.
 
