@@ -20,7 +20,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject*, Py_ssize_t*
 #define __Pyx_PyByteArray_FromStringAndSize(s, l) PyByteArray_FromStringAndSize((const char*)s, l)
 #define __Pyx_PyBytes_FromString        PyBytes_FromString
 #define __Pyx_PyBytes_FromStringAndSize PyBytes_FromStringAndSize
-static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 
 #if PY_MAJOR_VERSION < 3
     #define __Pyx_PyStr_FromString        __Pyx_PyBytes_FromString
@@ -32,11 +32,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char*);
 
 #define __Pyx_PyObject_AsSString(s)    ((signed char*) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsUString(s)    ((unsigned char*) __Pyx_PyObject_AsString(s))
-#define __Pyx_PyObject_FromUString(s)  __Pyx_PyObject_FromString((char*)s)
-#define __Pyx_PyBytes_FromUString(s)   __Pyx_PyBytes_FromString((char*)s)
-#define __Pyx_PyByteArray_FromUString(s)   __Pyx_PyByteArray_FromString((char*)s)
-#define __Pyx_PyStr_FromUString(s)     __Pyx_PyStr_FromString((char*)s)
-#define __Pyx_PyUnicode_FromUString(s) __Pyx_PyUnicode_FromString((char*)s)
+#define __Pyx_PyObject_FromUString(s)  __Pyx_PyObject_FromString((const char*)s)
+#define __Pyx_PyBytes_FromUString(s)   __Pyx_PyBytes_FromString((const char*)s)
+#define __Pyx_PyByteArray_FromUString(s)   __Pyx_PyByteArray_FromString((const char*)s)
+#define __Pyx_PyStr_FromUString(s)     __Pyx_PyStr_FromString((const char*)s)
+#define __Pyx_PyUnicode_FromUString(s) __Pyx_PyUnicode_FromString((const char*)s)
 
 #if PY_MAJOR_VERSION < 3
 static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
@@ -150,7 +150,7 @@ bad:
 
 /* Type Conversion Functions */
 
-static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(char* c_str) {
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char* c_str) {
     return __Pyx_PyUnicode_FromStringAndSize(c_str, strlen(c_str));
 }
 
