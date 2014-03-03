@@ -192,7 +192,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
         if (PyUnicode_IS_ASCII(o)) {
             // cached for the lifetime of the object
-            *length = PyUnicode_GET_DATA_SIZE(o);
+            *length = PyUnicode_GET_LENGTH(o);
             return PyUnicode_AsUTF8(o);
         } else {
             // raise the error
