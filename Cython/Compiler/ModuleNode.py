@@ -1172,7 +1172,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if is_final_type:
                     abstract_check = ''
                 else:
-                    abstract_check = ' & ((t->tp_flags & Py_TPFLAGS_IS_ABSTRACT) == 0)'
+                    abstract_check = ' & ((t->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)) == 0)'
                 obj_struct = type.declaration_code("", deref=True)
                 code.putln("if (likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
                     freecount_name, obj_struct, abstract_check))

@@ -12,6 +12,20 @@ cdef class ExtTypeNoGC:
     >>> obj = ExtTypeNoGC()
     >>> obj = ExtTypeNoGC()
     >>> obj = ExtTypeNoGC()
+
+    >>> class PyClass(ExtTypeNoGC): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtTypeNoGC): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
 
 
@@ -23,6 +37,20 @@ cdef class ExtSubTypeNoGC(ExtTypeNoGC):
     >>> obj = ExtSubTypeNoGC()
     >>> obj = ExtSubTypeNoGC()
     >>> obj = ExtSubTypeNoGC()
+
+    >>> class PyClass(ExtSubTypeNoGC): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtSubTypeNoGC): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     cdef bytes x
 
@@ -36,6 +64,20 @@ cdef class ExtTypeWithGC:
     >>> obj = ExtTypeWithGC()
     >>> obj = ExtTypeWithGC()
     >>> obj = ExtTypeWithGC()
+
+    >>> class PyClass(ExtTypeWithGC): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtTypeWithGC): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     cdef attribute
 
@@ -63,6 +105,20 @@ cdef class ExtSubType(ExtTypeWithGC):
     >>> obj = ExtSubType()
     >>> obj = ExtSubType()
     >>> obj = ExtSubType()
+
+    >>> class PyClass(ExtSubType): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtSubType): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
 
 
@@ -74,6 +130,20 @@ cdef class LargerExtSubType(ExtSubType):
     >>> obj = LargerExtSubType()
     >>> obj = LargerExtSubType()
     >>> obj = LargerExtSubType()
+
+    >>> class PyClass(LargerExtSubType): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(LargerExtSubType): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     cdef attribute2
 
@@ -90,6 +160,20 @@ cdef class ExtTypeWithCAttr:
     >>> obj = ExtTypeWithCAttr()
     >>> obj = ExtTypeWithCAttr()
     >>> obj = ExtTypeWithCAttr()
+
+    >>> class PyClass(ExtTypeWithCAttr): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtTypeWithCAttr): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     cdef int cattr
 
@@ -106,6 +190,18 @@ cdef class ExtSubTypeWithCAttr(ExtTypeWithCAttr):
     >>> obj = ExtSubTypeWithCAttr()
     >>> obj = ExtSubTypeWithCAttr()
     >>> obj = ExtSubTypeWithCAttr()
+
+    >>> class PyClass(ExtSubTypeWithCAttr): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+
+    >>> class PyClass(ExtSubTypeWithCAttr): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
     """
 
 
@@ -119,6 +215,20 @@ cdef class ExtTypeWithCAttrNoFreelist:
     >>> obj = ExtTypeWithCAttrNoFreelist()
     >>> obj = ExtTypeWithCAttrNoFreelist()
     >>> obj = ExtTypeWithCAttrNoFreelist()
+
+    >>> class PyClass(ExtTypeWithCAttrNoFreelist): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtTypeWithCAttrNoFreelist): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     cdef int cattr
 
@@ -148,6 +258,28 @@ cdef class ExtTypeWithCMethods:
     >>> obj = ExtTypeWithCMethods()
     >>> test_cmethods(obj)
     (1, 2)
+
+    >>> class PyClass(ExtTypeWithCMethods): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = PyClass()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtTypeWithCMethods): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = PyClass()
+    >>> test_cmethods(obj)
+    (1, 2)
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     cdef int cattr
 
@@ -188,6 +320,20 @@ cdef class ExtSubTypeWithCMethods(ExtTypeWithCMethods):
     >>> obj = ExtSubTypeWithCMethods()
     >>> test_cmethods(obj)
     (1, 2)
+
+    >>> class PyClass(ExtSubTypeWithCMethods): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtSubTypeWithCMethods): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
 
 
@@ -232,6 +378,20 @@ cdef class ExtSubTypeWithMoreCMethods(ExtSubTypeWithCMethods):
     >>> obj = ExtTypeWithCMethods()
     >>> test_cmethods(obj)
     (1, 2)
+
+    >>> class PyClass(ExtSubTypeWithMoreCMethods): a = 1
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtSubTypeWithMoreCMethods): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     def __cinit__(self):
         assert self.cattr == 1
@@ -270,6 +430,22 @@ cdef class ExtTypeWithRefCycle:
     True
     >>> first.attribute = obj
     >>> del obj, first
+
+    >>> class PyClass(ExtTypeWithRefCycle): a = 1
+    >>> obj = PyClass()
+    >>> obj.attribute = obj
+    >>> obj.attribute = PyClass(obj)
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
+
+    >>> class PyClass(ExtTypeWithRefCycle): __slots__ = ()
+    >>> obj = PyClass()
+    >>> obj.attribute = obj
+    >>> obj.attribute = PyClass(obj)
+    >>> obj = PyClass()
+    >>> obj = PyClass()
+    >>> del PyClass, obj
     """
     cdef public attribute
 
