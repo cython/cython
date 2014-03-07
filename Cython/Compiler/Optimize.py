@@ -2450,7 +2450,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         func_type = self.PyByteArray_Append_func_type
 
         value = unwrap_coerced_node(args[1])
-        if value.type.is_int:
+        if value.type.is_int or isinstance(value, ExprNodes.IntNode):
             value = value.coerce_to(PyrexTypes.c_int_type, self.current_env())
             utility_code = UtilityCode.load_cached("ByteArrayAppend", "StringTools.c")
         elif value.is_string_literal:
