@@ -46,6 +46,38 @@ start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
 
+Using the IPython notebook
+--------------------------
+
+Cython can be used conveniently and interactively from a web browser
+through the IPython notebook.  To install IPython, e.g. into a virtualenv,
+use pip:
+
+.. sourcecode:: bash
+
+    (venv)$ pip install "ipython[notebook]"
+    (venv)$ ipython notebook
+
+To enable support for Cython compilation, install Cython and load the
+``cythonmagic`` extension from within IPython::
+
+    %load_ext cythonmagic
+
+Then, prefix a cell with the ``%%cython`` marker to compile it::
+
+    %%cython
+
+    cdef int a = 0
+    for i in range(10):
+        a += i
+    print a
+
+You can show Cython's code analysis by passing the ``--annotate`` option::
+
+    %%cython --annotate
+    ...
+
+
 Using the Sage notebook
 -----------------------
 
