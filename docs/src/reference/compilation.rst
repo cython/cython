@@ -8,7 +8,7 @@ Compilation
 
 Cython code, unlike Python, must be compiled.  This happens in two stages:
 
-  * A ``.pyx`` file is compiles by Cython to a ``.c`` file.
+  * A ``.pyx`` file is compiled by Cython to a ``.c`` file.
 
   * The ``.c`` file is compiled by a C compiler to a ``.so`` file (or a
     ``.pyd`` file on Windows)
