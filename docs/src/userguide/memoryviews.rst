@@ -457,14 +457,14 @@ converted back to Cython-space memoryviews at any time.
 
 They have the following attributes:
 
-    * shape
-    * strides
-    * suboffsets
-    * ndim
-    * size
-    * itemsize
-    * nbytes
-    * base
+    * ``shape``: size in each dimension, as a tuple.
+    * ``strides``: stride along each dimension, in bytes.
+    * ``suboffsets``
+    * ``ndim``: number of dimensions.
+    * ``size``: total number of items in the view (product of the shape).
+    * ``itemsize``: size, in bytes, of the items in the view.
+    * ``nbytes``: equal to ``size`` times ``itemsize``.
+    * ``base``
 
 And of course the aforementioned ``T`` attribute (:ref:`view_transposing`).
 These attributes have the same semantics as in NumPy_.  For instance, to
