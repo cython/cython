@@ -21,6 +21,9 @@ Bugs fixed
 * Crash when subtyping freelist enabled Cython extension types with
   Python classes that use ``__slots__``.
 
+* Freelist usage is restricted to CPython to avoid problems with other
+  Python implementations.
+
 * Memory leak in memory views when copying overlapping, contiguous slices.
 
 * Format checking when requesting non-contiguous buffers from

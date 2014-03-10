@@ -1174,7 +1174,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     type_safety_check = ' & ((t->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)) == 0)'
                 obj_struct = type.declaration_code("", deref=True)
-                code.putln("if (likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
+                code.putln("if (CYTHON_COMPILING_IN_CPYTHON && likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
                     freecount_name, obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
@@ -1347,7 +1347,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         ' & ((Py_TYPE(o)->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)) == 0)')
 
                 type = scope.parent_type
-                code.putln("if ((%s < %d) & (Py_TYPE(o)->tp_basicsize == sizeof(%s))%s) {" % (
+                code.putln("if (CYTHON_COMPILING_IN_CPYTHON && ((%s < %d) & (Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
                     freecount_name, freelist_size, type.declaration_code("", deref=True),
                     type_safety_check))
                 code.putln("%s[%s++] = %s;" % (
