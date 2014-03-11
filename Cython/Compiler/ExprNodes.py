@@ -2816,7 +2816,10 @@ class IndexNode(ExprNode):
                     keyword_args = None)
                 return type_node.analyse(env, base_type = base_type)
             else:
-                return PyrexTypes.CArrayType(base_type, int(self.index.compile_time_value(env)))
+                index = self.index.compile_time_value(env)
+                if index is not None:
+                    return PyrexTypes.CArrayType(base_type, int(index))
+                # otherwise: error
         return None
 
     def type_dependencies(self, env):
