@@ -2819,7 +2819,7 @@ class IndexNode(ExprNode):
                 index = self.index.compile_time_value(env)
                 if index is not None:
                     return PyrexTypes.CArrayType(base_type, int(index))
-                # otherwise: error
+                error(self.pos, "Array size must be a compile time constant")
         return None
 
     def type_dependencies(self, env):
