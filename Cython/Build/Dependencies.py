@@ -629,6 +629,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                     continue
             else:
                 module_name = name
+
             if module_name not in seen:
                 try:
                     kwds = deps.distutils_info(file, aliases, base).values
@@ -640,9 +641,10 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                     for key, value in base.values.items():
                         if key not in kwds:
                             kwds[key] = value
+
                 sources = [file]
                 if template is not None:
-                    sources += template.sources[1:]
+                    sources += [m for m in template.sources if m != filepattern]
                 if 'sources' in kwds:
                     # allow users to add .c files etc.
                     for source in kwds['sources']:
@@ -656,6 +658,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                         # Always include everything from the template.
                         depends = list(set(template.depends).union(set(depends)))
                     kwds['depends'] = depends
+
                 module_list.append(exn_type(
                         name=module_name,
                         sources=sources,
