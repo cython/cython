@@ -712,6 +712,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         aliases=aliases)
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
+
     modules_by_cfile = {}
     to_compile = []
     for m in module_list:
@@ -784,6 +785,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                 if build_dir:
                     copy_to_build_dir(source)
         m.sources = new_sources
+
     if hasattr(options, 'cache'):
         if not os.path.exists(options.cache):
             os.makedirs(options.cache)
@@ -804,6 +806,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args[1:])
+
     if exclude_failures:
         failed_modules = set()
         for c_file, modules in modules_by_cfile.iteritems():
@@ -822,6 +825,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                 module_list.remove(module)
             print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
+
     if hasattr(options, 'cache'):
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
     # cythonize() is often followed by the (non-Python-buffered)
