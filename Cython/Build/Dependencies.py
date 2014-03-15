@@ -582,6 +582,7 @@ def create_dependency_tree(ctx=None, quiet=False):
         _dep_tree = DependencyTree(ctx, quiet=quiet)
     return _dep_tree
 
+
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, exclude_failures=False):
     if not isinstance(patterns, (list, tuple)):
@@ -594,6 +595,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         exclude = [exclude]
     for pattern in exclude:
         to_exclude.update(map(os.path.abspath, extended_iglob(pattern)))
+
     module_list = []
     for pattern in patterns:
         if isinstance(pattern, str):
@@ -616,6 +618,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
             exn_type = template.__class__
         else:
             raise TypeError(pattern)
+
         for file in extended_iglob(filepattern):
             if os.path.abspath(file) in to_exclude:
                 continue
@@ -660,6 +663,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                 m = module_list[-1]
                 seen.add(name)
     return module_list
+
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, force=False,
