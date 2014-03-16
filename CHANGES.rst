@@ -16,6 +16,8 @@ Features added
 Bugs fixed
 ----------
 
+* Compiler crash on readonly properties in "binding" mode.
+
 * Auto-encoding with ``c_string_encoding=ascii`` failed in Py3.3.
 
 * Crash when subtyping freelist enabled Cython extension types with

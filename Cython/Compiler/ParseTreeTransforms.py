@@ -1399,7 +1399,7 @@ property NAME:
         return ATTR
     def __set__(self, value):
         ATTR = value
-    """, level='c_class')
+    """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_pyobject_property = TreeFragment(u"""
 property NAME:
     def __get__(self):
@@ -1408,12 +1408,12 @@ property NAME:
         ATTR = value
     def __del__(self):
         ATTR = None
-    """, level='c_class')
+    """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_property_ro = TreeFragment(u"""
 property NAME:
     def __get__(self):
         return ATTR
-    """, level='c_class')
+    """, level='c_class', pipeline=[NormalizeTree(None)])
 
     struct_or_union_wrapper = TreeFragment(u"""
 cdef class NAME:
@@ -1428,13 +1428,13 @@ cdef class NAME:
         return STR_FORMAT % MEMBER_TUPLE
     def __repr__(self):
         return REPR_FORMAT % MEMBER_TUPLE
-    """)
+    """, pipeline=[NormalizeTree(None)])
 
     init_assignment = TreeFragment(u"""
 if VALUE is not None:
     ATTR = VALUE
     count += 1
-    """)
+    """, pipeline=[NormalizeTree(None)])
 
     fused_function = None
     in_lambda = 0
