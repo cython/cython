@@ -18,7 +18,7 @@ ctypedef fused_type1 *composed_t
 other_t = cython.fused_type(int, double)
 ctypedef double *p_double
 ctypedef int *p_int
-
+fused_type3 = cython.fused_type(int, double)
 
 def test_pure():
     """
@@ -268,6 +268,12 @@ def get_array(itemsize, format):
     result[6] = 6.0
     return result
 
+def get_intc_array():
+    result = array((10,), sizeof(int), 'i')
+    result[5] = 5.0
+    result[6] = 6.0
+    return result
+
 def test_fused_memslice_dtype(cython.floating[:] array):
     """
     Note: the np.ndarray dtype test is in numpy_test
@@ -284,6 +290,42 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
+
+def test_fused_memslice_dtype_repeated(cython.floating[:] array1, cython.floating[:] array2):
+    """
+    Note: the np.ndarray dtype test is in numpy_test
+
+    >>> import cython
+    >>> sorted(test_fused_memslice_dtype_repeated.__signatures__)
+    ['double', 'float']
+
+    >>> test_fused_memslice_dtype_repeated(get_array(8, 'd'), get_array(8, 'd'))
+    double[:] double[:]
+    >>> test_fused_memslice_dtype_repeated(get_array(4, 'f'), get_array(4, 'f'))
+    float[:] float[:]
+    >>> test_fused_memslice_dtype_repeated(get_array(8, 'd'), get_array(4, 'f'))
+    Traceback (most recent call last):
+    ValueError: Buffer dtype mismatch, expected 'double' but got 'float'
+    """
+    print cython.typeof(array1), cython.typeof(array2)
+
+def test_fused_memslice_dtype_repeated_2(cython.floating[:] array1, cython.floating[:] array2,
+                                         fused_type3[:] array3):
+    """
+    Note: the np.ndarray dtype test is in numpy_test
+
+    >>> import cython
+    >>> sorted(test_fused_memslice_dtype_repeated_2.__signatures__)
+    ['double|double', 'double|int', 'float|double', 'float|int']
+
+    >>> test_fused_memslice_dtype_repeated_2(get_array(8, 'd'), get_array(8, 'd'), get_array(8, 'd'))
+    double[:] double[:] double[:]
+    >>> test_fused_memslice_dtype_repeated_2(get_array(8, 'd'), get_array(8, 'd'), get_intc_array())
+    double[:] double[:] int[:]
+    >>> test_fused_memslice_dtype_repeated_2(get_array(4, 'f'), get_array(4, 'f'), get_intc_array())
+    float[:] float[:] int[:]
+    """
+    print cython.typeof(array1), cython.typeof(array2), cython.typeof(array3)
 
 def test_cython_numeric(cython.numeric arg):
     """

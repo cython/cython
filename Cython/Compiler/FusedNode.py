@@ -78,7 +78,8 @@ class FusedCFuncDefNode(StatListNode):
         """
         fused_compound_types = PyrexTypes.unique(
             [arg.type for arg in self.node.args if arg.type.is_fused])
-        permutations = PyrexTypes.get_all_specialized_permutations(fused_compound_types)
+        fused_types = self._get_fused_base_types(fused_compound_types)
+        permutations = PyrexTypes.get_all_specialized_permutations(fused_types)
 
         self.fused_compound_types = fused_compound_types
 
@@ -179,6 +180,17 @@ class FusedCFuncDefNode(StatListNode):
         else:
             self.py_func = orig_py_func
 
+    def _get_fused_base_types(self, fused_compound_types):
+        """
+        Get a list of unique basic fused types, from a list of
+        (possibly) compound fused types.
+        """
+        base_types = []
+        seen = set()
+        for fused_type in fused_compound_types:
+            fused_type.get_fused_types(result=base_types, seen=seen)
+        return base_types
+
     def _specialize_function_args(self, args, fused_to_specific):
         for arg in args:
             if arg.type.is_fused:
@@ -203,9 +215,10 @@ class FusedCFuncDefNode(StatListNode):
         node.has_fused_arguments = False
         self.nodes.append(node)
 
-    def specialize_copied_def(self, node, cname, py_entry, f2s, fused_types):
+    def specialize_copied_def(self, node, cname, py_entry, f2s, fused_compound_types):
         """Specialize the copy of a DefNode given the copied node,
         the specialization cname and the original DefNode entry"""
+        fused_types = self._get_fused_base_types(fused_compound_types)
         type_strings = [
             PyrexTypes.specialization_signature_string(fused_type, f2s)
                 for fused_type in fused_types
@@ -519,13 +532,13 @@ class FusedCFuncDefNode(StatListNode):
         """
         from Cython.Compiler import TreeFragment, Code, MemoryView, UtilityCode
 
-        # { (arg_pos, FusedType) : specialized_type }
-        seen_fused_types = set()
+        fused_types = self._get_fused_base_types([
+            arg.type for arg in self.node.args if arg.type.is_fused])
 
         context = {
             'memviewslice_cname': MemoryView.memviewslice_cname,
             'func_args': self.node.args,
-            'n_fused': len([arg for arg in self.node.args]),
+            'n_fused': len(fused_types),
             'name': orig_py_func.entry.name,
         }
 
@@ -557,9 +570,17 @@ class FusedCFuncDefNode(StatListNode):
         fused_index = 0
         default_idx = 0
         all_buffer_types = set()
+        seen_fused_types = set()
         for i, arg in enumerate(self.node.args):
-            if arg.type.is_fused and arg.type not in seen_fused_types:
-                seen_fused_types.add(arg.type)
+            if arg.type.is_fused:
+                arg_fused_types = arg.type.get_fused_types()
+                if len(arg_fused_types) > 1:
+                    raise NotImplementedError("Determination of more than one fused base "
+                                              "type per argument is not implemented.")
+                fused_type = arg_fused_types[0]
+
+            if arg.type.is_fused and fused_type not in seen_fused_types:
+                seen_fused_types.add(fused_type)
 
                 context.update(
                     arg_tuple_idx=i,
