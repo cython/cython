@@ -351,7 +351,7 @@ class Scope(object):
                      'cfunc_entries',
                      'c_class_entries'):
             self_entries = getattr(self, attr)
-            names = set([e.name for e in self_entries])
+            names = set(e.name for e in self_entries)
             for entry in getattr(other, attr):
                 if (entry.used or merge_unused) and entry.name not in names:
                     self_entries.append(entry)

@@ -360,8 +360,8 @@ class SimpleAssignmentTypeInferer(object):
             return
 
         # Set of assignemnts
-        assignments = set([])
-        assmts_resolved = set([])
+        assignments = set()
+        assmts_resolved = set()
         dependencies = {}
         assmt_to_names = {}
 
