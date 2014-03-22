@@ -9,6 +9,19 @@ Latest
 Features added
 --------------
 
+Bugs fixed
+----------
+
+Other changes
+-------------
+
+
+0.20.2
+===================
+
+Features added
+--------------
+
 * Some optimisations for set/frozenset instantiation.
 
 * Support for C++ unordered_set and unordered_map.
