@@ -5,6 +5,7 @@ python:
   - 2.7
   - 3.2
   - 3.3
+  - 3.4
 
 #  - pypy
 
@@ -14,7 +15,7 @@ branches:
 
 install: pip install .
 
-script: CFLAGS=-O0 python runtests.py -vv
+script: CFLAGS="-O0 -ggdb" python runtests.py -vv
 
 matrix:
   allow_failures:
