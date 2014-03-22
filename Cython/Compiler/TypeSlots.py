@@ -67,8 +67,8 @@ class Signature(object):
         # and are not looked up in here
     }
 
-    type_to_format_map = dict([(type_, format_)
-                                   for format_, type_ in format_map.iteritems()])
+    type_to_format_map = dict(
+        (type_, format_) for format_, type_ in format_map.iteritems())
 
     error_value_map = {
         'O': "NULL",
