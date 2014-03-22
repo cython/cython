@@ -3998,7 +3998,7 @@ class SliceIndexNode(ExprNode):
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyTuple_GetSlice'
             else:
-                cfunc = '__Pyx_PySequence_GetSlice'
+                cfunc = 'PySequence_GetSlice'
             code.putln(
                 "%s = %s(%s, %s, %s); %s" % (
                     result,
@@ -6686,7 +6686,6 @@ class SetNode(ExprNode):
             self.compile_time_value_error(e)
 
     def generate_evaluation_code(self, code):
-        code.globalstate.use_utility_code(Builtin.py_set_utility_code)
         self.allocate_temp_result(code)
         code.putln(
             "%s = PySet_New(0); %s" % (
@@ -9205,7 +9204,7 @@ class AddNode(NumBinopNode):
     def infer_builtin_types_operation(self, type1, type2):
         # b'abc' + 'abc' raises an exception in Py3,
         # so we can safely infer the Py2 type for bytes here
-        string_types = [bytes_type, str_type, basestring_type, unicode_type]  # Py2.4 lacks tuple.index()
+        string_types = (bytes_type, str_type, basestring_type, unicode_type)
         if type1 in string_types and type2 in string_types:
             return string_types[max(string_types.index(type1),
                                     string_types.index(type2))]

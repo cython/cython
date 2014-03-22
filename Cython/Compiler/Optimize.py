@@ -2029,7 +2029,6 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 self.PySet_New_func_type,
                 args=pos_args,
                 is_temp=node.is_temp,
-                utility_code=UtilityCode.load_cached('pyset_compat', 'Builtins.c'),
                 py_name="set")
 
     PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
@@ -3708,7 +3707,7 @@ class ConsolidateOverflowCheck(Visitor.CythonTransform):
     sequence will be evaluated and the overflow bit checked only at the end.
     """
     overflow_bit_node = None
-    
+
     def visit_Node(self, node):
         if self.overflow_bit_node is not None:
             saved = self.overflow_bit_node
@@ -3718,7 +3717,7 @@ class ConsolidateOverflowCheck(Visitor.CythonTransform):
         else:
             self.visitchildren(node)
         return node
-    
+
     def visit_NumBinopNode(self, node):
         if node.overflow_check and node.overflow_fold:
             top_level_overflow = self.overflow_bit_node is None

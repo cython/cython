@@ -18,11 +18,7 @@ pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 
-py_set_utility_code = UtilityCode.load("pyset_compat", "Builtins.c")
-
 builtin_utility_code = {
-    'set'       : py_set_utility_code,
-    'frozenset' : py_set_utility_code,
 }
 
 
@@ -294,15 +290,11 @@ builtin_types_table = [
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
     ("set",       "PySet_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
-                                    BuiltinMethod("clear",   "T",  "r", "PySet_Clear",
-                                                  utility_code = py_set_utility_code),
+                                    BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values
-#                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard",
-#                                                  utility_code = py_set_utility_code),
-                                    BuiltinMethod("add",     "TO", "r", "PySet_Add",
-                                                  utility_code = py_set_utility_code),
-                                    BuiltinMethod("pop",     "T",  "O", "PySet_Pop",
-                                                  utility_code = py_set_utility_code)]),
+#                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
+                                    BuiltinMethod("add",     "TO", "r", "PySet_Add"),
+                                    BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 

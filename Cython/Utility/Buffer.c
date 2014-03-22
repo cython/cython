@@ -107,9 +107,7 @@ typedef struct {
 /////////////// GetAndReleaseBuffer ///////////////
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-  #if PY_VERSION_HEX >= 0x02060000
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
-  #endif
 
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if getbuffer}}
@@ -117,29 +115,7 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
       {{endif}}
     {{endfor}}
 
-  #if PY_VERSION_HEX < 0x02060000
-    if (obj->ob_type->tp_dict) {
-        PyObject *getbuffer_cobj = PyObject_GetItem(
-            obj->ob_type->tp_dict, PYIDENT("__pyx_getbuffer"));
-        if (getbuffer_cobj) {
-            getbufferproc func = (getbufferproc) PyCObject_AsVoidPtr(getbuffer_cobj);
-            Py_DECREF(getbuffer_cobj);
-            if (!func)
-                goto fail;
-
-            return func(obj, view, flags);
-        } else {
-            PyErr_Clear();
-        }
-    }
-  #endif
-
     PyErr_Format(PyExc_TypeError, "'%.200s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
-
-#if PY_VERSION_HEX < 0x02060000
-fail:
-#endif
-
     return -1;
 }
 
@@ -147,12 +123,10 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     PyObject *obj = view->obj;
     if (!obj) return;
 
-  #if PY_VERSION_HEX >= 0x02060000
     if (PyObject_CheckBuffer(obj)) {
         PyBuffer_Release(view);
         return;
     }
-  #endif
 
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if releasebuffer}}
@@ -160,31 +134,6 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
       {{endif}}
     {{endfor}}
 
-  #if PY_VERSION_HEX < 0x02060000
-    if (obj->ob_type->tp_dict) {
-        PyObject *releasebuffer_cobj = PyObject_GetItem(
-            obj->ob_type->tp_dict, PYIDENT("__pyx_releasebuffer"));
-        if (releasebuffer_cobj) {
-            releasebufferproc func = (releasebufferproc) PyCObject_AsVoidPtr(releasebuffer_cobj);
-            Py_DECREF(releasebuffer_cobj);
-            if (!func)
-                goto fail;
-            func(obj, view);
-            return;
-        } else {
-            PyErr_Clear();
-        }
-    }
-  #endif
-
-    goto nofail;
-
-#if PY_VERSION_HEX < 0x02060000
-fail:
-#endif
-    PyErr_WriteUnraisable(obj);
-
-nofail:
     Py_DECREF(obj);
     view->obj = NULL;
 }

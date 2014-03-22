@@ -2,11 +2,7 @@ import cython
 from Cython import __version__
 
 import re, os, sys, time
-try:
-    from glob import iglob
-except ImportError:
-    # Py2.4
-    from glob import glob as iglob
+from glob import iglob
 
 try:
     import gzip

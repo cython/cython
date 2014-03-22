@@ -88,7 +88,7 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L); /*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02050000
+#if CYTHON_COMPILING_IN_CPYTHON
     if (Py_TYPE(L) == &PySet_Type) {
         return PySet_Pop(L);
     }
@@ -97,7 +97,7 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
+#if CYTHON_COMPILING_IN_CPYTHON
     /* Check that both the size is positive and no reallocation shrinking needs to be done. */
     if (likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
         Py_SIZE(L) -= 1;
