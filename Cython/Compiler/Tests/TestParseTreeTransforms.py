@@ -1,6 +1,5 @@
 import os
 
-from Cython.Compiler import CmdLine
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
 from Cython.Compiler.Nodes import *
@@ -203,18 +202,18 @@ class TestInterpretCompilerDirectives(TransformTest):
 
 
 # TODO: Re-enable once they're more robust.
-if sys.version_info[:2] >= (2, 5) and False:
+if False:
     from Cython.Debugger import DebugWriter
     from Cython.Debugger.Tests.TestLibCython import DebuggerTestCase
 else:
     # skip test, don't let it inherit unittest.TestCase
     DebuggerTestCase = object
 
+
 class TestDebugTransform(DebuggerTestCase):
 
     def elem_hasattrs(self, elem, attrs):
-        # we shall supporteth python 2.3 !
-        return all([attr in elem.attrib for attr in attrs])
+        return all(attr in elem.attrib for attr in attrs)
 
     def test_debug_info(self):
         try:

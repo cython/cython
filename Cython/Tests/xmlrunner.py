@@ -86,11 +86,8 @@ class _TestInfo(object):
         """
         if not self.err:
             return ''
-        if sys.version_info < (2,4):
-            return self.test_result._exc_info_to_string(self.err)
-        else:
-            return self.test_result._exc_info_to_string(
-                self.err, self.test_method)
+        return self.test_result._exc_info_to_string(
+            self.err, self.test_method)
 
 
 class _XMLTestResult(_TextTestResult):
@@ -98,8 +95,8 @@ class _XMLTestResult(_TextTestResult):
 
     Used by XMLTestRunner.
     """
-    def __init__(self, stream=sys.stderr, descriptions=1, verbosity=1, \
-        elapsed_times=True):
+    def __init__(self, stream=sys.stderr, descriptions=1, verbosity=1,
+                 elapsed_times=True):
         "Create a new instance of _XMLTestResult."
         _TextTestResult.__init__(self, stream, descriptions, verbosity)
         self.successes = []

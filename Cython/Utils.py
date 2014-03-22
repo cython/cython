@@ -3,7 +3,11 @@
 #            anywhere else in particular
 #
 
-import os, sys, re, codecs
+import os
+import sys
+import re
+import io
+import codecs
 
 modification_time = os.path.getmtime
 
@@ -266,14 +270,6 @@ class NormalisedNewlineStream(object):
             self.stream.seek(0)
         else:
             raise NotImplementedError
-
-
-io = None
-if sys.version_info >= (2,6):
-    try:
-        import io
-    except ImportError:
-        pass
 
 
 def open_source_file(source_filename, mode="r",

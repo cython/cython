@@ -3715,12 +3715,6 @@ class IndexNode(ExprNode):
         buffer_entry = self.buffer_entry()
         have_gil = not self.in_nogil_context
 
-        if sys.version_info < (3,):
-            def next_(it):
-                return it.next()
-        else:
-            next_ = next
-
         have_slices = False
         it = iter(self.indices)
         for index in self.original_indices:
@@ -3728,13 +3722,13 @@ class IndexNode(ExprNode):
             have_slices = have_slices or is_slice
             if is_slice:
                 if not index.start.is_none:
-                    index.start = next_(it)
+                    index.start = next(it)
                 if not index.stop.is_none:
-                    index.stop = next_(it)
+                    index.stop = next(it)
                 if not index.step.is_none:
-                    index.step = next_(it)
+                    index.step = next(it)
             else:
-                next_(it)
+                next(it)
 
         assert not list(it)
 
