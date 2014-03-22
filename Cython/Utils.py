@@ -189,36 +189,41 @@ def decode_filename(filename):
 
 _match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
 
+
 def detect_file_encoding(source_filename):
     f = open_source_file(source_filename, encoding="UTF-8", error_handling='ignore')
     try:
         return detect_opened_file_encoding(f)
     finally:
         f.close()
-    
+
+
 def detect_opened_file_encoding(f):
     # PEPs 263 and 3120
     # Most of the time the first two lines fall in the first 250 chars,
     # and this bulk read/split is much faster.
-    lines = f.read(250).split("\n")
-    if len(lines) > 2:
-        m = _match_file_encoding(lines[0]) or _match_file_encoding(lines[1])
+    lines = f.read(250).split(u"\n")
+    if len(lines) > 1:
+        m = _match_file_encoding(lines[0])
         if m:
             return m.group(1)
-        else:
-            return "UTF-8"
-    else:
-        # Fallback to one-char-at-a-time detection.
-        f.seek(0)
-        chars = []
-        for i in range(2):
+        elif len(lines) > 2:
+            m = _match_file_encoding(lines[1])
+            if m:
+                return m.group(1)
+            else:
+                return "UTF-8"
+    # Fallback to one-char-at-a-time detection.
+    f.seek(0)
+    chars = []
+    for i in range(2):
+        c = f.read(1)
+        while c and c != u'\n':
+            chars.append(c)
             c = f.read(1)
-            while c and c != u'\n':
-                chars.append(c)
-                c = f.read(1)
-            encoding = _match_file_encoding(u''.join(chars))
-            if encoding:
-                return encoding.group(1)
+        encoding = _match_file_encoding(u''.join(chars))
+        if encoding:
+            return encoding.group(1)
     return "UTF-8"
 
 
