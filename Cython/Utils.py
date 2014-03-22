@@ -7,9 +7,9 @@ import os
 import sys
 import re
 import io
-import codecs
 
 modification_time = os.path.getmtime
+
 
 def cached_function(f):
     cache = {}
@@ -38,6 +38,7 @@ def replace_suffix(path, newsuf):
     base, _ = os.path.splitext(path)
     return base + newsuf
 
+
 def open_new_file(path):
     if os.path.exists(path):
         # Make sure to create a new file here so we can
@@ -48,7 +49,8 @@ def open_new_file(path):
     # ASCII strings or (e.g. for file names) byte encoded strings as
     # Unicode, so we need a direct mapping from the first 256 Unicode
     # characters to a byte sequence, which ISO-8859-1 provides
-    return codecs.open(path, "w", encoding="ISO-8859-1")
+    return io.open(path, "w", encoding="ISO-8859-1")
+
 
 def castrate_file(path, st):
     #  Remove junk contents from an output file after a
@@ -230,48 +232,6 @@ def skip_bom(f):
         f.seek(0)
 
 
-normalise_newlines = re.compile(u'\r\n?|\n').sub
-
-
-class NormalisedNewlineStream(object):
-    """The codecs module doesn't provide universal newline support.
-    This class is used as a stream wrapper that provides this
-    functionality.  The new 'io' in Py2.6+/3.x supports this out of the
-    box.
-    """
-
-    def __init__(self, stream):
-        # let's assume .read() doesn't change
-        self.stream = stream
-        self._read = stream.read
-        self.close = stream.close
-        self.encoding = getattr(stream, 'encoding', 'UTF-8')
-
-    def read(self, count=-1):
-        data = self._read(count)
-        if u'\r' not in data:
-            return data
-        if data.endswith(u'\r'):
-            # may be missing a '\n'
-            data += self._read(1)
-        return normalise_newlines(u'\n', data)
-
-    def readlines(self):
-        content = []
-        data = self.read(0x1000)
-        while data:
-            content.append(data)
-            data = self.read(0x1000)
-
-        return u''.join(content).splitlines(True)
-
-    def seek(self, pos):
-        if pos == 0:
-            self.stream.seek(0)
-        else:
-            raise NotImplementedError
-
-
 def open_source_file(source_filename, mode="r",
                      encoding=None, error_handling=None,
                      require_normalised_newlines=True):
@@ -288,7 +248,7 @@ def open_source_file(source_filename, mode="r",
             return f
         else:
             f.close()
-    #
+
     if not os.path.exists(source_filename):
         try:
             loader = __loader__
@@ -299,16 +259,9 @@ def open_source_file(source_filename, mode="r",
                     require_normalised_newlines)
         except (NameError, AttributeError):
             pass
-    #
-    if io is not None:
-        stream = io.open(source_filename, mode=mode,
-                         encoding=encoding, errors=error_handling)
-    else:
-        # codecs module doesn't have universal newline support
-        stream = codecs.open(source_filename, mode=mode,
-                             encoding=encoding, errors=error_handling)
-        if require_normalised_newlines:
-            stream = NormalisedNewlineStream(stream)
+
+    stream = io.open(source_filename, mode=mode,
+                     encoding=encoding, errors=error_handling)
     skip_bom(stream)
     return stream
 
@@ -320,20 +273,10 @@ def open_source_from_loader(loader,
     nrmpath = os.path.normpath(source_filename)
     arcname = nrmpath[len(loader.archive)+1:]
     data = loader.get_data(arcname)
-    if io is not None:
-        return io.TextIOWrapper(io.BytesIO(data),
-                                encoding=encoding,
-                                errors=error_handling)
-    else:
-        try:
-            import cStringIO as StringIO
-        except ImportError:
-            import StringIO
-        reader = codecs.getreader(encoding)
-        stream = reader(StringIO.StringIO(data))
-        if require_normalised_newlines:
-            stream = NormalisedNewlineStream(stream)
-        return stream
+    return io.TextIOWrapper(io.BytesIO(data),
+                            encoding=encoding,
+                            errors=error_handling)
+
 
 def str_to_number(value):
     # note: this expects a string as input that was accepted by the
@@ -357,29 +300,12 @@ def str_to_number(value):
         value = int(value, 0)
     return value
 
+
 def long_literal(value):
     if isinstance(value, basestring):
         value = str_to_number(value)
     return not -2**31 <= value < 2**31
 
-# all() and any() are new in 2.5
-try:
-    # Make sure to bind them on the module, as they will be accessed as
-    # attributes
-    all = all
-    any = any
-except NameError:
-    def all(items):
-        for item in items:
-            if not item:
-                return False
-        return True
-
-    def any(items):
-        for item in items:
-            if item:
-                return True
-        return False
 
 @cached_function
 def get_cython_cache_dir():
