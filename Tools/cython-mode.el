@@ -47,19 +47,23 @@
 
 (defvar cython-font-lock-keywords
   `(;; new keywords in Cython language
-    (,(regexp-opt '("by" "cdef" "cimport" "cpdef" "ctypedef" "enum" "except?"
-                    "extern" "gil" "include" "nogil" "property" "public"
-                    "readonly" "struct" "union" "DEF" "IF" "ELIF" "ELSE") 'words)
+    (,(rx symbol-start
+          (or "by" "cdef" "cimport" "cpdef" "ctypedef" "enum" "except?"
+              "extern" "gil" "include" "nogil" "property" "public"
+              "readonly" "struct" "union" "DEF" "IF" "ELIF" "ELSE")
+          symbol-end)
      1 font-lock-keyword-face)
     ;; C and Python types (highlight as builtins)
-    (,(regexp-opt '("NULL" "bint" "char" "dict" "double" "float" "int" "list"
-                    "long" "object" "Py_ssize_t" "short" "size_t" "void") 'words)
+    (,(rx symbol-start
+          (or "NULL" "bint" "char" "dict" "double" "float" "int" "list"
+              "long" "object" "Py_ssize_t" "short" "size_t" "void")
+          symbol-end)
      1 font-lock-builtin-face)
     ;; cdef is used for more than functions, so simply highlighting the next
     ;; word is problematic. struct, enum and property work though.
-    ("\\<\\(?:struct\\|enum\\)[ \t]+\\([a-zA-Z_]+[a-zA-Z0-9_]*\\)"
+    ("\\_<\\(?:struct\\|enum\\)[ \t]+\\([a-zA-Z_]+[a-zA-Z0-9_]*\\)"
      1 py-class-name-face)
-    ("\\<property[ \t]+\\([a-zA-Z_]+[a-zA-Z0-9_]*\\)"
+    ("\\_<property[ \t]+\\([a-zA-Z_]+[a-zA-Z0-9_]*\\)"
      1 font-lock-function-name-face))
   "Additional font lock keywords for Cython mode.")
 
