@@ -12,8 +12,13 @@ Features added
 Bugs fixed
 ----------
 
+* Syntax highlighting in ``cython-mode.el`` for Emacs no longer
+  incorrectly highlights keywords found as part of longer names.
+
 Other changes
 -------------
+
+* Removed support for CPython 2.4, 2.5 and 3.1.
 
 
 0.20.2
