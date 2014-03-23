@@ -7,6 +7,7 @@ import os
 import sys
 import re
 import io
+import codecs
 
 modification_time = os.path.getmtime
 
@@ -49,7 +50,9 @@ def open_new_file(path):
     # ASCII strings or (e.g. for file names) byte encoded strings as
     # Unicode, so we need a direct mapping from the first 256 Unicode
     # characters to a byte sequence, which ISO-8859-1 provides
-    return io.open(path, "w", encoding="ISO-8859-1")
+
+    # note: can't use io.open() in Py2 as we may be writing str objects
+    return codecs.open(path, "w", encoding="ISO-8859-1")
 
 
 def castrate_file(path, st):
