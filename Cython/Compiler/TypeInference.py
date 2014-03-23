@@ -449,7 +449,7 @@ class SimpleAssignmentTypeInferer(object):
             entry_type = py_object_type
             if assmts_resolved.issuperset(entry.cf_assignments):
                 types = [assmt.inferred_type for assmt in entry.cf_assignments]
-                if types and Utils.all(types):
+                if types and all(types):
                     entry_type = spanning_type(
                         types, entry.might_overflow, entry.pos)
                     inferred.add(entry)

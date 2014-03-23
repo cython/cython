@@ -3305,8 +3305,7 @@ class IndexNode(ExprNode):
         for pos, specific_type, fused_type in zip(positions,
                                                   specific_types,
                                                   fused_types):
-            if not Utils.any([specific_type.same_as(t)
-                                  for t in fused_type.types]):
+            if not any([specific_type.same_as(t) for t in fused_type.types]):
                 return error(pos, "Type not in fused type")
 
             if specific_type is None or specific_type.is_error:
