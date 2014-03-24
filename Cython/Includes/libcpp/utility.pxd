@@ -1,13 +1,13 @@
-cdef extern from "<utility>" namespace "std":
+cdef extern from "<utility>" namespace "std" nogil:
     cdef cppclass pair[T, U]:
         T first
         U second
-        pair() nogil except +
-        pair(pair&) nogil except +
-        pair(T&, U&) nogil except +
-        bint operator==(pair&, pair&) nogil
-        bint operator!=(pair&, pair&) nogil
-        bint operator<(pair&, pair&) nogil
-        bint operator>(pair&, pair&) nogil
-        bint operator<=(pair&, pair&) nogil
-        bint operator>=(pair&, pair&) nogil
+        pair() except +
+        pair(pair&) except +
+        pair(T&, U&) except +
+        bint operator==(pair&, pair&)
+        bint operator!=(pair&, pair&)
+        bint operator<(pair&, pair&)
+        bint operator>(pair&, pair&)
+        bint operator<=(pair&, pair&)
+        bint operator>=(pair&, pair&)
