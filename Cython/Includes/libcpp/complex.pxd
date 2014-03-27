@@ -35,8 +35,8 @@ cdef extern from "<complex>" namespace "std" nogil:
         void real(T)
 
         # Access imaginary part
-        T image()
-        void image(T)
+        T imag()
+        void imag(T)
 
     # Return real part
     T real(complex[T]&)
