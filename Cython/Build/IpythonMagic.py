@@ -31,6 +31,9 @@ To enable the magics below, execute ``%load_ext cythonmagic``.
 Author:
 * Brian Granger
 
+Code moved from IPython and adapted by:
+* Martín Gaitán
+
 Parts of this code were taken from Cython.inline.
 """
 #-----------------------------------------------------------------------------
