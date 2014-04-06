@@ -297,7 +297,7 @@ class CythonMagics(Magics):
 
     def _clear_distutils_mkpath_cache(self):
         """clear distutils mkpath cache
-        
+
         prevents distutils from skipping re-creation of dirs that have been removed
         """
         try:
@@ -306,7 +306,7 @@ class CythonMagics(Magics):
             pass
         else:
             _path_created.clear()
-    
+
     def _get_build_extension(self):
         self._clear_distutils_mkpath_cache()
         dist = Distribution()
@@ -339,7 +339,3 @@ __doc__ = __doc__.format(
                 CYTHON_INLINE_DOC = dedent(CythonMagics.cython_inline.__doc__),
                 CYTHON_PYXIMPORT_DOC = dedent(CythonMagics.cython_pyximport.__doc__),
 )
-
-def load_ipython_extension(ip):
-    """Load the extension in IPython."""
-    ip.register_magics(CythonMagics)
