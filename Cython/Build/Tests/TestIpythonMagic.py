@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# tag: ipython
+
 """Tests for the Cython magics extension."""
 
 import os

@@ -95,6 +95,7 @@ EXT_DEP_MODULES = {
     'tag:pstats': 'pstats',
     'tag:posix' : 'posix',
     'tag:array' : 'array',
+    'tag:ipython': 'IPython'
 }
 
 def patch_inspect_isfunction():
@@ -481,7 +482,7 @@ class TestBuilder(object):
                      if match(fqmodule, tags) ]:
                 continue
             if self.exclude_selectors:
-                if [1 for match in self.exclude_selectors 
+                if [1 for match in self.exclude_selectors
                         if match(fqmodule, tags)]:
                     continue
 
@@ -515,7 +516,7 @@ class TestBuilder(object):
             if mode == 'run' and ext == '.py' and not self.cython_only:
                 # additionally test file in real Python
                 suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
-                
+
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
@@ -1404,7 +1405,7 @@ class TagsSelector:
     def __init__(self, tag, value):
         self.tag = tag
         self.value = value
-    
+
     def __call__(self, testname, tags=None):
         if tags is None:
             return False
@@ -1412,7 +1413,7 @@ class TagsSelector:
             return self.value in tags[self.tag]
 
 class RegExSelector:
-    
+
     def __init__(self, pattern_string):
         try:
             self.pattern = re.compile(pattern_string, re.I|re.U)
@@ -1440,7 +1441,7 @@ class ShardExcludeSelector:
 
     def __call__(self, testname, tags=None):
         return abs(hash(testname)) % self.shard_count != self.shard_num
-        
+
 
 def refactor_for_py3(distdir, cy3_dir):
     # need to convert Cython sources first
@@ -1645,7 +1646,7 @@ def main():
     options, cmd_args = parser.parse_args()
 
     WORKDIR = os.path.abspath(options.work_dir)
-    
+
     if sys.version_info[0] >= 3:
         options.doctests = False
         if options.with_cython:
@@ -1744,7 +1745,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.shard_num > -1:
         WORKDIR = os.path.join(WORKDIR, str(options.shard_num))
-    
+
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
     UNITTEST_ROOT = os.path.join(os.path.dirname(__file__), UNITTEST_MODULE)
