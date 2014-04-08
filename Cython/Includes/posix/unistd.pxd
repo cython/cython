@@ -1,5 +1,7 @@
 # http://www.opengroup.org/onlinepubs/009695399/basedefs/unistd.h.html
 
+from posix.types cimport gid_t, pid_t, off_t, uid_t
+
 cdef extern from "unistd.h" nogil:
 
     #:NULL
@@ -32,14 +34,7 @@ cdef extern from "unistd.h" nogil:
     enum: STDOUT_FILENO	#1
     enum: STDERR_FILENO	#2
 
-    #:ctypedef unsigned size_t
-    #:ctypedef signed ssize_t
-    ctypedef int uid_t
-    ctypedef int gid_t
-    ctypedef signed off_t
-    ctypedef signed pid_t
     ctypedef unsigned useconds_t
-    ctypedef signed intptr_t
 
     int          access(const char *, int)
     unsigned     alarm(unsigned)
