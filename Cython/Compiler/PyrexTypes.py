@@ -2875,7 +2875,8 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_to_py_code is False: return None  # tri-state-ish
+        if self._convert_to_py_code is False:
+            return None  # tri-state-ish
 
         if self._convert_to_py_code is None:
             for member in self.scope.var_entries:
@@ -2894,7 +2895,8 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_from_py_code is False: return None  # tri-state-ish
+        if self._convert_from_py_code is False:
+            return None  # tri-state-ish
 
         if self._convert_from_py_code is None:
             for member in self.scope.var_entries:
