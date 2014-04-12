@@ -1578,12 +1578,14 @@ if VALUE is not None:
 
     def visit_FuncDefNode(self, node):
         """
-        Analyse a function and its body, as that hasn't happend yet. Also
-        analyse the directive_locals set by @cython.locals(). Then, if we are
-        a function with fused arguments, replace the function (after it has
-        declared itself in the symbol table!) with a FusedCFuncDefNode, and
-        analyse its children (which are in turn normal functions). If we're a
-        normal function, just analyse the body of the function.
+        Analyse a function and its body, as that hasn't happend yet.  Also
+        analyse the directive_locals set by @cython.locals().
+
+        Then, if we are a function with fused arguments, replace the function
+        (after it has declared itself in the symbol table!) with a
+        FusedCFuncDefNode, and analyse its children (which are in turn normal
+        functions). If we're a normal function, just analyse the body of the
+        function.
         """
         env = self.current_env()
 
@@ -1591,6 +1593,7 @@ if VALUE is not None:
         lenv = node.local_scope
         node.declare_arguments(lenv)
 
+        # @cython.locals(...)
         for var, type_node in node.directive_locals.items():
             if not lenv.lookup_here(var):   # don't redeclare args
                 type = type_node.analyse_as_type(lenv)
