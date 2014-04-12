@@ -1613,8 +1613,8 @@ if VALUE is not None:
         node = self.visit_FuncDefNode(node)
         env = self.current_env()
         if (not isinstance(node, Nodes.DefNode) or
-            node.fused_py_func or node.is_generator_body or
-            not node.needs_assignment_synthesis(env)):
+                node.fused_py_func or node.is_generator_body or
+                not node.needs_assignment_synthesis(env)):
             return node
         return [node, self._synthesize_assignment(node, env)]
 
