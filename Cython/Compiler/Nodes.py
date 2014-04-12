@@ -612,8 +612,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             nonempty -= 1
         func_type_args = []
         for i, arg_node in enumerate(self.args):
-            name_declarator, type = arg_node.analyse(env, nonempty = nonempty,
-                                                     is_self_arg = (i == 0 and env.is_c_class_scope))
+            name_declarator, type = arg_node.analyse(
+                env, nonempty=nonempty, is_self_arg=(i == 0 and env.is_c_class_scope))
             name = name_declarator.name
             if name in directive_locals:
                 type_node = directive_locals[name]
@@ -800,7 +800,7 @@ class CArgDeclNode(Node):
                 if nonempty:
                     if self.base_type.is_basic_c_type:
                         # char, short, long called "int"
-                        type = self.base_type.analyse(env, could_be_name = True)
+                        type = self.base_type.analyse(env, could_be_name=True)
                         arg_name = type.declaration_code("")
                     else:
                         arg_name = self.base_type.name
@@ -811,9 +811,10 @@ class CArgDeclNode(Node):
             else:
                 could_be_name = False
             self.base_type.is_arg = True
-            base_type = self.base_type.analyse(env, could_be_name = could_be_name)
+            base_type = self.base_type.analyse(env, could_be_name=could_be_name)
             if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
+
             # The parser is unable to resolve the ambiguity of [] as part of the
             # type (e.g. in buffers) or empty declarator (as with arrays).
             # This is only arises for empty multi-dimensional arrays.
@@ -825,9 +826,44 @@ class CArgDeclNode(Node):
                     declarator = declarator.base
                 declarator.base = self.base_type.array_declarator
                 base_type = base_type.base_type
-            return self.declarator.analyse(base_type, env, nonempty = nonempty)
+
+            # inject type declaration from annotations
+            if self.annotation and env.directives['annotation_typing'] and self.base_type.name is None:
+                arg_type = self.inject_type_from_annotations(env)
+                if arg_type is not None:
+                    base_type = arg_type
+            return self.declarator.analyse(base_type, env, nonempty=nonempty)
         else:
             return self.name_declarator, self.type
+
+    def inject_type_from_annotations(self, env):
+        annotation = self.annotation
+        if not annotation:
+            return
+        explicit_pytype = explicit_ctype = False
+        if annotation.is_dict_literal:
+            for name, value in annotation.key_value_pairs:
+                if not name.is_string_literal:
+                    continue
+                if name.value == 'type':
+                    explicit_pytype = True
+                    if not explicit_ctype:
+                        annotation = value
+                elif name.value == 'ctype':
+                    explicit_ctype = True
+                    annotation = value
+            if explicit_pytype and explicit_ctype:
+                warning(annotation.pos, "Duplicate type declarations found in signature annotation")
+        arg_type = annotation.analyse_as_type(env)
+        if arg_type is not None:
+            if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
+                warning(annotation.pos,
+                        "Python type declaration in signature annotation does not refer to a Python type")
+            self.base_type = CAnalysedBaseTypeNode(
+                annotation.pos, type=arg_type, is_arg=True)
+        else:
+            warning(annotation.pos, "Unknown type declaration found in signature annotation")
+        return arg_type
 
     def calculate_default_value_code(self, code):
         if self.default_value is None:
@@ -1524,19 +1560,25 @@ class FuncDefNode(StatNode, BlockNode):
                 error(arg.pos, "Non-default argument following default argument")
 
     def align_argument_type(self, env, arg):
+        # @cython.locals()
         directive_locals = self.directive_locals
-        type = arg.type
+        orig_type = arg.type
         if arg.name in directive_locals:
             type_node = directive_locals[arg.name]
             other_type = type_node.analyse_as_type(env)
-            if other_type is None:
-                error(type_node.pos, "Not a type")
-            elif (type is not PyrexTypes.py_object_type
-                    and not type.same_as(other_type)):
-                error(arg.base_type.pos, "Signature does not agree with previous declaration")
-                error(type_node.pos, "Previous declaration here")
-            else:
-                arg.type = other_type
+        elif isinstance(arg, CArgDeclNode) and arg.annotation:
+            type_node = arg.annotation
+            other_type = arg.inject_type_from_annotations(env)
+        else:
+            return arg
+        if other_type is None:
+            error(type_node.pos, "Not a type")
+        elif (orig_type is not PyrexTypes.py_object_type
+                and not orig_type.same_as(other_type)):
+            error(arg.base_type.pos, "Signature does not agree with previous declaration")
+            error(type_node.pos, "Previous declaration here")
+        else:
+            arg.type = other_type
         return arg
 
     def need_gil_acquisition(self, lenv):

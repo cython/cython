@@ -289,15 +289,16 @@ class ExprNode(Node):
     #
     #
 
-    is_sequence_constructor = 0
-    is_string_literal = 0
-    is_attribute = 0
-    is_subscript = 0
+    is_sequence_constructor = False
+    is_dict_literal = False
+    is_string_literal = False
+    is_attribute = False
+    is_subscript = False
 
     saved_subexpr_nodes = None
-    is_temp = 0
-    is_target = 0
-    is_starred = 0
+    is_temp = False
+    is_target = False
+    is_starred = False
 
     constant_result = constant_value_not_set
 
@@ -1174,6 +1175,20 @@ class FloatNode(ConstNode):
             self.result_code = c_value
 
 
+def _analyse_name_as_type(name, pos, env):
+    type = PyrexTypes.parse_basic_type(name)
+    if type is not None:
+        return type
+    from TreeFragment import TreeFragment
+    pos = (pos[0], pos[1], pos[2]-7)
+    declaration = TreeFragment(u"sizeof(%s)" % name, name=pos[0].filename, initial_pos=pos)
+    sizeof_node = declaration.root.stats[0].expr
+    sizeof_node = sizeof_node.analyse_types(env)
+    if isinstance(sizeof_node, SizeofTypeNode):
+        return sizeof_node.arg_type
+    return None
+
+
 class BytesNode(ConstNode):
     # A char* or bytes literal
     #
@@ -1196,16 +1211,7 @@ class BytesNode(ConstNode):
         return self.value
 
     def analyse_as_type(self, env):
-        type = PyrexTypes.parse_basic_type(self.value)
-        if type is not None:
-            return type
-        from TreeFragment import TreeFragment
-        pos = (self.pos[0], self.pos[1], self.pos[2]-7)
-        declaration = TreeFragment(u"sizeof(%s)" % self.value, name=pos[0].filename, initial_pos=pos)
-        sizeof_node = declaration.root.stats[0].expr
-        sizeof_node = sizeof_node.analyse_types(env)
-        if isinstance(sizeof_node, SizeofTypeNode):
-            return sizeof_node.arg_type
+        return _analyse_name_as_type(self.value.decode('ISO8859-1'), self.pos, env)
 
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
@@ -1278,6 +1284,9 @@ class UnicodeNode(ConstNode):
 
     def calculate_constant_result(self):
         self.constant_result = self.value
+
+    def analyse_as_type(self, env):
+        return _analyse_name_as_type(self.value, self.pos, env)
 
     def as_sliced_node(self, start, stop, step=None):
         if StringEncoding.string_contains_surrogates(self.value[:stop]):
@@ -1387,6 +1396,9 @@ class StringNode(PyConstNode):
         if self.unicode_value is not None:
             # only the Unicode value is portable across Py2/3
             self.constant_result = self.unicode_value
+
+    def analyse_as_type(self, env):
+        return _analyse_name_as_type(self.unicode_value or self.value.decode('ISO8859-1'), self.pos, env)
 
     def as_sliced_node(self, start, stop, step=None):
         value = type(self.value)(self.value[start:stop:step])
@@ -6706,6 +6718,7 @@ class DictNode(ExprNode):
     is_temp = 1
     exclude_null_values = False
     type = dict_type
+    is_dict_literal = True
 
     obj_conversion_errors = []
 

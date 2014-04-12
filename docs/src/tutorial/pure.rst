@@ -36,6 +36,16 @@ The currently supported attributes of the ``cython`` module are:
     def foo(a, b, x, y):
         ...
 
+* Starting with Cython 0.21, Python signature annotations can be used to
+  declare argument types.  Cython recognises three ways to do this, as
+  shown in the following example::
+
+    def func(plain_python_type: dict,
+             named_python_type: 'dict',
+             explicit_python_type: {'type': dict},
+             explicit_c_type: {'ctype': 'int'}):
+        ...
+
 * ``address`` is used in place of the ``&`` operator::
 
     cython.declare(x=cython.int, x_ptr=cython.p_int)

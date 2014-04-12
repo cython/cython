@@ -9,6 +9,9 @@ Latest
 Features added
 --------------
 
+* Simple support for declaring Python object types in Python signature
+  annotations.
+
 Bugs fixed
 ----------
 
