@@ -845,11 +845,11 @@ class CArgDeclNode(Node):
             for name, value in annotation.key_value_pairs:
                 if not name.is_string_literal:
                     continue
-                if name.value == 'type':
+                if name.value in ('type', b'type'):
                     explicit_pytype = True
                     if not explicit_ctype:
                         annotation = value
-                elif name.value == 'ctype':
+                elif name.value in ('ctype', b'ctype'):
                     explicit_ctype = True
                     annotation = value
             if explicit_pytype and explicit_ctype:
