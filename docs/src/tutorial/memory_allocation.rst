@@ -102,5 +102,5 @@ e.g.::
           # On error (mem is NULL), the originally memory has not been freed.
           self.data = mem
 
-      def __dealloc__(self, number):
+      def __dealloc__(self):
           PyMem_Free(self.data)     # no-op if self.data is NULL
