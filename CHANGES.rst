@@ -10,7 +10,8 @@ Features added
 --------------
 
 * Simple support for declaring Python object types in Python signature
-  annotations.
+  annotations.  Currently requires setting the compiler directive
+  ``annotation_typing=True``.
 
 Bugs fixed
 ----------
