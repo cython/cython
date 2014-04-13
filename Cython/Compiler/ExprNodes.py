@@ -1179,11 +1179,13 @@ def _analyse_name_as_type(name, pos, env):
     type = PyrexTypes.parse_basic_type(name)
     if type is not None:
         return type
+    hold_errors()
     from TreeFragment import TreeFragment
     pos = (pos[0], pos[1], pos[2]-7)
     declaration = TreeFragment(u"sizeof(%s)" % name, name=pos[0].filename, initial_pos=pos)
     sizeof_node = declaration.root.stats[0].expr
     sizeof_node = sizeof_node.analyse_types(env)
+    release_errors(ignore=True)
     if isinstance(sizeof_node, SizeofTypeNode):
         return sizeof_node.arg_type
     return None

@@ -839,7 +839,7 @@ class CArgDeclNode(Node):
     def inject_type_from_annotations(self, env):
         annotation = self.annotation
         if not annotation:
-            return
+            return None
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             for name, value in annotation.key_value_pairs:
@@ -1569,6 +1569,8 @@ class FuncDefNode(StatNode, BlockNode):
         elif isinstance(arg, CArgDeclNode) and arg.annotation:
             type_node = arg.annotation
             other_type = arg.inject_type_from_annotations(env)
+            if other_type is None:
+                return arg
         else:
             return arg
         if other_type is None:
