@@ -63,25 +63,6 @@ class AnnotationCCodeWriter(CCodeWriter):
                 line = line.replace(c, cc)
             lines[k] = line
         f.close()
-        all = []
-        if False:
-            for pos, item in self.annotations:
-                if pos[0].filename == source_filename:
-                    start = item.start()
-                    size, end = item.end()
-                    if size:
-                        all.append((pos, start))
-                        all.append(((source_filename, pos[1], pos[2]+size), end))
-                    else:
-                        all.append((pos, start+end))
-
-        all.sort(reverse=True)
-        for pos, item in all:
-            _, line_no, col = pos
-            line_no -= 1
-            col += 1
-            line = lines[line_no]
-            lines[line_no] = line[:col] + item + line[col:]
 
         html_filename = os.path.splitext(target_filename)[0] + ".html"
         f = codecs.open(html_filename, "w", encoding="UTF-8")
