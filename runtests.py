@@ -834,6 +834,7 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 sys.stderr = ErrorWriter()
                 self.run_cython(test_directory, module, workdir, incdir, annotate)
+                errors, _ = sys.stderr.geterrors()
             finally:
                 sys.stderr = old_stderr
 
