@@ -129,6 +129,7 @@ directive_defaults = {
 
 # optimizations
     'optimize.inline_defnode_calls': True,
+    'optimize.switchcase_transform': True,
 
 # remove unreachable code
     'remove_unreachable': True,

@@ -802,7 +802,7 @@ class IterationTransform(Visitor.EnvTransform):
             ])
 
 
-class SwitchTransform(Visitor.VisitorTransform):
+class SwitchTransform(Visitor.CythonTransform):
     """
     This transformation tries to turn long if statements into C switch statements.
     The requirement is that every clause be an (or of) var == value, where the var
@@ -917,6 +917,10 @@ class SwitchTransform(Visitor.VisitorTransform):
         return False
 
     def visit_IfStatNode(self, node):
+        if not self.current_directives.get('optimize.switchcase_transform'):
+            self.visitchildren(node)
+            return node
+
         common_var = None
         cases = []
         for if_clause in node.if_clauses:
@@ -946,6 +950,10 @@ class SwitchTransform(Visitor.VisitorTransform):
         return switch_node
 
     def visit_CondExprNode(self, node):
+        if not self.current_directives.get('optimize.switchcase_transform'):
+            self.visitchildren(node)
+            return node
+
         not_in, common_var, conditions = self.extract_common_conditions(
             None, node.test, True)
         if common_var is None \
@@ -958,6 +966,10 @@ class SwitchTransform(Visitor.VisitorTransform):
             node.true_val, node.false_val)
 
     def visit_BoolBinopNode(self, node):
+        if not self.current_directives.get('optimize.switchcase_transform'):
+            self.visitchildren(node)
+            return node
+
         not_in, common_var, conditions = self.extract_common_conditions(
             None, node, True)
         if common_var is None \
@@ -972,6 +984,10 @@ class SwitchTransform(Visitor.VisitorTransform):
             ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
 
     def visit_PrimaryCmpNode(self, node):
+        if not self.current_directives.get('optimize.switchcase_transform'):
+            self.visitchildren(node)
+            return node
+
         not_in, common_var, conditions = self.extract_common_conditions(
             None, node, True)
         if common_var is None \
@@ -1015,6 +1031,10 @@ class SwitchTransform(Visitor.VisitorTransform):
         return replacement
 
     def visit_EvalWithTempExprNode(self, node):
+        if not self.current_directives.get('optimize.switchcase_transform'):
+            self.visitchildren(node)
+            return node
+
         # drop unused expression temp from FlattenInListTransform
         orig_expr = node.subexpression
         temp_ref = node.lazy_temp

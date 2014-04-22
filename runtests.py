@@ -399,6 +399,7 @@ class ErrorWriter(object):
     def _collect(self, collect_errors, collect_warnings):
         s = ''.join(self.output)
         result = []
+        runtime_error = False
         for line in s.split('\n'):
             match = self.match_error(line)
             if match:
@@ -406,8 +407,10 @@ class ErrorWriter(object):
                 if (is_warning and collect_warnings) or \
                         (not is_warning and collect_errors):
                     result.append( (int(line), int(column), message.strip()) )
+            elif 'runtime error' in line:
+                runtime_error = True
         result.sort()
-        return [ "%d:%d: %s" % values for values in result ]
+        return [ "%d:%d: %s" % values for values in result ], runtime_error
 
     def geterrors(self):
         return self._collect(True, False)
@@ -701,7 +704,7 @@ class CythonCompileTestCase(unittest.TestCase):
             geterrors = out.geterrors
         except AttributeError:
             out.close()
-            return []
+            return [], False
         else:
             return geterrors()
 
@@ -822,7 +825,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 expect_errors, annotate):
         expected_errors = errors = ()
         if expect_errors:
-            expected_errors = self.split_source_and_output(
+            expected_errors, runtime_error = self.split_source_and_output(
                 test_directory, module, workdir)
             test_directory = workdir
 
@@ -831,7 +834,6 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 sys.stderr = ErrorWriter()
                 self.run_cython(test_directory, module, workdir, incdir, annotate)
-                errors = sys.stderr.geterrors()
             finally:
                 sys.stderr = old_stderr
 
@@ -857,7 +859,13 @@ class CythonCompileTestCase(unittest.TestCase):
         if self.cython_only:
             so_path = None
         else:
-            so_path = self.run_distutils(test_directory, module, workdir, incdir)
+            try:
+                so_path = self.run_distutils(test_directory, module, workdir, incdir)
+            except:
+                if runtime_error:
+                    return None
+                else:
+                    raise
         return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
@@ -882,7 +890,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                 self.success = False
                 ext_so_path = self.runCompileTest()
                 failures, errors = len(result.failures), len(result.errors)
-                if not self.cython_only:
+                if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
                     # No new errors...

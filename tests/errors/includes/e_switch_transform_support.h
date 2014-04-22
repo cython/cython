@@ -1,0 +1,9 @@
+#ifndef E_SWITCH_TRANSFORM_SUPPORT_H_
+#define E_SWITCH_TRANSFORM_SUPPORT_H_ 1
+
+enum {
+    ONE=1,
+    ONE_AGAIN=1
+};
+
+#endif /* E_SWITCH_TRANSFORM_SUPPORT_H_ */
