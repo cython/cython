@@ -73,26 +73,26 @@ function toggleDiv(id) {
 
 body { font-family: courier; font-size: 12; }
 
-.cython .code  { font-size: 9; color: #444444; display: none; margin-left: 20px; }
-.cython .py_c_api  { color: red; }
-.cython .py_macro_api  { color: #FF7000; }
-.cython .pyx_c_api  { color: #FF3000; }
-.cython .pyx_macro_api  { color: #FF7000; }
-.cython .refnanny  { color: #FFA000; }
+.cython.code  { font-size: 9; color: #444444; display: none; margin-left: 20px; }
+.cython.py_c_api  { color: red; }
+.cython.py_macro_api  { color: #FF7000; }
+.cython.pyx_c_api  { color: #FF3000; }
+.cython.pyx_macro_api  { color: #FF7000; }
+.cython.refnanny  { color: #FFA000; }
 
-.cython .error_goto  { color: #FFA000; }
+.cython.error_goto  { color: #FFA000; }
 
-.cython .tag  {  }
+.cython.tag  {  }
 
-.cython .coerce  { color: #008000; border: 1px dotted #008000 }
+.cython.coerce  { color: #008000; border: 1px dotted #008000 }
 
-.cython .py_attr { color: #FF0000; font-weight: bold; }
-.cython .c_attr  { color: #0000FF; }
+.cython.py_attr { color: #FF0000; font-weight: bold; }
+.cython.c_attr  { color: #0000FF; }
 
-.cython .py_call { color: #FF0000; font-weight: bold; }
-.cython .c_call  { color: #0000FF; }
+.cython.py_call { color: #FF0000; font-weight: bold; }
+.cython.c_call  { color: #0000FF; }
 
-.cython .line { margin: 0em }
+.cython.line { margin: 0em }
 
     """
 
