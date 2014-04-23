@@ -58,7 +58,7 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     def _css(self):
         """css template will later allow to choose a colormap"""
-        return _css_template
+        return self._css_template
 
     _js = """
 function toggleDiv(id) {
