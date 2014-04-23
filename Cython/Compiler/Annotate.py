@@ -73,26 +73,26 @@ function toggleDiv(id) {
 
 body { font-family: courier; font-size: 12; }
 
-.code  { font-size: 9; color: #444444; display: none; margin-left: 20px; }
-.py_c_api  { color: red; }
-.py_macro_api  { color: #FF7000; }
-.pyx_c_api  { color: #FF3000; }
-.pyx_macro_api  { color: #FF7000; }
-.refnanny  { color: #FFA000; }
+.cython .code  { font-size: 9; color: #444444; display: none; margin-left: 20px; }
+.cython .py_c_api  { color: red; }
+.cython .py_macro_api  { color: #FF7000; }
+.cython .pyx_c_api  { color: #FF3000; }
+.cython .pyx_macro_api  { color: #FF7000; }
+.cython .refnanny  { color: #FFA000; }
 
-.error_goto  { color: #FFA000; }
+.cython .error_goto  { color: #FFA000; }
 
-.tag  {  }
+.cython .tag  {  }
 
-.coerce  { color: #008000; border: 1px dotted #008000 }
+.cython .coerce  { color: #008000; border: 1px dotted #008000 }
 
-.py_attr { color: #FF0000; font-weight: bold; }
-.c_attr  { color: #0000FF; }
+.cython .py_attr { color: #FF0000; font-weight: bold; }
+.cython .c_attr  { color: #0000FF; }
 
-.py_call { color: #FF0000; font-weight: bold; }
-.c_call  { color: #0000FF; }
+.cython .py_call { color: #FF0000; font-weight: bold; }
+.cython .c_call  { color: #0000FF; }
 
-.line { margin: 0em }
+.cython .line { margin: 0em }
 
     """
 
@@ -164,7 +164,7 @@ body { font-family: courier; font-size: 12; }
         def annotate(match):
             group_name = match.lastgroup
             calls[group_name] += 1
-            return ur"<span class='%s'>%s</span>" % (
+            return ur"<span class='cython %s'>%s</span>" % (
                 group_name, match.group(group_name))
 
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
@@ -187,7 +187,7 @@ body { font-family: courier; font-size: 12; }
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
             color = u"FFFF%02x" % int(255/(1+score/10.0))
-            outlist.append(u"<pre class='line' style='background-color: #%s' onclick='toggleDiv(\"line%s\")'>" % (color, k))
+            outlist.append(u"<pre class='cython line' style='background-color: #%s' onclick='toggleDiv(\"line%s\")'>" % (color, k))
 
             outlist.append(u" %d: " % k)
             for c, cc, html in special_chars:
@@ -195,7 +195,7 @@ body { font-family: courier; font-size: 12; }
             outlist.append(line.rstrip())
 
             outlist.append(u'</pre>\n')
-            outlist.append(u"<pre id='line%s' class='code' style='background-color: #%s'>%s</pre>" % (k, color, code))
+            outlist.append(u"<pre id='line%s' class='cython code' style='background-color: #%s'>%s</pre>" % (k, color, code))
         return outlist
 
 _parse_code = re.compile(
@@ -226,7 +226,7 @@ class AnnotationItem(object):
         self.size = size
 
     def start(self):
-        return u"<span class='tag %s' title='%s'>%s" % (self.style, self.text, self.tag)
+        return u"<span class='cython tag %s' title='%s'>%s" % (self.style, self.text, self.tag)
 
     def end(self):
         return self.size, u"</span>"
