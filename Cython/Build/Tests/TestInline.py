@@ -47,6 +47,10 @@ class TestInline(CythonTest):
             cdef c = []
         """), dict(a=1, b=2.0, c=[]))
 
+    def test_def_node(self):
+        foo = inline("def foo(x): return x * x")['foo']
+        self.assertEquals(foo(7), 49)
+
     def test_pure(self):
         import cython as cy
         b = inline("""

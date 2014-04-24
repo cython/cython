@@ -12,10 +12,11 @@ from distutils.command.build_ext import build_ext
 import Cython
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
-from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, AnalyseDeclarationsTransform
+from Cython.Compiler.ParseTreeTransforms import (CythonTransform,
+        SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Build.Dependencies import strip_string_literals, cythonize, cached_function
-from Cython.Compiler import Pipeline
+from Cython.Compiler import Pipeline, Nodes
 from Cython.Utils import get_cython_cache_dir
 import cython as cython_module
 
@@ -30,12 +31,17 @@ else:
     to_unicode = lambda x: x
 
 
-class AllSymbols(CythonTransform, SkipDeclarations):
+class UnboundSymbols(EnvTransform, SkipDeclarations):
     def __init__(self):
         CythonTransform.__init__(self, None)
-        self.names = set()
+        self.unbound = set()
     def visit_NameNode(self, node):
-        self.names.add(node.name)
+        if not self.current_env().lookup(node.name):
+            self.unbound.add(node.name)
+        return node
+    def __call__(self, node):
+        super(UnboundSymbols, self).__call__(node)
+        return self.unbound
 
 @cached_function
 def unbound_symbols(code, context=None):
@@ -50,17 +56,11 @@ def unbound_symbols(code, context=None):
         tree = phase(tree)
         if isinstance(phase, AnalyseDeclarationsTransform):
             break
-    symbol_collector = AllSymbols()
-    symbol_collector(tree)
-    unbound = []
     try:
         import builtins
     except ImportError:
         import __builtin__ as builtins
-    for name in symbol_collector.names:
-        if not tree.scope.lookup(name) and not hasattr(builtins, name):
-            unbound.append(name)
-    return unbound
+    return UnboundSymbols()(tree) - set(dir(builtins))
 
 def unsafe_type(arg, context=None):
     py_type = type(arg)
