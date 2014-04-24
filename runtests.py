@@ -399,7 +399,6 @@ class ErrorWriter(object):
     def _collect(self, collect_errors, collect_warnings):
         s = ''.join(self.output)
         result = []
-        runtime_error = False
         for line in s.split('\n'):
             match = self.match_error(line)
             if match:
@@ -407,10 +406,8 @@ class ErrorWriter(object):
                 if (is_warning and collect_warnings) or \
                         (not is_warning and collect_errors):
                     result.append( (int(line), int(column), message.strip()) )
-            elif 'runtime error' in line:
-                runtime_error = True
         result.sort()
-        return [ "%d:%d: %s" % values for values in result ], runtime_error
+        return [ "%d:%d: %s" % values for values in result ]
 
     def geterrors(self):
         return self._collect(True, False)
@@ -696,15 +693,19 @@ class CythonCompileTestCase(unittest.TestCase):
                 if line.startswith("_ERRORS"):
                     out.close()
                     out = ErrorWriter()
+                elif line.startswith('_FAIL_C_COMPILE'):
+                    out.close()
+                    return '_FAIL_C_COMPILE'
                 else:
                     out.write(line)
         finally:
             source_and_output.close()
+
         try:
             geterrors = out.geterrors
         except AttributeError:
             out.close()
-            return [], False
+            return []
         else:
             return geterrors()
 
@@ -825,7 +826,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 expect_errors, annotate):
         expected_errors = errors = ()
         if expect_errors:
-            expected_errors, runtime_error = self.split_source_and_output(
+            expected_errors = self.split_source_and_output(
                 test_directory, module, workdir)
             test_directory = workdir
 
@@ -834,11 +835,18 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 sys.stderr = ErrorWriter()
                 self.run_cython(test_directory, module, workdir, incdir, annotate)
-                errors, _ = sys.stderr.geterrors()
+                errors = sys.stderr.geterrors()
             finally:
                 sys.stderr = old_stderr
 
-        if errors or expected_errors:
+        if expected_errors == '_FAIL_C_COMPILE':
+            if errors:
+                print("\n=== Expected C compile error ===")
+                print("\n\n=== Got Cython errors: ===")
+                print('\n'.join(errors))
+                print('\n')
+                raise RuntimeError('should have generated extension code')
+        elif errors or expected_errors:
             try:
                 for expected, error in zip(expected_errors, errors):
                     self.assertEquals(expected, error)
@@ -857,15 +865,12 @@ class CythonCompileTestCase(unittest.TestCase):
                 raise
             return None
 
-        if self.cython_only:
-            so_path = None
-        else:
+        so_path = None
+        if not self.cython_only:
             try:
                 so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except:
-                if runtime_error:
-                    return None
-                else:
+                if expected_errors != '_FAIL_C_COMPILE':
                     raise
         return so_path
 

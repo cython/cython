@@ -11,6 +11,4 @@ cdef extern from "../run/includes/switch_transform_support.h":
 def is_not_one(int i):
     return i != ONE and i != ONE_AGAIN
 
-_ERRORS = u'''
-runtime error
-'''
+_FAIL_C_COMPILE = True
