@@ -40,7 +40,14 @@ class TestInline(CythonTest):
     def test_globals(self):
         self.assertEquals(inline("return global_value + 1", **self.test_kwds), global_value + 1)
 
-    def test_pure(self):    
+    def test_no_return(self):
+        self.assertEquals(inline("""
+            a = 1
+            cdef double b = 2
+            cdef c = []
+        """), dict(a=1, b=2.0, c=[]))
+
+    def test_pure(self):
         import cython as cy
         b = inline("""
         b = cy.declare(float, a)

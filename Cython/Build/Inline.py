@@ -150,10 +150,10 @@ def cython_inline(code,
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
-    
+
     if module_name in sys.modules:
         module = sys.modules[module_name]
-    
+
     else:
         build_extension = None
         if cython_inline.so_ext is None:
@@ -185,12 +185,16 @@ def cython_inline(code,
 %(cimports)s
 def __invoke(%(params)s):
 %(func_body)s
-            """ % {'cimports': '\n'.join(cimports), 'module_body': module_body, 'params': params, 'func_body': func_body }
+    return locals()
+            """ % {'cimports': '\n'.join(cimports),
+                   'module_body': module_body,
+                   'params': params,
+                   'func_body': func_body }
             for key, value in literals.items():
                 module_code = module_code.replace(key, value)
             pyx_file = os.path.join(lib_dir, module_name + '.pyx')
             fh = open(pyx_file, 'w')
-            try: 
+            try:
                 fh.write(module_code)
             finally:
                 fh.close()
