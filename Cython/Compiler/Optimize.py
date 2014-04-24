@@ -917,7 +917,7 @@ class SwitchTransform(Visitor.CythonTransform):
         return False
 
     def visit_IfStatNode(self, node):
-        if not self.current_directives.get('optimize.switchcase_transform'):
+        if not self.current_directives.get('optimize.use_switch'):
             self.visitchildren(node)
             return node
 
@@ -950,7 +950,7 @@ class SwitchTransform(Visitor.CythonTransform):
         return switch_node
 
     def visit_CondExprNode(self, node):
-        if not self.current_directives.get('optimize.switchcase_transform'):
+        if not self.current_directives.get('optimize.use_switch'):
             self.visitchildren(node)
             return node
 
@@ -966,7 +966,7 @@ class SwitchTransform(Visitor.CythonTransform):
             node.true_val, node.false_val)
 
     def visit_BoolBinopNode(self, node):
-        if not self.current_directives.get('optimize.switchcase_transform'):
+        if not self.current_directives.get('optimize.use_switch'):
             self.visitchildren(node)
             return node
 
@@ -984,7 +984,7 @@ class SwitchTransform(Visitor.CythonTransform):
             ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
 
     def visit_PrimaryCmpNode(self, node):
-        if not self.current_directives.get('optimize.switchcase_transform'):
+        if not self.current_directives.get('optimize.use_switch'):
             self.visitchildren(node)
             return node
 
@@ -1031,7 +1031,7 @@ class SwitchTransform(Visitor.CythonTransform):
         return replacement
 
     def visit_EvalWithTempExprNode(self, node):
-        if not self.current_directives.get('optimize.switchcase_transform'):
+        if not self.current_directives.get('optimize.use_switch'):
             self.visitchildren(node)
             return node
 

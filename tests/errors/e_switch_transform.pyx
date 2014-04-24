@@ -1,9 +1,9 @@
-# cython: optimize.switchcase_transform=True
+# cython: optimize.use_switch=True
 # mode: error
 
 import cython
 
-cdef extern from "includes/e_switch_transform_support.h":
+cdef extern from "../run/includes/switch_transform_support.h":
     enum:
         ONE
         ONE_AGAIN

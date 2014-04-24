@@ -1,4 +1,4 @@
-# cython: optimize.switchcase_transform=False
+# cython: optimize.use_switch=False
 
 cdef extern from "includes/switch_transform_support.h":
     enum:
