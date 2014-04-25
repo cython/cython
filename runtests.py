@@ -869,14 +869,13 @@ class CythonCompileTestCase(unittest.TestCase):
         if not self.cython_only:
             try:
                 so_path = self.run_distutils(test_directory, module, workdir, incdir)
-                compiled = True
             except Exception:
-                compiled = False
                 if expected_errors != '_FAIL_C_COMPILE':
                     raise
-            if compiled and expected_errors == '_FAIL_C_COMPILE':
-                # must raise this outside the try block
-                raise RuntimeError('should have failed C compile')
+            else:
+                if expected_errors == '_FAIL_C_COMPILE':
+                    # must raise this outside the try block
+                    raise RuntimeError('should have failed C compile')
         return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
