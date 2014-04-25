@@ -58,7 +58,12 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     def _css(self):
         """css template will later allow to choose a colormap"""
-        return self._css_template
+        css = self._css_template
+        for i in range(255):
+            color = u"FFFF%02x" % int(255/(1+i/10.0))
+            css = css+'\n.cython.score-%s {background-color: #%s;}' % (str(i),color)
+
+        return css
 
     _js = """
 function toggleDiv(id) {
@@ -186,8 +191,8 @@ body { font-family: courier; font-size: 12; }
             code = _parse_code(annotate, code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
-            color = u"FFFF%02x" % int(255/(1+score/10.0))
-            outlist.append(u"<pre class='cython line' style='background-color: #%s' onclick='toggleDiv(\"line%s\")'>" % (color, k))
+            #color = u"FFFF%02x" % int(255/(1+score/10.0))
+            outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(\"line%s\")'>" % (score, k))
 
             outlist.append(u" %d: " % k)
             for c, cc, html in special_chars:
@@ -195,7 +200,7 @@ body { font-family: courier; font-size: 12; }
             outlist.append(line.rstrip())
 
             outlist.append(u'</pre>\n')
-            outlist.append(u"<pre id='line%s' class='cython code' style='background-color: #%s'>%s</pre>" % (k, color, code))
+            outlist.append(u"<pre id='line%s' class='cython code score-%s' >%s</pre>" % (k, score, code))
         return outlist
 
 _parse_code = re.compile(
