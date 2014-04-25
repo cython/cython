@@ -66,11 +66,11 @@ class AnnotationCCodeWriter(CCodeWriter):
         return css
 
     _js = """
-function toggleDiv(id) {
-    theDiv = document.getElementById(id);
-    if (theDiv.style.display != 'block') theDiv.style.display = 'block';
-    else theDiv.style.display = 'none';
-}
+    function toggleDiv(id) {
+        theDiv = id.nextElementSibling
+        if (theDiv.style.display != 'block') theDiv.style.display = 'block';
+        else theDiv.style.display = 'none';
+    }
     """
 
 
@@ -99,7 +99,7 @@ body { font-family: courier; font-size: 12; }
 
 .cython.line { margin: 0em }
 
-    """
+"""
 
     def save_annotation(self, source_filename, target_filename):
         with closing(Utils.open_source_file(source_filename)) as f:
@@ -192,7 +192,7 @@ body { font-family: courier; font-size: 12; }
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
             #color = u"FFFF%02x" % int(255/(1+score/10.0))
-            outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(\"line%s\")'>" % (score, k))
+            outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(this)'>" % (score))
 
             outlist.append(u" %d: " % k)
             for c, cc, html in special_chars:
@@ -200,7 +200,7 @@ body { font-family: courier; font-size: 12; }
             outlist.append(line.rstrip())
 
             outlist.append(u'</pre>\n')
-            outlist.append(u"<pre id='line%s' class='cython code score-%s' >%s</pre>" % (k, score, code))
+            outlist.append(u"<pre class='cython code score-%s' >%s</pre>" % (score, code))
         return outlist
 
 _parse_code = re.compile(
