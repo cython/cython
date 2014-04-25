@@ -173,10 +173,8 @@ body { font-family: courier; font-size: 12; }
                 group_name, match.group(group_name))
 
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
-        k = 0
 
-        for line in lines:
-            k += 1
+        for k, line in enumerate(lines):
             try:
                 code = code_source_file[k]
             except KeyError:
@@ -191,7 +189,6 @@ body { font-family: courier; font-size: 12; }
             code = _parse_code(annotate, code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
-            #color = u"FFFF%02x" % int(255/(1+score/10.0))
             outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(this)'>" % (score))
 
             outlist.append(u" %d: " % k)
