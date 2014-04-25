@@ -13,12 +13,6 @@ from Cython import Utils
 from contextlib import closing
 
 # need one-characters subsitutions (for now) so offsets aren't off
-special_chars = [
-    (u'&', u'\xF2', u'&amp;'),
-    (u'<', u'\xF0', u'&lt;'),
-    (u'>', u'\xF1', u'&gt;'),
-]
-
 
 class AnnotationCCodeWriter(CCodeWriter):
 
@@ -157,14 +151,12 @@ body { font-family: courier; font-size: 12; }
 
     def _save_annotation_body(self, lines, code_source_file , c_file=None):
         outlist=[]
-        self.mark_pos(None)
-        for k, line in enumerate(lines):
-            for c, cc, html in special_chars:
-                line = line.replace(c, cc)
-            lines[k] = line
-
+        pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         zero_calls = dict((name, 0) for name in
                           'refnanny py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split())
+
+        self.mark_pos(None)
+
 
         def annotate(match):
             group_name = match.lastgroup
@@ -172,9 +164,9 @@ body { font-family: courier; font-size: 12; }
             return ur"<span class='cython %s'>%s</span>" % (
                 group_name, match.group(group_name))
 
-        pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
 
         for k, line in enumerate(lines):
+            line = html_escape(line)
             try:
                 code = code_source_file[k]
             except KeyError:
@@ -189,11 +181,10 @@ body { font-family: courier; font-size: 12; }
             code = _parse_code(annotate, code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
+
             outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(this)'>" % (score))
 
             outlist.append(u" %d: " % k)
-            for c, cc, html in special_chars:
-                line = line.replace(cc, html)
             outlist.append(line.rstrip())
 
             outlist.append(u'</pre>\n')
