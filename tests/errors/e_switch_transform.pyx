@@ -3,10 +3,10 @@
 
 import cython
 
-cdef extern from "../run/includes/switch_transform_support.h":
+cdef extern from *:
     enum:
-        ONE
-        ONE_AGAIN
+        ONE "1"
+        ONE_AGAIN "1+0"
 
 def is_not_one(int i):
     return i != ONE and i != ONE_AGAIN
