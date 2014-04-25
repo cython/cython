@@ -202,7 +202,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),
         IterationTransform(context),
-        SwitchTransform(),
+        SwitchTransform(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),

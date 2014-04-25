@@ -693,10 +693,14 @@ class CythonCompileTestCase(unittest.TestCase):
                 if line.startswith("_ERRORS"):
                     out.close()
                     out = ErrorWriter()
+                elif line.startswith('_FAIL_C_COMPILE'):
+                    out.close()
+                    return '_FAIL_C_COMPILE'
                 else:
                     out.write(line)
         finally:
             source_and_output.close()
+
         try:
             geterrors = out.geterrors
         except AttributeError:
@@ -835,7 +839,14 @@ class CythonCompileTestCase(unittest.TestCase):
             finally:
                 sys.stderr = old_stderr
 
-        if errors or expected_errors:
+        if expected_errors == '_FAIL_C_COMPILE':
+            if errors:
+                print("\n=== Expected C compile error ===")
+                print("\n\n=== Got Cython errors: ===")
+                print('\n'.join(errors))
+                print('\n')
+                raise RuntimeError('should have generated extension code')
+        elif errors or expected_errors:
             try:
                 for expected, error in zip(expected_errors, errors):
                     self.assertEquals(expected, error)
@@ -854,10 +865,13 @@ class CythonCompileTestCase(unittest.TestCase):
                 raise
             return None
 
-        if self.cython_only:
-            so_path = None
-        else:
-            so_path = self.run_distutils(test_directory, module, workdir, incdir)
+        so_path = None
+        if not self.cython_only:
+            try:
+                so_path = self.run_distutils(test_directory, module, workdir, incdir)
+            except:
+                if expected_errors != '_FAIL_C_COMPILE':
+                    raise
         return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
@@ -882,7 +896,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                 self.success = False
                 ext_so_path = self.runCompileTest()
                 failures, errors = len(result.failures), len(result.errors)
-                if not self.cython_only:
+                if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
                     # No new errors...
