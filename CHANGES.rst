@@ -13,6 +13,9 @@ Features added
   annotations.  Currently requires setting the compiler directive
   ``annotation_typing=True``.
 
+* Added directive use_switch (defaults to True) to optionally enable
+  the chained if statement to switch statement optimization.
+
 Bugs fixed
 ----------
 

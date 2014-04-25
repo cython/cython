@@ -388,6 +388,13 @@ Cython code.  Here is the list of currently supported directives:
 ``unraisable_tracebacks`` (True / False)
     Whether to print tracebacks when suppressing unraisable exceptions.
 
+``use_switch`` (True / False)
+    Whether to expand chained if-else statements (including statements like
+    ``if x == 1 or x == 2:``) into C switch statements.  This can have performance
+    benefits if there are lots of values but cause compiler errors if there are any
+    duplicate values (which may not be detectable at Cython compile time for all
+    C constants).
+
 
 How to set directives
 ---------------------
