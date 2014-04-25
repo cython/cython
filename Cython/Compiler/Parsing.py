@@ -267,10 +267,10 @@ def p_shift_expr(s):
 def p_arith_expr(s):
     return p_binop_expr(s, ('+', '-'), p_term)
 
-#term: factor (('*'|'/'|'%') factor)*
+#term: factor (('*'|'@'|'/'|'%'|'//') factor)*
 
 def p_term(s):
-    return p_binop_expr(s, ('*', '/', '%', '//'), p_factor)
+    return p_binop_expr(s, ('*', '@', '/', '%', '//'), p_factor)
 
 #factor: ('+'|'-'|'~'|'&'|typecast|sizeof) factor | power
 
@@ -1129,7 +1129,7 @@ def p_expression_or_assignment(s):
             expr = p_testlist_star_expr(s)
         expr_list.append(expr)
     if len(expr_list) == 1:
-        if re.match(r"([+*/\%^\&|-]|<<|>>|\*\*|//)=", s.sy):
+        if re.match(r"([+*/\%^\&|-]|<<|>>|\*\*|//|@)=", s.sy):
             lhs = expr_list[0]
             if isinstance(lhs, ExprNodes.SliceIndexNode):
                 # implementation requires IndexNode
@@ -1837,7 +1837,7 @@ def p_statement(s, ctx, first_statement = 0):
         return p_DEF_statement(s)
     elif s.sy == 'IF':
         return p_IF_statement(s, ctx)
-    elif s.sy == 'DECORATOR':
+    elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
             s.error('decorator not allowed here')
         s.level = ctx.level
@@ -2884,7 +2884,7 @@ def p_ctypedef_statement(s, ctx):
 
 def p_decorators(s):
     decorators = []
-    while s.sy == 'DECORATOR':
+    while s.sy == '@':
         pos = s.position()
         s.next()
         decstring = p_dotted_name(s, as_allowed=0)[2]

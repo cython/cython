@@ -10,6 +10,7 @@ char_prefixes = "cC"
 any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
 
+
 def make_lexicon():
     from Cython.Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
@@ -50,13 +51,12 @@ def make_lexicon():
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex | AnyChar)
 
-    deco = Str("@")
     bra = Any("([{")
     ket = Any(")]}")
-    punct = Any(":,;+-*/|&<>=.%`~^?!")
+    punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
-                    "<<=", ">>=", "**=", "//=", "->")
+                    "<<=", ">>=", "**=", "//=", "->", "@=")
     spaces = Rep1(Any(" \t\f"))
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))
@@ -68,7 +68,6 @@ def make_lexicon():
         (intliteral, 'INT'),
         (fltconst, 'FLOAT'),
         (imagconst, 'IMAG'),
-        (deco, 'DECORATOR'),
         (punct | diphthong, TEXT),
 
         (bra, Method('open_bracket_action')),
