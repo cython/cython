@@ -54,7 +54,7 @@ Bugs fixed
 * Memory leak in memory views when copying overlapping, contiguous slices.
 
 * Format checking when requesting non-contiguous buffers from
-  ``cython.array`` objects was disabled in Py3.
+  ``cython.array`` objects was accidentally omitted in Py3.
 
 * C++ destructor calls in extension types could fail to compile in clang.
 
