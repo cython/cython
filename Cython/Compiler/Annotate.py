@@ -155,7 +155,7 @@ body { font-family: courier; font-size: 12; }
             return ur"<span class='cython %s'>%s</span>" % (
                 group_name, match.group(group_name))
 
-        for k, line in enumerate(lines):
+        for k, line in enumerate(lines, 1):
             line = html_escape(line)
             try:
                 code = code_source_file[k]
