@@ -10,9 +10,6 @@ import Version
 from Code import CCodeWriter
 from Cython import Utils
 
-from contextlib import closing
-
-# need one-characters subsitutions (for now) so offsets aren't off
 
 class AnnotationCCodeWriter(CCodeWriter):
 
@@ -52,12 +49,12 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     def _css(self):
         """css template will later allow to choose a colormap"""
-        css = self._css_template
+        css = [self._css_template]
         for i in range(255):
             color = u"FFFF%02x" % int(255/(1+i/10.0))
-            css = css+'\n.cython.score-%s {background-color: #%s;}' % (str(i),color)
+            css.append('\n.cython.score-%d {background-color: #%s;}' % (i, color))
 
-        return css
+        return ''.join(css)
 
     _js = """
     function toggleDiv(id) {
@@ -66,7 +63,6 @@ class AnnotationCCodeWriter(CCodeWriter):
         else theDiv.style.display = 'none';
     }
     """
-
 
     _css_template = """
 
@@ -96,7 +92,7 @@ body { font-family: courier; font-size: 12; }
 """
 
     def save_annotation(self, source_filename, target_filename):
-        with closing(Utils.open_source_file(source_filename)) as f:
+        with Utils.open_source_file(source_filename) as f:
             lines = f.readlines()
         code_source_file = self.code.get(source_filename, {})
         c_file = Utils.decode_filename(os.path.basename(target_filename))
@@ -129,9 +125,6 @@ body { font-family: courier; font-size: 12; }
     def _save_annotation_footer(self):
         return (u'</body></html>\n',)
 
-
-
-
     def _save_annotation(self, lines, code_source_file , c_file=None):
         """
         lines : original cython source code split by lines
@@ -148,7 +141,6 @@ body { font-family: courier; font-size: 12; }
         outlist.extend(self._save_annotation_footer())
         return ''.join(outlist)
 
-
     def _save_annotation_body(self, lines, code_source_file , c_file=None):
         outlist=[]
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
@@ -157,13 +149,11 @@ body { font-family: courier; font-size: 12; }
 
         self.mark_pos(None)
 
-
         def annotate(match):
             group_name = match.lastgroup
             calls[group_name] += 1
             return ur"<span class='cython %s'>%s</span>" % (
                 group_name, match.group(group_name))
-
 
         for k, line in enumerate(lines):
             line = html_escape(line)
@@ -190,6 +180,7 @@ body { font-family: courier; font-size: 12; }
             outlist.append(u'</pre>\n')
             outlist.append(u"<pre class='cython code score-%s' >%s</pre>" % (score, code))
         return outlist
+
 
 _parse_code = re.compile(
     ur'(?P<refnanny>__Pyx_X?(?:GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)|'
