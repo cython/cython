@@ -353,6 +353,7 @@ class ConstructorSlot(InternalMethodSlot):
         if (self.slot_name != 'tp_new'
                 and scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
+                and not scope.has_memoryview_attrs
                 and not scope.lookup_here(self.method)):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
