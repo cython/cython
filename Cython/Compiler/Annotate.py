@@ -138,7 +138,7 @@ body { font-family: courier; font-size: 12; }
         return ''.join(outlist)
 
     def _save_annotation_body(self, lines, code_source_file, c_file=None):
-        outlist=[]
+        outlist = []
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
             (name, 0) for name in
