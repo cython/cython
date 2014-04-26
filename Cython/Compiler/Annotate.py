@@ -140,8 +140,10 @@ body { font-family: courier; font-size: 12; }
     def _save_annotation_body(self, lines, code_source_file, c_file=None):
         outlist=[]
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
-        zero_calls = dict((name, 0) for name in
-                          'refnanny py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split())
+        new_calls_map = dict(
+            (name, 0) for name in
+            'refnanny py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split()
+        ).copy
 
         self.mark_pos(None)
 
@@ -163,7 +165,7 @@ body { font-family: courier; font-size: 12; }
                     code = code[len(pos_comment_marker):]
                 code = html_escape(code)
 
-            calls = zero_calls.copy()
+            calls = new_calls_map()
             code = _parse_code(annotate, code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
