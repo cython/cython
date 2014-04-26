@@ -41,6 +41,10 @@ Features added
 Bugs fixed
 ----------
 
+* Memory leak when extension subtypes add a memory view as attribute
+  to those of the parent type without having Python object attributes
+  or a user provided dealloc method.
+
 * Compiler crash on readonly properties in "binding" mode.
 
 * Auto-encoding with ``c_string_encoding=ascii`` failed in Py3.3.

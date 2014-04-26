@@ -1768,6 +1768,7 @@ class CClassScope(ClassScope):
     #  method_table_cname    string
     #  getset_table_cname    string
     #  has_pyobject_attrs    boolean  Any PyObject attributes?
+    #  has_memoryview_attrs  boolean  Any memory view attributes?
     #  has_cyclic_pyobject_attrs    boolean  Any PyObject attributes that may need GC?
     #  property_entries      [Entry]
     #  defined               boolean  Defined in .pxd file
@@ -1777,6 +1778,7 @@ class CClassScope(ClassScope):
     is_c_class_scope = 1
 
     has_pyobject_attrs = False
+    has_memoryview_attrs = False
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
@@ -1850,7 +1852,9 @@ class CClassScope(ClassScope):
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
-            if type.is_pyobject and name != '__weakref__':
+            if type.is_memoryviewslice:
+                self.has_memoryview_attrs = True
+            elif type.is_pyobject and name != '__weakref__':
                 self.has_pyobject_attrs = True
                 if (not type.is_builtin_type
                         or not type.scope or type.scope.needs_gc()):
