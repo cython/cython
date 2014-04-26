@@ -167,13 +167,9 @@ class AnnotationCCodeWriter(CCodeWriter):
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
 
-            outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(this)'>" % score)
-
-            outlist.append(u" %d: " % k)
-            outlist.append(line.rstrip())
-
-            outlist.append(u'</pre>\n')
-            outlist.append(u"<pre class='cython code score-%s' >%s</pre>" % (score, code))
+            outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(this)'> %d: %s</pre>\n" % (
+                score, k, line.rstrip()))
+            outlist.append(u"<pre class='cython code score-%s'>%s</pre>" % (score, code))
         return outlist
 
 
