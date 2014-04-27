@@ -150,7 +150,6 @@ class AnnotationCCodeWriter(CCodeWriter):
         html_code = highlight(
             code, CythonLexer(stripnl=False, stripall=False),
             HtmlFormatter(nowrap=True))
-        # re-prepend the empty lines
         return html_code
 
     def _save_annotation_body(self, cython_code, generated_code):
