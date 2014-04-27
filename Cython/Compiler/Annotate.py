@@ -169,7 +169,7 @@ class AnnotationCCodeWriter(CCodeWriter):
                 group_name, match.group(group_name))
 
         lines = self._htmlify_code(cython_code).splitlines()
-        line_width = len(str(len(lines)))
+        lineno_width = len(str(len(lines)))
 
         for k, line in enumerate(lines, 1):
             try:
@@ -198,10 +198,10 @@ class AnnotationCCodeWriter(CCodeWriter):
                 u"<pre class='cython line score-{score}'{onclick}>"
                 # generate line number with expand symbol in front,
                 # and the right  number of digit
-                u"{expandsymbol}{line:0{line_width}d}: {code}</pre>\n".format(
+                u"{expandsymbol}{line:0{lineno_width}d}: {code}</pre>\n".format(
                     score=score,
                     expandsymbol=expandsymbol,
-                    line_width=line_width,
+                    lineno_width=lineno_width,
                     line=k,
                     code=line.rstrip(),
                     onclick=onclick,
