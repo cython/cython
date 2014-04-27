@@ -135,7 +135,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         return ''.join(outlist)
 
     def _save_annotation_body(self, lines, code_source_file):
-        outlist = []
+        outlist = [u'<div class="cython">']
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
             (name, 0) for name in
@@ -170,6 +170,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(this)'> %d: %s</pre>\n" % (
                 score, k, line.rstrip()))
             outlist.append(u"<pre class='cython code score-%s'>%s</pre>" % (score, code))
+        outlist.append(u"</div>")
         return outlist
 
 
