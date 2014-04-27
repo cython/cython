@@ -54,7 +54,11 @@ class AnnotationCCodeWriter(CCodeWriter):
         for i in range(255):
             color = u"FFFF%02x" % int(255/(1+i/10.0))
             css.append('\n.cython.score-%d {background-color: #%s;}' % (i, color))
-
+        try:
+            from pygments.formatters import HtmlFormatter
+            css.append(HtmlFormatter().get_style_defs('.cython'))
+        except ImportError:
+            pass
         return ''.join(css)
 
     _js = """
@@ -70,7 +74,7 @@ class AnnotationCCodeWriter(CCodeWriter):
 
         .cython.tag  {  }
         .cython.line { margin: 0em }
-        .cython.code  { font-size: 9; color: #444444; display: none; margin-left: 20px; }
+        .cython.code  { font-size: 9; color: #444444; display: none; margin: 0px 0px 0px 20px;  }
 
         .cython.code .py_c_api  { color: red; }
         .cython.code .py_macro_api  { color: #FF7000; }
@@ -135,6 +139,30 @@ class AnnotationCCodeWriter(CCodeWriter):
         return ''.join(outlist)
 
     def _save_annotation_body(self, lines, code_source_file):
+        try :
+            from pygments import highlight
+            from pygments.lexers import CythonLexer
+            from pygments.formatters import HtmlFormatter
+
+            # pygments strip whitespace a t begining of file,
+            # need to compensate
+            n_empty_lines = 0
+            for l in lines :
+                if l == '\n':
+                    n_empty_lines = n_empty_lines+1
+                else:
+                    break
+            code = ''.join(lines)
+
+            hllines = highlight(code, CythonLexer(), HtmlFormatter(nowrap=True))
+            # re-prepend the empty lines
+            hllines = '\n'*n_empty_lines+hllines
+
+            lines = hllines.split('\n')
+        except ImportError:
+            lines  = map(html_escape, lines)
+
+
         outlist = [u'<div class="cython">']
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
@@ -150,8 +178,8 @@ class AnnotationCCodeWriter(CCodeWriter):
             return ur"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
+        ln_width = len(str(len(lines)))
         for k, line in enumerate(lines, 1):
-            line = html_escape(line)
             try:
                 code = code_source_file[k]
             except KeyError:
@@ -166,10 +194,26 @@ class AnnotationCCodeWriter(CCodeWriter):
             code = _parse_code(annotate, code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
+            onclick = ''
+            expandsymbol = '&#xA0;'
 
-            outlist.append(u"<pre class='cython line score-%s' onclick='toggleDiv(this)'> %d: %s</pre>\n" % (
-                score, k, line.rstrip()))
-            outlist.append(u"<pre class='cython code score-%s'>%s</pre>" % (score, code))
+            if code:
+                onclick = "onclick='toggleDiv(this)'"
+                expandsymbol = '+'
+            outlist.append(u"<pre class='cython line score-{score}'"
+                               u"{onclick}>"
+                               # generate line number with expand symbol in front,
+                               # and the right  number of digit
+                               "{expandsymbol}{ln:0{ln_width}d}: {line}</pre>\n".format(
+                                   score=score,
+                                   expandsymbol= expandsymbol,
+                                   ln_width=ln_width,
+                                   ln=k,
+                                   line=line.rstrip(),
+                                   onclick=onclick
+                                ))
+            if code:
+                outlist.append(u"<pre class='cython code score-%s'>%s</pre>" % (score, code))
         outlist.append(u"</div>")
         return outlist
 
