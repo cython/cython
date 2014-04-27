@@ -207,7 +207,7 @@ class AnnotationCCodeWriter(CCodeWriter):
                     onclick=onclick,
                 ))
             if c_code:
-                outlist.append(u"<pre class='cython c_code score-%s'>%s</pre>" % (score, c_code))
+                outlist.append(u"<pre class='cython code score-%s'>%s</pre>" % (score, c_code))
         outlist.append(u"</div>")
         return outlist
 
