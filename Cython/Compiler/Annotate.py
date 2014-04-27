@@ -92,12 +92,12 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     def save_annotation(self, source_filename, target_filename):
         with Utils.open_source_file(source_filename) as f:
-            lines = f.readlines()
-        code_source_file = self.code.get(source_filename, {})
+            code = f.read()
+        generated_code = self.code.get(source_filename, {})
         c_file = Utils.decode_filename(os.path.basename(target_filename))
         html_filename = os.path.splitext(target_filename)[0] + ".html"
         with codecs.open(html_filename, "w", encoding="UTF-8") as out_buffer:
-            out_buffer.write(self._save_annotation(lines, code_source_file, c_file))
+            out_buffer.write(self._save_annotation(code, generated_code, c_file))
 
     def _save_annotation_header(self, c_file):
         outlist = [
@@ -125,44 +125,35 @@ class AnnotationCCodeWriter(CCodeWriter):
     def _save_annotation_footer(self):
         return (u'</body></html>\n',)
 
-    def _save_annotation(self, lines, code_source_file, c_file=None):
+    def _save_annotation(self, code, generated_code, c_file=None):
         """
         lines : original cython source code split by lines
-        code_source_file : generated c code keyed by line number in original file
+        generated_code : generated c code keyed by line number in original file
         target filename : name of the file in which to store the generated html
         c_file : filename in which the c_code has been written
         """
         outlist = []
         outlist.extend(self._save_annotation_header(c_file))
-        outlist.extend(self._save_annotation_body(lines, code_source_file))
+        outlist.extend(self._save_annotation_body(code, generated_code))
         outlist.extend(self._save_annotation_footer())
         return ''.join(outlist)
 
-    def _save_annotation_body(self, lines, code_source_file):
-        try :
+    def _htmlify_code(self, code):
+        try:
             from pygments import highlight
             from pygments.lexers import CythonLexer
             from pygments.formatters import HtmlFormatter
-
-            # pygments strip whitespace a t begining of file,
-            # need to compensate
-            n_empty_lines = 0
-            for l in lines :
-                if l == '\n':
-                    n_empty_lines = n_empty_lines+1
-                else:
-                    break
-            code = ''.join(lines)
-
-            hllines = highlight(code, CythonLexer(), HtmlFormatter(nowrap=True))
-            # re-prepend the empty lines
-            hllines = '\n'*n_empty_lines+hllines
-
-            lines = hllines.split('\n')
         except ImportError:
-            lines  = map(html_escape, lines)
+            # no Pygments, just escape the code
+            return html_escape(code)
 
+        html_code = highlight(
+            code, CythonLexer(stripnl=False, stripall=False),
+            HtmlFormatter(nowrap=True))
+        # re-prepend the empty lines
+        return html_code
 
+    def _save_annotation_body(self, cython_code, generated_code):
         outlist = [u'<div class="cython">']
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
@@ -178,42 +169,46 @@ class AnnotationCCodeWriter(CCodeWriter):
             return ur"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
-        ln_width = len(str(len(lines)))
+        lines = self._htmlify_code(cython_code).splitlines()
+        line_width = len(str(len(lines)))
+
         for k, line in enumerate(lines, 1):
             try:
-                code = code_source_file[k]
+                c_code = generated_code[k]
             except KeyError:
-                code = ''
+                c_code = ''
             else:
-                code = _replace_pos_comment(pos_comment_marker, code)
-                if code.startswith(pos_comment_marker):
-                    code = code[len(pos_comment_marker):]
-                code = html_escape(code)
+                c_code = _replace_pos_comment(pos_comment_marker, c_code)
+                if c_code.startswith(pos_comment_marker):
+                    c_code = c_code[len(pos_comment_marker):]
+                c_code = html_escape(c_code)
 
             calls = new_calls_map()
-            code = _parse_code(annotate, code)
+            c_code = _parse_code(annotate, c_code)
             score = (5 * calls['py_c_api'] + 2 * calls['pyx_c_api'] +
                      calls['py_macro_api'] + calls['pyx_macro_api'])
-            onclick = ''
-            expandsymbol = '&#xA0;'
 
-            if code:
-                onclick = "onclick='toggleDiv(this)'"
+            if c_code:
+                onclick = " onclick='toggleDiv(this)'"
                 expandsymbol = '+'
-            outlist.append(u"<pre class='cython line score-{score}'"
-                               u"{onclick}>"
-                               # generate line number with expand symbol in front,
-                               # and the right  number of digit
-                               "{expandsymbol}{ln:0{ln_width}d}: {line}</pre>\n".format(
-                                   score=score,
-                                   expandsymbol= expandsymbol,
-                                   ln_width=ln_width,
-                                   ln=k,
-                                   line=line.rstrip(),
-                                   onclick=onclick
-                                ))
-            if code:
-                outlist.append(u"<pre class='cython code score-%s'>%s</pre>" % (score, code))
+            else:
+                onclick = ''
+                expandsymbol = '&#xA0;'
+
+            outlist.append(
+                u"<pre class='cython line score-{score}'{onclick}>"
+                # generate line number with expand symbol in front,
+                # and the right  number of digit
+                u"{expandsymbol}{line:0{line_width}d}: {code}</pre>\n".format(
+                    score=score,
+                    expandsymbol=expandsymbol,
+                    line_width=line_width,
+                    line=k,
+                    code=line.rstrip(),
+                    onclick=onclick,
+                ))
+            if c_code:
+                outlist.append(u"<pre class='cython c_code score-%s'>%s</pre>" % (score, c_code))
         outlist.append(u"</div>")
         return outlist
 
