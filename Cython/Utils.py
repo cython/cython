@@ -144,6 +144,7 @@ def check_package_dir(dir, package_names):
 @cached_function
 def is_package_dir(dir_path):
     for filename in ("__init__.py",
+                     "__init__.pyc",
                      "__init__.pyx",
                      "__init__.pxd"):
         path = os.path.join(dir_path, filename)
