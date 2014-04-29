@@ -2445,8 +2445,6 @@ class CFuncType(CType):
         if self.nogil != other_type.nogil:
             return 0
         self.original_sig = other_type.original_sig or other_type
-        if as_cmethod:
-            self.args[0] = other_type.args[0]
         return 1
 
 
