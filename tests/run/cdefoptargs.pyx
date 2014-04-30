@@ -1,4 +1,4 @@
-# the calls:
+from cython cimport typeof
 
 def call2():
     """
@@ -39,3 +39,31 @@ def test_foo():
     print foo(1, 2)
     print foo(1, 2, 3)
     print foo(1, foo(2, 3), foo(4))
+
+cdef class A:
+    cpdef method(self):
+        """
+        >>> A().method()
+        'A'
+        """
+        return typeof(self)
+
+cdef class B(A):
+    cpdef method(self, int x = 0):
+        """
+        >>> B().method()
+        ('B', 0)
+        >>> B().method(100)
+        ('B', 100)
+        """
+        return typeof(self), x
+
+cdef class C(B):
+    cpdef method(self, int x = 10):
+        """
+        >>> C().method()
+        ('C', 10)
+        >>> C().method(100)
+        ('C', 100)
+        """
+        return typeof(self), x
