@@ -54,7 +54,7 @@ To use this to build your Cython file use the commandline options:
     $ python setup.py build_ext --inplace
 
 Which will leave a file in your local directory called :file:`helloworld.so` in unix
-or :file:`helloworld.dll` in Windows. Now to use this file: start the python
+or :file:`helloworld.pyd` in Windows. Now to use this file: start the python
 interpreter and simply import it as if it was a regular python module::
 
     >>> import helloworld
