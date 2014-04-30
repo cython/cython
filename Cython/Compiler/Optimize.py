@@ -3442,6 +3442,31 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                                     constant_result = node.constant_result)
         return new_node
 
+    def visit_AddNode(self, node):
+        self._calculate_const(node)
+        if node.constant_result is ExprNodes.not_a_constant:
+            return node
+        if node.operand1.is_string_literal and node.operand2.is_string_literal:
+            # some people combine string literals with a '+'
+            str1, str2 = node.operand1, node.operand2
+            if isinstance(str1, ExprNodes.UnicodeNode) and isinstance(str2, ExprNodes.UnicodeNode):
+                bytes_value = None
+                if str1.bytes_value is not None and str2.bytes_value is not None:
+                    if str1.bytes_value.encoding == str2.bytes_value.encoding:
+                        bytes_value = BytesLiteral(str1.bytes_value + str2.bytes_value)
+                        bytes_value.encoding = str1.bytes_value.encoding
+                string_value = EncodedString(node.constant_result)
+                return ExprNodes.UnicodeNode(
+                    str1.pos, value=string_value, constant_result=node.constant_result, bytes_value=bytes_value)
+            elif isinstance(str1, ExprNodes.BytesNode) and isinstance(str2, ExprNodes.BytesNode):
+                if str1.value.encoding == str2.value.encoding:
+                    bytes_value = BytesLiteral(node.constant_result)
+                    bytes_value.encoding = str1.value.encoding
+                    return ExprNodes.BytesNode(str1.pos, value=bytes_value, constant_result=node.constant_result)
+            # all other combinations are rather complicated
+            # to get right in Py2/3: encodings, unicode escapes, ...
+        return self.visit_BinopNode(node)
+
     def visit_MulNode(self, node):
         self._calculate_const(node)
         if node.operand1.is_sequence_constructor:

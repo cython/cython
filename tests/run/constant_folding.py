@@ -110,6 +110,27 @@ def binop_bool():
 
 
 @cython.test_fail_if_path_exists(
+    "//ReturnStatNode//AddNode",
+)
+@cython.test_assert_path_exists(
+    "//ListNode//AddNode",
+)
+def add_strings():
+    """
+    >>> u, b, rest = add_strings()
+    >>> u == 'abcdef' or u
+    True
+    >>> b == b'abcdef' or b
+    True
+    >>> rest
+    1
+    """
+    a = ["abc" + "def"]  # not currently optimised
+    # FIXME: test encodings and unicode escapes
+    return u"abc" + u"def", b"abc" + b"def", a[0] and 1
+
+
+@cython.test_fail_if_path_exists(
     "//SliceIndexNode",
 )
 def slicing2():
