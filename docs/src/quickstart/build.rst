@@ -16,8 +16,8 @@ There are several ways to build Cython code:
    were ``.py`` files (using distutils to compile and build in the background).
  - Run the ``cython`` command-line utility manually to produce the ``.c`` file
    from the ``.pyx`` file, then manually compiling the ``.c`` file into a shared
-   object library or ``.dll`` suitable for import from Python.
-   (This is mostly for debugging and experimentation.)
+   object library or DLL suitable for import from Python.
+   (These manual steps are mostly for debugging and experimentation.)
  - Use the [Sage]_ notebook which allows Cython code inline.
 
 Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
