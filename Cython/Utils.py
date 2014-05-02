@@ -386,3 +386,12 @@ def captured_fd(stream=2, encoding=None):
                 t.join()
     finally:
         os.close(orig_stream)
+
+
+def print_bytes(s, stream=sys.stdout):
+    stream.flush()
+    try:
+        out = stream.buffer  # Py3
+    except AttributeError:
+        out = stream         # Py2
+    out.write(s)

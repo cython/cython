@@ -867,7 +867,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
         so_path = None
         if not self.cython_only:
-            from Cython.Utils import captured_fd
+            from Cython.Utils import captured_fd, print_bytes
             get_stderr = None
             try:
                 with captured_fd(2) as get_stderr:
@@ -878,15 +878,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 else:
                     raise
             else:
-                c_compiler_stderr = get_stderr()
+                c_compiler_stderr = get_stderr().strip()
                 if c_compiler_stderr:
                     print("\n=== C/C++ compiler error output: ===")
-                    sys.stdout.flush()
-                    try:
-                        out = sys.stdout.buffer  # Py3
-                    except AttributeError:
-                        out = sys.stdout         # Py2
-                    out.write(c_compiler_stderr)
+                    print_bytes(c_compiler_stderr)
                 if expected_errors == '_FAIL_C_COMPILE':
                     # must raise this outside the try block
                     raise RuntimeError('should have failed C compile')
