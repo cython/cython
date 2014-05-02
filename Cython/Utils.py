@@ -348,7 +348,7 @@ def get_cython_cache_dir():
 
 
 @contextmanager
-def captured_fd(stream=2):
+def captured_fd(stream=2, encoding=None):
     pipe_in = t = None
     orig_stream = os.dup(stream)  # keep copy of original stream
     try:
@@ -369,11 +369,17 @@ def captured_fd(stream=2):
                 finally:
                     os.close(pipe_in)
 
+            def get_output():
+                output = b''.join(data)
+                if encoding:
+                    output = output.decode(encoding)
+                return output
+
             from threading import Thread
             t = Thread(target=copy)
             t.daemon = True  # just in case
             t.start()
-            yield data
+            yield get_output
         finally:
             os.dup2(orig_stream, stream)  # restore original stream
             if t is not None:
