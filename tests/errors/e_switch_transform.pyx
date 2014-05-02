@@ -1,5 +1,6 @@
 # cython: optimize.use_switch=True
 # mode: error
+# tag: cerror
 
 import cython
 
@@ -10,5 +11,3 @@ cdef extern from *:
 
 def is_not_one(int i):
     return i != ONE and i != ONE_AGAIN
-
-_FAIL_C_COMPILE = True

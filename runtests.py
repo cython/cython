@@ -693,9 +693,6 @@ class CythonCompileTestCase(unittest.TestCase):
                 if line.startswith("_ERRORS"):
                     out.close()
                     out = ErrorWriter()
-                elif line.startswith('_FAIL_C_COMPILE'):
-                    out.close()
-                    return '_FAIL_C_COMPILE'
                 else:
                     out.write(line)
         finally:
@@ -839,7 +836,7 @@ class CythonCompileTestCase(unittest.TestCase):
             finally:
                 sys.stderr = old_stderr
 
-        if expected_errors == '_FAIL_C_COMPILE':
+        if 'cerror' in self.tags['tag']:
             if errors:
                 print("\n=== Expected C compile error ===")
                 print("\n\n=== Got Cython errors: ===")
@@ -873,7 +870,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 with captured_fd(2) as get_stderr:
                     so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except Exception:
-                if expected_errors == '_FAIL_C_COMPILE' and get_stderr and get_stderr():
+                if 'cerror' in self.tags['tag'] and get_stderr and get_stderr():
                     pass
                 else:
                     raise
@@ -882,7 +879,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 if c_compiler_stderr:
                     print("\n=== C/C++ compiler error output: ===")
                     print_bytes(c_compiler_stderr)
-                if expected_errors == '_FAIL_C_COMPILE':
+                if 'cerror' in self.tags['tag']:
                     # must raise this outside the try block
                     raise RuntimeError('should have failed C compile')
         return so_path
