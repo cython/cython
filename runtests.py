@@ -867,33 +867,24 @@ class CythonCompileTestCase(unittest.TestCase):
 
         so_path = None
         if not self.cython_only:
-            c_compiler_output = None
-            orig_stderr = os.dup(2)  # remember original stderr
+            from Cython.Utils import captured_fd
+            c_compiler_stderr = None
             try:
-                with tempfile.TemporaryFile() as temp_stderr:
-                    os.dup2(temp_stderr.fileno(), 2)  # replace stderr by temp file
-                    try:
-                        try:
-                            so_path = self.run_distutils(test_directory, module, workdir, incdir)
-                        finally:
-                            temp_stderr.seek(0)
-                            c_compiler_output = temp_stderr.read().strip()
-                    except Exception:
-                        if expected_errors == '_FAIL_C_COMPILE':
-                            assert c_compiler_output
-                        else:
-                            raise
-                    else:
-                        if c_compiler_output:
-                            print("\n=== C/C++ compiler output: ===")
-                            print(c_compiler_output)
-                        if expected_errors == '_FAIL_C_COMPILE':
-                            # must raise this outside the try block
-                            raise RuntimeError('should have failed C compile')
-                    finally:
-                        os.dup2(orig_stderr, 2)  # restore stderr
-            finally:
-                os.close(orig_stderr)
+                with captured_fd(2) as c_compiler_stderr:
+                    so_path = self.run_distutils(test_directory, module, workdir, incdir)
+            except Exception:
+                if expected_errors == '_FAIL_C_COMPILE':
+                    assert c_compiler_stderr
+                else:
+                    raise
+            else:
+                c_compiler_stderr = ''.join(c_compiler_stderr).strip()
+                if c_compiler_stderr:
+                    print("\n=== C/C++ compiler output: ===")
+                    print(c_compiler_stderr)
+                if expected_errors == '_FAIL_C_COMPILE':
+                    # must raise this outside the try block
+                    raise RuntimeError('should have failed C compile')
         return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
