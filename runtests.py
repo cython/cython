@@ -836,7 +836,7 @@ class CythonCompileTestCase(unittest.TestCase):
             finally:
                 sys.stderr = old_stderr
 
-        tostderr = sys.stderr.write
+        tostderr = sys.__stderr__.write
         if 'cerror' in self.tags['tag']:
             if errors:
                 tostderr("\n=== Expected C compile error ===\n")
@@ -885,11 +885,11 @@ class CythonCompileTestCase(unittest.TestCase):
                     stdout = get_stdout and get_stdout().strip()
                     if stdout:
                         tostderr("\n=== C/C++ compiler output: ===\n")
-                        print_bytes(stdout, end=None, file=sys.stderr)
+                        print_bytes(stdout, end=None, file=sys.__stderr__)
                     stderr = get_stderr and get_stderr().strip()
                     if stderr:
                         tostderr("\n=== C/C++ compiler error output: ===\n")
-                        print_bytes(stderr, end=None, file=sys.stderr)
+                        print_bytes(stderr, end=None, file=sys.__stderr__)
                     if stdout or stderr:
                         tostderr("\n==============================\n")
         return so_path
